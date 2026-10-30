@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "cedars.modules.calculations",
     "cedars.modules.programs",
     "cedars.modules.budgets",
+    "cedars.modules.claims",
     "allauth",
     "allauth.account",
     "allauth.mfa",

@@ -8,6 +8,9 @@ and snapshots superseded before the due date are not kept).
 
 Pricing (`register_pricer`, `price`): the Calculations module registers the function that prices a version's job, so a filing module
 asks this service to price its version and never imports the Calculations module (modules never import each other).
+
+Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
+for a year by program, so another module (Monthly reports' 13th-month report, BR-14.2) reads them without importing Claims.
 """
 
 from collections.abc import Callable
@@ -26,6 +29,7 @@ from .models import Deadline, Delegation, ReopenRequest, Submission, SubmissionV
 VERSION_FIELDS = ["number", "status", "reason", "files", "rule_set", "findings", "calculation", "late", "confirmed_by", "published_at"]
 _publishers: dict[str, tuple[Callable, Callable]] = {}
 _pricers: list[Callable] = []
+_claims_totals: list[Callable] = []
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
@@ -36,6 +40,18 @@ def register_pricer(price: Callable) -> None:
     """The Calculations module's pricing function: price(actor, version, job_zip, *, name, acc_version, allocation_version, settings)
     starts a run on the job (a local file) for the version and returns the run's id; the run's end calls record_calculation."""
     _pricers[:] = [price]
+
+
+def register_claims_totals(totals: Callable) -> None:
+    """The Claims module's reader: totals(organisation, year) -> [{prg_id, pa, year, quarters, final, records, expenditures, incentives,
+    gross_kwh, gross_kw, gross_therm, net_kwh, net_kw, net_therm, tsb}], one per program, from the year to date of the PA's latest
+    confirmed claims (quarters: the quarters confirmed; final: the annual confirmation is)."""
+    _claims_totals[:] = [totals]
+
+
+def claims_totals(organisation: Organisation, year: int) -> list[dict]:
+    """A PA's confirmed claims for a year by program; [] when Claims is not installed or nothing is confirmed."""
+    return _claims_totals[0](organisation, year) if _claims_totals else []
 
 
 def policy(module: str) -> WorkflowPolicy:

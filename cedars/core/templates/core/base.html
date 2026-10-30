@@ -18,6 +18,7 @@
   <nav aria-label="Main">
     <a href="{% url 'programs:catalog' %}"{% if here|slice:":10" == '/programs/' %} aria-current="page"{% endif %}>Programs</a>
     <a href="{% url 'budgets:index' %}"{% if here|slice:":9" == '/budgets/' %} aria-current="page"{% endif %}>Budgets</a>
+    <a href="{% url 'claims:index' %}"{% if here|slice:":8" == '/claims/' %} aria-current="page"{% endif %}>Claims</a>
     <a href="{% url 'calculations:runs' %}"{% if '/calculations/' in here and '/engines/' not in here %} aria-current="page"{% endif %}>Calculations</a>
     <a href="{% url 'administration:account' %}"{% if here == '/account/' %} aria-current="page"{% endif %}>Account</a>
     <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a>

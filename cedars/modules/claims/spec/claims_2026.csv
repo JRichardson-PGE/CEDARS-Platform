@@ -1,0 +1,217 @@
+table,field,cedars_name,type,required,description
+Claim,ClaimID,ClaimID,text255,yes,The unique and persistent record identifier and the primary key for the Claim table. Must match the corresponding ClaimID (previously CEInputID) in the Measure table. All values must start with the PA code and claim year in the format PA-YYYY.
+Claim,ParentClaimID,ParentClaimID,text255,,All values must start with the PA code and claim year in the format PA-YYYY.
+Claim,SiteID,SiteID,text255,,The unique and persistent record identifier and the primary key for the Site table. Must match a SiteID in the Site table. All values must start with the PA code.
+Claim,ParticipantID,ParticipantID,text255,,"Identifier used by PAs to track all SEM activities and claims for a participant across the full program engagement, including core cycles and any graduate cycle. This ID is needed in tracking data to consistently link related SEM records over time (e.g., FPCx.00 or 7999.P0)."
+Claim,ApplicationCode,ApplicationCode,text255,,A PA-specific code assigned to the incentive application.
+Claim,IETableName,IETableName,text255,,Specifies the Ex Ante interactive effects table referenced.
+Claim,NAICSBldgType,NAICSBldgType,text255,,"The NAICS description of the business/facility where the measure was installed, e.g. Cotton Farming. Not used for residential measures."
+Claim,MeasTechID,MeasTechID,text255,,ExAnte specific measure technology identifier.
+Claim,PrgElement,PrgElement,text255,,Program element or sub-program definition.
+Claim,ProjectDescription,ProjectDescription,text255,,Description of the project including enough information to allow understanding of the measure(s) being installed.
+Claim,ProjectID,ProjectID,text255,,The unique and persistent project identifier.
+Claim,WhySavingsZeroed,WhySavingsZeroed,text255,,Clarifying comment or details on why a program has no savings.
+Claim,WhyCostsZeroed,WhyCostsZeroed,text255,,Clarifying comment or details on why a program has no costs.
+Claim,Comments,Comments,text,,Clarifying comments or details not included in the other data reporting fields.
+Claim,ClaimType,ClaimType,text255,yes,Either custom or deemed.
+Claim,FundingCycle,FundingCycle,text255,yes,The program cycle that funded the measure.
+Claim,SEM_Phase,SEM_Phase,text255,,"Indicates the program cycle (including Transition Year (T) and two years of the Grad Program (G)), reporting period, and program year from which SEM (Strategic Energy Management) savings are being claimed. Example: SEM Program Cycle 1, Reporting Period 1, SEM Program Year 1. This value is selected from the SEM_Phase list and replaces the previous SEM fields: SEM_ProgramCycle, SEM_ReportingPeriod, and SEM_ProgramYear."
+Claim,BldgLoc,BldgLoc,text255,yes,Standard ExAnte Building Location/Climate Zone.
+Claim,BldgVint,BldgVint,text255,yes,Standard ExAnte Building Vintage.
+Claim,BldgHVAC,BldgHVAC,text255,yes,Standard ExAnte Building HVAC Type.
+Claim,DEER_MeasureID,DEER_MeasureID,text255,,DEER Measure ID referenced by implementation.
+Claim,DEER_Sector,DEER_Sector,text255,yes,Measure-level sector conforming to the Sectors listed in DEER.
+Claim,MeasImpactCalcType,MeasImpactCalcType,text255,,"Standard DEER type of measure impact calculation, e.g. Standard."
+Claim,InstalledNormUnit,InstalledNormUnit,text255,,Describes the normalization unit associated with the InstalledNumUnit (quantity) of the installed measure if different from the NormUnit associated with the NumUnit in the claim; This is descriptive and not used by the cost effectiveness calculator.
+Claim,CMPA_ApplicationID,CMPA_ApplicationID,text255,,The Application ID for the project reported to CMPA.
+Claim,CMPA_MeasureCode,CMPA_MeasureCode,text255,,The code for the measure reported to CMPA.
+Claim,MeasDetailID,MeasDetailID,text255,,The unique identifier of the eTRM permutation.
+Claim,TotalFirstYearGrosskW,TotalFirstYearGrosskW,number,yes,Total first year gross kW savings to be claimed.
+Claim,TotalFirstYearGrosskWh,TotalFirstYearGrosskWh,number,yes,Total first year gross kWh savings to be claimed.
+Claim,TotalFirstYearGrossTherm,TotalFirstYearGrossTherm,number,yes,Total first year gross therm savings to be claimed.
+Claim,TotalFirstYearNetkW,TotalFirstYearNetkW,number,yes,Total first year net kW savings to be claimed.
+Claim,TotalFirstYearNetkWh,TotalFirstYearNetkWh,number,yes,Total first year net kWh savings to be claimed.
+Claim,TotalFirstYearNetTherm,TotalFirstYearNetTherm,number,yes,Total first year net therm savings to be claimed.
+Claim,TotalLifecycleGrosskW,TotalLifecycleGrosskW,number,yes,Total life time gross kW savings to be claimed.
+Claim,TotalLifecycleGrosskWh,TotalLifecycleGrosskWh,number,yes,Total life time gross kWh savings to be claimed.
+Claim,TotalLifecycleGrossTherm,TotalLifecycleGrossTherm,number,yes,Total life time gross therm savings to be claimed.
+Claim,TotalLifecycleNetkW,TotalLifecycleNetkW,number,yes,Total life time net kW savings to be claimed.
+Claim,TotalLifecycleNetkWh,TotalLifecycleNetkWh,number,yes,Total life time net kWh savings to be claimed.
+Claim,TotalLifecycleNetTherm,TotalLifecycleNetTherm,number,yes,Total life time net therm savings to be claimed.
+Claim,TotalGrossMeasureCost,TotalGrossMeasureCost,number,yes,Total gross measure cost to be claimed.
+Claim,TotalGrossMeasureCost_ER,TotalGrossMeasureCost_ER,number,yes,Total gross early retirement measure cost to be claimed.
+Claim,TotalGrossIncentive,TotalGrossIncentive,number,yes,Total gross incentive to be claimed.
+Claim,TotalCustomerInfrastructureCosts,TotalCustomerInfrastructureCosts,number,,Total customer infrastructure costs. Required for fuel sub.
+Claim,PartialPaymentPercent,PartialPaymentPercent,number,,The percent of payment associated with the incentives included in the claim record.
+Claim,WaterGallons,WaterGallons,number,,Water Energy Calculator gallons water savings used to calculate water energy savings.
+Claim,InstalledNumUnits,InstalledNumUnits,number,,Quantity of the installed measure associated with the InstalledNormUnit if different from the NumUnit associated with the NormUnit in the claim. The CET does not use this field.
+Claim,OriginalMeterInstallYear,OriginalMeterInstallYear,integer,,Year that the original meter was installed. Required for fuel sub.
+Claim,CCAREN_Flag,CCAREN_Flag,bit,,"Community Choice Aggregator (CCA) and Regional Energy Network (REN). Flag to identify claims that had participation by a REN or CCA. For PAs who are a REN or CCA, this flag should be true for all claims."
+Claim,DAC_Flag,DAC_Flag,bit,,Flag to identify participation in an area designated as a disadvantaged community by the California Environmental Protection Agency (census tract). This indicates a geographic Hard-to-Reach (HTR) condition. Contributes to Hard-to-Reach (HTR) eligibility. Disadvantaged community participant counts are included in the Participant table.
+Claim,ElectricMasterMeter_Flag,ElectricMasterMeter_Flag,bit,,Flag used to identify whether a site is a master metered multifamily residence for electric.
+Claim,ETP_Flag,ETP_Flag,bit,,Emerging Technology Program. Flag to identify that the measure is a product of an emerging techonology program.
+Claim,GasMasterMeter_Flag,GasMasterMeter_Flag,bit,,Flag used to identify whether a site is a master metered multifamily residence for gas.
+Claim,HTR_Flag,HTR_Flag,bit,,Indicates the claim is being reported as Hard to Reach. The claim must satisfy one of the valid Hard to Reach qualification pathways. Hard to Reach participant counts are included in the Participant table.
+Claim,Lang_Flag,Lang_Flag,bit,,Flag to identify customers where the primary language spoken is other than English. Contributes to Hard-to-Reach (HTR) eligibility.
+Claim,NMEC_TU_Flag,NMEC_TU_Flag,bit,,Flag to identify whether the Claim represents a True-Up for a Normalized Metered Energy Consumption (NMEC) project. Set it to true if the Claim reflects adjusted savings based on post-implementation performance data.
+Claim,NRSize_Flag,NRSize_Flag,bit,,"Flag to identify projects at businesses with 25 or fewer employees, or annual electric demand is less than 20 kW, or annual gas usage is less than 10,000 therms. Contributes to Hard-to-Reach (HTR) eligibility."
+Claim,NRLease_Flag,NRLease_Flag,bit,,Flag to identify measures that are installed at locations that are leased or rented. Contributes to Hard-to-Reach (HTR) eligibility.
+Claim,OBF_Flag,OBF_Flag,bit,,On Bill Financing. Flag to identify measures that had on-bill financing.
+Claim,OMBCSA_Flag,OMBCSA_Flag,bit,,"Flag to identify measures installed at customer premises located outside the United States Office of Management and Budget (OMB) Combined Statistical Areas of the San Francisco Bay Area, Greater Los Angeles Area, and Greater Sacramento Area, and outside the OMB metropolitan statistical area of San Diego County. This indicates a geographic Hard-to-Reach (HTR) condition. Contributes to HTR eligibility."
+Claim,PartialPaymentFinal_Flag,PartialPaymentFinal_Flag,bit,,The claim is the final payment of a set of partial payments.
+Claim,PublicK_12_Flag,PublicK_12_Flag,bit,,Public primary and secondary schools up to 12th grade. Flag to identify public K-12 schools
+Claim,ResLI_Flag,ResLI_Flag,bit,,Flag to identify the residential customer meets the low-income definition through CARE or FERA eligibility. Contributes to Hard-to-Reach (HTR) eligibility.
+Claim,ResMFMH_Flag,ResMFMH_Flag,bit,,Flag to identify residential multi-family homes and mobile/manufactured homes where tenants rent or lease the dwelling. Contributes to Hard-to-Reach (HTR) eligibility.
+Claim,Revised_Flag,Revised_Flag,bit,,Flag to identify that claim was revised since it was originally submitted.
+Claim,Underserved_Flag,Underserved_Flag,bit,,Flag to indentify program is in an underserved community.
+Claim,CA_Flag,CA_Flag,bit,,Flag to identify Cultural Accessibility. It identifies California Native American Tribes as hard to reach. Tribal customers qualify independently under Commission policy and do not need to meet additional Hard-to-Reach (HTR) criteria.
+Claim,LG_Flag,LG_Flag,bit,,Flag to identify Local Government customer. Contributes to Hard-to-Reach (HTR) eligibility.
+Claim,ApplicationDate,ApplicationDate,date,yes,"Initiation date for a project or measure, e.g. contract date, application date, or program enrollment date."
+Claim,AuthorizedSignatureDate,AuthorizedSignatureDate,date,,The date the rebate/incentive was approved for payment
+Claim,CustomerAgreementDate,CustomerAgreementDate,date,,The date the agreement including the project specifics (measures and potential incentives) was signed/approved by both the customer and the IOU or their agents.
+Claim,ComplianceCertDate,ComplianceCertDate,date,,The date the Title 24 building compliance certificate was issued. Only use for Deemed measures.
+Claim,InstallationDate,InstallationDate,date,yes,"The date the project measure was installed, was operational and started providing savings."
+Claim,PaidDate,PaidDate,date,,The date the cost has incurred.
+Claim,ProjectCompletionDate,ProjectCompletionDate,date,yes,"The date the project, including all required internal and external verification and EM&V was completed."
+Claim,StartDate,StartDate,date,,From DeemedMeasure table. The first date that the implementation is to be referenced by claims. The start date for the relevant values from the referenced work paper.
+Claim,PermitIssuanceDate,PermitIssuanceDate,date,,The date the building permit was issued.
+Claim,ShipmentDate,ShipmentDate,date,,The date the measure was shipped to the customer.
+Claim,SalesDate,SalesDate,date,,The date the measure was purchased by the customer.
+ContactClaim,ClaimID,ClaimID,text255,yes,The persistent record identifier that matches with a Claim.ClaimID. All values must start with the PA code and claim the year in the format PA-YYYY. Part of the ContactClaim table compound primary key - the ContactID and ClaimID in combination need to be unique.
+ContactClaim,ContactID,ContactID,text255,yes,The persistent record identifier that matches to the PII Contact table. All values must start with the PA code. Part of the ContactClaim table compound primary key - the ContactID and ClaimID in combination need to be unique.
+Measure,ClaimID,ClaimID,text255,yes,The unique and persistent record identifier and the primary key for the Measure table. Must match the corresponding ClaimID in the Claim table. All values must start with the PA code and claim year in the format PA-YYYY. This field was previously called CEInputID.
+Measure,PrgID,PrgID,text255,yes,The unique program identifier; joins to the ProgramCost table.
+Measure,ClaimYearQuarter,ClaimYearQuarter,text6,yes,The year and quarter when the measure(s) were both installed and paid in e.g. '2023Q1'.
+Measure,Sector,Sector,text255,yes,Measure-level sector aligned to the program business plan sectors.
+Measure,DeliveryType,DeliveryType,text255,yes,From DEER. Identifies program implementation strategy/method of delivering a measure to a customer (e.g. direct install).
+Measure,BldgType,BldgType,text255,yes,"From DEER. Text codes that identify the building type/use and other parameters specific to that building use.  For example, 'Com' = Commercial buildings."
+Measure,AC_Climate_Zone,E3ClimateZone,text255,yes,The geographic area where the installation is completed. The CEC designates micro-climate and ranges from 1 - 16. Use 'System' if a program or measure installation is not specific to an area or city. Required for cost effectiveness calc; Must be compatible with CET values (e.g. '3A').
+Measure,AC_Gas_Impact_Profile,E3GasSavProfile,text255,,"Used to profile typical period of use for gas appliances/measures. Required for cost effectiveness calculation for measures with gas savings (e.g. 'Summer Only', 'Winter Only', 'Annual')."
+Measure,AC_Gas_Target_Sector,E3GasSector,text255,,"Used to determine how gas is purchased by the customer (e.g. 'Residential', 'Commercial', 'Core'). Required for cost effectiveness calculation for measures with gas savings."
+Measure,AC_Elec_Impact_Profile,E3MeaElecEndUseShape,text255,,Identifies the measure electric end use shape (i.e. load shape). Required for cost effectiveness calculation for measures with electric savings.
+Measure,AC_Elec_Target_Sector,E3TargetSector,text255,,Identifies the sector being targeted by the measure intervention. Required for cost effectiveness calculation for measures with electric savings.
+Measure,MeasAppType,MeasAppType,text255,yes,"From DEER. The measure application identifies the context for the measure's installation. (e.g. accelerated replacement, new construction or behavioral)."
+Measure,MeasCode,MeasCode,text255,,PA-specific measure code.
+Measure,MeasDescription,MeasDescription,text,yes,Description of measure; should include enough information to allow understanding of what EE measure(s) being installed.
+Measure,MeasImpactType,MeasImpactType,text255,yes,"From DEER. Describes how the savings impact was determined (e.g. Deemed-DEER, Deemed-Workpaper, Site-specific calculation, etc.)."
+Measure,FuelID,FuelID,text255,,This field references a CEDARS value list used to identify fuel substitution for Deemed measures. FuelID distinguishes exempt and non-exempt Deemed measure packages under the Viable Electric Alternative (VEA) framework established in D.23-04-035.
+Measure,MeasureID,MeasureID,text255,,Unique and persistent measure identifier.
+Measure,TechGroup,TechGroup,text255,yes,"From DEER. All Technology Types in an end use are associated with a high-level Technology Group. For example, in the 'lighting' end use all screw-in lighting technologies, including compact fluorescent lamps (CFLs), light-emitting diodes (LEDs), and incandescent lamps are part of a Technology Group. All hard-wired lighting fixtures are part of a different Technology Group."
+Measure,TechType,TechType,text255,yes,"From DEER. Technology Type is more specific than Technology Group. For example, a Technology Group can be further classified into individual parts. For example, all screw-in lighting technologies, including compact fluorescent lamps (CFLs), light-emitting diodes (LEDs), and incandescent lamps are included in the same Technology Group."
+Measure,UseCategory,UseCategory,text255,yes,"From DEER. Describes the end use of the measure in broad terms  (e.g. HVAC, lighting, motors, refrigeration, process)."
+Measure,UseSubCategory,UseSubCategory,text255,yes,"From DEER. This is a more specific end use subcategory (e.g. the Lighting UseCategory contains Indoor General, Exit Signs, etc.)."
+Measure,WaterUse,WaterUse,text255,,Water Energy Calculator water used to calculate water energy savings.
+Measure,PreDesc,PreDesc,text,,Pre-existing measure description.
+Measure,StdDesc,StdDesc,text,,Standard measure description.
+Measure,SourceDesc,SourceDesc,text,,The measure package ID for deemed measures.
+Measure,Version,Version,text255,,The version of the work paper or DEER (e.g. 2013 Ex-Ante).
+Measure,NormUnit,NormUnit,text255,yes,"Type of normalizing units, or basis of NumUnits or quantity used by the cost effectiveness calculation (e.g. 'Lamp', 'hp', 'tons', 'facility', etc.)."
+Measure,NumUnits,NumUnits,number,yes,Number of units or quantity. NumUnits must work in conjunction with the NormUnit value for the claim. Cross reference NormUnit and NumUnits before interpreting quantities of measures installed. This field is used in CEDARS cost and savings equations.
+Measure,UnitkW1stBaseline,UnitkW1stBaseline,number,yes,The first baseline kW Impact per Unit. This field is used in CEDARS savings equations.
+Measure,UnitkWh1stBaseline,UnitkWh1stBaseline,number,yes,The first baseline kWh Impact per Unit. This field is used in CEDARS savings equations.
+Measure,UnitTherm1stBaseline,UnitTherm1stBaseline,number,yes,The first baseline therm Impact per Unit. This field is used in CEDARS savings equations.
+Measure,UnitkW2ndBaseline,UnitkW2ndBaseline,number,yes,The second baseline kW impact per unit for dual baseline measures. This field is used in CEDARS savings equations.
+Measure,UnitkWh2ndBaseline,UnitkWh2ndBaseline,number,yes,The second baseline kWh impact per unit for dual baseline measures. This field is used in CEDARS savings equations.
+Measure,UnitTherm2ndBaseline,UnitTherm2ndBaseline,number,yes,The second baseline therm impact per unit for dual baseline measures. This field is used in CEDARS savings equations.
+Measure,UnitkWhIOUWater1stBaseline,UnitkWhIOUWater1stBaseline,number,yes,The first baseline kWh impact per unit due to water savings.
+Measure,UnitkWhIOUWater2ndBaseline,UnitkWhIOUWater2ndBaseline,number,yes,The second baseline kWh impact per unit due to water savings.
+Measure,UnitMeaCost1stBaseline,UnitMeaCost1stBaseline,number,yes,"This field is the installed measure cost. Incremental Measure Cost or Full Measure Cost for the first baseline period, as appropriate for the MeasAppType and DeliveryType. Incremental measure cost over Code/Std for single baseline measures. This field is not used for dual baseline Cost effectiveness calculations, except when calculating excess incentives (for single and dual baseline measures). This field is used in CEDARS cost equations."
+Measure,UnitMeaCost2ndBaseline,UnitMeaCost2ndBaseline,number,yes,"NPV gross measure cost based on first and second baseline measure costs. The Desktop CET called this field 'Gross Measure Cost_ER' (where ER = early retirement, aka accelerated replacement). This is the only measure cost field used for dual baseline CE calculations, except UnitMeaCost1stBaseline is used to calculate excess incentives (for single and dual baseline measures). This field is used in CEDARS cost equations."
+Measure,UnitDirectInstallLab,UnitDirectInstallLab,number,,"This field is the actual cost in dollars of installation labor. Enter the unit incentive for labor. Cost effectiveness calculator uses this field; and overrides ExAnte values for deemed claims, and is one of two incentive fields for Direct Install. Only use if a direct install. This field is used in CEDARS cost equations."
+Measure,UnitDirectInstallMat,UnitDirectInstallMat,number,,"This field is the actual cost in dollars of installation materials. Enter the unit incentive for materials. Cost effectiveness calculator uses this field; and overrides ExAnte values for deemed claims, and is one of two incentive fields for Direct Install. Only use if direct install. This field is used in CEDARS cost equations."
+Measure,UnitEndUserRebate,UnitEndUserRebate,number,,"This field is the actual cost of rebates to the end user in dollars. Enter rebate to the customer for each unit of the measure. Cost effectiveness calculator uses this field, and overrides ExAnte values for deemed claims. Only use if downstream delivery type. This field is used in CEDARS cost equations."
+Measure,UnitIncentiveToOthers,UnitIncentiveToOthers,number,,This field is the actual cost in dollars of incentives to others besides the end user. Enter the incentive for others for each unit of measure. Cost effectiveness calculator uses this field; and overrides ExAnte values for deemed claims. Only use if midstream or upstream delivery type. Input should always be '0' for custom measures This field is used in CEDARS cost equations.
+Measure,NTG_ID,NTG_ID,text255,,From DEER. The Ex Ante NTG_ID associated with the NTG values being claimed.
+Measure,NTGRkW,NTGRkW,number,yes,"kW-specific NTG value. Usually, there is one NTG value entered for all NTGR fields. Developed through evaluation studies. NTG describes the free-ridership that may be occurring within energy efficiency programs. This field is used in CEDARS savings equations."
+Measure,NTGRkWh,NTGRkWh,number,yes,"kWh-specific NTG value. Usually, there is one NTG value entered for all NTGR fields. Developed through evaluation studies. NTG describes the free-ridership that may be occurring within energy efficiency programs. This field is used in CEDARS savings equations."
+Measure,NTGRTherm,NTGRTherm,number,yes,"Therm-specific NTG value. Usually, there is one NTG value entered for all NTGR fields. Developed through evaluation studies. NTG describes the free-ridership that may be occurring within energy efficiency programs. This field is used in CEDARS savings equations."
+Measure,NTGRCost,NTGRCost,number,yes,"Cost-specific NTG value. Usually, there is one NTG value entered for all NTGR fields. Developed through evaluation studies. NTG describes the free-ridership that may be occurring within energy efficiency programs."
+Measure,EUL_ID,EUL_ID,text255,,From DEER. Identifier from the EUL table which specifies the estimated useful life of the measure technology.
+Measure,EUL_Yrs,EUL_Yrs,number,yes,Effective useful life of EE measure in years.
+Measure,RUL_ID,RUL_ID,text255,,"From DEER. For dual baseline measures, specifies a row in the EUL table that identifies the remaining useful life of the existing technology."
+Measure,RUL_Yrs,RUL_Yrs,number,yes,"For dual baseline measures, specifies the remaining useful life of pre-existing measure in years."
+Measure,GSIA_ID,GSIA_ID,text255,,Reference to the Ex Ante Gross Savings and Installation Adjustment table.
+Measure,RealizationRatekW,RealizationRatekW,number,yes,Ex ante adjustment factor: kW weighted Realization rate for all measures included in this claim record. This field is used in CEDARS savings equations.
+Measure,RealizationRatekWh,RealizationRatekWh,number,yes,Ex ante adjustment factor: kWh weighted Realization rate for all measures included in this claim record. This field is used in CEDARS savings equations.
+Measure,RealizationRateTherm,RealizationRateTherm,number,yes,Ex ante adjustment factor: Therm weighted Realization rate for all measures included in this claim record. This field is used in CEDARS savings equations.
+Measure,InstallationRatekW,InstallationRatekW,number,yes,"Ex ante adjustment factor, generally developed by evaluation studies of prior year programs. kW weighted installation rate for all measures included in the associated claim. This field is used in CEDARS savings equations."
+Measure,InstallationRatekWh,InstallationRatekWh,number,yes,"Ex ante adjustment factor, generally developed by evaluation studies of prior year programs. kWh weighted installation rate for all measures included in the associated claim. This field is used in CEDARS savings equations."
+Measure,InstallationRateTherm,InstallationRateTherm,number,yes,"Ex ante adjustment factor, generally developed by evaluation studies of prior year programs. Therm weighted installation rate for all measures included in the associated claim. This field is used in CEDARS savings equations."
+Measure,Residential_Flag,Residential_Flag,bit,,The measure was installed in a residential setting.
+Measure,Upstream_Flag,Upstream_Flag,bit,,"The measure was delivered via an upstream delivery type, i.e. targeted the beginning of the supply chain (e.g. the manufacturer)."
+Measure,IOU_AC_Territory,IOU_AC_Territory,text255,yes,"The utility avoided costs being used (PGE, SCE, SCG, SDGE). This field was previously called PA."
+Measure,UnitGasInfraBens,UnitGasInfraBens,number,yes,The unit benefits due to gas infrastructure savings.
+Measure,UnitRefrigCosts,UnitRefrigCosts,number,yes,The unit cost in dollars for refrigeration.
+Measure,UnitRefrigBens,UnitRefrigBens,number,yes,The unit benefits due to refrigeration savings.
+Measure,UnitMiscCosts,UnitMiscCosts,number,yes,The unit cost in dollars that is not captured in other cost fields.
+Measure,MiscCostsDesc,MiscCostsDesc,text,,A description of the miscellaneous costs reported in the UnitMiscCosts field.
+Measure,UnitMiscBens,UnitMiscBens,number,yes,The unit benefits not captured in other benefit fields.
+Measure,MiscBensDesc,MiscBensDesc,text,,A description of the miscellaneous benefits reported in the UnitMiscBens field.
+Measure,UnitTaxCredits,UnitTaxCredits,number,,"Inflation Recovery Act tax incentives for energy, per unit. The CET sums UnitTaxCredits with other benefits in the TRC calculation where IRA-eligible measures apply."
+Measure,RateScheduleElec,RateScheduleElec,text255,,"CET field to specify measure-level electric rate schedule, overrides CET default. Used to differentiate between customer types and system average rates."
+Measure,RateScheduleGas,RateScheduleGas,text255,,"CET field to specify measure-level gas rate schedule, overrides CET default. Used to differentiate between customer types and system average rates."
+Measure,CombustionType,CombustionType,text255,,"CET field that determines the rate of emission savings per MMBTU of reduced natural gas usage from gas conservation. Res Furnace is used as a default if there is no user selection. If not applicable or unknown, then leave the field blank."
+Measure,MeasInflation,MeasInflation,number,,"CET field to specify measure-level inflation rate, overrides CET default."
+Measure,Comments,Comments,text,,Text field for clarifying comments.
+ProgramCost,PrgID,PrgID,text255,yes,The unique and persistent program identifier. The ProgramCost primary key is PrgID and PrgYear in combination.
+ProgramCost,PrgYear,PrgYear,integer,yes,"The claim year. The ProgramCost primary key is PrgID and PrgYear in combination, must match the year in ClaimYearQuarter."
+ProgramCost,ClaimYearQuarter,ClaimYearQuarter,text6,yes,"The year and claim quarter, e.g. '2023Q1'."
+ProgramCost,AdminCostsOverheadAndGA,AdminCostsOverheadAndGA,number,yes,Program-level general administration costs and overhead.
+ProgramCost,AdminCostsOther,AdminCostsOther,number,yes,Program-level other administration costs (not general administration or overhead).
+ProgramCost,MarketingOutreach,MarketingOutreach,number,yes,Program-level marketing outreach costs.
+ProgramCost,DIActivity,DIActivity,number,yes,Direct implementation activity costs.
+ProgramCost,DIInstallation,DIInstallation,number,yes,Direct implementation installation costs.
+ProgramCost,DIHardwareAndMaterials,DIHardwareAndMaterials,number,yes,Direct implementation hardware and materials costs.
+ProgramCost,DIRebateAndInspection,DIRebateAndInspection,number,yes,Direct implementation rebate and inspection costs.
+ProgramCost,EMV,EMV,number,yes,"Program-level evaluation, measurement, and verification costs."
+ProgramCost,UserInputIncentive,UserInputIncentive,number,yes,Program-level incentives and rebates.
+ProgramCost,OnBillFinancing,OnBillFinancing,number,yes,Program-level on-bill financing.
+ProgramCost,CostsRecoveredFromOtherSources,CostsRecoveredFromOtherSources,number,yes,"This field captures program-level energy efficiency (EE) activity costs that are recovered from ratepayers outside of the EE Public Purpose Program (PPP) budget, such as those covered by the General Rate Case (GRC). These costs are included to ensure accurate cost-effectiveness calculations but should not be confused with Integrated Demand-Side Management (IDSM) fields."
+ProgramCost,PA,PA,text255,yes,A program administrator code from the CEDARS PA list.
+Site,SiteID,SiteID,text255,yes,The unique and persistent record identifier and the primary key for the Site table. Must match a SiteID in the Claim table. All values must start with the PA code.
+Site,SiteCity,SiteCity,text255,yes,The site city.
+Site,SiteState,SiteState,text255,yes,"The site state, e.g. 'CA'."
+Site,SiteZipCode,SiteZipCode,text255,yes,The site zip code.
+Site,Residential_Flag,Residential_Flag,bit,,Flag to identify residential sites.
+Site,NAICSCode,NAICSCode,text255,,The site NAICS code (e.g. 112910).
+Participant,PrgID,PrgID,text255,yes,"The unique and persistent program identifier. The Participant primary key is PrgID, PrgYear, ParticipantType, and SiteID in combination."
+Participant,PrgYear,PrgYear,integer,yes,"The claim year. The Participant primary key is PrgID, PrgYear, ParticipantType, and SiteID in combination."
+Participant,ParticipantType,ParticipantType,text255,yes,"The unique and persistent participant identifier. The Participant primary key is PrgID, PrgYear, ParticipantType, and SiteID in combination."
+Participant,SiteID,SiteID,text255,,"Identifies the specific site associated with the programs participant type. When populated, must match a valid Site.SiteID. If SiteID is null, the record applies to all sites for the given PrgID and ParticipantType. In this case, no records may exist for the same PrgID and ParticipantType with a populated SiteID. All values must begin with the PA code. The Participant primary key is PrgID, PrgYear, ParticipantType, and SiteID in combination."
+Participant,ParticipantCount,ParticipantCount,integer,yes,Total number of participants in the program.
+Participant,EquityTargeted,EquityTargeted,integer,yes,"Number of participants qualifying as Equity Targeted. A program participant that meets the CPUC-adopted criteria for being Hard-to-Reach, or being located in a disadvantaged community, or considered underserved."
+Participant,DAC,DAC,integer,yes,Number of participants in a disadvantaged community as identified by census tracts.
+Participant,HTR,HTR,integer,yes,Number of participants qualifying as Hard-to-Reach.
+Participant,Underserved,Underserved,integer,yes,Number of participants qualifying as underserved community.
+Participant,Comments,Comments,text,,Clarifying comments or details not included in the other participant reporting fields.
+InfrastructureCost,ClaimID,ClaimID,text255,yes,The unique and persistent record identifier and the primary key for the Claim table. Must match the corresponding ClaimID (previously CEInputID) in the Measure table. All values must start with the PA code and claim year in the format PA-YYYY.
+InfrastructureCost,MeasureID,MeasureID,text255,,Unique and persistent measure identifier.
+InfrastructureCost,SiteID,SiteID,text255,,The unique and persistent record identifier and the primary key for the Site table. All values must start with the PA code.
+InfrastructureCost,PrgID,PrgID,text255,yes,The unique and persistent program identifier.
+InfrastructureCost,ElectricReplacedGas_Flag,ElectricReplacedGas_Flag,bit,,Is the measure replacing gas? (ex: not mini split in a garage that was not conditioned).
+InfrastructureCost,ExistingPanelSize,ExistingPanelSize,text255,,Amp size of the existing panel?
+InfrastructureCost,ExistingPanelSlots,ExistingPanelSlots,text255,,Number of circuit slots in existing panel?
+InfrastructureCost,NewPanelSize,NewPanelSize,text255,,Amp size of the new panel?
+InfrastructureCost,NewPanelSlots,NewPanelSlots,text255,,Number of circuit slots in new panel?
+InfrastructureCost,InfrastructureUpgradesRequired,InfrastructureUpgradesRequired,text255,,"Is an upgrade of the panel, wiring, or outlets (or any combination of those) required for the fuel substitution measure?"
+InfrastructureCost,OtherInfrastructureUpgradesRequired,OtherInfrastructureUpgradesRequired,text255,,"Are any other infrastructure upgrades (ex: sub panel, split circuit, etc.) required for the fuel substitution measure?"
+InfrastructureCost,PanelLaborCost,PanelLaborCost,number,,Labor cost of panel upgrade.
+InfrastructureCost,PanelEquipCost,PanelEquipCost,number,,Equipment cost of panel upgrade.
+InfrastructureCost,WiringLaborCost,WiringLaborCost,number,,Labor cost of wiring upgrade.
+InfrastructureCost,WiringEquipCost,WiringEquipCost,number,,Equipment cost of wiring upgrade.
+InfrastructureCost,OutletLaborCost,OutletLaborCost,number,,Labor cost of outlet upgrade.
+InfrastructureCost,OutletEquipCost,OutletEquipCost,number,,Equipment cost of outlet upgrade.
+InfrastructureCost,OtherInfraLaborCost,OtherInfraLaborCost,number,,Labor cost of other infrastructure upgrades.
+InfrastructureCost,OtherInfraEquipCost,OtherInfraEquipCost,number,,Equipment costs of other infrastructure upgrades.
+InfrastructureCost,TotalInfraLaborCost,TotalInfraLaborCost,number,,The total labor cost of any and all infrastructure upgrades completed as part of the fuel substitution measure installation.
+InfrastructureCost,TotalInfraEquipCost,TotalInfraEquipCost,number,,The total equipment cost of any and all infrastructure upgrades completed as part of the fuel substitution measure installation.
+InfrastructureCost,TotalCost,TotalCost,number,,The total cost (labor and equipment) of any and all infrastructure upgrades completed as part of the fuel substitution measure installation.
+InfrastructureCost,OtherElectrificationMeasures,OtherElectrificationMeasures,text255,,"Are any other electrification measures being installed at the same time as the EE fuel substitution measure (EV charging, etc.)?"
+InfrastructureCost,BldgBuiltYear,BldgBuiltYear,integer,,Year building was built.
+InfrastructureCost,AC_Flag,AC_Flag,bit,,Does the building have AC?
+InfrastructureCost,ConditionedSqFt,ConditionedSqFt,integer,,What is the square footage of the air conditioned space in the building that will be conditioned by the new fuel substitution measure?
+InfrastructureCost,InfraCustomerRequestDate,InfraCustomerRequestDate,date,,"If infrastructure was upgraded, when did the customer begin seeking the upgrade?"
+InfrastructureCost,InfraCustomerCompleteDate,InfraCustomerCompleteDate,date,,"If infrastructure was upgraded, when was the upgrade completed?"
+InfrastructureCost,GasPipeCappingCost,GasPipeCappingCost,number,,The cost of capping off or removing any gas pipes or flues.
+InfrastructureCost,SourceNonEEDollars,SourceNonEEDollars,text255,,The program(s) name(s) of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
+InfrastructureCost,TotalNonEEDollars,TotalNonEEDollars,number,,The total dollar value of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
