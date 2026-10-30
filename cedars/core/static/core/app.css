@@ -35,6 +35,7 @@ main:focus { outline: none; }
 .foot { color: var(--muted); font-size: .8rem; text-align: center; padding: 1rem; }
 h1 { font-size: 1.5rem; margin: .2rem 0 .8rem; }
 h2 { font-size: 1.1rem; margin: 1.2rem 0 .5rem; }
+h1, h2 { overflow-wrap: anywhere; }   /* long IDs with no spaces (SW_NC_NonRes_electric) wrap at 320 px (1.4.10) */
 .muted { color: var(--muted); }
 .small { font-size: .85rem; }
 [hidden] { display: none !important; }

@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from cedars.services import audit
@@ -71,16 +71,35 @@ def current_version(program: Program) -> ProgramVersion | None:
     return version_on(program, timezone.localdate())
 
 
+def _in_force(versions, day: date) -> ProgramVersion | None:
+    """version_on over versions already read (newest start first)."""
+    return next((v for v in versions if v.valid_from <= day and (v.valid_to is None or v.valid_to >= day)), None)
+
+
+def _for_year(versions, year: int) -> ProgramVersion | None:
+    """version_for_year over versions already read (newest start first)."""
+    last_day = _in_force(versions, date(year, 12, 31))
+    if last_day is not None:
+        return last_day
+    first, last = date(year, 1, 1), date(year, 12, 31)
+    return next((v for v in versions if v.valid_from <= last and (v.valid_to is None or v.valid_to >= first)), None)
+
+
 def catalog(year: int | None = None):
-    """(program, version) for every program not flagged as a portfolio cost, closed programs included (BR-13.5)."""
+    """(program, version) for every program not flagged as a portfolio cost, closed programs included (BR-13.5): the version for the
+    program year, or with no year the version in force today (else the latest). Two queries, whatever the number of programs."""
     out = []
-    for p in Program.objects.filter(portfolio_cost=False).select_related("administrator"):
-        v = version_for_year(p, year) if year else (current_version(p) or p.versions.order_by("-valid_from").first())
+    today = timezone.localdate()
+    programs = Program.objects.filter(portfolio_cost=False).select_related("administrator")
+    for p in programs.prefetch_related(Prefetch("versions", queryset=ProgramVersion.objects.order_by("-valid_from"))):
+        versions = list(p.versions.all())
+        v = _for_year(versions, year) if year else (_in_force(versions, today) or (versions[0] if versions else None))
         out.append((p, v))
     return out
 
 
-def _can_edit(actor, program: Program) -> bool:
+def can_edit(actor, program: Program) -> bool:
+    """Whether actor may change the program: a CPUC system administrator, or its administrator's org admins and programs.admin holders."""
     if actor is None or access.is_system_admin(actor):
         return True
     org = program.administrator
@@ -105,7 +124,7 @@ def create_program(
     if administrator is None and not statewide:
         raise AccessDenied("A program needs an administrator unless it is statewide.")
     if actor is not None and not (
-        access.is_system_admin(actor) or (administrator and _can_edit(actor, Program(administrator=administrator)))
+        access.is_system_admin(actor) or (administrator and can_edit(actor, Program(administrator=administrator)))
     ):
         raise AccessDenied("Only the program's administrator or the CPUC can add it.")
     p = Program.objects.create(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide, portfolio_cost=portfolio_cost)
@@ -136,7 +155,7 @@ def change_program(actor, program: Program, *, effective: date, reason: str, **c
     """Start a new version on `effective` with `changes` applied to the latest version; the version before it ends the day before.
     The date may be in the future (a resolution entered before its effective date); it cannot be on or before the latest version's
     start, because versions already in force are history."""
-    if not _can_edit(actor, program):
+    if not can_edit(actor, program):
         raise AccessDenied(
             f"Only {program.administrator.code if program.administrator else 'the CPUC'}'s administrators can change {program}."
         )
