@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Statewide allocation factors{% endblock %}
+{% block content %}
+<h1>Statewide allocation factors</h1>
+<p>Each version is a complete table of factors. A confirmed version never changes; filings, claims and runs record the version they used,
+and a run that names none uses the most recently confirmed version with factors for its program year.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Allocation versions">
+<table class="list">
+  <caption class="sr-only">Allocation versions, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">For</th><th scope="col">Cycle</th><th scope="col">Status</th><th scope="col">Source file</th></tr></thead>
+  <tbody>
+  {% for v in versions %}
+  <tr><th scope="row"><a href="{% url 'administration:allocation' v.pk %}">{{ v.label }}</a></th><td>{{ v.get_purpose_display }}</td><td>{{ v.filing_cycle|default:"" }}</td>
+    <td>{{ v.get_status_display }}{% if v.confirmed_at %} {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}</td><td class="small">{{ v.source_name }}</td></tr>
+  {% empty %}<tr><td colspan="5">No versions yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="up-h">
+  <h2 id="up-h">Load a factor file</h2>
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>
+  </form>
+</section>
+{% endblock %}

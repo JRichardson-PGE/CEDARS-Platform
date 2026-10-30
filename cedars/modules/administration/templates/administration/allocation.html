@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}{{ v.label }}{% endblock %}
+{% block content %}
+<h1>{{ v.label }}</h1>
+<dl class="facts">
+  <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle }}{% endif %}</dd>
+  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %} {{ v.confirmed_at|date:"Y-m-d H:i" }} by {{ v.confirmed_by.email|default:"the system" }}{% endif %}</dd>
+  <dt>Factors</dt><dd>{{ count }} program-years, {% if years %}{{ years|first }} to {{ years|last }}{% endif %}</dd>
+  <dt>Source</dt><dd>{{ v.source_name }} <span class="small muted">SHA-256 {{ v.source_sha256|truncatechars:20 }}</span></dd>
+  {% if v.notes %}<dt>Notes</dt><dd>{{ v.notes }}</dd>{% endif %}
+</dl>
+<p><a class="button" href="{% url 'administration:allocation_csv' v.pk %}">Download the factors (CSV, the layout ReCET reads)</a></p>
+
+<h2>Checks</h2>
+{% if issues %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Problems found">
+<table class="list">
+  <thead><tr><th scope="col">Program</th><th scope="col">Year</th><th scope="col">Finding</th><th scope="col">Stops confirmation</th></tr></thead>
+  <tbody>{% for i in issues %}<tr><th scope="row">{{ i.program_id }}</th><td>{{ i.year }}</td><td>{{ i.message }}</td><td>{% if i.blocking %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>Every program-year's factors add up to 1 for each fuel, and every weighted factor matches its electric and gas factors.</p>{% endif %}
+
+{% if v.status == "draft" %}
+<form method="post" class="actions">{% csrf_token %}
+  <button type="submit" name="action" value="confirm" class="primary">Confirm this version</button>
+  <button type="submit" name="action" value="discard">Discard the draft</button>
+</form>
+{% endif %}
+{% endblock %}

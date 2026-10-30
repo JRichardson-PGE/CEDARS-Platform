@@ -24,4 +24,7 @@ urlpatterns = [
     path("admin/stewardship/changes/<int:pk>", views.decide_change, name="decide_change"),
     path("admin/settings/", views.access_settings, name="settings"),
     path("admin/audit/", views.audit_log, name="audit"),
+    path("admin/allocations/", views.allocations, name="allocations"),
+    path("admin/allocations/<int:pk>/", views.allocation, name="allocation"),
+    path("admin/allocations/<int:pk>/factors.csv", views.allocation_csv, name="allocation_csv"),
 ]

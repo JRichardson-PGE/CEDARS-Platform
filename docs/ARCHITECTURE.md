@@ -19,7 +19,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | --- | --- | --- | --- | --- |
 | Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job; API tokens come with the API | BR-01, D6, F, G |
 | Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); log page in Administration | BR-09.1, 09.3, BR-12.7 |
-| Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Planned | BR-13, BR-06.7 |
+| Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Built: programs with effective-dated versions (no overlaps, enforced in PostgreSQL), filing cycles, reporting periods, statewide allocation versions (import, check, confirm, ReCET CSV export, most recent for a year); `import_programs`, `import_allocation` commands. Program pages come with the Programs module | BR-13, BR-06.7, BR-13.8 |
 | Dictionary and templates | `cedars.services.dictionary` | 1 | Planned | BR-02.1, BR-08 |
 | Validation rule library | `cedars.services.rules` | 1 | Planned | BR-03 |
 | Submissions and workflow | `cedars.services.submissions` | 1 | Planned | BR-02.3-02.7, BR-05.1-05.2, BR-09.4-09.6 |
@@ -39,7 +39,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | Monthly reports | `cedars.modules.monthly` | 5 | Planned |
 | Data, dashboards, downloads | `cedars.modules.data` | 6 | Planned |
 | Documents and DEER resources | `cedars.modules.documents` | 6 | Planned |
-| Admin and configuration | `cedars.modules.administration` | 1-2 | Access pages built: account, organisations, members and grants, access requests, recertification, stewardship, access settings, audit log |
+| Admin and configuration | `cedars.modules.administration` | 1-2 | Access pages built: account, organisations, members and grants, access requests, recertification, stewardship, access settings, audit log, statewide allocation versions |
 
 ## Choices made in code
 

@@ -440,3 +440,86 @@ def audit_log(request):
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, "administration/audit.html", {"page": page, "form": form, "query": query.urlencode()})
+
+
+# --- statewide allocation versions (BR-06.7, BR-13.8)
+
+
+def _require_sysadmin(request):
+    if not service.is_system_admin(request.user):
+        raise Http404
+
+
+@login_required
+def allocations(request):
+    from cedars.services.registry.models import AllocationVersion
+
+    _require_sysadmin(request)
+    form = forms.AllocationUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        from cedars.services.registry import service as registry
+
+        d = form.cleaned_data
+        upload = d["file"]
+        if upload.size > 5 * 1024 * 1024:
+            messages.error(request, "That file is over 5 MB; a factor file is a few hundred rows.")
+            return redirect("administration:allocations")
+        try:
+            v = registry.import_allocation_csv(
+                request.user,
+                upload.read(),
+                label=d["label"],
+                purpose=d["purpose"],
+                source_name=upload.name,
+                notes=d["notes"],
+                filing_cycle=registry.ensure_cycle(d["cycle"]) if d["cycle"] else None,
+            )
+        except (ValueError, KeyError, UnicodeDecodeError) as e:
+            messages.error(request, f"The file could not be read: {e}")
+            return redirect("administration:allocations")
+        except AccessDenied as e:
+            return _refused(request, e, "administration:allocations")
+        return _done(request, f"{v.label} loaded as a draft. Check it, then confirm it.", f"/admin/allocations/{v.pk}/")
+    versions = AllocationVersion.objects.select_related("filing_cycle", "confirmed_by")
+    return render(request, "administration/allocations.html", {"versions": versions, "form": form})
+
+
+@login_required
+def allocation(request, pk):
+    from cedars.services.registry import service as registry
+    from cedars.services.registry.models import AllocationVersion
+
+    _require_sysadmin(request)
+    v = get_object_or_404(AllocationVersion, pk=pk)
+    if request.method == "POST":
+        try:
+            if request.POST.get("action") == "confirm":
+                registry.confirm_allocation(request.user, v)
+                return _done(
+                    request, f"{v.label} confirmed. Runs naming no version now use it for its years.", f"/admin/allocations/{v.pk}/"
+                )
+            if request.POST.get("action") == "discard":
+                registry.discard_draft(request.user, v, request.POST.get("reason", ""))
+                return _done(request, "Draft discarded.", "administration:allocations")
+        except AccessDenied as e:
+            return _refused(request, e, f"/admin/allocations/{v.pk}/")
+    years = sorted(set(v.entries.values_list("year", flat=True)))
+    return render(
+        request,
+        "administration/allocation.html",
+        {"v": v, "issues": registry.check_allocation(v), "years": years, "count": v.entries.count()},
+    )
+
+
+@login_required
+def allocation_csv(request, pk):
+    from django.http import HttpResponse
+
+    from cedars.services.registry import service as registry
+    from cedars.services.registry.models import AllocationVersion
+
+    _require_sysadmin(request)
+    v = get_object_or_404(AllocationVersion, pk=pk)
+    response = HttpResponse(registry.allocation_csv(v), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="statewide_factors_{v.pk}.csv"'
+    return response

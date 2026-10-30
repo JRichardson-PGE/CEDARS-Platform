@@ -43,10 +43,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     # shared services (cedars/services), then modules (cedars/modules); see docs/ARCHITECTURE.md
     "cedars.core",  # first, so its templates (allauth's layout and form elements) win
     "cedars.services.accounts",
     "cedars.services.audit",
+    "cedars.services.registry",
     "cedars.modules.administration",
     "allauth",
     "allauth.account",

@@ -63,3 +63,11 @@ class AuditFilterForm(forms.Form):
     action = forms.CharField(label="Action starts with", required=False)
     actor = forms.CharField(label="Actor email contains", required=False)
     object_type = forms.CharField(label="Record type", required=False)
+
+
+class AllocationUploadForm(forms.Form):
+    file = forms.FileField(label="Factor file (CSV, CEDARS' export layout)")
+    label = forms.CharField(label="Name", max_length=120, help_text="e.g. 2028 TUAL, or PY2028 claims revision")
+    purpose = forms.ChoiceField(label="For", choices=[("filing", "A budget filing"), ("claims", "Claims")])
+    cycle = forms.IntegerField(label="Filing cycle's first year (optional)", required=False, min_value=2000, max_value=2100)
+    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))

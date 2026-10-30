@@ -6,6 +6,7 @@ PII grant and an open recertification, so the tables and forms are not empty."""
 
 import json
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from django.conf import settings
@@ -15,6 +16,7 @@ from django.utils import timezone
 
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
+from cedars.services.registry import service as registry
 
 from .pages import PAGES
 
@@ -32,7 +34,21 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     community = make_user("community@example.com")
     service.request_access(community, pge, ["claims.read", "budgets.read"], "I work on PG&E's filings")
     service.open_recertification(pge_admin, pge, timezone.now() + timedelta(days=30))
-    return {"cpuc_admin": cpuc_admin, "pge_admin": pge_admin, "community": community, "password": community, "pge": pge, "cpuc": cpuc}
+    factors = (
+        (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv")
+        .read_bytes()
+        .replace(b"0.4440,0.1550", b"0.4000,0.1550", 1)
+    )
+    allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
+    return {
+        "cpuc_admin": cpuc_admin,
+        "pge_admin": pge_admin,
+        "community": community,
+        "password": community,
+        "pge": pge,
+        "cpuc": cpuc,
+        "allocation": allocation,
+    }
 
 
 def _session_cookie(user, method, live_server):
@@ -52,7 +68,7 @@ def _open(browser, live_server, scene, path, who, **context_args):
     if who is not None:
         context.add_cookies([_session_cookie(scene[who], "password" if who == "password" else "mfa", live_server)])
     page = context.new_page()
-    response = page.goto(live_server.url + path.format(pge=scene["pge"].code, cpuc=scene["cpuc"].code))
+    response = page.goto(live_server.url + path.format(pge=scene["pge"].code, cpuc=scene["cpuc"].code, allocation=scene["allocation"].pk))
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     return context, page
 
