@@ -19,6 +19,7 @@ from cedars.services.accounts import service
 from cedars.services.dictionary import service as dictionary
 from cedars.services.registry import service as registry
 from cedars.services.rules.models import Rule, RuleSet
+from cedars.services.submissions import service as submissions
 
 from .pages import PAGES
 
@@ -72,9 +73,25 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         difference="Budget filings do not apply it.",
         modules=["claims"],
     )
+    # a filing past its due date with a reopen request waiting for a CPUC claims approver
+    service.grant(pge_admin, analyst, pge, "claims.confirm")
+    approver = make_user("approver@cpuc.ca.gov", "Avery Prover")
+    service.grant(cpuc_admin, approver, cpuc, "claims.approve")
+    quarter = [p for p in registry.ensure_periods(2028) if p.kind == "quarter" and p.number == 1][0]
+    deadline = submissions.add_deadline(
+        cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=timezone.now() + timedelta(days=10)
+    )
+    v = submissions.start(analyst, deadline, pge)
+    submissions.attach_files(analyst, v, [{"name": "Measure.csv", "key": "s3://bucket/x", "sha256": "abc", "bytes": 10}])
+    submissions.record_validation(analyst, v, None, {"records": 10, "rejected": 0, "warnings": 2})
+    submissions.record_calculation(None, v, run="run-1", input_hash="h1")
+    submissions.confirm(analyst, v, "h1")
+    submissions.move_deadline(cpuc_admin, deadline, timezone.now() - timedelta(minutes=1), "close-out for the scene")
+    submissions.request_reopen(analyst, v.submission, "Two measures were counted twice")
     return {
         "rules": rules,
         "cpuc_admin": cpuc_admin,
+        "approver": approver,
         "pge_admin": pge_admin,
         "community": community,
         "password": community,

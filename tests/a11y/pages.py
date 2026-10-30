@@ -12,6 +12,8 @@ PAGES = [
     ("rule", "/rules/{rules}/W4d5e6f/", None),
     ("rule-differences", "/rules/differences/?a={rules}&b={rules}", None),
     ("rule-checker", "/rules/check/", "pge_admin"),
+    ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
+    ("reopen-requests", "/filings/reopen-requests/", "approver"),
     ("sign-in", "/accounts/login/", None),
     ("sign-up", "/accounts/signup/", None),
     ("password-reset", "/accounts/password/reset/", None),
