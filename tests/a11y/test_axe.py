@@ -354,8 +354,9 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
 
 
 def _claims(cpuc_admin, pge, pge_admin, analyst):
-    """2028's claims: Q1 priced (recorded as the Calculations module records a finished run), confirmed and published; Q2 uploaded
-    with rejected records (an unknown program, another PA's claim); Q3 not started. The analyst already holds the claims grants."""
+    """2028's claims: Q1 priced (recorded as the Calculations module records a finished run), confirmed and published, then corrected
+    after its due date (a claim withdrawn, with its change letter); Q2 uploaded with rejected records (an unknown program, another PA's
+    claim); Q3 not started. The analyst already holds the claims grants."""
     from unittest import mock
 
     from cedars.modules.claims import service as claims
@@ -382,10 +383,34 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
     details = {"job_sha256": v.findings["job_sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
     v = submissions.record_calculation(None, v, run="claims", input_hash="h", details=details)
     v = claims.confirm(analyst, v)
+    # Q1 corrected after its due date: PGE-2028-002 withdrawn, PGE-2028-001's units changed; its publication writes a change letter
+    submissions.move_deadline(cpuc_admin, q1, timezone.now() - timedelta(days=1), "the scene's correction")
+    reopen = submissions.policy("claims").reopen_after_due
+    submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
+    v2 = claims.request_reopen(analyst, v.submission, "PGE-2028-002 was cancelled; PGE-2028-001 had 12 units")
+    submissions.set_policy(cpuc_admin, "claims", reopen_after_due=reopen)
+    fixed = tables(
+        claim("PGE-2028-001", prg="PGE_Res_HVAC", NumUnits="12"),
+        ProgramCost=first["ProgramCost"],
+        Site=first["Site"],
+        ContactClaim=first["ContactClaim"],
+        Withdrawal=[row("Withdrawal", ClaimID="PGE-2028-002", WithdrawalReason="The customer cancelled the project")],
+    )
+    with no_rules:
+        v2 = claims.upload_claims(analyst, q1, pge, claims_zip(fixed, full=True), "q1_correction.zip")
+    details = {**details, "job_sha256": v2.findings["job_sha256"]}
+    v2 = claims.confirm(analyst, submissions.record_calculation(None, v2, run="claims2", input_hash="h2", details=details))
     bad = tables(claim("PGE-2028-003", prg="NOPE", quarter="2028Q2"), claim("SCE-2028-1", prg="PGE_Res_HVAC", quarter="2028Q2"))
     with no_rules:
         claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
-    return {"claims_q1": q1, "claims_q2": q2, "claims_q3": q3, "claims_version": v}
+    return {
+        "claims_q1": q1,
+        "claims_q2": q2,
+        "claims_q3": q3,
+        "claims_version": v,
+        "claims_corrected": v2,
+        "claims_letter": v2.change_letter,
+    }
 
 
 def _session_cookie(user, method, live_server):

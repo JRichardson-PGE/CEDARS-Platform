@@ -9,6 +9,7 @@
   {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
   {% if s.rule_set %}<dt>Rule set</dt><dd>{{ s.rule_set }}</dd>{% endif %}
+  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'claims:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
 </dl>
 {% if not t.priced %}<p>Not priced yet: the table shows what was filed only.</p>{% endif %}
 
@@ -47,6 +48,20 @@
 <details class="small"><summary>Column definitions</summary>
   <dl class="facts">{% for name, help in definitions %}<dt>{{ name }}</dt><dd>{{ help }}</dd>{% endfor %}</dl></details>
 </section>
+
+{% if withdrawals %}
+<section aria-labelledby="withdrawn-h">
+<h2 id="withdrawn-h">Withdrawn claims</h2>
+<p class="small muted">Their records stay in the year-to-date inputs, marked withdrawn; they are not priced or counted in the table above.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="withdrawn-caption">
+<table class="list">
+  <caption id="withdrawn-caption" class="sr-only">Claims withdrawn in the year to date</caption>
+  <thead><tr><th scope="col">ClaimID</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Withdrawn in</th><th scope="col">Date</th></tr></thead>
+  <tbody>{% for w in withdrawals %}<tr><th scope="row">{{ w.claim }}</th><td>Withdrawn</td><td>{{ w.reason }}</td><td>{{ w.withdrawn_in }}</td><td class="nowrap">{% if w.confirmed_at %}{{ w.confirmed_at|date:"Y-m-d" }}{% else %}Not confirmed yet{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
 
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>

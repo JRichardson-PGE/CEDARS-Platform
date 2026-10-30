@@ -89,3 +89,22 @@ class ClaimResult(models.Model):
 
     def __str__(self):
         return f"{self.prg_id} {self.pa}"
+
+
+class ChangeLetter(models.Model):
+    """The public change letter of a claims correction (BR-09.3): written when a corrected version (version 2 or later) of a confirmation
+    is published, dated, with the correction's reason and what it changed against the version it replaces: the claims added, changed,
+    removed, withdrawn (with their reasons) or reinstated, each table's records, and each program's year to date before and after.
+    Readable by every signed-in user, like the versions it compares. Append-only: never updated or deleted (a database trigger)."""
+
+    version = models.OneToOneField("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="change_letter")
+    previous = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField(help_text="The correction's reason, as given when it was reopened")
+    published_at = models.DateTimeField()
+    changes = models.JSONField(default=dict, help_text="claims, tables, programs and totals, as service.correction_changes writes them")
+
+    class Meta:
+        ordering = ["-published_at", "-pk"]
+
+    def __str__(self):
+        return f"Change letter for version {self.version.number} of {self.version.submission}"

@@ -1,7 +1,9 @@
 """The claims template: CEDARS' 2026 Claims specification (cedars.cpuc.ca.gov/claims/specification/, six tables) plus the fuel-substitution
-infrastructure cost table, which joins it as an ordinary non-PII claims table (BR-05.13). `spec/claims_2026.csv` is that specification as
-data: each field under its canonical name (ReCET's renamed dictionary, decision L: AC_Climate_Zone for E3ClimateZone and so on), the
-name CEDARS gives it (accepted on upload), its type, whether it is required and CEDARS' description.
+infrastructure cost table, which joins it as an ordinary non-PII claims table (BR-05.13), and a Withdrawal table, which names the claims
+an upload withdraws and why (BR-05.2: a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out).
+`spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary, decision L:
+AC_Climate_Zone for E3ClimateZone and so on), the name CEDARS gives it (accepted on upload), its type, whether it is required and
+CEDARS' description.
 
 The PII tables (PII_Contact, PII_Site) are not part of it: they never travel with the claim records (BR-10.1, BR-10.4)."""
 
@@ -11,10 +13,10 @@ from functools import cache
 from pathlib import Path
 
 SPEC = Path(__file__).parent / "spec" / "claims_2026.csv"
-SPEC_LABEL = "CEDARS Claims specification 2026, with the fuel-substitution infrastructure cost table"
+SPEC_LABEL = "CEDARS Claims specification 2026, with the fuel-substitution infrastructure cost and withdrawal tables"
 
 # In upload order; each table's primary key. ContactClaim and InfrastructureCost rows replace all earlier rows of their claim.
-TABLES = ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost")
+TABLES = ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "Withdrawal")
 KEYS = {
     "Claim": ("ClaimID",),
     "Measure": ("ClaimID",),
@@ -23,6 +25,7 @@ KEYS = {
     "ContactClaim": ("ClaimID", "ContactID"),
     "Participant": ("PrgID", "PrgYear", "ParticipantType", "SiteID"),
     "InfrastructureCost": ("ClaimID",),
+    "Withdrawal": ("ClaimID",),
 }
 # Tables whose rows for a claim are a set: a later upload's rows for a ClaimID replace every earlier row for it.
 BY_CLAIM = ("ContactClaim", "InfrastructureCost")
@@ -31,8 +34,12 @@ TABLE_NAMES = {
     "fuelsubstitutioninfrastructurecost": "InfrastructureCost",
     "fuelsubinfrastructurecost": "InfrastructureCost",
     "infracost": "InfrastructureCost",
+    "withdrawals": "Withdrawal",
+    "withdrawnclaims": "Withdrawal",
 }
 PII_TABLES = ("pii_contact", "pii_site", "piicontact", "piisite")
+# Columns CEDARS fills in, not the PA: an uploaded value is replaced.
+SYSTEM_FIELDS = {"Withdrawal": ("WithdrawnIn",)}
 # Other names a column is given: CET's own job files call a claim CEInputID.
 ALIASES = {"Measure": {"ceinputid": "ClaimID"}}
 
@@ -58,6 +65,11 @@ def fields() -> dict[str, list[Field]]:
 
 def columns(table: str) -> list[str]:
     return [f.name for f in fields()[table]]
+
+
+def upload_columns(table: str) -> list[str]:
+    """The columns a PA fills in: the template's, less the ones CEDARS fills in."""
+    return [c for c in columns(table) if c not in SYSTEM_FIELDS.get(table, ())]
 
 
 def required(table: str) -> list[str]:
@@ -119,7 +131,7 @@ def template_xlsx() -> bytes:
             cedars = f.cedars_name if f.cedars_name != f.name else ""
             about.append([name, f.name, cedars, TYPE_LABELS[f.type], "yes" if f.required else "", f.description])
         ws = wb.create_sheet(name)
-        ws.append(columns(name))
+        ws.append(upload_columns(name))
         for c in ws[1]:
             c.font = Font(bold=True)
     for c in about[1]:

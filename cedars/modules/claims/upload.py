@@ -142,6 +142,15 @@ def _table(name: str, raw: list[list[str]]) -> Table:
     return Table(name, columns, rows, ignored=[h for h, n in zip(header, names, strict=True) if n is None])
 
 
+def without_system_fields(t: Table) -> Table:
+    """An upload's table without the columns CEDARS fills in (spec.SYSTEM_FIELDS): they are ignored, as an unknown column is."""
+    drop = [c for c in spec.SYSTEM_FIELDS.get(t.name, ()) if c in t.columns]
+    if not drop:
+        return t
+    rows = [{k: val for k, val in r.items() if k not in drop} for r in t.rows]
+    return Table(t.name, [c for c in t.columns if c not in drop], rows, ignored=t.ignored + drop)
+
+
 # --- writing tables
 
 

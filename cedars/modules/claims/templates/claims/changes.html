@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Claims change log{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+<h1>Claims change log</h1>
+<p>Every correction to confirmed claims, newest first. A correction is a new version of a confirmation, made after its due date; the
+version it replaces stays as it was confirmed. Each change letter gives the date, the reason and what the correction changed.</p>
+{% if orgs %}
+<form method="get" class="filters" aria-label="Which corrections to show">
+  <label>Program administrator <select name="org"><option value="">Every PA</option>{% for o in orgs %}<option{% if o == org %} selected{% endif %}>{{ o }}</option>{% endfor %}</select></label>
+  <label>Claim year <select name="year"><option value="">Every year</option>{% for y in years %}<option{% if y|stringformat:"d" == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
+  <button type="submit">Apply</button>
+</form>
+{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="changes-caption">
+<table class="list">
+  <caption id="changes-caption" class="sr-only">Corrections to confirmed claims, newest first</caption>
+  <thead><tr><th scope="col">Published</th><th scope="col">Correction</th><th scope="col">Replaces</th><th scope="col">Reason</th><th scope="col">Claims withdrawn</th></tr></thead>
+  <tbody>
+  {% for c in letters %}<tr>
+    <td class="nowrap">{{ c.published_at|date:"Y-m-d" }}</td>
+    <th scope="row"><a href="{% url 'claims:change_letter' c.pk %}">{{ c.version.submission.organisation.code }} {{ c.version.submission.deadline.period.year }} {{ c.version.submission.deadline.kind }}, version {{ c.version.number }}</a></th>
+    <td>Version {{ c.previous.number }}</td>
+    <td>{{ c.reason|truncatechars:160 }}</td>
+    <td class="num">{{ c.changes.claims.withdrawn.count|default:0|floatformat:"0g" }}</td>
+  </tr>{% empty %}<tr><td colspan="5">No corrections{% if org or year %} for this choice{% endif %}.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

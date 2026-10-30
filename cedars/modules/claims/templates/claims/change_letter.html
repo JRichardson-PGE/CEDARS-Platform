@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+{% block title %}Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'claims:index' %}">Claims</a> › <a href="{% url 'claims:changes' %}">Change log</a></p>
+<h1>Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
+<dl class="facts">
+  <dt>Published</dt><dd>{{ letter.published_at|date:"Y-m-d H:i" }}</dd>
+  <dt>Corrects</dt><dd><a href="{% url 'claims:version' letter.previous.pk %}">Version {{ letter.previous.number }}</a>, confirmed {{ letter.previous.confirmed_at|date:"Y-m-d" }}, which stays as it was confirmed</dd>
+  <dt>Correction</dt><dd><a href="{% url 'claims:version' v.pk %}">Version {{ v.number }}</a>, confirmed {{ v.confirmed_at|date:"Y-m-d" }}</dd>
+  <dt>Reason</dt><dd>{{ letter.reason }}</dd>
+</dl>
+
+<section aria-labelledby="claims-h">
+<h2 id="claims-h">Claims</h2>
+<ul>
+  {% for key, title, help, g in groups %}<li>{{ title }}: {{ g.count|default:0|floatformat:"0g" }}</li>{% endfor %}
+  <li>Claims withdrawn: {{ withdrawn.count|default:0|floatformat:"0g" }}</li>
+</ul>
+{% if withdrawn.count %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="withdrawn-caption">
+<table class="list">
+  <caption id="withdrawn-caption">Claims withdrawn by the correction{% if withdrawn.count > withdrawn.ids|length %} (the first {{ withdrawn.ids|length }} of {{ withdrawn.count|floatformat:"0g" }}){% endif %}</caption>
+  <thead><tr><th scope="col">ClaimID</th><th scope="col">Reason</th></tr></thead>
+  <tbody>{% for w in withdrawn.ids %}<tr><th scope="row">{{ w.claim }}</th><td>{{ w.reason }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endif %}
+{% for key, title, help, g in groups %}{% if g.count %}
+<details><summary>{{ title }} ({{ g.count|floatformat:"0g" }})</summary>
+  <p class="small muted">{{ help }}</p>
+  <p>{{ g.ids|join:", " }}{% if g.count > g.ids|length %} and {{ g.count|add:"-200"|floatformat:"0g" }} more{% endif %}</p>
+</details>
+{% endif %}{% endfor %}
+</section>
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">Programs whose year to date changed</h2>
+<p class="small muted">Before is version {{ letter.previous.number }}, after is version {{ v.number }}. Expenditures are as filed; total system benefit and savings are as priced{% if not priced.before or not priced.after %} (a version that was not priced shows them blank){% endif %}. Withdrawn claims are not counted.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="letter-caption">
+<table class="list data">
+  <caption id="letter-caption" class="sr-only">Each changed program's year to date before and after the correction, and the difference</caption>
+  <thead>
+    <tr><th scope="col" rowspan="2">Program</th>{% for h in head %}<th scope="colgroup" colspan="3">{{ h }}</th>{% endfor %}</tr>
+    <tr>{% for h in head %}<th scope="col">Before</th><th scope="col">After</th><th scope="col">Difference</th>{% endfor %}</tr>
+  </thead>
+  <tbody>
+  {% for p in programs %}<tr>
+    <th scope="row">{{ p.name }}{% if p.title %}<br><span class="small">{{ p.title }}</span>{% endif %}{% if p.new %}<br><span class="small">New in the correction</span>{% elif p.gone %}<br><span class="small">No longer filed</span>{% endif %}</th>
+    {% for before, after, diff in p.cells %}<td class="num">{{ before }}</td><td class="num">{{ after }}</td><td class="num">{{ diff }}</td>{% endfor %}
+  </tr>{% empty %}<tr><td colspan="{{ colspan }}">No program's year to date changed.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th scope="row">Total</th>{% for before, after, diff in total.cells %}<td class="num">{{ before }}</td><td class="num">{{ after }}</td><td class="num">{{ diff }}</td>{% endfor %}</tr></tfoot>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="tables-h">
+<h2 id="tables-h">Records by table</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="tables-caption">
+<table class="list">
+  <caption id="tables-caption" class="sr-only">Each table's year-to-date records before and after the correction</caption>
+  <thead><tr><th scope="col">Table</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Added</th><th scope="col">Changed</th><th scope="col">Removed</th></tr></thead>
+  <tbody>{% for t in c.tables %}<tr><th scope="row">{{ t.table }}</th><td class="num">{{ t.before|floatformat:"0g" }}</td><td class="num">{{ t.after|floatformat:"0g" }}</td><td class="num">{{ t.added|floatformat:"0g" }}</td><td class="num">{{ t.changed|floatformat:"0g" }}</td><td class="num">{{ t.removed|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+<p class="small">Both versions' year-to-date inputs can be downloaded from their pages, so anyone can compare them record by record.</p>
+</section>
+{% endblock %}

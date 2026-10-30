@@ -19,7 +19,7 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, service, spec
-from .models import PROGRAM_COST_FIELDS, ClaimYear
+from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
@@ -196,7 +196,7 @@ def period(request, pk):
         "sub": sub,
         "v": v,
         "s": (v.findings or {}) if v else {},
-        "versions": list(sub.versions.select_related("confirmed_by").order_by("-number")) if sub else [],
+        "versions": _with_letters(list(sub.versions.select_related("confirmed_by").order_by("-number"))) if sub else [],
         "past_due": submissions.past_due(deadline),
         "opens_later": deadline.opens_at and timezone.now() < deadline.opens_at,
         "can_submit": can["submit"] and acting,
@@ -222,6 +222,14 @@ def period(request, pk):
         if ctx["priced"]:
             ctx["tiles"] = _tiles(service.table(v))
     return render(request, "claims/period.html", ctx)
+
+
+def _with_letters(versions: list[SubmissionVersion]) -> list[SubmissionVersion]:
+    """The versions, each with .letter: its change letter, if it is a published correction."""
+    letters = {c.version_id: c for c in ChangeLetter.objects.filter(version__in=versions)}
+    for ver in versions:
+        ver.letter = letters.get(ver.pk)
+    return versions
 
 
 def _tiles(t) -> list[tuple[str, str]]:
@@ -372,6 +380,8 @@ def version(request, pk):
             "total": total,
             "tiles": _tiles(t) if t.priced else [],
             "definitions": [(m[1], m[3]) for m in service.METRICS],
+            "withdrawals": service.withdrawals(v),
+            "letter": ChangeLetter.objects.filter(version=v).first(),
             "files": [(lbl, i) for i, (lbl, _, _) in enumerate(service.published_files(v))],
             "public": v.status == SubmissionVersion.Status.PUBLISHED,
             "calc": v.calculation or {},
@@ -437,3 +447,97 @@ def published_file(request, pk, which):
         return HttpResponseRedirect(url)
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
+
+
+# --- corrections: the change log (BR-09.3)
+
+
+@login_required
+def changes(request):
+    """Every published correction's change letter, newest first, by PA and claim year."""
+    letters = service.change_letters()
+    org = Organisation.objects.filter(code=request.GET.get("org", "")).first() if request.GET.get("org") else None
+    year = request.GET.get("year", "")
+    if org is not None:
+        letters = letters.filter(version__submission__organisation=org)
+    if year.isdigit():
+        letters = letters.filter(version__submission__deadline__period__year=int(year))
+    every = service.change_letters()
+    return render(
+        request,
+        "claims/changes.html",
+        {
+            "letters": letters[:500],
+            "orgs": sorted({c.version.submission.organisation.code for c in every}),
+            "years": sorted({c.version.submission.deadline.period.year for c in every}, reverse=True),
+            "org": org.code if org else "",
+            "year": year,
+        },
+    )
+
+
+def _figure(kind: str, x) -> str:
+    if x is None:
+        return ""
+    return f"{x:,}" if kind == "count" else _fmt(kind, x)
+
+
+def _difference(kind: str, before, after) -> str:
+    if before is None or after is None:
+        return ""
+    d = after - before
+    if not d:
+        return "No change"
+    sign = "+" if d > 0 else "-"
+    return sign + _figure(kind, abs(d)).lstrip("-")
+
+
+@login_required
+def change_letter(request, pk):
+    """One correction's change letter: when it was published, why, and what it changed against the version it replaces."""
+    letter = get_object_or_404(service.change_letters(), pk=pk)
+    c = letter.changes or {}
+    v = letter.version
+    figures = service.LETTER_FIGURES
+
+    def row(name, before, after):
+        before, after = before or {}, after or {}
+        return {
+            "name": name,
+            "cells": [
+                (_figure(kind, before.get(key)), _figure(kind, after.get(key)), _difference(kind, before.get(key), after.get(key)))
+                for key, _, kind in figures
+            ],
+        }
+
+    programs = []
+    for p in c.get("programs", []):
+        r = row(p["prg_id"], p["before"], p["after"])
+        r.update({"title": p.get("name", ""), "new": p["before"] is None, "gone": p["after"] is None})
+        programs.append(r)
+    totals = c.get("totals", {})
+    claims = c.get("claims", {})
+    groups = [
+        ("added", "Claims added", "New ClaimIDs filed by the correction."),
+        ("changed", "Claims changed", "Claims with any record (Claim, Measure, contacts or infrastructure cost) that differs."),
+        ("removed", "Claims removed", "Claims the version replaced had added, which the correction does not file."),
+        ("reinstated", "Withdrawals undone", "Claims the version replaced withdrew, which the correction no longer withdraws."),
+    ]
+    return render(
+        request,
+        "claims/change_letter.html",
+        {
+            "letter": letter,
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "c": c,
+            "claims": claims,
+            "groups": [(key, title, help, claims.get(key, {})) for key, title, help in groups],
+            "withdrawn": claims.get("withdrawn", {}),
+            "head": [name for _, name, _ in figures],
+            "programs": programs,
+            "total": row("Total", totals.get("before"), totals.get("after")),
+            "priced": c.get("priced", {}),
+            "colspan": 3 * len(figures) + 1,
+        },
+    )

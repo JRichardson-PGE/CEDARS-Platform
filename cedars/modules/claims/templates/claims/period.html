@@ -110,7 +110,8 @@
 {% elif later_locked %}<p>{{ later_locked.kind }} is already confirmed, so this confirmation takes no more uploads.</p>
 {% else %}
 <p>The file replaces this version's upload; an earlier upload is not kept. Records with the same key as a record confirmed in an earlier
-quarter replace it. Personal information (PII_Contact, PII_Site) never goes in this file. <a href="{% url 'claims:template' %}">The claims template</a> lists every table and field.</p>
+quarter replace it. To withdraw a claim filed earlier this year, list its ClaimID in the Withdrawal table with the reason: its records
+stay, marked withdrawn, and are no longer priced or counted. Personal information (PII_Contact, PII_Site) never goes in this file. <a href="{% url 'claims:template' %}">The claims template</a> lists every table and field.</p>
 <form method="post" enctype="multipart/form-data" action="{% url 'claims:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
   {{ upload_form.file.as_field_group }}
   <div class="actions"><button type="submit" class="primary">Upload and check</button></div>
@@ -130,7 +131,7 @@ quarter replace it. Personal information (PII_Contact, PII_Site) never goes in t
     <th scope="row"><a href="{% url 'claims:version' ver.pk %}">Version {{ ver.number }}</a></th>
     <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
     <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }} by {{ ver.confirmed_by.email }}{% endif %}</td>
-    <td>{{ ver.reason }}</td>
+    <td>{{ ver.reason }}{% if ver.letter %} (<a href="{% url 'claims:change_letter' ver.letter.pk %}">change letter</a>){% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>
