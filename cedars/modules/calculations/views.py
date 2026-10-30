@@ -79,6 +79,18 @@ def status_view(run: Run) -> dict:
     return out
 
 
+def settings_view(settings: dict) -> list[tuple[str, object]]:
+    """The run's settings as (label, value); an output template as its name and column count, not the whole list."""
+    out = []
+    for k, v in sorted(settings.items()):
+        if k == "output_template_name":
+            continue
+        if k == "output_template":
+            v = f"{settings.get('output_template_name') or 'unnamed'} ({len(v)} columns)"
+        out.append((service.jobspec.SETTINGS.get(k, k), v))
+    return out
+
+
 def _run_or_404(request, pk) -> Run:
     run = get_object_or_404(Run.objects.select_related("organisation", "owner", "allocation_version"), pk=pk)
     if not service.can_read(request.user, run):
@@ -117,6 +129,7 @@ def new_run(request):
         request.FILES or None,
         releases=releases,
         organisations=orgs,
+        user=request.user,
         initial={"engine": f"{default.release}|recet", "acc_version": "2024", "include_societal": True, "emissions": True},
     )
     if request.method == "POST" and form.is_valid():
@@ -145,7 +158,7 @@ def run(request, pk):
             "files": service.output_files(run) if run.status != Run.Status.QUEUED else [],
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
-            "settings": [(service.jobspec.SETTINGS.get(k, k), v) for k, v in sorted(run.settings.items())],
+            "settings": settings_view(run.settings),
             "engine": receipt.get("engine") or {},
             "packs": ((receipt.get("packs") or {}).get("files") or {}),
             "totals": receipt.get("totals") or {},

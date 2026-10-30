@@ -2,7 +2,8 @@ from django import forms
 
 from cedars.services.registry.models import AllocationVersion
 
-from . import service
+from . import output_templates, service
+from .models import OutputTemplate
 
 ACC_PURPOSES = [
     ("", "Any filing"),
@@ -38,9 +39,19 @@ class NewRunForm(forms.Form):
     include_societal = forms.BooleanField(label="Societal cost test (SCB and SCH)", required=False, initial=True)
     emissions = forms.BooleanField(label="Emissions", required=False, initial=True)
     output_format = forms.ChoiceField(label="Output files", choices=list(service.OUTPUT_FORMATS.items()), initial="csv.zip")
+    output_template = forms.ModelChoiceField(
+        label="Output template",
+        required=False,
+        queryset=OutputTemplate.objects.none(),
+        empty_label="All columns",
+        help_text="The measure-level file's columns, in order; the Results tables still use every column",
+    )
 
-    def __init__(self, *args, releases=(), organisations=(), **kwargs):
+    def __init__(self, *args, releases=(), organisations=(), user=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if user is not None:
+            self.fields["output_template"].queryset = output_templates.visible(user)
+            self.fields["output_template"].initial = output_templates.default_for(user)
         self.organisations = {o.code: o for o in organisations}
         self.fields["run_for"].choices = [(o.code, o.code) for o in organisations] + [("", "Only me")]
         engines, accs = [], set()
@@ -70,6 +81,7 @@ class NewRunForm(forms.Form):
             "filing_year": d.get("filing_year"),
             "include_societal": bool(d.get("include_societal")),
             "emissions": bool(d.get("emissions")),
+            **output_templates.settings_for(d.get("output_template")),
         }
         return service.RunRequest(
             name=d["name"],
@@ -80,6 +92,34 @@ class NewRunForm(forms.Form):
             settings=st,
             allocation_version=d.get("allocation_version"),
         )
+
+
+class OutputTemplateForm(forms.Form):
+    """An output template: its name and its columns in file order (text, one per line), plus columns ticked from the catalog, which are
+    added at the end. Works without scripts."""
+
+    name = forms.CharField(label="Name", max_length=output_templates.MAX_NAME)
+    columns = forms.CharField(
+        label="Columns, in file order",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 14, "spellcheck": "false"}),
+        help_text="One per line (or separated by commas). Reorder by moving lines; CET names are taken as the field's name.",
+    )
+    add = forms.MultipleChoiceField(label="Add columns", required=False, widget=forms.CheckboxSelectMultiple)
+    shared = forms.BooleanField(label="Offer it to everyone", required=False)
+    make_default = forms.BooleanField(label="Start my new runs with this template", required=False)
+
+    def __init__(self, *args, catalog=None, can_share=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.catalog = catalog or output_templates.Catalog()
+        self.fields["add"].choices = [(f.name, f.name) for _g, fields in self.catalog.groups for f in fields]
+        if not can_share:
+            del self.fields["shared"]
+
+    def picked(self) -> list[str]:
+        """The columns as saved: the text's, then the ticked ones not already in it."""
+        d = self.cleaned_data
+        return output_templates.parse(d.get("columns", "")) + list(d.get("add") or [])
 
 
 class EngineReleaseForm(forms.Form):

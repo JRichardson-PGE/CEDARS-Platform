@@ -81,6 +81,8 @@ select { max-width: 100%; }
 legend { font-weight: 600; padding: 0 .3rem; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .25rem 1rem; }
 .checks label { flex-direction: row; align-items: center; gap: .4rem; }
+.column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
+.column-group { margin: .3rem 0; }
 .pager { display: flex; gap: 1rem; align-items: center; margin: .8rem 0; }
 dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
 dl.facts dt { font-weight: 600; }
