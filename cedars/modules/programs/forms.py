@@ -132,3 +132,25 @@ class ProgramChangeForm(forms.Form):
             if new != old:
                 out[k] = new
         return out
+
+
+class DecisionForm(forms.Form):
+    note = forms.CharField(
+        label="Note", required=False, max_length=2000, widget=forms.Textarea(attrs={"rows": 2}), help_text="Needed when you decline"
+    )
+
+
+class WithdrawForm(forms.Form):
+    reason = forms.CharField(label="Why withdraw it", required=False, max_length=1000)
+
+
+class LockedFieldsForm(forms.Form):
+    """A new policy: which attributes a program's administrators change only through a request (BR-13.7)."""
+
+    fields_locked = forms.MultipleChoiceField(label="Locked attributes", required=False, widget=forms.CheckboxSelectMultiple)
+    effective = forms.DateField(label="Effective from", widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Reason", max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, choices=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["fields_locked"].choices = list(choices)

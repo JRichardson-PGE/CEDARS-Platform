@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}Change to {{ r.program.prg_id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'programs:requests' %}">Program change requests</a></p>
+<h1>Change to <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a> from {{ r.effective|date:"Y-m-d" }}</h1>
+<dl class="facts">
+  <dt>Status</dt><dd>{{ r.get_status_display }}{% if r.decided_at %} {{ r.decided_at|date:"Y-m-d" }} by {{ r.decided_by.email }}{% if r.decided_as_delegate_of %} (delegate of {{ r.decided_as_delegate_of.email }}){% endif %}{% endif %}</dd>
+  {% if r.decision_note %}<dt>Decision note</dt><dd>{{ r.decision_note }}</dd>{% endif %}
+  <dt>Asked by</dt><dd>{{ r.requested_by.email }}, {{ r.requested_at|date:"Y-m-d" }}</dd>
+  <dt>Reason</dt><dd>{{ r.reason }}</dd>
+  {% if r.version %}<dt>New version</dt><dd>From {{ r.version.valid_from|date:"Y-m-d" }}, in the <a href="{% url 'programs:program' r.program.prg_id %}">program's versions</a></dd>{% endif %}
+</dl>
+<div class="hscroll" tabindex="0" role="region" aria-label="Requested changes">
+<table class="list">
+  <caption>What would change{% if r.status == "pending" %} (before: the latest version when it was asked for){% endif %}</caption>
+  <thead><tr><th scope="col">Attribute</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+  <tbody>{% for label, old, new in rows %}<tr><th scope="row">{{ label }}</th><td>{{ old }}</td><td>{{ new }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if can_decide %}
+<section aria-labelledby="decide-h">
+<h2 id="decide-h">Decide</h2>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if decision.non_field_errors %}<div class="alert" role="alert">{{ decision.non_field_errors }}</div>{% endif %}
+  {{ decision.note.as_field_group }}
+  <div class="actions"><button type="submit" name="action" value="approve" class="primary">Approve</button>
+    <button type="submit" name="action" value="decline">Decline</button></div>
+</form>
+</section>
+{% endif %}
+{% if can_withdraw %}
+<section aria-labelledby="withdraw-h">
+<h2 id="withdraw-h">Withdraw</h2>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if withdraw.non_field_errors %}<div class="alert" role="alert">{{ withdraw.non_field_errors }}</div>{% endif %}
+  {{ withdraw.reason.as_field_group }}
+  <div class="actions"><button type="submit" name="action" value="withdraw">Withdraw the request</button></div>
+</form>
+</section>
+{% endif %}
+{% if events %}
+<section aria-labelledby="hist-h">
+<h2 id="hist-h">History</h2>
+<ul>{% for e in events %}<li>{{ e.at|date:"Y-m-d H:i" }}: {{ e.action }} by {{ e.actor.email|default:"the system" }}{% if e.reason %} ({{ e.reason }}){% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% endblock %}

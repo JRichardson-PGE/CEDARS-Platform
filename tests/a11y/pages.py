@@ -69,4 +69,8 @@ PAGES = [
     ("program", "/programs/PGE_Res_HVAC/", "pge_admin"),
     ("program-statewide", "/programs/{sw}/", "community"),
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
+    ("program-change-requests", "/programs/requests/", "approver"),
+    ("program-change-request", "/programs/requests/{change_request}/", "approver"),
+    ("program-change-request-own", "/programs/requests/{change_request}/", "pge_admin"),
+    ("program-locked-attributes", "/programs/locked/", "cpuc_admin"),
 ]
