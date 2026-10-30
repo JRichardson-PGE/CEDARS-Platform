@@ -48,7 +48,7 @@ class SetupForm(forms.Form):
 class UploadForm(forms.Form):
     file = forms.FileField(
         label="Report file",
-        help_text="A .zip of Expenditures.csv, Commitments.csv, Measure.csv and ProgramCost.csv (comma- or pipe-delimited), or an Excel "
-        "workbook with those four sheets.",
+        help_text="A .zip of Commitments.csv, Measure.csv and ProgramCost.csv (comma- or pipe-delimited), or an Excel workbook with "
+        "those three sheets.",
         widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
     )

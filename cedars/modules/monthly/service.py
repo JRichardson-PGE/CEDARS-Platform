@@ -2,14 +2,16 @@
 (the submissions service's calendar), and what the year's BCA inputs are priced on (YearSetup). Each PA's report for a month is a
 submission with versions.
 
-    upload (.zip or .xlsx: Expenditures, Commitments, Measure, ProgramCost) -> lines and checks -> validated
+    upload (.zip or .xlsx: Commitments, Measure, ProgramCost) -> spend, commitments and checks -> validated
     -> priced (Calculations, through the submissions service: estimated savings and TSB) -> confirm -> published
 
 A report is year to date: its BCA inputs are the year's measures and program costs so far, so its estimates show how programs are
 trending toward their goals (BR-14.5). The estimates are labelled unvalidated everywhere and never enter a claim. The BCA inputs get
 BCA-level validation only, the engine's own input check when they are priced, not the claims rules (D2). Before the due date a PA can
-un-confirm, change and re-confirm (BR-14.3); after it a correction is a new version. Each program's expenditures are compared with its
-operating budget, the approved budget plus fund shifts in effect, read from Budgets through the registry service (BR-04.7, BR-14.6).
+un-confirm, change and re-confirm (BR-14.3); after it a correction is a new version. Each program's spend is read from the BCA inputs
+(ProgramCost and the measures' rebates and incentives, as Budgets counts a budget; Jake, 2026-10-30), the month's spend being the change
+in the year to date since the previous month's report, and compared with its operating budget, the approved budget plus fund shifts in
+effect, read from Budgets through the registry service (BR-04.7, BR-14.6). Commitments are their own table, with CEDARS' committed columns.
 """
 
 import json
@@ -34,13 +36,12 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
 from . import upload as up
-from .models import TABLE_FIELDS, MonthlyResult, ReportLine, YearSetup
+from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, MonthlyResult, ReportLine, YearSetup
 
 MODULE = "monthly"
 KIND = "Monthly report"
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
-YTD_PAIRS = [("MonthExpenditures", "YTDExpenditures"), ("MonthIncentivesPaid", "YTDIncentivesPaid")]
-YTD_TOLERANCE = Decimal("1")  # dollars: a month's figure and the change in its year-to-date figure may differ by rounding
+YTD_TOLERANCE = Decimal("1")  # dollars: year-to-date spend may move by rounding
 BCA_NOTE = (
     "The BCA inputs (Measure and ProgramCost) get BCA-level validation only: the calculation engine's own input check, run when the "
     "report is priced, not the claims rules (D2). Their savings and TSB are unvalidated estimates."
@@ -189,13 +190,16 @@ def _finding(row, record, table, fieldname, rule, severity, message, fix, value=
 
 
 def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, previous: SubmissionVersion | None):
-    """The version's Expenditures and Commitments lines from its tables, the module's checks, the number of records and notes.
+    """The version's lines from its tables, the module's checks, the number of records and notes. Each program's spend is read from the
+    year-to-date BCA inputs (Jake, 2026-10-30): its ProgramCost row's ten cost fields and OnBillFinancing, plus its measures' rebates and
+    incentives (NumUnits x the four unit fields), as Budgets counts a budget; YTDExpenditures is the costs plus the rebates and
+    incentives. Commitments are their own table.
 
-    Checks (rule IDs MON-*): PA is the filing organisation; PrgIDs in the program registry and the PA's own or statewide; YearMonth is
-    the report's month; expenditure and commitment fields are numbers (CEDARS has them NotEmpty); one row per program in each table;
-    the BCA inputs are this year's up to the report's quarter (ProgramCost PrgYear, Measure ClaimYearQuarter). Warnings: a month's
-    figure that does not account for the change in its year-to-date figure since the previous month's standing report; a program in
-    the BCA inputs with no expenditures row; measures whose program has no ProgramCost row (priced with no program costs)."""
+    Checks (rule IDs MON-*): Commitments' PA is the filing organisation and its YearMonth the report's month; PrgIDs in the program
+    registry and the PA's own or statewide; the spend and commitment fields are numbers (CEDARS has the commitments NotEmpty); one row per
+    program in Commitments and in ProgramCost; the BCA inputs are this year's up to the report's quarter (ProgramCost PrgYear, Measure
+    ClaimYearQuarter). Warnings: a program's year-to-date spend below the previous month's standing report's; measures whose program has
+    no ProgramCost row (priced with no program costs)."""
     year, month = period.year, period.number
     quarter = (month - 1) // 3 + 1
     found: list[rules.Finding] = []
@@ -238,83 +242,104 @@ def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, prev
             return False
         return True
 
+    def numbers(table, i, rid, row, fields, blank_ok) -> dict | None:
+        values, ok = {}, True
+        for f in fields:
+            n = up.number(up.get(row, f), blank_ok=blank_ok)
+            if n is None:
+                found.append(
+                    _finding(
+                        i,
+                        rid,
+                        table,
+                        f,
+                        "MON-NUM",
+                        "reject",
+                        f"{f} should be a number",
+                        f"Enter a plain number in {f}" + (" (0 when there is nothing to report)." if not blank_ok else "."),
+                        up.get(row, f),
+                    )
+                )
+                ok = False
+            else:
+                values[f] = n
+        return values if ok else None
+
     lines: list[dict] = []
-    for table, fields in TABLE_FIELDS.items():
-        header, rows = parsed[table]
-        retired = [c for c in header if c in up.RETIRED]
-        if retired:
-            notes.append(f"{table}: {', '.join(retired)} {'is' if len(retired) == 1 else 'are'} not read ({up.RETIRED[retired[0]]}).")
-        seen = set()
-        for i, r in enumerate(rows, start=2):
-            prg = up.get(r, "PrgID")
-            ok = program_ok(table, i, prg, prg)
-            pa = up.get(r, "PA")
-            if pa.upper() != organisation.code.upper():
-                found.append(
-                    _finding(
-                        i,
-                        prg,
-                        table,
-                        "PA",
-                        "MON-PA",
-                        "reject",
-                        f"PA {pa or '(blank)'} is not {organisation.code}",
-                        f"Put {organisation.code} in PA: a report holds only the filing PA's rows.",
-                        pa,
-                    )
+    header, rows = parsed["Commitments"]
+    retired = [c for c in header if c in up.RETIRED]
+    if retired:
+        notes.append(f"Commitments: {', '.join(retired)} {'is' if len(retired) == 1 else 'are'} not read ({up.RETIRED[retired[0]]}).")
+    seen = set()
+    for i, r in enumerate(rows, start=2):
+        prg = up.get(r, "PrgID")
+        ok = program_ok("Commitments", i, prg, prg)
+        pa = up.get(r, "PA")
+        if pa.upper() != organisation.code.upper():
+            found.append(
+                _finding(
+                    i,
+                    prg,
+                    "Commitments",
+                    "PA",
+                    "MON-PA",
+                    "reject",
+                    f"PA {pa or '(blank)'} is not {organisation.code}",
+                    f"Put {organisation.code} in PA: a report holds only the filing PA's rows.",
+                    pa,
                 )
-                ok = False
-            ym = up.year_month(up.get(r, "YearMonth"))
-            if ym != (year, month):
-                raw = up.get(r, "YearMonth")
-                found.append(
-                    _finding(
-                        i,
-                        prg,
-                        table,
-                        "YearMonth",
-                        "MON-MONTH",
-                        "reject",
-                        f"YearMonth {raw or '(blank)'} is not this report's month",
-                        f"Use {year}{month:02d}.",
-                        raw,
-                    )
+            )
+            ok = False
+        ym = up.year_month(up.get(r, "YearMonth"))
+        if ym != (year, month):
+            raw = up.get(r, "YearMonth")
+            found.append(
+                _finding(
+                    i,
+                    prg,
+                    "Commitments",
+                    "YearMonth",
+                    "MON-MONTH",
+                    "reject",
+                    f"YearMonth {raw or '(blank)'} is not this report's month",
+                    f"Use {year}{month:02d}.",
+                    raw,
                 )
-                ok = False
-            values = {}
-            for f, _ in fields:
-                n = up.number(up.get(r, f), blank_ok=False)
-                if n is None:
-                    found.append(
-                        _finding(
-                            i,
-                            prg,
-                            table,
-                            f,
-                            "MON-NUM",
-                            "reject",
-                            f"{f} should be a number",
-                            f"Enter a plain number in {f} (0 when there is nothing to report).",
-                            up.get(r, f),
-                        )
-                    )
-                    ok = False
-                else:
-                    values[f] = str(n)
-            if ok and prg in seen:
-                found.append(
-                    _finding(i, prg, table, "PrgID", "MON-DUP", "reject", f"{prg} has two {table} rows", "Keep one row per program.", prg)
+            )
+            ok = False
+        values = numbers("Commitments", i, prg, r, [f for f, _ in COMMITMENT_FIELDS], blank_ok=False)
+        ok = ok and values is not None
+        if ok and prg in seen:
+            found.append(
+                _finding(
+                    i, prg, "Commitments", "PrgID", "MON-DUP", "reject", f"{prg} has two Commitments rows", "Keep one row per program.", prg
                 )
-                ok = False
-            if ok:
-                seen.add(prg)
-                lines.append({"table": table, "prg_id": prg, "pa": pa, "values": values, "comments": up.get(r, "Comments")[:255]})
+            )
+            ok = False
+        if ok:
+            seen.add(prg)
+            lines.append(
+                {
+                    "table": ReportLine.Table.COMMITMENTS,
+                    "prg_id": prg,
+                    "pa": pa,
+                    "values": {k: str(n) for k, n in values.items()},
+                    "comments": up.get(r, "Comments")[:255],
+                }
+            )
+
+    spend: dict[str, dict] = {}
+
+    def spend_line(prg: str, pa: str = "") -> dict:
+        s = spend.setdefault(prg, {"pa": pa, "values": defaultdict(Decimal), "measures": 0})
+        s["pa"] = s["pa"] or pa
+        return s
 
     _, costs = parsed["ProgramCost"]
     cost_programs = set()
     for i, r in enumerate(costs, start=2):
         prg, raw = up.get(r, "PrgID"), up.get(r, "PrgYear")
-        program_ok("ProgramCost", i, prg, prg)
+        ok = program_ok("ProgramCost", i, prg, prg)
         if raw.strip() != str(year):
             found.append(
                 _finding(
@@ -329,7 +354,29 @@ def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, prev
                     raw,
                 )
             )
-        cost_programs.add(prg)
+            ok = False
+        values = numbers("ProgramCost", i, prg, r, [f for f, _ in PROGRAM_COST_FIELDS] + ["OnBillFinancing"], blank_ok=True)
+        ok = ok and values is not None
+        if ok and prg in cost_programs:
+            found.append(
+                _finding(
+                    i,
+                    prg,
+                    "ProgramCost",
+                    "PrgID",
+                    "MON-DUP",
+                    "reject",
+                    f"{prg} has two ProgramCost rows",
+                    "Keep one row per program: its costs for the year to date.",
+                    prg,
+                )
+            )
+            ok = False
+        if ok:
+            cost_programs.add(prg)
+            s = spend_line(prg, up.get(r, "PA"))
+            for k, n in values.items():
+                s["values"][k] += n
     _, measures = parsed["Measure"]
     without_costs: dict[str, int] = defaultdict(int)
     for i, r in enumerate(measures, start=2):
@@ -351,8 +398,14 @@ def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, prev
                 )
             )
             ok = False
-        if ok and prg not in cost_programs:
+        values = numbers("Measure", i, rid, r, ["NumUnits"] + INCENTIVE_FIELDS, blank_ok=True)
+        if not (ok and values is not None):
+            continue
+        if prg not in cost_programs:
             without_costs[prg] += 1
+        s = spend_line(prg)
+        s["values"]["RebatesAndIncentives"] += values["NumUnits"] * sum(values[f] for f in INCENTIVE_FIELDS)
+        s["measures"] += 1
     for prg, n in sorted(without_costs.items()):
         found.append(
             _finding(
@@ -367,61 +420,65 @@ def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, prev
                 prg,
             )
         )
-    reported = {ln["prg_id"] for ln in lines if ln["table"] == "Expenditures"}
-    for prg in sorted((cost_programs | {up.get(r, "PrgID") for r in measures}) - reported):
-        if prg in programs:
-            found.append(
-                _finding(
-                    0,
-                    prg,
-                    "Expenditures",
-                    "PrgID",
-                    "MON-NOEXP",
-                    "warning",
-                    f"{prg} is in the BCA inputs but has no Expenditures row",
-                    f"Add {prg}'s Expenditures row.",
-                    prg,
-                )
-            )
+    for prg, s in sorted(spend.items()):
+        v = s["values"]
+        v["YTDExpenditures"] = sum((v[f] for f, _ in PROGRAM_COST_FIELDS), Decimal(0)) + v["RebatesAndIncentives"]
+        values = {f: str(v[f]) for f in SPEND_FIELDS}
+        lines.append({"table": ReportLine.Table.SPEND, "prg_id": prg, "pa": s["pa"] or organisation.code, "values": values, "comments": ""})
     found += _ytd_checks(lines, previous, month)
     if month > 1 and previous is None:
-        notes.append("The previous month's report is not confirmed, so the year-to-date figures were not checked against it.")
+        notes.append("The previous month's report is not confirmed, so the year-to-date spend was not checked against it.")
     notes.append(BCA_NOTE)
     records = sum(len(rs) for _, rs in parsed.values())
     return lines, found, records, notes
 
 
+def _previous_spend(previous: SubmissionVersion | None) -> dict[str, Decimal]:
+    """{PrgID: YTDExpenditures} of the previous month's standing report."""
+    if previous is None:
+        return {}
+    ensure_lines(previous)
+    return {ln.prg_id: Decimal(ln.values.get("YTDExpenditures", "0")) for ln in previous.monthly_lines.filter(table=ReportLine.Table.SPEND)}
+
+
 def _ytd_checks(lines: list[dict], previous: SubmissionVersion | None, month: int) -> list[rules.Finding]:
-    """MON-YTD: each month's figure should be the change in its year-to-date figure since the previous month's standing report (January:
-    the year-to-date figure itself)."""
-    if month > 1 and previous is None:
+    """MON-YTD: the BCA inputs are the year to date, so a program's spend should not fall below what the previous month's standing report
+    had (a program it had with spend should still be there)."""
+    if month == 1 or previous is None:
         return []
-    before = {}
-    if previous is not None:
-        ensure_lines(previous)
-        before = {ln.prg_id: ln.values for ln in previous.monthly_lines.filter(table=ReportLine.Table.EXPENDITURES)}
+    before = _previous_spend(previous)
+    now = {ln["prg_id"]: Decimal(ln["values"]["YTDExpenditures"]) for ln in lines if ln["table"] == ReportLine.Table.SPEND}
     out = []
-    for ln in lines:
-        if ln["table"] != "Expenditures":
-            continue
-        prior = before.get(ln["prg_id"], {})
-        for m, ytd in YTD_PAIRS:
-            expected = Decimal(prior.get(ytd, "0")) + Decimal(ln["values"][m])
-            got = Decimal(ln["values"][ytd])
-            if abs(expected - got) > YTD_TOLERANCE:
-                out.append(
-                    _finding(
-                        0,
-                        ln["prg_id"],
-                        "Expenditures",
-                        ytd,
-                        "MON-YTD",
-                        "warning",
-                        f"{ytd} {got:,.2f} is not last month's {prior.get(ytd, '0')} plus {m} {ln['values'][m]}",
-                        f"Check {m} and {ytd}; the year-to-date figure should grow by the month's.",
-                        str(got),
-                    )
+    for prg in sorted(set(before) | set(now)):
+        prior, got = before.get(prg, Decimal(0)), now.get(prg)
+        if got is None and prior > YTD_TOLERANCE:
+            out.append(
+                _finding(
+                    0,
+                    prg,
+                    "ProgramCost",
+                    "PrgID",
+                    "MON-YTD",
+                    "warning",
+                    f"{prg} had {prior:,.2f} spent year to date last month and is not in this report's BCA inputs",
+                    f"Keep {prg}'s ProgramCost row and measures: the BCA inputs are the year to date.",
+                    prg,
                 )
+            )
+        elif got is not None and prior - got > YTD_TOLERANCE:
+            out.append(
+                _finding(
+                    0,
+                    prg,
+                    "ProgramCost",
+                    "PrgID",
+                    "MON-YTD",
+                    "warning",
+                    f"{prg}'s spend year to date, {got:,.2f}, is below last month's {prior:,.2f}",
+                    f"Check {prg}'s ProgramCost row and measures: the BCA inputs are the year to date, so spend should not fall.",
+                    str(got),
+                )
+            )
     return out
 
 
@@ -542,7 +599,8 @@ def price(actor, v: SubmissionVersion) -> str:
         )
         return "none"
     store = storage.store("uploads")
-    statewide = Program.objects.filter(prg_id__in=[ln.prg_id for ln in v.monthly_lines.all()] + _bca_programs(v), statewide=True).exists()
+    ensure_lines(v)  # every program of the BCA inputs has a spend line
+    statewide = Program.objects.filter(prg_id__in=[ln.prg_id for ln in v.monthly_lines.all()], statewide=True).exists()
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "job.zip"
         path.write_bytes(store.get_bytes(f["key"]))
@@ -556,14 +614,6 @@ def price(actor, v: SubmissionVersion) -> str:
             allocation_version=setup.allocation_version,
             settings={"allocate_statewide": statewide},
         )
-
-
-def _bca_programs(v: SubmissionVersion) -> list[str]:
-    f = report_file(v)
-    if f is None:
-        return []
-    tables = up.read_upload(storage.store("uploads").get_bytes(f["key"]), "report.zip")
-    return sorted({up.get(r, "PrgID") for t in up.BCA_TABLES for r in up.rows(tables[t])[1]})
 
 
 def priced(v: SubmissionVersion) -> bool:
@@ -641,7 +691,7 @@ class Row:
     name: str = ""
     approved: Decimal | None = None
     operating: Decimal | None = None
-    reported: bool = False
+    reported: bool = False  # in the BCA inputs: has spend
     values: dict = field(default_factory=lambda: defaultdict(Decimal))
     committed: bool = False
     measures: int = 0
@@ -653,7 +703,7 @@ class Row:
 
     @property
     def spent_share(self) -> float | None:
-        """Year-to-date expenditures as a share of the operating budget."""
+        """Year-to-date spend as a share of the operating budget."""
         ytd = self.get("YTDExpenditures")
         return float(ytd / self.operating) if ytd is not None and self.operating else None
 
@@ -686,6 +736,7 @@ class Report:
     year: int
     budget: bool  # an operating budget was found for the PA's cycle
     estimated: bool
+    month_known: bool  # the month's spend could be worked out: January, or the previous month's report is confirmed
 
 
 def budget_rows(organisation, year: int) -> list[dict]:
@@ -694,20 +745,29 @@ def budget_rows(organisation, year: int) -> list[dict]:
 
 
 def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
-    """The version by program: its expenditures and commitments, the operating budget for the program year (approved budget plus fund
-    shifts in effect, BR-04.7) and the estimates. Programs in the operating budget but not in the report are listed as not reported."""
+    """The version by program: its spend (from the BCA inputs) and commitments, the operating budget for the program year (approved
+    budget plus fund shifts in effect, BR-04.7) and the estimates. The month's spend (MonthExpenditures) is the change in the year-to-date
+    spend since the previous month's standing report (January: the year to date). Programs in the operating budget but not in the
+    report are listed as not reported."""
     ensure_lines(v)
     import_results(v)
-    period = v.submission.deadline.period
+    deadline = v.submission.deadline
+    period = deadline.period
+    prev = previous_month(deadline)
+    previous = standing(v.submission.organisation, prev) if prev else None
+    month_known = period.number == 1 or previous is not None
+    prior = _previous_spend(previous)
     rows: dict[str, Row] = {}
     for ln in v.monthly_lines.all():
         r = rows.setdefault(ln.prg_id, Row(ln.prg_id))
-        if ln.table == ReportLine.Table.EXPENDITURES:
+        if ln.table == ReportLine.Table.SPEND:
             r.reported = True
         else:
             r.committed = True
         for k, val in ln.values.items():
             r.values[k] += Decimal(val)
+        if ln.table == ReportLine.Table.SPEND and month_known:
+            r.values["MonthExpenditures"] += Decimal(ln.values.get("YTDExpenditures", "0")) - prior.get(ln.prg_id, Decimal(0))
     for res in v.monthly_results.filter(run=(v.calculation or {}).get("run", "")):
         r = rows.setdefault(res.prg_id, Row(res.prg_id))
         r.name = r.name or res.program_name
@@ -730,7 +790,7 @@ def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
     total = Row("Total")
     for r in out:
         total.add(r)
-    return Report(out, total, period.year, bool(budget), any(r.estimated for r in out))
+    return Report(out, total, period.year, bool(budget), any(r.estimated for r in out), month_known)
 
 
 # --- the year in one view (BR-14.1)
@@ -741,19 +801,19 @@ class Month:
     deadline: Deadline
     version: SubmissionVersion | None
     totals: Row | None
-    running: Decimal | None = None  # the months' expenditures added up to this month
-    gap: Decimal | None = None  # YTDExpenditures less that running sum
+    spend: Decimal | None = None  # the year-to-date spend less the month before's in this view (January: the year to date)
 
     @property
     def consistent(self) -> bool:
-        return self.gap is None or abs(self.gap) <= YTD_TOLERANCE
+        """The reports are year to date, so the total spend should never fall from one month to the next."""
+        return self.spend is None or self.spend >= -YTD_TOLERANCE
 
 
 def year_view(organisation, year: int, *, published_only: bool = False) -> list[Month]:
-    """Each month of the year with its standing report's totals (or, for the organisation's own readers, its latest version), and the
-    accuracy check: the year-to-date expenditures against the months' expenditures added up (monthly reports are cumulative, so the
-    latest report's year-to-date total should equal the sum of every month's)."""
-    out, running = [], Decimal(0)
+    """Each month of the year with its standing report's totals (or, for the organisation's own readers, its latest version), the month's
+    spend (the change in the year-to-date spend since the month before) and the accuracy check: the year-to-date spend should not fall
+    from one month's report to the next."""
+    out, before = [], Decimal(0)
     budget = budget_rows(organisation, year)
     for d in months(year):
         v = standing(organisation, d)
@@ -762,14 +822,12 @@ def year_view(organisation, year: int, *, published_only: bool = False) -> list[
             v = submissions.latest(sub) if sub else None
         if v is None:
             out.append(Month(d, None, None))
+            before = None
             continue
         t = report(v, budget).total
-        m = Month(d, v, t)
-        if t.reported:
-            running += t.values.get("MonthExpenditures", Decimal(0))
-            m.running = running
-            m.gap = t.values.get("YTDExpenditures", Decimal(0)) - running
-        out.append(m)
+        ytd = t.values.get("YTDExpenditures", Decimal(0))
+        out.append(Month(d, v, t, None if before is None else ytd - before))
+        before = ytd
     return out
 
 
@@ -782,7 +840,7 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
     calc, out = v.calculation or {}, []
     f = report_file(v)
     if f:
-        out.append(("The report (Expenditures, Commitments, Measure, ProgramCost)", "uploads", f["key"]))
+        out.append(("The report (Commitments, Measure, ProgramCost)", "uploads", f["key"]))
     if calc.get("spec_key"):
         out.append(("Estimate run settings (job spec)", "results", calc["spec_key"]))
     if calc.get("receipt_key"):

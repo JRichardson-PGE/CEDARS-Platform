@@ -319,7 +319,7 @@ def _monthly(cpuc_admin, pge, pge_admin, analyst):
     details = {"job_sha256": monthly.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
     v = submissions.record_calculation(None, v, run="monthly", input_hash="h", details=details)
     v = monthly.confirm(analyst, v)
-    bad = report("202802", expenditures=["PGE|NOPE|202802|1|1|0|0|0|", "PGE|PGE_Res_HVAC|202801|1|1|0|0|0|"])
+    bad = report("202802", commitments=["PGE|NOPE|202802|0|0|1|0|0|0|0|0|0|", "PGE|PGE_Res_HVAC|202801|0|0|1|0|0|0|0|0|0|"])
     monthly.upload(analyst, feb, pge, bad, "february.zip")
     return {"monthly_jan": jan, "monthly_feb": feb, "monthly_mar": mar, "monthly_version": v}
 

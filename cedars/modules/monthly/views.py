@@ -20,7 +20,7 @@ from cedars.services.submissions.models import Deadline, ReopenRequest, Submissi
 
 from . import forms, service
 from . import upload as up
-from .models import COMMITMENT_FIELDS, EXPENDITURE_FIELDS, YearSetup
+from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, YearSetup
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
 UNVALIDATED = "Unvalidated estimate"
@@ -185,7 +185,9 @@ def report(request, pk):
         "upload_form": forms.UploadForm(),
         "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
         "sysadmin": access.is_system_admin(request.user),
-        "tables": [("Expenditures", EXPENDITURE_FIELDS), ("Commitments", COMMITMENT_FIELDS)],
+        "commitment_fields": COMMITMENT_FIELDS,
+        "cost_fields": PROGRAM_COST_FIELDS,
+        "incentive_fields": INCENTIVE_FIELDS,
     }
     if v is not None:
         service.ensure_lines(v)
@@ -200,14 +202,14 @@ def report(request, pk):
 def _tiles(r) -> list[tuple[str, str]]:
     t = r.total
     out = [
-        ("Expenditures this month", _money(t.get("MonthExpenditures"))),
-        ("Expenditures, year to date", _money(t.get("YTDExpenditures"))),
+        ("Spend this month", _money(t.get("MonthExpenditures")) if r.month_known else "not known yet"),
+        ("Spend, year to date", _money(t.get("YTDExpenditures"))),
     ]
     if r.budget:
         out.append(("Share of the operating budget spent", _fmt("share", t.spent_share)))
     out += [
-        ("Incentives paid, year to date", _money(t.get("YTDIncentivesPaid"))),
-        ("Incentives committed, year to date", _money(t.get("YTDIncentivesCommitted"))),
+        ("Rebates and incentives, year to date", _money(t.get("RebatesAndIncentives"))),
+        ("Funds committed, year to date", _money(t.get("YTDCommittedFunds"))),
     ]
     if r.estimated:
         out.append(("Estimated TSB, year to date (unvalidated)", _money(t.estimate("TotalSystemBenefit"))))
@@ -323,11 +325,10 @@ def _version(request, pk) -> SubmissionVersion:
 
 COLUMNS = [
     ("operating", "Operating budget", "money"),
-    ("MonthExpenditures", "Expenditures this month", "money"),
-    ("YTDExpenditures", "Expenditures, year to date", "money"),
+    ("MonthExpenditures", "Spend this month", "money"),
+    ("YTDExpenditures", "Spend, year to date", "money"),
     ("spent_share", "Share of budget spent", "share"),
-    ("YTDIncentivesPaid", "Incentives paid, year to date", "money"),
-    ("YTDIncentivesCommitted", "Incentives committed, year to date", "money"),
+    ("RebatesAndIncentives", "Rebates and incentives, year to date", "money"),
     ("YTDCommittedFunds", "Funds committed, year to date", "money"),
 ]
 
@@ -342,7 +343,7 @@ def _cell(r, key):
 
 @login_required
 def version(request, pk):
-    """A report by program: expenditures and commitments against the operating budget, and the estimates (labelled unvalidated)."""
+    """A report by program: spend and commitments against the operating budget, and the estimates (labelled unvalidated)."""
     v = _version(request, pk)
     r = service.report(v)
     rows = []
@@ -352,7 +353,7 @@ def version(request, pk):
                 "r": row,
                 "cells": [_fmt(kind, _cell(row, key)) for key, _, kind in COLUMNS],
                 "estimates": [_fmt(kind, row.estimate(key)) for key, _, kind in service.ESTIMATES],
-                "flags": [] if row is r.total else (["not reported"] if not row.reported else []),
+                "flags": [] if row is r.total else (["not in the BCA inputs"] if not row.reported else []),
             }
         )
     return render(
@@ -370,6 +371,7 @@ def version(request, pk):
             "public": v.status == SubmissionVersion.Status.PUBLISHED,
             "calc": v.calculation or {},
             "commitment_fields": COMMITMENT_FIELDS,
+            "cost_fields": PROGRAM_COST_FIELDS,
             "unvalidated": UNVALIDATED,
         },
     )
@@ -377,16 +379,16 @@ def version(request, pk):
 
 @login_required
 def version_csv(request, pk):
-    """The report by program as a file: every expenditure and commitment field, the budgets and the estimates."""
+    """The report by program as a file: every spend and commitment field, the budgets and the estimates."""
     v = _version(request, pk)
     r = service.report(v)
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     name = f"{v.submission.organisation.code}_{v.submission.deadline.period}_v{v.number}"
     response["Content-Disposition"] = f'attachment; filename="monthly_report_{name}.csv"'
     w = csv.writer(response, lineterminator="\n")
-    fields = [f for f, _ in EXPENDITURE_FIELDS + COMMITMENT_FIELDS]
+    fields = ["MonthExpenditures"] + SPEND_FIELDS + [f for f, _ in COMMITMENT_FIELDS]
     w.writerow(
-        ["PrgID", "ProgramName", "Reported", "ApprovedBudget", "OperatingBudget"]
+        ["PrgID", "ProgramName", "InBCAInputs", "ApprovedBudget", "OperatingBudget"]
         + fields
         + [f"Estimated{k}" if kind != "ratio" else f"Estimated{k}Ratio" for k, _, kind in service.ESTIMATES]
     )
@@ -450,7 +452,7 @@ def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
 
 @login_required
 def year(request, year):
-    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date figures (BR-14.1)."""
+    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend (BR-14.1)."""
     get_object_or_404(YearSetup, year=year)
     org, published_only, choices = _year_org(request)
     months = service.year_view(org, year, published_only=published_only) if org else []
@@ -462,13 +464,9 @@ def year(request, year):
             {
                 "m": m,
                 "status": _status(m.version),
-                "cells": [
-                    _money(t.get(k)) if t else ""
-                    for k in ("MonthExpenditures", "YTDExpenditures", "YTDIncentivesPaid", "YTDIncentivesCommitted")
-                ]
+                "cells": [_money(m.spend)]
+                + [_money(t.get(k)) if t else "" for k in ("YTDExpenditures", "RebatesAndIncentives", "YTDCommittedFunds")]
                 + [_money(t.estimate("TotalSystemBenefit")) if t else ""],
-                "running": _money(m.running),
-                "gap": _money(m.gap) if m.gap is not None else "",
             }
         )
     return render(
@@ -496,8 +494,8 @@ def year_csv(request, year):
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="monthly_reports_{org.code}_{year}.csv"'
     w = csv.writer(response, lineterminator="\n")
-    fields = [f for f, _ in EXPENDITURE_FIELDS + COMMITMENT_FIELDS]
-    w.writerow(["YearMonth", "Version", "Status", *fields, "MonthExpendituresAddedUp", "YTDGap", "EstimatedTotalSystemBenefit"])
+    fields = SPEND_FIELDS + [f for f, _ in COMMITMENT_FIELDS]
+    w.writerow(["YearMonth", "Version", "Status", "MonthExpenditures", *fields, "YTDFell", "EstimatedTotalSystemBenefit"])
     for m in service.year_view(org, year, published_only=published_only):
         t = m.totals
         w.writerow(
@@ -505,9 +503,10 @@ def year_csv(request, year):
                 f"{year}{m.deadline.period.number:02d}",
                 m.version.number if m.version else "",
                 m.version.status if m.version else "not started",
+                "" if m.spend is None else m.spend,
             ]
             + ["" if t is None or t.get(f) is None else t.get(f) for f in fields]
-            + ["" if m.running is None else m.running, "" if m.gap is None else m.gap]
+            + [not m.consistent]
             + ["" if t is None or t.estimate("TotalSystemBenefit") is None else t.estimate("TotalSystemBenefit")]
         )
     return response
