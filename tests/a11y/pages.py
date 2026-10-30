@@ -2,7 +2,8 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft}."""
+{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
+{monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}."""
 
 PAGES = [
     ("home", "/", None),
@@ -92,4 +93,14 @@ PAGES = [
     ("fund-shift-effective-cpuc", "/budgets/shifts/{shift_effective}/", "cpuc_admin"),
     ("operating-budget", "/budgets/operating/2028/", "analyst"),
     ("operating-budget-cpuc", "/budgets/operating/2028/?org=PGE&year=2028", "cpuc_admin"),
+    ("monthly", "/monthly/", "analyst"),
+    ("monthly-year-new", "/monthly/years/new/", "cpuc_admin"),
+    ("monthly-setup", "/monthly/years/2028/setup/", "cpuc_admin"),
+    ("monthly-report-published", "/monthly/reports/{monthly_jan}/", "analyst"),
+    ("monthly-report-rejected", "/monthly/reports/{monthly_feb}/", "analyst"),
+    ("monthly-report-cpuc", "/monthly/reports/{monthly_jan}/?org=PGE", "cpuc_admin"),
+    ("monthly-report-not-started", "/monthly/reports/{monthly_mar}/", "analyst"),
+    ("monthly-version", "/monthly/versions/{monthly_version}/", "community"),
+    ("monthly-year", "/monthly/years/2028/?org=PGE", "community"),
+    ("monthly-year-own", "/monthly/years/2028/", "analyst"),
 ]
