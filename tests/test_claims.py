@@ -14,7 +14,7 @@ from cedars.core import storage
 from cedars.modules.calculations import service as calculations
 from cedars.modules.calculations.models import Run
 from cedars.modules.claims import service, spec, upload
-from cedars.modules.claims.models import ClaimProgramLine, ClaimYear
+from cedars.modules.claims.models import ChangeLetter, ClaimProgramLine, ClaimYear
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
@@ -156,8 +156,8 @@ def confirmed(filer, pge, data, kind="Q1 claim", scale=1.0) -> SubmissionVersion
 # --- the template and the upload
 
 
-def test_the_template_is_cedars_claims_specification_with_the_infrastructure_cost_table():
-    assert spec.TABLES == ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost")
+def test_the_template_is_cedars_claims_specification_with_the_infrastructure_cost_and_withdrawal_tables():
+    assert spec.TABLES == ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "Withdrawal")
     assert len(spec.columns("Measure")) == 74 and "AC_Climate_Zone" in spec.columns("Measure")  # canonical names (decision L)
     assert spec.canonical("Measure", "E3ClimateZone") == "AC_Climate_Zone" and spec.canonical("Measure", "ceinputid") == "ClaimID"
     assert spec.field("InfrastructureCost", "TotalCost").type == "number" and spec.required("ContactClaim") == ["ClaimID", "ContactID"]
@@ -166,6 +166,7 @@ def test_the_template_is_cedars_claims_specification_with_the_infrastructure_cos
     wb = load_workbook(io.BytesIO(spec.template_xlsx()))
     assert wb.sheetnames == ["Fields", *spec.TABLES]
     assert [c.value for c in wb["Site"][1]] == spec.columns("Site")
+    assert [c.value for c in wb["Withdrawal"][1]] == ["ClaimID", "WithdrawalReason"]  # WithdrawnIn is CEDARS' to fill in
 
 
 def test_an_upload_is_a_zip_or_a_workbook_and_never_carries_pii():
@@ -416,6 +417,128 @@ def test_a_reopened_version_is_compiled_from_its_predecessors_upload(
     with django_capture_on_commit_callbacks(execute=True):
         service.upload_claims(filer, deadline(), pge, one_claim(EMV="7"), "correction.zip")
     assert all(storage.store("uploads").exists(key) for key in v1_files)
+
+
+# --- withdrawals and corrections
+
+
+def withdraw(*claims: str, reason="Customer cancelled the project") -> dict:
+    return {"Withdrawal": [row("Withdrawal", ClaimID=c, WithdrawalReason=reason) for c in claims]}
+
+
+def test_a_withdrawn_claim_keeps_its_records_but_is_not_priced_or_counted(filer, year, pge, programs, release):  # noqa: F811
+    confirmed(filer, pge, q1())
+    q2 = tables(claim("PGE-2028-010", quarter="2028Q2"), withdraw("pge-2028-002"))
+    q2["Withdrawal"][0]["WithdrawnIn"] = "made up"  # CEDARS fills it in, not the PA
+    v = service.upload_claims(filer, deadline("Q2 claim"), pge, claims_zip(q2), "q2.zip")
+    assert v.status == SubmissionVersion.Status.VALIDATED, service.findings(v)
+    assert v.findings["withdrawn"] == 1 and v.findings["withdrawn_total"] == 1
+    assert service.own_file(v)["ignored_columns"] == {"Withdrawal": ["WithdrawnIn"]}
+    compiled = service.compiled_tables(v)
+    assert "PGE-2028-002" in {r["ClaimID"] for r in compiled["Measure"].rows}  # kept in the year's history
+    assert compiled["Withdrawal"].rows == [
+        {"ClaimID": "pge-2028-002", "WithdrawalReason": "Customer cancelled the project", "WithdrawnIn": "2028 Q2 claim, version 1"}
+    ]
+    job = zipfile.ZipFile(io.BytesIO(storage.store("uploads").get_bytes(v.findings["job_key"])))
+    assert [m["CEInputID"] for m in csv.DictReader(io.StringIO(job.read("Measure.csv").decode()))] == ["PGE-2028-001", "PGE-2028-010"]
+    lines = {ln.prg_id: ln for ln in v.claim_lines.all()}
+    assert lines["PGE_Com"].claims == 0 and lines["PGE_Com"].rebates_and_incentives == 0 and lines["PGE_Com"].filed == {}
+    assert [(w["claim"], w["confirmed_at"]) for w in service.withdrawals(v)] == [("pge-2028-002", None)]
+    finish_run(Run.objects.get(pk=service.price(filer, v)))
+    v.refresh_from_db()
+    v = service.confirm(filer, v)
+    assert service.withdrawals(v)[0]["confirmed_at"] == v.confirmed_at
+
+    # a claim is withdrawn once, only after it is confirmed, with its records left as filed; its ClaimID is never filed again
+    bad = tables(
+        claim("PGE-2028-002", quarter="2028Q3"),
+        claim("PGE-2028-020", quarter="2028Q3"),
+        withdraw("PGE-2028-002", "PGE-2028-020", "PGE-2028-404"),
+    )
+    v3 = service.upload_claims(filer, deadline("Q3 claim"), pge, claims_zip(bad), "q3.zip")
+    found = {(f["table"], f["record_id"], f["message"].split(" ")[-1]) for f in service.findings(v3) if f["rule_id"] == "CLM-WD"}
+    assert found == {
+        ("Withdrawal", "PGE-2028-002", "1"),  # already withdrawn, in the Q2 claim, version 1
+        ("Withdrawal", "PGE-2028-020", "withdrawn"),  # not confirmed before: leave it out instead
+        ("Withdrawal", "PGE-2028-404", "withdrawn"),
+        ("Claim", "PGE-2028-020", "it"),  # withdrawn and filed in one upload
+        ("Measure", "PGE-2028-020", "it"),
+        ("Claim", "PGE-2028-002", "it"),  # withdrawn and filed in one upload, and withdrawn before
+        ("Measure", "PGE-2028-002", "it"),
+    }, found
+    v3 = service.upload_claims(filer, deadline("Q3 claim"), pge, claims_zip(claim("PGE-2028-002", quarter="2028Q3")), "q3.zip")
+    assert {f["message"] for f in service.findings(v3) if f["rule_id"] == "CLM-WD"} == {
+        "Claim PGE-2028-002 was withdrawn in the 2028 Q2 claim, version 1"
+    }
+
+
+def test_a_correction_publishes_a_change_letter(
+    client,
+    filer,
+    year,
+    pge,
+    programs,
+    release,  # noqa: F811
+    cpuc_admin,
+    make_user,
+    django_capture_on_commit_callbacks,
+):
+    v1 = confirmed(filer, pge, q1())
+    submissions.move_deadline(cpuc_admin, deadline(), timezone.now() - timedelta(days=1), "test")
+    submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
+    v2 = service.request_reopen(filer, v1.submission, "PGE-2028-002 was cancelled; PGE-2028-001 had 20 units")
+    correction = tables(
+        claim("PGE-2028-001", NumUnits="20"),
+        claim("PGE-2028-003"),
+        withdraw("PGE-2028-002"),
+        ProgramCost=[row("ProgramCost", PrgID="PGE_Res"), row("ProgramCost", PrgID="PGE_Com", AdminCostsOverheadAndGA="300", EMV="0")],
+        Site=[row("Site", SiteID="PGE-S1")],
+        ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
+    )
+    with django_capture_on_commit_callbacks(execute=True):
+        v2 = service.upload_claims(filer, deadline(), pge, claims_zip(correction), "correction.zip")
+    assert v2.status == SubmissionVersion.Status.VALIDATED, service.findings(v2)
+    compiled = service.compiled_tables(v2)
+    assert {r["ClaimID"] for r in compiled["Measure"].rows} == {"PGE-2028-001", "PGE-2028-002", "PGE-2028-003"}  # 002 as filed
+    assert not ChangeLetter.objects.exists()
+    finish_run(Run.objects.get(pk=service.price(filer, v2)), scale=2.0)
+    v2.refresh_from_db()
+    v2 = service.confirm(filer, v2)
+    letter = ChangeLetter.objects.get()
+    assert letter.version == v2 and letter.previous == v1 and letter.reason.startswith("PGE-2028-002 was cancelled")
+    c = letter.changes
+    assert c["previous_label"] == "2028 Q1 claim, version 1"
+    assert {k: g["count"] for k, g in c["claims"].items()} == {"added": 1, "changed": 1, "removed": 0, "reinstated": 0, "withdrawn": 1}
+    assert c["claims"]["added"]["ids"] == ["PGE-2028-003"] and c["claims"]["changed"]["ids"] == ["PGE-2028-001"]
+    assert c["claims"]["withdrawn"]["ids"] == [{"claim": "PGE-2028-002", "reason": "Customer cancelled the project"}]
+    by_table = {t["table"]: t for t in c["tables"]}
+    assert by_table["Measure"] == {"table": "Measure", "before": 2, "after": 3, "added": 1, "changed": 1, "removed": 0}
+    assert by_table["Withdrawal"]["added"] == 1
+    programs_ = {p["prg_id"]: p for p in c["programs"]}
+    assert programs_["PGE_Res"]["before"]["claims"] == 1 and programs_["PGE_Res"]["after"]["claims"] == 2
+    assert programs_["PGE_Res"]["before"]["TotalSystemBenefit"] == 4500 and programs_["PGE_Res"]["after"]["TotalSystemBenefit"] == 9000
+    assert programs_["PGE_Com"]["after"]["claims"] == 0 and programs_["PGE_Com"]["after"]["expenditures"] == 300
+    assert c["totals"]["before"]["expenditures"] == 1470 and c["totals"]["after"]["expenditures"] == 1100 + 20 * 5 + 10 * 5 + 300
+    event = AuditEvent.objects.get(action="claims.change_letter_published")
+    assert event.after["withdrawn"] == 1 and event.reason == letter.reason
+    # the letter is append-only, and the version it replaces stays as confirmed
+    from django.db import DatabaseError, transaction
+
+    with pytest.raises(DatabaseError, match="append-only"), transaction.atomic():
+        ChangeLetter.objects.filter(pk=letter.pk).update(reason="edited")
+    v1.refresh_from_db()
+    assert v1.status == SubmissionVersion.Status.PUBLISHED and service.standing(pge, deadline()) == v2
+
+    # pages: the change log and the letter are open to every signed-in user, linked from the versions
+    sign_in(client, make_user("someone@example.com"))
+    r = client.get(reverse("claims:changes"))
+    assert r.status_code == 200 and b"PGE 2028 Q1 claim, version 2" in r.content
+    assert client.get(reverse("claims:changes") + "?org=PGE&year=2027").content.count(b"version 2</a>") == 0
+    r = client.get(reverse("claims:change_letter", args=[letter.pk]))
+    assert r.status_code == 200 and b"Customer cancelled the project" in r.content and b"PGE-2028-003" in r.content
+    assert b"+$4,500" in r.content  # PGE_Res's total system benefit
+    r = client.get(reverse("claims:version", args=[v2.pk]))
+    assert b"change letter" in r.content and b"Withdrawn claims" in r.content and b"2028 Q1 claim, version 2" in r.content
 
 
 # --- the claims rule set

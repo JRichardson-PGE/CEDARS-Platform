@@ -19,4 +19,6 @@ urlpatterns = [
     path("versions/<int:pk>/results.csv", views.version_csv, name="version_csv"),
     path("versions/<int:pk>/findings.csv", views.findings_csv, name="findings_csv"),
     path("versions/<int:pk>/files/<str:which>", views.published_file, name="file"),
+    path("changes/", views.changes, name="changes"),
+    path("changes/<int:pk>/", views.change_letter, name="change_letter"),
 ]

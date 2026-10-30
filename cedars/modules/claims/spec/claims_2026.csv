@@ -215,3 +215,6 @@ InfrastructureCost,InfraCustomerCompleteDate,InfraCustomerCompleteDate,date,,"If
 InfrastructureCost,GasPipeCappingCost,GasPipeCappingCost,number,,The cost of capping off or removing any gas pipes or flues.
 InfrastructureCost,SourceNonEEDollars,SourceNonEEDollars,text255,,The program(s) name(s) of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
 InfrastructureCost,TotalNonEEDollars,TotalNonEEDollars,number,,The total dollar value of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
+Withdrawal,ClaimID,ClaimID,text255,yes,"The claim withdrawn: a ClaimID filed earlier in the claim year. Its records stay in the year's history, marked withdrawn, and are no longer priced or counted (BR-05.2)."
+Withdrawal,WithdrawalReason,WithdrawalReason,text255,yes,Why the claim is withdrawn. Shown with the claim in the submission history and on the change letter.
+Withdrawal,WithdrawnIn,WithdrawnIn,text255,,"Filled in by CEDARS, not by the PA: the confirmation and version that withdrew the claim."

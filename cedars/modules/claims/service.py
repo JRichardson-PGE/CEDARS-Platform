@@ -9,7 +9,12 @@ them. Each PA's filing for one of them is a submission with versions.
 
 A quarter is compiled on the standing version of the quarter before it, so the quarters are filed in order: a quarter is confirmed only
 on the earlier quarter it was checked against, and only the most recently confirmed quarter is reopened (CEDARS' own guard). Records an
-upload changes from an earlier quarter are counted and listed, never silently replaced."""
+upload changes from an earlier quarter are counted and listed, never silently replaced.
+
+An upload withdraws a claim filed earlier in the year by naming it in its Withdrawal table with the reason (BR-05.2): the claim's records
+stay in the compiled year, marked with the confirmation that withdrew it, but are no longer priced or counted. After the due date a
+correction is a new version of the most recently confirmed confirmation (once the year's final claim is confirmed, of that one), and its
+publication writes a public change letter (BR-09.3) of what it changed against the version it replaces."""
 
 import hashlib
 import io
@@ -35,7 +40,7 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
 from . import spec, upload
-from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ClaimProgramLine, ClaimResult, ClaimYear
+from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimResult, ClaimYear
 
 MODULE = "claims"
 RULE_SET = "claims"
@@ -47,6 +52,7 @@ INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirect
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # Tables the CEDARS claims rule set (CET's Measure and ProgramCost specification and rules) checks; the module checks the rest.
 RULE_TABLES = ("Measure", "ProgramCost")
+CLAIM_TABLES = ("Claim", "Measure", "ContactClaim", "InfrastructureCost")  # the tables that hold a claim's own records
 
 
 # --- claim years (the CPUC sets them up)
@@ -256,18 +262,25 @@ class Compiled:
     changed_claims: list[str] = field(default_factory=list)
 
 
-def compile_tables(base: dict[str, upload.Table], own: dict[str, upload.Table]) -> Compiled:
+def compile_tables(
+    base: dict[str, upload.Table], own: dict[str, upload.Table], withdrawn_in: str = "", corrected: dict[str, upload.Table] | None = None
+) -> Compiled:
     """The year to date: the base's rows with this upload's over them by primary key. For ContactClaim and InfrastructureCost an upload's
-    rows for a claim replace all the claim's earlier rows. Columns are the template's, in its order, that either side has."""
+    rows for a claim replace all the claim's earlier rows. The upload's withdrawals are marked with the confirmation that makes them
+    (`withdrawn_in`); a correction that withdraws a claim the version it corrects filed (`corrected`, that version's compiled tables)
+    keeps that claim's records as they were filed. Columns are the template's, in its order, that either side has."""
     out = Compiled({})
     for name in spec.TABLES:
         b, o = base.get(name), own.get(name)
         if b is None and o is None:
             continue
         have = set((b.columns if b else []) + (o.columns if o else []))
+        own_rows = list(o.rows) if o else []
+        if name == "Withdrawal" and own_rows:
+            have.add("WithdrawnIn")
+            own_rows = [{**r, "WithdrawnIn": withdrawn_in} for r in own_rows]
         columns = [c for c in spec.columns(name) if c in have]
         base_rows = list(b.rows) if b else []
-        own_rows = list(o.rows) if o else []
         if name in spec.BY_CLAIM:
             claims = {_claim(r) for r in own_rows}
             before = {_claim(r) for r in base_rows}
@@ -283,7 +296,21 @@ def compile_tables(base: dict[str, upload.Table], own: dict[str, upload.Table]) 
             if name == "Measure":
                 out.changed_claims = sorted(k[0] for k in keys & before)
         out.tables[name] = upload.Table(name, columns, kept + own_rows)
+    if corrected:
+        have = {_claim(r) for name in CLAIM_TABLES for r in out.tables.get(name, upload.Table(name, [], [])).rows}
+        keep = withdrawn(own) - have
+        for name in CLAIM_TABLES:
+            rows = [r for r in corrected.get(name, upload.Table(name, [], [])).rows if _claim(r) in keep]
+            if rows:
+                t = out.tables.get(name) or upload.Table(name, [], [])
+                columns = [c for c in spec.columns(name) if c in set(t.columns) | set(corrected[name].columns)]
+                out.tables[name] = upload.Table(name, columns, t.rows + rows)
     return out
+
+
+def withdrawn(tables: dict[str, upload.Table]) -> set[str]:
+    """The claims the tables withdraw (BR-05.2), as compared keys: their records stay, marked withdrawn, but are not priced or counted."""
+    return {_claim(r) for r in tables.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows if _claim(r)}
 
 
 def _prefix(v: SubmissionVersion) -> str:
@@ -314,7 +341,7 @@ def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename
         raise AccessDenied("That is not a claims deadline.")
     claim_year(deadline)
     _require_in_order(organisation, deadline)
-    tables = {name: t for name, t in upload.read(data, filename).items() if t.rows}
+    tables = {name: upload.without_system_fields(t) for name, t in upload.read(data, filename).items() if t.rows}
     if not tables:
         raise upload.UploadError("The file has no records: each table it holds has only its column names.")
     v = submissions.start(actor, deadline, organisation)
@@ -332,6 +359,18 @@ def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename
         entry["ignored_columns"] = ignored
     v = submissions.attach_files(actor, v, [entry])
     return check(actor, v)
+
+
+def corrected_version(v: SubmissionVersion) -> SubmissionVersion | None:
+    """The published version a correction (version 2 or later) replaces."""
+    if v.number < 2:
+        return None
+    return (
+        SubmissionVersion.objects.filter(submission=v.submission_id, number__lt=v.number, status=SubmissionVersion.Status.PUBLISHED)
+        .select_related("submission__deadline__period", "submission__organisation")
+        .order_by("-number")
+        .first()
+    )
 
 
 def _adopt(actor, v: SubmissionVersion, f: dict) -> dict:
@@ -374,8 +413,10 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
         raise AccessDenied("Upload the claims first.")
     base_v = base_for(org, deadline)
     base = compiled_tables(base_v) if base_v else {}
-    comp = compile_tables(base, own)
-    problems = derive_checks(own, comp.tables, org, year, last_quarter(deadline))
+    previous = corrected_version(v)
+    corrected = compiled_tables(previous) if previous else {}
+    comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
+    problems = derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
     found, notes, rule_set = _rule_findings(own, year)
     problems += found
     own_f = own_file(v)
@@ -407,18 +448,22 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
             "added": {t: n for t, n in comp.added.items() if n},
             "changed_claims": comp.changed_claims[:200],
             "changed_claims_count": len(comp.changed_claims),
+            "withdrawn": len(withdrawn(own)),
+            "withdrawn_total": len(withdrawn(comp.tables)),
         }
     )
     return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
 
 
 def job_zip(tables: dict[str, upload.Table]) -> bytes:
-    """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) and ProgramCost tables. b"" when there are
-    no measures yet."""
+    """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) less the withdrawn claims, and the ProgramCost
+    table. b"" when there are no measures to price."""
     m = tables.get("Measure")
-    if m is None or not m.rows:
+    gone = withdrawn(tables)
+    rows = [r for r in (m.rows if m else []) if _claim(r) not in gone]
+    if not rows:
         return b""
-    measure = upload.Table("Measure", ["CEInputID" if c == "ClaimID" else c for c in m.columns], [_as_ceinput(r) for r in m.rows])
+    measure = upload.Table("Measure", ["CEInputID" if c == "ClaimID" else c for c in m.columns], [_as_ceinput(r) for r in rows])
     cost = tables.get("ProgramCost") or upload.Table("ProgramCost", spec.columns("ProgramCost"), [])
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -496,11 +541,21 @@ FIX = {
 }
 
 
-def derive_checks(own: dict[str, upload.Table], compiled: dict[str, upload.Table], organisation, year: int, last_q: int) -> list[Problem]:
+def derive_checks(
+    own: dict[str, upload.Table],
+    compiled: dict[str, upload.Table],
+    organisation,
+    year: int,
+    last_q: int,
+    base: dict[str, upload.Table] | None = None,
+    corrected: dict[str, upload.Table] | None = None,
+) -> list[Problem]:
     """The module's checks (rule IDs CLM-*), on the upload's own records, with references checked against the compiled year to date:
     the template's columns, required fields and types for the tables the claims rule set does not cover (it covers Measure and
     ProgramCost), primary keys, ID prefixes, the claim year and quarter, programs in the registry and the PA's own, the links between
-    the tables, and CEDARS' own data rules for the Claim and Site tables that a record can be checked against on its own."""
+    the tables, withdrawals against the year so far (`base`, and `corrected`: the compiled tables of the version a correction replaces),
+    and CEDARS' own data rules for the Claim and Site tables that a record can
+    be checked against on its own."""
     problems: list[Problem] = []
     code = organisation.code
     rule_set_on = rules.in_force(RULE_SET) is not None
@@ -625,6 +680,36 @@ def derive_checks(own: dict[str, upload.Table], compiled: dict[str, upload.Table
         if site and site.strip().lower() not in sites:
             add("Participant", i, rid_of("Participant", r), "SiteID", "CLM-REF", f"Site {site} has no Site record",
                 "Add the Site record, or leave SiteID blank for a count that covers all of the program's sites.", site)  # fmt: skip
+
+    # withdrawals (BR-05.2): only a claim filed in an earlier confirmation (or in the version a correction replaces), once, with its
+    # records left as they were filed; a withdrawn ClaimID is never filed again
+    earlier = {_claim(r): r.get("WithdrawnIn", "") for r in (base or {}).get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+    gone = withdrawn(own)
+    filed = {
+        _claim(r)
+        for t in (base or {}, corrected or {})
+        for name in ("Claim", "Measure")
+        for r in t.get(name, upload.Table(name, [], [])).rows
+    }
+    for i, r in enumerate(own.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows, start=2):
+        cid, k = r.get("ClaimID", ""), _claim(r)
+        if not cid:
+            continue
+        if k in earlier:
+            add("Withdrawal", i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was already withdrawn in the {earlier[k]}",
+                "Leave it out: a claim is withdrawn once.", cid)  # fmt: skip
+        elif k not in filed:
+            add("Withdrawal", i, cid, "ClaimID", "CLM-WD", f"Claim {cid} is not filed in {year}, so it cannot be withdrawn",
+                f"Name a ClaimID already confirmed in {year}; to drop a claim of this upload, leave it out.", cid)  # fmt: skip
+    for name in CLAIM_TABLES:
+        for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
+            cid, k = r.get("ClaimID", ""), _claim(r)
+            if k in gone:
+                add(name, i, cid, "ClaimID", "CLM-WD", f"This upload withdraws claim {cid} and also files {name} records for it",
+                    "Leave its records out: a withdrawn claim keeps the records it was filed with.", cid)  # fmt: skip
+            elif k in earlier:
+                add(name, i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was withdrawn in the {earlier[k]}",
+                    "File it again under a new ClaimID: a withdrawn claim keeps its ID in the year's history.", cid)  # fmt: skip
 
     # CEDARS' data rules on the Claim and Site tables
     for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
@@ -764,7 +849,7 @@ def findings_csv(v: SubmissionVersion) -> str:
 
 def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
     """Each program's year to date from the compiled tables: its ProgramCost row for the year, its measures' rebates and incentives,
-    its number of claims and the totals filed on them."""
+    its number of claims and the totals filed on them, leaving out withdrawn claims."""
     out: dict[str, dict] = {}
 
     def line(prg: str) -> dict:
@@ -782,8 +867,9 @@ def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
         ln["program_costs"] = {f: str(_num(r.get(f, "")) or 0) for f, _ in PROGRAM_COST_FIELDS}
         ln["on_bill_financing"] = _num(r.get("OnBillFinancing", "")) or Decimal(0)
     claim_rows = {_claim(r): r for r in tables.get("Claim", upload.Table("Claim", [], [])).rows}
+    gone = withdrawn(tables)
     for r in tables.get("Measure", upload.Table("Measure", [], [])).rows:
-        if not r.get("PrgID"):
+        if not r.get("PrgID") or _claim(r) in gone:
             continue
         ln = line(r["PrgID"])
         units = _num(r.get("NumUnits", "")) or Decimal(0)
@@ -914,13 +1000,166 @@ def import_results(v: SubmissionVersion) -> bool:
 
 
 def on_publish(v: SubmissionVersion) -> None:
-    """Publication hook: the results the version was confirmed on are read now, so the published version holds them."""
+    """Publication hook: the results the version was confirmed on are read now, so the published version holds them; a correction
+    (version 2 or later) gets its change letter."""
     if v.submission.deadline.kind in KINDS:
         import_results(v)
+        if v.number > 1:
+            write_change_letter(v)
 
 
 def on_unpublish(v: SubmissionVersion) -> None:
     """Un-confirmed before the due date: nothing is kept apart from the version, which goes back to validated."""
+
+
+# --- withdrawals and corrections
+
+
+def withdrawals(v: SubmissionVersion) -> list[dict]:
+    """The claims withdrawn in the year to date of a version, in the order withdrawn: ClaimID, reason, the confirmation that withdrew it
+    and the date it was confirmed (blank while that confirmation is not)."""
+    rows = compiled_tables(v).get("Withdrawal")
+    if rows is None:
+        return []
+    org, year = v.submission.organisation, v.submission.deadline.period.year
+    when = {f"{label(x.submission.deadline)}, version {x.number}": x.confirmed_at for x in _versions(org, year)}
+    return [
+        {"claim": r.get("ClaimID", ""), "reason": r.get("WithdrawalReason", ""), "withdrawn_in": r.get("WithdrawnIn", ""),
+         "confirmed_at": when.get(r.get("WithdrawnIn", ""))}
+        for r in rows.rows
+    ]  # fmt: skip
+
+
+LETTER_LIST = 200  # claims listed by name in each group of a change letter; the counts are always whole
+LETTER_FIGURES = [
+    ("claims", "Claims", "count"),
+    ("expenditures", "Expenditures", "money"),
+    ("TotalSystemBenefit", "Total system benefit", "money"),
+    ("FirstYearNetKWh", "First-year net kWh", "number"),
+    ("FirstYearNetThm", "First-year net therms", "number"),
+]
+
+
+def _claim_records(tables: dict[str, upload.Table]) -> dict[str, tuple[str, tuple]]:
+    """{claim key: (ClaimID as filed, every record of the claim)} over the tables that hold a claim's records."""
+    out: dict[str, tuple[str, list]] = {}
+    for name in CLAIM_TABLES:
+        for r in tables.get(name, upload.Table(name, [], [])).rows:
+            k = _claim(r)
+            if k:
+                out.setdefault(k, (r.get("ClaimID", ""), []))[1].append((name, tuple(sorted((c, x) for c, x in r.items() if x))))
+    return {k: (cid, tuple(sorted(recs))) for k, (cid, recs) in out.items()}
+
+
+def _table_changes(before: dict[str, upload.Table], after: dict[str, upload.Table]) -> list[dict]:
+    """Each table's records before and after, and how many the correction added, changed and removed (by primary key; by claim for
+    the tables whose rows for a claim are a set)."""
+    out = []
+    for name in spec.TABLES:
+        b, a = before.get(name), after.get(name)
+        if b is None and a is None:
+            continue
+        group = _claim if name in spec.BY_CLAIM else (lambda r, n=name: _key(n, r))
+        rows_b, rows_a = defaultdict(set), defaultdict(set)
+        for rows, into in ((b.rows if b else [], rows_b), (a.rows if a else [], rows_a)):
+            for r in rows:
+                into[group(r)].add(tuple(sorted((c, x) for c, x in r.items() if x)))
+        both = rows_b.keys() & rows_a.keys()
+        out.append(
+            {
+                "table": name,
+                "before": len(b.rows) if b else 0,
+                "after": len(a.rows) if a else 0,
+                "added": len(rows_a.keys() - rows_b.keys()),
+                "changed": sum(1 for k in both if rows_a[k] != rows_b[k]),
+                "removed": len(rows_b.keys() - rows_a.keys()),
+            }
+        )
+    return out
+
+
+def _figures(r: "Row") -> dict:
+    out = {}
+    for key, _, kind in LETTER_FIGURES:
+        x = r.claims if key == "claims" else r.value(key)
+        out[key] = None if x is None else (int(x) if kind == "count" else float(x))
+    return out
+
+
+def correction_changes(previous: SubmissionVersion, v: SubmissionVersion) -> dict:
+    """What a correction changed against the version it replaces: claims added, changed (any of their records), removed, withdrawn
+    (with the reason) and reinstated; each table's records; each program whose year to date changed, before and after; and the totals."""
+    before, after = compiled_tables(previous), compiled_tables(v)
+    a, b = _claim_records(before), _claim_records(after)
+    wa = {_claim(r): r for r in before.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+    wb = {_claim(r): r for r in after.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
+
+    def listed(ids: list) -> dict:
+        return {"count": len(ids), "ids": ids[:LETTER_LIST]}
+
+    claims = {
+        "added": listed(sorted(b[k][0] for k in b.keys() - a.keys())),
+        "changed": listed(sorted(b[k][0] for k in a.keys() & b.keys() if a[k][1] != b[k][1])),
+        "removed": listed(sorted(a[k][0] for k in a.keys() - b.keys())),
+        "reinstated": listed(sorted(wa[k].get("ClaimID", "") for k in wa.keys() - wb.keys())),
+    }
+    gone = sorted(wb.keys() - wa.keys())
+    claims["withdrawn"] = {
+        "count": len(gone),
+        "ids": [{"claim": wb[k].get("ClaimID", ""), "reason": wb[k].get("WithdrawalReason", "")} for k in gone[:LETTER_LIST]],
+    }
+    tb, ta = table(previous), table(v)
+    rows_b, rows_a = {r.prg_id: r for r in tb.rows}, {r.prg_id: r for r in ta.rows}
+    programs = []
+    for prg in sorted(rows_b.keys() | rows_a.keys()):
+        fb = _figures(rows_b[prg]) if prg in rows_b else None
+        fa = _figures(rows_a[prg]) if prg in rows_a else None
+        if fb != fa:
+            name = (rows_a.get(prg) or rows_b.get(prg)).name
+            programs.append({"prg_id": prg, "name": name, "before": fb, "after": fa})
+    return {
+        "previous_label": f"{label(previous.submission.deadline)}, version {previous.number}",
+        "claims": claims,
+        "tables": _table_changes(before, after),
+        "programs": programs,
+        "totals": {"before": _figures(tb.total), "after": _figures(ta.total)},
+        "priced": {"before": tb.priced, "after": ta.priced},
+    }
+
+
+def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
+    """Write a correction's change letter on its publication (once); None when there is no earlier published version to compare."""
+    if ChangeLetter.objects.filter(version=v).exists():
+        return None
+    previous = corrected_version(v)
+    if previous is None:
+        return None
+    changes = correction_changes(previous, v)
+    letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
+    c = changes["claims"]
+    audit.record(
+        "claims.change_letter_published",
+        obj=letter,
+        reason=v.reason,
+        after={
+            "version": v.pk,
+            "previous": previous.pk,
+            **{k: c[k]["count"] for k in ("added", "changed", "removed", "withdrawn", "reinstated")},
+            "programs": len(changes["programs"]),
+        },
+        organisation=v.submission.organisation,
+    )
+    return letter
+
+
+def change_letters(*, organisation=None, year: int | None = None):
+    """Published change letters, newest first."""
+    out = ChangeLetter.objects.select_related("version__submission__deadline__period", "version__submission__organisation", "previous")
+    if organisation is not None:
+        out = out.filter(version__submission__organisation=organisation)
+    if year is not None:
+        out = out.filter(version__submission__deadline__period__year=year)
+    return out
 
 
 # --- results by program

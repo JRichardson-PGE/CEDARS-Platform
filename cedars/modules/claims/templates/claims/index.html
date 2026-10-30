@@ -5,12 +5,14 @@
   <h1>Claims</h1>
   <div class="actions">
     <a class="button" href="{% url 'claims:template' %}">Claims template (Excel)</a>
+    <a class="button" href="{% url 'claims:changes' %}">Change log</a>
     {% if sysadmin %}<a class="button" href="{% url 'claims:year_new' %}">Set up a claim year</a>{% endif %}
   </div>
 </div>
 <p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims. A quarter's upload holds
 the records that are new or changed since the last confirmation; it is compiled over the earlier confirmed quarters, checked, priced
-for the year to date and confirmed. Confirmed claims, their inputs and results are open to every signed-in user.</p>
+for the year to date and confirmed. Confirmed claims, their inputs and results are open to every signed-in user. After a due date a
+correction is a new version, published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.</p>
 {% for y in years %}
 <section aria-labelledby="year-{{ y.cy.year }}">
 <div class="head-row">
