@@ -3,7 +3,8 @@
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
-{monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order}."""
+{monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
+{deliverable}, {deliverable_open}."""
 
 PAGES = [
     ("home", "/", None),
@@ -138,6 +139,16 @@ PAGES = [
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),
     ("document-value-lists", "/documents/lists/", None),
     ("document-value-lists-admin", "/documents/lists/", "cpuc_admin"),
+    ("deliverable", "/documents/{deliverable}/", None),
+    ("deliverable-ed", "/documents/{deliverable}/", "cpuc_admin"),
+    ("deliverable-version-new", "/documents/{deliverable}/versions/new/", "cpuc_admin"),
+    ("document-comments", "/documents/{deliverable}/comments/", None),
+    ("document-comments-ed", "/documents/{deliverable}/comments/", "cpuc_admin"),
+    ("document-comments-open", "/documents/{deliverable_open}/comments/", "community"),
+    ("document-comments-open-signed-out", "/documents/{deliverable_open}/comments/", None),
+    ("deliverable-pa", "/documents/{deliverable}/", "analyst"),
+    ("deliverable-response-new", "/documents/{deliverable}/responses/new", "analyst"),
+    ("documents-aging", "/documents/studies/aging/", "cpuc_admin"),
     ("studies", "/documents/studies/", None),
     ("studies-search", "/documents/studies/?q=hvac&program=PGE_Res_HVAC", None),
     ("studies-cpuc", "/documents/studies/", "cpuc_admin"),

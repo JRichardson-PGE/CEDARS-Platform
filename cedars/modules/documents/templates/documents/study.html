@@ -80,9 +80,10 @@
 <section aria-labelledby="docs-h">
 <h2 id="docs-h">Documents</h2>
 <ul class="links">
-  {% for d in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ d.document_type.label }}, {% if d.published_at %}published {{ d.published_at|date:"Y-m-d" }}{% else %}not published{% endif %}</span></li>
+  {% for d, stage in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ stage }}, {% if d.published_at %}published {{ d.published_at|date:"Y-m-d" }}{% else %}not published{% endif %}</span></li>
   {% empty %}<li>No documents are filed for this study yet.</li>{% endfor %}
 </ul>
+<p><a href="{% url 'documents:study_comments_csv' s.number %}">Comment-and-response report for this study (CSV)</a></p>
 </section>
 
 <section aria-labelledby="history-h">

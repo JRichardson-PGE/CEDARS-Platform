@@ -73,6 +73,9 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 details.inline { display: inline-block; }
 details.inline > summary { font-weight: normal; color: var(--accent); min-height: 24px; line-height: 24px; }   /* 2.5.8: two side by side in a cell */
 details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
+article.comment { border-top: 1px solid var(--line); padding: .6rem 0; }
+article.comment h3 { margin: 0 0 .2rem; font-size: 1rem; }
+.response { border-left: 3px solid var(--control); padding-left: .8rem; margin: .4rem 0 .4rem 1rem; }
 .grants { margin: 0; padding-left: 1.1rem; }
 .grants li { margin: .15rem 0; }
 ul.links li { margin: .25rem 0; }   /* a list of links, one per line: 24 px apart (2.5.8) */

@@ -1,0 +1,65 @@
+{% extends "core/base.html" %}
+{% block title %}EM&amp;V aging review{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="aging" %}
+<h1>Aging review</h1>
+<p>What each study manager owes, and for how long: unpublished drafts of a study's documents, next activities past their due date,
+questions left unanswered after their comment period closed and active studies not updated in {{ stale_days }} days. PAs asked to respond
+to recommendations are listed for responses past their due date. Drafts are never deleted; they stay here until they are published.
+Only CPUC staff see this page.</p>
+
+<form method="get" class="filters" aria-label="Choose what the review shows">
+  <label for="kind">Show
+    <select id="kind" name="kind"><option value="">Everything</option>{% for code, label in kinds %}<option value="{{ code }}"{% if code == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label for="stale">A study is stale after (days)
+    <input id="stale" name="stale" type="number" min="1" max="3650" value="{{ stale_days }}">
+  </label>
+  <button type="submit">Show</button>
+</form>
+
+<section aria-labelledby="owners-h">
+<h2 id="owners-h">By study manager</h2>
+{% if rows %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Aging by study manager">
+<table class="list">
+  <caption class="sr-only">Items waiting, by the organisation that owes them, the longest wait first</caption>
+  <thead><tr><th scope="col">Owes</th>{% for code, label in kinds %}<th scope="col">{{ label }}</th>{% endfor %}{% for b in buckets %}<th scope="col">{{ b }}</th>{% endfor %}<th scope="col">Longest wait (days)</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <th scope="row">{{ r.owner.code }}</th>
+    {% for n in r.kinds %}<td>{{ n }}</td>{% endfor %}
+    {% for n in r.buckets %}<td>{{ n }}</td>{% endfor %}
+    <td>{{ r.oldest }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>Nothing is waiting: every study manager is up to date.</p>{% endif %}
+</section>
+
+<section aria-labelledby="items-h">
+<h2 id="items-h">Every item, the longest wait first</h2>
+<p><a href="?{{ query }}{% if query %}&amp;{% endif %}format=csv">Download these as CSV</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Items waiting">
+<table class="list">
+  <caption class="sr-only">Items waiting, the longest wait first</caption>
+  <thead><tr><th scope="col">Item</th><th scope="col">Owes</th><th scope="col">Study</th><th scope="col">Since</th><th scope="col">Days waiting</th></tr></thead>
+  <tbody>
+  {% for i, age, band in items %}
+  <tr>
+    <th scope="row"><a href="{{ i.url }}">{{ i.what }}</a><br><span class="small">{{ i.kind_label }}</span></th>
+    <td>{{ i.owner.code }}</td>
+    <td>{% if i.study %}<a href="{{ i.study.get_absolute_url }}">{{ i.study.study_id }}</a>{% endif %}</td>
+    <td class="nowrap">{{ i.since|date:"Y-m-d" }}</td>
+    <td>{{ age }} <span class="small muted">({{ band|lower }})</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="5">Nothing is waiting.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% endblock %}

@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from cedars.core import storage
 from cedars.services.accounts.service import AccessDenied
 
-from . import forms, service
+from . import comments, deliverables, forms, service
 from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile
 
 PER_PAGE = 25
@@ -33,6 +33,7 @@ CSV_COLUMNS = [
     "StudyID",
     "WorkOrder",
     "Task",
+    "Stage",
 ]
 
 
@@ -61,7 +62,7 @@ def library(request):
     rows = []
     for doc in page.object_list:
         version = service.listed_version(doc, unpublished=doc.published_at is None)
-        rows.append((doc, version))
+        rows.append((doc, version, deliverables.stage_label(doc, version) if doc.deliverable else ""))
     return render(
         request,
         "documents/library.html",
@@ -113,6 +114,7 @@ def library_csv(request):
                 doc.last_year or "",
             ]
             + [doc.study.study_id if doc.study else "", doc.work_order.number if doc.work_order else "", doc.task.name if doc.task else ""]
+            + [v.stage_label if v else ""]
             + ["; ".join(o.label for o in options if o.attribute_list_id == al.pk) for al in lists]
         )
     return response
@@ -135,13 +137,28 @@ def document(request, pk):
     for o in options:
         attributes.setdefault(o.attribute_list.name, []).append(o.label)
     can_manage = service.can_manage(request.user, doc)
+    shown = comments.shown(doc)
+    counts = {}
+    for c in shown:
+        counts[c.version_id] = counts.get(c.version_id, 0) + 1
+    for v in versions:
+        v.comment_count = counts.get(v.pk, 0)
+    requests = []
+    if doc.deliverable:
+        requests = [(r, deliverables.status(r), deliverables.responses(r)) for r in doc.response_requests.select_related("pa")]
+    is_ed = deliverables.is_ed(request.user) if request.user.is_authenticated else False
     return render(
         request,
         "documents/document.html",
         {
             "doc": doc,
             "current": current,
-            "versions": versions,
+            "versions": deliverables.history(versions) if doc.deliverable else versions,
+            "stage": deliverables.stage_label(doc, current) if doc.deliverable else "",
+            "open_versions": comments.open_versions(versions),
+            "requests": requests,
+            "request_form": forms.RequestResponsesForm() if is_ed and doc.deliverable and deliverables.has_final_results(doc) else None,
+            "responding_pas": deliverables.responding_pas(request.user, doc) if doc.deliverable else [],
             "attributes": attributes,
             "pas": [o for o in doc.pas.all()],
             "programs": list(doc.programs.all()),
@@ -171,7 +188,7 @@ def download(request, pk, name):
     doc = f.version.document
     if f.name != name or not service.can_read(request.user, doc):
         raise Http404
-    if not f.version.published and not service.sees_unpublished(request.user, doc):
+    if not service.sees_version(request.user, f.version):
         raise Http404
     store = storage.store("uploads")
     if not store.exists(f.key):
@@ -205,7 +222,13 @@ def new(request):
     if request.method == "POST" and form.is_valid():
         try:
             doc = service.create_document(
-                request.user, org, collection, form.details(), form.uploads(), publish=form.cleaned_data.get("publish", False)
+                request.user,
+                org,
+                collection,
+                form.details(),
+                form.uploads(),
+                publish=form.cleaned_data.get("publish", False),
+                **form.workflow(),
             )
         except (service.DocumentError, AccessDenied) as e:
             form.add_error(None, str(e))
@@ -241,7 +264,8 @@ def new_version(request, pk):
     doc = _document(request, pk)
     if not service.can_manage(request.user, doc):
         raise Http404
-    form = forms.VersionForm(request.POST or None, request.FILES or None, can_publish=service.can_publish(request.user, doc))
+    stages = deliverables.next_stages(request.user, doc)
+    form = forms.VersionForm(request.POST or None, request.FILES or None, can_publish=service.can_publish(request.user, doc), stages=stages)
     if request.method == "POST" and form.is_valid():
         try:
             v = service.add_version(
@@ -251,6 +275,8 @@ def new_version(request, pk):
                 form.uploads(),
                 reason=form.cleaned_data["reason"],
                 publish=form.cleaned_data.get("publish", False),
+                stage=form.cleaned_data.get("stage", ""),
+                comment_period=form.period(),
             )
         except (service.DocumentError, AccessDenied) as e:
             form.add_error(None, str(e))
@@ -258,7 +284,11 @@ def new_version(request, pk):
             messages.success(request, f"Version {v.number} is added." + ("" if v.published else " It is not published yet."))
             return redirect(doc)
     latest = doc.versions.order_by("-number").first()
-    return render(request, "documents/version_new.html", {"form": form, "doc": doc, "number": (latest.number if latest else 0) + 1})
+    return render(
+        request,
+        "documents/version_new.html",
+        {"form": form, "doc": doc, "number": (latest.number if latest else 0) + 1, "current": deliverables.current(doc)},
+    )
 
 
 @login_required

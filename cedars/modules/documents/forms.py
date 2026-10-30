@@ -7,7 +7,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.registry.models import Program
 
 from . import service
-from .models import AttributeOption, Collection, Study, Task, WorkOrder
+from .models import AttributeOption, Collection, Comment, Stage, Study, Task, WorkOrder
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -228,32 +228,171 @@ class FilesMixin(forms.Form):
         return [service.Upload(f.name, f) for f in files]
 
 
-class NewDocumentForm(FilesMixin, DetailsForm):
+DATE = {"required": False, "widget": forms.DateInput(attrs={"type": "date"})}
+
+
+class PeriodMixin(forms.Form):
+    """A version's comment period (BR-15.4): registered users comment from the day it opens to the day it closes, both included."""
+
+    comments_open = forms.DateField(label="Comments open", help_text="Leave both blank for no public comment", **DATE)
+    comments_close = forms.DateField(label="Comments close", **DATE)
+
+    def clean(self):
+        d = super().clean()
+        opens, closes = d.get("comments_open"), d.get("comments_close")
+        if bool(opens) != bool(closes):
+            raise forms.ValidationError("Give both the date comments open and the date they close, or neither.")
+        if opens and closes and opens > closes:
+            self.add_error("comments_close", "Comments close on or after the day they open.")
+        return d
+
+    def period(self):
+        d = self.cleaned_data
+        return (d["comments_open"], d["comments_close"]) if d.get("comments_open") else None
+
+
+def _stage_field(stages, required=True):
+    return forms.ChoiceField(
+        label="Stage",
+        choices=[(s, Stage(s).label) for s in stages],
+        required=required,
+        widget=forms.RadioSelect,
+        help_text="A draft stage may have several drafts; a final is revised with a reason. A version never goes back a stage.",
+    )
+
+
+class NewDocumentForm(FilesMixin, PeriodMixin, DetailsForm):
     publish = forms.BooleanField(label="Publish it now", required=False, help_text="Published documents are public and never change")
 
     field_order = ["document_type", "title", "summary"]
 
     def __init__(self, *args, can_publish=False, **kwargs):
+        from .deliverables import WORK_STAGES
+
         super().__init__(*args, **kwargs)
         self.fields["main_file"].widget.attrs["accept"] = ACCEPT
         self.fields["attachments"].widget.attrs["accept"] = ACCEPT
+        if self.collection == Collection.EMV:
+            self.fields["deliverable"] = forms.BooleanField(
+                label="Track it as a study deliverable",
+                required=False,
+                help_text="Its drafts, finals and the PAs' responses then follow on this one record. Name its study above.",
+            )
+            self.fields["stage"] = _stage_field(WORK_STAGES, required=False)
         if not can_publish:
             del self.fields["publish"]
+
+    def clean(self):
+        d = super().clean()
+        if d.get("deliverable"):
+            if not d.get("study"):
+                self.add_error("study", "A deliverable belongs to a study: give its study ID.")
+            if not d.get("stage"):
+                self.add_error("stage", "Choose the stage of this first version.")
+        return d
+
+    def workflow(self) -> dict:
+        d = self.cleaned_data
+        deliverable = bool(d.get("deliverable"))
+        return {"deliverable": deliverable, "stage": (d.get("stage") or "") if deliverable else "", "comment_period": self.period()}
 
 
 class ChangeDetailsForm(DetailsForm):
     reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
 
 
-class VersionForm(FilesMixin):
+class VersionForm(FilesMixin, PeriodMixin):
     reason = forms.CharField(label="Why this version replaces the previous one", widget=forms.Textarea(attrs={"rows": 2}))
     publish = forms.BooleanField(label="Publish it now", required=False, help_text="Published versions are public and never change")
 
-    def __init__(self, *args, can_publish=False, **kwargs):
+    field_order = ["stage", "main_file", "attachments", "reason", "comments_open", "comments_close", "publish"]
+
+    def __init__(self, *args, can_publish=False, stages=(), **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields["attachments"].widget.attrs["accept"] = ACCEPT
+        if stages:
+            self.fields["stage"] = _stage_field(stages)
+            self.order_fields(self.field_order)
+        if not can_publish:
+            del self.fields["publish"]
+
+
+class ResponseForm(FilesMixin):
+    """A PA's response to a deliverable's recommendations."""
+
+    pa = forms.ModelChoiceField(label="Responding for", queryset=Organisation.objects.none(), empty_label=None)
+    reason = forms.CharField(
+        label="Why it replaces your earlier response",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Only for a revised response",
+    )
+    publish = forms.BooleanField(label="Publish it now", required=False, help_text="Published responses are public and never change")
+
+    field_order = ["pa", "main_file", "attachments", "reason", "publish"]
+
+    def __init__(self, *args, pas=(), can_publish=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["pa"].queryset = Organisation.objects.filter(pk__in=[o.pk for o in pas]).order_by("code")
+        self.fields["pa"].label_from_instance = lambda o: f"{o.code} ({o.name})"
         self.fields["attachments"].widget.attrs["accept"] = ACCEPT
         if not can_publish:
             del self.fields["publish"]
+
+
+class RequestResponsesForm(forms.Form):
+    pas = forms.ModelMultipleChoiceField(label="PAs to respond", queryset=Organisation.objects.none(), widget=forms.CheckboxSelectMultiple)
+    due = forms.DateField(label="Responses due", widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Note", required=False, help_text="Optional; kept in the deliverable's history")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["pas"].queryset = _pas()
+        self.fields["pas"].label_from_instance = lambda o: o.code
+
+
+class CommentForm(forms.Form):
+    """The PDA's Add a Comment or Question form, with the section or page BR-15.4 asks for."""
+
+    version = forms.ChoiceField(label="On", required=True)
+    kind = forms.ChoiceField(label="Comment or question", choices=Comment.Kind.choices, widget=forms.RadioSelect)
+    subject = forms.CharField(label="Subject", max_length=100)
+    section = forms.CharField(label="Section or page", max_length=100, required=False, help_text="Optional, e.g. 4.2 or page 31")
+    text = forms.CharField(
+        label="Comment",
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text="Up to 2,000 characters; one point per comment helps a response",
+    )
+    attachment = forms.FileField(label="Supporting file", required=False, help_text="Optional; PDF, Word, Excel and the like")
+
+    def __init__(self, *args, versions=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["version"].choices = [(str(v.number), _version_name(v)) for v in versions]
+        if len(versions) == 1:
+            self.fields["version"].widget = forms.HiddenInput()
+            self.initial["version"] = str(versions[0].number)
+        self.fields["attachment"].widget.attrs["accept"] = ACCEPT
+
+
+def _version_name(v) -> str:
+    return f"Version {v.number}" + (f": {v.stage_label}" if v.stage else "")
+
+
+class RespondForm(forms.Form):
+    text = forms.CharField(label="Response", max_length=2000, widget=forms.Textarea(attrs={"rows": 3}))
+    organisation = forms.ModelChoiceField(label="Responding for", queryset=Organisation.objects.none(), empty_label=None)
+
+    def __init__(self, *args, organisations=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["organisation"].queryset = Organisation.objects.filter(pk__in=[o.pk for o in organisations])
+        self.fields["organisation"].label_from_instance = lambda o: o.code
+
+
+class PeriodForm(forms.Form):
+    opens = forms.DateField(label="Comments open", widget=forms.DateInput(attrs={"type": "date"}))
+    closes = forms.DateField(label="Comments close", widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Reason", required=False, help_text="Needed to change dates already set")
 
 
 class OptionForm(forms.Form):

@@ -7,10 +7,11 @@
   {% if can_manage %}<div class="actions"><a class="button" href="{% url 'documents:new_version' doc.pk %}">Add a version</a> <a class="button" href="{% url 'documents:change' doc.pk %}">Change the details</a></div>{% endif %}
 </div>
 {% if not doc.published_at %}<p><span class="status">Not published</span> Only {{ doc.owner.code }}{% if pas|length > 1 %}, the PAs named on it{% endif %} and CPUC staff can see this document until a version is published.</p>{% endif %}
+{% if doc.deliverable %}<p>A deliverable of <a href="{{ doc.study.get_absolute_url }}">{{ doc.study.study_id }}</a>, kept with all its drafts, finals and responses on this page.{% if stage %} Current stage: <strong>{{ stage }}</strong>.{% endif %}</p>{% endif %}
 {% if doc.summary %}<p>{{ doc.summary|linebreaksbr }}</p>{% endif %}
 
 <section aria-labelledby="current-h">
-<h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.published %}, published {{ current.published_at|date:"Y-m-d" }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
+<h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.stage %}: {{ current.stage_label }}{% endif %}{% if current.published %}, published {{ current.published_at|date:"Y-m-d" }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
 {% if current %}
 <ul class="links">
   {% for f in current.files.all %}
@@ -25,6 +26,10 @@
   <span class="small muted">A published version is public and never changes; a correction is a new version.</span>
 </form>
 {% endif %}
+{% endif %}
+{% if open_versions %}
+<p><strong>Open for comment:</strong> {% for v in open_versions %}version {{ v.number }}{% if v.stage %} ({{ v.stage_label }}){% endif %} until {{ v.comment_period.closes|date:"Y-m-d" }}{% if not forloop.last %}; {% endif %}{% endfor %}.
+  {% if user.is_authenticated %}<a href="{% url 'documents:comments' doc.pk %}#comment-form-h">Comment or ask a question</a>{% else %}<a href="{% url 'account_login' %}?next={% url 'documents:comments' doc.pk %}">Sign in to comment</a>{% endif %}</p>
 {% endif %}
 <p class="small muted">Permanent link: <code>{{ request.scheme }}://{{ request.get_host }}{{ doc.get_absolute_url }}</code></p>
 </section>
@@ -45,26 +50,62 @@
 </section>
 
 <section aria-labelledby="versions-h">
-<h2 id="versions-h">Versions</h2>
-<p class="small muted">A replaced file is never deleted: each version keeps its own files{% if not sees_unpublished %}. Only published versions are listed{% endif %}.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<h2 id="versions-h">{% if doc.deliverable %}Revision history{% else %}Versions{% endif %}</h2>
+<p class="small muted">{% if doc.deliverable %}Every stage in order, oldest first: each draft with its comment period, each final and its revisions, and the PAs' responses. {% endif %}A replaced file is never deleted: each version keeps its own files{% if not sees_unpublished %}. Only published versions are listed{% endif %}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="{% if doc.deliverable %}Revision history{% else %}Versions{% endif %}">
 <table class="list">
-  <caption class="sr-only">Versions of {{ doc.title }}, newest first</caption>
-  <thead><tr><th scope="col">Version</th><th scope="col">Published</th><th scope="col">Files</th><th scope="col">Why it was added</th><th scope="col">Added by</th></tr></thead>
+  <caption class="sr-only">{% if doc.deliverable %}Revision history of {{ doc.title }}, oldest first{% else %}Versions of {{ doc.title }}, newest first{% endif %}</caption>
+  <thead><tr><th scope="col">Version</th>{% if doc.deliverable %}<th scope="col">Stage</th>{% endif %}<th scope="col">Published</th><th scope="col">Files</th><th scope="col">Why it was added</th><th scope="col">Added by</th><th scope="col">Comments</th></tr></thead>
   <tbody>
   {% for v in versions %}
   <tr>
     <th scope="row">{{ v.number }}</th>
+    {% if doc.deliverable %}<td>{{ v.stage_label }}</td>{% endif %}
     <td class="nowrap">{% if v.published %}{{ v.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>
       {% if can_publish and v != current %}<form method="post" action="{% url 'documents:publish' doc.pk v.number %}" class="actions">{% csrf_token %}<button type="submit">Publish version {{ v.number }}</button></form>{% endif %}{% endif %}</td>
     <td><ul class="links grants">{% for f in v.files.all %}<li><a href="{{ f.get_absolute_url }}">{{ f.name }}<span class="sr-only">, version {{ v.number }}</span></a></li>{% endfor %}</ul></td>
     <td>{{ v.reason|default:"First version" }}</td>
     <td class="small">{{ v.organisation.code }}{% if sees_unpublished %}<br>{{ v.created_by.email }}{% endif %}<br>{{ v.created_at|date:"Y-m-d" }}</td>
+    <td class="small">{% if v.comment_period %}{{ v.comment_period.opens|date:"Y-m-d" }} to {{ v.comment_period.closes|date:"Y-m-d" }}<br>{% endif %}{% if v.comment_count %}<a href="{% url 'documents:comments' doc.pk %}#version-{{ v.number }}">{{ v.comment_count }} comment{{ v.comment_count|pluralize }}<span class="sr-only"> on version {{ v.number }}</span></a>{% elif v.comment_period %}None yet{% else %}No comment period{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
-{% if show_downloads %}<p><a href="{% url 'documents:downloads' doc.pk %}">Who downloaded these files</a></p>{% endif %}
+<p><a href="{% url 'documents:comments' doc.pk %}">Comments and responses</a> · <a href="{% url 'documents:comments_csv' doc.pk %}">Comment-and-response report (CSV)</a>{% if show_downloads %} · <a href="{% url 'documents:downloads' doc.pk %}">Who downloaded these files</a>{% endif %}</p>
 </section>
+
+{% if doc.deliverable %}
+<section aria-labelledby="responses-h">
+<h2 id="responses-h">PA responses to the recommendations</h2>
+{% if requests %}
+<div class="hscroll" tabindex="0" role="region" aria-label="PA responses">
+<table class="list">
+  <caption class="sr-only">PAs asked to respond, their due dates and where each response stands</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col">Response</th></tr></thead>
+  <tbody>
+  {% for r, status, filed in requests %}
+  <tr>
+    <th scope="row">{{ r.pa.code }}</th>
+    <td class="nowrap">{{ r.due|date:"Y-m-d" }}</td>
+    <td>{{ status }}</td>
+    <td>{% for v in filed %}{% if v.published or sees_unpublished or r.pa in responding_pas %}Version {{ v.number }}{% if v.published %}, published {{ v.published_at|date:"Y-m-d" }}{% endif %}{% if not forloop.last %}; {% endif %}{% endif %}{% empty %}None yet{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>{% if request_form %}No PA has been asked to respond yet.{% else %}PAs are asked to respond once the final study results are published.{% endif %}</p>{% endif %}
+{% if responding_pas %}<p><a class="button" href="{% url 'documents:new_response' doc.pk %}">File {% for o in responding_pas %}{{ o.code }}{% if not forloop.last %} or {% endif %}{% endfor %}'s response</a></p>{% endif %}
+{% if request_form %}
+<details class="inline"><summary>Ask PAs to respond</summary>
+<form method="post" action="{% url 'documents:request_responses' doc.pk %}" class="stack form-narrow">{% csrf_token %}
+  {% for field in request_form %}{{ field.as_field_group }}{% endfor %}
+  <p class="small muted">Asking a PA again moves its due date.</p>
+  <div class="actions"><button type="submit">Ask for responses</button></div>
+</form>
+</details>
+{% endif %}
+</section>
+{% endif %}
 {% endblock %}

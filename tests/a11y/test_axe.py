@@ -248,7 +248,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     claims = _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
-    documents = _documents(cpuc_admin, cpuc, pge, hvac)
+    documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
     return {
         **claims,
         **budgets,
@@ -277,7 +277,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     }
 
 
-def _documents(cpuc_admin, cpuc, pge, hvac):
+def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
     """The library: an EM&V report published with a newer version waiting, a PA's joint memo not yet published, a download of each
     kind. The value lists are seeded by a migration, which the transactional tests flush, so they are seeded again here."""
     import importlib
@@ -285,8 +285,8 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
     from django.apps import apps
     from django.core.files.uploadedfile import SimpleUploadedFile
 
+    from cedars.modules.documents import comments, deliverables, studies
     from cedars.modules.documents import service as documents
-    from cedars.modules.documents import studies
     from cedars.modules.documents.models import AttributeOption
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
@@ -369,7 +369,53 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
     f = report.versions.get(number=1).files.first()
     documents.record_download(None, f)
     documents.record_download(cpuc_admin, f, viewed=True)
-    return {"document": report, "document_draft": memo, "study": study.number, "work_order": work_order.pk}
+    # A deliverable: a draft workplan commented on, the final results, PG&E asked to respond; a second one with its comments open now.
+    today = date.today()
+    plan = documents.create_document(
+        cpuc_admin,
+        cpuc,
+        "emv",
+        documents.Details(opt("deliverable_type", "Evaluation Plan"), "Residential HVAC impact evaluation deliverable", study=study),
+        files("workplan_draft.pdf"),
+        publish=True,
+        deliverable=True,
+        stage="draft_workplan",
+        comment_period=(today - timedelta(days=3), today + timedelta(days=11)),
+    )
+    question = comments.post(
+        community,
+        None,
+        plan.versions.get(),
+        comments.NewComment("question", "Baseline year", "Which baseline year does the workplan use?", section="Page 12"),
+    )
+    comments.respond(cpuc_admin, cpuc, question, "2019, as section 3 says.")
+    comments.post(
+        community, None, plan.versions.get(), comments.NewComment("comment", "Sample frame", "Please include heat pump water heaters.")
+    )
+    comments.set_period(cpuc_admin, plan.versions.get(), today - timedelta(days=30), today - timedelta(days=1), reason="closed")
+    documents.add_version(cpuc_admin, cpuc, plan, files("results_final.pdf"), reason="Final results", publish=True, stage="final_results")
+    documents.add_version(cpuc_admin, cpuc, plan, files("results_final_rev1.pdf"), reason="Table 5 corrected", stage="final_results")
+    deliverables.request_responses(cpuc_admin, plan, [pge], today + timedelta(days=30))
+    service.grant(pge_admin, analyst, pge, "documents.submit")  # files PG&E's response
+    open_plan = documents.create_document(
+        cpuc_admin,
+        cpuc,
+        "emv",
+        documents.Details(opt("deliverable_type", "Draft Report"), "Commercial lighting market study", study=study),
+        files("draft_results.pdf"),
+        publish=True,
+        deliverable=True,
+        stage="draft_results",
+        comment_period=(today - timedelta(days=1), today + timedelta(days=13)),
+    )
+    return {
+        "document": report,
+        "document_draft": memo,
+        "study": study.number,
+        "work_order": work_order.pk,
+        "deliverable": plan.pk,
+        "deliverable_open": open_plan.pk,
+    }
 
 
 def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
