@@ -8,6 +8,7 @@ app_name = "calculations-api"
 
 urlpatterns = [
     path("engines", api.engines, name="engines"),
+    path("templates", api.templates, name="templates"),
     path("runs", api.runs, name="runs"),
     path("runs/<uuid:pk>", api.run, name="run"),
     path("runs/<uuid:pk>/stop", api.stop, name="stop"),

@@ -18,7 +18,7 @@ from cedars.core import api, storage
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import AllocationVersion
 
-from . import jobspec, service
+from . import jobspec, output_templates, service
 from .models import EngineRelease, Run
 from .views import status_view
 
@@ -166,6 +166,16 @@ class NewRun(serializers.Serializer):
     include_societal = serializers.BooleanField(default=True)
     emissions = serializers.BooleanField(default=True)
     preflight_only = serializers.BooleanField(default=False, help_text="Check the inputs only")
+    output_template = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="An output template's id from /templates, or 'default' for the caller's default; every column when left out",
+    )
+    output_columns = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Measure-level columns to write, in order, comma- or line-separated (not with a template)",
+    )
 
 
 def _release(name: str | None) -> EngineRelease:
@@ -180,7 +190,33 @@ def _release(name: str | None) -> EngineRelease:
     return r
 
 
-def _request(data: dict) -> service.RunRequest:
+def _template_settings(data: dict, user) -> dict:
+    """The output template settings a call asks for: a template the caller sees, their default, or a column list (checked against the
+    field catalog, under canonical names). A call that names none writes every column, whatever the caller's default on New run."""
+    ref, text = (data.get("output_template") or "").strip(), (data.get("output_columns") or "").strip()
+    if ref and text:
+        raise AccessDenied("Give an output template or output columns, not both.")
+    if ref == "default":
+        return output_templates.settings_for(output_templates.default_for(user))
+    if ref:
+        template = output_templates.visible(user).filter(pk=int(ref)).first() if ref.isdigit() else None
+        if template is None:
+            raise AccessDenied(f"No output template {ref}.")
+        return output_templates.settings_for(template)
+    if text:
+        cat = output_templates.catalog()
+        if not cat.names:
+            raise AccessDenied("Output columns need the published field catalog, and none is published yet.")
+        columns, bad = output_templates.check(output_templates.parse(text), cat)
+        if bad:
+            raise AccessDenied(f"Not measure-level columns: {', '.join(bad)}.")
+        if not columns:
+            raise AccessDenied("Output columns: name at least one column.")
+        return {"output_template": columns, "output_template_name": "Columns given with the call"}
+    return {}
+
+
+def _request(data: dict, user) -> service.RunRequest:
     allocation = None
     if data.get("allocation_version") is not None:
         allocation = AllocationVersion.objects.filter(pk=data["allocation_version"]).first()
@@ -194,6 +230,7 @@ def _request(data: dict) -> service.RunRequest:
         "include_societal": data["include_societal"],
         "emissions": data["emissions"],
         "preflight_only": data.get("preflight_only") or None,
+        **_template_settings(data, user),
     }
     return service.RunRequest(
         name=data["name"],
@@ -296,7 +333,7 @@ def _start(request):
     elif not api.allowed(request, "calculations.submit"):
         raise PermissionDenied(f"This call needs calculations.submit in {org.code}.")
     try:
-        run = service.create_run_from_upload(request.user, org, _request(data), data["job"])
+        run = service.create_run_from_upload(request.user, org, _request(data, request.user), data["job"])
     except AccessDenied as e:
         return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     body = run_json(request, run)
@@ -342,3 +379,28 @@ def run_file(request, pk, name):
     if url:
         return HttpResponseRedirect(url)
     return FileResponse(store.open(key), as_attachment=True, filename=filename)
+
+
+@extend_schema(
+    summary="The output templates this call may name",
+    description="Templates offered to everyone first, then the caller's own. Name one by id in a new run's output_template.",
+    responses=inline_serializer(
+        "OutputTemplates",
+        {
+            "templates": serializers.ListField(child=serializers.DictField()),
+            "default": serializers.IntegerField(allow_null=True, help_text="The caller's default (output_template=default)"),
+        },
+    ),
+)
+@api_view(["GET"])
+def templates(request):
+    if not (_personal_allowed(request) or _org_reads(request)):
+        raise PermissionDenied("This call has no calculations permission.")
+    default = output_templates.default_for(request.user)
+    rows = output_templates.visible(request.user)
+    return Response(
+        {
+            "templates": [{"id": t.pk, "name": t.name, "shared": t.owner_id is None, "columns": list(t.columns)} for t in rows],
+            "default": default.pk if default else None,
+        }
+    )
