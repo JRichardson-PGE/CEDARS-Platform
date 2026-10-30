@@ -12,19 +12,22 @@ how far it is built. Update the Status column in the PR that changes it.
 | `cedars/services/` | One app per shared service |
 | `cedars/modules/` | One app per module |
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |
+| `engine/recet-commit` | The pinned ReCET engine commit (see `engine/README.md`) |
+| `data/dictionary/` | Field catalogs exported from the pinned engine |
+| `scripts/` | One-off tools (the catalog export) |
 
 ## Shared services
 
 | Service | App | Phase | Status | Requirements |
 | --- | --- | --- | --- | --- |
-| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job; API tokens come with the API | BR-01, D6, F, G |
+| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job; API tokens come with the API (Calculations work) | BR-01, D6, F, G |
 | Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); log page in Administration | BR-09.1, 09.3, BR-12.7 |
 | Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Built: programs with effective-dated versions (no overlaps, enforced in PostgreSQL), filing cycles, reporting periods, statewide allocation versions (import, check, confirm, ReCET CSV export, most recent for a year); `import_programs`, `import_allocation` commands. Program pages come with the Programs module | BR-13, BR-06.7, BR-13.8 |
-| Dictionary and templates | `cedars.services.dictionary` | 1 | Planned | BR-02.1, BR-08 |
-| Validation rule library | `cedars.services.rules` | 1 | Planned | BR-03 |
-| Submissions and workflow | `cedars.services.submissions` | 1 | Planned | BR-02.3-02.7, BR-05.1-05.2, BR-09.4-09.6 |
+| Dictionary and templates | `cedars.services.dictionary` | 1 | Built: catalog versions loaded from ReCET's export (`scripts/export_recet_dictionary.py`, `data/dictionary/`), aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads. Claims, budget and monthly tables join the catalog with their modules | BR-02.1, BR-06.9, BR-06.10, BR-08 |
+| Validation rule library | `cedars.services.rules` | 1 | Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 215 / 221 rules), published versions never change, the version in force by date, suggested fixes, set comparison, the engine's runner (`recet.filing_rules.check_frame`) over the stored rules, findings in one format, the pre-upload checker page and `check_file` command | BR-03.1-03.4, 03.6, BR-12.6 |
+| Submissions and workflow | `cedars.services.submissions` | 1 | Built: one state machine for every module's filings (draft, validated, confirmed, published; a version is never edited once confirmed), the filing calendar (deadlines per period or cycle, moving one is audited), confirm only on a finished run over the current rows (`record_calculation` + the rows' hash), publication through hooks modules register (`register_publisher`), un-confirm before the due date on the same version, after it a reopen as version n+1 under the module's policy (D1: approval, open, closed) decided by an approver or their delegate; calendar and reopen-request pages | BR-02.3-02.7, BR-05.1-05.2, BR-09.4-09.6 |
 | Notifications | `cedars.services.notifications` | 1 | Planned | BR-06.2, BR-09.2, BR-12.1 |
-| Reference data (pack registry) | `cedars.services.refdata` | 1 | Planned | BR-06.21, BR-11.7, BR-11.8 |
+| Reference data (pack registry) | `cedars.services.refdata` | 1 | Built: pack versions by kind (ACC electric / gas, impact profiles, eTRM, DEER, value lists, run parameters, engine releases) with a SHA-256 manifest, a fingerprint (the manifest's SHA-256) and a storage URI; registered as drafts (analysis runs only, BR-11.8), published once the tie-outs their kind requires pass (`TieOutRequirement`, data; a difference over the stated precision fails, BR-06.21); published packs never change and are withdrawn, never deleted (database trigger); `in_force`, `usable(pack, purpose)`, `pin()` for runs and submissions; `register_pack` / `record_tie_out` commands; pages to view, publish, withdraw | BR-06.21, BR-11.7, BR-11.8 |
 | Publication snapshots | `cedars.services.snapshots` | 3 | Planned | BR-07, BR-08.5 |
 
 ## Modules
@@ -33,7 +36,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | --- | --- | --- | --- |
 | Programs | `cedars.modules.programs` | 2 | Planned |
 | Calculations (ReCET) | `cedars.modules.calculations` | 2 | Planned |
-| Impact profiles | `cedars.modules.impact_profiles` | 2 | Built: nightly eTRM sync into a versioned snapshot with sync history and exclusions (against a fixture schema until we have database access); load-shape upload with the four validation stages as rules LS-F/T/S/E; generation with CEDARS' formula and ID formula, 2nd-baseline profiles, NR/NC mapping rows; custom profiles (upload, replace, retire); DEER/TOU/legacy import; the library written in the engine's format, numbered; per-PA job queues |
+| Impact profiles | `cedars.modules.impact_profiles` | 2 | Built: nightly eTRM sync into a versioned snapshot with sync history and exclusions (against a fixture schema until we have database access); load-shape upload with the four validation stages as rules LS-F/T/S/E; generation with CEDARS' formula and ID formula, 2nd-baseline profiles, NR/NC mapping rows; custom profiles (upload, replace, retire); DEER/TOU/legacy import; the library written in the engine's format, numbered and registered as a reference-data pack; per-PA job queues |
 | Budgets (filings, fund shifts) | `cedars.modules.budgets` | 3 | Planned |
 | Claims | `cedars.modules.claims` | 4 | Planned |
 | Monthly reports | `cedars.modules.monthly` | 5 | Planned |
@@ -43,6 +46,10 @@ how far it is built. Update the Status column in the PR that changes it.
 
 ## Choices made in code
 
+- Rules are stored as rows but run by ReCET's own rule runner (`recet.filing_rules.check_frame`, given a RuleSet built from the rows), so
+  the platform, ReCET runs and the checker can never disagree. A rule's test (`definition`) is never edited; new CEDARS rule files are a
+  new rule set version. The engine is needed to import and run rules; the pages work without it.
+
 - Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) required of every
   account (`RequireMFAMiddleware`), and each federating organisation's directory as an OpenID Connect app
   (`SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"]`). Cognito or the CPUC's provider plugs in the same way. A session's assurance
@@ -51,7 +58,7 @@ how far it is built. Update the Status column in the PR that changes it.
 - Impact profiles: `manage.py sync_etrm` nightly and `manage.py run_impact_profile_jobs --loop` as a worker (upload checks, generation, syncs
   and library writes, one at a time per PA queue). `import_profile_library FOLDER` loads legacy CEDARS' library (the engine's
   catalog.parquet and hourly.parquet). Every 8,760 is one float64 array in default storage under its SHA-256, stored once. The profile
-  catalog lives in the module until the reference-data registry exists; a library write then registers as an `impact_profiles` pack.
+  catalog lives in the module; each library write registers as a draft `impact_profiles` pack in the reference-data service.
   The eTRM database layout is `cedars/modules/impact_profiles/etrm_fixture_schema.sql`: only `etrm.PACKAGES_SQL` and `PERMUTATIONS_SQL`
   change when the real schema is known.
 

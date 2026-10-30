@@ -1,10 +1,19 @@
 """Every page the accessibility check visits, as (name, path, who). A PR that adds a page adds it here (CLAUDE.md).
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
-(signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {package}, {upload}."""
+(signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package}, {upload}."""
 
 PAGES = [
     ("home", "/", None),
+    ("dictionary", "/dictionary/?q=climate", None),
+    ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
+    ("rules", "/rules/", None),
+    ("rule-set", "/rules/{rules}/", None),
+    ("rule", "/rules/{rules}/W4d5e6f/", None),
+    ("rule-differences", "/rules/differences/?a={rules}&b={rules}", None),
+    ("rule-checker", "/rules/check/", "pge_admin"),
+    ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
+    ("reopen-requests", "/filings/reopen-requests/", "approver"),
     ("sign-in", "/accounts/login/", None),
     ("sign-up", "/accounts/signup/", None),
     ("password-reset", "/accounts/password/reset/", None),
@@ -22,6 +31,9 @@ PAGES = [
     ("audit", "/admin/audit/", "cpuc_admin"),
     ("allocations", "/admin/allocations/", "cpuc_admin"),
     ("allocation", "/admin/allocations/{allocation}/", "cpuc_admin"),
+    ("reference-data", "/reference-data/", "pge_admin"),
+    ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
+    ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
     ("impact-profile-library", "/impact-profiles/?q=Msr", "developer"),
     ("impact-profile-deemed", "/impact-profiles/{profile}/", "developer"),
     ("impact-profile-custom", "/impact-profiles/{custom_profile}/", "developer"),

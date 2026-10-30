@@ -441,7 +441,8 @@ class ProcessingJob(models.Model):
 
 class LibraryExport(models.Model):
     """The current catalog written in the engine's library format (catalog.parquet and hourly.parquet, one row group per profile), so a
-    run can price on it at once. Numbered and kept; a run pins the export it used."""
+    run can price on it at once. Numbered and kept, and registered as a draft impact_profiles pack in the reference-data service, which
+    runs pin."""
 
     number = models.PositiveIntegerField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -454,6 +455,14 @@ class LibraryExport(models.Model):
     profiles = models.PositiveIntegerField(default=0)
     zone_shapes = models.PositiveIntegerField(default=0)
     families = models.JSONField(default=dict, blank=True, help_text="Profiles per family")
+    pack = models.ForeignKey(
+        "refdata.PackVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Its reference-data pack version",
+    )
 
     class Meta:
         ordering = ["-number"]

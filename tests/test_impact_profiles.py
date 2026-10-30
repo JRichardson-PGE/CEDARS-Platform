@@ -453,6 +453,8 @@ def test_export_is_the_engine_library_format(leds, developer, pge, cpuc_admin):
     for z in ("12", "System"):
         g = [r for r in rows if r["climate_zone"] == z]
         assert [r["hour_of_year"] for r in g] == list(range(1, 8761)) and abs(sum(r["impact"] for r in g) - 1) < 1e-9
+    assert (export.pack.kind, export.pack.version, export.pack.status) == ("impact_profiles", "export 1", "draft")
+    assert export.pack.manifest["hourly.parquet"]["sha256"] == export.hourly_sha256 and export.pack.storage_uri.endswith("/0001")
     assert library.export(cpuc_admin).number == 2
 
 

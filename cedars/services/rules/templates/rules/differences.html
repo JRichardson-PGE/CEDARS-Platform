@@ -1,0 +1,22 @@
+{% extends "core/base.html" %}
+{% block title %}Compare rule sets{% endblock %}
+{% block content %}
+<p><a href="{% url 'rules:index' %}">Validation rules</a></p>
+<h1>Compare two rule sets</h1>
+<form method="get" class="filters">
+  <div class="field"><label for="a">First</label><select id="a" name="a">{% for s in sets %}<option value="{{ s.pk }}"{% if s == a %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="b">Second</label><select id="b" name="b">{% for s in sets %}<option value="{{ s.pk }}"{% if s == b %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <button type="submit">Compare</button>
+</form>
+{% if diff %}
+{% for title, rules in diff.items %}
+<h2>{% if title == "only_a" %}Only in {{ a }}{% elif title == "only_b" %}Only in {{ b }}{% else %}In both, with a recorded difference{% endif %} ({{ rules|length }})</h2>
+{% if rules %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{% if title == 'only_a' %}Only in the first{% elif title == 'only_b' %}Only in the second{% else %}Recorded differences{% endif %}">
+<table class="list"><thead><tr><th scope="col">Rule</th><th scope="col">Table</th><th scope="col">Rule</th></tr></thead>
+<tbody>{% for r in rules %}<tr><th scope="row">{{ r.rule_id }}</th><td>{{ r.table }}</td><td>{{ r.message }}{% if r.difference %} ({{ r.difference }}){% endif %}</td></tr>{% endfor %}</tbody></table>
+</div>
+{% else %}<p>None.</p>{% endif %}
+{% endfor %}
+{% endif %}
+{% endblock %}

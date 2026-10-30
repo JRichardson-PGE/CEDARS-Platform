@@ -1,0 +1,44 @@
+{% extends "core/base.html" %}
+{% block title %}Data dictionary{% endblock %}
+{% block content %}
+<h1>Data dictionary</h1>
+<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by. Catalog version: <strong>{{ version.label }}</strong>.</p>
+<p class="actions">
+  <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>
+  <a class="button" href="{% url 'dictionary:crosswalk_csv' %}">Download the name crosswalk (CSV)</a>
+</p>
+<h2>Upload templates</h2>
+<ul>
+{% for module, table in tables %}
+  <li>{{ module|capfirst }}, {{ table }}:
+    <a href="{% url 'dictionary:template' module table 'csv' %}">CSV<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'xlsx' %}">Excel<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'json' %}">JSON schema<span class="sr-only"> for {{ table }}</span></a></li>
+{% endfor %}
+</ul>
+<h2>Fields</h2>
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option><option value="input"{% if kind == "input" %} selected{% endif %}>Inputs</option><option value="output"{% if kind == "output" %} selected{% endif %}>Outputs</option></select></div>
+  <button type="submit">Search</button>
+</form>
+<p>{{ total }} field{{ total|pluralize }}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Fields">
+<table class="list">
+  <caption class="sr-only">Fields, by kind and group</caption>
+  <thead><tr><th scope="col">Field</th><th scope="col">Kind</th><th scope="col">Group</th><th scope="col">Unit</th><th scope="col">Definition</th></tr></thead>
+  <tbody>
+  {% for f in page %}
+  <tr><th scope="row"><a href="{% url 'dictionary:field' f.name %}">{{ f.name }}</a>{% for a in f.aliases.all %}<br><span class="small muted">also {{ a.name }}</span>{% endfor %}</th>
+    <td>{{ f.get_kind_display }}</td><td>{{ f.group }}</td><td>{{ f.unit }}</td><td>{{ f.definition|truncatewords:40 }}</td></tr>
+  {% empty %}<tr><td colspan="5">No fields match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<nav class="pager" aria-label="Field pages">
+  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endblock %}

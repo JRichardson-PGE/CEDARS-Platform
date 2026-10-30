@@ -32,10 +32,14 @@ jobs:
           --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
+      RECET_READ_TOKEN: ${{ secrets.RECET_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
+      - name: Install the pinned ReCET engine (engine/recet-commit; skipped without the RECET_READ_TOKEN secret)
+        if: env.RECET_READ_TOKEN != ''
+        run: uv pip install "recet @ git+https://x-access-token:${RECET_READ_TOKEN}@github.com/JRichardson-PGE/ReCET@$(cat engine/recet-commit)"
       - name: Migrations match the models
         run: uv run python manage.py makemigrations --check --dry-run
         env:

@@ -49,6 +49,10 @@ INSTALLED_APPS = [
     "cedars.services.accounts",
     "cedars.services.audit",
     "cedars.services.registry",
+    "cedars.services.dictionary",
+    "cedars.services.rules",
+    "cedars.services.submissions",
+    "cedars.services.refdata",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
     "allauth",
@@ -134,6 +138,9 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "America/Los_Angeles"
 USE_I18N = False
 USE_TZ = True
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # larger uploads spill to a temporary file
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"

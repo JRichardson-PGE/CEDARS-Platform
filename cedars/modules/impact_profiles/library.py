@@ -6,7 +6,8 @@ year_represented ...) and hourly.parquet (impact_profile_id, climate_zone, hour_
 which the engine indexes from the file's metadata. A profile with no territory gets a catalog row for each of
 settings.IMPACT_PROFILE_TERRITORIES (CEDARS stores the deemed shapes once per IOU territory); the shapes are written once. An open
 mapping row adds a catalog row with the alias ID and the target's id, so both IDs price on the same shapes. Each export is numbered,
-kept, and hashed, so a run can pin the one it used; it becomes a reference-data pack version when that registry exists.
+kept, hashed and registered as a draft impact_profiles pack in the reference-data service (usable for analysis runs at once,
+for filings once published there), so a run pins the one it used.
 
 Import: legacy CEDARS' library (the scraped catalog.parquet and hourly.parquet ReCET uses today) into the catalog, as DEER, TOU and
 "imported from CEDARS" profiles, so the platform holds the whole library and the engine's file can be produced here. A zone that is
@@ -32,6 +33,7 @@ from django.utils import timezone
 
 from cedars.services import audit
 from cedars.services.accounts.models import Organisation
+from cedars.services.refdata import service as refdata
 
 from . import access, shapes
 from .models import HOURS, ImpactProfile, LibraryExport, ProfileMapping, ProfileVersion, ProfileZone
@@ -115,21 +117,33 @@ def export(actor=None) -> LibraryExport:
         with transaction.atomic():
             number = (LibraryExport.objects.select_for_update().aggregate(n=Max("number"))["n"] or 0) + 1
             folder = f"impact_profiles/library/{number:04d}"
-            names = {}
+            names, manifest = {}, {}
             for name, path in (("catalog", cat_path), ("hourly", hourly_path)):
                 with open(path, "rb") as f:
                     names[name] = default_storage.save(f"{folder}/{name}.parquet", File(f, name=f"{name}.parquet"))
+                manifest[f"{name}.parquet"] = {"sha256": _sha256(path), "bytes": os.path.getsize(path)}
+            pack = refdata.register_pack(
+                actor,
+                kind="impact_profiles",
+                label="Impact-profile library",
+                version=f"export {number}",
+                manifest=manifest,
+                storage_uri=folder,
+                source=f"Impact profiles module, library export {number}",
+                notes=f"{profiles} profiles, {len(rows)} catalog rows: " + ", ".join(f"{n} {k}" for k, n in sorted(families.items())),
+            )
             export = LibraryExport.objects.create(
                 number=number,
                 created_by=actor,
                 catalog_name=names["catalog"],
                 hourly_name=names["hourly"],
-                catalog_sha256=_sha256(cat_path),
-                hourly_sha256=_sha256(hourly_path),
+                catalog_sha256=manifest["catalog.parquet"]["sha256"],
+                hourly_sha256=manifest["hourly.parquet"]["sha256"],
                 catalog_rows=len(rows),
                 profiles=profiles,
                 zone_shapes=zone_shapes,
                 families=dict(families),
+                pack=pack,
             )
             audit.record(
                 "profile_library.exported",

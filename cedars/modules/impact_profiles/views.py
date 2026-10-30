@@ -450,7 +450,7 @@ def exports(request):
     return render(
         request,
         "impact_profiles/exports.html",
-        {"exports": LibraryExport.objects.select_related("created_by")[:50], "is_admin": access.is_admin(request.user)},
+        {"exports": LibraryExport.objects.select_related("created_by", "pack")[:50], "is_admin": access.is_admin(request.user)},
     )
 
 
