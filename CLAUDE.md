@@ -7,6 +7,9 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
 
 ## Rules
 
+- **Public repository** (MIT, 2026-10-30). Nothing non-public goes into a commit, its message or a PR: no secrets, server addresses, key
+  paths, bucket names, personal emails or laptop paths, real PII, or the vendor's name. Commit under a noreply address. CI's secret scan
+  (`gitleaks.toml` over the whole history, plus a noreply check on every author) enforces it.
 - **Services and modules.** `cedars/services/<name>` holds the shared services (registry, submissions, rules, dictionary, audit,
   notifications, reference data, snapshots); `cedars/modules/<name>` the modules (Programs, Calculations, Impact profiles, Budgets, ...). A module
   changes data only through a service's functions (it may read a service's models to show them) and never imports another module;

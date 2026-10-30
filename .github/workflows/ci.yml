@@ -32,14 +32,12 @@ jobs:
           --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
-      RECET_READ_TOKEN: ${{ secrets.RECET_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - name: Install the pinned ReCET engine (engine/recet-commit; skipped without the RECET_READ_TOKEN secret)
-        if: env.RECET_READ_TOKEN != ''
-        run: uv pip install "recet @ git+https://x-access-token:${RECET_READ_TOKEN}@github.com/JRichardson-PGE/ReCET@$(cat engine/recet-commit)"
+      - name: Install the pinned ReCET engine (engine/recet-commit)
+        run: uv pip install "recet @ git+https://github.com/JRichardson-PGE/ReCET@$(cat engine/recet-commit)"
       - name: Migrations match the models
         run: uv run python manage.py makemigrations --check --dry-run
         env:
@@ -76,18 +74,41 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    env:
-      RECET_READ_TOKEN: ${{ secrets.RECET_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Build the pinned ReCET engine's wheel for the image (engine/README.md; skipped without the RECET_READ_TOKEN secret)
-        if: env.RECET_READ_TOKEN != ''
+      - name: Build the pinned ReCET engine's wheel for the image (engine/README.md)
         run: scripts/build_engine_wheel.sh
       - run: docker build -t cedars-platform:ci .
       - name: The image imports the engine it was built with
-        if: env.RECET_READ_TOKEN != ''
         run: docker run --rm cedars-platform:ci python -c "import recet, recet.results_view; print('recet', recet.__version__)"
+
+  secret-scan:
+    # The repository is public: gitleaks (gitleaks.toml: its default rules plus personal emails, Windows user folders, key files,
+    # EC2 logins and public IP addresses) over the whole history, and every commit authored and committed under a noreply address.
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks 8.21.2
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/gitleaks.tgz" https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz
+          echo "5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --config gitleaks.toml --redact --no-banner --verbose .
+      - name: Commit authors and committers use noreply addresses
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          bad=$(git log --format='%ae%n%ce' "$HEAD_SHA" | sort -u | grep -vE '(@users\.noreply\.github\.com|^noreply@github\.com|^noreply@anthropic\.com)$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::Commits use an address that is not a noreply address (set git config user.email to your GitHub noreply address):"
+            echo "$bad" | sed 's/^\(..\).*@/\1...@/'
+            exit 1
+          fi
 
   terraform:
     runs-on: ubuntu-latest

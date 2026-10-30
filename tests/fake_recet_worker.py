@@ -1,4 +1,4 @@
-"""A stand-in for `recet worker run SPEC --work DIR` in tests (the engine is private and not installed in every checkout). It follows
+"""A stand-in for `recet worker run SPEC --work DIR` in tests (the engine is not installed in every checkout). It follows
 the worker's contract for file:// specs: reads the spec and its inputs, writes progress.json while it "runs", then the run's files
 and receipt.json to the outputs folder, and exits 0 (FAKE_RECET_EXIT=1 for a failed run, 2 for a refused spec; FAKE_RECET_SLEEP
 seconds of "pricing" so a test can stop it)."""
