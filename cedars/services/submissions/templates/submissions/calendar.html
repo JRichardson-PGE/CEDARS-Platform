@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}Filing calendar{% endblock %}
+{% block content %}
+<h1>Filing calendar</h1>
+<div class="hscroll" tabindex="0" role="region" aria-label="Deadlines">
+<table class="list">
+  <caption class="sr-only">Deadlines, soonest first</caption>
+  <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th></tr></thead>
+  <tbody>
+  {% for d in deadlines %}<tr><td>{{ d.due_at|date:"Y-m-d" }}</td><td>{{ d.module|capfirst }}</td><th scope="row">{{ d.kind }}</th><td>{{ d.period|default:d.cycle }}</td></tr>
+  {% empty %}<tr><td colspan="4">No deadlines yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<h2>Corrections after the due date</h2>
+<ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
+{% if form %}
+<section class="card" aria-labelledby="add-h">
+  <h2 id="add-h">Add a deadline</h2>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Add</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

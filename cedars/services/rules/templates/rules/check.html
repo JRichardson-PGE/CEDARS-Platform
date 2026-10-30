@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}Check a file{% endblock %}
+{% block content %}
+<h1>Check a file before you file it</h1>
+<p>Runs the rules in force on your file, exactly as a filing will be checked. Nothing you upload here is kept.</p>
+{% if sets %}
+<form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+  <div class="field"><label for="rule_set">Rules</label><select id="rule_set" name="rule_set">{% for s in sets %}<option value="{{ s.pk }}"{% if s == rs %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="table">Table</label><select id="table" name="table"><option{% if table == "Measure" %} selected{% endif %}>Measure</option><option{% if table == "ProgramCost" %} selected{% endif %}>ProgramCost</option></select></div>
+  <div class="field"><label for="filing_year">Filing year (budget filings)</label><input type="number" id="filing_year" name="filing_year" min="2000" max="2100" aria-describedby="fy-help"><span id="fy-help" class="small muted">Budget filings check that PrgYear and CEInputID name it.</span></div>
+  <div class="field"><label for="file">File (CSV, pipe- or comma-delimited)</label><input type="file" id="file" name="file" accept=".csv,.txt" required></div>
+  <div class="actions"><button type="submit" class="primary">Check</button><button type="submit" name="download" value="1">Check and download every finding (CSV)</button></div>
+</form>
+{% else %}<p>No rule set is in force yet.</p>{% endif %}
+{% if rs %}
+<section aria-labelledby="res-h" tabindex="-1" id="results">
+<h2 id="res-h">Results for {{ filename }}</h2>
+<p>{{ records }} record{{ records|pluralize }} checked against {{ rs }}: <strong>{{ rejected }} would be rejected</strong>, {{ warned }} would get a warning. {{ total }} finding{{ total|pluralize }}{% if total > findings|length %}; the first {{ findings|length }} are below, download them all as CSV{% endif %}.</p>
+{% if by_rule %}
+<h3>By rule</h3>
+<ul>{% for key, n in by_rule %}<li><strong>{{ key.0 }}</strong> ({{ key.1 }}): {{ key.2 }}: {{ n }}</li>{% endfor %}</ul>
+{% endif %}
+{% if findings %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Findings">
+<table class="list">
+  <caption class="sr-only">Findings, rejects first</caption>
+  <thead><tr><th scope="col">Line</th><th scope="col">Record</th><th scope="col">Field</th><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Problem</th><th scope="col">Suggested fix</th></tr></thead>
+  <tbody>{% for f in findings %}<tr><td>{{ f.row }}</td><th scope="row">{{ f.record_id }}</th><td>{{ f.field }}</td><td>{{ f.rule_id }}</td><td>{{ f.severity }}</td><td>{{ f.message }}</td><td>{{ f.fix }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endif %}
+{% if notes %}<details><summary>Rules that could not be checked ({{ notes|length }})</summary><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

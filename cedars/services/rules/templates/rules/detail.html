@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}{{ rs.label }} {{ rs.effective_from|date:"Y-m-d" }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'rules:index' %}">Validation rules</a></p>
+<h1>{{ rs.label }} <span class="muted">effective {{ rs.effective_from|date:"Y-m-d" }}</span></h1>
+<p>{{ rs.get_status_display }}{% if rs.published_at %} {{ rs.published_at|date:"Y-m-d" }}{% endif %}. {{ counts.reject|default:0 }} rules reject a record, {{ counts.warning|default:0 }} give a warning. {{ rs.source }}</p>
+{% if sysadmin and rs.status == "draft" %}<form method="post" action="{% url 'rules:publish' rs.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Publish this rule set</button></form>{% endif %}
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="q">Field or words</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="severity">Severity</label><select id="severity" name="severity"><option value="">All</option><option value="reject"{% if severity == "reject" %} selected{% endif %}>Rejects the record</option><option value="warning"{% if severity == "warning" %} selected{% endif %}>Warning</option></select></div>
+  <div class="field"><label for="table">Table</label><select id="table" name="table"><option value="">All</option>{% for t in tables %}<option{% if t == table %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+  <button type="submit">Apply</button>
+  <button type="submit" name="format" value="csv">Download these rules (CSV)</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Rules">
+<table class="list">
+  <caption class="sr-only">Rules in this set</caption>
+  <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Rule and suggested fix</th></tr></thead>
+  <tbody>
+  {% for r in rules %}
+  <tr><th scope="row"><a href="{% url 'rules:rule' rs.pk r.rule_id %}">{{ r.rule_id }}</a></th><td>{{ r.get_severity_display }}</td><td>{{ r.table }}</td><td>{{ r.field }}</td>
+    <td>{{ r.message }}<br><span class="small muted">Fix: {{ r.fix }}</span>{% if r.difference %}<br><span class="small">Differs between modules: {{ r.difference }}</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">No rules match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

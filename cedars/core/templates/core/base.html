@@ -17,6 +17,9 @@
   {% with here=request.path %}
   <nav aria-label="Main">
     <a href="{% url 'administration:account' %}"{% if here == '/account/' %} aria-current="page"{% endif %}>Account</a>
+    <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a>
+    <a href="{% url 'rules:index' %}"{% if '/rules/' in here %} aria-current="page"{% endif %}>Validation rules</a>
+    <a href="{% url 'submissions:calendar' %}"{% if '/filings/' in here %} aria-current="page"{% endif %}>Filing calendar</a>
     {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:organisations' %}"{% if '/admin/organisations/' in here %} aria-current="page"{% endif %}>Organisations</a>{% endif %}
     {% if nav.steward %}<a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a>{% endif %}
@@ -37,6 +40,7 @@
     <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
   </div>
   {% else %}
+  <nav aria-label="Main"><a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in request.path %} aria-current="page"{% endif %}>Data dictionary</a> <a href="{% url 'rules:index' %}"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>Validation rules</a></nav>
   <div class="who"><a href="{% url 'account_login' %}">Sign in</a></div>
   {% endif %}
 </header>
