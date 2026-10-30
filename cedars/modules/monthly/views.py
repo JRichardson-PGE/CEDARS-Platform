@@ -510,3 +510,75 @@ def year_csv(request, year):
             + ["" if t is None or t.estimate("TotalSystemBenefit") is None else t.estimate("TotalSystemBenefit")]
         )
     return response
+
+
+# --- the 13th-month report (BR-14.2)
+
+
+def _blank(x):
+    return "" if x is None else x
+
+
+def _closing_cells(row) -> list[str]:
+    return (
+        [_money(row.operating), _money(row.get("expenditures")), _fmt("share", row.spent_share)]
+        + [_fmt(kind, row.get(k)) for k, _, kind in service.CLAIMED if k != "expenditures"]
+        + [_money(row.december_spend), _money(row.spend_difference), _money(row.december_tsb)]
+    )
+
+
+@login_required
+def closing(request, year):
+    """A PA's 13th-month report for a program year, generated from its confirmed claims and reconciled against December's report."""
+    get_object_or_404(YearSetup, year=year)
+    org, _, choices = _year_org(request)
+    c = service.closing(org, year) if org else None
+    rows = []
+    if c is not None:
+        for row in c.rows + [c.total]:
+            flags = []
+            if row is not c.total:
+                if row.claimed is None:
+                    flags.append("no confirmed claims")
+                if c.final and c.december and not row.reconciles:
+                    flags.append("does not match December")
+            rows.append({"r": row, "cells": _closing_cells(row), "flags": flags})
+    return render(
+        request,
+        "monthly/closing.html",
+        {
+            "year": year,
+            "org": org,
+            "choices": choices,
+            "closing": c,
+            "rows": rows,
+            "columns": ["Operating budget", "Expenditures", "Share of budget spent"]
+            + [label for k, label, _ in service.CLAIMED if k != "expenditures"]
+            + ["December report: spend, year to date", "Claims less December", "December report: estimated TSB (unvalidated)"],
+            "csv_query": f"?org={org.code}" if org else "",
+        },
+    )
+
+
+@login_required
+def closing_csv(request, year):
+    get_object_or_404(YearSetup, year=year)
+    org, _, _ = _year_org(request)
+    if org is None:
+        raise Http404
+    c = service.closing(org, year)
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="13th_month_report_{org.code}_{year}.csv"'
+    w = csv.writer(response, lineterminator="\n")
+    claimed = ["Claimed" + "".join(p.capitalize() for p in k.split("_")) for k, *_ in service.CLAIMED]
+    w.writerow(
+        ["PrgID", "ProgramName", "Final", "Records", "ApprovedBudget", "OperatingBudget", *claimed]
+        + ["DecemberYTDExpenditures", "ClaimsLessDecember", "DecemberEstimatedTotalSystemBenefit"]
+    )
+    for row in c.rows + [c.total]:
+        w.writerow(
+            [row.prg_id, row.name, c.final, row.records, _blank(row.approved), _blank(row.operating)]
+            + [_blank(row.get(k)) for k, *_ in service.CLAIMED]
+            + [_blank(row.december_spend), _blank(row.spend_difference), _blank(row.december_tsb)]
+        )
+    return response

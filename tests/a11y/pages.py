@@ -114,4 +114,6 @@ PAGES = [
     ("monthly-version", "/monthly/versions/{monthly_version}/", "community"),
     ("monthly-year", "/monthly/years/2028/?org=PGE", "community"),
     ("monthly-year-own", "/monthly/years/2028/", "analyst"),
+    ("monthly-13th-month", "/monthly/years/2028/13th-month/?org=PGE", "community"),
+    ("monthly-13th-month-none", "/monthly/years/2028/13th-month/?org=SCE", "community"),
 ]
