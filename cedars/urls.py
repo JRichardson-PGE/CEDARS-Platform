@@ -18,6 +18,7 @@ urlpatterns = [
     path("monthly/", include("cedars.modules.monthly.urls")),
     path("documents/", include("cedars.modules.documents.urls")),
     path("api/v1/calculations/", include("cedars.modules.calculations.api_urls")),
+    path("api/v1/claims/", include("cedars.modules.claims.api_urls")),
     path("api/v1/", include("cedars.core.api_urls")),
     path("calculations/", include("cedars.modules.calculations.urls")),
     path("django-admin/", admin.site.urls),
