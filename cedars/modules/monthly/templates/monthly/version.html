@@ -12,7 +12,8 @@
 <div class="card" role="note"><p><strong>{{ unvalidated }}s.</strong> Savings, total system benefit and ratios here are estimated from the
 report's year-to-date BCA inputs, checked only as a calculation run checks them, not as claims are (D2). They show how programs are
 trending and are never part of a claim.</p></div>
-{% if not report.budget %}<p>No operating budget was found for {{ v.submission.organisation.code }}'s {{ report.year }} cycle (no confirmed budget filing or fund shift), so expenditures are not compared with a budget.</p>{% endif %}
+{% if not report.budget %}<p>No operating budget was found for {{ v.submission.organisation.code }}'s {{ report.year }} cycle (no confirmed budget filing or fund shift), so spend is not compared with a budget.</p>{% endif %}
+{% if not report.month_known %}<p>The previous month's report is not confirmed, so this month's spend (the change in the year-to-date spend) is not known yet.</p>{% endif %}
 
 <section aria-labelledby="tiles-h">
   <h2 id="tiles-h" class="sr-only">Totals</h2>
@@ -21,11 +22,11 @@ trending and are never part of a claim.</p></div>
 
 <section aria-labelledby="programs-h">
 <h2 id="programs-h">By program</h2>
-<p class="small muted">{{ report.rows|length }} program{{ report.rows|length|pluralize }}: those in the report and those with an operating budget for {{ report.year }}. The operating budget is the approved budget plus fund shifts in effect.</p>
+<p class="small muted">{{ report.rows|length }} program{{ report.rows|length|pluralize }}: those in the report and those with an operating budget for {{ report.year }}. The operating budget is the approved budget plus fund shifts in effect. Spend is read from the year-to-date BCA inputs: program costs plus the measures' rebates and incentives.</p>
 <p><a class="button" href="{% url 'monthly:version_csv' v.pk %}">Download this report by program (CSV)</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="money-caption">
 <table class="list data">
-  <caption id="money-caption">Expenditures and commitments against the operating budget</caption>
+  <caption id="money-caption">Spend and commitments against the operating budget</caption>
   <thead><tr><th scope="col">Program</th>{% for h in columns %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for row in rows %}{% if not forloop.last %}<tr>
@@ -51,8 +52,13 @@ trending and are never part of a claim.</p></div>
 </table>
 </div>
 {% endif %}
-<details class="small"><summary>Commitment fields in the CSV</summary>
-  <dl class="facts">{% for f, help in commitment_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }}</dd>{% endfor %}</dl></details>
+<details class="small"><summary>Spend and commitment fields in the CSV</summary>
+  <dl class="facts">{% for f, help in cost_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }} (ProgramCost)</dd>{% endfor %}
+  <dt><code>RebatesAndIncentives</code></dt><dd>The measures' rebates and incentives: NumUnits times the four unit incentive fields</dd>
+  <dt><code>OnBillFinancing</code></dt><dd>On-bill financing (ProgramCost), kept apart from spend</dd>
+  <dt><code>YTDExpenditures</code></dt><dd>Spend, year to date: the ten program cost fields plus RebatesAndIncentives</dd>
+  <dt><code>MonthExpenditures</code></dt><dd>Spend this month: YTDExpenditures less the previous month's report's</dd>
+  {% for f, help in commitment_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }} (Commitments)</dd>{% endfor %}</dl></details>
 </section>
 
 <section aria-labelledby="files-h">

@@ -1,6 +1,7 @@
-"""A monthly report's upload: a .zip holding Expenditures.csv, Commitments.csv, Measure.csv and ProgramCost.csv (comma-, pipe- or
-tab-delimited), or an Excel workbook with those four sheets (BR-02.2). Measure and ProgramCost are the year-to-date BCA inputs; they
-become the version's job .zip, two CSVs as a calculation run takes them, priced for the estimates (BR-14.5)."""
+"""A monthly report's upload: a .zip holding Commitments.csv, Measure.csv and ProgramCost.csv (comma-, pipe- or tab-delimited), or an
+Excel workbook with those three sheets (BR-02.2). Measure and ProgramCost are the year-to-date BCA inputs: the month's spend is read from
+them (Jake, 2026-10-30), and they become the version's job .zip, two CSVs as a calculation run takes them, priced for the estimates
+(BR-14.5). Commitments is its own table (D2)."""
 
 import csv
 import hashlib
@@ -9,19 +10,19 @@ import zipfile
 from decimal import Decimal, InvalidOperation
 from pathlib import PurePosixPath
 
-from .models import COMMITMENT_FIELDS, EXPENDITURE_FIELDS
+from .models import COMMITMENT_FIELDS
 
 BCA_TABLES = ("Measure", "ProgramCost")
-TABLES = ("Expenditures", "Commitments") + BCA_TABLES
+TABLES = ("Commitments",) + BCA_TABLES
 REQUIRED = {
-    "Expenditures": ["PA", "PrgID", "YearMonth"] + [f for f, _ in EXPENDITURE_FIELDS],
     "Commitments": ["PA", "PrgID", "YearMonth"] + [f for f, _ in COMMITMENT_FIELDS],
     "Measure": ["CEInputID", "PrgID", "ClaimYearQuarter", "NumUnits"],
     "ProgramCost": ["PrgID", "PrgYear", "PA"],
 }
-# Columns of CEDARS' monthly Program table the new tables no longer read, and why (a file in the old layout is told, not rejected).
+# Columns of CEDARS' monthly Program table that Commitments does not read, and why (a file in the old layout is told, not rejected).
 RETIRED = {
     "MonthFundShifts": "fund shifts are made in Budgets",
+    **{f"{p}Expenditures": "spend is read from the BCA inputs" for p in ("Month", "YTD")},
     **{
         f"{p}{kind}{unit}": "savings are estimated from the BCA inputs"
         for p in ("Month", "YTD")
@@ -53,8 +54,8 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         raise UploadError(
-            "The file is not a valid .zip or .xlsx. Upload a .zip of Expenditures.csv, Commitments.csv, Measure.csv and ProgramCost.csv, "
-            "or an Excel workbook with those four sheets."
+            "The file is not a valid .zip or .xlsx. Upload a .zip of Commitments.csv, Measure.csv and ProgramCost.csv, "
+            "or an Excel workbook with those three sheets."
         ) from None
     tables, extra = {}, []
     for info in z.infolist():
@@ -69,7 +70,11 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
         else:
             tables[table] = z.read(info)
     if extra:
-        raise UploadError(f"The .zip may hold only {', '.join(t + '.csv' for t in TABLES)}; it also has {', '.join(sorted(extra))}.")
+        old = any(PurePosixPath(e).stem.lower() == "expenditures" for e in extra)
+        raise UploadError(
+            f"The .zip may hold only {', '.join(t + '.csv' for t in TABLES)}; it also has {', '.join(sorted(extra))}."
+            + (" Spend is read from the BCA inputs (ProgramCost and the measures' incentives), so leave Expenditures out." if old else "")
+        )
     _check_tables(tables)
     return tables
 
@@ -108,8 +113,8 @@ def _check_tables(tables: dict, workbook: bool = False) -> None:
     missing = [t for t in TABLES if t not in tables]
     if missing:
         raise UploadError(
-            f"There is no {' or '.join(missing)} {where}. A monthly report holds Expenditures, Commitments, and the year-to-date BCA "
-            "inputs Measure and ProgramCost (Measure may have no rows)."
+            f"There is no {' or '.join(missing)} {where}. A monthly report holds Commitments and the year-to-date BCA inputs Measure and "
+            "ProgramCost (Measure may have no rows)."
         )
     for t in TABLES:
         header, _ = rows(tables[t])
@@ -131,7 +136,7 @@ def job_zip(tables: dict[str, bytes]) -> bytes:
 
 
 def report_zip(tables: dict[str, bytes]) -> bytes:
-    """All four tables as one .zip, as kept and published."""
+    """All three tables as one .zip, as kept and published."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for t in TABLES:

@@ -79,13 +79,15 @@
 </form>
 {% endif %}
 <details><summary>What the file holds</summary>
-  <p>One row per program in Expenditures and in Commitments, each with the columns PA, PrgID, YearMonth ({{ deadline.period.year }}{{ deadline.period.number|stringformat:"02d" }}), the fields below and an optional Comments:</p>
-  {% for name, fields in tables %}
-  <h3>{{ name }}</h3>
-  <ul>{% for f, help in fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>
-  {% endfor %}
+  <p>Three tables: Commitments, and the year's BCA inputs so far, Measure and ProgramCost, as a calculation run takes them.</p>
+  <h3>Commitments</h3>
+  <p>One row per program with commitments, with the columns PA, PrgID, YearMonth ({{ deadline.period.year }}{{ deadline.period.number|stringformat:"02d" }}), the committed fields CEDARS' monthly reports have today and an optional Comments:</p>
+  <ul>{% for f, help in commitment_fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>
   <h3>Measure and ProgramCost</h3>
-  <p>The year's BCA inputs so far, as a calculation run takes them: ProgramCost rows for {{ deadline.period.year }}, measures claimed from {{ deadline.period.year }}Q1 up to this month's quarter. Measure may have no rows. CEDARS' monthly columns MonthFundShifts and the month and year-to-date savings are no longer read: fund shifts are made in Budgets, and savings are estimated from these inputs.</p>
+  <p>ProgramCost rows for {{ deadline.period.year }}, one per program, with its costs for the year to date; measures claimed from {{ deadline.period.year }}Q1 up to this month's quarter. Measure may have no rows.</p>
+  <p>Each program's spend is read from them, as Budgets counts a budget: the ProgramCost fields below plus its measures' rebates and incentives (<code>NumUnits</code> times {% for f in incentive_fields %}<code>{{ f }}</code>{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}). <code>OnBillFinancing</code> is shown apart, as in Budgets. The month's spend is the change in the year-to-date spend since last month's report.</p>
+  <ul>{% for f, help in cost_fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>
+  <p>CEDARS' monthly columns for expenditures, fund shifts and savings are not read: spend comes from the BCA inputs, fund shifts are made in Budgets, and savings are estimated from the BCA inputs.</p>
 </details>
 </section>
 {% endif %}

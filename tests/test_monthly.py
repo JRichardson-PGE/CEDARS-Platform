@@ -22,26 +22,25 @@ from .conftest import sign_in
 from .test_budgets import COSTS, MEASURE, finish_run, release  # noqa: F401 (release is a fixture)
 
 pytestmark = pytest.mark.django_db
-EXP = "PA|PrgID|YearMonth|MonthExpenditures|YTDExpenditures|MonthIncentivesPaid|YTDIncentivesPaid|Carryover|Comments"
 COM = (
-    "PA|PrgID|YearMonth|PriorCommittedFundsBalance|PriorYTDCommittedExpenditures|YTDCommittedFunds|YTDIncentivesCommitted|"
+    "PA|PrgID|YearMonth|PriorCommittedFundsBalance|PriorYTDCommittedExpenditures|YTDCommittedFunds|"
     "YTDCommittedGrosskWh|YTDCommittedGrosskW|YTDCommittedGrossTherm|YTDCommittedNetkWh|YTDCommittedNetkW|YTDCommittedNetTherm|Comments"
 )
 
 
-def report(ym="202801", expenditures=None, commitments=None, costs=None, measures=None, extra=None, exp_header=EXP) -> bytes:
+def cost(prg="PGE_Res_HVAC", year="2028", admin=600, obf=0) -> str:
+    return f"{prg}|{year}|{year}Q1|PGE|{admin}|0|0|0|0|0|0|0|0|{obf}|0"
+
+
+def report(ym="202801", commitments=None, costs=None, measures=None, extra=None, com_header=COM) -> bytes:
+    """January by default: PGE_Res_HVAC spends 600 of program costs plus 10 x 40 of rebates, PGE_Com_Ltg 200 of program costs."""
     q = f"{ym[:4]}Q{(int(ym[4:]) - 1) // 3 + 1}"
-    expenditures = expenditures if expenditures is not None else [
-        f"PGE|PGE_Res_HVAC|{ym}|1000|1000|400|400|0|",
-        f"PGE|PGE_Com_Ltg|{ym}|200|200|0|0|0|slow start",
-    ]  # fmt: skip
-    commitments = commitments if commitments is not None else [f"PGE|PGE_Res_HVAC|{ym}|0|0|5000|2500|100|1|0|80|1|0|"]
-    costs = costs if costs is not None else [f"PGE_Res_HVAC|{ym[:4]}|{q}|PGE|600|0|0|0|0|0|0|0|0|0|0"]
+    commitments = commitments if commitments is not None else [f"PGE|PGE_Res_HVAC|{ym}|0|0|5000|100|1|0|80|1|0|waiting on permits"]
+    costs = costs if costs is not None else [cost(year=ym[:4]), cost("PGE_Com_Ltg", ym[:4], 200, obf=50)]
     measures = measures if measures is not None else [f"M1|PGE_Res_HVAC|{q}|10|40|0|0|0"]
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
-        z.writestr("Expenditures.csv", "\n".join([exp_header] + expenditures) + "\n")
-        z.writestr("Commitments.csv", "\n".join([COM] + commitments) + "\n")
+        z.writestr("Commitments.csv", "\n".join([com_header] + commitments) + "\n")
         z.writestr("ProgramCost.csv", "\n".join([COSTS] + costs) + "\n")
         z.writestr("Measure.csv", "\n".join([MEASURE] + measures) + "\n")
         for k, v in (extra or {}).items():
@@ -90,28 +89,30 @@ def priced(filer, pge, n=1, data=None):
 # --- the upload
 
 
-def test_a_zip_or_a_workbook_holds_the_four_tables():
+def test_a_zip_or_a_workbook_holds_the_three_tables():
     tables = up.read_upload(report(extra={"__MACOSX/._Measure.csv": "x"}), "r.zip")
-    assert set(tables) == set(up.TABLES)
+    assert set(tables) == set(up.TABLES) == {"Commitments", "Measure", "ProgramCost"}
     assert zipfile.ZipFile(io.BytesIO(up.job_zip(tables))).namelist() == ["Measure.csv", "ProgramCost.csv"]
     assert up.job_zip(tables) == up.job_zip(tables)  # the same tables, the same SHA-256
     with pytest.raises(up.UploadError, match="it also has notes.docx"):
         up.read_upload(report(extra={"notes.docx": "x"}), "r.zip")
-    with pytest.raises(up.UploadError, match="Expenditures has no YTDIncentivesPaid"):
-        up.read_upload(report(exp_header=EXP.replace("|YTDIncentivesPaid", "")), "r.zip")
+    with pytest.raises(up.UploadError, match="Spend is read from the BCA inputs"):
+        up.read_upload(report(extra={"Expenditures.csv": "PA|PrgID"}), "r.zip")
+    with pytest.raises(up.UploadError, match="Commitments has no YTDCommittedFunds"):
+        up.read_upload(report(com_header=COM.replace("|YTDCommittedFunds", "")), "r.zip")
     from openpyxl import Workbook
 
     wb = Workbook()
     wb.remove(wb.active)
-    for name, lines in (("Expenditures", [EXP, "PGE|PGE_Res_HVAC|202801|1|1|0|0|0|"]), ("Commitments", [COM]), ("ProgramCost", [COSTS]),
-                        ("Measure", [MEASURE])):  # fmt: skip
+    for name, lines in (("Commitments", [COM, "PGE|PGE_Res_HVAC|202801|0|0|1|0|0|0|0|0|0|"]), ("ProgramCost", [COSTS]),
+                        ("Measure", [MEASURE]), ("Expenditures", ["PA|PrgID"])):  # fmt: skip
         ws = wb.create_sheet(name)
         for line in lines:
             ws.append([float(c) if c.isdigit() else c for c in line.split("|")])
     buf = io.BytesIO()
     wb.save(buf)
-    tables = up.read_upload(buf.getvalue(), "r.xlsx")
-    assert up.rows(tables["Expenditures"])[1][0]["YearMonth"] == "202801"
+    tables = up.read_upload(buf.getvalue(), "r.xlsx")  # an old Expenditures sheet is passed over
+    assert set(tables) == set(up.TABLES) and up.rows(tables["Commitments"])[1][0]["YearMonth"] == "202801"
     del wb["Commitments"]
     buf = io.BytesIO()
     wb.save(buf)
@@ -134,60 +135,72 @@ def test_a_cpuc_system_administrator_sets_up_a_year(cpuc_admin, pge_admin):
     assert AuditEvent.objects.filter(action="monthly_reports.setup_changed").exists()
 
 
-def test_an_upload_gives_the_report_by_program(filer, year, pge, programs):
+def test_spend_is_read_from_the_bca_inputs(filer, year, pge, programs):
     v = service.upload(filer, month(1), pge, report(), "january.zip")
-    assert v.status == SubmissionVersion.Status.VALIDATED and v.findings["rejected"] == 0 and v.findings["records"] == 5
+    assert v.status == SubmissionVersion.Status.VALIDATED and v.findings["rejected"] == 0 and v.findings["records"] == 4
     lines = {(ln.table, ln.prg_id): ln for ln in ReportLine.objects.filter(version=v)}
-    assert lines[("Expenditures", "PGE_Res_HVAC")].values["YTDIncentivesPaid"] == "400"
-    assert lines[("Commitments", "PGE_Res_HVAC")].values["YTDIncentivesCommitted"] == "2500"
-    assert lines[("Expenditures", "PGE_Com_Ltg")].comments == "slow start"
+    hvac = lines[("Spend", "PGE_Res_HVAC")].values
+    assert (hvac["AdminCostsOverheadAndGA"], hvac["RebatesAndIncentives"], hvac["YTDExpenditures"]) == ("600", "400", "1000")
+    ltg = lines[("Spend", "PGE_Com_Ltg")].values
+    assert ltg["YTDExpenditures"] == "200" and ltg["OnBillFinancing"] == "50"  # on-bill financing is kept apart, as in Budgets
+    assert lines[("Commitments", "PGE_Res_HVAC")].values["YTDCommittedFunds"] == "5000"
+    assert lines[("Commitments", "PGE_Res_HVAC")].comments == "waiting on permits"
     assert any("BCA-level validation only" in n for n in v.findings["notes"])
     r = service.report(v)
-    assert r.total.get("YTDExpenditures") == 1200 and r.total.get("YTDIncentivesCommitted") == 2500 and not r.estimated
+    assert r.month_known and not r.estimated
+    assert r.total.get("YTDExpenditures") == 1200 and r.total.get("MonthExpenditures") == 1200  # January: the year to date
+    assert r.total.get("RebatesAndIncentives") == 400 and r.total.get("YTDCommittedFunds") == 5000
     assert {f["name"] for f in v.files} == {"report.zip", "job.zip"}
 
 
 def test_module_checks(filer, year, pge, programs):
     bad = report(
         "202802",
-        expenditures=["SCE|PGE_Res_HVAC|202802|1|1|0|0|0|", "PGE|SCE_Ind|202802|1|1|0|0|0|", "PGE|PGE_Com_Ltg|202801|x|1|0|0|0|",
-                      "PGE|NOPE|202802|1|1|0|0|0|"],
-        commitments=[],
-        costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"],
-        measures=["M1|PGE_Res_HVAC|2028Q3|1|0|0|0|0", "M2|PGE_Com_Ltg|2028Q1|1|0|0|0|0"],
+        commitments=["SCE|PGE_Res_HVAC|202802|0|0|1|0|0|0|0|0|0|", "PGE|SCE_Ind|202802|0|0|1|0|0|0|0|0|0|",
+                     "PGE|PGE_Com_Ltg|202801|0|0|x|0|0|0|0|0|0|", "PGE|NOPE|202802|0|0|1|0|0|0|0|0|0|"],
+        costs=[cost(year="2027"), cost("PGE_Com_Ltg").replace("|600|", "|lots|")],
+        measures=["M1|PGE_Res_HVAC|2028Q3|1|0|0|0|0", "M2|PGE_Com_Ltg|2028Q1|1|0|0|0|0", "M3|PGE_Res_HVAC|2028Q1|1|x|0|0|0"],
     )  # fmt: skip
     v = service.upload(filer, month(2), pge, bad, "february.zip")
     assert v.status == SubmissionVersion.Status.DRAFT
-    found = {(f["table"], f["row"], f["rule_id"], f["severity"]) for f in service.findings(v)}
-    assert {("Expenditures", 2, "MON-PA", "reject"), ("Expenditures", 3, "MON-ORG", "reject"), ("Expenditures", 4, "MON-MONTH", "reject"),
-            ("Expenditures", 4, "MON-NUM", "reject"), ("Expenditures", 5, "MON-PRG", "reject"), ("ProgramCost", 2, "MON-YEAR", "reject"),
-            ("Measure", 2, "MON-YEAR", "reject"), ("Measure", 0, "MON-NOCOST", "warning")} <= found  # fmt: skip
-    assert ("Expenditures", 0, "MON-NOEXP", "warning") in found  # PGE_Com_Ltg: measures, no accepted expenditures row
+    found = {(f["table"], f["row"], f["field"], f["rule_id"], f["severity"]) for f in service.findings(v)}
+    assert {("Commitments", 2, "PA", "MON-PA", "reject"), ("Commitments", 3, "PrgID", "MON-ORG", "reject"),
+            ("Commitments", 4, "YearMonth", "MON-MONTH", "reject"), ("Commitments", 4, "YTDCommittedFunds", "MON-NUM", "reject"),
+            ("Commitments", 5, "PrgID", "MON-PRG", "reject"), ("ProgramCost", 2, "PrgYear", "MON-YEAR", "reject"),
+            ("ProgramCost", 3, "AdminCostsOverheadAndGA", "MON-NUM", "reject"), ("Measure", 2, "ClaimYearQuarter", "MON-YEAR", "reject"),
+            ("Measure", 4, "UnitEndUserRebate", "MON-NUM", "reject"),
+            ("Measure", 0, "PrgID", "MON-NOCOST", "warning")} <= found  # fmt: skip
     with pytest.raises(AccessDenied, match="validated"):
         service.price(filer, v)
-    dup = report(expenditures=["PGE|PGE_Res_HVAC|202801|1|1|0|0|0|", "PGE|PGE_Res_HVAC|202801|1|1|0|0|0|"])
+    dup = report(commitments=["PGE|PGE_Res_HVAC|202801|0|0|1|0|0|0|0|0|0|"] * 2, costs=[cost(), cost()])
     v = service.upload(filer, month(1), pge, dup, "january.zip")
-    assert "MON-DUP" in {f["rule_id"] for f in service.findings(v)}
+    assert {("Commitments", "MON-DUP"), ("ProgramCost", "MON-DUP")} <= {(f["table"], f["rule_id"]) for f in service.findings(v)}
 
 
 def test_cedars_retired_columns_are_named_not_read(filer, year, pge, programs):
-    header = EXP.replace("|Carryover", "|MonthFundShifts|Carryover")
-    data = report(exp_header=header, expenditures=["PGE|PGE_Res_HVAC|202801|1|1|0|0|99|0|"])
+    header = COM.replace("|Comments", "|MonthFundShifts|YTDExpenditures|Comments")
+    data = report(com_header=header, commitments=["PGE|PGE_Res_HVAC|202801|0|0|1|0|0|0|0|0|0|99|5|"])
     v = service.upload(filer, month(1), pge, data, "old.zip")
-    assert any("MonthFundShifts is not read (fund shifts are made in Budgets)" in n for n in v.findings["notes"])
-    assert "MonthFundShifts" not in ReportLine.objects.get(version=v, table="Expenditures").values
+    assert any("MonthFundShifts, YTDExpenditures are not read (fund shifts are made in Budgets)" in n for n in v.findings["notes"])
+    assert "MonthFundShifts" not in ReportLine.objects.get(version=v, table="Commitments").values
+    assert ReportLine.objects.get(version=v, table="Spend", prg_id="PGE_Res_HVAC").values["YTDExpenditures"] == "1000"
 
 
-def test_year_to_date_figures_are_checked_against_the_previous_month(filer, year, pge, programs, release):  # noqa: F811
+def test_the_months_spend_is_the_change_in_the_year_to_date(filer, year, pge, programs, release):  # noqa: F811
+    assert service.report(service.upload(filer, month(2), pge, report("202802"), "february.zip")).month_known is False
     jan = service.confirm(filer, priced(filer, pge, 1))
     assert jan.status == SubmissionVersion.Status.PUBLISHED
-    good = report("202802", expenditures=["PGE|PGE_Res_HVAC|202802|500|1500|100|500|0|", "PGE|PGE_Com_Ltg|202802|0|200|0|0|0|"])
-    v = service.upload(filer, month(2), pge, good, "february.zip")
+    more = ["M1|PGE_Res_HVAC|2028Q1|10|40|0|0|0", "M2|PGE_Res_HVAC|2028Q1|5|20|0|0|0"]
+    feb = report("202802", costs=[cost(admin=700), cost("PGE_Com_Ltg", admin=200)], measures=more)
+    v = service.upload(filer, month(2), pge, feb, "february.zip")
     assert "MON-YTD" not in {f["rule_id"] for f in service.findings(v)}
-    off = report("202802", expenditures=["PGE|PGE_Res_HVAC|202802|500|1400|100|500|0|"])
-    v = service.upload(filer, month(2), pge, off, "february.zip")
-    ytd = [f for f in service.findings(v) if f["rule_id"] == "MON-YTD"]
-    assert [f["field"] for f in ytd] == ["YTDExpenditures"] and v.status == SubmissionVersion.Status.VALIDATED  # a warning only
+    r = service.report(v)
+    hvac = next(x for x in r.rows if x.prg_id == "PGE_Res_HVAC")
+    assert hvac.get("YTDExpenditures") == 1200 and hvac.get("MonthExpenditures") == 200 and r.total.get("MonthExpenditures") == 200
+    v = service.upload(filer, month(2), pge, report("202802", costs=[cost(admin=100)]), "february.zip")
+    ytd = {f["record_id"]: f["message"] for f in service.findings(v) if f["rule_id"] == "MON-YTD"}
+    assert "below last month's 1,000.00" in ytd["PGE_Res_HVAC"] and "not in this report's BCA inputs" in ytd["PGE_Com_Ltg"]
+    assert v.status == SubmissionVersion.Status.VALIDATED  # warnings only
     march = service.upload(filer, month(3), pge, report("202803"), "march.zip")
     assert any("previous month's report is not confirmed" in n for n in march.findings["notes"])
 
@@ -268,21 +281,20 @@ def test_the_operating_budget_comes_from_budgets(filer, year, pge, programs, cpu
     budgets.confirm(filer, b)
     rows = {(r["prg_id"], r["year"]): r for r in registry.operating_budget(pge, registry.cycle_for_year(2029))}
     assert rows[("PGE_Res_HVAC", 2028)]["operating"] == 1800 + 600  # program costs plus measure incentives, as Budgets counts them
-    v = service.upload(filer, month(1), pge, report(measures=[], costs=[]), "january.zip")
+    v = service.upload(filer, month(1), pge, report(), "january.zip")
     r = service.report(v)
     hvac = next(x for x in r.rows if x.prg_id == "PGE_Res_HVAC")
     assert r.budget and hvac.operating == 2400 and hvac.spent_share == pytest.approx(1000 / 2400)
     assert registry.operating_budget(pge, None) == []
 
 
-def test_the_year_in_one_view_adds_up_the_months(filer, year, pge, programs):
-    service.confirm(filer, priced(filer, pge, 1, report(measures=[], costs=[])))
-    feb = report("202802", expenditures=["PGE|PGE_Res_HVAC|202802|500|1600|0|400|0|", "PGE|PGE_Com_Ltg|202802|0|200|0|0|0|"],
-                 measures=[], costs=[])  # fmt: skip
-    service.confirm(filer, priced(filer, pge, 2, feb))
+def test_the_year_in_one_view_flags_a_falling_year_to_date(filer, year, pge, programs, release):  # noqa: F811
+    service.confirm(filer, priced(filer, pge, 1))
+    service.confirm(filer, priced(filer, pge, 2, report("202802", costs=[cost(admin=500), cost("PGE_Com_Ltg", admin=200)])))
     months = service.year_view(pge, 2028)
     assert [m.version is not None for m in months[:3]] == [True, True, False]
-    assert months[0].consistent and months[1].running == 1700 and months[1].gap == 100 and not months[1].consistent
+    assert months[0].spend == 1200 and months[0].consistent
+    assert months[1].spend == -100 and not months[1].consistent and months[2].spend is None
 
 
 # --- pages
@@ -311,10 +323,10 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     page = client.get(reverse("monthly:version", args=[v.pk]))
     assert page.status_code == 200 and b"Unvalidated estimates" in page.content
     csv = client.get(reverse("monthly:version_csv", args=[v.pk])).content.decode()
-    assert csv.splitlines()[0].startswith("PrgID,ProgramName,Reported") and "EstimatedTotalSystemBenefit" in csv
+    assert csv.splitlines()[0].startswith("PrgID,ProgramName,InBCAInputs") and "EstimatedTotalSystemBenefit" in csv
     assert client.get(reverse("monthly:file", args=[v.pk, 0])).status_code == 200
     assert client.get(reverse("monthly:year", args=[2028])).status_code == 200
-    assert client.get(reverse("monthly:year_csv", args=[2028])).content.decode().splitlines()[1].startswith("202801,1,published")
+    assert client.get(reverse("monthly:year_csv", args=[2028])).content.decode().splitlines()[1].startswith("202801,1,published,1200")
     community = make_user("someone@example.com")
     client.logout()
     sign_in(client, community)

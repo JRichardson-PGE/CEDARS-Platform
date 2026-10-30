@@ -1,20 +1,28 @@
 from django.db import models
 
-# The program-level tables of a monthly report, in their files' column order. CEDARS' monthly Program table (2026-03-11 specification)
-# split in two: the expenditures, and the commitments as their own file (D2, confirmed 2026-10-29). Its MonthFundShifts column is gone
-# (fund shifts are made in Budgets, BR-14.4) and so are its savings columns: savings and TSB are estimated from the BCA inputs (BR-14.5).
-EXPENDITURE_FIELDS = [
-    ("MonthExpenditures", "Expenditures this month"),
-    ("YTDExpenditures", "Expenditures, year to date"),
-    ("MonthIncentivesPaid", "Incentives paid this month"),
-    ("YTDIncentivesPaid", "Incentives paid, year to date"),
-    ("Carryover", "Carryover"),
+# A month's spend is read from its year-to-date BCA inputs (Jake, 2026-10-30): each program's ProgramCost row (the ten fields CET adds up
+# into program costs) plus its measures' rebates and incentives (NumUnits x the four unit fields), as Budgets counts a budget, so the
+# share of the operating budget spent compares like with like. OnBillFinancing (loan pools) is kept apart, as in Budgets.
+PROGRAM_COST_FIELDS = [
+    ("AdminCostsOverheadAndGA", "Administration: overhead and G&A"),
+    ("AdminCostsOther", "Administration: other"),
+    ("MarketingOutreach", "Marketing and outreach"),
+    ("DIActivity", "Direct implementation: activity"),
+    ("DIInstallation", "Direct implementation: installation"),
+    ("DIHardwareAndMaterials", "Direct implementation: hardware and materials"),
+    ("DIRebateAndInspection", "Direct implementation: rebate and inspection"),
+    ("EMV", "EM&V"),
+    ("UserInputIncentive", "Incentives entered at program level"),
+    ("CostsRecoveredFromOtherSources", "Costs recovered from other sources"),
 ]
+INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirectInstallMat", "UnitEndUserRebate"]
+SPEND_FIELDS = [f for f, _ in PROGRAM_COST_FIELDS] + ["RebatesAndIncentives", "OnBillFinancing", "YTDExpenditures"]
+# The commitments, their own table (D2), with the committed columns of CEDARS' monthly Program table (2026-03-11 specification) as
+# they are reported today (Jake, 2026-10-30).
 COMMITMENT_FIELDS = [
     ("PriorCommittedFundsBalance", "Committed funds from prior years, balance"),
     ("PriorYTDCommittedExpenditures", "Prior years' commitments spent, year to date"),
     ("YTDCommittedFunds", "Funds committed, year to date"),
-    ("YTDIncentivesCommitted", "Incentives committed, year to date"),
     ("YTDCommittedGrosskWh", "Committed gross kWh, year to date"),
     ("YTDCommittedGrosskW", "Committed gross kW, year to date"),
     ("YTDCommittedGrossTherm", "Committed gross therms, year to date"),
@@ -22,7 +30,6 @@ COMMITMENT_FIELDS = [
     ("YTDCommittedNetkW", "Committed net kW, year to date"),
     ("YTDCommittedNetTherm", "Committed net therms, year to date"),
 ]
-TABLE_FIELDS = {"Expenditures": EXPENDITURE_FIELDS, "Commitments": COMMITMENT_FIELDS}
 
 
 class YearSetup(models.Model):
@@ -47,11 +54,11 @@ class YearSetup(models.Model):
 
 
 class ReportLine(models.Model):
-    """One program's row of a version's Expenditures or Commitments table, read from the version's own upload: derived data, replaced
-    when the upload is, deleted with the version."""
+    """One program's spend (read from the version's BCA inputs) or its row of the Commitments table: derived data of the version's own
+    upload, replaced when the upload is, deleted with the version."""
 
     class Table(models.TextChoices):
-        EXPENDITURES = "Expenditures", "Expenditures"
+        SPEND = "Spend", "Spend (from the BCA inputs)"
         COMMITMENTS = "Commitments", "Commitments"
 
     version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="monthly_lines")
