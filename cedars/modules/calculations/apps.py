@@ -20,3 +20,7 @@ class CalculationsConfig(AppConfig):
             yield from drafts.expired_drafts(cutoff)
 
         register_purger("scratch_run", expired_scratch)
+
+        from cedars.services.submissions.service import register_pricer
+
+        register_pricer(service.price_submission)  # filing modules price their versions through the submissions service

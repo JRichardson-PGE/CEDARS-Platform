@@ -1,0 +1,104 @@
+{% extends "core/base.html" %}
+{% block title %}{{ label }}{% if org %} · {{ org.code }}{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
+<div class="head-row">
+  <h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>
+  {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">How it is priced</a>{% endif %}
+</div>
+<dl class="facts">
+  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
+  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
+  <dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}</dd>
+</dl>
+{% if not org %}<p>You are not acting for a program administrator. Confirmed filings are listed on <a href="{% url 'budgets:index' %}">Budgets</a>.</p>{% endif %}
+
+{% if v %}
+<section class="card" aria-labelledby="now-h">
+  <h2 id="now-h">Version {{ v.number }}: {{ v.get_status_display }}</h2>
+  {% if file %}<p>File: {{ file.uploaded_as|default:file.name }} <span class="small muted">SHA-256 {{ file.sha256|truncatechars:20 }}</span>{% if v.reason %}. Reason for this version: {{ v.reason }}{% endif %}</p>{% endif %}
+  {% if v.findings %}
+  <p>{{ v.findings.records|floatformat:"0g" }} records checked{% if v.findings.rule_set %} against {{ v.findings.rule_set }}{% endif %}: <strong>{{ v.findings.rejected|floatformat:"0g" }} rejected</strong>, {{ v.findings.warnings|floatformat:"0g" }} with warnings only.</p>
+  {% for n in v.findings.notes %}<p class="small">{{ n }}</p>{% endfor %}
+  {% if v.findings.by_rule %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Findings by rule">
+  <table class="list">
+    <caption class="sr-only">Findings by rule, rejects first</caption>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Records</th><th scope="col">For example</th></tr></thead>
+    <tbody>{% for r in v.findings.by_rule %}<tr><th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejected{% else %}Warning{% endif %}</td><td class="num">{{ r.count|floatformat:"0g" }}</td><td>{{ r.example }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  <p><a href="{% url 'budgets:findings_csv' v.pk %}">Download every finding (CSV)</a>: line, record, field, rule, severity, message and how to fix it.</p>
+  {% endif %}
+  {% endif %}
+
+  {% if v.status == "draft" and file %}<p>Fix the rejected records and upload the file again.</p>{% endif %}
+  {% if v.status == "validated" %}
+    {% if priced %}
+      <p>Priced: the results below are what confirming signs off on.</p>
+    {% elif pricing_run %}
+      <p>Pricing: <a href="{% url 'calculations:run' pricing_run %}">the run's page</a> shows its progress. Reload this page when it has finished.</p>
+    {% elif can_submit %}
+      <form method="post" action="{% url 'budgets:price' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Price this version</button> <span class="small muted">Runs the calculation and statewide allocation on this upload; confirming needs it.</span></form>
+    {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+  {% endif %}
+
+  {% if tiles %}
+  <h3>Results{% if v.status == "validated" %} to review{% endif %}</h3>
+  <dl class="tiles">{% for name, value in tiles %}<div class="tile"><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+  <p><a href="{% url 'budgets:version' v.pk %}">By program and year</a>, with the excluded programs, the reconciliation and the appendix tables.</p>
+  {% endif %}
+
+  {% if v.status == "validated" and priced and can_confirm %}
+  <form method="post" action="{% url 'budgets:confirm' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">Signs off on exactly these results; the inputs, run settings and results become public.</span></form>
+  {% endif %}
+  {% if v.locked and can_confirm and not past_due and v.number == 1 %}
+  <form method="post" action="{% url 'budgets:unconfirm' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+    <div class="field"><label for="unconfirm-reason">Reason for un-confirming</label><textarea id="unconfirm-reason" name="reason" rows="2"></textarea></div>
+    <div class="actions"><button type="submit">Un-confirm</button> <span class="small muted">Before the due date: the version returns to validated and is no longer published.</span></div>
+  </form>
+  {% endif %}
+  {% if v.locked and past_due and can_submit %}
+    {% if pending_reopen %}<p>A request to reopen this filing, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
+    {% else %}
+    <form method="post" action="{% url 'budgets:reopen' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+      <div class="field"><label for="reopen-reason">Reason for the correction</label><textarea id="reopen-reason" name="reason" rows="2" required></textarea></div>
+      <div class="actions"><button type="submit">Ask to reopen</button> <span class="small muted">After the due date a correction is a new version; version {{ v.number }} stays as filed.</span></div>
+    </form>
+    {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% if can_submit and not v.locked %}
+<section aria-labelledby="upload-h">
+<h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the filing{% endif %}</h2>
+{% if opens_later %}<p>This filing opens on {{ deadline.opens_at|date:"Y-m-d" }}.</p>
+{% else %}
+<p>The file replaces this version's upload; an earlier upload is not kept. Each program's budget is its ProgramCost row plus its measures' rebates and incentives, by program year.</p>
+<form method="post" enctype="multipart/form-data" action="{% url 'budgets:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  {{ upload_form.file.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Upload and check</button></div>
+</form>
+{% endif %}
+</section>
+{% endif %}
+
+{% if versions|length > 1 or v.locked %}
+<section aria-labelledby="versions-h">
+<h2 id="versions-h">Versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<table class="list">
+  <caption class="sr-only">Versions of {{ org.code }}'s {{ label }}, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Confirmed</th><th scope="col">Reason</th></tr></thead>
+  <tbody>{% for ver in versions %}<tr>
+    <th scope="row"><a href="{% url 'budgets:version' ver.pk %}">Version {{ ver.number }}</a></th>
+    <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }} by {{ ver.confirmed_by.email }}{% endif %}</td>
+    <td>{{ ver.reason }}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+{% endblock %}

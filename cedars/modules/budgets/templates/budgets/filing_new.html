@@ -1,0 +1,13 @@
+{% extends "core/base.html" %}
+{% block title %}Set up a budget filing{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
+<h1>Set up a budget filing</h1>
+<p>A filing is due from every PA on one date for a four-year cycle. It is priced on the ACC chosen here, with statewide programs
+allocated by the allocation version chosen (or the most recent confirmed one for each program year).</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit" class="primary">Set up the filing</button>
+</form>
+{% endblock %}

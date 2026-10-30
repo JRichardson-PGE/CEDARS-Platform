@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -282,7 +283,8 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     (an upload's temporary file); it is copied, never moved."""
     from . import dispatch
 
-    if not can_submit(actor, organisation):
+    # a filing's run: the submissions service has checked <module>.submit
+    if submission_version is None and not can_submit(actor, organisation):
         raise AccessDenied(f"You need calculations.submit in {organisation.code} to start a run for it.")
     if not req.name.strip():
         raise AccessDenied("Give the run a name.")
@@ -498,13 +500,61 @@ def expired_runs(cutoff):
         yield f"calculation_run:{run.pk}", delete
 
 
+def price_submission(actor, version, job_zip: Path, *, name: str, acc_version: str, allocation_version=None, settings: dict | None = None):
+    """The pricer the submissions service calls (registered in apps.py): a filing version's job on the default release, ReCET's own
+    calculation; with settings allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most
+    recent confirmed one for the program year)."""
+    release = default_release()
+    if release is None:
+        raise AccessDenied("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
+    req = RunRequest(
+        name=name,
+        release=release,
+        calculation=RECET,
+        acc_version=acc_version,
+        settings=settings or {},
+        allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
+    )
+    return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
+
+
+GROUP_SUMS = re.compile(r"group_sums(\d+)_")
+
+
+def results_keys(run: Run) -> dict:
+    """Where a finished run's kept results are in the results area: the group sums (one row per PA, program, sector, segment and program
+    year; the newest cube version when there are several) and the measure-level parquet."""
+    out = {"group_sums": None, "measure_level": None}
+    prefix = run.storage_prefix + "out/_results/"
+    names = {f.key.rsplit("/", 1)[-1]: f.key for f in storage.store("results").list(prefix) if f.key.endswith(".parquet")}
+    cubes = {int(m.group(1)): key for name, key in names.items() if (m := GROUP_SUMS.match(name))}
+    out["group_sums"] = cubes[max(cubes)] if cubes else None
+    out["measure_level"] = next((key for name, key in sorted(names.items()) if name.startswith("measure_level_")), None)
+    return out
+
+
 def _record_for_submission(run: Run) -> None:
-    """Tell the submissions service a run on the version's rows has finished, so the version can be confirmed (its hash: the run's)."""
+    """Tell the submissions service a run on the version's rows has finished, so the version can be confirmed (its hash: the run's), with
+    what it was priced with and where its results are, so the filing module reads them without this module."""
     from cedars.services.submissions import service as submissions
 
     packs = {rel: f.get("sha256") for rel, f in ((run.receipt.get("packs") or {}).get("files") or {}).items()}
+    out = run.storage_prefix + "out/"
+    details = {
+        "job_sha256": run.inputs["job_zip"]["sha256"],
+        "job_key": run.inputs["job_zip"]["key"],
+        "release": run.engine_release,
+        "acc": run.acc_version,
+        "allocation_version": {"id": run.allocation_version_id, "label": run.allocation_version.label} if run.allocation_version else None,
+        "allocation_sha256": (run.inputs.get("sw_factors") or {}).get("sha256"),
+        "spec_key": run.storage_prefix + "job.json",
+        "receipt_key": out + "receipt.json",
+        "results": results_keys(run),
+    }
     try:
-        submissions.record_calculation(None, run.submission_version, run=str(run.id), input_hash=run.input_hash, pack_versions=packs)
+        submissions.record_calculation(
+            None, run.submission_version, run=str(run.id), input_hash=run.input_hash, pack_versions=packs, details=details
+        )
     except AccessDenied as e:
         Run.objects.filter(pk=run.pk).update(error=f"Finished, but the filing was not updated: {e}")
 

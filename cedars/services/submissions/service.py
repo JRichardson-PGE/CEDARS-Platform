@@ -5,6 +5,9 @@ event, and runs the module's hooks.
 Hooks (`register_publisher`): when a version is confirmed it is published at once with no further calculation; a module or the
 publication service registers a function that writes the snapshot, and an un-confirm before the due date removes it again (versions
 and snapshots superseded before the due date are not kept).
+
+Pricing (`register_pricer`, `price`): the Calculations module registers the function that prices a version's job, so a filing module
+asks this service to price its version and never imports the Calculations module (modules never import each other).
 """
 
 from collections.abc import Callable
@@ -22,10 +25,17 @@ from .models import Deadline, Delegation, ReopenRequest, Submission, SubmissionV
 
 VERSION_FIELDS = ["number", "status", "reason", "files", "rule_set", "findings", "calculation", "late", "confirmed_by", "published_at"]
 _publishers: dict[str, tuple[Callable, Callable]] = {}
+_pricers: list[Callable] = []
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
     _publishers[module] = (publish, unpublish)
+
+
+def register_pricer(price: Callable) -> None:
+    """The Calculations module's pricing function: price(actor, version, job_zip, *, name, acc_version, allocation_version, settings)
+    starts a run on the job (a local file) for the version and returns the run's id; the run's end calls record_calculation."""
+    _pricers[:] = [price]
 
 
 def policy(module: str) -> WorkflowPolicy:
@@ -159,8 +169,26 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
 
 
 @transaction.atomic
-def record_calculation(actor, v: SubmissionVersion, *, run: str, input_hash: str, pack_versions: dict | None = None) -> SubmissionVersion:
-    """A calculation and statewide allocation run on the version's current rows has finished (the Calculations module calls this)."""
+def price(actor, v: SubmissionVersion, job_zip, *, name: str, acc_version: str, allocation_version=None, settings: dict | None = None):
+    """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
+    the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed."""
+    v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
+    _require(actor, v.submission, "submit")
+    if v.status != SubmissionVersion.Status.VALIDATED:
+        raise AccessDenied("Only a validated version is priced for confirmation.")
+    if not _pricers:
+        raise AccessDenied("The calculation service is not installed here, so filings cannot be priced.")
+    run = _pricers[0](actor, v, job_zip, name=name, acc_version=acc_version, allocation_version=allocation_version, settings=settings or {})
+    audit.record("submission.pricing_started", obj=v, after={"run": str(run), "acc": acc_version}, actor=actor)
+    return str(run)
+
+
+@transaction.atomic
+def record_calculation(
+    actor, v: SubmissionVersion, *, run: str, input_hash: str, pack_versions: dict | None = None, details: dict | None = None
+) -> SubmissionVersion:
+    """A calculation and statewide allocation run on the version's current rows has finished (the Calculations module calls this).
+    `details` adds what the run was priced with and where its results are (job_sha256, release, acc, allocation_version, results)."""
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
     if v.status != SubmissionVersion.Status.VALIDATED:
         raise AccessDenied("Only a validated version is priced for confirmation.")
@@ -168,7 +196,7 @@ def record_calculation(actor, v: SubmissionVersion, *, run: str, input_hash: str
         actor,
         v,
         "submission.priced",
-        calculation={"run": run, "input_hash": input_hash, "finished_at": timezone.now().isoformat()},
+        calculation={**(details or {}), "run": run, "input_hash": input_hash, "finished_at": timezone.now().isoformat()},
         pack_versions=pack_versions or {},
     )
 

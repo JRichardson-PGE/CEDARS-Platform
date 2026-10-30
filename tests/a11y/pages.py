@@ -2,7 +2,7 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}, {sw}."""
+{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}."""
 
 PAGES = [
     ("home", "/", None),
@@ -74,4 +74,12 @@ PAGES = [
     ("program-change-request", "/programs/requests/{change_request}/", "approver"),
     ("program-change-request-own", "/programs/requests/{change_request}/", "pge_admin"),
     ("program-locked-attributes", "/programs/locked/", "cpuc_admin"),
+    ("budgets", "/budgets/", "analyst"),
+    ("budget-filing-new", "/budgets/filings/new/", "cpuc_admin"),
+    ("budget-filing-setup", "/budgets/filings/{tual}/setup/", "cpuc_admin"),
+    ("budget-filing-published", "/budgets/filings/{tual}/", "analyst"),
+    ("budget-filing-rejected", "/budgets/filings/{mcal}/", "analyst"),
+    ("budget-filing-cpuc", "/budgets/filings/{tual}/?org=PGE", "cpuc_admin"),
+    ("budget-version", "/budgets/versions/{budget_version}/?years=2028&hide_budget=1", "community"),
+    ("budget-compare", "/budgets/compare/?a={budget_version}&b={budget_draft}", "analyst"),
 ]
