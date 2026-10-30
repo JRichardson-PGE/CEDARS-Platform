@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}Engine releases{% endblock %}
+{% block content %}
+<h1>Engine releases</h1>
+<p>The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the ACCs each has. A job asks for
+exactly one release, and the worker refuses any other, so a run's results always name the release that produced them.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">
+<table class="list">
+  <thead><tr><th scope="col">Release</th><th scope="col">Calculations and ACCs</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for r, calcs in releases %}
+  <tr>
+    <th scope="row">ReCET {{ r.release }}{% if r.image %}<br><span class="small muted">{{ r.image }}</span>{% endif %}</th>
+    <td><ul class="grants">{% for label, accs in calcs %}<li>{{ label }}: {{ accs }}</li>{% endfor %}</ul></td>
+    <td>{% if not r.active %}Retired{% elif r.default %}Default{% else %}Available{% endif %}</td>
+    <td>{% if r.active and not r.default %}
+      <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="release" value="{{ r.pk }}">
+        <button type="submit" name="action" value="default">Make default<span class="sr-only"> ReCET {{ r.release }}</span></button>
+        <button type="submit" name="action" value="retire">Retire<span class="sr-only"> ReCET {{ r.release }}</span></button>
+      </form>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4">No releases yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="add-h">
+  <h2 id="add-h">Add a release</h2>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}<input type="hidden" name="action" value="add">
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Add the release</button></div>
+  </form>
+</section>
+{% endblock %}

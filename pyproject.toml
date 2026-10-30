@@ -16,6 +16,7 @@ dependencies = [
     "pyarrow>=18",               # the profile library in the engine's Parquet format
     "djangorestframework>=3.15",  # the API (decision J), JSON only
     "drf-spectacular>=0.28",      # its OpenAPI description at /api/v1/schema
+    "boto3>=1.35",               # S3 storage and AWS Batch dispatch (imported only when used)
 ]
 
 [dependency-groups]
@@ -24,6 +25,7 @@ dev = [
     "pytest-django>=4.9",
     "ruff>=0.8",
     "playwright>=1.49",          # the accessibility check drives Chromium with axe-core (tests/a11y)
+    "moto[s3]>=5.0",             # S3 in memory for the storage tests
 ]
 
 [build-system]

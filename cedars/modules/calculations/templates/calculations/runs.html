@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Calculations{% endblock %}
+{% block content %}
+<div class="head-row">
+  <h1>Calculations</h1>
+  {% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
+</div>
+<p>Cost-effectiveness runs on the ReCET engine: yours, and your organisations' (they stay with the organisation).</p>
+{% if live %}<p class="small muted" id="runs-live" data-live="1">Runs still queued or running update on this page by themselves.</p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Runs">
+<table class="list">
+  <caption class="sr-only">Runs, newest first</caption>
+  <thead><tr><th scope="col">Run</th><th scope="col">For</th><th scope="col">Engine</th><th scope="col">ACC</th><th scope="col">Measures</th><th scope="col">Status</th><th scope="col">Started by</th></tr></thead>
+  <tbody>
+  {% for r, st in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a><br><span class="small muted">{{ r.created_at|date:"Y-m-d H:i" }}</span></th>
+    <td>{{ r.organisation.code|default:"Only you" }}</td>
+    <td>{% if r.calculation == "recet" %}ReCET{% else %}CET {{ r.calculation|cut:"cet-" }} replica{% endif %} <span class="small muted">{{ r.engine_release }}</span></td>
+    <td>{{ r.acc_version }}</td>
+    <td>{{ r.measure_count|default_if_none:"" }}</td>
+    <td><span data-run-status="{% url 'calculations:run_status' r.pk %}"{% if r.ended %} data-ended="1"{% endif %}>{{ st.text }}</span></td>
+    <td class="small">{{ r.owner.email }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="7">No runs yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Run pages">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'calculations/runs.js' %}" defer></script>{% endblock %}

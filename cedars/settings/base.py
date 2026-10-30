@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "cedars.services.retention",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
+    "cedars.modules.calculations",
     "allauth",
     "allauth.account",
     "allauth.mfa",
@@ -181,6 +182,23 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+# Object storage (cedars/core/storage.py): a local folder in development and tests, S3 in production (MinIO stands in locally through
+# AWS_ENDPOINT_URL, which boto3 reads itself). Credentials are never settings: the task role in AWS, the environment elsewhere.
+CEDARS_STORAGE = {
+    "backend": env("CEDARS_STORAGE_BACKEND", "local"),
+    "root": env("CEDARS_STORAGE_ROOT", str(BASE_DIR / "var" / "storage")),
+    "buckets": {area: env(f"CEDARS_BUCKET_{area.upper()}", "") for area in ("uploads", "results", "refdata", "snapshots")},
+}
+
+# Calculations (cedars/modules/calculations): where runs are priced and how they queue.
+CALCULATIONS_BACKEND = env("CALCULATIONS_BACKEND", "local")  # local (calculations_worker) | batch (AWS Batch)
+CALCULATIONS_WORKER_COMMAND = env("CALCULATIONS_WORKER_COMMAND", "recet worker")  # the local backend's ReCET worker
+CALCULATIONS_BATCH_QUEUES = {"small": env("CEDARS_BATCH_QUEUE_SMALL", ""), "large": env("CEDARS_BATCH_QUEUE_LARGE", "")}
+CALCULATIONS_BATCH_JOB_DEFINITION = env("CEDARS_BATCH_JOB_DEFINITION", "")  # used when a release names none (infra/terraform)
+CALCULATIONS_SMALL_RUN_RECORDS = int(env("CALCULATIONS_SMALL_RUN_RECORDS", "10000"))  # up to this many measures: the small-runs queue
+CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # BRD v0.5's configurable cap (the engine checks it too)
+CALCULATIONS_WORKERS = {"small": int(env("CALCULATIONS_WORKERS_SMALL", "1")), "large": int(env("CALCULATIONS_WORKERS_LARGE", "1"))}
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

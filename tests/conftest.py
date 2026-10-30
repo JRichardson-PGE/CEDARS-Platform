@@ -5,6 +5,17 @@ from cedars.services.accounts import service
 from cedars.services.accounts.models import User
 
 
+@pytest.fixture(autouse=True)
+def local_storage(settings, tmp_path):
+    """Every test stores files in its own temporary folder (cedars.core.storage)."""
+    from cedars.core import storage
+
+    settings.CEDARS_STORAGE = {"backend": "local", "root": str(tmp_path / "storage"), "buckets": {}}
+    storage.reset()
+    yield
+    storage.reset()
+
+
 @pytest.fixture
 def sandbox(settings):
     settings.ENVIRONMENT = "sandbox"

@@ -16,6 +16,7 @@
   {% if user.is_authenticated %}
   {% with here=request.path %}
   <nav aria-label="Main">
+    <a href="{% url 'calculations:runs' %}"{% if '/calculations/' in here and '/engines/' not in here %} aria-current="page"{% endif %}>Calculations</a>
     <a href="{% url 'administration:account' %}"{% if here == '/account/' %} aria-current="page"{% endif %}>Account</a>
     <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a>
     <a href="{% url 'rules:index' %}"{% if '/rules/' in here %} aria-current="page"{% endif %}>Validation rules</a>
@@ -27,6 +28,7 @@
     {% if nav.steward %}<a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a>{% endif %}
+    {% if nav.sysadmin %}<a href="{% url 'calculations:engines' %}"{% if '/calculations/engines/' in here %} aria-current="page"{% endif %}>Engine releases</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a>{% endif %}
     {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a>{% endif %}
   </nav>

@@ -5,6 +5,7 @@ Run with `pytest -m a11y` (CI does). axe finds what can be found automatically; 
 PII grant and an open recertification, so the tables and forms are not empty."""
 
 import json
+import zipfile
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_K
 from django.contrib.sessions.backends.db import SessionStore
 from django.utils import timezone
 
+from cedars.core import storage
+from cedars.modules.calculations import service as calculations
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.dictionary import service as dictionary
@@ -163,9 +166,44 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     notifications.notify(pge_admin, "Your run finished: 2028 TUAL", "Portfolio TRC 1.21, PAC 1.64", "/reference-data/")
     notifications.notify(pge_admin, "Your run failed: scratch")
     notifications.mark_read(pge_admin, list(pge_admin.notifications.filter(title__contains="failed").values_list("pk", flat=True)))
+    # calculations: an engine release, a queued run and a finished one with its files
+    service.grant(pge_admin, analyst, pge, "calculations.submit")
+    release = calculations.add_release(
+        cpuc_admin,
+        release="0.1.78",
+        calculations=["recet", "cet-25.1"],
+        accs={"recet": ["2024", "2026"], "cet-25.1": ["2024"]},
+    )
+    job = Path(settings.CEDARS_STORAGE["root"]).parent / "job.zip"
+    with zipfile.ZipFile(job, "w") as z:
+        z.writestr("Measure.csv", "CEInputID|ClaimYearQuarter\nM1|2028Q1\nM2|2028Q2\n")
+    req = calculations.RunRequest(name="2028 claims, all programs", release=release, calculation="recet", acc_version="2024")
+    finished = calculations.create_run(analyst, pge, req, job)
+    calculations.mark_started(finished, worker="scene")
+    out = finished.storage_prefix + "out/"
+    storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
+    storage.store("results").put_bytes(out + "receipt.json", b"{}")
+    calculations.finish(
+        finished,
+        exit_code=0,
+        receipt={
+            "engine": {"release": "0.1.78", "commit": "91a88f5e43"},
+            "packs": {"files": {"acc/2024/electric_hourly.parquet": {"sha256": "ab" * 32}}},
+            "allocation": {"table": "statewide_factors_20260918", "sha256": "cd" * 32},
+            "outputs": {"measure_level_run.csv.zip": {"sha256": "ef" * 32}},
+            "totals": {"TRCRatio": 1.42, "PACRatio": 1.87},
+            "seconds": 9,
+        },
+    )
+    queued = calculations.create_run(
+        analyst, pge, calculations.RunRequest(name="2029 budget", release=release, calculation="recet", acc_version="2026"), job
+    )
     return {
         "pack": pack,
         "published_pack": published,
+        "analyst": analyst,
+        "queued_run": queued,
+        "finished_run": finished,
         "rules": rules,
         "cpuc_admin": cpuc_admin,
         "approver": approver,

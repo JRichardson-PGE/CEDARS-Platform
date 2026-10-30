@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}{{ run.name }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<div class="head-row">
+  <h1>{{ run.name }}</h1>
+  {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
+</div>
+
+<section class="card" aria-labelledby="status-h">
+  <h2 id="status-h">Status: <span id="run-status-label">{{ status.status_label }}</span></h2>
+  <p id="run-status" data-url="{% url 'calculations:run_status' run.pk %}"{% if status.ended %} data-ended="1"{% endif %}>{{ status.text }}</p>
+  {% if status.percent is not None and not status.ended %}<progress id="run-progress" max="100" value="{{ status.percent }}" aria-labelledby="status-h">{{ status.percent }}%</progress>{% endif %}
+  {% if run.error and run.status != "succeeded" %}<details><summary>What the engine said</summary><pre>{{ run.error }}</pre></details>{% endif %}
+  {% if run.status == "succeeded" and run.error %}<p class="alert" role="alert">{{ run.error }}</p>{% endif %}
+</section>
+
+<section aria-labelledby="settings-h">
+<h2 id="settings-h">Settings</h2>
+<dl class="facts">
+  <dt>For</dt><dd>{{ run.organisation|default:"Only you" }}</dd>
+  <dt>Started by</dt><dd>{{ run.owner.email }}, {{ run.created_at|date:"Y-m-d H:i" }}</dd>
+  <dt>Engine</dt><dd>{{ calculation }}, ReCET {{ run.engine_release }}{% if engine.image %} <span class="small muted">({{ engine.image }})</span>{% endif %}</dd>
+  <dt>ACC</dt><dd>{{ run.acc_version }} ACC</dd>
+  <dt>Measures</dt><dd>{{ run.measure_count|default_if_none:"" }}</dd>
+  <dt>Statewide allocation</dt><dd>{% if run.allocation_version %}{{ run.allocation_version.label }}{% else %}Not allocated{% endif %}</dd>
+  {% for label, value in settings %}<dt>{{ label }}</dt><dd>{% if value is True %}On{% elif value is False %}Off{% else %}{{ value }}{% endif %}</dd>{% endfor %}
+  <dt>Output files</dt><dd>{{ run.output_format }}</dd>
+  <dt>Inputs</dt><dd>{% for name, f in run.inputs.items %}{{ name }} <span class="small muted">SHA-256 {{ f.sha256|truncatechars:20 }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+</dl>
+</section>
+
+{% if totals %}
+<section aria-labelledby="totals-h">
+<h2 id="totals-h">Portfolio totals</h2>
+<dl class="facts">{% for k, v in totals.items %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>
+</section>
+{% endif %}
+
+{% if files %}
+<section aria-labelledby="files-h">
+<h2 id="files-h">Files</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Output files">
+<table class="list">
+  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
+{% if engine or packs %}
+<section aria-labelledby="receipt-h">
+<h2 id="receipt-h">What produced these results</h2>
+<p class="small">From the engine's receipt (receipt.json in the files): the exact release, reference data and allocation table used.</p>
+<dl class="facts">
+  {% if engine.release %}<dt>Engine release</dt><dd>ReCET {{ engine.release }}{% if engine.commit %} ({{ engine.commit|truncatechars:12 }}){% endif %}</dd>{% endif %}
+  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd><code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}</dd>{% endfor %}
+  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code></dd>{% endif %}
+</dl>
+{% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'calculations/run.js' %}" defer></script>{% endblock %}
