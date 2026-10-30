@@ -27,6 +27,7 @@
   <dt>Statewide allocation</dt><dd>{% if run.allocation_version %}{{ run.allocation_version.label }}{% else %}Not allocated{% endif %}</dd>
   {% for label, value in settings %}<dt>{{ label }}</dt><dd>{% if value is True %}On{% elif value is False %}Off{% else %}{{ value }}{% endif %}</dd>{% endfor %}
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
+  <dt>Reference data</dt><dd>{% for kind, p in run.spec.context.packs.items %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
   <dt>Inputs</dt><dd>{% for name, f in run.inputs.items %}{{ name }} <span class="small muted">SHA-256 {{ f.sha256|truncatechars:20 }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
 </dl>
 </section>

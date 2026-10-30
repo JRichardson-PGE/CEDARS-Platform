@@ -23,8 +23,10 @@ SETTINGS = {
 }
 
 
-def build(run, uploads, results) -> dict:
-    """The spec for `run`: its inputs in the uploads store, its outputs to the results store."""
+def build(run, uploads, results, *, packs: dict | None = None, pack_files: dict | None = None) -> dict:
+    """The spec for `run`: its inputs in the uploads store, its outputs to the results store, and the reference data it must use:
+    `pack_files` ({reference-folder path: {sha256, version}}) is the spec's packs.files, which the worker refuses to run against a
+    folder whose files differ; `packs` (refdata.pin of the packs) is echoed into the receipt through the context."""
     inputs = {name: {"uri": uploads.uri(f["key"]), "sha256": f["sha256"]} for name, f in run.inputs.items()}
     spec = {
         "spec_version": SPEC_VERSION,
@@ -40,6 +42,10 @@ def build(run, uploads, results) -> dict:
             "input_hash": run.input_hash,
         },
     }
+    if pack_files:
+        spec["packs"] = {"files": pack_files}
+    if packs:
+        spec["context"]["packs"] = packs
     if "sw_factors" in run.inputs:
         # the version's whole table and nothing else (no built-in row applies: ReCET's sw_factors_replace, PR #75), and the worker
         # refuses a run that would use another table
