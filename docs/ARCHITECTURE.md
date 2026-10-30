@@ -17,8 +17,8 @@ how far it is built. Update the Status column in the PR that changes it.
 
 | Service | App | Phase | Status | Requirements |
 | --- | --- | --- | --- | --- |
-| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Planned | BR-01 |
-| Audit and change log | `cedars.services.audit` | 1 | Planned | BR-09.1, 09.3, BR-12.7 |
+| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Rules and records built (`service.py`); sign-in and pages next | BR-01, D6, F, G |
+| Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); pages next | BR-09.1, 09.3, BR-12.7 |
 | Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Planned | BR-13, BR-06.7 |
 | Dictionary and templates | `cedars.services.dictionary` | 1 | Planned | BR-02.1, BR-08 |
 | Validation rule library | `cedars.services.rules` | 1 | Planned | BR-03 |
