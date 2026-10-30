@@ -82,6 +82,8 @@ PAGES = [
     ("claims-period-rejected", "/claims/periods/{claims_q2}/", "analyst"),
     ("claims-period-not-started", "/claims/periods/{claims_q3}/", "analyst"),
     ("claims-period-cpuc", "/claims/periods/{claims_q1}/?org=PGE", "cpuc_admin"),
+    ("claims-period-pii", "/claims/periods/{claims_q1}/", "pii_filer"),
+    ("claims-period-pii-rejected", "/claims/periods/{claims_q2}/", "pii_filer"),
     ("claims-version", "/claims/versions/{claims_version}/", "community"),
     ("claims-version-corrected", "/claims/versions/{claims_corrected}/", "community"),
     ("claims-changes", "/claims/changes/", "community"),

@@ -120,6 +120,47 @@ stay, marked withdrawn, and are no longer priced or counted. Personal informatio
 </section>
 {% endif %}
 
+{% if v and pii_shown %}
+<section aria-labelledby="pii-h">
+<h2 id="pii-h">Personal information</h2>
+{% if not vault %}<p>This environment has no PII vault, so it takes no personal information.</p>
+{% else %}
+<p class="small muted">PII_Contact and PII_Site are kept apart from the claims, in the PII vault, and join them only by ContactID and
+SiteID. Reading them needs the PII grant, which a data steward approves; every upload and download is recorded in the audit trail.</p>
+{% if pii %}
+  {% if pii.status == "accepted" %}
+  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|date:"Y-m-d H:i" }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
+  {% else %}
+  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|date:"Y-m-d H:i" }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="PII findings">
+  <table class="list">
+    <caption class="sr-only">PII findings: the record's key and field, never its value</caption>
+    <thead><tr><th scope="col">Table</th><th scope="col">Line</th><th scope="col">Key</th><th scope="col">Field</th><th scope="col">Rule</th><th scope="col">Finding</th></tr></thead>
+    <tbody>{% for f in pii.findings|slice:":200" %}<tr><td>{{ f.table }}</td><td class="num">{{ f.line }}</td><td>{{ f.key }}</td><td>{{ f.field }}</td><td>{{ f.rule }}</td><td>{{ f.message }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% if pii.findings|length > 200 %}<p class="small">The first 200 are shown.</p>{% endif %}
+  {% endif %}
+{% else %}<p>No PII file has been kept for this version.</p>{% endif %}
+
+{% if pii_read and pii.status == "accepted" %}
+<form method="post" action="{% url 'claims:pii_download' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  <input type="hidden" name="org" value="{{ org.code }}">
+  <div class="field"><label for="pii-reason">Why you need it (recorded in the audit trail)</label><input type="text" id="pii-reason" name="reason" maxlength="500"></div>
+  <div class="actions"><button type="submit">Download the PII (.zip)</button></div>
+</form>
+{% endif %}
+
+{% if pii_upload %}
+<form method="post" enctype="multipart/form-data" action="{% url 'claims:pii_upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  {{ pii_form.file.as_field_group }}
+  <div class="actions"><button type="submit">Upload and check the PII</button> <span class="small muted">A file that passes replaces this version's PII; one with findings is not stored.</span></div>
+</form>
+{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
 {% if versions|length > 1 or v.locked %}
 <section aria-labelledby="versions-h">
 <h2 id="versions-h">Versions</h2>

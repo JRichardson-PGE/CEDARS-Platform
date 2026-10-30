@@ -39,6 +39,7 @@ from cedars.services.registry.models import AllocationVersion, Program, Reportin
 from cedars.services.rules import service as rules
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
+from cedars.services.vault import service as vault
 
 from . import spec, upload
 from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
@@ -1096,6 +1097,51 @@ def on_publish(v: SubmissionVersion) -> None:
 
 def on_unpublish(v: SubmissionVersion) -> None:
     """Un-confirmed before the due date: nothing is kept apart from the version, which goes back to validated."""
+
+
+# --- personal information (the PII vault)
+
+
+PII_KEYS = [
+    ("ContactClaim", "ContactID", "PII_Contact"),
+    ("Site", "SiteID", "PII_Site"),
+    ("Claim", "SiteID", "PII_Site"),
+    ("ClaimSite", "SiteID", "PII_Site"),
+]
+
+
+def pii_keys(v: SubmissionVersion) -> dict[str, set[str]]:
+    """The ContactIDs and SiteIDs the version's compiled claims name (compared in lower case): a PII file may hold only these."""
+    t = compiled_tables(v)
+    keys = {"PII_Contact": set(), "PII_Site": set()}
+    for table, column, pii in PII_KEYS:
+        if table in t:
+            keys[pii] |= {r.get(column, "").strip().lower() for r in t[table].rows if r.get(column, "").strip()}
+    return keys
+
+
+def pii_versions(v: SubmissionVersion) -> list[int]:
+    """The version and the earlier versions of its submission, newest first: a reopened version reads its predecessor's PII until it
+    has its own."""
+    return list(v.submission.versions.filter(number__lte=v.number).order_by("-number").values_list("pk", flat=True))
+
+
+def upload_pii(actor, v: SubmissionVersion, data: bytes, filename: str, assurance: str | None):
+    """Check a PII file against the version's compiled claims and keep it in the vault (BR-10.1, BR-10.4). Only while the version is
+    open, and only once its claims are checked: the PII joins them by ContactID and SiteID."""
+    if v.locked:
+        raise AccessDenied("This version is confirmed. Ask to reopen it to change its personal information.")
+    ensure_checked(v)
+    v.refresh_from_db()
+    keys = pii_keys(v)
+    if not any(keys.values()):
+        raise AccessDenied("Upload and check the claims first: the PII file may name only their ContactIDs and SiteIDs.")
+    return vault.store(actor, v.submission.organisation, v.pk, data, filename, keys, assurance)
+
+
+def pii(v: SubmissionVersion):
+    """The version's PII upload as it stands (its own, else its predecessor's), or None."""
+    return vault.latest(pii_versions(v)) if vault.enabled() else None
 
 
 # --- withdrawals and corrections

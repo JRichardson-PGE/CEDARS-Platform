@@ -3,6 +3,8 @@ Every page carries a banner saying so, every email's subject starts with [SANDBO
 retention period (30 days by default) are deleted by the daily retention job."""
 
 from .prod import *  # noqa: F403
+from .prod import DATABASES
 
 ENVIRONMENT = "sandbox"
 EMAIL_SUBJECT_PREFIX = "[SANDBOX] "
+DATABASES.pop("vault", None)  # the sandbox never holds PII

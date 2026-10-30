@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -17,6 +18,8 @@ from cedars.services.audit.models import AuditEvent
 from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
+from cedars.services.vault import service as vault
+from cedars.services.vault.service import PIIError
 
 from . import forms, service, spec
 from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
@@ -221,7 +224,26 @@ def period(request, pk):
         ]
         if ctx["priced"]:
             ctx["tiles"] = _tiles(service.table(v))
+        ctx.update(_pii(request, org, v, acting))
     return render(request, "claims/period.html", ctx)
+
+
+def _pii(request, org, v: SubmissionVersion, acting: bool) -> dict:
+    """The period page's personal-information section: who may do what, and the version's upload as it stands (status, counts and
+    findings, which name keys and fields but never values)."""
+    assurance = getattr(request, "assurance", None)
+    out = {
+        "vault": vault.enabled(),
+        "pii_upload": acting and vault.can_upload(request.user, org, assurance) and not v.locked,
+        "pii_read": vault.can_read(request.user, org, assurance),
+        "pii_form": forms.PIIForm(),
+    }
+    out["pii_shown"] = out["pii_upload"] or out["pii_read"]
+    if out["vault"] and out["pii_shown"]:
+        up = service.pii(v)
+        out["pii"] = up
+        out["pii_inherited"] = up is not None and up.version_id != v.pk
+    return out
 
 
 def _with_letters(versions: list[SubmissionVersion]) -> list[SubmissionVersion]:
@@ -342,6 +364,52 @@ def reopen(request, pk):
             messages.info(request, "Your request is with a CPUC approver.")
 
     return _action(request, pk, do, "")
+
+
+@login_required
+@require_POST
+def pii_upload(request, pk):
+    form = forms.PIIForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the PII .zip or .xlsx file.")
+        return redirect("claims:period", pk)
+    f = form.cleaned_data["file"]
+
+    def do(deadline, org):
+        try:
+            up = service.upload_pii(request.user, _latest(deadline, org), f.read(), f.name, getattr(request, "assurance", None))
+        except PIIError as e:
+            raise AccessDenied(str(e)) from None
+        if up.status == up.Status.ACCEPTED:
+            messages.success(request, "The PII file passed its checks and is kept in the vault.")
+        else:
+            messages.warning(request, f"The PII file was not kept: {len(up.findings):,} findings. Fix them and upload it again.")
+
+    return _action(request, pk, do, "")
+
+
+@login_required
+@require_POST
+def pii_download(request, pk):
+    """The version's accepted PII as a .zip, for a reader with the PII grant; every download is audited with its reason."""
+    deadline = _deadline(pk)
+    org = _organisation(request, deadline)
+    if org is None:
+        raise Http404
+    sub = Submission.objects.filter(deadline=deadline, organisation=org).first()
+    v = submissions.latest(sub) if sub else None
+    up = service.pii(v) if v else None
+    if up is None or up.status != up.Status.ACCEPTED:
+        raise Http404
+    try:
+        data = vault.export(request.user, org, up, getattr(request, "assurance", None), request.POST.get("reason", "").strip())
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect(f"{reverse('claims:period', args=[pk])}?org={org.code}")
+    response = HttpResponse(data, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{org.code}_{deadline.period.year}_PII_v{v.number}.zip"'
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 # --- a version's results
