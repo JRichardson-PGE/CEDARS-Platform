@@ -32,7 +32,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
 
-from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile, DocumentVersion
+from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile, DocumentVersion, Study, Task, WorkOrder
 
 READ = "documents.read"
 SUBMIT = "documents.submit"
@@ -312,6 +312,28 @@ class Details:
     first_year: int | None = None
     last_year: int | None = None
     attributes: list[AttributeOption] = field(default_factory=list)
+    study: Study | None = None
+    work_order: WorkOrder | None = None
+    task: Task | None = None
+
+
+STUDY_COLLECTIONS = (Collection.EMV, Collection.PROGRAM)
+
+
+def _check_links(actor, collection: str, d: Details, doc: Document | None = None) -> None:
+    """A document joins a study (EM&V documents and program files) only by someone who may update that study; a work order and task
+    only on EM&V documents, the task one of the work order's (BR-15.3)."""
+    from .studies import can_edit
+
+    if d.study is not None:
+        if collection not in STUDY_COLLECTIONS:
+            raise DocumentError("Only EM&V documents and program files belong to a study.")
+        if (doc is None or doc.study_id != d.study.pk) and not can_edit(actor, d.study):
+            raise AccessDenied(f"Only {d.study.manager.code} (the study manager) and CPUC ED add documents to {d.study.study_id}.")
+    if (d.work_order is not None or d.task is not None) and collection != Collection.EMV:
+        raise DocumentError("Only EM&V documents are filed under a work order.")
+    if d.task is not None and d.task.work_order_id != getattr(d.work_order, "pk", None):
+        raise DocumentError(f"The task {d.task.name} is not one of the chosen work order's tasks.")
 
 
 def _check_details(collection: str, d: Details, *, keeping: set[int] = frozenset()) -> None:
@@ -348,6 +370,9 @@ def _detail_snapshot(doc: Document) -> dict:
     snap["pas"] = sorted(o.code for o in doc.pas.all())
     snap["programs"] = sorted(p.prg_id for p in doc.programs.all())
     snap["attributes"] = sorted(doc.attributes.values_list("pk", flat=True))
+    snap["study"] = doc.study.study_id if doc.study else ""
+    snap["work_order"] = doc.work_order.number if doc.work_order else ""
+    snap["task"] = doc.task.name if doc.task else ""
     return snap
 
 
@@ -368,6 +393,7 @@ def create_document(
     """File a document with its first version. A PA's own document names the PA itself among the PAs it applies to."""
     _require_organisation(actor, organisation, collection)
     _check_details(collection, details)
+    _check_links(actor, collection, details)
     checked = _check_uploads(uploads)
     doc = Document.objects.create(
         collection=collection,
@@ -377,6 +403,9 @@ def create_document(
         owner=organisation,
         first_year=details.first_year,
         last_year=details.last_year,
+        study=details.study,
+        work_order=details.work_order,
+        task=details.task,
         created_by=actor,
     )
     pas = list(details.pas)
@@ -402,11 +431,13 @@ def change_details(actor, doc: Document, details: Details, *, reason: str) -> Do
         raise DocumentError("Give the reason for the change.")
     keeping = set(doc.attributes.values_list("pk", flat=True)) | {doc.document_type_id}
     _check_details(doc.collection, details, keeping=keeping)
+    _check_links(actor, doc.collection, details, doc)
     before = _detail_snapshot(doc)
     doc.document_type = details.document_type
     doc.title = details.title.strip()
     doc.summary = details.summary.strip()
     doc.first_year, doc.last_year = details.first_year, details.last_year
+    doc.study, doc.work_order, doc.task = details.study, details.work_order, details.task
     doc.save()
     pas = list(details.pas)
     if doc.owner.kind == Organisation.Kind.PA and doc.owner not in pas:
@@ -508,6 +539,8 @@ class Search:
     published_from: date | None = None
     published_to: date | None = None
     status: str = ""  # "", "published", "unpublished" (the last only shows what the user may see)
+    study: Study | None = None
+    work_order: WorkOrder | None = None
 
 
 def readable(user) -> QuerySet:
@@ -550,6 +583,10 @@ def search(user, s: Search) -> QuerySet:
         by_list.setdefault(o.attribute_list_id, []).append(o.pk)
     for ids in by_list.values():
         qs = qs.filter(pk__in=Document.objects.filter(attributes__in=ids).values("pk"))
+    if s.study is not None:
+        qs = qs.filter(study=s.study)
+    if s.work_order is not None:
+        qs = qs.filter(work_order=s.work_order)
     if s.published_from:
         qs = qs.filter(published_at__date__gte=s.published_from)
     if s.published_to:
@@ -560,7 +597,7 @@ def search(user, s: Search) -> QuerySet:
         qs = qs.filter(published_at__isnull=True)
     return (
         Document.objects.filter(pk__in=qs.values("pk"))
-        .select_related("document_type", "owner")
+        .select_related("document_type", "owner", "study", "work_order", "task")
         .prefetch_related(
             "pas",
             "programs",

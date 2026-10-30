@@ -1,0 +1,38 @@
+{% extends "core/base.html" %}
+{% block title %}Study budgets{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="budgets" %}
+<h1>Study budgets{% if cycle %}: {{ cycle.label }}{% endif %}</h1>
+<p>The study lists and budget tables each EM&amp;V plan compiles, from the register: the number of studies and their budgets by type,
+sector, lead, status and group, planned against completed. Cancelled studies are left out. A study with several sectors counts in each
+sector, so that table can add up to more than the total.</p>
+<form method="get" class="filters" aria-label="Choose the funding cycle">
+  <label for="cycle">Funding cycle
+    <select id="cycle" name="cycle"><option value="">Every study</option>{% for c in cycles %}<option value="{{ c.pk }}"{% if c == cycle %} selected{% endif %}>{{ c.label }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">Show</button>
+</form>
+<dl class="tiles">
+  <div class="tile"><dt>Studies</dt><dd>{{ total.studies }}</dd></div>
+  <div class="tile"><dt>Budget</dt><dd>${{ total.budget|floatformat:"0g" }}</dd></div>
+  <div class="tile"><dt>Completed</dt><dd>{{ total.completed }}</dd></div>
+  <div class="tile"><dt>Completed budget</dt><dd>${{ total.completed_budget|floatformat:"0g" }}</dd></div>
+  <div class="tile"><dt>Cancelled, left out</dt><dd>{{ total.cancelled }}</dd></div>
+</dl>
+<p><a href="?{% if cycle %}cycle={{ cycle.pk }}&amp;{% endif %}format=csv">Download these tables as CSV</a></p>
+{% for key, table in tables.items %}
+<section aria-labelledby="t-{{ key }}">
+<h2 id="t-{{ key }}">By {{ table.title|lower }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Studies by {{ table.title|lower }}">
+<table class="list">
+  <caption class="sr-only">Studies and budgets by {{ table.title|lower }}</caption>
+  <thead><tr><th scope="col">{{ table.title }}</th><th scope="col">Studies</th><th scope="col">Budget</th><th scope="col">Completed</th><th scope="col">Completed budget</th></tr></thead>
+  <tbody>
+  {% for name, row in table.rows %}<tr><th scope="row">{{ name }}</th><td class="num">{{ row.studies }}</td><td class="num">${{ row.budget|floatformat:"0g" }}</td><td class="num">{{ row.completed }}</td><td class="num">${{ row.completed_budget|floatformat:"0g" }}</td></tr>
+  {% empty %}<tr><td colspan="5">No studies.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% endfor %}
+{% endblock %}

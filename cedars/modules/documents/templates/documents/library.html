@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Documents{% endblock %}
 {% block content %}
+{% include "documents/_subnav.html" with section="library" %}
 <div class="head-row">
   <h1>Documents</h1>
   {% if collections %}<a class="button" href="{% url 'documents:new' %}">File a document</a>{% endif %}
@@ -22,6 +23,8 @@ behind the filters are kept by CPUC Energy Division.</p>
       {{ form.year.as_field_group }}
       {{ form.published_from.as_field_group }}
       {{ form.published_to.as_field_group }}
+      {{ form.study.as_field_group }}
+      {{ form.work_order.as_field_group }}
     </div>
     <p class="small muted">Within a list, a document matching any value you tick is kept; across lists, it must match each list.</p>
     {% for al, options in lists %}

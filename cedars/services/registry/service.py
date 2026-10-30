@@ -580,6 +580,23 @@ def operating_budget(organisation: Organisation, cycle: FilingCycle | None) -> l
     return _operating_budget_sources[0](organisation, cycle)
 
 
+_evaluation_sources: list = []
+
+
+def register_evaluations(source) -> None:
+    """The Documents & EM&V module's study register: source(program) returns one dict per evaluation study covering the program in
+    whole or in part, {study_id, title, url, first_year, last_year, whole, status, lead, deliverable: {title, url, stage} or None}, newest
+    first. The program page reads it through `evaluations` (BR-15.7), so Programs never imports Documents."""
+    _evaluation_sources[:] = [source]
+
+
+def evaluations(program: Program) -> list[dict]:
+    """Every evaluation study that covers the program, with the years it covers; [] when the study register is not installed."""
+    if not _evaluation_sources:
+        return []
+    return _evaluation_sources[0](program)
+
+
 def cycle_for_year(year: int) -> FilingCycle | None:
     """The filing cycle a program year belongs to."""
     return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()

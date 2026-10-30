@@ -7,7 +7,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.registry.models import Program
 
 from . import service
-from .models import AttributeOption, Collection
+from .models import AttributeOption, Collection, Study, Task, WorkOrder
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -54,6 +54,8 @@ class SearchForm(forms.Form):
         required=False,
         choices=[("", "Published and unpublished"), ("published", "Published"), ("unpublished", "Unpublished")],
     )
+    study = forms.CharField(label="Study ID", required=False)
+    work_order = forms.CharField(label="Work order", required=False)
     options = forms.ModelMultipleChoiceField(queryset=AttributeOption.objects.none(), required=False)
 
     def __init__(self, *args, show_status=False, **kwargs):
@@ -66,7 +68,7 @@ class SearchForm(forms.Form):
         self.fields["pa"].queryset = _pas()
         self.fields["pa"].empty_label = "Any PA"
         self.fields["pa"].label_from_instance = lambda o: o.code
-        self.fields["options"].queryset = AttributeOption.objects.filter(attribute_list__type_of="")
+        self.fields["options"].queryset = AttributeOption.objects.filter(attribute_list__type_of="", attribute_list__collections__len__gt=0)
         if not show_status:
             del self.fields["status"]
 
@@ -83,7 +85,22 @@ class SearchForm(forms.Form):
             published_from=d.get("published_from"),
             published_to=d.get("published_to"),
             status=d.get("status") or "",
+            study=_study(d.get("study")),
+            work_order=WorkOrder.objects.filter(number__iexact=(d.get("work_order") or "").strip()).first()
+            if d.get("work_order")
+            else None,
         )
+
+
+def _study(text):
+    """A study by its study ID or its number; a study ID that matches nothing finds nothing (not every document)."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    found = Study.objects.filter(study_id__iexact=text).first() or (
+        Study.objects.filter(number=int(text)).first() if text.isdigit() else None
+    )
+    return found or Study(pk=0)
 
 
 class DetailsForm(forms.Form):
@@ -103,10 +120,20 @@ class DetailsForm(forms.Form):
     programs = forms.CharField(label="Programs (PrgIDs)", required=False, help_text="Separate several with commas or spaces")
     first_year = forms.IntegerField(label="First program year", **YEAR)
     last_year = forms.IntegerField(label="Last program year", **YEAR, help_text="The same as the first for a single year")
+    study = forms.CharField(label="Study ID", required=False, help_text="The evaluation study it belongs to, e.g. 2025_Residential_733")
+    work_order = forms.ModelChoiceField(label="Work order", queryset=WorkOrder.objects.none(), required=False, empty_label="None")
+    task = forms.ModelChoiceField(label="Task", queryset=Task.objects.none(), required=False, empty_label="None")
 
     def __init__(self, *args, collection: str, document=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.collection = collection
+        if collection not in service.STUDY_COLLECTIONS:
+            del self.fields["study"]
+        if collection == Collection.EMV:
+            self.fields["work_order"].queryset = WorkOrder.objects.all()
+            self.fields["task"].queryset = Task.objects.select_related("work_order")
+        else:
+            del self.fields["work_order"], self.fields["task"]
         keep = set()
         if document is not None:
             keep = set(document.attributes.values_list("pk", flat=True)) | {document.document_type_id}
@@ -135,6 +162,9 @@ class DetailsForm(forms.Form):
                 programs=", ".join(p.prg_id for p in document.programs.all()),
                 first_year=document.first_year,
                 last_year=document.last_year,
+                study=document.study.study_id if document.study else "",
+                work_order=document.work_order_id,
+                task=document.task_id,
             )
             chosen = list(document.attributes.all())
             for al in self.lists:
@@ -156,6 +186,15 @@ class DetailsForm(forms.Form):
             raise forms.ValidationError(f"Not in the program registry: {', '.join(missing)}.")
         return list(found.values())
 
+    def clean_study(self):
+        text = (self.cleaned_data.get("study") or "").strip()
+        if not text:
+            return None
+        found = _study(text)
+        if not found.pk:
+            raise forms.ValidationError(f"No study {text} in the register.")
+        return found
+
     def details(self) -> service.Details:
         d = self.cleaned_data
         attributes = []
@@ -174,6 +213,9 @@ class DetailsForm(forms.Form):
             first_year=first,
             last_year=last,
             attributes=attributes,
+            study=d.get("study"),
+            work_order=d.get("work_order"),
+            task=d.get("task"),
         )
 
 
@@ -221,3 +263,202 @@ class OptionForm(forms.Form):
 
 class RetireForm(forms.Form):
     reason = forms.CharField(label="Reason")
+
+
+# --- the study register
+
+
+def _list_field(code, label, *, multiple=False, required=False, keep=()):
+    from . import studies
+
+    qs = studies.options(code, keep)
+    if multiple:
+        f = forms.ModelMultipleChoiceField(label=label, queryset=qs, required=required, widget=forms.CheckboxSelectMultiple)
+    else:
+        f = forms.ModelChoiceField(label=label, queryset=qs, required=required, empty_label=None if required else "Not given")
+    f.label_from_instance = _option_label
+    return f
+
+
+def _cpuc_staff():
+    from cedars.services.accounts.models import User
+
+    return User.objects.filter(memberships__organisation__kind="cpuc", memberships__ended_at__isnull=True, is_active=True).distinct()
+
+
+class StudyForm(forms.Form):
+    """A study's fields (BR-15.6), with the PSR's limits on its text. A PA adding its own study is its manager; only CPUC ED chooses
+    another manager."""
+
+    title = forms.CharField(label="Study name", max_length=255)
+    manager = forms.ModelChoiceField(label="Study manager", queryset=Organisation.objects.none())
+    budget = forms.DecimalField(label="Budget ($)", min_value=0, max_digits=14, decimal_places=2, required=False)
+    work_order = forms.ModelChoiceField(label="Work order", queryset=WorkOrder.objects.none(), required=False, empty_label="None")
+    description = forms.CharField(label="Description", max_length=1000, required=False, widget=forms.Textarea(attrs={"rows": 3}))
+    objective = forms.CharField(label="Objective", max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    research_questions = forms.CharField(
+        label="Research questions", max_length=1500, required=False, widget=forms.Textarea(attrs={"rows": 3})
+    )
+    methods = forms.CharField(label="Potential EM&V methods", max_length=250, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    next_activity = forms.CharField(label="Next activity", max_length=255, required=False)
+    next_activity_due = forms.DateField(label="Next activity due", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    completion_date = forms.DateField(label="Completion date", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    calmac_id = forms.CharField(label="CALMAC ID", max_length=40, required=False, help_text="Leave blank until the final report has one")
+    notes = forms.CharField(label="Notes", max_length=500, required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    ed_program_manager = forms.ModelChoiceField(label="ED program manager", queryset=Organisation.objects.none(), required=False)
+    contacts = forms.CharField(
+        label="Contacts",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="ED consultants, PA contacts, the PCG and its coordinators. Not public: CPUC staff and the study manager see them.",
+    )
+
+    LIST_FIELDS = [
+        ("lead", "study_lead", "Study lead", False, True),
+        ("status", "study_status", "Status", False, False),
+        ("study_type", "study_type", "Study type", False, False),
+        ("group", "study_group", "Group or sub-sector", False, False),
+        ("sectors", "sector", "Sectors", True, False),
+        ("funding_cycles", "portfolio_cycle", "Funding cycles", True, False),
+    ]
+
+    def __init__(self, *args, study=None, organisation=None, admin=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        keep = []
+        if study is not None:
+            keep = [study.lead, study.status, study.study_type, study.group, *study.sectors.all(), *study.funding_cycles.all()]
+        for name, code, label, multiple, required in self.LIST_FIELDS:
+            self.fields[name] = _list_field(code, label, multiple=multiple, required=required, keep=keep)
+        managers = Organisation.objects.filter(active=True).order_by("code")
+        if not admin:
+            managers = managers.filter(pk=(study.manager_id if study else getattr(organisation, "pk", None)))
+        self.fields["manager"].queryset = managers
+        self.fields["manager"].label_from_instance = lambda o: f"{o.code} ({o.name})"
+        self.fields["work_order"].queryset = WorkOrder.objects.all()
+        self.fields["ed_program_manager"].queryset = _cpuc_staff()
+        self.fields["ed_program_manager"].label_from_instance = lambda u: u.name or u.email
+        self.order_fields(
+            ["title", "manager", "lead", "status", "study_type", "group", "sectors", "funding_cycles", "budget", "work_order"]
+        )
+        if study is not None and not self.is_bound:
+            for name in [n for n in self.fields if n != "reason"]:
+                value = getattr(study, name)
+                self.initial[name] = list(value.all()) if name in ("sectors", "funding_cycles") else value
+        elif organisation is not None and not admin:
+            self.initial["manager"] = organisation
+
+    def data_object(self):
+        from . import studies
+
+        d = self.cleaned_data
+        values = {}
+        for k in DATA_FIELDS:
+            v = d.get(k)
+            if k in ("sectors", "funding_cycles"):
+                v = list(v or [])
+            elif v is None and k in TEXT:
+                v = ""
+            values[k] = v
+        return studies.StudyData(**values)
+
+
+TEXT = {"description", "objective", "research_questions", "methods", "next_activity", "calmac_id", "notes", "contacts", "title"}
+DATA_FIELDS = [
+    "title",
+    "manager",
+    "lead",
+    "study_type",
+    "sectors",
+    "group",
+    "funding_cycles",
+    "budget",
+    "status",
+    "work_order",
+    "description",
+    "objective",
+    "research_questions",
+    "methods",
+    "next_activity",
+    "next_activity_due",
+    "completion_date",
+    "calmac_id",
+    "notes",
+    "ed_program_manager",
+    "contacts",
+]
+
+
+class ChangeStudyForm(StudyForm):
+    reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
+
+
+class CoverageForm(forms.Form):
+    program = forms.CharField(label="Program (PrgID)")
+    first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100)
+    last_year = forms.IntegerField(label="Last program year", min_value=2000, max_value=2100)
+    whole = forms.BooleanField(label="The whole program", required=False, initial=True, help_text="Untick when it covers a part")
+    note = forms.CharField(label="Which part, or a note", max_length=255, required=False)
+
+    def clean_program(self):
+        p = Program.objects.filter(prg_id__iexact=self.cleaned_data["program"].strip()).first()
+        if p is None:
+            raise forms.ValidationError("Not in the program registry.")
+        return p
+
+
+class RegisterForm(forms.Form):
+    q = forms.CharField(label="Search", required=False, help_text="Words in the name or description, a study ID, work order or CALMAC ID")
+    cycle = forms.ModelChoiceField(label="Funding cycle", queryset=AttributeOption.objects.none(), required=False)
+    status = forms.ModelChoiceField(label="Status", queryset=AttributeOption.objects.none(), required=False)
+    sector = forms.ModelChoiceField(label="Sector", queryset=AttributeOption.objects.none(), required=False)
+    lead = forms.ModelChoiceField(label="Study lead", queryset=AttributeOption.objects.none(), required=False)
+    study_type = forms.ModelChoiceField(label="Study type", queryset=AttributeOption.objects.none(), required=False)
+    manager = forms.ModelChoiceField(label="Study manager", queryset=Organisation.objects.none(), required=False, to_field_name="code")
+    program = forms.CharField(label="Program (PrgID)", required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name, code in (
+            ("cycle", "portfolio_cycle"),
+            ("status", "study_status"),
+            ("sector", "sector"),
+            ("lead", "study_lead"),
+            ("study_type", "study_type"),
+        ):
+            self.fields[name].queryset = AttributeOption.objects.filter(attribute_list__code=code)
+            self.fields[name].empty_label = "Any"
+        self.fields["manager"].queryset = Organisation.objects.filter(managed_studies__isnull=False).distinct().order_by("code")
+        self.fields["manager"].label_from_instance = lambda o: o.code
+        self.fields["manager"].empty_label = "Any"
+
+    def filter(self):
+        from . import studies
+
+        d = self.cleaned_data if self.is_valid() else {}
+
+        def one(name):
+            return [d[name]] if d.get(name) else []
+
+        return studies.RegisterFilter(
+            q=(d.get("q") or "").strip(),
+            cycles=one("cycle"),
+            statuses=one("status"),
+            sectors=one("sector"),
+            leads=one("lead"),
+            types=one("study_type"),
+            managers=one("manager"),
+            program=d.get("program") or "",
+        )
+
+
+class WorkOrderForm(forms.Form):
+    number = forms.CharField(label="Work order number", max_length=50)
+    name = forms.CharField(label="Name", max_length=255, required=False)
+    firm = forms.ModelChoiceField(label="Contractor organisation", queryset=Organisation.objects.none(), required=False)
+    firm_name = forms.CharField(label="Contractor as the contract names it", max_length=200, required=False)
+    cpuc_contract_id = forms.CharField(label="CPUC contract id", max_length=50, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["firm"].queryset = Organisation.objects.filter(active=True).exclude(kind="cpuc").order_by("code")
+        self.fields["firm"].label_from_instance = lambda o: f"{o.code} ({o.name})"

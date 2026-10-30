@@ -1,0 +1,7 @@
+<nav class="subnav" aria-label="Documents and EM&amp;V">
+  <a href="{% url 'documents:library' %}"{% if section == 'library' %} aria-current="page"{% endif %}>Library</a>
+  <a href="{% url 'documents:studies' %}"{% if section == 'studies' %} aria-current="page"{% endif %}>Evaluation studies</a>
+  <a href="{% url 'documents:study_summary' %}"{% if section == 'budgets' %} aria-current="page"{% endif %}>Study budgets</a>
+  <a href="{% url 'documents:work_orders' %}"{% if section == 'work_orders' %} aria-current="page"{% endif %}>Work orders</a>
+  <a href="{% url 'documents:lists' %}"{% if section == 'lists' %} aria-current="page"{% endif %}>Value lists</a>
+</nav>

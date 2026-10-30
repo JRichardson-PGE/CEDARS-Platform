@@ -30,6 +30,9 @@ CSV_COLUMNS = [
     "Programs",
     "FirstYear",
     "LastYear",
+    "StudyID",
+    "WorkOrder",
+    "Task",
 ]
 
 
@@ -43,7 +46,8 @@ def _search(request):
 
 
 def _attribute_lists():
-    return list(AttributeList.objects.filter(type_of="").prefetch_related("options"))
+    """The lists documents carry (not the document types, nor the study register's own lists)."""
+    return list(AttributeList.objects.filter(type_of="", collections__len__gt=0).prefetch_related("options"))
 
 
 def library(request):
@@ -68,7 +72,8 @@ def library(request):
             "total": page.paginator.count,
             "query": query.urlencode(),
             "lists": [(al, [(o, o in chosen) for o in al.options.all()]) for al in _attribute_lists()],
-            "advanced": bool(chosen) or any(request.GET.get(k) for k in ("published_from", "published_to", "program", "year")),
+            "advanced": bool(chosen)
+            or any(request.GET.get(k) for k in ("published_from", "published_to", "program", "year", "study", "work_order")),
             "collections": service.collections_for(request.user, getattr(request, "organisation", None))
             if request.user.is_authenticated
             else [],
@@ -81,11 +86,11 @@ def library_csv(request):
     """The result list as a file, from the same search (decision H): one row per document at its listed version, and one column per
     attribute list."""
     _, results = _search(request)
-    lists = list(AttributeList.objects.all())
+    lists = _attribute_lists()
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="documents.csv"'
     w = csv.writer(response, lineterminator="\n")
-    w.writerow(CSV_COLUMNS + [al.name for al in lists if not al.type_of])
+    w.writerow(CSV_COLUMNS + [al.name for al in lists])
     base = request.build_absolute_uri("/documents/")
     for doc in results:
         v = service.listed_version(doc, unpublished=doc.published_at is None)
@@ -107,13 +112,14 @@ def library_csv(request):
                 doc.first_year or "",
                 doc.last_year or "",
             ]
-            + ["; ".join(o.label for o in options if o.attribute_list_id == al.pk) for al in lists if not al.type_of]
+            + [doc.study.study_id if doc.study else "", doc.work_order.number if doc.work_order else "", doc.task.name if doc.task else ""]
+            + ["; ".join(o.label for o in options if o.attribute_list_id == al.pk) for al in lists]
         )
     return response
 
 
 def _document(request, pk) -> Document:
-    doc = get_object_or_404(Document.objects.select_related("document_type", "owner", "created_by"), pk=pk)
+    doc = get_object_or_404(Document.objects.select_related("document_type", "owner", "created_by", "study", "work_order", "task"), pk=pk)
     if not service.can_read(request.user, doc):
         raise Http404
     return doc
@@ -282,13 +288,17 @@ def value_lists(request):
         request,
         "documents/lists.html",
         {
-            "lists": [
-                (al, ", ".join(Collection(c).label for c in al.collections) or Collection(al.type_of).label, al.options.all())
-                for al in lists
-            ],
+            "lists": [(al, _used_by(al), al.options.all()) for al in lists],
             "admin": admin,
         },
     )
+
+
+def _used_by(al: AttributeList) -> str:
+    """Where a list is used: the collections whose documents carry it, a collection's document types, or the study register."""
+    if al.collections:
+        return ", ".join(Collection(c).label for c in al.collections)
+    return Collection(al.type_of).label if al.type_of else "Evaluation studies"
 
 
 def _back(al: AttributeList):
