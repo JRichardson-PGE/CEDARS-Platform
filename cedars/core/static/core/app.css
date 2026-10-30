@@ -1,0 +1,98 @@
+/* Colour tokens checked for WCAG 2.2 AA in both schemes (taken from ReCET 0.1.67, where they were measured): text 4.5:1 on --bg and --card,
+   --control (field and button borders) and the focus ring 3:1. A new colour is checked with a contrast calculator before it is used. */
+:root {
+  --bg: #fafaf8; --fg: #1d1d1b; --muted: #6b6b66; --line: #e2e1dc; --card: #ffffff; --accent: #c2410c; --accent-fg: #fff; --control: #85847e;
+  --ok: #15803d; --bad: #b91c1c; --warn: #b45309;
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.45;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #161615; --fg: #ecebe6; --muted: #a3a29b; --line: #34332f; --card: #1f1f1d; --accent: #fb923c; --accent-fg: #1a1a1a; --control: #76756e;
+          --ok: #4ade80; --bad: #f87171; --warn: #fbbf24; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); min-height: 100vh; display: flex; flex-direction: column; }
+a { color: var(--accent); }
+::placeholder { color: var(--muted); opacity: 1; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.skip { position: absolute; left: .5rem; top: -3rem; background: var(--card); color: var(--accent); padding: .4rem .8rem; border: 2px solid var(--accent);
+        border-radius: 5px; z-index: 10; }
+.skip:focus { top: .5rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.env-banner { margin: 0; padding: .45rem 1.25rem; background: var(--card); border-bottom: 3px solid var(--warn); font-weight: 600; }
+.top { display: flex; align-items: center; gap: 1.5rem; padding: .7rem 1.25rem; border-bottom: 1px solid var(--line); background: var(--card); flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 1.15rem; text-decoration: none; color: var(--fg); letter-spacing: .02em; }
+.top nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+.top nav a { color: var(--fg); text-decoration: none; padding: .15rem 0; }
+.top nav a:hover, .top nav a[aria-current="page"] { color: var(--accent); }
+.top nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: .3em; }   /* current page shown by more than colour */
+.who { margin-left: auto; display: flex; gap: .75rem; align-items: center; }
+.who form { margin: 0; }
+main { flex: 1; width: 100%; }
+main:focus { outline: none; }
+.page { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+.narrow { max-width: 420px; margin: 3rem auto; padding: 1.25rem; }
+.foot { color: var(--muted); font-size: .8rem; text-align: center; padding: 1rem; }
+h1 { font-size: 1.5rem; margin: .2rem 0 .8rem; }
+h2 { font-size: 1.1rem; margin: 1.2rem 0 .5rem; }
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+[hidden] { display: none !important; }
+.alert { background: color-mix(in srgb, var(--bad) 12%, transparent); border-left: 3px solid var(--bad); padding: .5rem .75rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .9rem 1.1rem; margin: 1rem 0; }
+.stack { display: flex; flex-direction: column; gap: .8rem; }
+label { display: flex; flex-direction: column; gap: .25rem; font-size: .9rem; }
+input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input[type=date], select, textarea {
+  font: inherit; padding: .4rem .5rem; border: 1px solid var(--control); border-radius: 5px; background: var(--bg); color: var(--fg); min-height: 24px; }
+input[type=file] { min-height: 24px; }   /* 2.5.8: targets at least 24 x 24 px */
+button, .button { font: inherit; padding: .4rem .9rem; border: 1px solid var(--control); border-radius: 5px; background: var(--card); color: var(--fg);
+  cursor: pointer; text-decoration: none; display: inline-block; min-height: 24px; }
+button:hover, .button:hover { border-color: var(--accent); }
+button[aria-disabled="true"] { opacity: .5; cursor: default; }   /* never disable the focused control: aria-disabled keeps the focus */
+.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.link { background: none; border: none; color: var(--accent); padding: 0; }
+table.list { border-collapse: collapse; width: 100%; background: var(--card); }
+table.list th, table.list td { border-bottom: 1px solid var(--line); padding: .4rem .55rem; text-align: left; vertical-align: top; }
+table.list thead th { font-size: .82rem; color: var(--muted); font-weight: 600; }
+table.list tbody th { font-weight: 600; }
+.hscroll { overflow-x: auto; position: relative; }   /* wide tables scroll inside their box at 320 px (1.4.10); relative so .sr-only text inside stays inside */
+.hscroll:focus-visible { outline: 2px solid var(--accent); }
+.messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+.messages li { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--ok); padding: .5rem .75rem; margin-bottom: .4rem; }
+.messages li.msg-error { border-left-color: var(--bad); }
+.messages li.msg-warning { border-left-color: var(--warn); }
+.field { display: flex; flex-direction: column; gap: .25rem; }
+.field .check { display: flex; gap: .4rem; align-items: center; }
+.field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); }
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; }
+.actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin: .4rem 0; }
+.actions form { margin: 0; }
+.org-switch { display: flex; gap: .4rem; align-items: center; }
+.org-switch label { flex-direction: row; }
+details.inline { display: inline-block; }
+details.inline > summary { font-weight: normal; color: var(--accent); }
+details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
+.grants { margin: 0; padding-left: 1.1rem; }
+.grants li { margin: .15rem 0; }
+.status { font-size: .8rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--control); white-space: nowrap; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; }
+legend { font-weight: 600; padding: 0 .3rem; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .25rem 1rem; }
+.checks label { flex-direction: row; align-items: center; gap: .4rem; }
+.pager { display: flex; gap: 1rem; align-items: center; margin: .8rem 0; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
+dl.facts dt { font-weight: 600; }
+dl.facts dd { margin: 0; }
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.form-narrow { max-width: 40rem; }
+.inline-form { display: inline; margin: 0; }
+h3 { font-size: 1rem; margin: .2rem 0 .5rem; }
+.filters { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+.nowrap { white-space: nowrap; }
+pre { white-space: pre-wrap; word-break: break-word; font-size: .8rem; margin: .3rem 0; }
+input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; margin: 0; accent-color: var(--accent); }   /* 2.5.8 */
+/* Django's own form rendering (<p> per field, as on the sign-in page): label, field and help text stacked, so a link in the help text
+   never sits beside the field it describes (2.5.8 found it crowding the password box). */
+form.stack > p { display: flex; flex-direction: column; gap: .25rem; margin: 0; }
+form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: .5rem; }
+.helptext { font-size: .85rem; color: var(--muted); }

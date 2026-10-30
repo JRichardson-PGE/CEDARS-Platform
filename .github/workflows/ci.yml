@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cedars
+          POSTGRES_PASSWORD: cedars
+          POSTGRES_DB: cedars
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - name: Migrations match the models
+        run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: cedars.settings.test
+      - name: Production settings pass Django's deployment checks
+        run: uv run python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_SETTINGS_MODULE: cedars.settings.prod
+          DJANGO_SECRET_KEY: ci-only-${{ github.run_id }}-not-a-secret-but-long-enough-for-the-deploy-check
+          DJANGO_ALLOWED_HOSTS: cedars.example.org
+      - run: uv run pytest -q
+
+  accessibility:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cedars
+          POSTGRES_PASSWORD: cedars
+          POSTGRES_DB: cedars
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cedars" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://cedars:cedars@localhost:5432/cedars
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked
+      - run: uv run playwright install --with-deps chromium
+      - name: axe-core (WCAG 2.2 AA) on every page, both colour schemes, and reflow at 320 px
+        run: uv run pytest -q -m a11y
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t cedars-platform:ci .

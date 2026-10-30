@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Ask for access{% endblock %}
+{% block content %}
+<h1>Ask an organisation for access</h1>
+<p>Your request goes to the organisation's administrators, who decide it. PII access also needs a CPUC data steward's approval.</p>
+<form method="post" class="stack">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.organisation.as_field_group }}
+  <fieldset>
+    <legend>{{ form.permissions.label }}</legend>
+    {% if form.permissions.errors %}<div id="perm-errors" class="field-errors">{{ form.permissions.errors }}</div>{% endif %}
+    <div class="checks">{% for cb in form.permissions %}<label for="{{ cb.id_for_label }}">{{ cb.tag }} {{ cb.choice_label }}</label>{% endfor %}</div>
+  </fieldset>
+  {{ form.message.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Send the request</button> <a href="{% url 'administration:account' %}">Cancel</a></div>
+</form>
+{% endblock %}

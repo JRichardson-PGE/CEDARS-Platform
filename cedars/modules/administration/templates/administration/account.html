@@ -1,0 +1,44 @@
+{% extends "core/base.html" %}
+{% block title %}Your account{% endblock %}
+{% block content %}
+<h1>Your account</h1>
+<dl class="facts">
+  <dt>Email</dt><dd>{{ user.email }}</dd>
+  <dt>Signed in with</dt><dd>{% if assurance == "federated" %}your organisation's own sign-in{% elif assurance == "mfa" %}password and a second factor{% else %}password only{% endif %}</dd>
+  <dt>Acting for</dt><dd>{% if request.organisation %}{{ request.organisation }}{% else %}no organisation (a community account: public data and your own runs){% endif %}</dd>
+</dl>
+<p class="actions"><a class="button" href="{% url 'mfa_index' %}">Second factor and recovery codes</a> <a class="button" href="{% url 'account_change_password' %}">Change password</a></p>
+
+<h2>Your organisations and permissions</h2>
+{% if rows %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Your organisations and permissions">
+<table class="list">
+  <thead><tr><th scope="col">Organisation</th><th scope="col">Member since</th><th scope="col">Permissions</th></tr></thead>
+  <tbody>
+  {% for m, grants in rows %}
+  <tr><th scope="row">{{ m.organisation }}</th><td>{{ m.started_at|date:"Y-m-d" }}</td>
+    <td>{% if grants %}<ul class="grants">{% for g, label in grants %}<li>{{ label }}{% if g.status != "active" %} <span class="status">{{ g.get_status_display }}</span>{% endif %}{% if g.expires_at %} <span class="small muted">until {{ g.expires_at|date:"Y-m-d" }}</span>{% endif %}</li>{% endfor %}</ul>{% else %}<span class="muted">None</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>You are not a member of any organisation yet.</p>
+{% endif %}
+<p><a class="button primary" href="{% url 'administration:request_access' %}">Ask an organisation for access</a></p>
+
+{% if requests %}
+<h2>Your access requests</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Your access requests">
+<table class="list">
+  <thead><tr><th scope="col">Organisation</th><th scope="col">Asked</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for r in requests %}
+  <tr><th scope="row">{{ r.organisation.code }}</th><td>{{ r.created_at|date:"Y-m-d" }}</td><td>{{ r.get_status_display }}{% if r.decision_note %}: {{ r.decision_note }}{% endif %}</td>
+    <td>{% if r.status == "pending" %}<form method="post" action="{% url 'administration:withdraw_request' r.pk %}">{% csrf_token %}<button type="submit">Withdraw<span class="sr-only"> the request to {{ r.organisation.code }}</span></button></form>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "core/base.html" %}
+{% block title %}Stewardship{% endblock %}
+{% block content %}
+<h1>Data stewardship</h1>
+<p>PII access needs a data steward's approval, and changes to the PII rules take one steward to propose and a second to confirm.</p>
+
+<section aria-labelledby="pending-h">
+<h2 id="pending-h">PII access waiting for approval</h2>
+{% if pending %}
+<div class="hscroll" tabindex="0" role="region" aria-label="PII access waiting for approval">
+<table class="list">
+  <thead><tr><th scope="col">Person</th><th scope="col">Organisation</th><th scope="col">Asked by</th><th scope="col">Decision</th></tr></thead>
+  <tbody>
+  {% for g in pending %}
+  <tr><th scope="row">{{ g.membership.user.email }}</th><td>{{ g.membership.organisation.code }}{% if g.membership.organisation.federated %} (federated){% endif %}</td>
+    <td>{{ g.granted_by.email|default:"system" }}, {{ g.granted_at|date:"Y-m-d" }}{% if g.grant_reason %}: {{ g.grant_reason }}{% endif %}</td>
+    <td>
+      <form method="post" action="{% url 'administration:pii_decision' g.pk %}" class="inline-form">{% csrf_token %}<button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></button></form>
+      <details class="inline"><summary>Decline<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></summary>
+        <form method="post" action="{% url 'administration:pii_decision' g.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="decline">
+          <label for="dc-{{ g.pk }}">Reason</label><input type="text" id="dc-{{ g.pk }}" name="reason" required>
+          <button type="submit">Decline</button>
+        </form>
+      </details>
+    </td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>Nothing waiting.</p>{% endif %}
+</section>
+
+<section aria-labelledby="rules-h">
+<h2 id="rules-h">PII rules</h2>
+<p>PII only for federated organisations and sessions: <strong>{% if policy.pii_requires_federated %}required{% else %}not required{% endif %}</strong>.</p>
+{% for c in changes %}
+<div class="card">
+  <p>{{ c.proposed_by.email }} proposed {{ c.proposed_at|date:"Y-m-d" }}: federated sessions for PII <strong>{% if c.value %}required{% else %}not required{% endif %}</strong>. Reason: {{ c.reason }}</p>
+  <form method="post" action="{% url 'administration:decide_change' c.pk %}" class="actions">{% csrf_token %}
+    {% if c.proposed_by != user %}<button type="submit" name="decision" value="confirm" class="primary">Confirm the change</button>{% else %}<span class="muted">A second steward must confirm your proposal.</span>{% endif %}
+    <button type="submit" name="decision" value="withdraw">Withdraw it</button>
+  </form>
+</div>
+{% empty %}
+<form method="post" action="{% url 'administration:propose_change' %}" class="stack form-narrow">{% csrf_token %}
+  {% for field in change_form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit">Propose the change</button></div>
+</form>
+{% endfor %}
+</section>
+
+<section aria-labelledby="stewards-h">
+<h2 id="stewards-h">Data stewards</h2>
+<ul>{% for g in stewards %}<li>{{ g.membership.user.email }}{% if g.certified_at %} <span class="small muted">certified {{ g.certified_at|date:"Y-m-d" }}</span>{% endif %}</li>{% endfor %}</ul>
+<p class="small muted">A CPUC system administrator grants and revokes stewards from the CPUC organisation's page. The last steward cannot be revoked.</p>
+</section>
+{% endblock %}

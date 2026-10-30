@@ -1,0 +1,122 @@
+{% extends "core/base.html" %}
+{% block title %}{{ org.code }}{% endblock %}
+{% block content %}
+<h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>
+{% if not is_admin %}<p class="muted">You are viewing this organisation as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
+
+{% if no_admin %}
+<div class="card">
+  <h2>First administrator</h2>
+  <p>{{ org.code }} has no administrator. The CPUC assigns the first one; from then on {{ org.code }}'s administrators manage their own users.</p>
+</div>
+{% endif %}
+
+{% if grant_form %}
+<section class="card" aria-labelledby="grant-h">
+  <h2 id="grant-h">{% if no_admin %}Assign the first administrator{% else %}Grant a permission{% endif %}</h2>
+  <form method="post" action="{% url 'administration:grant' org.code %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in grant_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Grant</button></div>
+  </form>
+</section>
+{% endif %}
+
+{% if requests %}
+<section aria-labelledby="req-h">
+<h2 id="req-h">Access requests</h2>
+{% for r, labels in requests %}
+<div class="card">
+  <h3>{{ r.user.email }} <span class="small muted">asked {{ r.created_at|date:"Y-m-d" }}</span></h3>
+  {% if r.message %}<p>{{ r.message }}</p>{% endif %}
+  {% if is_admin %}
+  <form method="post" action="{% url 'administration:decide_request' r.pk %}" class="stack">{% csrf_token %}
+    <fieldset><legend>Permissions to grant</legend>
+      <div class="checks">{% for code, label in labels %}<label><input type="checkbox" name="permissions" value="{{ code }}" checked> {{ label }}</label>{% endfor %}</div>
+    </fieldset>
+    <label for="note-{{ r.pk }}">Note to {{ r.user.email }} (optional)</label>
+    <input type="text" id="note-{{ r.pk }}" name="note">
+    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve</button><button type="submit" name="decision" value="decline">Decline</button></div>
+  </form>
+  {% else %}<p>Asked for: {% for code, label in labels %}{{ label }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endif %}
+
+<section aria-labelledby="members-h">
+<h2 id="members-h">Members</h2>
+{% if members %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Members of {{ org.code }}">
+<table class="list">
+  <thead><tr><th scope="col">Member</th><th scope="col">Permissions</th><th scope="col"><span class="sr-only">Membership</span></th></tr></thead>
+  <tbody>
+  {% for m, grants in members %}
+  <tr>
+    <th scope="row">{{ m.user.email }}{% if m.user.name %}<br><span class="small muted">{{ m.user.name }}</span>{% endif %}</th>
+    <td><ul class="grants">
+      {% for g, label in grants %}
+      <li>{{ label }}
+        {% if g.status != "active" %}<span class="status">{{ g.get_status_display }}</span>{% endif %}
+        {% if g.expires_at %}<span class="small muted">until {{ g.expires_at|date:"Y-m-d" }}</span>{% endif %}
+        <span class="small muted">granted {{ g.granted_at|date:"Y-m-d" }}{% if g.granted_by %} by {{ g.granted_by.email }}{% endif %}</span>
+        {% if is_admin or g.permission == "system.admin" or g.permission == "pii.steward" %}
+        {% if g.status == "suspended" %}
+        <form method="post" action="{% url 'administration:reinstate' g.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">Reinstate<span class="sr-only"> {{ label }} for {{ m.user.email }}</span></button></form>
+        {% endif %}
+        <details class="inline"><summary>Revoke<span class="sr-only"> {{ label }} for {{ m.user.email }}</span></summary>
+          <form method="post" action="{% url 'administration:revoke' g.pk %}">{% csrf_token %}
+            <label for="rv-{{ g.pk }}">Reason</label><input type="text" id="rv-{{ g.pk }}" name="reason" required>
+            <button type="submit">Revoke</button>
+          </form>
+        </details>
+        {% endif %}
+      </li>
+      {% empty %}<li class="muted">None</li>
+      {% endfor %}
+    </ul></td>
+    <td>{% if is_admin %}
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ m.user.email }} from {{ org.code }}</span></summary>
+        <form method="post" action="{% url 'administration:end_membership' m.pk %}">{% csrf_token %}
+          <label for="em-{{ m.pk }}">Reason</label><input type="text" id="em-{{ m.pk }}" name="reason" required>
+          <button type="submit">Remove member</button>
+        </form>
+      </details>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No members yet.</p>{% endif %}
+</section>
+
+<section aria-labelledby="recert-h" id="recertification">
+<h2 id="recert-h">Recertification</h2>
+{% if campaign %}
+<p>Open, due {{ campaign.due_at|date:"Y-m-d" }}. Confirm or remove each grant; what is not reviewed by then may be suspended.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Grants to recertify">
+<table class="list">
+  <thead><tr><th scope="col">Member</th><th scope="col">Permission</th><th scope="col">Review</th></tr></thead>
+  <tbody>
+  {% for item, label in items %}
+  <tr><th scope="row">{{ item.grant.membership.user.email }}</th><td>{{ label }}</td>
+    <td>{% if item.decision %}{{ item.get_decision_display }} {{ item.decided_at|date:"Y-m-d" }}{% elif is_admin %}
+      <form method="post" action="{% url 'administration:recertify' item.pk %}" class="inline-form">{% csrf_token %}<button type="submit" name="decision" value="certify">Certify<span class="sr-only"> {{ label }} for {{ item.grant.membership.user.email }}</span></button></form>
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ label }} for {{ item.grant.membership.user.email }}</span></summary>
+        <form method="post" action="{% url 'administration:recertify' item.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="remove">
+          <label for="rc-{{ item.pk }}">Reason</label><input type="text" id="rc-{{ item.pk }}" name="reason" required>
+          <button type="submit">Remove</button>
+        </form>
+      </details>
+    {% else %}Not reviewed{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% elif is_admin %}
+<form method="post" action="{% url 'administration:open_recertification' org.code %}" class="stack form-narrow">{% csrf_token %}
+  {{ recert_form.due.as_field_group }}
+  <div class="actions"><button type="submit">Start a recertification</button></div>
+</form>
+{% else %}<p>None open.</p>{% endif %}
+</section>
+{% endblock %}

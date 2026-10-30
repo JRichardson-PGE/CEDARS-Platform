@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block title %}Access settings{% endblock %}
+{% block content %}
+<h1>Access settings</h1>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save</button></div>
+</form>
+<p class="small muted">PII rules are changed by the data stewards (one proposes, a second confirms), not here. Every change is in the audit log.</p>
+{% endblock %}
