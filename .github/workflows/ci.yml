@@ -76,9 +76,18 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
+    env:
+      RECET_READ_TOKEN: ${{ secrets.RECET_READ_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Build the pinned ReCET engine's wheel for the image (engine/README.md; skipped without the RECET_READ_TOKEN secret)
+        if: env.RECET_READ_TOKEN != ''
+        run: scripts/build_engine_wheel.sh
       - run: docker build -t cedars-platform:ci .
+      - name: The image imports the engine it was built with
+        if: env.RECET_READ_TOKEN != ''
+        run: docker run --rm cedars-platform:ci python -c "import recet, recet.results_view; print('recet', recet.__version__)"
 
   terraform:
     runs-on: ubuntu-latest
