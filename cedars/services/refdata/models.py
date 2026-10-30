@@ -16,7 +16,7 @@ class PackVersion(models.Model):
         ACC_GAS = "acc_gas", "ACC, gas (monthly)"
         IMPACT_PROFILES = "impact_profiles", "Impact-profile library"
         ETRM_SNAPSHOT = "etrm_snapshot", "eTRM measures and permutations"
-        ETRM_PERMUTATIONS = "etrm_permutations", "eTRM published permutations (deemed values)"
+        ETRM_PERMUTATIONS = "etrm_permutations", "eTRM published permutations"
         DEER = "deer", "DEER package"
         VALUE_LISTS = "value_lists", "Value lists"
         RUN_PARAMETERS = "run_parameters", "Run parameters"

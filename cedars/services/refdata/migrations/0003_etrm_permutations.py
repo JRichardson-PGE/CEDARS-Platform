@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                     ("etrm_snapshot", "eTRM measures and permutations"),
                     (
                         "etrm_permutations",
-                        "eTRM published permutations (deemed values)",
+                        "eTRM published permutations",
                     ),
                     ("deer", "DEER package"),
                     ("value_lists", "Value lists"),
@@ -42,7 +42,7 @@ class Migration(migrations.Migration):
                     ("etrm_snapshot", "eTRM measures and permutations"),
                     (
                         "etrm_permutations",
-                        "eTRM published permutations (deemed values)",
+                        "eTRM published permutations",
                     ),
                     ("deer", "DEER package"),
                     ("value_lists", "Value lists"),
