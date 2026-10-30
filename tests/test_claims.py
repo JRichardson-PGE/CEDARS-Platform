@@ -156,8 +156,10 @@ def confirmed(filer, pge, data, kind="Q1 claim", scale=1.0) -> SubmissionVersion
 # --- the template and the upload
 
 
-def test_the_template_is_cedars_claims_specification_with_the_infrastructure_cost_and_withdrawal_tables():
-    assert spec.TABLES == ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "Withdrawal")
+def test_the_template_is_cedars_claims_specification_with_the_platforms_own_tables():
+    assert spec.TABLES == (
+        "Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal",
+    )  # fmt: skip
     assert len(spec.columns("Measure")) == 74 and "AC_Climate_Zone" in spec.columns("Measure")  # canonical names (decision L)
     assert spec.canonical("Measure", "E3ClimateZone") == "AC_Climate_Zone" and spec.canonical("Measure", "ceinputid") == "ClaimID"
     assert spec.field("InfrastructureCost", "TotalCost").type == "number" and spec.required("ContactClaim") == ["ClaimID", "ContactID"]
@@ -539,6 +541,98 @@ def test_a_correction_publishes_a_change_letter(
     assert b"+$4,500" in r.content  # PGE_Res's total system benefit
     r = client.get(reverse("claims:version", args=[v2.pk]))
     assert b"change letter" in r.content and b"Withdrawn claims" in r.content and b"2028 Q1 claim, version 2" in r.content
+
+
+# --- links between claims
+
+
+def linked(cid: str, quarter="2028Q1", impact="Cust-NMEC", parent="", **claim_fields) -> dict:
+    """A claim with the Claim fields that link it: a NMEC original (no parent) or true-up (a parent), or any other claim."""
+    t = claim(cid, quarter=quarter, MeasImpactType=impact)
+    if "NMEC" in impact:
+        claim_fields.setdefault("NMEC_TU_Flag", "1" if parent else "0")
+    t["Claim"][0].update(ParentClaimID=parent, **claim_fields)
+    return t
+
+
+def test_nmec_chains_projects_and_sem_participants_link_up(client, filer, year, pge, programs, release, cpuc_admin, make_user):  # noqa: F811
+    cost = {"ProgramCost": [row("ProgramCost", PrgID="PGE_Res")], "Site": [row("Site", SiteID="PGE-S1"), row("Site", SiteID="PGE-S2")]}
+    first = tables(
+        linked("PGE-2028-001", ProjectID="PGE-P1"),
+        linked("PGE-2028-002", impact="Cust", ProjectID="PGE-P1"),
+        linked("PGE-2028-003", impact="Cust-SEM", ParticipantID="PGE-SEM-7", SEM_Phase="C1-RP1-2028"),
+        cost,
+    )
+    confirmed(filer, pge, claims_zip(first))
+
+    # the chain's checks: a parent the PA filed, not withdrawn, not the claim itself or one of its true-ups; a non-NMEC parent warns
+    bad = tables(
+        linked("PGE-2028-012", "2028Q2", parent="PGE-2028-999"),
+        linked("PGE-2028-013", "2028Q2", parent="PGE-2028-013"),
+        linked("PGE-2028-014", "2028Q2", parent="PGE-2028-003"),
+        linked("PGE-2028-015", "2028Q2", parent="PGE-2028-016"),
+        linked("PGE-2028-016", "2028Q2", parent="PGE-2028-015"),
+        linked("PGE-2028-017", "2028Q2", parent="PGE-2028-002"),
+        withdraw("PGE-2028-003"),
+        ClaimSite=[row("ClaimSite", ClaimID="PGE-2028-012", SiteID="PGE-S9")],
+    )
+    v = service.upload_claims(filer, deadline("Q2 claim"), pge, claims_zip(bad), "q2.zip")
+    found = {(f["record_id"].split(" / ")[0], f["severity"], f["message"].split(" ")[-1]) for f in service.findings(v)
+             if f["rule_id"] in ("CLM-CHAIN", "CLM-REF") and f["table"] in ("Claim", "ClaimSite")}  # fmt: skip
+    assert found == {
+        ("PGE-2028-012", "reject", "filed"),
+        ("PGE-2028-013", "reject", "itself"),
+        ("PGE-2028-014", "reject", "claim"),  # withdrawn by this upload
+        ("PGE-2028-015", "reject", "true-ups"),
+        ("PGE-2028-016", "reject", "true-ups"),
+        ("PGE-2028-017", "warning", "(Cust)"),
+        ("PGE-2028-012", "reject", "record"),  # a ClaimSite's site must have a Site record
+    }, found
+
+    # Q2: a true-up of the Q1 NMEC claim covering two sites, another meter of the project, the SEM participant's next phase
+    second = tables(
+        linked("PGE-2028-010", "2028Q2", parent="PGE-2028-001", ProjectID="PGE-P1", TotalFirstYearNetkWh="1000"),
+        linked("PGE-2028-011", "2028Q2", impact="Cust-SEM", ParticipantID="pge-sem-7", SEM_Phase="C1-RP2-2028"),
+        ClaimSite=[row("ClaimSite", ClaimID="PGE-2028-010", SiteID=s) for s in ("PGE-S1", "PGE-S2")],
+    )
+    v2 = confirmed(filer, pge, claims_zip(second), kind="Q2 claim")
+    rec = v2.claim_records.get(claim_id="PGE-2028-010")
+    assert rec.true_up and rec.parent_claim_id == "PGE-2028-001" and rec.sites == ["PGE-S1", "PGE-S2"] and rec.project_id == "PGE-P1"
+    links = service.chain("pge-2028-010")
+    assert [(link.record.claim_id, link.depth) for link in links] == [("PGE-2028-001", 0), ("PGE-2028-010", 1)]
+    assert links[1].change["TotalFirstYearNetkWh"] == 200 and links[0].record.version == v2  # the year's standing version
+    assert [r.claim_id for r in service.project_claims("pge-p1")] == ["PGE-2028-001", "PGE-2028-002", "PGE-2028-010"]
+    assert [r.sem_phase for r in service.participant_claims("PGE-SEM-7")] == ["C1-RP1-2028", "C1-RP2-2028"]
+    assert "PGE-2028-010,PGE_Res,PGE-P1,PGE-2028-001,1,Cust-NMEC,,,PGE-S1,PGE-S1;PGE-S2,active" in service.links_csv(v2)
+
+    # a later year's true-up names a confirmed earlier year's claim; the chain runs across the years
+    due = {k: timezone.now() + timedelta(days=400) for k, _ in service.PERIODS}
+    service.add_year(cpuc_admin, year=2029, acc_version="2026", due=due)
+    d29 = next(d for d in service.periods(2029) if d.kind == "Q1 claim")
+    nxt = tables(
+        linked("PGE-2029-001", "2029Q1", parent="PGE-2028-010", ProjectID="PGE-P1"),
+        linked("PGE-2029-002", "2029Q1", parent="PGE-2028-404"),
+        ProgramCost=[row("ProgramCost", PrgID="PGE_Res", PrgYear="2029", ClaimYearQuarter="2029Q1")],
+        Site=[row("Site", SiteID="PGE-S1")],
+    )
+    v29 = service.upload_claims(filer, d29, pge, claims_zip(nxt), "2029q1.zip")
+    assert {(f["record_id"], f["rule_id"]) for f in service.findings(v29) if f["severity"] == "reject"} == {("PGE-2029-002", "CLM-CHAIN")}
+    nxt = {t: [r for r in rows if r.get("ClaimID") != "PGE-2029-002"] for t, rows in nxt.items()}
+    v29 = service.upload_claims(filer, d29, pge, claims_zip(nxt), "2029q1.zip")
+    finish_run(Run.objects.get(pk=service.price(filer, v29)))
+    v29.refresh_from_db()
+    service.confirm(filer, v29)
+    assert [link.record.claim_id for link in service.chain("PGE-2028-001")] == ["PGE-2028-001", "PGE-2028-010", "PGE-2029-001"]
+
+    # the page, open to every signed-in user
+    sign_in(client, make_user("someone@example.com"))
+    r = client.get(reverse("claims:links") + "?kind=claim&q=PGE-2029-001")
+    assert r.status_code == 200 and b"True-up 2" in r.content and b"Original claim" in r.content and b"+200" in r.content
+    r = client.get(reverse("claims:links") + "?kind=project&q=PGE-P1")
+    assert r.content.count(b"/claims/versions/") == 4
+    assert b"No confirmed claim matches" in client.get(reverse("claims:links") + "?kind=participant&q=nobody").content
+    r = client.get(reverse("claims:links_csv", args=[v2.pk]))
+    assert r.status_code == 200 and b"PGE-SEM-7" in r.content
 
 
 # --- the claims rule set

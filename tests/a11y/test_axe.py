@@ -375,6 +375,8 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
         ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
     )
     # the accessibility job runs without the engine, so the claims rule set's findings are left out here (tests/test_claims.py runs them)
+    for c in first["Claim"]:
+        c["ProjectID"] = "PGE-P1"  # two meters of one project (the project key)
     no_rules = mock.patch.object(claims, "_rule_findings", return_value=([], [], ""))
     with no_rules:
         v = claims.upload_claims(analyst, q1, pge, claims_zip(first, full=True), "q1.zip")
@@ -389,8 +391,10 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
     v2 = claims.request_reopen(analyst, v.submission, "PGE-2028-002 was cancelled; PGE-2028-001 had 12 units")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due=reopen)
+    kept = claim("PGE-2028-001", prg="PGE_Res_HVAC", NumUnits="12")
+    kept["Claim"][0]["ProjectID"] = "PGE-P1"
     fixed = tables(
-        claim("PGE-2028-001", prg="PGE_Res_HVAC", NumUnits="12"),
+        kept,
         ProgramCost=first["ProgramCost"],
         Site=first["Site"],
         ContactClaim=first["ContactClaim"],

@@ -108,3 +108,37 @@ class ChangeLetter(models.Model):
 
     def __str__(self):
         return f"Change letter for version {self.version.number} of {self.version.submission}"
+
+
+class ClaimRecord(models.Model):
+    """One claim of a version's compiled year to date, with the fields that link claims to each other: the NMEC parent it trues up
+    (BR-05.3), the SEM participant and phase (BR-05.7), the project it belongs to (ProjectID, the project key, BR-05.11) and the sites
+    of a population claim (BR-05.5). Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
+    The links are read from the standing versions only, so they show confirmed claims."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_records")
+    claim_id = models.CharField("ClaimID", max_length=255)
+    prg_id = models.CharField("PrgID", max_length=60, blank=True)
+    impact_type = models.CharField("MeasImpactType", max_length=60, blank=True)
+    parent_claim_id = models.CharField("ParentClaimID", max_length=255, blank=True)
+    true_up = models.BooleanField("NMEC true-up", default=False)
+    participant_id = models.CharField("ParticipantID", max_length=255, blank=True)
+    sem_phase = models.CharField("SEM_Phase", max_length=255, blank=True)
+    project_id = models.CharField("ProjectID", max_length=255, blank=True)
+    site_id = models.CharField("SiteID", max_length=255, blank=True)
+    sites = models.JSONField(default=list, blank=True, help_text="A population claim's sites (ClaimSite), beyond its own SiteID")
+    withdrawn = models.BooleanField(default=False)
+    filed = models.JSONField(default=dict, help_text="{Claim total field: value} as filed")
+
+    class Meta:
+        ordering = ["claim_id"]
+        constraints = [models.UniqueConstraint(fields=["version", "claim_id"], name="claims_one_record")]
+        indexes = [
+            models.Index(fields=["parent_claim_id"]),
+            models.Index(fields=["participant_id"]),
+            models.Index(fields=["project_id"]),
+            models.Index(fields=["claim_id"]),
+        ]
+
+    def __str__(self):
+        return self.claim_id

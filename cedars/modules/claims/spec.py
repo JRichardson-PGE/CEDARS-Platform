@@ -1,6 +1,7 @@
 """The claims template: CEDARS' 2026 Claims specification (cedars.cpuc.ca.gov/claims/specification/, six tables) plus the fuel-substitution
 infrastructure cost table, which joins it as an ordinary non-PII claims table (BR-05.13), and a Withdrawal table, which names the claims
-an upload withdraws and why (BR-05.2: a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out).
+an upload withdraws and why (BR-05.2: a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out), and
+a ClaimSite table, which lists the sites of a claim that covers more than one (population NMEC, BR-05.5).
 `spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary, decision L:
 AC_Climate_Zone for E3ClimateZone and so on), the name CEDARS gives it (accepted on upload), its type, whether it is required and
 CEDARS' description.
@@ -15,8 +16,8 @@ from pathlib import Path
 SPEC = Path(__file__).parent / "spec" / "claims_2026.csv"
 SPEC_LABEL = "CEDARS Claims specification 2026, with the fuel-substitution infrastructure cost and withdrawal tables"
 
-# In upload order; each table's primary key. ContactClaim and InfrastructureCost rows replace all earlier rows of their claim.
-TABLES = ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "Withdrawal")
+# In upload order; each table's primary key. ContactClaim, InfrastructureCost and ClaimSite rows replace all earlier rows of their claim.
+TABLES = ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal")
 KEYS = {
     "Claim": ("ClaimID",),
     "Measure": ("ClaimID",),
@@ -25,15 +26,17 @@ KEYS = {
     "ContactClaim": ("ClaimID", "ContactID"),
     "Participant": ("PrgID", "PrgYear", "ParticipantType", "SiteID"),
     "InfrastructureCost": ("ClaimID",),
+    "ClaimSite": ("ClaimID", "SiteID"),
     "Withdrawal": ("ClaimID",),
 }
 # Tables whose rows for a claim are a set: a later upload's rows for a ClaimID replace every earlier row for it.
-BY_CLAIM = ("ContactClaim", "InfrastructureCost")
+BY_CLAIM = ("ContactClaim", "InfrastructureCost", "ClaimSite")
 TABLE_NAMES = {
     **{t.lower(): t for t in TABLES},
     "fuelsubstitutioninfrastructurecost": "InfrastructureCost",
     "fuelsubinfrastructurecost": "InfrastructureCost",
     "infracost": "InfrastructureCost",
+    "claimsites": "ClaimSite",
     "withdrawals": "Withdrawal",
     "withdrawnclaims": "Withdrawal",
 }

@@ -1,0 +1,51 @@
+{% extends "core/base.html" %}
+{% block title %}Linked claims{% if q %}: {{ q }}{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+<h1>Linked claims</h1>
+<p>How confirmed claims link up across quarters and years: a NMEC claim's chain from the original claim through every true-up, every
+claim of one project (its ProjectID, the project key), or a SEM participant's claims across the phases of its engagement.</p>
+<form method="get" class="stack form-narrow" aria-label="Look up linked claims">
+  <div class="field"><label for="links-kind">Look up by</label>
+    <select id="links-kind" name="kind">{% for value, name in kinds %}<option value="{{ value }}"{% if value == kind %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="links-q">ID</label><input id="links-q" name="q" value="{{ q }}" required autocomplete="off"></div>
+  <div class="actions"><button type="submit">Look up</button></div>
+</form>
+
+{% if q %}
+<section aria-labelledby="results-h">
+<h2 id="results-h">{% if chain %}NMEC chain of {{ q }}{% elif kind == "project" %}Project {{ q }}{% else %}SEM participant {{ q }}{% endif %}</h2>
+{% if not found %}<p>No confirmed claim matches {{ q }}.</p>{% else %}
+<p class="small muted">{{ rows|length }} claim{{ rows|length|pluralize }}, confirmed claims only{% if chain %}, from the original claim down through its true-ups; each true-up's change is its filed totals less its parent's{% endif %}. Withdrawn claims are listed with their status.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="links-caption">
+<table class="list data">
+  <caption id="links-caption" class="sr-only">Linked claims for {{ q }}</caption>
+  <thead><tr>
+    <th scope="col">ClaimID</th>{% if chain %}<th scope="col">Step</th>{% endif %}<th scope="col">Year</th><th scope="col">PA</th><th scope="col">Program</th><th scope="col">MeasImpactType</th>
+    <th scope="col">ProjectID</th><th scope="col">ParentClaimID</th><th scope="col">ParticipantID</th><th scope="col">SEM phase</th><th scope="col">Sites</th><th scope="col">Status</th>
+    <th scope="col">Filed first-year net kWh</th><th scope="col">Filed first-year net therms</th>{% if chain %}<th scope="col">Change from parent, net kWh</th><th scope="col">Change from parent, net therms</th>{% endif %}
+  </tr></thead>
+  <tbody>
+  {% for row in rows %}<tr>
+    <th scope="row"><a href="{% url 'claims:version' row.r.version.pk %}">{{ row.r.claim_id }}</a></th>
+    {% if chain %}<td>{% if row.depth == 0 %}Original claim{% else %}True-up {{ row.depth }}{% endif %}</td>{% endif %}
+    <td>{{ row.r.version.submission.deadline.period.year }}</td>
+    <td>{{ row.r.version.submission.organisation.code }}</td>
+    <td>{{ row.r.prg_id }}</td>
+    <td>{{ row.r.impact_type }}</td>
+    <td>{% if row.r.project_id %}<a href="{% url 'claims:links' %}?kind=project&amp;q={{ row.r.project_id|urlencode }}">{{ row.r.project_id }}</a>{% endif %}</td>
+    <td>{{ row.r.parent_claim_id }}</td>
+    <td>{% if row.r.participant_id %}<a href="{% url 'claims:links' %}?kind=participant&amp;q={{ row.r.participant_id|urlencode }}">{{ row.r.participant_id }}</a>{% endif %}</td>
+    <td>{{ row.r.sem_phase }}</td>
+    <td>{{ row.r.site_id }}{% if row.r.sites %}{% if row.r.site_id %}; {% endif %}{{ row.r.sites|join:"; " }}{% endif %}</td>
+    <td>{% if row.r.withdrawn %}Withdrawn{% else %}Active{% endif %}</td>
+    <td class="num">{{ row.net_kwh }}</td><td class="num">{{ row.net_therm }}</td>
+    {% if chain %}<td class="num">{{ row.change_kwh }}</td><td class="num">{{ row.change_therm }}</td>{% endif %}
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}

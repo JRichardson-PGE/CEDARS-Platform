@@ -541,3 +541,61 @@ def change_letter(request, pk):
             "colspan": 3 * len(figures) + 1,
         },
     )
+
+
+# --- links between claims (BR-05.3, 05.5, 05.7, 05.11)
+
+LINK_KINDS = [
+    ("claim", "ClaimID: its NMEC chain"),
+    ("project", "ProjectID: every claim of the project"),
+    ("participant", "ParticipantID: a SEM participant's claims"),
+]
+
+
+@login_required
+def links(request):
+    """Look up how confirmed claims link up: a NMEC claim's chain from the original claim through every true-up, a project's claims
+    (the project key), or a SEM participant's claims across phases and years. Open to every signed-in user, as confirmed claims are."""
+    kind = request.GET.get("kind", "claim")
+    kind = kind if kind in dict(LINK_KINDS) else "claim"
+    q = request.GET.get("q", "").strip()
+    rows, chain, found = [], False, None
+    if q:
+        if kind == "claim":
+            links_ = service.chain(q)
+            chain = True
+            rows = [{"r": link.record, "depth": link.depth, "change": link.change} for link in links_]
+        elif kind == "project":
+            rows = [{"r": r} for r in service.project_claims(q)]
+        else:
+            rows = [{"r": r} for r in service.participant_claims(q)]
+        found = bool(rows)
+    for row in rows:
+        r = row["r"]
+        row["net_kwh"] = _fmt("number", r.filed.get("TotalFirstYearNetkWh"))
+        row["net_therm"] = _fmt("number", r.filed.get("TotalFirstYearNetTherm"))
+        if row.get("change"):
+            row["change_kwh"] = _signed(row["change"].get("TotalFirstYearNetkWh"))
+            row["change_therm"] = _signed(row["change"].get("TotalFirstYearNetTherm"))
+    return render(
+        request,
+        "claims/links.html",
+        {"kinds": LINK_KINDS, "kind": kind, "q": q, "rows": rows, "chain": chain, "found": found, "kind_label": dict(LINK_KINDS)[kind]},
+    )
+
+
+def _signed(x) -> str:
+    if x is None:
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + f"{abs(x):,.0f}"
+
+
+@login_required
+def links_csv(request, pk):
+    v = _version(request, pk)
+    response = HttpResponse(service.links_csv(v), content_type="text/csv; charset=utf-8")
+    name = f"{v.submission.organisation.code}_{service.label(v.submission.deadline)}_v{v.number}".replace(" ", "_")
+    response["Content-Disposition"] = f'attachment; filename="claim_links_{name}.csv"'
+    return response
