@@ -14,3 +14,7 @@ class NotificationsConfig(AppConfig):
         from . import service
 
         post_save.connect(service.on_audit_event, sender=AuditEvent, dispatch_uid="notifications-from-audit")
+
+        from cedars.services.retention.service import register_purger
+
+        register_purger("notification", service.expired)

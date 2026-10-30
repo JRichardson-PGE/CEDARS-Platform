@@ -173,6 +173,12 @@ def send_deadline_reminders(today=None) -> int:
     return sent
 
 
+def expired(cutoff):
+    """Notifications sent before the cutoff, for the retention job (record class "notification")."""
+    for n in Notification.objects.filter(created_at__lt=cutoff).only("pk").iterator():
+        yield f"notification:{n.pk}", n.delete
+
+
 # --- reading and settings
 
 

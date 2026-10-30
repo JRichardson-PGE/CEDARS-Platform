@@ -330,3 +330,27 @@ def set_policy(actor, module: str, **settings) -> WorkflowPolicy:
     p.save()
     audit.record("workflow_policy.changed", obj=p, before=before, after=settings, actor=actor)
     return p
+
+
+def expired_drafts(cutoff):
+    """Versions never confirmed (draft or validated) with no activity since the cutoff (record class "unsubmitted_draft"; the period
+    counts from the version's last audited change, so a draft being worked on is never removed). A submission left with no versions
+    and no reopen requests goes with its last draft."""
+    from cedars.services.audit.models import AuditEvent
+
+    open_statuses = [SubmissionVersion.Status.DRAFT, SubmissionVersion.Status.VALIDATED]
+    for v in SubmissionVersion.objects.filter(status__in=open_statuses, created_at__lt=cutoff).select_related("submission__organisation"):
+        last = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk)).aggregate(m=Max("at"))["m"]
+        if last and last >= cutoff:
+            continue
+
+        def delete(v=v):
+            submission = v.submission
+            audit.record(
+                "submission.draft_expired", obj=v, before={"number": v.number, "status": v.status}, organisation=submission.organisation
+            )
+            v.delete()
+            if not submission.versions.exists() and not submission.reopen_requests.exists():
+                submission.delete()
+
+        yield f"submission_version:{v.pk}", delete

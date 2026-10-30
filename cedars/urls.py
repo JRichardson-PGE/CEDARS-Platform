@@ -4,6 +4,7 @@ from django.urls import include, path
 urlpatterns = [
     path("", include("cedars.core.urls")),
     path("accounts/", include("allauth.urls")),
+    path("admin/retention/", include("cedars.services.retention.urls")),
     path("", include("cedars.modules.administration.urls")),
     path("dictionary/", include("cedars.services.dictionary.urls")),
     path("rules/", include("cedars.services.rules.urls")),
