@@ -1,0 +1,7 @@
+<nav class="subnav" aria-label="Impact profiles">
+  <a href="{% url 'impact_profiles:library' %}"{% if section == 'library' %} aria-current="page"{% endif %}>Impact profile library</a>
+  <a href="{% url 'impact_profiles:packages' %}"{% if section == 'packages' %} aria-current="page"{% endif %}>Deemed load shapes</a>
+  <a href="{% url 'impact_profiles:uploads' %}"{% if section == 'uploads' %} aria-current="page"{% endif %}>Upload history</a>
+  <a href="{% url 'impact_profiles:sync_history' %}"{% if section == 'sync' %} aria-current="page"{% endif %}>eTRM sync history</a>
+  <a href="{% url 'impact_profiles:exports' %}"{% if section == 'exports' %} aria-current="page"{% endif %}>Library files</a>
+</nav>

@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+{% block title %}{{ p.profile_key }}{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="library" %}
+<h1>{{ p.profile_key }}</h1>
+<dl class="facts">
+  <dt>Target sector</dt><dd>{{ p.target_sector }}</dd>
+  <dt>IOU territory</dt><dd>{{ p.iou_ac_territory|default:"Every territory" }}</dd>
+  <dt>Kind</dt><dd>{{ p.get_family_display }}</dd>
+  {% if p.owner %}<dt>Owner</dt><dd>{{ p.owner.code }}</dd>{% endif %}
+  {% if p.package %}<dt>Measure package</dt><dd><a href="{% url 'impact_profiles:package' p.package.measure_version_id %}">{{ p.package.measure_version_id }}</a> {{ p.package.name }}</dd>{% endif %}
+  {% if p.description %}<dt>Description</dt><dd>{{ p.description }}</dd>{% endif %}
+  {% if p.legacy_id %}<dt>Legacy CEDARS id</dt><dd>{{ p.legacy_id }}</dd>{% endif %}
+  <dt>Status</dt><dd>{% if p.retired_at %}Retired {{ p.retired_at|date:"Y-m-d" }}{% if p.retired_by %} by {{ p.retired_by.email }}{% endif %}: {{ p.retire_reason }}{% else %}In use{% endif %}</dd>
+  {% if current %}<dt>Current version</dt><dd>{{ current.number }}, drawn on the {{ current.represents_year|default:"2009" }} calendar</dd>{% endif %}
+</dl>
+{% if p.family == "deer" %}<p class="small muted">DEER profiles follow a CEDARS calculation path that has not been reproduced yet; they are carried as they were in CEDARS.</p>{% endif %}
+{% if p.family == "deemed" %}<p class="small muted">Generated profiles are not edited: replace a load shape of the package and regenerate, which adds a version.</p>{% endif %}
+
+{% if detail %}
+<h2>Current version by climate zone</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Current version by climate zone">
+<table class="list">
+  <caption class="sr-only">Each climate zone's 8,760: its total, largest hour and percent of the year's savings in each month</caption>
+  <thead><tr><th scope="col">Zone</th><th scope="col">Total</th><th scope="col">Largest hour</th>{% for m in months %}<th scope="col">{{ m|slice:":3" }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for d in detail %}
+  <tr><th scope="row">{{ d.zone }}</th><td>{{ d.sum|floatformat:6 }}</td><td class="nowrap">{{ d.peak.1 }}</td>
+    {% for m, pct in d.months %}<td>{{ pct|floatformat:1 }}%</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<h2>Versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<table class="list">
+  <caption class="sr-only">Every version of this profile, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Added</th><th scope="col">By</th><th scope="col">Why</th><th scope="col">Zones</th><th scope="col">Status</th><th scope="col">Download</th></tr></thead>
+  <tbody>
+  {% for v in versions %}
+  <tr><th scope="row">{{ v.number }}</th><td class="nowrap">{{ v.created_at|date:"Y-m-d H:i" }}</td><td>{{ v.created_by.email|default:"the system" }}</td>
+    <td>{{ v.reason }}</td><td>{{ v.zones.all|length }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td>
+    <td><a href="{% url 'impact_profiles:profile_version_csv' p.pk v.number %}">CSV<span class="sr-only"> of version {{ v.number }}</span></a></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if aliases %}
+<h2>Profile IDs that use this profile</h2>
+<ul>{% for m in aliases %}<li>{{ m.alias_key }} / {{ m.target_sector }} ({{ m.package.measure_version_id }}): {{ m.reason }}</li>{% endfor %}</ul>
+{% endif %}
+
+{% if can_replace %}
+<section class="card" aria-labelledby="replace-h">
+  <h2 id="replace-h">Replace with a new version</h2>
+  <form method="post" action="{% url 'impact_profiles:profile_replace' p.pk %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in replace_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Add the new version</button></div>
+  </form>
+</section>
+{% endif %}
+{% if can_retire %}
+<section class="card" aria-labelledby="retire-h">
+  <h2 id="retire-h">Retire this profile</h2>
+  <p>Its versions are kept for the runs and claims that named them; the next library file leaves it out.</p>
+  <form method="post" action="{% url 'impact_profiles:profile_retire' p.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in retire_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Retire</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

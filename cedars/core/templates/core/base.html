@@ -17,6 +17,7 @@
   {% with here=request.path %}
   <nav aria-label="Main">
     <a href="{% url 'administration:account' %}"{% if here == '/account/' %} aria-current="page"{% endif %}>Account</a>
+    <a href="{% url 'impact_profiles:library' %}"{% if '/impact-profiles/' in here %} aria-current="page"{% endif %}>Impact profiles</a>
     {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:organisations' %}"{% if '/admin/organisations/' in here %} aria-current="page"{% endif %}>Organisations</a>{% endif %}
     {% if nav.steward %}<a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a>{% endif %}

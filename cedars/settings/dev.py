@@ -13,3 +13,4 @@ EMAIL_PORT = int(env("EMAIL_PORT", "1025"))
 STORAGES = {**STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"}}  # noqa: F405
 WHITENOISE_USE_FINDERS = True  # serve app static files without collectstatic
 WHITENOISE_AUTOREFRESH = True
+IMPACT_PROFILES_INLINE_JOBS = env("IMPACT_PROFILES_INLINE_JOBS", "1") == "1"  # no separate worker needed on a laptop

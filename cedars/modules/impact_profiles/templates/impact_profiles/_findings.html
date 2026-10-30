@@ -1,0 +1,12 @@
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ findings_label|default:'Findings' }}">
+<table class="list">
+  <caption class="sr-only">{{ findings_label|default:"Findings" }}: rule, where, and how to fix each</caption>
+  <thead><tr><th scope="col">Rule</th><th scope="col">Row</th><th scope="col">Series</th><th scope="col">Field and value</th><th scope="col">Problem</th><th scope="col">How to fix it</th></tr></thead>
+  <tbody>
+  {% for f in findings %}
+  <tr><th scope="row" class="nowrap">{{ f.rule_id }}</th><td>{{ f.row|default:"" }}</td><td class="small">{{ f.record_id }}</td>
+    <td class="small">{{ f.field }}{% if f.value %}: <code>{{ f.value }}</code>{% endif %}</td><td>{{ f.message }}</td><td class="small">{{ f.fix }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

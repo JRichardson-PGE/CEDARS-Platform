@@ -96,3 +96,7 @@ input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; m
 form.stack > p { display: flex; flex-direction: column; gap: .25rem; margin: 0; }
 form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: .5rem; }
 .helptext { font-size: .85rem; color: var(--muted); }
+.subnav { display: flex; gap: .4rem 1.1rem; flex-wrap: wrap; margin: 0 0 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.subnav a { padding: .1rem 0; }
+.subnav a[aria-current="page"] { font-weight: 600; text-decoration-thickness: 2px; }   /* current section shown by more than colour */
+code { font-size: .85em; overflow-wrap: anywhere; }
