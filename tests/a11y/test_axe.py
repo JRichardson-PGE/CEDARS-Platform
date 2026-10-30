@@ -240,7 +240,9 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
+    budgets = _budgets(cpuc_admin, pge, pge_admin, analyst)
     return {
+        **budgets,
         "pack": pack,
         "published_pack": published,
         "analyst": analyst,
@@ -260,6 +262,33 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         **impact_profiles,
         "sw": sw_id,
     }
+
+
+def _budgets(cpuc_admin, pge, pge_admin, analyst):
+    """A TUAL priced, confirmed and published, and an MCAL whose upload has rejected records. The scene's impact-profile pack is a
+    draft, which a filing's run refuses, so the TUAL's run is recorded as the Calculations module records a finished one."""
+    from cedars.modules.budgets import service as budgets
+
+    from ..test_budgets import group_sums, job
+
+    for p in ("budgets.submit", "budgets.confirm"):
+        service.grant(pge_admin, analyst, pge, p)
+    registry.create_program(pge_admin, prg_id="PGE_Com_Ltg", administrator=pge, valid_from=date(2024, 1, 1), name="Commercial lighting")
+    tual = budgets.add_filing(
+        cpuc_admin, first_year=2028, kind="True-up advice letter (TUAL)", due_at=timezone.now() + timedelta(days=30), acc_version="2026"
+    )
+    mcal = budgets.add_filing(
+        cpuc_admin, first_year=2028, kind="Mid-cycle advice letter (MCAL)", due_at=timezone.now() + timedelta(days=400), acc_version="2026"
+    )
+    v = budgets.upload(analyst, tual, pge, job(), "tual.zip")
+    key = "runs/scene/out/_results/group_sums2_measure_level_run.parquet"
+    storage.store("results").put_bytes(key, group_sums())
+    details = {"job_sha256": budgets.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
+    v = submissions.record_calculation(None, v, run="scene", input_hash="h", details=details)
+    v = budgets.confirm(analyst, v)
+    bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
+    draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
+    return {"tual": tual, "mcal": mcal, "budget_version": v, "budget_draft": draft}
 
 
 def _session_cookie(user, method, live_server):

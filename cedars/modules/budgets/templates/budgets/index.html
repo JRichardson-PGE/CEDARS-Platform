@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block title %}Budgets{% endblock %}
+{% block content %}
+<div class="head-row">
+  <h1>Budgets</h1>
+  <div class="actions">
+    <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
+    {% if sysadmin %}<a class="button" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
+  </div>
+</div>
+<p>Budget filings follow the four-year cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice letters.
+Each filing is uploaded, checked, priced and confirmed; every confirmed version is kept and can be compared with any other.</p>
+{% for c in cycles %}
+<section aria-labelledby="cycle-{{ c.cycle.pk }}">
+<h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle }} cycle</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle }} cycle">
+<table class="list">
+  <caption class="sr-only">Filings of the {{ c.cycle }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">ACC</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for f in c.filings %}
+  <tr>
+    <th scope="row"><a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a></th>
+    <td class="nowrap">{{ f.deadline.due_at|date:"Y-m-d" }}{% if f.past_due %} <span class="small">(passed)</span>{% endif %}</td>
+    <td>{{ f.deadline.budget_setup.acc_version }} ACC</td>
+    {% if org %}<td>{% if f.latest %}Version {{ f.latest.number }}: {{ f.latest.get_status_display|lower }}{% else %}Not started{% endif %}</td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if c.standing %}
+<h3>Budgets that stand</h3>
+<p class="small muted">Each PA's most recent confirmed filing in the cycle. Confirmed filings, their inputs and results are open to every signed-in user.</p>
+<ul>{% for v in c.standing %}<li><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.organisation.code }}: {{ v.submission.deadline.kind }}, version {{ v.number }}</a>, confirmed {{ v.confirmed_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
+{% endif %}
+</section>
+{% empty %}
+<p>No budget filing is set up yet.{% if sysadmin %} <a href="{% url 'budgets:filing_new' %}">Set up the first one</a>.{% endif %}</p>
+{% endfor %}
+{% endblock %}

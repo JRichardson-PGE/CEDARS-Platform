@@ -1,0 +1,82 @@
+{% extends "core/base.html" %}
+{% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:filing' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
+<div class="head-row">
+  <h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
+  <a class="button" href="{% url 'budgets:compare' %}?a={{ v.pk }}">Compare with another version</a>
+</div>
+<dl class="facts">
+  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
+  {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
+  {% if v.findings.rule_set %}<dt>Rule set</dt><dd>{{ v.findings.rule_set }}</dd>{% endif %}
+</dl>
+{% if not t.priced %}<p>Not priced yet: the table shows the filed budget only.</p>{% endif %}
+
+<form method="get" class="filters" aria-label="What to show">
+  {% if t.all_years|length > 1 %}
+  <fieldset class="checks-inline" aria-describedby="years-help">
+    <legend>Program years</legend>
+    {% for y in t.all_years %}<label class="inline"><input type="checkbox" name="years" value="{{ y }}"{% if y in years %} checked{% endif %}> {{ y }}</label>{% endfor %}
+    <span class="small muted" id="years-help">Totals over the ticked years; none ticked is every year.</span>
+  </fieldset>
+  {% endif %}
+  {% if t.pas|length > 1 %}<label>Credited to <select name="pa"><option value="">Every PA</option>{% for p in t.pas %}<option{% if p == f.pa %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>{% endif %}
+  <fieldset class="checks-inline">
+    <legend>Excluded programs</legend>
+    <label class="inline"><input type="checkbox" name="hide_budget" value="1"{% if f.hide_budget_excluded %} checked{% endif %}> Leave out those excluded from the budget</label>
+    <label class="inline"><input type="checkbox" name="hide_ce" value="1"{% if f.hide_ce_excluded %} checked{% endif %}> Leave out those excluded from cost-effectiveness</label>
+  </fieldset>
+  <button type="submit">Apply</button>
+</form>
+
+{% if tiles %}
+<section aria-labelledby="tiles-h">
+  <h2 id="tiles-h" class="sr-only">Totals of the programs shown</h2>
+  <dl class="tiles">{% for name, value in tiles %}<div class="tile"><dt>{{ name }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>
+</section>
+{% endif %}
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">By program</h2>
+<p class="small muted">{{ rows|length }} program{{ rows|length|pluralize }}{% if t.years %}, program year{{ t.years|length|pluralize }} {{ t.years|join:", " }}{% endif %}{% if f.pa %}, results credited to {{ f.pa }}{% endif %}. Excluded programs keep their values; leaving them out only filters them.</p>
+<p><a class="button" href="{% url 'budgets:version_csv' v.pk %}{{ csv_query }}">Download this table (CSV)</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="table-caption">
+<table class="list data">
+  <caption id="table-caption" class="sr-only">{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}, by program</caption>
+  <thead><tr>{% for h in head %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}<tr>
+    <th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}{% if row.flags %}<br><span class="small">({{ row.flags|join:", " }})</span>{% endif %}</th>
+    {% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}
+  </tr>{% empty %}<tr><td colspan="{{ head|length }}">No programs{% if t.years %} in these years{% endif %}.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th scope="row">Total</th>{% for c in total %}<td class="num">{{ c }}</td>{% endfor %}</tr></tfoot>
+</table>
+</div>
+<details class="small"><summary>Column definitions</summary>
+  <dl class="facts">{% for name, help in definitions %}<dt>{{ name }}</dt><dd>{{ help }}</dd>{% endfor %}</dl></details>
+</section>
+
+<section aria-labelledby="rec-h">
+<h2 id="rec-h">Reconciliation</h2>
+<p class="small muted">Every line of the version, whatever the filters above.</p>
+<dl class="facts">
+  <dt>Filed budget, every line</dt><dd>{{ rec.filed }}</dd>
+  <dt>Programs excluded from the budget</dt><dd>{{ rec.excluded_budget }}</dd>
+  <dt>Budget without them</dt><dd>{{ rec.without_excluded }}</dd>
+  <dt>Portfolio-level costs (included above)</dt><dd>{{ rec.portfolio_costs }}</dd>
+  <dt>On-bill financing (loan pools, not in the budget)</dt><dd>{{ rec.on_bill_financing }}</dd>
+</dl>
+</section>
+
+<section aria-labelledby="files-h">
+<h2 id="files-h">Files</h2>
+{% if public %}<p>This version is confirmed: its inputs and run settings are published so anyone can reproduce its results.</p>{% endif %}
+<ul>
+  {% for name, i in files %}<li><a href="{% url 'budgets:file' v.pk i %}">{{ name }}</a></li>{% endfor %}
+  <li><a href="{% url 'budgets:appendix' v.pk %}">Appendix tables (Excel)</a>: budget by program and year with its cost categories, cost-effectiveness by program, savings by year</li>
+</ul>
+</section>
+{% endblock %}

@@ -101,6 +101,7 @@ ul.issues { margin: .3rem 0; padding-left: 1.1rem; }
 .inline-form { display: inline; margin: 0; }
 h3 { font-size: 1rem; margin: .2rem 0 .5rem; }
 .filters { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+.filters > label, .filters > fieldset { min-width: 0; max-width: 100%; }
 .nowrap { white-space: nowrap; }
 pre { white-space: pre-wrap; word-break: break-word; font-size: .8rem; margin: .3rem 0; }
 input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; margin: 0; accent-color: var(--accent); }   /* 2.5.8 */
