@@ -1,0 +1,51 @@
+{% extends "core/base.html" %}
+{% block title %}Document value lists{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'documents:library' %}">Documents</a></p>
+<h1>Document value lists</h1>
+<p>The values a document can be filed with: each collection's document types, and the attributes the Public Document Area used for
+EM&amp;V documents. CPUC Energy Division keeps them. A retired value stays on the documents filed with it and in search, but is not
+offered for new ones; a value is never deleted.</p>
+{% for al, used_in, options in lists %}
+<section aria-labelledby="list-{{ al.code }}" class="card">
+<h2 id="list-{{ al.code }}">{{ al.name }}</h2>
+<p class="small muted">{% if al.type_of %}Document types of {{ used_in }}{% else %}Used in {{ used_in }}{% endif %}; {% if al.multiple %}a document can carry several{% else %}one per document{% endif %}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ al.name }} values">
+<table class="list">
+  <caption class="sr-only">{{ al.name }} values</caption>
+  <thead><tr><th scope="col">Value</th><th scope="col">Status</th>{% if admin %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for o in options %}
+  <tr>
+    <th scope="row">{{ o.label }}</th>
+    <td>{% if o.retired_on %}Retired {{ o.retired_on|date:"Y-m-d" }}{% else %}Offered{% endif %}</td>
+    {% if admin %}<td>
+      <details class="inline"><summary>Correct the label<span class="sr-only"> of {{ o.label }}</span></summary>
+        <form method="post" action="{% url 'documents:change_option' o.pk 'rename' %}">{% csrf_token %}
+          <label>New label <input type="text" name="label" value="{{ o.label }}" required></label>
+          <label>Reason <input type="text" name="reason" required></label>
+          <button type="submit">Save</button>
+        </form>
+      </details>
+      <details class="inline"><summary>{% if o.retired_on %}Reinstate{% else %}Retire{% endif %}<span class="sr-only"> {{ o.label }}</span></summary>
+        <form method="post" action="{% url 'documents:change_option' o.pk o.retired_on|yesno:'reinstate,retire' %}">{% csrf_token %}
+          <label>Reason <input type="text" name="reason" required></label>
+          <button type="submit">{% if o.retired_on %}Reinstate{% else %}Retire{% endif %}</button>
+        </form>
+      </details>
+    </td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if admin %}
+<form method="post" action="{% url 'documents:add_option' al.code %}" class="row-form">{% csrf_token %}
+  <label>New value for {{ al.name|lower }} <input type="text" name="label" required></label>
+  <label>Reason <input type="text" name="reason"></label>
+  <button type="submit">Add</button>
+</form>
+{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

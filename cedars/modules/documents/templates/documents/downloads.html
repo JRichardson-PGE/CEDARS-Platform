@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Downloads of {{ doc.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<h1>Downloads</h1>
+<p>Every download of this document's files, and every view in the browser, newest first. Each is an event in the audit trail.
+Downloads by people who were not signed in are counted as "public".</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Downloads">
+<table class="list">
+  <caption class="sr-only">Downloads of {{ doc.title }}</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Organisation</th><th scope="col">File</th><th scope="col">How</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+  <tr><th scope="row" class="nowrap">{{ e.at|date:"Y-m-d H:i" }}</th><td>{{ e.actor_label }}</td><td>{{ e.organisation.code|default:"" }}</td><td>{{ e.object_repr }}</td><td>{% if e.action == "documents.file_viewed" %}Viewed{% else %}Downloaded{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">Nobody has downloaded these files yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Download pages">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

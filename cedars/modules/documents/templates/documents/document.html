@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+{% block title %}{{ doc.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'documents:library' %}">Documents</a> · {{ doc.get_collection_display }}</p>
+<div class="head-row">
+  <h1>{{ doc.title }}</h1>
+  {% if can_manage %}<div class="actions"><a class="button" href="{% url 'documents:new_version' doc.pk %}">Add a version</a> <a class="button" href="{% url 'documents:change' doc.pk %}">Change the details</a></div>{% endif %}
+</div>
+{% if not doc.published_at %}<p><span class="status">Not published</span> Only {{ doc.owner.code }}{% if pas|length > 1 %}, the PAs named on it{% endif %} and CPUC staff can see this document until a version is published.</p>{% endif %}
+{% if doc.summary %}<p>{{ doc.summary|linebreaksbr }}</p>{% endif %}
+
+<section aria-labelledby="current-h">
+<h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.published %}, published {{ current.published_at|date:"Y-m-d" }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
+{% if current %}
+<ul class="links">
+  {% for f in current.files.all %}
+  <li>{% if f.main %}<strong>{{ f.name }}</strong>{% else %}{{ f.name }} <span class="muted">(attachment)</span>{% endif %}
+    <span class="small muted">{{ f.size|filesizeformat }}</span>:
+    <a href="{{ f.get_absolute_url }}">Download<span class="sr-only"> {{ f.name }}</span></a>{% if f.pk in inline %} · <a href="{{ f.get_absolute_url }}?view=1">View<span class="sr-only"> {{ f.name }}</span> in the browser</a>{% endif %}</li>
+  {% endfor %}
+</ul>
+{% if can_publish and not current.published %}
+<form method="post" action="{% url 'documents:publish' doc.pk current.number %}" class="actions">{% csrf_token %}
+  <button type="submit" class="primary">Publish version {{ current.number }}</button>
+  <span class="small muted">A published version is public and never changes; a correction is a new version.</span>
+</form>
+{% endif %}
+{% endif %}
+<p class="small muted">Permanent link: <code>{{ request.scheme }}://{{ request.get_host }}{{ doc.get_absolute_url }}</code></p>
+</section>
+
+<section aria-labelledby="details-h">
+<h2 id="details-h">Details</h2>
+<dl class="facts">
+  <dt>Document type</dt><dd>{{ doc.document_type.label }}</dd>
+  <dt>Filed by</dt><dd>{{ doc.owner.name }} ({{ doc.owner.code }})</dd>
+  {% if pas %}<dt>PAs it applies to</dt><dd>{% for o in pas %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+  {% if programs %}<dt>Programs</dt><dd>{% for p in programs %}<a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+  {% if doc.years %}<dt>Program years</dt><dd>{{ doc.years }}</dd>{% endif %}
+  {% for name, labels in attributes.items %}<dt>{{ name }}</dt><dd>{{ labels|join:", " }}</dd>{% endfor %}
+  <dt>First published</dt><dd>{{ doc.published_at|date:"Y-m-d"|default:"Not yet" }}</dd>
+</dl>
+</section>
+
+<section aria-labelledby="versions-h">
+<h2 id="versions-h">Versions</h2>
+<p class="small muted">A replaced file is never deleted: each version keeps its own files{% if not sees_unpublished %}. Only published versions are listed{% endif %}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<table class="list">
+  <caption class="sr-only">Versions of {{ doc.title }}, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Published</th><th scope="col">Files</th><th scope="col">Why it was added</th><th scope="col">Added by</th></tr></thead>
+  <tbody>
+  {% for v in versions %}
+  <tr>
+    <th scope="row">{{ v.number }}</th>
+    <td class="nowrap">{% if v.published %}{{ v.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>
+      {% if can_publish and v != current %}<form method="post" action="{% url 'documents:publish' doc.pk v.number %}" class="actions">{% csrf_token %}<button type="submit">Publish version {{ v.number }}</button></form>{% endif %}{% endif %}</td>
+    <td><ul class="links grants">{% for f in v.files.all %}<li><a href="{{ f.get_absolute_url }}">{{ f.name }}<span class="sr-only">, version {{ v.number }}</span></a></li>{% endfor %}</ul></td>
+    <td>{{ v.reason|default:"First version" }}</td>
+    <td class="small">{{ v.organisation.code }}{% if sees_unpublished %}<br>{{ v.created_by.email }}{% endif %}<br>{{ v.created_at|date:"Y-m-d" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if show_downloads %}<p><a href="{% url 'documents:downloads' doc.pk %}">Who downloaded these files</a></p>{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}File a document{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'documents:library' %}">Documents</a></p>
+<h1>File a document</h1>
+{% if collections|length > 1 %}
+<form method="get" class="filters" aria-label="Choose the collection">
+  <label for="collection">Collection
+    <select id="collection" name="collection">{% for code, label in collections %}<option value="{{ code }}"{% if code == collection %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <button type="submit">Choose</button>
+</form>
+{% endif %}
+<p>Filing in <strong>{% for code, label in collections %}{% if code == collection %}{{ label }}{% endif %}{% endfor %}</strong> for {{ request.organisation.code }}.
+The document is kept as version 1. A later file is added as a new version: nothing is deleted or overwritten.
+Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p>
+<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+  <input type="hidden" name="collection" value="{{ collection }}">
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% include "documents/_details_fields.html" %}
+  {{ form.main_file.as_field_group }}
+  {{ form.attachments.as_field_group }}
+  {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
+  <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% url 'documents:library' %}">Cancel</a></div>
+</form>
+{% endblock %}

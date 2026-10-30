@@ -37,8 +37,10 @@ def record(
     object_type: str = "",
     object_id: str = "",
     object_repr: str = "",
+    actor_label: str = "",
 ) -> AuditEvent:
-    """Write one audit event. The actor, organisation and assurance default to the current request's (audit.context)."""
+    """Write one audit event. The actor, organisation and assurance default to the current request's (audit.context). actor_label names
+    an actor with no account (e.g. "public" for a signed-out reader) where the default would say "system"."""
     ctx = current()
     actor = actor if actor is not None else ctx.user
     organisation = organisation if organisation is not None else ctx.organisation
@@ -48,7 +50,7 @@ def record(
         object_repr = object_repr or str(obj)[:300]
     return AuditEvent.objects.create(
         actor=actor,
-        actor_label=(actor.email if actor is not None else "system")[:254],
+        actor_label=(actor.email if actor is not None else actor_label or "system")[:254],
         organisation=organisation,
         assurance=ctx.assurance if actor is ctx.user else "",
         action=action,

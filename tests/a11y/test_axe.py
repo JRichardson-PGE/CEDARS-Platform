@@ -243,10 +243,12 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     claims = _claims(cpuc_admin, pge, pge_admin, analyst)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
+    documents = _documents(cpuc_admin, cpuc, pge, hvac)
     return {
         **claims,
         **budgets,
         **monthly,
+        **documents,
         "pack": pack,
         "published_pack": published,
         "analyst": analyst,
@@ -266,6 +268,57 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         **impact_profiles,
         "sw": sw_id,
     }
+
+
+def _documents(cpuc_admin, cpuc, pge, hvac):
+    """The library: an EM&V report published with a newer version waiting, a PA's joint memo not yet published, a download of each
+    kind. The value lists are seeded by a migration, which the transactional tests flush, so they are seeded again here."""
+    import importlib
+
+    from django.apps import apps
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from cedars.modules.documents import service as documents
+    from cedars.modules.documents.models import AttributeOption
+
+    importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
+
+    def opt(code, label):
+        return AttributeOption.objects.get(attribute_list__code=code, label=label)
+
+    def files(*names):
+        return [documents.Upload(n, SimpleUploadedFile(n, b"%PDF-1.7 scene")) for n in names]
+
+    documents.retire_option(cpuc_admin, opt("portfolio_cycle", "2006-2008"), reason="closed cycle")
+    report = documents.create_document(
+        cpuc_admin,
+        cpuc,
+        "emv",
+        documents.Details(
+            opt("deliverable_type", "Final Evaluation Report"),
+            "PY2022-2024 Residential HVAC impact evaluation",
+            summary="Gross and net savings of residential HVAC measures, program years 2022 to 2024.",
+            pas=[pge],
+            programs=[hvac],
+            first_year=2022,
+            last_year=2024,
+            attributes=[opt("study_type", "Impact Evaluation"), opt("sector", "Residential"), opt("study_lead", "CPUC")],
+        ),
+        files("hvac_impact_final.pdf", "hvac_impact_appendices.pdf"),
+        publish=True,
+    )
+    documents.add_version(cpuc_admin, cpuc, report, files("hvac_impact_final_rev1.pdf"), reason="Table 4-2 corrected")
+    memo = documents.create_document(
+        None,  # as an import would file it; PG&E's members file their own
+        pge,
+        "pa",
+        documents.Details(opt("pa_report_type", "Joint Cooperation Memo"), "PG&E and BayREN Joint Cooperation Memo 2026", first_year=2026),
+        files("jcm_2026.pdf"),
+    )
+    f = report.versions.get(number=1).files.first()
+    documents.record_download(None, f)
+    documents.record_download(cpuc_admin, f, viewed=True)
+    return {"document": report, "document_draft": memo}
 
 
 def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):

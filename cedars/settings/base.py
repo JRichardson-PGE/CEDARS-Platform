@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "cedars.modules.programs",
     "cedars.modules.budgets",
     "cedars.modules.claims",
+    "cedars.modules.documents",
     "allauth",
     "allauth.account",
     "allauth.mfa",
@@ -229,6 +230,9 @@ LOAD_SHAPE_MAX_UPLOAD_MB = int(env("LOAD_SHAPE_MAX_UPLOAD_MB", "50"))
 LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
 IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # a profile with no territory is written for each
 IMPACT_PROFILES_INLINE_JOBS = env_bool("IMPACT_PROFILES_INLINE_JOBS", False)  # development: run queued jobs in the request
+
+# Documents & EM&V module: the largest file a document version may carry (the PDA's largest main files are tens of MB)
+DOCUMENTS_MAX_FILE_MB = int(env("DOCUMENTS_MAX_FILE_MB", "200"))
 
 LOGGING = {
     "version": 1,
