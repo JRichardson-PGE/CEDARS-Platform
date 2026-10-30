@@ -1,0 +1,13 @@
+{% extends "core/base.html" %}
+{% block title %}How {{ cy.year }} claims are priced{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+<h1>How {{ cy.year }} claims are priced</h1>
+<p>Versions already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses these.
+{% if default_acc %}Claims normally use the ACC of the year's final budget filing: the {{ default_acc }} ACC for {{ cy.year }}.{% endif %}</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit" class="primary">Save</button>
+</form>
+{% endblock %}

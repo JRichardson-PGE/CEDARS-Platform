@@ -75,6 +75,7 @@ details.inline > summary { font-weight: normal; color: var(--accent); }
 details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
 .grants { margin: 0; padding-left: 1.1rem; }
 .grants li { margin: .15rem 0; }
+ul.links li { margin: .25rem 0; }   /* a list of links, one per line: 24 px apart (2.5.8) */
 .status { font-size: .8rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--control); white-space: nowrap; }
 fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; min-width: 0; }   /* a fieldset is min-content wide by default, which overflows at 320 px */
 select { max-width: 100%; }
