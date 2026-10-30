@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}{{ year }} 13th-month report{% if org %} · {{ org.code }}{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' year %}{{ csv_query }}">{{ year }}</a></p>
+<h1>{{ year }} 13th-month report{% if org %}: {{ org.code }}{% endif %}</h1>
+<p>The 13th-month report is generated from the program administrator's confirmed claims for {{ year }}, so it always matches the
+annual claim that stands. Nothing is uploaded for it. December's confirmed monthly report is shown beside it, so the year's monthly
+spend can be reconciled to the claims.</p>
+{% if choices %}
+<form method="get" class="filters" aria-label="Choose the program administrator">
+  <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
+  <button type="submit">Show</button>
+</form>
+{% endif %}
+{% if org %}
+<dl class="facts">
+  <dt>Status</dt><dd>{% if closing.final %}Final: the annual claim is confirmed
+    {% elif closing.claimed %}Provisional: only quarter{{ closing.quarters|length|pluralize }} {% for q in closing.quarters %}Q{{ q }}{% if not forloop.last %}, {% endif %}{% endfor %} {{ closing.quarters|length|pluralize:"is,are" }} confirmed. The report is final once the annual claim is confirmed.
+    {% else %}Not available yet: {{ org.code }} has no confirmed claims for {{ year }}{% endif %}</dd>
+  <dt>December report</dt><dd>{% if closing.december %}<a href="{% url 'monthly:version' closing.december.pk %}">Version {{ closing.december.number }}</a>, confirmed{% else %}Not confirmed yet, so the claims are not reconciled to the monthly reports{% endif %}</dd>
+</dl>
+{% if not closing.budget %}<p>No operating budget was found for {{ org.code }}'s {{ year }} cycle, so expenditures are not compared with a budget.</p>{% endif %}
+{% if closing.unreconciled %}
+<div class="card" role="note"><p><strong>{{ closing.unreconciled|length }} program{{ closing.unreconciled|length|pluralize }} {{ closing.unreconciled|length|pluralize:"does,do" }} not match December's report:</strong>
+{% for r in closing.unreconciled %}{{ r.prg_id }}{% if not forloop.last %}, {% endif %}{% endfor %}. The claimed expenditures differ from December's year-to-date spend.</p></div>
+{% endif %}
+{% if closing.claimed or closing.december %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="closing-caption">
+<table class="list data">
+  <caption id="closing-caption">{{ org.code }}'s {{ year }} claims by program, against the operating budget and December's report</caption>
+  <thead><tr><th scope="col">Program</th>{% for h in columns %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}{% if not forloop.last %}<tr>
+    <th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}{% if row.flags %}<br><span class="small">({{ row.flags|join:", " }})</span>{% endif %}</th>
+    {% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}
+  </tr>{% endif %}{% endfor %}
+  </tbody>
+  <tfoot>{% with row=rows|last %}<tr><th scope="row">Total</th>{% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}</tr>{% endwith %}</tfoot>
+</table>
+</div>
+<p class="small muted">Expenditures are the claims' program costs plus the measures' rebates and incentives, counted as monthly spend is. Savings and TSB are the claims' priced first-year values: validated, unlike the monthly estimates.</p>
+<p><a class="button" href="{% url 'monthly:closing_csv' year %}{{ csv_query }}">Download the 13th-month report (CSV)</a></p>
+{% endif %}
+{% else %}
+<p>Choose a program administrator to see its 13th-month report.</p>
+{% endif %}
+{% endblock %}
