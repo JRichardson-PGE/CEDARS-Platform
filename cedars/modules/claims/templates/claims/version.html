@@ -30,7 +30,7 @@
 <section aria-labelledby="programs-h">
 <h2 id="programs-h">By program</h2>
 <p class="small muted">{{ rows|length }} program{{ rows|length|pluralize }}, year to date{% if pa %}, results credited to {{ pa }}{% endif %}. Filed columns are the claims' own totals; the others are as priced.</p>
-<p><a class="button" href="{% url 'claims:version_csv' v.pk %}{{ csv_query }}">Download this table (CSV)</a></p>
+<p><a class="button" href="{% url 'claims:version_csv' v.pk %}{{ csv_query }}">Download this table (CSV)</a> <a class="button" href="{% url 'claims:links_csv' v.pk %}">Claims and their links (CSV)</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="table-caption">
 <table class="list data">
   <caption id="table-caption" class="sr-only">{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}, by program</caption>

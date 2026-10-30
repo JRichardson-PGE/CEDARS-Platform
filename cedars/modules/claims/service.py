@@ -16,6 +16,7 @@ stay in the compiled year, marked with the confirmation that withdrew it, but ar
 correction is a new version of the most recently confirmed confirmation (once the year's final claim is confirmed, of that one), and its
 publication writes a public change letter (BR-09.3) of what it changed against the version it replaces."""
 
+import csv
 import hashlib
 import io
 import json
@@ -40,7 +41,7 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
 from . import spec, upload
-from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimResult, ClaimYear
+from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
 
 MODULE = "claims"
 RULE_SET = "claims"
@@ -52,7 +53,7 @@ INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirect
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # Tables the CEDARS claims rule set (CET's Measure and ProgramCost specification and rules) checks; the module checks the rest.
 RULE_TABLES = ("Measure", "ProgramCost")
-CLAIM_TABLES = ("Claim", "Measure", "ContactClaim", "InfrastructureCost")  # the tables that hold a claim's own records
+CLAIM_TABLES = ("Claim", "Measure", "ContactClaim", "InfrastructureCost", "ClaimSite")  # the tables that hold a claim's own records
 
 
 # --- claim years (the CPUC sets them up)
@@ -265,10 +266,11 @@ class Compiled:
 def compile_tables(
     base: dict[str, upload.Table], own: dict[str, upload.Table], withdrawn_in: str = "", corrected: dict[str, upload.Table] | None = None
 ) -> Compiled:
-    """The year to date: the base's rows with this upload's over them by primary key. For ContactClaim and InfrastructureCost an upload's
-    rows for a claim replace all the claim's earlier rows. The upload's withdrawals are marked with the confirmation that makes them
-    (`withdrawn_in`); a correction that withdraws a claim the version it corrects filed (`corrected`, that version's compiled tables)
-    keeps that claim's records as they were filed. Columns are the template's, in its order, that either side has."""
+    """The year to date: the base's rows with this upload's over them by primary key. For the tables whose rows for a claim are a set
+    (spec.BY_CLAIM) an upload's rows for a claim replace all the claim's earlier rows. The upload's withdrawals are marked with the
+    confirmation that makes them (`withdrawn_in`); a correction that withdraws a claim the version it corrects filed (`corrected`, that
+    version's compiled tables) keeps that claim's records as they were filed. Columns are the template's, in its order, that either
+    side has."""
     out = Compiled({})
     for name in spec.TABLES:
         b, o = base.get(name), own.get(name)
@@ -432,6 +434,7 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
         store.put_bytes(folder + "job.zip", job)
     store.put_bytes(folder + "findings.json", json.dumps([p.__dict__ for p in problems]).encode())
     _replace_lines(v, lines(comp.tables, year))
+    _replace_records(v, records(comp.tables))
     summary = _summary(problems, sum(len(t.rows) for t in own.values()), notes, rule_set, folder + "findings.json")
     summary.update(
         {
@@ -670,11 +673,16 @@ def derive_checks(
         site = r.get("SiteID", "")
         if site and site.strip().lower() not in sites:
             add("Claim", i, cid, "SiteID", "CLM-REF", f"Site {site} has no Site record", "Add the Site record for it.", site)
-    for name in ("ContactClaim", "InfrastructureCost"):
+    for name in spec.BY_CLAIM:
         for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
             if r.get("ClaimID") and _claim(r) not in claims:
                 add(name, i, r["ClaimID"], "ClaimID", "CLM-REF", f"{name} names claim {r['ClaimID']}, which has no Claim record",
                     "Use the ClaimID of a claim in this upload or an earlier confirmed quarter.", r["ClaimID"])  # fmt: skip
+    for i, r in enumerate(own.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows, start=2):
+        site = r.get("SiteID", "")
+        if site and site.strip().lower() not in sites:
+            add("ClaimSite", i, rid_of("ClaimSite", r), "SiteID", "CLM-REF", f"Site {site} has no Site record",
+                "Add the Site record for it.", site)  # fmt: skip
     for i, r in enumerate(own.get("Participant", upload.Table("Participant", [], [])).rows, start=2):
         site = r.get("SiteID", "")
         if site and site.strip().lower() not in sites:
@@ -711,6 +719,36 @@ def derive_checks(
                 add(name, i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was withdrawn in the {earlier[k]}",
                     "File it again under a new ClaimID: a withdrawn claim keeps its ID in the year's history.", cid)  # fmt: skip
 
+    # NMEC chains (BR-05.3): a true-up's parent is a claim the PA filed, this year so far or in a confirmed earlier year, not withdrawn,
+    # and never the claim itself or one of its own true-ups
+    if any(r.get("ParentClaimID") for r in own.get("Claim", upload.Table("Claim", [], [])).rows):
+        before = earlier_records(organisation, year)
+        parents = {_claim(r): r.get("ParentClaimID", "").strip().lower() for r in compiled.get("Claim", upload.Table("Claim", [], [])).rows}
+        out_now = withdrawn(compiled)
+        for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
+            cid, parent = r.get("ClaimID", ""), r.get("ParentClaimID", "")
+            p = parent.strip().lower()
+            if not p:
+                continue
+            older = before.get(p)
+            if p == _claim(r):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", "ParentClaimID is the claim itself",
+                    "Give the ClaimID of the claim this true-up adjusts.", parent)  # fmt: skip
+            elif p not in parents and older is None:
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is not a claim {code} has filed",
+                    f"Give a ClaimID {code} filed this year or confirmed in an earlier year.", parent)  # fmt: skip
+            elif p in out_now or (p not in parents and older.withdrawn):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is a withdrawn claim",
+                    "A true-up adjusts a claim that stands; give the ClaimID of the claim it replaces, if any.", parent)  # fmt: skip
+            elif _cycle(_claim(r), parents):
+                add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is one of this claim's own true-ups",
+                    "A chain runs from the original claim to its latest true-up; check the ParentClaimIDs.", parent)  # fmt: skip
+            else:
+                impact = measures[p].get("MeasImpactType", "") if p in measures else (older.impact_type if older else "")
+                if "NMEC" not in impact.upper():
+                    add("Claim", i, cid, "ParentClaimID", "CLM-CHAIN", f"ParentClaimID {parent} is not a NMEC claim ({impact or 'none'})",
+                        "Check the parent: a true-up adjusts a NMEC claim.", parent, severity="warning")  # fmt: skip
+
     # CEDARS' data rules on the Claim and Site tables
     for i, r in enumerate(own.get("Claim", upload.Table("Claim", [], [])).rows, start=2):
         _claim_rules(add, i, r, measures.get(_claim(r), {}), organisation)
@@ -727,6 +765,17 @@ def derive_checks(
         if _flag(r.get("Residential_Flag", "")) is False and not r.get("NAICSCode"):
             add("Site", i, sid, "NAICSCode", "CLM-SITE", "NAICSCode is blank for a non-residential site", "Fill in the site's NAICS code.")
     return problems
+
+
+def _cycle(start: str, parents: dict[str, str]) -> bool:
+    """Whether following ParentClaimIDs up from a claim comes back to it."""
+    seen, k = set(), parents.get(start, "")
+    while k and k not in seen:
+        if k == start:
+            return True
+        seen.add(k)
+        k = parents.get(k, "")
+    return False
 
 
 def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
@@ -879,6 +928,43 @@ def lines(tables: dict[str, upload.Table], year: int) -> list[dict]:
         for f in FILED_TOTALS:
             ln["filed"][f] += float(_num(c.get(f, "")) or 0)
     return [{**ln, "filed": dict(ln["filed"])} for ln in out.values()]
+
+
+def records(tables: dict[str, upload.Table]) -> list[dict]:
+    """Each claim of the compiled tables with the fields that link it to other claims (ClaimRecord)."""
+    measures = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
+    sites = defaultdict(list)
+    for r in tables.get("ClaimSite", upload.Table("ClaimSite", [], [])).rows:
+        sites[_claim(r)].append(r.get("SiteID", ""))
+    gone = withdrawn(tables)
+    out = []
+    for r in tables.get("Claim", upload.Table("Claim", [], [])).rows:
+        k = _claim(r)
+        if not k:
+            continue
+        m = measures.get(k, {})
+        out.append(
+            {
+                "claim_id": r.get("ClaimID", "").strip(),
+                "prg_id": m.get("PrgID", ""),
+                "impact_type": m.get("MeasImpactType", "")[:60],
+                "parent_claim_id": r.get("ParentClaimID", "").strip(),
+                "true_up": bool(_flag(r.get("NMEC_TU_Flag", ""))),
+                "participant_id": r.get("ParticipantID", "").strip(),
+                "sem_phase": r.get("SEM_Phase", "").strip(),
+                "project_id": r.get("ProjectID", "").strip(),
+                "site_id": r.get("SiteID", "").strip(),
+                "sites": sorted(set(sites.get(k, []))),
+                "withdrawn": k in gone,
+                "filed": {f: float(_num(r.get(f, "")) or 0) for f in FILED_TOTALS},
+            }
+        )
+    return out
+
+
+def _replace_records(v: SubmissionVersion, rows: list[dict]) -> None:
+    ClaimRecord.objects.filter(version=v).delete()
+    ClaimRecord.objects.bulk_create(ClaimRecord(version=v, **row) for row in rows)
 
 
 def _replace_lines(v: SubmissionVersion, rows: list[dict]) -> None:
@@ -1160,6 +1246,108 @@ def change_letters(*, organisation=None, year: int | None = None):
     if year is not None:
         out = out.filter(version__submission__deadline__period__year=year)
     return out
+
+
+# --- links between claims: NMEC chains, SEM participants, projects (BR-05.3, 05.5, 05.7, 05.11)
+
+
+def standing_versions(*, organisation=None, year: int | None = None) -> list[SubmissionVersion]:
+    """Each PA's year to date that stands: per organisation and claim year, the published version of its latest confirmation."""
+    qs = SubmissionVersion.objects.filter(
+        status=SubmissionVersion.Status.PUBLISHED, submission__deadline__module=MODULE, submission__deadline__kind__in=KINDS
+    ).select_related("submission__deadline__period", "submission__organisation")
+    if organisation is not None:
+        qs = qs.filter(submission__organisation=organisation)
+    if year is not None:
+        qs = qs.filter(submission__deadline__period__year=year)
+    best: dict[tuple, SubmissionVersion] = {}
+    for v in qs:
+        k = (v.submission.organisation_id, v.submission.deadline.period.year)
+        rank = (number(v.submission.deadline), v.number)
+        if k not in best or rank > (number(best[k].submission.deadline), best[k].number):
+            best[k] = v
+    return list(best.values())
+
+
+def _standing_records(**filters):
+    versions = standing_versions()
+    return (
+        ClaimRecord.objects.filter(version__in=versions, **filters)
+        .select_related("version__submission__deadline__period", "version__submission__organisation")
+        .order_by("version__submission__deadline__period__year", "claim_id")
+    )
+
+
+def earlier_records(organisation, year: int) -> dict[str, ClaimRecord]:
+    """The PA's confirmed claims of earlier claim years, by compared ClaimID: the parents a true-up may name."""
+    versions = [v for v in standing_versions(organisation=organisation) if v.submission.deadline.period.year < year]
+    return {r.claim_id.strip().lower(): r for r in ClaimRecord.objects.filter(version__in=versions)}
+
+
+def find_claim(claim_id: str) -> ClaimRecord | None:
+    """A confirmed claim, wherever it stands (ClaimIDs carry the PA code and claim year, so they are unique)."""
+    return _standing_records(claim_id__iexact=claim_id.strip()).first()
+
+
+@dataclass
+class ChainLink:
+    record: ClaimRecord
+    depth: int
+    change: dict  # {Claim total field: this claim's filed value less its parent's}
+
+
+def chain(claim_id: str) -> list[ChainLink]:
+    """A NMEC claim's chain end to end (BR-05.3): from the original claim down through every true-up, in filing order, with each
+    true-up's filed totals against its parent's (the true-up's adjustment). Empty when the claim is not confirmed."""
+    start = find_claim(claim_id)
+    if start is None:
+        return []
+    org = start.version.submission.organisation
+    mine = list(_standing_records(version__submission__organisation=org))
+    by_id = {r.claim_id.lower(): r for r in mine}
+    root, seen = start, {start.claim_id.lower()}
+    while root.parent_claim_id and root.parent_claim_id.lower() in by_id and root.parent_claim_id.lower() not in seen:
+        root = by_id[root.parent_claim_id.lower()]
+        seen.add(root.claim_id.lower())
+    children = defaultdict(list)
+    for r in mine:
+        if r.parent_claim_id:
+            children[r.parent_claim_id.lower()].append(r)
+    out, todo, done = [], [(root, 0, None)], set()
+    while todo:
+        r, depth, parent = todo.pop()
+        if r.claim_id.lower() in done:
+            continue
+        done.add(r.claim_id.lower())
+        change = {f: r.filed.get(f, 0.0) - parent.filed.get(f, 0.0) for f in FILED_TOTALS} if parent else {}
+        out.append(ChainLink(r, depth, change))
+        todo += [(c, depth + 1, r) for c in sorted(children[r.claim_id.lower()], key=lambda c: c.claim_id, reverse=True)]
+    return out
+
+
+def participant_claims(participant_id: str):
+    """Every confirmed claim of one SEM participant, across years and phases (BR-05.7)."""
+    return _standing_records(participant_id__iexact=participant_id.strip())
+
+
+def project_claims(project_id: str, organisation=None):
+    """Every confirmed claim of one project (ProjectID, the project key, BR-05.11): the meters of a multi-meter project, a population
+    cohort and its projects, a claim before and after it was reclassified."""
+    qs = _standing_records(project_id__iexact=project_id.strip())
+    return qs.filter(version__submission__organisation=organisation) if organisation is not None else qs
+
+
+def links_csv(v: SubmissionVersion) -> str:
+    """The version's claims with their links (project, NMEC parent, SEM participant and phase, sites), for downloads and evaluation
+    samples grouped by project."""
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(["ClaimID", "PrgID", "ProjectID", "ParentClaimID", "NMEC_TU_Flag", "MeasImpactType", "ParticipantID", "SEM_Phase",
+                "SiteID", "ClaimSites", "Status"])  # fmt: skip
+    for r in v.claim_records.all():
+        w.writerow([r.claim_id, r.prg_id, r.project_id, r.parent_claim_id, int(r.true_up), r.impact_type, r.participant_id,
+                    r.sem_phase, r.site_id, ";".join(r.sites), "withdrawn" if r.withdrawn else "active"])  # fmt: skip
+    return out.getvalue()
 
 
 # --- results by program
