@@ -2,7 +2,7 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}."""
+{upload}, {queued_run}, {sw}."""
 
 PAGES = [
     ("home", "/", None),
@@ -51,6 +51,8 @@ PAGES = [
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
     ("calculations", "/calculations/", "analyst"),
+    ("output-templates", "/calculations/templates/", "analyst"),
+    ("output-template-new", "/calculations/templates/new/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("edit-inputs", "/calculations/drafts/", "analyst"),
@@ -58,5 +60,13 @@ PAGES = [
     ("edit-inputs-program-costs", "/calculations/drafts/{draft}/?table=ProgramCost", "analyst"),
     ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
+    ("results", "/calculations/runs/{finished_run}/results/", "analyst"),
+    ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
+    ("results-measure-level", "/calculations/runs/{finished_run}/results/?level=measure&pa=PGE", "analyst"),
+    ("compare", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
+    ("programs", "/programs/", "community"),
+    ("program", "/programs/PGE_Res_HVAC/", "pge_admin"),
+    ("program-statewide", "/programs/{sw}/", "community"),
+    ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
 ]

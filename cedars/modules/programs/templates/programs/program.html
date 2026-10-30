@@ -1,0 +1,84 @@
+{% extends "core/base.html" %}
+{% block title %}{{ p.prg_id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
+<div class="head-row">
+  <h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>
+  {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
+</div>
+
+<section aria-labelledby="def-h">
+<h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date:"Y-m-d" }}</span>{% endif %}</h2>
+{% if v %}
+<dl class="facts">
+  <dt>Program administrator</dt><dd>{% if p.statewide %}Statewide (SW){% else %}{{ p.administrator.name }} ({{ pa }}){% endif %}</dd>
+  <dt>Status</dt><dd>{{ status }}</dd>
+  {% if v.commercial_name %}<dt>Commercial name</dt><dd>{{ v.commercial_name }}</dd>{% endif %}
+  <dt>Segment</dt><dd>{{ segment|default:"Not given" }}</dd>
+  <dt>Primary sector</dt><dd>{{ v.primary_sector|default:"Not given" }}</dd>
+  <dt>Budget share by sector</dt><dd>{% for name, share in v.sectors.items %}{{ name }} {% widthratio share 1 100 %}%{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
+  <dt>Implementer</dt><dd>{{ v.implementer|default:"Not given" }}</dd>
+  {% if v.category %}<dt>Category</dt><dd>{{ v.category }}</dd>{% endif %}
+  {% if v.implementation_contractor %}<dt>Implementation contractor</dt><dd>{{ v.implementation_contractor }}</dd>{% endif %}
+  <dt>Years</dt><dd>{{ v.start_year|default:"Not given" }} to {{ v.end_year|default:"open" }}</dd>
+  {% if flags %}<dt>Delivery</dt><dd>{{ flags|join:", " }}</dd>{% endif %}
+  {% if v.statewide_program %}<dt>Statewide program it delivers</dt><dd>{{ v.statewide_program }}</dd>{% endif %}
+  {% if v.parent_program %}<dt>Parent program</dt><dd>{{ v.parent_program }}</dd>{% endif %}
+  {% if v.exclude_from_budget or v.exclude_from_ce or v.exclude_from_statewide %}<dt>Excluded from</dt><dd>{% if v.exclude_from_budget %}budget {% endif %}{% if v.exclude_from_ce %}cost-effectiveness {% endif %}{% if v.exclude_from_statewide %}statewide{% endif %}</dd>{% endif %}
+  {% if v.website %}<dt>Website</dt><dd><a href="{{ v.website }}">{{ v.website }}</a></dd>{% endif %}
+</dl>
+{% if upcoming %}<p>A change is already entered to start on {{ upcoming.0.valid_from|date:"Y-m-d" }}; see the versions below.</p>{% endif %}
+{% else %}<p>This program has no attributes recorded yet.</p>{% endif %}
+</section>
+
+<section aria-labelledby="ver-h">
+<h2 id="ver-h">Versions</h2>
+<p class="small muted">Each change starts a new version on its effective date; earlier versions are kept as they were.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<table class="list">
+  <caption class="sr-only">Versions of {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">Entered by</th></tr></thead>
+  <tbody>
+  {% for ver, changes in history %}
+  <tr>
+    <th scope="row" class="nowrap">{{ ver.valid_from|date:"Y-m-d" }}</th>
+    <td class="nowrap">{{ ver.valid_to|date:"Y-m-d"|default:"open" }}</td>
+    <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field|cut:"_"|capfirst }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
+    <td>{{ ver.reason }}</td>
+    <td class="small">{{ ver.created_by.email|default:"imported" }}<br>{{ ver.created_at|date:"Y-m-d" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="alloc-h">
+<h2 id="alloc-h">Statewide allocation</h2>
+{% if allocation %}
+<p class="small muted">The program's factors in every allocation version that has it. Filings, claims and runs record the version they used.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Statewide allocation factors">
+<table class="list">
+  <caption class="sr-only">Weighted allocation factors of {{ p.prg_id }} by version and year</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Year</th><th scope="col">Electric share</th>{% for pa in allocation_pas %}<th scope="col">{{ pa }} weighted</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row, shares in allocation %}
+  <tr>
+    <th scope="row">{{ row.version.label }}</th>
+    <td>{{ row.version.get_status_display }}</td>
+    <td>{{ row.year }}</td>
+    <td>{{ row.percent_electric }}</td>
+    {% for s in shares %}<td>{{ s.weighted|default:"" }}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>{% if p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
+</section>
+
+<section aria-labelledby="fil-h">
+<h2 id="fil-h">Budgets, claims and monthly reports</h2>
+<p>This program's budget filings, fund shifts, claims and monthly reports will be listed here as those parts of CEDARS open.</p>
+</section>
+{% endblock %}

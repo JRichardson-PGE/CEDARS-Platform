@@ -23,6 +23,8 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import service as refdata
+from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion
 
@@ -214,7 +216,9 @@ def _check(req: RunRequest) -> dict:
     return st
 
 
-def input_hash(inputs: dict, req_settings: dict, release: str, calculation: str, acc: str, allocation_sha: str | None) -> str:
+def input_hash(
+    inputs: dict, req_settings: dict, release: str, calculation: str, acc: str, allocation_sha: str | None, packs: dict | None = None
+) -> str:
     payload = {
         "inputs": {k: v["sha256"] for k, v in sorted(inputs.items())},
         "settings": req_settings,
@@ -223,7 +227,51 @@ def input_hash(inputs: dict, req_settings: dict, release: str, calculation: str,
         "acc": acc,
         "allocation": allocation_sha,
     }
+    if packs:  # the reference data packs pinned (their fingerprints), so the same job on other data does not share the hash
+        payload["packs"] = {k: v["fingerprint"] for k, v in sorted(packs.items())}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
+# --- the reference data a run is pinned to (BR-11.8, BR-06.21)
+
+# The reference-folder files each pack kind holds for ReCET's own calculation, by their paths in the engine's reference folder (ReCET
+# ARCHITECTURE 7.1: manifest.json keys every file by that path, and a job spec's packs.files pins those keys). A pack's manifest entries
+# under another path are recorded with the run but not pinned, since the worker could not find them.
+REFERENCE_PREFIXES = {PackVersion.Kind.ACC_ELECTRIC: "acc/{acc}/", PackVersion.Kind.IMPACT_PROFILES: "impact_profiles/"}
+
+
+def packs_for(req: RunRequest, *, filing: bool) -> list[PackVersion]:
+    """The registered packs a run uses: the electric ACC pack of its ACC year and the impact-profile library in force. A filing takes
+    only published packs; an analysis run takes the newest published one, or a draft when nothing is published (BR-11.8). A replica
+    reads its own release's tables, so it is pinned to none. Kinds with no registered pack are not pinned (the worker's folder is used
+    as it is), and the run record says which kinds were pinned."""
+    if req.calculation != RECET:
+        return []
+    out = []
+    for kind in REFERENCE_PREFIXES:
+        packs = PackVersion.objects.filter(kind=kind).exclude(status=PackVersion.Status.WITHDRAWN)
+        if kind == PackVersion.Kind.ACC_ELECTRIC:
+            packs = packs.filter(acc_year=int(req.acc_version)) if req.acc_version.isdigit() else packs.none()
+        published = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at", "-registered_at").first()
+        pack = published or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            continue
+        ok, why = refdata.usable(pack, "filing" if filing else "analysis")
+        if not ok:
+            raise AccessDenied(f"{why} Publish it first, or price this as an analysis run.")
+        out.append(pack)
+    return out
+
+
+def pack_files(packs, acc: str) -> dict:
+    """The job spec's packs.files: {reference-folder path: {sha256, version}} for the files of `packs` under their kind's folder."""
+    files = {}
+    for p in packs:
+        prefix = REFERENCE_PREFIXES[p.kind].format(acc=acc)
+        for rel, entry in sorted(p.manifest.items()):
+            if rel.startswith(prefix):
+                files[rel] = {"sha256": entry["sha256"], "version": f"{p.label} {p.version}".strip()}
+    return files
 
 
 @transaction.atomic
@@ -280,9 +328,11 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
         inputs["sw_factors"] = {"key": key, "sha256": allocation_sha, "bytes": uploads.put_bytes(key, factors).size}
         run.allocation_version = version
     run.inputs = inputs
-    run.input_hash = input_hash(inputs, st, req.release.release, req.calculation, req.acc_version, allocation_sha)
+    packs = packs_for(req, filing=submission_version is not None)
+    pinned = refdata.pin(packs)
+    run.input_hash = input_hash(inputs, st, req.release.release, req.calculation, req.acc_version, allocation_sha, pinned)
     run.estimate_seconds = estimate_seconds(run)
-    run.spec = jobspec.build(run, uploads, results)
+    run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
     run.save()
     results.put_bytes(run.storage_prefix + "job.json", json.dumps(run.spec, indent=2).encode())
     audit.record(
@@ -297,6 +347,7 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
             "records": run.measure_count,
             "input_hash": run.input_hash,
             "allocation_version": str(run.allocation_version) if run.allocation_version else None,
+            "packs": {k: f"{v['label']} {v['version']}".strip() for k, v in pinned.items()},
         },
         actor=actor,
     )
@@ -464,7 +515,7 @@ def output_files(run: Run) -> list[dict]:
     names = sorted(set(listed) | set(outputs) | ({"receipt.json"} if "receipt.json" in listed else set()))
     out = []
     for name in names:
-        if name == "progress.json" or name not in listed:
+        if name == "progress.json" or name.startswith("_results/") or name not in listed:  # _results: what the Results pages read
             continue
         out.append({"name": name, "bytes": listed[name], "sha256": (outputs.get(name) or {}).get("sha256", "")})
     return out

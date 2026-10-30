@@ -4,7 +4,8 @@
 {% block content %}
 <div class="head-row">
   <h1>Calculations</h1>
-  {% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
+  <div class="actions">{% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
+    <a class="button" href="{% url 'calculations:templates' %}">Output templates</a></div>
 </div>
 <p>Cost-effectiveness runs on the ReCET engine: yours, and your organisations' (they stay with the organisation).</p>
 <p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job's tables here before running it.</p>

@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block title %}Output templates{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<div class="head-row">
+  <h1>Output templates</h1>
+  <a class="button primary" href="{% url 'calculations:template_new' %}">New template</a>
+</div>
+<p>An output template is a list of measure-level columns, in order. A run given one (New run, Checks and outputs) writes only those
+columns, in that order, to its measure-level file; the Results tables and the portfolio summary still use every column. The run's
+settings keep the columns it was given, so changing a template later does not change what a run asked for.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Output templates">
+<table class="list">
+  <caption class="sr-only">Output templates: everyone's first, then yours</caption>
+  <thead><tr><th scope="col">Template</th><th scope="col">Offered to</th><th scope="col">Columns</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for t, mine in rows %}
+  <tr>
+    <th scope="row">{{ t.name }}{% if default == t %} <span class="status">Default for your new runs</span>{% endif %}</th>
+    <td>{% if t.shared %}Everyone{% else %}Only you{% endif %}</td>
+    <td>{{ t.columns|length }}: <span class="small">{{ t.columns|slice:":6"|join:", " }}{% if t.columns|length > 6 %}, …{% endif %}</span></td>
+    <td class="nowrap">{% if mine %}<a href="{% url 'calculations:template' t.pk %}">Change<span class="sr-only"> {{ t.name }}</span></a> · {% endif %}<a href="{% url 'calculations:template_new' %}?from={{ t.pk }}">Copy<span class="sr-only"> {{ t.name }}</span></a></td>
+  </tr>
+  {% empty %}<tr><td colspan="4">No templates yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="default-h">
+  <h2 id="default-h">Default for new runs</h2>
+  <form method="post" class="row-form">{% csrf_token %}
+    <div class="field"><label for="default-template">New run starts with</label>
+      <select id="default-template" name="template" aria-describedby="default-help">
+        <option value="all"{% if not default %} selected{% endif %}>All columns</option>
+        {% for t, mine in rows %}<option value="{{ t.pk }}"{% if default == t %} selected{% endif %}>{{ t.name }}</option>{% endfor %}
+      </select>
+      <span class="helptext" id="default-help">You can still pick another template for each run.</span></div>
+    <button type="submit">Save the default</button>
+  </form>
+</section>
+{% endblock %}

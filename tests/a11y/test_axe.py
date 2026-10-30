@@ -28,6 +28,7 @@ from cedars.services.registry import service as registry
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
 
+from ..fake_recet_worker import write_results
 from .pages import PAGES
 
 pytestmark = [pytest.mark.a11y, pytest.mark.django_db(transaction=True)]
@@ -191,6 +192,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     out = finished.storage_prefix + "out/"
     storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
     storage.store("results").put_bytes(out + "receipt.json", b"{}")
+    write_results(storage.store("results").path(out), 1.0)  # the Results tables (with the engine installed; a note without it)
     calculations.finish(
         finished,
         exit_code=0,
@@ -205,6 +207,23 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     )
     queued = calculations.create_run(
         analyst, pge, calculations.RunRequest(name="2029 budget", release=release, calculation="recet", acc_version="2026"), job
+    )
+    hvac = registry.create_program(
+        pge_admin,
+        prg_id="PGE_Res_HVAC",
+        administrator=pge,
+        valid_from=date(2024, 1, 1),
+        name="Residential HVAC",
+        status="active",
+        segment="resource_acquisition",
+        sectors={"Residential": 0.9, "Commercial": 0.1},
+        start_year=2024,
+        flags={"Resource_Flag": "True", "Deemed_Flag": "True"},
+    )
+    registry.change_program(pge_admin, hvac, effective=date(2026, 7, 1), reason="advice letter 4900-E", implementer="Third-Party Solicited")
+    sw_id = factors.split(b"\n")[1].split(b",")[1].decode()
+    registry.create_program(
+        cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
     return {
         "pack": pack,
@@ -223,6 +242,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         "cpuc": cpuc,
         "allocation": allocation,
         **impact_profiles,
+        "sw": sw_id,
     }
 
 

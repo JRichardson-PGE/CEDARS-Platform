@@ -1,0 +1,41 @@
+{% extends "core/base.html" %}
+{% block title %}Programs{% endblock %}
+{% block content %}
+<h1>Programs</h1>
+<p>Every program in the registry, closed programs included. Search by name or PrgID; pick a program year to see the attributes that applied
+that year.</p>
+<form method="get" class="filters" aria-label="Filter the programs">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Apply</button>
+</form>
+<div class="head-row">
+  <p>{{ total }} program{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
+  <p><a href="{% url 'programs:catalog_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
+</div>
+<div class="hscroll" tabindex="0" role="region" aria-label="Programs">
+<table class="list">
+  <caption class="sr-only">Programs, by PrgID</caption>
+  <thead><tr><th scope="col">PrgID</th><th scope="col">Name</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col">Segment</th><th scope="col">Years</th></tr></thead>
+  <tbody>
+  {% for p, v, pa, status, segment in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></th>
+    <td>{{ v.name }}</td>
+    <td>{{ pa }}</td>
+    <td>{{ status }}</td>
+    <td>{{ segment }}</td>
+    <td class="nowrap">{% if v.start_year %}{{ v.start_year }}{% endif %}{% if v.start_year or v.end_year %} to {% endif %}{% if v.end_year %}{{ v.end_year }}{% elif v.start_year %}open{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6">No programs match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Program pages">
+  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

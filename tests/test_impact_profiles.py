@@ -172,7 +172,7 @@ def test_the_database_source_reads_the_fixture_schema(cpuc_admin, settings):
                 marks = ", ".join(["%s"] * (len(cols) + 1))
                 cur.execute(
                     f"INSERT INTO etrm_test.permutations (measure_version_id, {', '.join(cols)}) VALUES ({marks})",
-                    [p["measure_version_id"]] + [perm[c] for c in cols],
+                    [p["measure_version_id"]] + [perm.get(c) for c in cols],
                 )
     try:
         db = settings.DATABASES["default"]
@@ -322,6 +322,104 @@ def test_any_permutations_use_the_stand_in_and_every_zone_uploaded(leds, develop
     } == {"3", "12"}
     # one array per distinct shape: both zones carry the same values, stored once
     assert len({z.shape_id for z in p.current_version().zones.all()}) == 1
+
+
+EXPORT = DATA / "etrm_permutations_export.csv"  # the first 3 rows of eTRM's SWHC052-02 permutations download
+
+
+def test_export_source_reads_etrms_permutations_download(cpuc_admin):
+    (rec,) = etrm.ExportSource(EXPORT).packages()
+    assert (rec.measure_version_id, rec.statewide_id, rec.name, rec.pa_lead) == (
+        "SWHC052-02",
+        "SWHC052",
+        "Air-Cooled Chiller, Path B",
+        "SDGE",
+    )
+    assert rec.start_date.isoformat() == "2023-01-01" and len(rec.permutations) == 3
+    p = etrm._clean(rec.permutations[0])
+    assert (p["sector"], p["bldg_type"], p["bldg_vint"], p["bldg_hvac"], p["bldg_loc"]) == ("Com", "Com", "Ex", "cWtd", "CZ01")
+    technology = (p["tech_group"], p["tech_type"], p["standard_tech_group"], p["measure_application_type"])
+    assert technology == ("Chiller", "Screw", "Chiller", "NR")
+    assert (p["uec_kwh_meas"], p["uec_kwh_base1"], p["uec_kwh_base2"]) == (152.0, 215.0, 0.0)
+    assert p["electric_impact_profile_id"] == "DEER:HVAC_Chillers" and p["elec_target_sector"] == ""
+    run = etrm.sync(cpuc_admin, etrm.ExportSource(EXPORT))
+    assert run.status == EtrmSyncRun.Status.SUCCEEDED and run.packages_seen == 0  # published, and before 2027: not a load-shape package
+
+
+def test_an_export_that_is_not_a_permutations_download_fails_the_sync(cpuc_admin, tmp_path):
+    bad = tmp_path / "other.csv"
+    bad.write_text("a,b\n1,2\n")
+    run = etrm.sync(cpuc_admin, etrm.ExportSource([bad]))
+    assert run.status == EtrmSyncRun.Status.FAILED and "not an eTRM permutations download" in run.error
+
+
+def draft_export(path, rows: list[dict]) -> Path:
+    """An eTRM download in the sample's layout, each row the sample's first with these labels changed."""
+    import csv
+
+    lines = EXPORT.read_text(encoding="utf-8").splitlines()
+    reader = csv.DictReader(lines[1:])
+    base = next(reader)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        f.write(lines[0] + "\r\n")
+        w = csv.DictWriter(f, fieldnames=reader.fieldnames, quoting=csv.QUOTE_ALL)
+        w.writeheader()
+        for r in rows:
+            w.writerow({**base, "Measure Version ID": "SWHC052-03-draft", "Effective Start Date": "2027-01-01", **r})
+    return path
+
+
+def test_a_draft_export_syncs_and_pairs_each_base_case_on_its_own_technology(cpuc_admin, make_user, tmp_path):
+    sdge = access.create_organisation(cpuc_admin, code="SDGE", name="San Diego Gas & Electric", kind="pa", pa_type="IOU")
+    admin, dev = make_user("admin@sdge.com"), make_user("dev@sdge.com")
+    access.grant(cpuc_admin, admin, sdge, "org.admin")
+    access.grant(admin, dev, sdge, "impact_profiles.submit")
+    ar = {
+        "Building Location": "CZ10",
+        "Measure Application Type": "AR",
+        "Measure Technology ID": "Msr-Screw",
+        "Pre-Existing Technology ID": "Pre-Recip",
+        "Pre-Existing Technology Type": "Reciprocating",  # the pre-existing chiller is not a screw chiller
+        "Standard Technology ID": "Std-Screw",
+        "Measure UEC kWh": "150",
+        "First Baseline - UEC kWh": "250",
+        "Second Baseline - UEC kWh": "200",
+    }
+    path = draft_export(
+        tmp_path / "SWHC052-03-draft.csv",
+        [ar, {**ar, "Delivery Type": "UpDeemed"}, {**ar, "Delivery Type": "DnDeemed", "Offering ID": "B"}],
+    )
+    run = etrm.sync(cpuc_admin, etrm.ExportSource([path]))
+    assert (run.packages_seen, run.imported, run.excluded) == (1, 1, 0)
+    package = MeasurePackage.objects.get(measure_version_id="SWHC052-03-draft")
+    assert package.current.permutation_count == 1  # three rows differing only in delivery type and offering
+    p = package.current.permutations.get()
+    assert p.baselines() == [("1st", ("Chiller", "Reciprocating", "Pre-Recip"), 250.0), ("2nd", ("Chiller", "Screw", "Std-Screw"), 200.0)]
+
+    key = {"Sector": "Com", "BldgType": "Com", "BldgHVAC": "cWtd", "BldgLoc": "CZ10", "TechGroup": "Chiller"}
+    vals = {"Msr-Screw": SHAPE["Msr-LED"], "Pre-Recip": SHAPE["Std-Fluor"], "Std-Screw": unit(1 + 0.3 * np.cos(2 * np.pi * H / 8760))}
+    series = [({**key, "TechType": "Reciprocating" if t == "Pre-Recip" else "Screw", "TechID": t}, v) for t, v in vals.items()]
+    u = upload(dev, sdge, package, load_shape_csv(series), name="chillers.csv")
+    assert u.status == LoadShapeUpload.Status.ACCEPTED, list(u.findings.values_list("message", flat=True))[:3]
+    s = generation.generate(dev, package)
+    assert s["created"] == 2, s
+    first = ImpactProfile.objects.get(profile_key="Com*Ex*cWtd*Msr-Screw*Pre-Recip")
+    assert first.target_sector == "Com"  # the download has no electric target sector
+    a = shapes.load(first.current_version().zones.get().shape)
+    assert np.allclose(a, (vals["Pre-Recip"] * 250 - vals["Msr-Screw"] * 150) / 100)
+
+    # a base-case shape under the measure's TechType does not stand in for the pre-existing reciprocating chiller
+    wrong = [({**key, "TechType": "Screw", "TechID": t}, v) for t, v in vals.items()]
+    u = upload(dev, sdge, package, load_shape_csv(wrong), name="wrong.csv")
+    assert u.status == LoadShapeUpload.Status.REJECTED
+    assert u.findings.filter(rule_id="LS-E01").exists() or u.findings.filter(rule_id="LS-E02").exists()
+
+
+def test_a_download_without_technology_ids_is_excluded(cpuc_admin, tmp_path):
+    path = draft_export(tmp_path / "no_ids.csv", [{}])
+    run = etrm.sync(cpuc_admin, etrm.ExportSource([path]))
+    assert run.excluded == 1
+    assert "MeasTechID" in run.exclusions.get().reason and "base case TechID" in run.exclusions.get().reason
 
 
 def test_accelerated_replacement_gets_a_profile_per_baseline(synced, cpuc_admin, make_user):

@@ -10,7 +10,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
     dependencies = [
         ("accounts", "0002_api_tokens"),
-        ("calculations", "0001_initial"),
+        ("calculations", "0003_shipped_output_templates"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

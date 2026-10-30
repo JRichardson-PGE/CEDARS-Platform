@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Change {{ p.prg_id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></p>
+<h1>Change {{ p.prg_id }}</h1>
+<p>Your change starts a new version on its effective date; the version before it ends the day before and is kept as it was. The date
+can be in the future, but not on or before {{ latest.valid_from|date:"Y-m-d" }}, when the latest version started. Only the attributes you
+change are recorded as changed.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save the change</button> <a href="{% url 'programs:program' p.prg_id %}">Cancel</a></div>
+</form>
+{% endblock %}

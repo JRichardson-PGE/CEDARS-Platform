@@ -1,8 +1,9 @@
 """Generating deemed impact profiles from a package's load shapes, as CEDARS' Load Shape Tool does.
 
-For each permutation of the package's current eTRM version, the measure-case shape (TechID = the measure technology) and the base-case
-shape (TechID = the baseline technology) of the same Sector, BldgType, BldgVint, BldgHVAC and TechGroup / TechType are paired per
-climate zone, and the impact profile is CEDARS' formula (`_calculate_impacts` in its source):
+For each permutation of the package's current eTRM version, the measure-case shape (the measure technology's TechGroup, TechType and
+TechID) and the base-case shape (the baseline technology's own TechGroup, TechType and TechID, which eTRM gives separately: a heat pump
+replacing a furnace has a furnace base case) of the same Sector, BldgType, BldgVint and BldgHVAC are paired per climate zone, and the
+impact profile is CEDARS' formula (`_calculate_impacts` in its source):
 
     impact[h] = (base[h] x UEC_base - measure[h] x UEC_measure) / (UEC_base - UEC_measure)
 
@@ -87,10 +88,8 @@ def pair(package: MeasurePackage) -> Outcome:
         return loaded[v.shape_id]
 
     for p in package.current.permutations.all():
-        baselines = [("1st", p.base1_tech_id, p.uec_kwh_base1)]
-        if p.base2_tech_id and p.uec_kwh_base2 is not None:
-            baselines.append(("2nd", p.base2_tech_id, p.uec_kwh_base2))
-        mine = {k: v for k, v in current.items() if (k[0], k[2], k[5], k[6]) == (p.sector, p.bldg_vint, p.tech_group, p.tech_type)}
+        techs = p.technologies()
+        mine = {k: v for k, v in current.items() if (k[0], k[2]) == (p.sector, p.bldg_vint) and k[5:] in techs}
         if not mine:
             out.skipped.append((p, "no load shapes uploaded for it"))
             continue
@@ -103,8 +102,8 @@ def pair(package: MeasurePackage) -> Outcome:
             out.skipped.append((p, why or f"no load shapes uploaded for BldgHVAC {p.bldg_hvac}"))
             continue
         loc = zone(p.bldg_loc)
-        for baseline, base_tech, uec_base in baselines:
-            key = profile_key(p.bldg_type, p.bldg_vint, p.bldg_hvac, p.measure_tech_id, base_tech)
+        for baseline, base_tech, uec_base in p.baselines():
+            key = profile_key(p.bldg_type, p.bldg_vint, p.bldg_hvac, p.measure_tech_id, base_tech[2])
             if baseline == "1st" and p.electric_impact_profile_id and p.electric_impact_profile_id != key:
                 out.notes.append(f"{p}: eTRM's Electric Impact Profile ID {p.electric_impact_profile_id!r} is not the formula's {key!r}.")
             if uec_base is None or p.uec_kwh_meas is None or uec_base == p.uec_kwh_meas:
@@ -116,8 +115,8 @@ def pair(package: MeasurePackage) -> Outcome:
             )
             made = 0
             for z in zones:
-                m = current.get((p.sector, btype, p.bldg_vint, hvac, z, p.tech_group, p.tech_type, p.measure_tech_id))
-                b = current.get((p.sector, btype, p.bldg_vint, hvac, z, p.tech_group, p.tech_type, base_tech))
+                m = current.get((p.sector, btype, p.bldg_vint, hvac, z, *p.measure_technology))
+                b = current.get((p.sector, btype, p.bldg_vint, hvac, z, *base_tech))
                 if m is None or b is None:
                     continue
                 impact = calculate_impacts(values(b), values(m), uec_base, p.uec_kwh_meas)
@@ -143,7 +142,7 @@ def pair(package: MeasurePackage) -> Outcome:
                 out.years.setdefault((key, sector), year)
                 made += 1
             if not made:
-                missing = "measure-case" if not any(k[7] == p.measure_tech_id for k in mine) else "base-case"
+                missing = "measure-case" if not any(k[5:] == p.measure_technology for k in mine) else "base-case"
                 out.skipped.append((p, f"{baseline} baseline: no climate zone has both shapes (the {missing} shape is missing)"))
     return out
 

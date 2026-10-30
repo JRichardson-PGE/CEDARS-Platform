@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}{% if template %}Change {{ template.name }}{% else %}New output template{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:templates' %}">Output templates</a></p>
+<h1>{% if template %}Change “{{ template.name }}”{% elif source %}Copy of “{{ source.name }}”{% else %}New output template{% endif %}</h1>
+{% if not catalog %}
+<p class="alert" role="alert">No field catalog is published yet, so a template's columns cannot be checked. A CPUC system administrator publishes one on the data dictionary.</p>
+{% else %}
+<p>Write the columns in the order the file should have them, one per line, or tick them below: ticked columns are added at the end when
+you save. Every field's definition is in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+<form method="post" class="stack" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="form-narrow stack">
+    {{ form.name.as_field_group }}
+    {{ form.columns.as_field_group }}
+    <p class="small" id="columns-count">{{ count }} column{{ count|pluralize }} in the template{% if unknown %}; not measure-level columns: {{ unknown|join:", " }}{% endif %}.</p>
+    {% if form.shared %}{{ form.shared.as_field_group }}{% endif %}
+    {{ form.make_default.as_field_group }}
+  </div>
+  <fieldset><legend>Add columns</legend>
+    <p class="small">Grouped as the field catalog groups them, inputs first. Columns already in the template are marked.</p>
+    {% for group, fields in catalog.groups %}
+    <details class="column-group">
+      <summary>{{ group }} <span class="small muted">({{ fields|length }})</span></summary>
+      <div class="checks">
+      {% for f in fields %}
+        <label><input type="checkbox" name="add" value="{{ f.name }}"{% if f.name in ticked %} checked{% endif %}> {{ f.name }}{% if f.name in in_template %} <span class="small muted">(in the template)</span>{% endif %}</label>
+      {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+  </fieldset>
+  <div class="actions">
+    <button type="submit" class="primary">Save the template</button>
+    {% if template %}<button type="submit" name="action" value="delete" formnovalidate>Delete the template</button>{% endif %}
+    <a href="{% url 'calculations:templates' %}">Cancel</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}
