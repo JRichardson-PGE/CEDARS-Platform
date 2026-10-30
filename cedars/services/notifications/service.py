@@ -134,7 +134,8 @@ def _send(n: Notification) -> None:
         x for x in [n.body, link, "Change what you are sent: " + settings.CEDARS_BASE_URL.rstrip("/") + "/notifications/settings/"] if x
     )
     try:
-        send_mail(f"CEDARS: {n.title}"[:200], text, None, [n.user.email])
+        prefix = "[SANDBOX] " if settings.ENVIRONMENT == "sandbox" else ""
+        send_mail(f"{prefix}CEDARS: {n.title}"[:200], text, None, [n.user.email])
     except Exception as e:  # the message stays on the page; the error is shown to admins and the user
         n.email_error = str(e)[:1000]
         log.warning("notification email to user %s failed: %s", n.user_id, e)

@@ -354,3 +354,20 @@ def expired_drafts(cutoff):
                 submission.delete()
 
         yield f"submission_version:{v.pk}", delete
+
+
+def expired_sandbox_filings(cutoff):
+    """In the sandbox only: whole submissions (every version, reopen request) started before the cutoff (record class "sandbox_data")."""
+    from django.conf import settings
+
+    if settings.ENVIRONMENT != "sandbox":
+        return
+    for sub in Submission.objects.filter(created_at__lt=cutoff).select_related("organisation"):
+
+        def delete(sub=sub):
+            audit.record("submission.sandbox_expired", obj=sub, organisation=sub.organisation)
+            sub.reopen_requests.all().delete()
+            sub.versions.all().delete()
+            sub.delete()
+
+        yield f"submission:{sub.pk}", delete

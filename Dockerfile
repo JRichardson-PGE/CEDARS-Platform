@@ -18,6 +18,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY manage.py ./
 COPY cedars ./cedars
+COPY data ./data
 RUN uv sync --locked --no-dev \
  && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput
 
