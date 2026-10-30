@@ -16,6 +16,7 @@ class PackVersion(models.Model):
         ACC_GAS = "acc_gas", "ACC, gas (monthly)"
         IMPACT_PROFILES = "impact_profiles", "Impact-profile library"
         ETRM_SNAPSHOT = "etrm_snapshot", "eTRM measures and permutations"
+        ETRM_PERMUTATIONS = "etrm_permutations", "eTRM published permutations (deemed values)"
         DEER = "deer", "DEER package"
         VALUE_LISTS = "value_lists", "Value lists"
         RUN_PARAMETERS = "run_parameters", "Run parameters"
@@ -97,3 +98,24 @@ class TieOut(models.Model):
 
     def __str__(self):
         return f"{self.pack} {self.name}: {'passed' if self.passed else 'failed'}"
+
+
+class EtrmPermutation(models.Model):
+    """One published eTRM permutation of an eTRM permutations pack, by its Measure Detail ID (a claim's MeasDetailID): the deemed values
+    the platform reads, under eTRM's own column labels (refdata.etrm.KEPT; blanks left out). Indexed from the pack's files when it is
+    loaded, and never changed: a new download is a new pack."""
+
+    pack = models.ForeignKey(PackVersion, on_delete=models.CASCADE, related_name="etrm_permutations")
+    measure_detail_id = models.CharField(max_length=255)
+    key = models.CharField(max_length=255, help_text="measure_detail_id in lower case, for the lookup")
+    measure_version_id = models.CharField(max_length=60, help_text="e.g. SWHC052-02, in lower case")
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    values = models.JSONField(default=dict)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["pack", "key"], name="refdata_one_permutation_per_pack")]
+        indexes = [models.Index(fields=["pack", "measure_version_id"], name="refdata_perm_version")]
+
+    def __str__(self):
+        return self.measure_detail_id

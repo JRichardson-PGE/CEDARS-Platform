@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import service
+from . import etrm, service
 from .models import PackVersion, TieOutRequirement
 
 
@@ -48,6 +48,9 @@ def detail(request, pk):
     for t in pack.tie_outs.order_by("recorded_at", "id"):
         latest[t.name] = t
     requirements = [(r, latest.get(r.name)) for r in TieOutRequirement.objects.filter(kind=pack.kind).order_by("name")]
+    ctx = {}
+    if pack.kind == etrm.KIND:
+        ctx = _permutation(pack, request.GET.get("id", "").strip())
     return render(
         request,
         "refdata/detail.html",
@@ -58,5 +61,22 @@ def detail(request, pk):
             "requirements": requirements,
             "outstanding": service.outstanding(pack),
             "tie_outs": pack.tie_outs.select_related("recorded_by"),
+            **ctx,
         },
     )
+
+
+def _permutation(pack: PackVersion, mdid: str) -> dict:
+    """An eTRM permutations pack's lookup: the permutation a MeasDetailID names, each value with the claims field it fills."""
+    out = {"etrm": True, "mdid": mdid, "permutations": pack.etrm_permutations.count()}
+    if not mdid:
+        return out
+    p = etrm.lookup(pack, [mdid]).get(mdid.lower())
+    out["permutation"] = p
+    if p is not None:
+        fills = {}
+        for table, fields in (("Claim", etrm.CLAIM_FIELDS), ("Measure", etrm.MEASURE_FIELDS), ("Measure", etrm.MEASURE_DESCRIPTIONS)):
+            for name, col in fields.items():
+                fills.setdefault(col, []).append(f"{table}.{name}")
+        out["values"] = [(col, value, ", ".join(fills.get(col, []))) for col, value in sorted(p.values.items())]
+    return out
