@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings as conf
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 
 
 class EngineRelease(models.Model):
@@ -111,3 +112,39 @@ class Run(models.Model):
         if self.started_at and self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()
         return None
+
+
+class OutputTemplate(models.Model):
+    """An output template (BR-06.10): a named list of measure-level columns, in order. A run given one writes only those columns, in
+    that order, to its measure-level file; the Results tables still read every column. A template with no owner is offered to everyone
+    and kept by CPUC system administrators (the two ReCET ships with are added by migration); the rest are their owner's own."""
+
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name="output_templates")
+    name = models.CharField(max_length=60)
+    columns = models.JSONField(default=list, help_text="Field names (the dictionary's canonical names), in file order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [models.F("owner").asc(nulls_first=True), Lower("name")]
+        constraints = [
+            models.UniqueConstraint("owner", Lower("name"), name="calculations_template_name_per_owner"),
+            models.UniqueConstraint(Lower("name"), condition=Q(owner__isnull=True), name="calculations_shared_template_name"),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def shared(self) -> bool:
+        return self.owner_id is None
+
+
+class OutputTemplateDefault(models.Model):
+    """The output template a person's new runs start with (none: every column)."""
+
+    user = models.OneToOneField(conf.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="output_template_default")
+    template = models.ForeignKey(OutputTemplate, on_delete=models.CASCADE, related_name="+")
+
+    def __str__(self):
+        return f"{self.user}: {self.template}"

@@ -51,6 +51,8 @@ PAGES = [
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
     ("calculations", "/calculations/", "analyst"),
+    ("output-templates", "/calculations/templates/", "analyst"),
+    ("output-template-new", "/calculations/templates/new/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),

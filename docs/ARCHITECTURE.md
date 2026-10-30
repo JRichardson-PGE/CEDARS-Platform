@@ -84,5 +84,9 @@ how far it is built. Update the Status column in the PR that changes it.
   PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
   snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
   the CPUC's cloud team reviews it in their account.
+- Output templates (BR-06.10; `calculations/output_templates.py`, page `/calculations/templates/`) name fields of the published field
+  catalog (Measure inputs and outputs; CET and older names saved as the canonical name). Templates with no owner are offered to everyone
+  and kept by CPUC system administrators (ReCET's two shipped ones added by migration); the rest are their owner's. A run carries the
+  chosen template's columns in its settings (`output_template`, `output_template_name`), so a later change never alters what it asked for.
 - The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
   subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it.
