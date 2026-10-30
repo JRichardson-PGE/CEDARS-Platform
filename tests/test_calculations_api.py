@@ -1,14 +1,18 @@
+import json
+
 import pytest
 from django.test import Client
 
-from cedars.modules.calculations import dispatch
+from cedars.modules.calculations import dispatch, output_templates
 from cedars.modules.calculations.models import Run
 from cedars.services.accounts import service as access
 from cedars.services.accounts import tokens
 from cedars.services.audit.models import AuditEvent
+from cedars.services.dictionary import service as dictionary
 from cedars.services.registry import service as registry
 
 from .test_calculations import DATA, analyst, job_zip, release, worker  # noqa: F401 - fixtures
+from .test_output_templates import CATALOG
 
 pytestmark = pytest.mark.django_db
 
@@ -121,3 +125,32 @@ def test_statewide_run_names_its_allocation_version(key, release, tmp_path, cpuc
     assert r.status_code == 201, r.content
     assert r.json()["allocation_version"] == str(version) and "sw_factors" in r.json()["inputs"]
     assert start(key, tmp_path, allocate_statewide="true", allocation_version=99999).json()["detail"] == "No allocation version 99999."
+
+
+def test_a_run_names_its_output_template_or_columns(key, release, tmp_path, analyst, make_user):  # noqa: F811
+    dictionary.load_catalog(None, json.loads(CATALOG.read_text(encoding="utf-8")))
+    mine = output_templates.save(analyst, "Mine", ["CEInputID", "TRCRatio"])
+    theirs = output_templates.save(make_user("someone@example.com"), "Theirs", ["CEInputID"])
+    listed = Client().get("/api/v1/calculations/templates", **bearer(key)).json()
+    assert [t["name"] for t in listed["templates"]] == ["Key results", "Participant costs", "Mine"] and listed["default"] is None
+    assert listed["templates"][2] == {"id": mine.pk, "name": "Mine", "shared": False, "columns": ["CEInputID", "TRCRatio"]}
+
+    assert start(key, tmp_path).status_code == 201
+    assert "output_template" not in Run.objects.get().settings  # none named: every column
+    r = start(key, tmp_path, output_template=mine.pk)
+    assert r.status_code == 201, r.content
+    assert r.json()["settings"]["output_template"] == ["CEInputID", "TRCRatio"] and r.json()["settings"]["output_template_name"] == "Mine"
+    output_templates.set_default(analyst, mine)
+    assert start(key, tmp_path, output_template="default").json()["settings"]["output_template_name"] == "Mine"
+    r = start(key, tmp_path, output_columns="CEInputID, E3ClimateZone\nPOC_ACC")
+    assert r.json()["settings"]["output_template"] == ["CEInputID", "AC_Climate_Zone", "Used_ACCVersion"]  # canonical names
+
+    for fields, message in (
+        ({"output_template": theirs.pk}, f"No output template {theirs.pk}."),
+        ({"output_template": "x"}, "No output template x."),
+        ({"output_columns": "CEInputID, Nope"}, "Not measure-level columns: Nope."),
+        ({"output_template": mine.pk, "output_columns": "CEInputID"}, "not both"),
+    ):
+        r = start(key, tmp_path, **fields)
+        assert r.status_code == 400 and message in r.json()["detail"]
+    assert Run.objects.count() == 4
