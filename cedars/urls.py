@@ -8,5 +8,6 @@ urlpatterns = [
     path("dictionary/", include("cedars.services.dictionary.urls")),
     path("rules/", include("cedars.services.rules.urls")),
     path("filings/", include("cedars.services.submissions.urls")),
+    path("reference-data/", include("cedars.services.refdata.urls")),
     path("django-admin/", admin.site.urls),
 ]
