@@ -288,7 +288,27 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst):
     v = budgets.confirm(analyst, v)
     bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
     draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
-    return {"tual": tual, "mcal": mcal, "budget_version": v, "budget_draft": draft}
+    return {"tual": tual, "mcal": mcal, "budget_version": v, "budget_draft": draft, **_fund_shifts(cpuc_admin, pge, analyst, tual.cycle)}
+
+
+def _fund_shifts(cpuc_admin, pge, analyst, cycle):
+    """A shift in effect, a statewide one waiting for its co-funder (SCE, by a confirmed allocation version) and an unbalanced draft."""
+    from cedars.modules.budgets import shifts
+
+    from ..test_fund_shifts import FACTORS, L
+
+    registry.confirm_allocation(cpuc_admin, registry.import_allocation_csv(cpuc_admin, FACTORS.encode(), label="SW X", purpose="filing"))
+    registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="SW X")
+    made = {}
+    for key, title, lines, submit in [
+        ("shift_effective", "Into residential HVAC", L(("PGE_Res_HVAC", 2029, 100), ("PGE_Com_Ltg", 2028, -100)), True),
+        ("shift_waiting", "Into SW X", L(("SW_X", 2028, 50), ("PGE_Com_Ltg", 2028, -50)), True),
+        ("shift_draft", "Not balanced yet", L(("PGE_Res_HVAC", 2028, 10), ("PGE_Com_Ltg", 2028, -5000)), False),
+    ]:
+        s = shifts.create(analyst, pge, cycle, title=title, reason="the scene's shift")
+        shifts.set_lines(analyst, s, lines)
+        made[key] = (shifts.submit(analyst, s) if submit else s).pk
+    return made
 
 
 def _session_cookie(user, method, live_server):

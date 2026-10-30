@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 # The ten ProgramCost fields CET adds up into a program's cost (ReCET OUTPUT_FIELDS, WeightedProgramCost: T_r), in the spec's order.
@@ -78,3 +79,71 @@ class BudgetResult(models.Model):
 
     def __str__(self):
         return f"{self.prg_id} {self.year} {self.pa}"
+
+
+class FundShift(models.Model):
+    """A fund shift (BR-14.4): dollars moved between programs within a filing cycle, not part of any filing and with no
+    cost-effectiveness run. Its lines add up to zero. Submitted, it takes effect once every co-funder of a statewide program in it
+    has acknowledged it (at once when there is none); the approved filed budget never changes, the operating budget does (BR-04.7)."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        WAITING = "waiting", "Waiting for co-funders"
+        EFFECTIVE = "effective", "In effect"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="fund_shifts")
+    cycle = models.ForeignKey("registry.FilingCycle", on_delete=models.PROTECT, related_name="fund_shifts")
+    title = models.CharField(max_length=200)
+    reason = models.TextField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    effective_at = models.DateTimeField(null=True, blank=True)
+    cofunders = models.JSONField(
+        default=dict, blank=True, help_text="Set on submission: {funding PA code: [statewide 'PrgID year' it funds in this shift]}"
+    )
+    withdrawn_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.organisation.code} fund shift {self.pk}: {self.title}"
+
+
+class FundShiftLine(models.Model):
+    """One program-year's amount in a shift: negative moves dollars out of it, positive into it."""
+
+    shift = models.ForeignKey(FundShift, on_delete=models.CASCADE, related_name="lines")
+    prg_id = models.CharField("PrgID", max_length=60)
+    year = models.PositiveSmallIntegerField()
+    amount = models.DecimalField(max_digits=16, decimal_places=2)
+
+    class Meta:
+        ordering = ["year", "prg_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["shift", "prg_id", "year"], name="budgets_one_shift_line"),
+            models.CheckConstraint(condition=~models.Q(amount=0), name="budgets_shift_line_not_zero"),
+        ]
+
+    def __str__(self):
+        return f"{self.prg_id} {self.year}: {self.amount}"
+
+
+class FundShiftAcknowledgement(models.Model):
+    """A co-funder's acknowledgement of a shift that moves its share of a statewide program."""
+
+    shift = models.ForeignKey(FundShift, on_delete=models.CASCADE, related_name="acknowledgements")
+    organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="+")
+    acknowledged_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    acknowledged_at = models.DateTimeField(auto_now_add=True)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["shift", "organisation"], name="budgets_one_acknowledgement")]
+
+    def __str__(self):
+        return f"{self.organisation.code} acknowledged {self.shift_id}"

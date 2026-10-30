@@ -4,6 +4,7 @@
 <div class="head-row">
   <h1>Budgets</h1>
   <div class="actions">
+    <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
     <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
     {% if sysadmin %}<a class="button" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
   </div>

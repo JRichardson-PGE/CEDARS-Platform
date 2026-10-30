@@ -1,0 +1,76 @@
+{% extends "core/base.html" %}
+{% load budget_money %}
+{% block title %}{{ s.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
+<h1>{{ s.title }}</h1>
+<dl class="facts">
+  <dt>PA</dt><dd>{{ s.organisation.code }}</dd>
+  <dt>Cycle</dt><dd>{{ s.cycle }}</dd>
+  <dt>Status</dt><dd>{{ s.get_status_display }}{% if s.effective_at %} since {{ s.effective_at|date:"Y-m-d" }}{% endif %}</dd>
+  <dt>Reason</dt><dd>{{ s.reason }}</dd>
+  <dt>Started</dt><dd>{{ s.created_at|date:"Y-m-d" }} by {{ s.created_by.email }}</dd>
+  {% if s.submitted_at %}<dt>Submitted</dt><dd>{{ s.submitted_at|date:"Y-m-d" }} by {{ s.submitted_by.email }}</dd>{% endif %}
+  {% if s.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ s.withdrawn_reason }}</dd>{% endif %}
+</dl>
+
+<section aria-labelledby="lines-h">
+<h2 id="lines-h">What it moves</h2>
+{% if lines %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Lines of the shift">
+<table class="list">
+  <caption class="sr-only">Amounts by program and year; negative moves money out</caption>
+  <thead><tr><th scope="col">PrgID</th><th scope="col">Program year</th><th scope="col">Amount</th></tr></thead>
+  <tbody>{% for ln in lines %}<tr><th scope="row">{{ ln.prg_id }}</th><td>{{ ln.year }}</td><td class="num">{{ ln.amount|money:2 }}</td></tr>{% endfor %}</tbody>
+  <tfoot>
+    <tr><th scope="row">Moved in</th><td></td><td class="num">{{ totals.moved_in|money:2 }}</td></tr>
+    <tr><th scope="row">Moved out</th><td></td><td class="num">{{ totals.moved_out|money:2 }}</td></tr>
+    <tr><th scope="row">Net (must be $0.00)</th><td></td><td class="num">{{ totals.net|money:2 }}</td></tr>
+  </tfoot>
+</table>
+</div>
+{% else %}<p>No amounts yet.</p>{% endif %}
+{% if editable %}<p><a class="button" href="{% url 'budgets:shift_lines' s.pk %}">{% if lines %}Change the amounts{% else %}Enter the amounts{% endif %}</a></p>{% endif %}
+{% if problems %}<div class="alert"><p>Before it can be submitted:</p><ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
+{% if warnings %}<p>Warning, not blocking:</p><ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
+</section>
+
+{% if s.cofunders %}
+<section aria-labelledby="cofunders-h">
+<h2 id="cofunders-h">Co-funders</h2>
+<p>The other PAs funding the statewide programs it moves (their allocation factors). It takes effect once each has acknowledged it.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Co-funders">
+<table class="list">
+  <caption class="sr-only">Co-funders and their acknowledgements</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Statewide program-years</th><th scope="col">Acknowledged</th></tr></thead>
+  <tbody>{% for code, items, a in cofunders %}<tr>
+    <th scope="row">{{ code }}</th><td>{{ items|join:", " }}</td>
+    <td>{% if a %}Yes, {{ a.acknowledged_at|date:"Y-m-d" }} by {{ a.acknowledged_by.email }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}Not yet{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
+{% if editable and lines and not problems %}
+<form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Submit the shift</button> <span class="small muted">{% if s.status == "draft" %}It takes effect at once, or when every co-funder of a statewide program in it has acknowledged it.{% endif %}</span></form>
+{% elif editable and lines %}
+<form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit">Submit the shift</button> <span class="small muted">It will be rejected until the problems above are fixed.</span></form>
+{% endif %}
+
+{% if can_acknowledge %}
+<form method="post" action="{% url 'budgets:shift_acknowledge' s.pk %}" class="stack form-narrow">{% csrf_token %}
+  <h2>Acknowledge for {{ org.code }}</h2>
+  <div class="field"><label for="ack-note">Note (optional)</label><textarea id="ack-note" name="note" rows="2"></textarea></div>
+  <div class="actions"><button type="submit" class="primary">Acknowledge</button> <span class="small muted">Marks the shift complete for {{ org.code }}'s share.</span></div>
+</form>
+{% endif %}
+
+{% if can_withdraw %}
+<form method="post" action="{% url 'budgets:shift_withdraw' s.pk %}" class="stack form-narrow">{% csrf_token %}
+  <div class="field"><label for="withdraw-reason">Reason for withdrawing</label><textarea id="withdraw-reason" name="reason" rows="2" required></textarea></div>
+  <div class="actions"><button type="submit">Withdraw the shift</button></div>
+</form>
+{% endif %}
+{% if s.status == "effective" %}<p class="small muted">A shift in effect is not withdrawn: a new shift moves the money back. <a href="{% url 'budgets:operating' s.cycle.first_year %}?org={{ s.organisation.code }}">{{ s.organisation.code }}'s operating budget</a>.</p>{% endif %}
+{% endblock %}

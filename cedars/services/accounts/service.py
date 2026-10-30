@@ -79,12 +79,16 @@ def is_org_admin(user: User, organisation: Organisation) -> bool:
     return has_permission(user, organisation, perms.ORG_ADMIN)
 
 
-def org_admins(organisation: Organisation):
+def holders(organisation: Organisation, permission: str):
+    """The users who hold the permission in the organisation now."""
     return User.objects.filter(
-        pk__in=_effective(Grant.objects.filter(membership__organisation=organisation, permission=perms.ORG_ADMIN)).values(
-            "membership__user"
-        )
+        pk__in=_effective(Grant.objects.filter(membership__organisation=organisation, permission=permission)).values("membership__user"),
+        is_active=True,
     )
+
+
+def org_admins(organisation: Organisation):
+    return holders(organisation, perms.ORG_ADMIN)
 
 
 def organisations_of(user: User):

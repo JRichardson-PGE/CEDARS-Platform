@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% load budget_money %}
+{% block title %}Fund shifts{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
+<div class="head-row">
+  <h1>Fund shifts</h1>
+  {% if can_submit %}<div class="actions"><a class="button" href="{% url 'budgets:shift_new' %}">New fund shift</a></div>{% endif %}
+</div>
+<p>A fund shift moves dollars between programs within a filing cycle, across its program years if need be. It is not part of a budget
+filing and has no cost-effectiveness run. Its amounts must add up to zero. A shift that touches a statewide program takes effect once
+every other PA funding that program has acknowledged it. The approved budget never changes; the operating budget does.</p>
+{% if org and cycles %}
+<p>{{ org.code }}'s operating budget: {% for c in cycles %}<a href="{% url 'budgets:operating' c.first_year %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}
+
+{% if waiting %}
+<section aria-labelledby="waiting-h">
+<h2 id="waiting-h">Waiting for {{ org.code }} to acknowledge</h2>
+<ul>{% for s in waiting %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a> ({{ s.cycle }}), submitted {{ s.submitted_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<section aria-labelledby="all-h">
+<h2 id="all-h">Shifts you can see</h2>
+{% if shifts %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Fund shifts">
+<table class="list">
+  <caption class="sr-only">Fund shifts, newest first</caption>
+  <thead><tr><th scope="col">Shift</th><th scope="col">PA</th><th scope="col">Cycle</th><th scope="col">Status</th><th scope="col">Started</th></tr></thead>
+  <tbody>{% for s in shifts %}<tr>
+    <th scope="row"><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></th>
+    <td>{{ s.organisation.code }}</td><td>{{ s.cycle }}</td><td>{{ s.get_status_display }}</td><td class="nowrap">{{ s.created_at|date:"Y-m-d" }}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>None yet.</p>{% endif %}
+</section>
+{% endblock %}
