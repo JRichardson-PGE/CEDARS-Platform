@@ -8,17 +8,21 @@ The records come from saved JSON files (a capture of those endpoints) or straigh
 (the PDA keeps no versions), and keeps its PDA id, so its old links redirect to it (views.pda_*). A document already imported is
 skipped, so the import can be run again after a failure. --dry-run reads and maps everything and stores nothing.
 
-Assumptions to confirm on the first dry run against the capture (the public API is documented only by its pages; capture of 2026-10-30,
-CEDARS-Research notes/pda_psr_capture_findings.md), all in FIELDS and _work_order below:
-  - dateUploaded is when the document was filed and published (the cards' "Published" date);
-  - pubViewStart and pubViewEnd are the comment window (the upload form's Comment Start and Comment End; the cards' "Comments End");
-  - a work order's number is its contName, else its cpucContID.
+Field meanings, checked against the capture of 2026-10-30 (2,669 published records; CEDARS-Research notes/pda_psr_capture_findings.md):
+  - dateUploaded (UTC) is when the document was filed and published: the cards' "Published" date, shown in Pacific time;
+  - pubViewStart and pubViewEnd are the comment window (the cards' "Comments End"); 2000-01-01 is the PDA's "no date" (433 starts),
+    a window that starts after it ends (9 records) opens on its last day;
+  - a work order is the record's workOrder, else its task's contract (all 179 tasked records); cpucContID holds the CPUC contract
+    number where there is one ("23NC0465"), contName a description, so the number is cpucContID when it looks like a contract number
+    and unique, else PDA-<contractID>;
+  - three main file names end in leftover HTML ("<", "</a>"), cut off for the stored name; the old links keep the raw name.
 Files of a type the library refuses (16 .exe main files) are kept inside a zip of the same name, never served as they are. Comment
 attachments come only from a folder (comments/<commentID>/<file name>): the public API names them but no link to them is known."""
 
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 import urllib.parse
 import urllib.request
@@ -68,8 +72,12 @@ class FolderSource:
         self.root = Path(root)
 
     def file(self, pda_id: int, name: str) -> Path | None:
-        path = self.root / str(pda_id) / name
-        return path if path.is_file() else None
+        """The file under its PDA name, or under the name cut before leftover HTML (which cannot be a file name on Windows)."""
+        for candidate in (name, name.split("<", 1)[0].strip()):
+            path = self.root / str(pda_id) / candidate
+            if candidate and "/" not in candidate and path.is_file():
+                return path
+        return None
 
     def comment_file(self, comment_id: int, name: str) -> Path | None:
         path = self.root / "comments" / str(comment_id) / name
@@ -88,7 +96,7 @@ class SiteSource:
             return json.load(r)
 
     def file(self, pda_id: int, name: str) -> Path | None:
-        target = self.work / str(pda_id) / name
+        target = self.work / str(pda_id) / urllib.parse.quote(name, safe="")
         if target.is_file():
             return target
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -114,9 +122,13 @@ def load_json(path: Path):
 # --- reading the records
 
 
+NO_DATE = date(2000, 1, 1)  # the PDA's placeholder for a date not given
+
+
 def _when(value) -> datetime | None:
-    """A PDA date or date-time as an aware date-time (a date alone is midnight in the platform's time zone)."""
-    if not value:
+    """A PDA date or date-time as an aware date-time (a date alone is midnight in the platform's time zone); None for the PDA's
+    2000-01-01 placeholder."""
+    if not value or str(value).startswith(NO_DATE.isoformat()):
         return None
     text = str(value)
     dt = parse_datetime(text)
@@ -203,6 +215,18 @@ def _ids(ids) -> str:
 # --- work orders and tasks
 
 
+CONTRACT_NUMBER = re.compile(r"(?=.*\d)[A-Za-z0-9][A-Za-z0-9_.-]{4,49}")  # "23NC0465", "13PS5048", "ED_D_Res_1"; not "Year 2" or "609"
+
+
+def _number(data: dict, pda_id: int) -> str:
+    candidate = str(data.get("cpucContID") or "").strip()
+    if CONTRACT_NUMBER.fullmatch(candidate) and not candidate.isdigit():
+        taken = WorkOrder.objects.filter(number__iexact=candidate).exclude(pda_id=pda_id).exclude(pda_id__isnull=True).exists()
+        if not taken:
+            return candidate
+    return f"PDA-{pda_id}"
+
+
 def _work_order(data: dict | None, report: Report, *, dry_run: bool) -> WorkOrder | None:
     if not data or not data.get("contractID"):
         return None
@@ -210,7 +234,7 @@ def _work_order(data: dict | None, report: Report, *, dry_run: bool) -> WorkOrde
     wo = WorkOrder.objects.filter(pda_id=pda_id).first()
     if wo is not None:
         return wo
-    number = str(data.get("contName") or data.get("cpucContID") or f"PDA-{pda_id}").strip()[:50]
+    number = _number(data, pda_id)
     wo = WorkOrder.objects.filter(number__iexact=number, pda_id__isnull=True).first()
     if dry_run:
         report.work_orders += wo is None
@@ -219,7 +243,7 @@ def _work_order(data: dict | None, report: Report, *, dry_run: bool) -> WorkOrde
         wo.pda_id = pda_id
         wo.save(update_fields=["pda_id"])
         return wo
-    firm = data.get("company") or data.get("firmName") or data.get("firm") or ""
+    firm = data.get("company") or data.get("firmName") or data.get("firm") or data.get("name") or ""
     if isinstance(firm, dict):
         firm = firm.get("name") or firm.get("firmName") or ""
     wo = WorkOrder.objects.create(
@@ -261,9 +285,9 @@ def _task(data, wo: WorkOrder | None, report: Report, *, dry_run: bool) -> Task 
 
 
 def _upload(path: Path, name: str, report: Report, work: list[Path]) -> tuple[Upload, str]:
-    """The file as the library takes it, and its PDA name when that differs: a refused type goes inside a zip of the same name (the
-    zip is made in a temporary file listed in work, for the caller to remove)."""
-    clean = clean_name(name)
+    """The file as the library takes it, and its PDA name when that differs: leftover HTML after the name is cut off, and a refused
+    type goes inside a zip of the same name (the zip is made in a temporary file listed in work, for the caller to remove)."""
+    clean = clean_name(name.split("<", 1)[0].strip() or name)
     if Path(clean).suffix.lower() in FILE_TYPES:
         return Upload(clean, open(path, "rb")), (name if clean != name else "")
     report.wrapped.append(name)
@@ -309,8 +333,10 @@ def import_document(record: dict, source, cpuc, report: Report, *, comments: lis
             report.missing_files.append(f"{pda_id}/{name}")
         else:
             found.append((name, path))
-    wo = _work_order(record.get(FIELDS["work_order"]), report, dry_run=dry_run)
-    task = _task(record.get(FIELDS["task"]), wo, report, dry_run=dry_run)
+    task_data = record.get(FIELDS["task"]) or {}
+    contract = record.get(FIELDS["work_order"]) or (task_data.get("contract") if isinstance(task_data, dict) else None)
+    wo = _work_order(contract, report, dry_run=dry_run)
+    task = _task(task_data, wo, report, dry_run=dry_run)
     if dry_run:
         report.documents += 1
         report.files += len(found)
