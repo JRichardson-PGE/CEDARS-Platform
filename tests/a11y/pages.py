@@ -130,6 +130,10 @@ PAGES = [
     ("documents", "/documents/", None),
     ("documents-search", "/documents/?q=hvac&collection=emv&year=2023", None),
     ("documents-cpuc", "/documents/?status=unpublished", "cpuc_admin"),
+    ("documents-home-ed", "/documents/", "cpuc_admin"),
+    ("documents-search-text", "/documents/?q=refrigerant", None),
+    ("document-subscriptions", "/documents/subscriptions/", "community"),
+    ("document-subscribers", "/documents/subscribers/", "cpuc_admin"),
     ("document", "/documents/{document}/", None),
     ("document-manager", "/documents/{document}/", "cpuc_admin"),
     ("document-unpublished", "/documents/{document_draft}/", "cpuc_admin"),
@@ -160,4 +164,6 @@ PAGES = [
     ("work-orders", "/documents/work-orders/", None),
     ("work-orders-admin", "/documents/work-orders/", "cpuc_admin"),
     ("work-order", "/documents/work-orders/{work_order}/", "cpuc_admin"),
+    ("work-order-follower", "/documents/work-orders/{work_order}/", "community"),
+    ("study-follower", "/documents/studies/{study}/", "community"),
 ]

@@ -6,10 +6,11 @@
   <h1>{{ s.title }}</h1>
   <div class="actions">
     <a href="{% url 'documents:study_report' s.number %}">Download this study as CSV</a>
+    {% include "documents/_follow.html" with study=s what=s.study_id %}
     {% if can_edit %}<a class="button" href="{% url 'documents:change_study' s.number %}">Update the study</a>{% endif %}
   </div>
 </div>
-<p>Study {{ s.study_id }}{% if s.status %} · <strong>{{ s.status.label }}</strong>{% endif %}</p>
+<p>Study {{ s.study_id }}{% if s.status %} · <strong>{{ s.status.label }}</strong>{% endif %}{% if following %} · You follow this study: you hear when its status changes and its documents are published.{% endif %}</p>
 
 <section aria-labelledby="facts-h">
 <h2 id="facts-h">The study</h2>

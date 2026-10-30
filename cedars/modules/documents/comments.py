@@ -21,6 +21,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 
+from . import subscriptions
 from .models import Comment, CommentPeriod, CommentResponse, Document, DocumentVersion
 from .service import (
     ADMIN,
@@ -208,6 +209,7 @@ def set_period(actor, version: DocumentVersion, opens: date, closes: date, *, re
         audit.record(
             "documents.comment_period_set", obj=version, after={"opens": str(opens), "closes": str(closes)}, reason=reason, actor=actor
         )
+        subscriptions.on_period(version)
         return period
     if not reason.strip():
         raise DocumentError("Give the reason for changing the comment period.")
@@ -222,6 +224,7 @@ def set_period(actor, version: DocumentVersion, opens: date, closes: date, *, re
         reason=reason,
         actor=actor,
     )
+    subscriptions.on_period(version)
     return period
 
 

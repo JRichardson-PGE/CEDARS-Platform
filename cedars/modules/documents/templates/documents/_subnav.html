@@ -4,5 +4,6 @@
   <a href="{% url 'documents:study_summary' %}"{% if section == 'budgets' %} aria-current="page"{% endif %}>Study budgets</a>
   {% if show_aging or section == 'aging' %}<a href="{% url 'documents:aging' %}"{% if section == 'aging' %} aria-current="page"{% endif %}>Aging review</a>{% endif %}
   <a href="{% url 'documents:work_orders' %}"{% if section == 'work_orders' %} aria-current="page"{% endif %}>Work orders</a>
+  {% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}"{% if section == 'subscriptions' %} aria-current="page"{% endif %}>My subscriptions</a>{% endif %}
   <a href="{% url 'documents:lists' %}"{% if section == 'lists' %} aria-current="page"{% endif %}>Value lists</a>
 </nav>

@@ -1,5 +1,7 @@
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
@@ -439,3 +441,85 @@ class StudyProgram(models.Model):
     @property
     def years(self) -> str:
         return str(self.first_year) if self.first_year == self.last_year else f"{self.first_year} to {self.last_year}"
+
+
+class FileText(models.Model):
+    """The words of a document file, read when it is stored, for searching by text (BR-15.2). Kept beside the file, which never changes;
+    `vector` is PostgreSQL's full-text index of it."""
+
+    file = models.OneToOneField(DocumentFile, on_delete=models.CASCADE, related_name="text")
+    text = models.TextField(blank=True)
+    vector = SearchVectorField(null=True)
+    error = models.CharField(max_length=300, blank=True, help_text="Why no text could be read (a scanned PDF has none)")
+    extracted_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [GinIndex(fields=["vector"], name="documents_filetext_vector")]
+
+    def __str__(self):
+        return f"Text of {self.file}"
+
+
+class DocumentSubscription(models.Model):
+    """A user's wish to hear when a matching document is published, a comment period opens or a study's status changes (BR-15.5):
+    for one collection, one attribute value, one work order or one study. Delivered through the notification service."""
+
+    class Channel(models.TextChoices):
+        IN_APP = "in_app", "On the notifications page"
+        EMAIL = "email", "On the notifications page and by email"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="document_subscriptions")
+    collection = models.CharField(max_length=10, choices=Collection.choices, blank=True)
+    option = models.ForeignKey(AttributeOption, null=True, blank=True, on_delete=models.CASCADE, related_name="subscriptions")
+    work_order = models.ForeignKey("WorkOrder", null=True, blank=True, on_delete=models.CASCADE, related_name="subscriptions")
+    study = models.ForeignKey("Study", null=True, blank=True, on_delete=models.CASCADE, related_name="subscriptions")
+    channel = models.CharField(max_length=10, choices=Channel.choices, default=Channel.EMAIL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["user", "collection", "option", "work_order", "study"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (~Q(collection="") & Q(option__isnull=True) & Q(work_order__isnull=True) & Q(study__isnull=True))
+                    | (Q(collection="") & Q(option__isnull=False) & Q(work_order__isnull=True) & Q(study__isnull=True))
+                    | (Q(collection="") & Q(option__isnull=True) & Q(work_order__isnull=False) & Q(study__isnull=True))
+                    | (Q(collection="") & Q(option__isnull=True) & Q(work_order__isnull=True) & Q(study__isnull=False))
+                ),
+                name="documents_subscription_one_target",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "collection", "option", "work_order", "study"], name="documents_one_subscription", nulls_distinct=False
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user}: {self.target_label}"
+
+    @property
+    def target_label(self) -> str:
+        if self.collection:
+            return f"Collection: {Collection(self.collection).label}"
+        if self.option_id:
+            return f"{self.option.attribute_list.name}: {self.option.label}"
+        if self.work_order_id:
+            return f"Work order {self.work_order.number}"
+        return f"Study {self.study.study_id}"
+
+
+class KeyDate(models.Model):
+    """A key date or event CPUC ED posts on the library's home page (BR-15.3): a workshop, a comment deadline, a report release."""
+
+    on = models.DateField("date")
+    title = models.CharField(max_length=200)
+    detail = models.TextField(blank=True, max_length=1000)
+    link = models.URLField(blank=True, max_length=400)
+    posted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    posted_at = models.DateTimeField(auto_now_add=True)
+    removed_at = models.DateTimeField(null=True, blank=True, help_text="Taken off the home page (kept, with its audit event)")
+
+    class Meta:
+        ordering = ["on", "id"]
+
+    def __str__(self):
+        return f"{self.on}: {self.title}"

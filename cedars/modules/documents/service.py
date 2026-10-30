@@ -22,8 +22,10 @@ from datetime import date
 from pathlib import Path, PurePath
 
 from django.conf import settings
+from django.contrib.postgres.search import SearchHeadline, SearchQuery
 from django.db import transaction
 from django.db.models import Max, Prefetch, Q, QuerySet
+from django.db.models.functions import Left
 from django.utils import timezone
 
 from cedars.core import storage
@@ -33,6 +35,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
 
+from . import textract
 from .models import (
     AttributeList,
     AttributeOption,
@@ -41,6 +44,7 @@ from .models import (
     Document,
     DocumentFile,
     DocumentVersion,
+    FileText,
     Study,
     Task,
     WorkOrder,
@@ -76,6 +80,7 @@ FILE_TYPES = {
     ".jpeg": "image/jpeg",
 }
 INLINE = {".pdf", ".txt", ".png", ".jpg", ".jpeg"}
+MARK_START, MARK_END = "\x02", "\x03"  # around a matched word in a text extract
 SEARCH_FIELDS = ("q", "collection", "document_type", "pa", "program", "year", "options", "published_from", "published_to", "status")
 
 
@@ -319,13 +324,13 @@ def _store_files(version: DocumentVersion, uploads: list[Upload], checked: list[
             if size == 0:
                 raise DocumentError(f"{name} is empty.")
             store.put_file(key, Path(tmp.name))
-        finally:
-            Path(tmp.name).unlink(missing_ok=True)
-        rows.append(
-            DocumentFile.objects.create(
+            row = DocumentFile.objects.create(
                 version=version, position=position, name=name, key=key, sha256=digest.hexdigest(), size=size, content_type=content_type
             )
-        )
+            textract.save(row, Path(tmp.name))
+        finally:
+            Path(tmp.name).unlink(missing_ok=True)
+        rows.append(row)
     return rows
 
 
@@ -598,6 +603,9 @@ def publish_version(actor, version: DocumentVersion) -> DocumentVersion:
         doc.published_at = now
         doc.save(update_fields=["published_at", "updated_at"])
     audit.record("documents.version_published", obj=version, after={"number": version.number, "published_at": now}, actor=actor)
+    from . import subscriptions
+
+    subscriptions.on_published(version)
     return version
 
 
@@ -646,12 +654,69 @@ def readable(user) -> QuerySet:
     """The documents the user may open: every published one, and the unpublished ones of their organisations (all of them for CPUC
     readers)."""
     qs = Document.objects.all()
-    if user is not None and user.is_authenticated and (is_admin(user) or _cpuc_has(user, *ANY)):
+    if _sees_everything(user):
         return qs
-    mine = []
-    if user is not None and user.is_authenticated:
-        mine = [o.pk for o in access.organisations_of(user) if access.effective_permissions(user, o) & set(ANY)]
-    return qs.filter(Q(published_at__isnull=False) | Q(owner__in=mine) | Q(pas__in=mine) | Q(study__manager__in=mine)).distinct()
+    return qs.filter(Q(published_at__isnull=False) | Q(pk__in=_own_documents(user).values("pk"))).distinct()
+
+
+def _sees_everything(user) -> bool:
+    return user is None or (user.is_authenticated and (is_admin(user) or _cpuc_has(user, *ANY)))
+
+
+def _own_documents(user) -> QuerySet:
+    """The documents whose unpublished work the user sees through an organisation on them (not as CPUC staff)."""
+    mine = _response_organisations(user)
+    return Document.objects.filter(Q(owner__in=mine) | Q(pas__in=mine) | Q(study__manager__in=mine))
+
+
+def _text_query(q: str) -> SearchQuery:
+    return SearchQuery(q, search_type="websearch", config="english")
+
+
+def _texts(user, q: str) -> QuerySet:
+    """The file texts matching a search that the user may read: published versions' files, and every version's of the documents whose
+    unpublished work the user sees (a PA's own unpublished response included)."""
+    texts = FileText.objects.filter(vector=_text_query(q))
+    if not _sees_everything(user):
+        texts = texts.filter(
+            Q(file__version__published_at__isnull=False)
+            | Q(file__version__document__in=_own_documents(user).values("pk"))
+            | Q(file__version__responding_pa__in=_response_organisations(user))
+        )
+    return texts
+
+
+def text_matches(user, q: str, docs) -> dict[int, list[tuple[DocumentFile, str]]]:
+    """For a page of results, the files whose text matched, with a few words around the match: {document id: [(file, extract)]}. The
+    extract marks each matched word between MARK_START and MARK_END (the page escapes the text and highlights them)."""
+    ids = [d.pk for d in docs]
+    if not q.strip() or not ids:
+        return {}
+    texts = (
+        _texts(user, q)
+        .filter(file__version__document__in=ids)
+        .select_related("file__version")
+        .annotate(
+            extract=SearchHeadline(
+                Left("text", textract.MAX_INDEXED),
+                _text_query(q),
+                config="english",
+                start_sel=MARK_START,
+                stop_sel=MARK_END,
+                max_words=30,
+                min_words=12,
+                max_fragments=2,
+                fragment_delimiter=" … ",
+            )
+        )
+        .order_by("file__version__document", "-file__version__number", "file__position")
+    )
+    out: dict[int, list[tuple[DocumentFile, str]]] = {}
+    for t in texts:
+        found = out.setdefault(t.file.version.document_id, [])
+        if len(found) < 3:
+            found.append((t.file, " ".join(t.extract.split())))
+    return out
 
 
 def search(user, s: Search) -> QuerySet:
@@ -659,9 +724,12 @@ def search(user, s: Search) -> QuerySet:
     list (any of them, within the list)."""
     qs = readable(user)
     if s.q:
-        terms = s.q.split()
-        for term in terms:
-            qs = qs.filter(Q(title__icontains=term) | Q(summary__icontains=term) | Q(versions__files__name__icontains=term))
+        # every word in the details or a file name, or the words (as a web search reads them: "a phrase", or, -not) in a file's text
+        terms = [t.strip('"') for t in s.q.split() if t.lower() != "or" and not t.startswith("-")]
+        details = Document.objects.all() if any(terms) else Document.objects.none()
+        for term in filter(None, terms):
+            details = details.filter(Q(title__icontains=term) | Q(summary__icontains=term) | Q(versions__files__name__icontains=term))
+        qs = qs.filter(Q(pk__in=details.values("pk")) | Q(pk__in=_texts(user, s.q).values("file__version__document")))
     if s.collection:
         qs = qs.filter(collection=s.collection)
     if s.document_type is not None:

@@ -6,12 +6,14 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.html import escape, format_html
+from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from cedars.core import storage
 from cedars.services.accounts.service import AccessDenied
 
-from . import comments, deliverables, forms, service
+from . import comments, deliverables, forms, service, subscriptions
 from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile
 
 PER_PAGE = 25
@@ -59,10 +61,15 @@ def library(request):
     query = request.GET.copy()
     query.pop("page", None)
     chosen = set(form.cleaned_data.get("options") or []) if form.is_bound and form.is_valid() else set()
+    q = form.cleaned_data.get("q", "") if form.is_bound and form.is_valid() else ""
+    found = service.text_matches(request.user, q, page.object_list)
     rows = []
     for doc in page.object_list:
         version = service.listed_version(doc, unpublished=doc.published_at is None)
-        rows.append((doc, version, deliverables.stage_label(doc, version) if doc.deliverable else ""))
+        extracts = [(f, _highlight(extract)) for f, extract in found.get(doc.pk, [])]
+        rows.append((doc, version, deliverables.stage_label(doc, version) if doc.deliverable else "", extracts))
+    home = not request.GET
+    upcoming, recent = subscriptions.key_dates() if home else ([], [])
     return render(
         request,
         "documents/library.html",
@@ -79,8 +86,26 @@ def library(request):
             if request.user.is_authenticated
             else [],
             "collection_labels": dict(Collection.choices),
+            "home": home,
+            "upcoming": upcoming,
+            "recent": recent,
+            "open_for_comment": subscriptions.open_for_comment() if home else [],
+            "is_ed": deliverables.is_ed(request.user),
+            "key_date_form": forms.KeyDateForm() if home and deliverables.is_ed(request.user) else None,
         },
     )
+
+
+def _highlight(extract: str):
+    """A text extract as HTML: the text escaped, each matched word in a mark element."""
+    parts = []
+    for i, piece in enumerate(extract.split(service.MARK_START)):
+        if i == 0:
+            parts.append(escape(piece))
+            continue
+        word, _, rest = piece.partition(service.MARK_END)
+        parts.append(format_html("<mark>{}</mark>{}", word, rest))
+    return mark_safe("".join(str(p) for p in parts))
 
 
 def library_csv(request):

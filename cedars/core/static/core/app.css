@@ -75,6 +75,8 @@ details.inline > summary { font-weight: normal; color: var(--accent); min-height
 details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
 article.comment { border-top: 1px solid var(--line); padding: .6rem 0; }
 article.comment h3 { margin: 0 0 .2rem; font-size: 1rem; }
+mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word in a search extract: 14:1 in both schemes */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0 1rem; }   /* side by side when they fit, else stacked (320 px) */
 .response { border-left: 3px solid var(--control); padding-left: .8rem; margin: .4rem 0 .4rem 1rem; }
 .grants { margin: 0; padding-left: 1.1rem; }
 .grants li { margin: .15rem 0; }

@@ -72,7 +72,7 @@
   </tbody>
 </table>
 </div>
-<p><a href="{% url 'documents:comments' doc.pk %}">Comments and responses</a> · <a href="{% url 'documents:comments_csv' doc.pk %}">Comment-and-response report (CSV)</a>{% if show_downloads %} · <a href="{% url 'documents:downloads' doc.pk %}">Who downloaded these files</a>{% endif %}</p>
+<p><a href="{% url 'documents:comments' doc.pk %}">Comments and responses</a> · <a href="{% url 'documents:comments_csv' doc.pk %}">Comment-and-response report (CSV)</a>{% if show_downloads %} · <a href="{% url 'documents:downloads' doc.pk %}">Who downloaded these files</a>{% endif %}{% if user.is_authenticated %} · <a href="{% url 'documents:subscriptions' %}">Hear about documents like this</a>{% endif %}</p>
 </section>
 
 {% if doc.deliverable %}
