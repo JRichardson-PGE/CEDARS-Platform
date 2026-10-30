@@ -240,9 +240,11 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
+    claims = _claims(cpuc_admin, pge, pge_admin, analyst)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
     return {
+        **claims,
         **budgets,
         **monthly,
         "pack": pack,
@@ -349,6 +351,41 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
         shifts.set_lines(analyst, s, lines)
         made[key] = (shifts.submit(analyst, s) if submit else s).pk
     return {**made, "sce_user": sce_user}
+
+
+def _claims(cpuc_admin, pge, pge_admin, analyst):
+    """2028's claims: Q1 priced (recorded as the Calculations module records a finished run), confirmed and published; Q2 uploaded
+    with rejected records (an unknown program, another PA's claim); Q3 not started. The analyst already holds the claims grants."""
+    from unittest import mock
+
+    from cedars.modules.claims import service as claims
+
+    from ..test_budgets import group_sums
+    from ..test_claims import claim, claims_zip, row, tables
+
+    due = {kind: timezone.now() + timedelta(days=30 * (i + 1)) for i, (kind, _) in enumerate(claims.PERIODS)}
+    claims.add_year(cpuc_admin, year=2028, acc_version="2026", due=due)
+    q1, q2, q3 = claims.periods(2028)[:3]
+    first = tables(
+        claim("PGE-2028-001", prg="PGE_Res_HVAC"),
+        claim("PGE-2028-002", prg="PGE_Res_HVAC", NumUnits="4"),
+        ProgramCost=[row("ProgramCost", PrgID="PGE_Res_HVAC")],
+        Site=[row("Site", SiteID="PGE-S1")],
+        ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
+    )
+    # the accessibility job runs without the engine, so the claims rule set's findings are left out here (tests/test_claims.py runs them)
+    no_rules = mock.patch.object(claims, "_rule_findings", return_value=([], [], ""))
+    with no_rules:
+        v = claims.upload_claims(analyst, q1, pge, claims_zip(first, full=True), "q1.zip")
+    key = "runs/claims/out/_results/group_sums2_measure_level_run.parquet"
+    storage.store("results").put_bytes(key, group_sums())
+    details = {"job_sha256": v.findings["job_sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
+    v = submissions.record_calculation(None, v, run="claims", input_hash="h", details=details)
+    v = claims.confirm(analyst, v)
+    bad = tables(claim("PGE-2028-003", prg="NOPE", quarter="2028Q2"), claim("SCE-2028-1", prg="PGE_Res_HVAC", quarter="2028Q2"))
+    with no_rules:
+        claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
+    return {"claims_q1": q1, "claims_q2": q2, "claims_q3": q3, "claims_version": v}
 
 
 def _session_cookie(user, method, live_server):
