@@ -26,6 +26,7 @@ from cedars.services.registry import service as registry
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
 
+from ..fake_recet_worker import write_results
 from .pages import PAGES
 
 pytestmark = [pytest.mark.a11y, pytest.mark.django_db(transaction=True)]
@@ -183,6 +184,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     out = finished.storage_prefix + "out/"
     storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
     storage.store("results").put_bytes(out + "receipt.json", b"{}")
+    write_results(storage.store("results").path(out), 1.0)  # the Results tables (with the engine installed; a note without it)
     calculations.finish(
         finished,
         exit_code=0,

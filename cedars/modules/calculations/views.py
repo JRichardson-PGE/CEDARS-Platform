@@ -3,6 +3,7 @@ from pathlib import PurePosixPath
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -14,6 +15,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import forms, service
+from . import results as results_mod
 from .models import EngineRelease, Run
 
 PER_PAGE = 50
@@ -232,3 +234,237 @@ def engines(request):
             "form": form,
         },
     )
+
+
+# --- Results and Compare (results.py: ReCET's own results code over the run's group sums)
+
+
+def _table_params(request, rv, cat, levels):
+    """(level, keys, years, sort, descending, text) from the query string. Columns come from the picker's ticks (col) or a comma list
+    (columns); the engine's default view otherwise."""
+    level = request.GET.get("level", "portfolio")
+    level = level if level in {k for k, _ in levels} else "portfolio"
+    picked = request.GET.getlist("col") or [k for k in request.GET.get("columns", "").split(",") if k]
+    keys = [k for k in picked if k in cat] or [k for k in rv.DEFAULT_VIEW if k in cat]
+    return level, keys, rv.parse_years(request.GET.getlist("years")), request.GET.get("sort", ""), request.GET.get("desc") == "1"
+
+
+def _years(rv, years, known):
+    years = [y for y in years if y in known]
+    return [] if set(years) == set(known) else years
+
+
+def _query(**kw) -> str:
+    from urllib.parse import urlencode
+
+    return urlencode([(k, x) for k, v in kw.items() for x in (v if isinstance(v, list) else [v]) if x not in (None, "")])
+
+
+def _cell(rv, cat, column, v):
+    if column == "Measures":
+        return f"{int(v):,}" if v == v and v is not None else ""
+    return rv.format_value(cat.get(column), v)
+
+
+def _rows(rv, cat, table):
+    numeric = {c for c in table.columns if c in cat or c == "Measures"}
+    return [[(_cell(rv, cat, c, v), c in numeric) for c, v in zip(table.columns, r, strict=True)] for r in table.itertuples(index=False)]
+
+
+@login_required
+def results(request, pk):
+    run = _run_or_404(request, pk)
+    ctx = {"run": run}
+    try:
+        res = results_mod.load(run)
+    except results_mod.NoResults as e:
+        return render(request, "calculations/results.html", {**ctx, "note": str(e)})
+    rv = results_mod.engine()
+    cat = res.catalog()
+    level, keys, years, sort, desc = _table_params(request, rv, cat, rv.LEVELS)
+    pas = res.pas()
+    pa = request.GET.get("pa") if request.GET.get("pa") in pas else rv.ALL_PAS
+    all_years = res.years()
+    years = _years(rv, years, all_years)
+    note, table = "", None
+    measure_ok = res.measure_level_available()
+    if level == "measure" and not measure_ok:
+        note = (
+            f"This run has {res.n:,} measures: the measure level is shown only for runs of up to {rv.MAX_RUN_MEASURE_ROWS:,}. "
+            "Its measure-level table is in the run's files."
+        )
+    elif level == "measure" and not res.measure_level_allowed(pa, years):
+        note = (
+            f"The measure level is shown for up to {rv.MAX_MEASURE_ROWS:,} measures: pick one PA or fewer program years, "
+            "or download the measure-level file."
+        )
+    else:
+        if level == "measure":
+            results_mod.with_measure_rows(run, res)
+        table = res.table(level, pa, keys, years)
+    text = request.GET.get("q", "")
+    state = {"level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
+    labels = {k: rv.display_label(c) for k, c in cat.items()}
+    head = []
+    if table is not None:
+        shown_rows = len(table)
+        table = results_mod.sort_rows(results_mod.filter_rows(table, text), sort, desc)
+        for c in table.columns:
+            on = c == sort
+            head.append(
+                {
+                    "key": c,
+                    "label": labels.get(c, c),
+                    "help": cat[c].help if c in cat else "",
+                    "sort": "descending" if on and desc else ("ascending" if on else None),
+                    "href": "?" + _query(**state, q=text, sort=c, desc="" if on and desc else ("1" if on or c in cat else "")),
+                }
+            )
+    ctx.update(
+        {
+            "res": res,
+            "level": level,
+            "levels": [
+                {
+                    "key": k,
+                    "label": label,
+                    "href": "?" + _query(**{**state, "level": k}),
+                    "off": k == "measure" and not measure_ok,
+                }
+                for k, label in reversed(rv.LEVELS)
+            ],
+            "pa": pa,
+            "pas": pas,
+            "all_pas": rv.ALL_PAS,
+            "all_years": all_years,
+            "years": years,
+            "keys": keys,
+            "groups": results_mod.picker_groups(cat),
+            "default_keys": [k for k in rv.DEFAULT_VIEW if k in cat],
+            "tiles": results_mod.tiles(res, pa, years),
+            "chart": results_mod.sector_bars(res, pa, years),
+            "note": note,
+            "table": table,
+            "head": head,
+            "rows": _rows(rv, cat, table) if table is not None else [],
+            "filtered_from": shown_rows if table is not None and text else None,
+            "text": text,
+            "csv": "?" + _query(**state),
+            "definitions": [(labels[c], cat[c].help) for c in (table.columns if table is not None else []) if c in cat and cat[c].help],
+            "measure_limit": rv.MAX_RUN_MEASURE_ROWS,
+        }
+    )
+    return render(request, "calculations/results.html", ctx)
+
+
+def _csv_response(table, name):
+    from django.http import HttpResponse
+
+    resp = HttpResponse(table.to_csv(index=False), content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="{name}"'
+    return resp
+
+
+@login_required
+def results_csv(request, pk):
+    run = _run_or_404(request, pk)
+    try:
+        res = results_mod.load(run)
+    except results_mod.NoResults:
+        raise Http404 from None
+    rv = results_mod.engine()
+    cat = res.catalog()
+    level, keys, years, _sort, _desc = _table_params(request, rv, cat, rv.LEVELS)
+    pa = request.GET.get("pa") if request.GET.get("pa") in res.pas() else rv.ALL_PAS
+    years = _years(rv, years, res.years())
+    if level == "measure":
+        if not res.measure_level_allowed(pa, years):
+            raise Http404
+        results_mod.with_measure_rows(run, res)
+    t = res.table(level, pa, keys, years).rename(columns={k: c.label for k, c in cat.items()})
+    return _csv_response(t, f"cedars_run_{run.pk}_{level}.csv")
+
+
+def _compare_candidates(user, run):
+    return service.visible_runs(user).filter(status=Run.Status.SUCCEEDED).exclude(pk=run.pk).order_by("-created_at")[:100]
+
+
+def _compare(request, pk):
+    a = _run_or_404(request, pk)
+    other = request.GET.get("with", "")
+    try:
+        b = _run_or_404(request, other) if other else None
+    except (ValueError, ValidationError):
+        raise Http404 from None
+    return a, b
+
+
+@login_required
+def compare(request, pk):
+    a, b = _compare(request, pk)
+    ctx = {"a": a, "b": b, "candidates": _compare_candidates(request.user, a)}
+    if b is None:
+        return render(request, "calculations/compare.html", {**ctx, "note": "Pick a run to compare this one with."})
+    try:
+        ra, rb = results_mod.load(a), results_mod.load(b)
+    except results_mod.NoResults as e:
+        return render(request, "calculations/compare.html", {**ctx, "note": str(e)})
+    rv = results_mod.engine()
+    cat = {**rb.catalog(), **ra.catalog()}
+    level, keys, years, _sort, _desc = _table_params(request, rv, cat, rv.COMPARE_LEVELS)
+    known = sorted(set(ra.years()) | set(rb.years()))
+    years = _years(rv, years, known)
+    table = rv.compare(ra, rb, level, keys, years=years)
+    labels = {k: rv.display_label(c) for k, c in cat.items()}
+    ids = [c for c in table.columns if "__" not in c]
+    values = ["Measures"] + [k for k in keys if k in cat]
+    rows = []
+    for r in table.to_dict("records"):
+        cells = [(str(r[c]) if r[c] == r[c] else "", False) for c in ids]
+        for k in values:
+            for part in ("a", "b", "diff"):
+                cells.append((_cell(rv, cat, k, r[f"{k}__{part}"]), True))
+            p = r[f"{k}__pct"]
+            cells.append((f"{p:+.1%}" if isinstance(p, int | float) and p == p else "", True))
+        rows.append(cells)
+    state = {"with": str(b.pk), "level": level, "years": years, "columns": ",".join(keys)}
+    ctx.update(
+        {
+            "level": level,
+            "levels": [{"key": k, "label": label, "href": "?" + _query(**{**state, "level": k})} for k, label in rv.COMPARE_LEVELS],
+            "all_years": known,
+            "years": years,
+            "keys": keys,
+            "ids": ids,
+            "values": [(k, labels.get(k, k), cat[k].help if k in cat else "") for k in values],
+            "rows": rows,
+            "csv": "?" + _query(**state),
+            "calc_a": service.calculation_label(a.calculation),
+            "calc_b": service.calculation_label(b.calculation),
+            "match": "PrgID" if level == "program" else "name",
+        }
+    )
+    return render(request, "calculations/compare.html", ctx)
+
+
+@login_required
+def compare_csv(request, pk):
+    a, b = _compare(request, pk)
+    if b is None:
+        raise Http404
+    try:
+        ra, rb = results_mod.load(a), results_mod.load(b)
+    except results_mod.NoResults:
+        raise Http404 from None
+    rv = results_mod.engine()
+    cat = {**rb.catalog(), **ra.catalog()}
+    level, keys, years, _sort, _desc = _table_params(request, rv, cat, rv.COMPARE_LEVELS)
+    years = _years(rv, years, sorted(set(ra.years()) | set(rb.years())))
+    table = rv.compare(ra, rb, level, keys, years=years)
+    side = {"a": f"A: {a.name}", "b": f"B: {b.name}", "diff": "difference", "pct": "% change"}
+
+    def name(c: str) -> str:
+        k, _, part = c.rpartition("__")
+        return f"{cat[k].label if k in cat else k} ({side[part]})" if k and part in side else c
+
+    return _csv_response(table.rename(columns=name), f"cedars_compare_{a.pk}_{b.pk}_{level}.csv")

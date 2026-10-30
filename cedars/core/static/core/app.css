@@ -113,3 +113,17 @@ input.key { width: 100%; font-family: ui-monospace, monospace; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 fieldset { min-width: 0; }   /* a fieldset is min-content wide by default: long select options pushed New run past 320 px */
 select, input[type=file] { max-width: 100%; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.data thead th a { color: inherit; display: inline-block; min-height: 24px; }   /* sort links: 24 px targets (2.5.8) */
+dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; margin: .5rem 0; }
+dl.tiles .tile { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .5rem .8rem; }
+dl.tiles dt { font-size: .82rem; color: var(--muted); }
+dl.tiles dd { margin: 0; font-size: 1.2rem; font-weight: 600; overflow-wrap: anywhere; }
+ul.bars { list-style: none; padding: 0; margin: 0; display: grid; gap: .35rem; }
+ul.bars li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr max-content; gap: .6rem; align-items: center; }
+.bar-name { overflow-wrap: anywhere; }
+.bar-track { background: color-mix(in srgb, var(--line) 60%, transparent); border-radius: 3px; height: .9rem; }
+.bar { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.bar.negative { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, transparent 4px 8px); border: 1px solid var(--bad); }   /* and "(negative)" in text */
+@media (max-width: 480px) { ul.bars li { grid-template-columns: 1fr max-content; } .bar-track { grid-column: 1 / -1; grid-row: 2; } }
+label.inline { flex-direction: row; align-items: center; gap: .35rem; display: inline-flex; margin-right: .8rem; }

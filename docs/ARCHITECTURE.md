@@ -81,6 +81,9 @@ how far it is built. Update the Status column in the PR that changes it.
   sees its organisation's runs (calculations.read or .submit) and the caller's own.
 - Object storage is `cedars.core.storage`: four areas (uploads, results, refdata, snapshots), one bucket each in AWS, folders under
   `CEDARS_STORAGE_ROOT` locally. Downloads from S3 are pre-signed URLs; nothing large passes through a page.
+- A run's Results and Compare pages (`calculations/results.py`) call the pinned engine's `recet.results_view` unchanged (Jake, 2026-10-30:
+  the web app installs ReCET) over the group sums the worker keeps in `out/_results/`, copied once into `CALCULATIONS_RESULTS_CACHE`; the
+  measure level reads the kept measure-level parquet for runs of up to 50,000 measures. Without the engine the pages say so.
 - Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; daily jobs on EventBridge Scheduler), AWS Batch on Fargate
   (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), RDS
   PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
