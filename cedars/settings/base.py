@@ -198,6 +198,9 @@ CALCULATIONS_BATCH_QUEUES = {"small": env("CEDARS_BATCH_QUEUE_SMALL", ""), "larg
 CALCULATIONS_BATCH_JOB_DEFINITION = env("CEDARS_BATCH_JOB_DEFINITION", "")  # used when a release names none (infra/terraform)
 CALCULATIONS_SMALL_RUN_RECORDS = int(env("CALCULATIONS_SMALL_RUN_RECORDS", "10000"))  # up to this many measures: the small-runs queue
 CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # BRD v0.5's configurable cap (the engine checks it too)
+CALCULATIONS_RESULTS_CACHE = env(
+    "CALCULATIONS_RESULTS_CACHE", str(BASE_DIR / "var" / "cache" / "results")
+)  # local copies of runs' results files
 CALCULATIONS_WORKERS = {"small": int(env("CALCULATIONS_WORKERS_SMALL", "1")), "large": int(env("CALCULATIONS_WORKERS_LARGE", "1"))}
 
 SESSION_COOKIE_HTTPONLY = True

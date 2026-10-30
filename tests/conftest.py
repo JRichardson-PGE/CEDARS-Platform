@@ -11,6 +11,7 @@ def local_storage(settings, tmp_path):
     from cedars.core import storage
 
     settings.CEDARS_STORAGE = {"backend": "local", "root": str(tmp_path / "storage"), "buckets": {}}
+    settings.CALCULATIONS_RESULTS_CACHE = str(tmp_path / "results_cache")
     storage.reset()
     yield
     storage.reset()

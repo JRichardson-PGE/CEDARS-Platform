@@ -464,7 +464,7 @@ def output_files(run: Run) -> list[dict]:
     names = sorted(set(listed) | set(outputs) | ({"receipt.json"} if "receipt.json" in listed else set()))
     out = []
     for name in names:
-        if name == "progress.json" or name not in listed:
+        if name == "progress.json" or name.startswith("_results/") or name not in listed:  # _results: what the Results pages read
             continue
         out.append({"name": name, "bytes": listed[name], "sha256": (outputs.get(name) or {}).get("sha256", "")})
     return out

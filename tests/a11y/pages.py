@@ -54,5 +54,9 @@ PAGES = [
     ("new-run", "/calculations/new/", "analyst"),
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
+    ("results", "/calculations/runs/{finished_run}/results/", "analyst"),
+    ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
+    ("results-measure-level", "/calculations/runs/{finished_run}/results/?level=measure&pa=PGE", "analyst"),
+    ("compare", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
 ]
