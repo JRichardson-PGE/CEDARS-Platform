@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "cedars.services.refdata",
     "cedars.services.notifications",
     "cedars.services.retention",
+    "cedars.services.vault",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
     "cedars.modules.monthly",
@@ -110,6 +111,10 @@ TEMPLATES = [
 
 # PostgreSQL only: the audit trail's append-only trigger and the registry's effective-date ranges need it.
 DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL", "postgres://cedars:cedars@localhost:5432/cedars"), conn_max_age=60)}
+# The PII vault (decision G): its own database, set only where PII is held (never the sandbox). Without it PII uploads are refused.
+if env("VAULT_DATABASE_URL", ""):
+    DATABASES["vault"] = dj_database_url.parse(env("VAULT_DATABASE_URL"), conn_max_age=60)
+DATABASE_ROUTERS = ["cedars.services.vault.router.VaultRouter"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTHENTICATION_BACKENDS = [

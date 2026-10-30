@@ -30,7 +30,7 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 
 1. Create the application's database roles (not the RDS master) and put the URLs in the app secret.
 2. Verify the sending domain in SES and create SMTP credentials.
-3. Run the migrations as a one-off task: `aws ecs run-task` on the web task definition, with the command `python manage.py migrate`.
+3. Run the migrations as a one-off task: `aws ecs run-task` on the web task definition, with the command `python manage.py migrate`, then (not in the sandbox) `python manage.py migrate --database vault` for the PII vault's tables.
 4. Create the first CPUC administrator: `python manage.py bootstrap_cpuc EMAIL --steward`. In the sandbox, also run `python manage.py seed_sandbox`.
 
 ## Check locally

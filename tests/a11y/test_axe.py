@@ -4,6 +4,7 @@ Run with `pytest -m a11y` (CI does). axe finds what can be found automatically; 
 (docs/ACCESSIBILITY.md). Each page is checked with realistic content: SCENE builds organisations, members, an access request, a pending
 PII grant and an open recertification, so the tables and forms are not empty."""
 
+import io
 import json
 import zipfile
 from datetime import date, timedelta
@@ -32,7 +33,7 @@ from cedars.services.submissions import service as submissions
 from ..fake_recet_worker import write_results
 from .pages import PAGES
 
-pytestmark = [pytest.mark.a11y, pytest.mark.django_db(transaction=True)]
+pytestmark = [pytest.mark.a11y, pytest.mark.django_db(transaction=True, databases=["default", "vault"])]
 
 TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
@@ -240,7 +241,11 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
-    claims = _claims(cpuc_admin, pge, pge_admin, analyst)
+    pii_filer = make_user("contacts@pge.com", "Con Tacts")
+    for p in ("claims.submit", "claims.confirm"):
+        service.grant(pge_admin, pii_filer, pge, p)
+    service.approve_pii(cpuc_admin, service.grant(pge_admin, pii_filer, pge, perms.PII, reason="keeps the claims' contacts"))
+    claims = _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
     return {
@@ -250,6 +255,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         "pack": pack,
         "published_pack": published,
         "analyst": analyst,
+        "pii_filer": pii_filer,
         "queued_run": queued,
         "finished_run": finished,
         "draft": draft,
@@ -353,10 +359,11 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
     return {**made, "sce_user": sce_user}
 
 
-def _claims(cpuc_admin, pge, pge_admin, analyst):
+def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     """2028's claims: Q1 priced (recorded as the Calculations module records a finished run), confirmed and published, then corrected
-    after its due date (a claim withdrawn, with its change letter); Q2 uploaded with rejected records (an unknown program, another PA's
-    claim); Q3 not started. The analyst already holds the claims grants."""
+    after its due date (a claim withdrawn, with its change letter) with its PII kept in the vault; Q2 uploaded with rejected records (an
+    unknown program, another PA's claim) and a PII file that failed its checks; Q3 not started. The analyst and pii_filer already hold
+    the claims grants, pii_filer the approved PII grant too."""
     from unittest import mock
 
     from cedars.modules.claims import service as claims
@@ -402,11 +409,17 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
     )
     with no_rules:
         v2 = claims.upload_claims(analyst, q1, pge, claims_zip(fixed, full=True), "q1_correction.zip")
+    contacts = {"PII_Contact.csv": "ContactID,ContactName,ContactEmail\nPGE-C1,A. Customer,a@example.com\n",
+                "PII_Site.csv": "SiteID,SiteAddress,ElectricServiceAccountID\nPGE-S1,1 Market St,1234567890\n"}  # fmt: skip
+    claims.upload_pii(pii_filer, v2, _zip(contacts), "pii.zip", "mfa")
     details = {**details, "job_sha256": v2.findings["job_sha256"]}
     v2 = claims.confirm(analyst, submissions.record_calculation(None, v2, run="claims2", input_hash="h2", details=details))
     bad = tables(claim("PGE-2028-003", prg="NOPE", quarter="2028Q2"), claim("SCE-2028-1", prg="PGE_Res_HVAC", quarter="2028Q2"))
     with no_rules:
-        claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
+        q2v = claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
+    wrong = {"PII_Contact.csv": "ContactID,ContactName,ContactPhoneNumber\nPGE-C9,A. Customer,415-555-0100\n",
+             "PII_Site.csv": "SiteID,SiteAddress\nPGE-S1,1 Market St\n"}  # fmt: skip
+    claims.upload_pii(pii_filer, q2v, _zip(wrong), "pii.zip", "mfa")
     return {
         "claims_q1": q1,
         "claims_q2": q2,
@@ -415,6 +428,14 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
         "claims_corrected": v2,
         "claims_letter": v2.change_letter,
     }
+
+
+def _zip(files: dict[str, str]) -> bytes:
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        for name, text in files.items():
+            z.writestr(name, text)
+    return out.getvalue()
 
 
 def _session_cookie(user, method, live_server):

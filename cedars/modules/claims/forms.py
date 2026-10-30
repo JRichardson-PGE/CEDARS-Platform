@@ -61,3 +61,12 @@ class UploadForm(forms.Form):
         "table. Include the records that are new or changed since the last confirmed quarter.",
         widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
     )
+
+
+class PIIForm(forms.Form):
+    file = forms.FileField(
+        label="PII file",
+        help_text="A .zip of PII_Contact.csv and PII_Site.csv (comma- or pipe-delimited), or an Excel workbook with a sheet for each. "
+        "It may name only the ContactIDs and SiteIDs of these claims.",
+        widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
+    )
