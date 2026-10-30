@@ -71,7 +71,7 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 .org-switch { display: flex; gap: .4rem; align-items: center; }
 .org-switch label { flex-direction: row; }
 details.inline { display: inline-block; }
-details.inline > summary { font-weight: normal; color: var(--accent); }
+details.inline > summary { font-weight: normal; color: var(--accent); min-height: 24px; line-height: 24px; }   /* 2.5.8: two side by side in a cell */
 details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
 .grants { margin: 0; padding-left: 1.1rem; }
 .grants li { margin: .15rem 0; }

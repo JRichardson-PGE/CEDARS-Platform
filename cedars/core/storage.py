@@ -100,7 +100,7 @@ class LocalStore:
     def delete_prefix(self, prefix: str) -> None:
         shutil.rmtree(self.root / clean_key(prefix), ignore_errors=True)
 
-    def download_url(self, key: str, filename: str, seconds: int = 300) -> str | None:
+    def download_url(self, key: str, filename: str, seconds: int = 300, *, inline: bool = False, content_type: str = "") -> str | None:
         """Local files are streamed by the page that asks; there is no URL to hand out."""
         return None
 
@@ -164,12 +164,17 @@ class S3Store:
         for i in range(0, len(keys), 1000):
             self.client.delete_objects(Bucket=self.bucket, Delete={"Objects": keys[i : i + 1000]})
 
-    def download_url(self, key: str, filename: str, seconds: int = 300) -> str | None:
-        return self.client.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self.bucket, "Key": self._key(key), "ResponseContentDisposition": f'attachment; filename="{filename}"'},
-            ExpiresIn=seconds,
-        )
+    def download_url(self, key: str, filename: str, seconds: int = 300, *, inline: bool = False, content_type: str = "") -> str | None:
+        """A pre-signed GET. inline=True asks the browser to show the file (a PDF in its viewer) rather than save it; content_type, when
+        given, overrides the stored object's type in the response."""
+        params = {
+            "Bucket": self.bucket,
+            "Key": self._key(key),
+            "ResponseContentDisposition": f'{"inline" if inline else "attachment"}; filename="{filename}"',
+        }
+        if content_type:
+            params["ResponseContentType"] = content_type
+        return self.client.generate_presigned_url("get_object", Params=params, ExpiresIn=seconds)
 
 
 AREAS = ("uploads", "results", "refdata", "snapshots")

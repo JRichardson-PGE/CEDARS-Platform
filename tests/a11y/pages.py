@@ -3,7 +3,7 @@
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
-{monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}."""
+{monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}."""
 
 PAGES = [
     ("home", "/", None),
@@ -121,4 +121,16 @@ PAGES = [
     ("monthly-year-own", "/monthly/years/2028/", "analyst"),
     ("monthly-13th-month", "/monthly/years/2028/13th-month/?org=PGE", "community"),
     ("monthly-13th-month-none", "/monthly/years/2028/13th-month/?org=SCE", "community"),
+    ("documents", "/documents/", None),
+    ("documents-search", "/documents/?q=hvac&collection=emv&year=2023", None),
+    ("documents-cpuc", "/documents/?status=unpublished", "cpuc_admin"),
+    ("document", "/documents/{document}/", None),
+    ("document-manager", "/documents/{document}/", "cpuc_admin"),
+    ("document-unpublished", "/documents/{document_draft}/", "cpuc_admin"),
+    ("document-new", "/documents/new/?collection=emv", "cpuc_admin"),
+    ("document-change", "/documents/{document}/change/", "cpuc_admin"),
+    ("document-version-new", "/documents/{document}/versions/new/", "cpuc_admin"),
+    ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),
+    ("document-value-lists", "/documents/lists/", None),
+    ("document-value-lists-admin", "/documents/lists/", "cpuc_admin"),
 ]

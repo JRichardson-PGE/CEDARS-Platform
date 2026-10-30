@@ -1,0 +1,68 @@
+{% extends "core/base.html" %}
+{% block title %}Documents{% endblock %}
+{% block content %}
+<div class="head-row">
+  <h1>Documents</h1>
+  {% if collections %}<a class="button" href="{% url 'documents:new' %}">File a document</a>{% endif %}
+</div>
+<p>PA documents, CPUC staff guidance, DEER resources, program files and EM&amp;V documents in one library. Published documents are open to
+everyone; each has a permanent link, and every earlier version stays listed. <a href="{% url 'documents:lists' %}">The value lists</a>
+behind the filters are kept by CPUC Energy Division.</p>
+<form method="get" class="filters" aria-label="Search the documents">
+  {{ form.q.as_field_group }}
+  {{ form.collection.as_field_group }}
+  {{ form.document_type.as_field_group }}
+  {{ form.pa.as_field_group }}
+  {% if form.status %}{{ form.status.as_field_group }}{% endif %}
+  <button type="submit">Search</button>
+  <details{% if advanced %} open{% endif %} style="flex-basis: 100%">
+    <summary>More filters: program, year, dates and attributes</summary>
+    <div class="filters">
+      {{ form.program.as_field_group }}
+      {{ form.year.as_field_group }}
+      {{ form.published_from.as_field_group }}
+      {{ form.published_to.as_field_group }}
+    </div>
+    <p class="small muted">Within a list, a document matching any value you tick is kept; across lists, it must match each list.</p>
+    {% for al, options in lists %}
+    <fieldset class="column-group">
+      <legend>{{ al.name }}</legend>
+      <div class="checks">
+        {% for o, on in options %}<label><input type="checkbox" name="options" value="{{ o.pk }}"{% if on %} checked{% endif %}> {{ o.label }}{% if o.retired_on %} <span class="muted">(retired)</span>{% endif %}</label>{% endfor %}
+      </div>
+    </fieldset>
+    {% endfor %}
+    <button type="submit">Search</button>
+  </details>
+</form>
+<div class="head-row">
+  <p>{{ total }} document{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
+  <p><a href="{% url 'documents:library_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
+</div>
+<div class="hscroll" tabindex="0" role="region" aria-label="Documents">
+<table class="list">
+  <caption class="sr-only">Documents, newest publication first</caption>
+  <thead><tr><th scope="col">Title</th><th scope="col">Collection and type</th><th scope="col">PAs</th><th scope="col">Years</th><th scope="col">Published</th><th scope="col">Version</th></tr></thead>
+  <tbody>
+  {% for doc, v in rows %}
+  <tr>
+    <th scope="row"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a>{% if doc.summary %}<br><span class="small muted">{{ doc.summary|truncatewords:30 }}</span>{% endif %}</th>
+    <td>{{ doc.get_collection_display }}<br><span class="small">{{ doc.document_type.label }}</span></td>
+    <td>{% for o in doc.pas.all %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}{{ doc.owner.code }}{% endfor %}</td>
+    <td class="nowrap">{{ doc.years }}</td>
+    <td class="nowrap">{% if doc.published_at %}{{ doc.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>{% endif %}</td>
+    <td>{% if v %}{{ v.number }}{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6">No documents match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Result pages">
+  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

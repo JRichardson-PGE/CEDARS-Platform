@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Change the details of {{ doc.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<h1>Change the details</h1>
+<p>The change is recorded with its reason, and what each field was before. The files do not change here:
+<a href="{% url 'documents:new_version' doc.pk %}">add a version</a> to replace them.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% include "documents/_details_fields.html" %}
+  {{ form.reason.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Save the change</button> <a href="{{ doc.get_absolute_url }}">Cancel</a></div>
+</form>
+{% endblock %}

@@ -12,7 +12,7 @@ MODULES = [
     ("Claims", "Quarterly and annual claims on the common template.", 4),
     ("Monthly reports", "Monthly expenditures and commitments against the operating budget.", 5),
     ("Data and downloads", "Dashboards and filtered downloads of published data.", 6),
-    ("Documents", "Filed documents and DEER resources.", 6),
+    ("Documents", "PA documents, CPUC guidance, DEER resources, program files and EM&V documents, replacing the PDA and PSR.", 6),
 ]
 
 
