@@ -683,7 +683,7 @@ def _rule_findings(own: dict[str, upload.Table], year: int) -> tuple[list, list[
         cols = ["CEInputID" if c == "ClaimID" else c for c in t.columns]
         try:
             df = rules.read_table(upload.to_csv(cols, rows))
-        except rules.EngineMissing as e:
+        except (rules.EngineMissing, ImportError) as e:  # the engine (and pandas with it) is not installed here
             raise AccessDenied(f"{e} The claims cannot be validated on this server.") from None
         have = {c.lower() for c in df.columns}
         names = sorted(set(rs.rules.filter(table=table, kind="spec").values_list("field", flat=True)))

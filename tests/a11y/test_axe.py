@@ -355,8 +355,9 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
 
 def _claims(cpuc_admin, pge, pge_admin, analyst):
     """2028's claims: Q1 priced (recorded as the Calculations module records a finished run), confirmed and published; Q2 uploaded
-    with rejected records (an unknown program, another PA's claim); Q3 not started. The scene's claims rule set is in force and the
-    analyst already holds the claims grants."""
+    with rejected records (an unknown program, another PA's claim); Q3 not started. The analyst already holds the claims grants."""
+    from unittest import mock
+
     from cedars.modules.claims import service as claims
 
     from ..test_budgets import group_sums
@@ -372,14 +373,18 @@ def _claims(cpuc_admin, pge, pge_admin, analyst):
         Site=[row("Site", SiteID="PGE-S1")],
         ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
     )
-    v = claims.upload_claims(analyst, q1, pge, claims_zip(first, full=True), "q1.zip")
+    # the accessibility job runs without the engine, so the claims rule set's findings are left out here (tests/test_claims.py runs them)
+    no_rules = mock.patch.object(claims, "_rule_findings", return_value=([], [], ""))
+    with no_rules:
+        v = claims.upload_claims(analyst, q1, pge, claims_zip(first, full=True), "q1.zip")
     key = "runs/claims/out/_results/group_sums2_measure_level_run.parquet"
     storage.store("results").put_bytes(key, group_sums())
     details = {"job_sha256": v.findings["job_sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
     v = submissions.record_calculation(None, v, run="claims", input_hash="h", details=details)
     v = claims.confirm(analyst, v)
     bad = tables(claim("PGE-2028-003", prg="NOPE", quarter="2028Q2"), claim("SCE-2028-1", prg="PGE_Res_HVAC", quarter="2028Q2"))
-    claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
+    with no_rules:
+        claims.upload_claims(analyst, q2, pge, claims_zip(bad, full=True), "q2.zip")
     return {"claims_q1": q1, "claims_q2": q2, "claims_q3": q3, "claims_version": v}
 
 
