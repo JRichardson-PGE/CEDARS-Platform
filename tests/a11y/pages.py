@@ -5,6 +5,8 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 
 PAGES = [
     ("home", "/", None),
+    ("dictionary", "/dictionary/?q=climate", None),
+    ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("sign-in", "/accounts/login/", None),
     ("sign-up", "/accounts/signup/", None),
     ("password-reset", "/accounts/password/reset/", None),

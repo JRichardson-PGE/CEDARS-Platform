@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "cedars.services.accounts",
     "cedars.services.audit",
     "cedars.services.registry",
+    "cedars.services.dictionary",
     "cedars.modules.administration",
     "allauth",
     "allauth.account",

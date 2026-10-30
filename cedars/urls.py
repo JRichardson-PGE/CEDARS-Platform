@@ -5,5 +5,6 @@ urlpatterns = [
     path("", include("cedars.core.urls")),
     path("accounts/", include("allauth.urls")),
     path("", include("cedars.modules.administration.urls")),
+    path("dictionary/", include("cedars.services.dictionary.urls")),
     path("django-admin/", admin.site.urls),
 ]

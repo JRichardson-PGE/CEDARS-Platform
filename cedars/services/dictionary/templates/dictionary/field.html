@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}{{ f.name }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'dictionary:index' %}">Data dictionary</a></p>
+<h1>{{ f.name }}</h1>
+<p>{{ f.definition|default:"No definition yet." }}</p>
+<dl class="facts">
+  <dt>Kind</dt><dd>{{ f.get_kind_display }}{% if f.group %}, {{ f.group }}{% endif %}</dd>
+  <dt>Type</dt><dd>{{ f.data_type }}{% if f.max_length %}, up to {{ f.max_length }} characters{% endif %}</dd>
+  {% if f.unit %}<dt>Unit</dt><dd>{{ f.unit }}</dd>{% endif %}
+  {% if f.source %}<dt>Source</dt><dd>{{ f.source }}</dd>{% endif %}
+  {% if f.source_version %}<dt>Version</dt><dd>{{ f.source_version }}</dd>{% endif %}
+  {% if f.cost_tests %}<dt>Cost tests</dt><dd>{{ f.cost_tests }}</dd>{% endif %}
+  {% if f.time_basis %}<dt>Time basis</dt><dd>{{ f.time_basis }}</dd>{% endif %}
+  {% if f.aggregation %}<dt>Aggregation</dt><dd>{{ f.aggregation }}</dd>{% endif %}
+  {% if f.rounding %}<dt>Rounding</dt><dd>{{ f.rounding }}</dd>{% endif %}
+  {% if f.years_in_use %}<dt>Years in use</dt><dd>{{ f.years_in_use }}</dd>{% endif %}
+  <dt>Audience</dt><dd>{{ f.get_audience_display }}</dd>
+  {% if f.required_by %}<dt>Required by</dt><dd>{{ f.required_by }}</dd>{% endif %}
+  {% if f.aliases.all %}<dt>Also accepted as</dt><dd>{% for a in f.aliases.all %}{{ a.name }} ({{ a.system }}){% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
+  {% if f.usages.all %}<dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}, column {{ u.position|add:1 }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
+  {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{{ f.doc_link }} in ReCET</dd>{% endif %}
+</dl>
+<p class="small muted">Catalog version {{ version.label }}.</p>
+{% endblock %}
