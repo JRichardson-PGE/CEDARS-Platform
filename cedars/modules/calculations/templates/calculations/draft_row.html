@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% block title %}{{ table }} row {{ number }}, {{ draft.name }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a> › <a href="{{ back }}">{{ draft.name }}</a></p>
+<h1>{{ table }} row {{ number }} <span class="small muted">of {{ count }}</span></h1>
+<nav class="pager" aria-label="Rows">
+  {% if number > 1 %}<a href="{% url 'calculations:draft_row' draft.pk table number|add:-1 %}">Previous row</a>{% endif %}
+  {% if number < count %}<a href="{% url 'calculations:draft_row' draft.pk table number|add:1 %}">Next row</a>{% endif %}
+  <a href="{{ back }}">Back to the table</a>
+</nav>
+{% if checks_failed %}<p class="alert" role="alert">The engine's cell checks could not run on this draft ({{ checks_failed }}). Look for blank or malformed numbers; the run still checks every input.</p>
+{% elif issues %}
+<section class="card" aria-labelledby="row-check-h">
+  <h2 id="row-check-h">This row's input check</h2>
+  <ul class="issues">{% for i in issues %}<li><span aria-hidden="true" class="mark">{{ i.symbol }}</span> {{ i.label }}: <a href="#{{ i.anchor }}">{{ i.column }}</a>: {{ i.message }}</li>{% endfor %}</ul>
+</section>
+{% else %}
+<p>Nothing in this row stops the run or needs a look.</p>
+{% endif %}
+<form method="post" class="stack" novalidate>{% csrf_token %}
+  {% for group, fields in groups %}
+  <fieldset><legend>{{ group }}</legend>
+    <div class="row-fields">
+    {% for f in fields %}
+      <div class="field">
+        <label for="{{ f.id }}">{{ f.name }}</label>
+        {% if f.choices is not None %}
+        <select id="{{ f.id }}" name="{{ f.name }}" aria-describedby="{{ f.id }}-help"{% if f.issues %} aria-invalid="true"{% endif %}{% if not can_change %} disabled{% endif %}>
+          <option value=""{% if not f.value %} selected{% endif %}>(blank)</option>
+          {% for c in f.choices %}<option value="{{ c }}"{% if c == f.value %} selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+        {% else %}
+        <input type="text" id="{{ f.id }}" name="{{ f.name }}" value="{{ f.value }}" aria-describedby="{{ f.id }}-help"{% if f.issues %} aria-invalid="true"{% endif %}{% if not can_change %} readonly{% endif %}>
+        {% endif %}
+        <span class="helptext" id="{{ f.id }}-help">{% for i in f.issues %}<strong class="issue-{{ i.severity }}"><span aria-hidden="true">{{ i.symbol }}</span> {{ i.label }}: {{ i.message }}</strong><br>{% endfor %}{{ f.effect }}{% if f.how %} {{ f.how }}{% endif %}</span>
+      </div>
+    {% endfor %}
+    </div>
+  </fieldset>
+  {% endfor %}
+  {% if can_change %}
+  <div class="actions">
+    <button type="submit" class="primary" name="action" value="save">Save the row</button>
+    <button type="submit" name="action" value="copy">Copy the row</button>
+    <button type="submit" name="action" value="delete">Delete the row</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

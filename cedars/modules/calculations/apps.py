@@ -13,6 +13,10 @@ class CalculationsConfig(AppConfig):
     def ready(self):
         from cedars.services.retention.service import register_purger
 
-        from . import service
+        from . import drafts, service
 
-        register_purger("scratch_run", service.expired_runs)
+        def expired_scratch(cutoff):  # one purger per record class: scratch runs, then idle Edit inputs drafts
+            yield from service.expired_runs(cutoff)
+            yield from drafts.expired_drafts(cutoff)
+
+        register_purger("scratch_run", expired_scratch)

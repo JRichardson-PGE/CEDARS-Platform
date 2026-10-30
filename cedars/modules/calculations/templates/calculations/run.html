@@ -29,6 +29,7 @@
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
   <dt>Inputs</dt><dd>{% for name, f in run.inputs.items %}{{ name }} <span class="small muted">SHA-256 {{ f.sha256|truncatechars:20 }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
 </dl>
+{% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
 </section>
 
 {% if totals %}

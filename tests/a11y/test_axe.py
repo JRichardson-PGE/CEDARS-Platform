@@ -16,7 +16,9 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.utils import timezone
 
 from cedars.core import storage
+from cedars.modules.calculations import drafts
 from cedars.modules.calculations import service as calculations
+from cedars.modules.calculations.models import InputDraft
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.dictionary import service as dictionary
@@ -166,6 +168,12 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     notifications.notify(pge_admin, "Your run finished: 2028 TUAL", "Portfolio TRC 1.21, PAC 1.64", "/reference-data/")
     notifications.notify(pge_admin, "Your run failed: scratch")
     notifications.mark_read(pge_admin, list(pge_admin.notifications.filter(title__contains="failed").values_list("pk", flat=True)))
+    # Edit inputs: a draft with a cell that would stop the run (the engine's checks; without the engine the pages say so)
+    if drafts.engine() is not None:
+        draft = drafts.create_blank(analyst, None, "Lighting retrofit, 2028")
+        drafts.set_row(analyst, draft, "Measure", 0, {"NumUnits": "ten"})
+    else:
+        draft = InputDraft.objects.create(owner=analyst, name="Lighting retrofit, 2028")
     # calculations: an engine release, a queued run and a finished one with its files
     service.grant(pge_admin, analyst, pge, "calculations.submit")
     release = calculations.add_release(
@@ -204,6 +212,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         "analyst": analyst,
         "queued_run": queued,
         "finished_run": finished,
+        "draft": draft,
         "rules": rules,
         "cpuc_admin": cpuc_admin,
         "approver": approver,

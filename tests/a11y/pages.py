@@ -53,6 +53,10 @@ PAGES = [
     ("calculations", "/calculations/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
+    ("edit-inputs", "/calculations/drafts/", "analyst"),
+    ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
+    ("edit-inputs-program-costs", "/calculations/drafts/{draft}/?table=ProgramCost", "analyst"),
+    ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
 ]

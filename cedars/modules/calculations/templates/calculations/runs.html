@@ -7,6 +7,7 @@
   {% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
 </div>
 <p>Cost-effectiveness runs on the ReCET engine: yours, and your organisations' (they stay with the organisation).</p>
+<p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job's tables here before running it.</p>
 {% if live %}<p class="small muted" id="runs-live" data-live="1">Runs still queued or running update on this page by themselves.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Runs">
 <table class="list">

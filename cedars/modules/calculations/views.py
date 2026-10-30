@@ -148,8 +148,18 @@ def run(request, pk):
             "packs": ((receipt.get("packs") or {}).get("files") or {}),
             "totals": receipt.get("totals") or {},
             "notes": receipt.get("notes") or [],
+            "can_edit_inputs": _can_edit_inputs(request.user, run),
         },
     )
+
+
+def _can_edit_inputs(user, run: Run) -> bool:
+    """Edit inputs and rerun: offered on an ended run small enough for Edit inputs, when the engine is installed."""
+    from . import drafts
+
+    if drafts.engine() is None or not run.ended or "job_zip" not in run.inputs:
+        return False
+    return (run.measure_count or 0) <= drafts.max_rows() and service.can_submit(user, run.organisation)
 
 
 @never_cache

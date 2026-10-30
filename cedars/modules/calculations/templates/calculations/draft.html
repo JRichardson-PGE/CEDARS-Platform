@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% block title %}{{ draft.name }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:drafts' %}">Edit inputs</a></p>
+<div class="head-row">
+  <h1>{{ draft.name }}</h1>
+  <div class="actions"><a class="button primary" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a></div>
+</div>
+<p class="small muted">{{ draft.source }}{% if draft.source_run %} (<a href="{% url 'calculations:run' draft.source_run.pk %}">the run</a>){% endif %}. For {{ draft.organisation.code|default:"you only" }}. Changed {{ draft.updated_at|date:"Y-m-d H:i" }}.</p>
+
+<section class="card" aria-labelledby="check-h">
+  <h2 id="check-h">Input check</h2>
+  {% if checks_failed %}<p class="alert" role="alert">The engine's cell checks could not run on these tables ({{ checks_failed }}). Look for blank or malformed numbers; the run still checks every input.</p>{% else %}
+  {% if counts.error %}<p><strong>{{ counts.error }} cell{{ counts.error|pluralize }} would stop the run.</strong> {% else %}<p><strong>Nothing here stops the run.</strong> {% endif %}
+  {{ counts.warning }} warning{{ counts.warning|pluralize }}{% if counts.info %}, {{ counts.info }} note{{ counts.info|pluralize }}{% endif %}.
+  These are the engine's per-cell input rules; the run checks everything again, including the impact profiles (not checked here).</p>
+  {% endif %}
+  {% if issues %}
+  <details{% if counts.error %} open{% endif %}><summary>Cells to look at</summary>
+    <ul class="issues">
+    {% for i in issues %}<li><span aria-hidden="true" class="mark">{{ i.symbol }}</span> {{ i.label }}: <a href="{% url 'calculations:draft_row' draft.pk i.table i.number %}#{{ i.anchor }}">{{ i.table }} row {{ i.number }}, {{ i.column }}</a>: {{ i.message }}</li>{% endfor %}
+    {% if more_issues %}<li>and {{ more_issues }} more</li>{% endif %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+
+<nav class="subnav" aria-label="Tables">
+  {% for t, n in tables %}<a href="?table={{ t }}"{% if t == table %} aria-current="page"{% endif %}>{{ t }} ({{ n }})</a>{% endfor %}
+</nav>
+<h2 id="table-h">{{ table }}</h2>
+<p class="small">Columns in italics change no result (they are carried to the outputs). Marks: <span aria-hidden="true">✕</span> stops the run, <span aria-hidden="true">!</span> warning, <span aria-hidden="true">i</span> note; each is also written out for screen readers.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="table-h">
+<table class="list compact">
+  <caption class="sr-only">{{ table }}, rows {{ first_row }} to {{ last_row }}</caption>
+  <thead><tr><th scope="col">Row</th>{% for c, no_effect in columns %}<th scope="col"{% if no_effect %} class="no-effect"{% endif %}>{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr><th scope="row"><a href="{% url 'calculations:draft_row' draft.pk table r.number %}">{% if can_change %}Edit{% else %}View{% endif %} row {{ r.number }}</a></th>
+    {% for cell in r.cells %}<td{% if cell.worst %} class="cell-{{ cell.worst }}"{% endif %}>{{ cell.value }}{% if cell.worst %} <span aria-hidden="true" class="mark">{{ cell.symbol }}</span><span class="sr-only">({{ cell.said }})</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if pages > 1 %}
+<nav class="pager" aria-label="{{ table }} pages">
+  {% if page > 1 %}<a href="?table={{ table }}&amp;page={{ page|add:-1 }}">Previous</a>{% endif %}
+  <span>Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}<a href="?table={{ table }}&amp;page={{ page|add:1 }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+
+{% if can_change %}
+<section class="card" aria-labelledby="change-h">
+  <h2 id="change-h">Change the draft</h2>
+  <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="table" value="{{ table }}">
+    <button type="submit" name="action" value="add">{% if table == "Measure" %}Add a measure{% else %}Add a program-cost row{% endif %}</button>
+  </form>
+  <form method="post" class="row-form">{% csrf_token %}<input type="hidden" name="action" value="rename">
+    <div class="field"><label for="draft-name">Name</label><input type="text" id="draft-name" name="name" value="{{ draft.name }}" maxlength="200" required></div>
+    <button type="submit">Rename</button>
+  </form>
+  <form method="post" class="actions">{% csrf_token %}<button type="submit" name="action" value="delete">Delete the draft</button></form>
+</section>
+{% endif %}
+{% endblock %}

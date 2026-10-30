@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}Edit inputs{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<h1>Edit inputs</h1>
+{% if no_engine %}
+<p class="alert" role="alert">Edit inputs needs the ReCET engine package installed on this server (engine/README.md).</p>
+{% else %}
+<p>Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to {{ max_rows }} measures (edit larger jobs
+offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Drafts">
+<table class="list">
+  <caption class="sr-only">Drafts, most recently changed first</caption>
+  <thead><tr><th scope="col">Draft</th><th scope="col">For</th><th scope="col">Measures</th><th scope="col">From</th><th scope="col">Changed</th></tr></thead>
+  <tbody>
+  {% for d, mine in drafts %}
+  <tr><th scope="row"><a href="{% url 'calculations:draft' d.pk %}">{{ d.name }}</a></th><td>{{ d.organisation.code|default:"Only you" }}</td>
+    <td>{{ d.measure_count }}</td><td class="small">{{ d.source }}</td><td class="nowrap">{{ d.updated_at|date:"Y-m-d H:i" }}</td></tr>
+  {% empty %}<tr><td colspan="5">No drafts yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">Start a draft</h2>
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {{ form.name.as_field_group }}
+    {{ form.run_for.as_field_group }}
+    {{ form.start.as_field_group }}
+    {{ form.job.as_field_group }}
+    <div class="actions"><button type="submit" class="primary">Start editing</button></div>
+  </form>
+  <p class="small">To edit a finished run's inputs, use Edit inputs and rerun on the run's page.</p>
+</section>
+{% endif %}
+{% endblock %}

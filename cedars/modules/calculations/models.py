@@ -31,6 +31,36 @@ class EngineRelease(models.Model):
         return f"ReCET {self.release}"
 
 
+class InputDraft(models.Model):
+    """A small job's Measure and ProgramCost tables being edited on the Edit inputs pages (up to the engine's MAX_EDIT_ROWS measures),
+    started from an upload, a run's inputs or a blank job. Tables are kept as text, in CET's column order, as ReCET's editor keeps them:
+    {"columns": [...], "rows": [[...], ...]}. A draft for an organisation is shared with its members who may start runs there; a draft
+    with no organisation is its owner's own. Drafts are scratch data (retention class scratch_run, from their last change)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organisation = models.ForeignKey(
+        "accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="calculation_drafts"
+    )
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="calculation_drafts")
+    name = models.CharField(max_length=200)
+    source = models.CharField(max_length=300, blank=True, help_text="Where the tables came from")
+    source_run = models.ForeignKey("Run", null=True, blank=True, on_delete=models.SET_NULL, related_name="drafts")
+    measures = models.JSONField(default=dict)
+    programcost = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def measure_count(self) -> int:
+        return len((self.measures or {}).get("rows", []))
+
+
 class Run(models.Model):
     """One calculation run: who asked for it, for which organisation, the settings, the inputs (by key and SHA-256), the job spec the
     worker was given, its progress, and the worker's receipt (engine, packs, allocation table, outputs and their hashes). A run belongs to
