@@ -19,7 +19,7 @@ from cedars.services.registry.models import FilingCycle
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
-from . import forms, jobfile, service
+from . import forms, jobfile, service, shifts
 from .models import PROGRAM_COST_FIELDS
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
@@ -202,6 +202,8 @@ def filing(request, pk):
         "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
         "sysadmin": access.is_system_admin(request.user),
     }
+    if acting and (v is None or not v.locked):
+        ctx["shifts_in_effect"] = shifts.operating_budget(org, deadline.cycle).shifts
     if v is not None:
         ctx["pricing_run"] = _pricing_run(v)
         ctx["priced"] = service.priced(v)

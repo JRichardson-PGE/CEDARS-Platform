@@ -70,6 +70,15 @@
 </section>
 {% endif %}
 
+{% if shifts_in_effect %}
+<div class="card" role="note">
+  <p><strong>{{ shifts_in_effect|length }} fund shift{{ shifts_in_effect|length|pluralize }} in effect for {{ org.code }} in this cycle.</strong>
+  Once this filing is confirmed it is taken to include {{ shifts_in_effect|length|pluralize:"that shift,those shifts" }}, and they stop adding to
+  {{ org.code }}'s operating budget. Put their amounts into this filing's numbers, or make them again as new shifts after it.</p>
+  <ul>{% for s in shifts_in_effect %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a></li>{% endfor %}</ul>
+</div>
+{% endif %}
+
 {% if can_submit and not v.locked %}
 <section aria-labelledby="upload-h">
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the filing{% endif %}</h2>

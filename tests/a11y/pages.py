@@ -2,7 +2,7 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}."""
+{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft}."""
 
 PAGES = [
     ("home", "/", None),
@@ -82,4 +82,14 @@ PAGES = [
     ("budget-filing-cpuc", "/budgets/filings/{tual}/?org=PGE", "cpuc_admin"),
     ("budget-version", "/budgets/versions/{budget_version}/?years=2028&hide_budget=1", "community"),
     ("budget-compare", "/budgets/compare/?a={budget_version}&b={budget_draft}", "analyst"),
+    ("fund-shifts", "/budgets/shifts/", "analyst"),
+    ("fund-shift-new", "/budgets/shifts/new/", "analyst"),
+    ("fund-shift-lines", "/budgets/shifts/{shift_draft}/lines/", "analyst"),
+    ("fund-shift-draft", "/budgets/shifts/{shift_draft}/", "analyst"),
+    ("fund-shift-waiting", "/budgets/shifts/{shift_waiting}/", "analyst"),
+    ("fund-shift-waiting-cofunder", "/budgets/shifts/{shift_waiting}/", "sce_user"),
+    ("fund-shift-acknowledge", "/budgets/shifts/{shift_waiting}/acknowledge/", "sce_user"),
+    ("fund-shift-effective-cpuc", "/budgets/shifts/{shift_effective}/", "cpuc_admin"),
+    ("operating-budget", "/budgets/operating/2028/", "analyst"),
+    ("operating-budget-cpuc", "/budgets/operating/2028/?org=PGE&year=2028", "cpuc_admin"),
 ]

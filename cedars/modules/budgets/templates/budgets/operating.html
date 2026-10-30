@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+{% load budget_money %}
+{% block title %}Operating budget · {{ ob.organisation.code }} {{ ob.cycle }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
+<h1>{{ ob.organisation.code }} operating budget, {{ ob.cycle }}</h1>
+<p>The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.kind }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date:"Y-m-d" }}{% else %}not filed yet (taken as zero){% endif %}.
+The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.</p>
+<div class="card" role="note">
+  <p><strong>Shifts before a later filing are not added.</strong> Once {{ ob.organisation.code }} confirms a later budget filing for the
+  cycle, that filing is taken to include every shift in effect before it, and those shifts stop adding to the operating budget.
+  Put their amounts into the later filing's numbers, or make them again as new shifts after it.</p>
+  {% if ob.earlier %}<p>Not added here, because they took effect before the approved budget was confirmed:</p>
+  <ul>{% for s in ob.earlier %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a>, in effect since {{ s.effective_at|date:"Y-m-d" }}</li>{% endfor %}</ul>{% endif %}
+</div>
+
+<form method="get" class="filters" aria-label="Choose the PA and year">
+  {% if orgs.count > 1 %}<label>PA <select name="org">{% for o in orgs %}<option value="{{ o.code }}"{% if o == ob.organisation %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>{% endif %}
+  <label>Program year <select name="year"><option value="">Every year</option>{% for y in ob.years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
+  <button type="submit">Show</button>
+</form>
+
+<h2>By year</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Totals by year">
+<table class="list">
+  <caption class="sr-only">Approved budget, fund shifts and operating budget by program year</caption>
+  <thead><tr><th scope="col">Year</th><th scope="col">Approved</th><th scope="col">Fund shifts</th><th scope="col">Operating</th></tr></thead>
+  <tbody>{% for y, t in by_year %}<tr><th scope="row">{{ y }}</th><td class="num">{{ t.approved|money }}</td><td class="num">{{ t.shifted|money }}</td><td class="num">{{ t.operating|money }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+
+<h2>By program{% if year %} in {{ year }}{% endif %}</h2>
+<p><a href="{% url 'budgets:operating_csv' ob.cycle.first_year %}?org={{ ob.organisation.code }}{% if year %}&amp;year={{ year }}{% endif %}">Download this view (CSV)</a></p>
+{% if rows %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Operating budget by program">
+<table class="list">
+  <caption class="sr-only">Approved budget, fund shifts and operating budget by program and year</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">Year</th><th scope="col">Approved</th><th scope="col">Fund shifts</th><th scope="col">Operating</th></tr></thead>
+  <tbody>{% for r in rows %}<tr>
+    <th scope="row">{{ r.prg_id }}{% if r.name %}<br><span class="small">{{ r.name }}</span>{% endif %}</th>
+    <td>{{ r.year }}</td><td class="num">{{ r.approved|money }}</td><td class="num">{{ r.shifted|money }}</td><td class="num">{{ r.operating|money }}</td>
+  </tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row">Total</th><td></td><td class="num">{{ total.approved|money }}</td><td class="num">{{ total.shifted|money }}</td><td class="num">{{ total.operating|money }}</td></tr></tfoot>
+</table>
+</div>
+{% else %}<p>No budget lines{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+
+{% if ob.shifts %}
+<h2>Shifts in effect</h2>
+<ul>{% for s in ob.shifts %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a>, since {{ s.effective_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

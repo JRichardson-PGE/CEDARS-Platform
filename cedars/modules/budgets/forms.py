@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
 
-from cedars.services.registry.models import AllocationVersion
+from cedars.services.registry.models import AllocationVersion, FilingCycle
 
 from .models import FILING_KINDS
 
@@ -60,3 +60,13 @@ class UploadForm(forms.Form):
 
 class ReasonForm(forms.Form):
     reason = forms.CharField(label="Reason", widget=forms.Textarea(attrs={"rows": 2}))
+
+
+class ShiftForm(forms.Form):
+    cycle = forms.ModelChoiceField(label="Filing cycle", queryset=FilingCycle.objects.none(), empty_label=None)
+    title = forms.CharField(label="Title", max_length=200, help_text="A short name, e.g. Move 2029 marketing to residential HVAC")
+    reason = forms.CharField(label="Reason", widget=forms.Textarea(attrs={"rows": 3}), help_text="Why the money moves")
+
+    def __init__(self, *args, cycles=None, **kw):
+        super().__init__(*args, **kw)
+        self.fields["cycle"].queryset = cycles if cycles is not None else FilingCycle.objects.none()
