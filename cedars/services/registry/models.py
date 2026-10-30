@@ -193,3 +193,54 @@ class AllocationShare(models.Model):
 
     def __str__(self):
         return f"{self.funding_pa} share of {self.entry}"
+
+
+class ProgramChangePolicy(models.Model):
+    """Which program attributes are locked (BR-13.7): a program's administrators change the others themselves, and request a change to
+    a locked one, which a CPUC programs approver (or their delegate) decides. A dated setting, not code: the policy in force on a day
+    is the newest one effective by then; earlier ones are kept."""
+
+    effective_from = models.DateField(unique=True)
+    locked_fields = models.JSONField(default=list, blank=True, help_text="ProgramVersion attribute names")
+    reason = models.TextField(blank=True)
+    set_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-effective_from"]
+        verbose_name_plural = "program change policies"
+
+    def __str__(self):
+        return f"locked program attributes from {self.effective_from}"
+
+
+class ProgramChangeRequest(models.Model):
+    """A requested change to a program that touches a locked attribute (BR-13.7). Approving it starts the new version, as a change by
+    the program's administrators would; declining or withdrawing it changes nothing. Requests are kept, decided or not."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Waiting for a decision"
+        APPROVED = "approved", "Approved"
+        DECLINED = "declined", "Declined"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    program = models.ForeignKey(Program, on_delete=models.PROTECT, related_name="change_requests")
+    organisation = models.ForeignKey("accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    requested_at = models.DateTimeField(auto_now_add=True)
+    effective = models.DateField()
+    reason = models.TextField()
+    changes = models.JSONField(help_text="{attribute: new value}")
+    before = models.JSONField(default=dict, help_text="The same attributes in the latest version when the request was made")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    decided_as_delegate_of = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.TextField(blank=True)
+    version = models.ForeignKey(ProgramVersion, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        return f"change to {self.program.prg_id} from {self.effective} ({self.get_status_display().lower()})"

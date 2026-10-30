@@ -23,6 +23,7 @@ from cedars.services.dictionary import service as dictionary
 from cedars.services.notifications import service as notifications
 from cedars.services.refdata import service as refdata
 from cedars.services.registry import service as registry
+from cedars.services.registry.models import ProgramChangePolicy
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
 
@@ -213,6 +214,13 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         flags={"Resource_Flag": "True", "Deemed_Flag": "True"},
     )
     registry.change_program(pge_admin, hvac, effective=date(2026, 7, 1), reason="advice letter 4900-E", implementer="Third-Party Solicited")
+    service.grant(cpuc_admin, approver, cpuc, "programs.approve")
+    ProgramChangePolicy.objects.get_or_create(
+        effective_from=date(2000, 1, 1), defaults={"locked_fields": ["segment"]}
+    )  # flushed by earlier tests
+    change_request = registry.request_change(
+        pge_admin, hvac, effective=date.today() + timedelta(days=60), reason="moves to market support", segment="market_support"
+    )
     sw_id = factors.split(b"\n")[1].split(b",")[1].decode()
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
@@ -226,6 +234,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         "rules": rules,
         "cpuc_admin": cpuc_admin,
         "approver": approver,
+        "change_request": change_request.pk,
         "pge_admin": pge_admin,
         "community": community,
         "password": community,

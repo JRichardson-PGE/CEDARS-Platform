@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block title %}Locked program attributes{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
+<h1>Locked program attributes</h1>
+<p>A program's administrators change these only through a <a href="{% url 'programs:requests' %}">change request</a>, which a CPUC programs
+approver decides. CPUC system administrators and programs approvers change them directly. Every other attribute stays with the program's administrators.</p>
+<h2>In force today</h2>
+{% if current %}<ul>{% for label in current %}<li>{{ label }}</li>{% endfor %}</ul>{% else %}<p>None: every attribute stays with the program's administrators.</p>{% endif %}
+<h2>Policies</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Policies">
+<table class="list">
+  <caption class="sr-only">Locked-attribute policies, newest first</caption>
+  <thead><tr><th scope="col">From</th><th scope="col">Locked</th><th scope="col">Reason</th><th scope="col">Set by</th></tr></thead>
+  <tbody>{% for pol, labels in policies %}<tr>
+    <th scope="row" class="nowrap">{{ pol.effective_from|date:"Y-m-d" }}{% if pol.effective_from > today %} <span class="small">(not yet in force)</span>{% endif %}</th>
+    <td>{{ labels|join:", "|default:"None" }}</td><td>{{ pol.reason }}</td><td class="small">{{ pol.set_by.email|default:"shipped" }}</td>
+  </tr>{% empty %}<tr><td colspan="4">No policy: nothing is locked.</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if can_set %}
+<section aria-labelledby="set-h">
+<h2 id="set-h">Set a new policy</h2>
+<p>A policy starts today or later and is never edited; the ones before it are kept.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Save the policy</button></div>
+</form>
+</section>
+{% endif %}
+{% endblock %}

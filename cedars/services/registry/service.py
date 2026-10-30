@@ -19,8 +19,19 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.submissions.service import approver_for
 
-from .models import AllocationEntry, AllocationShare, AllocationVersion, FilingCycle, Program, ProgramVersion, ReportingPeriod
+from .models import (
+    AllocationEntry,
+    AllocationShare,
+    AllocationVersion,
+    FilingCycle,
+    Program,
+    ProgramChangePolicy,
+    ProgramChangeRequest,
+    ProgramVersion,
+    ReportingPeriod,
+)
 
 VERSION_FIELDS = [
     "name",
@@ -154,26 +165,39 @@ def _clean(fields: dict) -> dict:
 def change_program(actor, program: Program, *, effective: date, reason: str, **changes) -> ProgramVersion:
     """Start a new version on `effective` with `changes` applied to the latest version; the version before it ends the day before.
     The date may be in the future (a resolution entered before its effective date); it cannot be on or before the latest version's
-    start, because versions already in force are history."""
+    start, because versions already in force are history. A change to a locked attribute is a request instead (request_change)."""
     if not can_edit(actor, program):
         raise AccessDenied(
             f"Only {program.administrator.code if program.administrator else 'the CPUC'}'s administrators can change {program}."
         )
-    if not reason.strip():
-        raise AccessDenied("Give a reason for the change.")
     _clean(changes)
-    latest = program.versions.select_for_update().order_by("-valid_from").first()
+    held = needs_approval(actor, changes)
+    if held:
+        raise AccessDenied(f"{_names(held)} {'is' if len(held) == 1 else 'are'} locked: request the change and a CPUC approver decides it.")
+    return _start_version(actor, program, effective=effective, reason=reason, changes=changes, created_by=actor)
+
+
+def _latest(program: Program, effective: date, *, lock: bool = False) -> ProgramVersion:
+    qs = program.versions.select_for_update() if lock else program.versions
+    latest = qs.order_by("-valid_from").first()
     if latest is None:
         raise ValueError(f"{program} has no versions")
     if effective <= latest.valid_from:
         raise AccessDenied(f"A change must start after {latest.valid_from:%Y-%m-%d}, when the latest version started.")
     if latest.valid_to is not None and effective > latest.valid_to + timedelta(days=1):
         raise AccessDenied(f"{program}'s versions end on {latest.valid_to:%Y-%m-%d}; a change cannot leave a gap.")
+    return latest
+
+
+def _start_version(actor, program: Program, *, effective: date, reason: str, changes: dict, created_by) -> ProgramVersion:
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the change.")
+    latest = _latest(program, effective, lock=True)
     before = audit.snapshot(latest, ["valid_from", "valid_to", *VERSION_FIELDS])
     values = {f: getattr(latest, f) for f in VERSION_FIELDS} | changes
     ProgramVersion.objects.filter(pk=latest.pk).update(valid_to=effective - timedelta(days=1))
     new = ProgramVersion.objects.create(
-        program=program, valid_from=effective, valid_to=latest.valid_to, created_by=actor, reason=reason, **values
+        program=program, valid_from=effective, valid_to=latest.valid_to, created_by=created_by, reason=reason, **values
     )
     audit.record(
         "program.changed",
@@ -184,6 +208,163 @@ def change_program(actor, program: Program, *, effective: date, reason: str, **c
         actor=actor,
     )
     return new
+
+
+# --- locked attributes and change requests (BR-13.7)
+
+APPROVALS = "programs"  # programs.approve in the CPUC organisation decides requests (submissions' approvers and delegates)
+
+
+def _names(fields) -> str:
+    return ", ".join(ProgramVersion._meta.get_field(f).verbose_name.capitalize() for f in fields)
+
+
+def change_policy(day: date | None = None) -> ProgramChangePolicy | None:
+    """The policy in force on `day` (today by default): the newest one effective by then."""
+    return ProgramChangePolicy.objects.filter(effective_from__lte=day or timezone.localdate()).order_by("-effective_from").first()
+
+
+def policies():
+    """Every program change policy, newest first (earlier ones are kept as history)."""
+    return ProgramChangePolicy.objects.select_related("set_by")
+
+
+def locked_fields(day: date | None = None) -> list[str]:
+    policy = change_policy(day)
+    return [f for f in VERSION_FIELDS if policy and f in policy.locked_fields]
+
+
+@transaction.atomic
+def set_locked_fields(actor, fields, *, effective: date, reason: str) -> ProgramChangePolicy:
+    """A new policy from `effective` (today or later). Policies are never edited: one already set for a date stays as it is."""
+    if not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator sets which program attributes are locked.")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the change.")
+    _clean(dict.fromkeys(fields))
+    if effective < timezone.localdate():
+        raise AccessDenied("A policy cannot start in the past.")
+    if ProgramChangePolicy.objects.filter(effective_from=effective).exists():
+        raise AccessDenied(f"A policy already starts on {effective:%Y-%m-%d}.")
+    before = locked_fields(effective)
+    policy = ProgramChangePolicy.objects.create(
+        effective_from=effective, locked_fields=[f for f in VERSION_FIELDS if f in set(fields)], reason=reason, set_by=actor
+    )
+    audit.record(
+        "program_policy.changed",
+        obj=policy,
+        before={"locked_fields": before},
+        after={"effective_from": str(effective), "locked_fields": policy.locked_fields},
+        reason=reason,
+        actor=actor,
+    )
+    return policy
+
+
+def approver(actor):
+    """The CPUC programs approver `actor` acts for (themselves, or the approver who delegated to them today), or None."""
+    return approver_for(actor, APPROVALS) if actor is not None else None
+
+
+def needs_approval(actor, changes: dict) -> list[str]:
+    """The locked attributes among `changes` that `actor` may not change without a decision (none for CPUC system administrators
+    and programs approvers, whose change is the decision)."""
+    if actor is None or access.is_system_admin(actor) or approver(actor) is not None:
+        return []
+    locked = set(locked_fields())
+    return [f for f in VERSION_FIELDS if f in changes and f in locked]
+
+
+def _json(value):
+    return value if value is None or isinstance(value, (str, int, float, bool, dict, list)) else str(value)
+
+
+@transaction.atomic
+def request_change(actor, program: Program, *, effective: date, reason: str, **changes) -> ProgramChangeRequest:
+    """Ask for a change that touches a locked attribute. Checked now as the change itself would be; nothing changes until approved."""
+    if not can_edit(actor, program):
+        raise AccessDenied(
+            f"Only {program.administrator.code if program.administrator else 'the CPUC'}'s administrators can change {program}."
+        )
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the change.")
+    _clean(changes)
+    if not changes:
+        raise AccessDenied("Nothing was changed.")
+    if not needs_approval(actor, changes):
+        raise AccessDenied("Nothing in this change needs approval: save it as a change.")
+    if program.change_requests.filter(status=ProgramChangeRequest.Status.PENDING).exists():
+        raise AccessDenied(f"A change to {program} is already waiting for a decision; withdraw it first.")
+    latest = _latest(program, effective)
+    req = ProgramChangeRequest.objects.create(
+        program=program,
+        organisation=program.administrator,
+        requested_by=actor,
+        effective=effective,
+        reason=reason,
+        changes={k: _json(v) for k, v in changes.items()},
+        before={k: _json(getattr(latest, k)) for k in changes},
+    )
+    audit.record(
+        "program_change.requested",
+        obj=req,
+        after={"program": program.prg_id, "effective": str(effective), "changes": req.changes},
+        reason=reason,
+        actor=actor,
+        organisation=program.administrator,
+    )
+    return req
+
+
+def can_see_request(user, req: ProgramChangeRequest) -> bool:
+    if access.is_system_admin(user) or approver(user) is not None:
+        return True
+    return req.organisation_id is not None and access.organisations_of(user).filter(pk=req.organisation_id).exists()
+
+
+def visible_requests(user):
+    qs = ProgramChangeRequest.objects.select_related("program", "requested_by", "decided_by", "organisation")
+    if access.is_system_admin(user) or approver(user) is not None:
+        return qs
+    return qs.filter(organisation__in=access.organisations_of(user))
+
+
+@transaction.atomic
+def decide_change(actor, req: ProgramChangeRequest, approve: bool, note: str = "") -> ProgramChangeRequest:
+    """Approve (the new version starts on the requested date, entered by the requester) or decline. Someone else decides a request."""
+    req = ProgramChangeRequest.objects.select_for_update().select_related("program").get(pk=req.pk)
+    if req.status != ProgramChangeRequest.Status.PENDING:
+        raise AccessDenied("That request has been decided.")
+    on_behalf = approver(actor)
+    if on_behalf is None:
+        raise AccessDenied("Only a CPUC programs approver, or their delegate, decides change requests.")
+    if req.requested_by_id == actor.pk:
+        raise AccessDenied("Someone other than the requester decides a request.")
+    if not approve and not note.strip():
+        raise AccessDenied("Say why the request is declined.")
+    if approve:
+        req.version = _start_version(
+            actor, req.program, effective=req.effective, reason=req.reason, changes=dict(req.changes), created_by=req.requested_by
+        )
+    req.status = ProgramChangeRequest.Status.APPROVED if approve else ProgramChangeRequest.Status.DECLINED
+    req.decided_by, req.decided_at, req.decision_note = actor, timezone.now(), note
+    req.decided_as_delegate_of = on_behalf if on_behalf != actor else None
+    req.save()
+    audit.record(f"program_change.{req.status}", obj=req, reason=note, actor=actor, organisation=req.organisation)
+    return req
+
+
+@transaction.atomic
+def withdraw_change(actor, req: ProgramChangeRequest, reason: str = "") -> ProgramChangeRequest:
+    req = ProgramChangeRequest.objects.select_for_update().select_related("program").get(pk=req.pk)
+    if req.status != ProgramChangeRequest.Status.PENDING:
+        raise AccessDenied("That request has been decided.")
+    if req.requested_by_id != actor.pk and not can_edit(actor, req.program):
+        raise AccessDenied("Only the requester or the program's administrators withdraw a request.")
+    req.status = ProgramChangeRequest.Status.WITHDRAWN
+    req.save(update_fields=["status"])
+    audit.record("program_change.withdrawn", obj=req, reason=reason, actor=actor, organisation=req.organisation)
+    return req
 
 
 def history(program: Program) -> list[tuple[ProgramVersion, list[tuple[str, object, object]]]]:

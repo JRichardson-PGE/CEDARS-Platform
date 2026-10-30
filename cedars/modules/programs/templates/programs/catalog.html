@@ -3,7 +3,8 @@
 {% block content %}
 <h1>Programs</h1>
 <p>Every program in the registry, closed programs included. Search by name or PrgID; pick a program year to see the attributes that applied
-that year.</p>
+that year. Changes to locked attributes go through <a href="{% url 'programs:requests' %}">change requests</a>
+(<a href="{% url 'programs:locked' %}">which attributes are locked</a>).</p>
 <form method="get" class="filters" aria-label="Filter the programs">
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>

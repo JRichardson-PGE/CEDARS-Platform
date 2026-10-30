@@ -6,6 +6,7 @@
   <h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>
   {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
 </div>
+{% for r in pending %}<p>A change from {{ r.effective|date:"Y-m-d" }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
 
 <section aria-labelledby="def-h">
 <h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date:"Y-m-d" }}</span>{% endif %}</h2>

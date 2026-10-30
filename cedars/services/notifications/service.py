@@ -40,6 +40,10 @@ EVENTS = [
     EventType("rule_set.published", "A validation rule set is published", "public", "Rules and dictionary"),
     EventType("dictionary.published", "A new version of the data dictionary is published", "public", "Rules and dictionary"),
     EventType("allocation_version.confirmed", "Statewide allocation factors are confirmed", "public", "Programs"),
+    EventType("program_change.requested", "A change to a locked program attribute is requested (for approvers)", "cpuc", "Programs"),
+    EventType("program_change.approved", "A program change request is approved", "organisation", "Programs"),
+    EventType("program_change.declined", "A program change request is declined", "organisation", "Programs"),
+    EventType("program_policy.changed", "The locked program attributes change", "public", "Programs"),
 ]
 BY_CODE = {e.code: e for e in EVENTS}
 REMINDER_DAYS = (7, 1)
@@ -66,6 +70,12 @@ def _concerns(event) -> tuple[int | None, str, str]:
             from cedars.services.submissions.models import Deadline
 
             return None, Deadline.objects.get(pk=oid).module, "/filings/calendar/"
+        if t == "registry.programchangerequest":
+            from cedars.services.registry.models import ProgramChangeRequest
+
+            return ProgramChangeRequest.objects.get(pk=oid).organisation_id, "programs", f"/programs/requests/{oid}/"
+        if t == "registry.programchangepolicy":
+            return None, "programs", "/programs/locked/"
         if t == "refdata.packversion":
             return None, "", f"/reference-data/{oid}/"
         if t == "rules.ruleset":

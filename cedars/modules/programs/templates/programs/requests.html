@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% block title %}Program change requests{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
+<h1>Program change requests</h1>
+<p>A program's administrators change most of its attributes themselves. A change to a <a href="{% url 'programs:locked' %}">locked attribute</a>
+is a request{% if approver %}, which you or another CPUC programs approver decides{% else %} that a CPUC programs approver decides{% endif %}.
+Approving it starts the new version on the date asked for.</p>
+<form method="get" class="filters" aria-label="Filter the requests">
+  <div><label for="status">Show</label>
+  <select id="status" name="status">{% for code, label in statuses %}<option value="{{ code }}"{% if code == shown %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Change requests">
+<table class="list">
+  <caption class="sr-only">Program change requests, newest first</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">Changes</th><th scope="col">From</th><th scope="col">Asked by</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for r, names in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'programs:request' r.pk %}">{{ r.program.prg_id }}<span class="sr-only">: change request {{ r.pk }}</span></a></th>
+    <td>{{ names }}</td>
+    <td class="nowrap">{{ r.effective|date:"Y-m-d" }}</td>
+    <td class="small">{{ r.requested_by.email }}<br>{{ r.requested_at|date:"Y-m-d" }}</td>
+    <td>{{ r.get_status_display }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5">No requests here.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Request pages">
+  {% if page.has_previous %}<a href="?status={{ shown }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?status={{ shown }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}
