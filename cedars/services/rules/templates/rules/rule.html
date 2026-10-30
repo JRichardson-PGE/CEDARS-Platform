@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Rule {{ r.rule_id }}{% endblock %}
+{% block content %}
+<p><a href="{% url 'rules:detail' r.rule_set.pk %}">{{ r.rule_set }}</a></p>
+<h1>Rule {{ r.rule_id }}</h1>
+<p>{{ r.message }}</p>
+<dl class="facts">
+  <dt>Severity</dt><dd>{{ r.get_severity_display }}</dd>
+  <dt>Table and field</dt><dd>{{ r.table }}, {{ r.field }}</dd>
+  <dt>Suggested fix</dt><dd>{{ r.fix }}</dd>
+  <dt>Applied in</dt><dd>{{ r.modules|join:", " }}</dd>
+  {% if r.difference %}<dt>Differs between modules</dt><dd>{{ r.difference }}</dd>{% endif %}
+  <dt>Source</dt><dd>{{ r.source }}</dd>
+</dl>
+<h2>The rule as data</h2>
+<pre>{{ r.definition }}</pre>
+{% endblock %}

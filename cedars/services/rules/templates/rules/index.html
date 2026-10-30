@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Validation rules{% endblock %}
+{% block content %}
+<h1>Validation rules</h1>
+<p>The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective by then;
+every submission and run records the version it was checked against.</p>
+<p class="actions"><a class="button primary" href="{% url 'rules:check' %}">Check a file before you file it</a> <a class="button" href="{% url 'rules:differences' %}">Compare two rule sets</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Rule sets">
+<table class="list">
+  <caption class="sr-only">Rule sets and versions</caption>
+  <thead><tr><th scope="col">Rule set</th><th scope="col">Effective from</th><th scope="col">Status</th><th scope="col">Source</th></tr></thead>
+  <tbody>
+  {% for rs in sets %}
+  <tr><th scope="row"><a href="{% url 'rules:detail' rs.pk %}">{{ rs.label }}</a></th><td>{{ rs.effective_from|date:"Y-m-d" }}</td>
+    <td>{{ rs.get_status_display }}{% if rs.pk in in_force %} <strong>(in force)</strong>{% endif %}</td><td class="small">{{ rs.source }}</td></tr>
+  {% empty %}<tr><td colspan="4">No rule sets yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if sysadmin %}
+<section class="card" aria-labelledby="imp-h">
+  <h2 id="imp-h">Import CEDARS' rules from the engine</h2>
+  <form method="post" action="{% url 'rules:import' %}" class="row-form">{% csrf_token %}
+    <div class="field"><label for="code">Rule set</label><select id="code" name="code"><option value="claims">Quarterly claims</option><option value="budget_filing">Budget and application filings</option></select></div>
+    <button type="submit">Import as a draft</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

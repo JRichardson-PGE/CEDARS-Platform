@@ -98,3 +98,4 @@ form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justif
 .helptext { font-size: .85rem; color: var(--muted); }
 dl.facts dd { overflow-wrap: anywhere; min-width: 0; }
 @media (max-width: 480px) { dl.facts { grid-template-columns: 1fr; } dl.facts dd { margin-bottom: .4rem; } }
+.row-form { display: flex; gap: .8rem; align-items: end; flex-wrap: wrap; }

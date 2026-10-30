@@ -5,7 +5,7 @@ Run with `pytest -m a11y` (CI does). axe finds what can be found automatically; 
 PII grant and an open recertification, so the tables and forms are not empty."""
 
 import json
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -18,6 +18,7 @@ from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
 from cedars.services.dictionary import service as dictionary
 from cedars.services.registry import service as registry
+from cedars.services.rules.models import Rule, RuleSet
 
 from .pages import PAGES
 
@@ -44,7 +45,35 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.75.json").read_text())
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
+    rules = RuleSet.objects.create(
+        code="claims", label="Quarterly claims", effective_from=date(2026, 3, 12), status="published", source="test"
+    )
+    Rule.objects.create(
+        rule_set=rules,
+        rule_id="S1a2b3c",
+        severity="reject",
+        table="Measure",
+        field="NumUnits",
+        message="NumUnits should be a number",
+        fix="Enter a plain number in NumUnits.",
+        kind="spec",
+        definition={"check": "numeric"},
+        modules=["claims"],
+    )
+    Rule.objects.create(
+        rule_set=rules,
+        rule_id="W4d5e6f",
+        severity="warning",
+        table="Measure",
+        field="UnitMeaCost1stBaseline",
+        kind="rule",
+        message="When UnitIncentiveToOthers equals 0, UnitMeaCost1stBaseline should be different from 0",
+        fix="Change it.",
+        difference="Budget filings do not apply it.",
+        modules=["claims"],
+    )
     return {
+        "rules": rules,
         "cpuc_admin": cpuc_admin,
         "pge_admin": pge_admin,
         "community": community,
@@ -72,7 +101,10 @@ def _open(browser, live_server, scene, path, who, **context_args):
     if who is not None:
         context.add_cookies([_session_cookie(scene[who], "password" if who == "password" else "mfa", live_server)])
     page = context.new_page()
-    response = page.goto(live_server.url + path.format(pge=scene["pge"].code, cpuc=scene["cpuc"].code, allocation=scene["allocation"].pk))
+    response = page.goto(
+        live_server.url
+        + path.format(pge=scene["pge"].code, cpuc=scene["cpuc"].code, allocation=scene["allocation"].pk, rules=scene["rules"].pk)
+    )
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     return context, page
 
