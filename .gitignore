@@ -9,3 +9,8 @@ staticfiles/
 /media/
 test-results/
 *.egg-info/
+# Terraform working folders (the provider lock is made by the CPUC's first init against the registry)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan

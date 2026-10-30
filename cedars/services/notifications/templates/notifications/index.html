@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<h1>Notifications</h1>
+<p>{% if unread %}{{ unread }} unread.{% else %}Nothing unread.{% endif %} <a href="{% url 'notifications:settings' %}">Choose what you are sent</a>.</p>
+{% if page.object_list %}
+<form method="post">{% csrf_token %}
+  <ul class="notices">
+  {% for n in page %}
+    <li{% if not n.read_at %} class="unread"{% endif %}>
+      <p><strong>{% if not n.read_at %}<span class="status">New</span> {% endif %}{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}</strong></p>
+      {% if n.body %}<p>{{ n.body|linebreaksbr }}</p>{% endif %}
+      <p class="small muted">{{ n.created_at|date:"Y-m-d H:i" }}{% if n.emailed_at %} · emailed{% elif n.email_error %} · the email could not be sent{% endif %}</p>
+    </li>
+  {% endfor %}
+  </ul>
+  {% if unread %}<div class="actions"><button type="submit">Mark all as read</button></div>{% endif %}
+</form>
+{% if page.has_other_pages %}
+<nav aria-label="Pages of notifications" class="pager">
+  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<p>No notifications yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "core/base.html" %}
+{% block title %}Retention{% endblock %}
+{% block content %}
+<h1>Retention</h1>
+<p>How long each class of record is kept. The retention job runs daily and deletes only classes with a period and a deletion step; nothing under a legal hold is deleted. Every change here needs a reason and is in the audit log.</p>
+
+<h2>Periods</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Retention periods">
+<table class="list">
+  <caption class="sr-only">Retention period for each record class</caption>
+  <thead><tr><th scope="col">Record class</th><th scope="col">Kept</th><th scope="col">Counted from</th><th scope="col">Deleted automatically</th><th scope="col">Change</th></tr></thead>
+  <tbody>
+  {% for p, purged in policies %}<tr>
+    <th scope="row">{{ p.label }}</th><td>{{ p.period }}</td><td>{{ p.counted_from }}</td>
+    <td>{% if p.keep_days is None %}No (permanent){% elif purged %}Yes{% else %}Not yet (its module adds the step){% endif %}</td>
+    <td><details class="inline"><summary>Change<span class="sr-only"> the period for {{ p.label }}</span></summary>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="period"><input type="hidden" name="policy" value="{{ p.pk }}">
+        <p><label for="days-{{ p.pk }}">Days (blank = permanent)</label><input id="days-{{ p.pk }}" name="keep_days" inputmode="numeric" size="6" value="{{ p.keep_days|default_if_none:'' }}"></p>
+        <p><label for="why-{{ p.pk }}">Reason</label><input id="why-{{ p.pk }}" name="reason" required></p>
+        <button type="submit">Save</button>
+      </form></details></td>
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Legal holds</h2>
+{% if holds %}
+<ul>{% for h in holds %}<li><strong>{{ h.record_class }}{% if h.object_ref %} {{ h.object_ref }}{% else %} (every record){% endif %}</strong>: {{ h.reason }} <span class="small muted">placed {{ h.placed_at|date:"Y-m-d" }} by {{ h.placed_by.email }}</span>
+  <details class="inline"><summary>Release<span class="sr-only"> the hold on {{ h.record_class }}</span></summary>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="release"><input type="hidden" name="hold" value="{{ h.pk }}">
+      <p><label for="rel-{{ h.pk }}">Reason</label><input id="rel-{{ h.pk }}" name="reason" required></p><button type="submit">Release</button>
+    </form></details></li>{% endfor %}</ul>
+{% else %}<p>No legal holds.</p>{% endif %}
+<section class="card" aria-labelledby="hold-h">
+  <h3 id="hold-h">Place a hold</h3>
+  <form method="post" class="stack form-narrow">{% csrf_token %}<input type="hidden" name="action" value="hold">
+    <p><label for="hold-class">Record class</label><select id="hold-class" name="record_class">{% for code, label in classes %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></p>
+    <p><label for="hold-ref">One record (blank = every record of the class)</label><input id="hold-ref" name="object_ref" placeholder="e.g. submission_version:42"></p>
+    <p><label for="hold-why">Reason</label><input id="hold-why" name="reason" required></p>
+    <div class="actions"><button type="submit">Place the hold</button></div>
+  </form>
+</section>
+
+<h2>Recent purges</h2>
+{% if runs %}<ul>{% for r in runs %}<li>{{ r.started_at|date:"Y-m-d H:i" }}: {% for cls, c in r.counts.items %}{{ cls }} {{ c.deleted }} deleted{% if c.held %}, {{ c.held }} held{% endif %}{% if c.failed %}, {{ c.failed }} failed{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}nothing expired{% endfor %}</li>{% endfor %}</ul>
+{% else %}<p>The retention job has not run yet.</p>{% endif %}
+{% endblock %}

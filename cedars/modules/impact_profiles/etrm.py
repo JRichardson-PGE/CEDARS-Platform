@@ -8,6 +8,8 @@ version; a changed package gets a new one, so an upload can name the exact permu
 
 The database's real schema is not known yet (no access): DatabaseSource reads the fixture schema in `etrm_fixture_schema.sql`, and only
 its two queries need to change when the credentials arrive. FileSource reads the same data from a JSON file, for development and tests.
+The public eTRM API (specification of 11 March 2026) is no substitute: its /permutations endpoints return published measure versions
+only, every value as a string, and name no draft data, so the drafts a load shape is uploaded against come only from the database.
 """
 
 import hashlib

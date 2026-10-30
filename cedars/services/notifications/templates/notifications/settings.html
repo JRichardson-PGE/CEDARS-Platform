@@ -1,0 +1,24 @@
+{% extends "core/base.html" %}
+{% block title %}Notification settings{% endblock %}
+{% block content %}
+<h1>Notification settings</h1>
+<p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Filing events reach you only for organisations you belong to (CPUC staff hear about every organisation's).</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% for group, rows in groups %}
+  <fieldset>
+    <legend>{{ group }}</legend>
+    {% for e, value in rows %}
+    <p><label for="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">{{ e.label }}</label>
+      <select id="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" name="{{ e.code }}">
+        {% for code, label in choices %}<option value="{{ code }}"{% if code == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></p>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  <fieldset>
+    <legend>Your own work</legend>
+    <div class="checks"><label><input type="checkbox" name="email_direct"{% if pref.email_direct %} checked{% endif %}> Email me when my runs finish or fail and when my access changes</label></div>
+  </fieldset>
+  <div class="actions"><button type="submit" class="primary">Save</button></div>
+</form>
+{% endblock %}
