@@ -5,6 +5,7 @@ from django.contrib.postgres.search import SearchVectorField
 from django.db import models
 from django.db.models import F, Q
 from django.db.models.functions import Lower
+from django.utils import timezone
 
 
 class Collection(models.TextChoices):
@@ -111,8 +112,12 @@ class Document(models.Model):
     )
     published_at = models.DateTimeField(null=True, blank=True, help_text="When its first version was published")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now, help_text="When it was filed (a migrated document: its original date)")
     updated_at = models.DateTimeField(auto_now=True)
+    pda_id = models.PositiveIntegerField(
+        "PDA document id", null=True, blank=True, unique=True, help_text="The PDA's deliverableID, which its old links carry (BR-15.10)"
+    )
+    calmac_id = models.CharField("CALMAC ID", max_length=50, blank=True, help_text="The report's id on calmac.org")
 
     class Meta:
         ordering = [F("published_at").desc(nulls_first=True), "-created_at"]
@@ -147,7 +152,7 @@ class DocumentVersion(models.Model):
         "accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The author's organisation"
     )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     published_at = models.DateTimeField(null=True, blank=True)
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     stage = models.CharField(max_length=20, choices=Stage.choices, blank=True, help_text="A deliverable's revision stage (BR-15.11)")
@@ -247,7 +252,9 @@ class Comment(models.Model):
     subject = models.CharField(max_length=100)
     section = models.CharField(max_length=100, blank=True, help_text="The section or page it is about")
     text = models.TextField(max_length=2000)
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="None: migrated from the PDA"
+    )
     author_name = models.CharField(max_length=200, help_text="The author's name as shown, kept as it was when posted")
     organisation = models.ForeignKey(
         "accounts.Organisation",
@@ -262,8 +269,9 @@ class Comment(models.Model):
     file_sha256 = models.CharField(max_length=64, blank=True)
     file_size = models.PositiveBigIntegerField(null=True, blank=True)
     file_type = models.CharField(max_length=120, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     withdrawn_at = models.DateTimeField(null=True, blank=True)
+    pda_id = models.PositiveIntegerField("PDA comment id", null=True, blank=True, unique=True)
 
     class Meta:
         ordering = ["version", "created_at", "id"]
@@ -280,10 +288,12 @@ class CommentResponse(models.Model):
 
     comment = models.ForeignKey(Comment, on_delete=models.PROTECT, related_name="responses")
     text = models.TextField(max_length=2000)
-    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="None: migrated from the PDA"
+    )
     author_name = models.CharField(max_length=200)
     organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ["comment", "created_at", "id"]
@@ -303,6 +313,9 @@ class DocumentFile(models.Model):
     sha256 = models.CharField(max_length=64)
     size = models.PositiveBigIntegerField()
     content_type = models.CharField(max_length=120, blank=True)
+    legacy_name = models.CharField(
+        max_length=300, blank=True, help_text="Its name in the PDA's view and download links, when it differs or was wrapped in a zip"
+    )
 
     class Meta:
         ordering = ["version", "position"]

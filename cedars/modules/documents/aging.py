@@ -2,7 +2,8 @@
 purge); this review shows how long each has waited instead. Items, each with the day it became late and its age in days:
   - an unpublished version of a study's document (age from when it was filed);
   - a study's next activity past its due date (the study not completed, cancelled or combined);
-  - a question nobody has answered once its comment period has closed (owed by the document's study manager, else its owner);
+  - a question nobody has answered once its comment period has closed (owed by the document's study manager, else its owner; not
+    the questions migrated from the PDA);
   - an active study nobody has updated in `stale_days` days;
   - a PA's response to the recommendations past its due date with nothing published (owed by the PA).
 Read only, from the records the module already keeps."""
@@ -64,7 +65,11 @@ def items(day: date | None = None, stale_days: int = STALE_DAYS) -> list[Item]:
         out.append(Item("activity", s.manager, s, s.next_activity or "Next activity", s.get_absolute_url(), s.next_activity_due))
     questions = (
         Comment.objects.filter(
-            kind=Comment.Kind.QUESTION, withdrawn_at__isnull=True, responses__isnull=True, version__comment_period__closes__lt=day
+            kind=Comment.Kind.QUESTION,
+            withdrawn_at__isnull=True,
+            responses__isnull=True,
+            version__comment_period__closes__lt=day,
+            pda_id__isnull=True,  # the PDA's own unanswered questions are its history, not anyone's backlog here
         )
         .select_related("version__comment_period", "version__document__study__manager", "version__document__owner")
         .distinct()

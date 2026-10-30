@@ -287,7 +287,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
 
     from cedars.modules.documents import comments, deliverables, studies, subscriptions
     from cedars.modules.documents import service as documents
-    from cedars.modules.documents.models import AttributeOption
+    from cedars.modules.documents.models import AttributeOption, Document
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
     importlib.import_module("cedars.modules.documents.migrations.0005_study_lists").seed(apps, None)
@@ -359,6 +359,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         publish=True,
     )
     documents.add_version(cpuc_admin, cpuc, report, files("hvac_impact_final_rev1.pdf"), reason="Table 4-2 corrected")
+    Document.objects.filter(pk=report.pk).update(pda_id=4210, calmac_id="CPU0213.01")  # as the PDA migration leaves it
     memo = documents.create_document(
         None,  # as an import would file it; PG&E's members file their own
         pge,
