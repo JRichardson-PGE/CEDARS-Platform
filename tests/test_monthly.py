@@ -246,7 +246,7 @@ def test_a_report_with_no_measures_has_nothing_to_estimate(filer, year, pge, pro
         service.price(make_user("stranger@example.com"), v2)
 
 
-def test_unconfirm_before_the_due_date_and_reopen_after(filer, year, pge, programs, cpuc_admin):
+def test_unconfirm_before_the_due_date_and_reopen_after(filer, year, pge, programs, cpuc_admin, django_capture_on_commit_callbacks):
     v = priced(filer, pge, 1, report(measures=[], costs=[]))
     v = service.confirm(filer, v)
     v = submissions.unconfirm(filer, v, "January's lighting costs were wrong")
@@ -260,6 +260,9 @@ def test_unconfirm_before_the_due_date_and_reopen_after(filer, year, pge, progra
     assert v2.number == 2 and v2.files == v.files
     service.ensure_lines(v2)
     assert v2.monthly_lines.count() == v.monthly_lines.count()
+    with django_capture_on_commit_callbacks(execute=True):  # a correction's upload leaves the published version's files alone
+        service.upload(filer, month(1), pge, report(measures=[], costs=[]), "correction.zip")
+    assert all(storage.store("uploads").exists(f["key"]) for f in v.files)
 
 
 def test_the_operating_budget_comes_from_budgets(filer, year, pge, programs, cpuc_admin, pge_admin):
