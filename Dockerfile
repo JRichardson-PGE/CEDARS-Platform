@@ -16,10 +16,14 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-install-project
+# The pinned ReCET engine (engine/README.md), when its wheel was built into engine/wheels/ before the image: the Results, Compare and
+# Edit inputs pages call its code. The build never sees a token; without the wheel those pages say the engine is not installed.
+COPY engine ./engine
+RUN if ls engine/wheels/recet-*.whl >/dev/null 2>&1; then uv pip install --python /opt/venv/bin/python engine/wheels/recet-*.whl; fi
 COPY manage.py ./
 COPY cedars ./cedars
 COPY data ./data
-RUN uv sync --locked --no-dev \
+RUN uv sync --locked --no-dev --inexact \
  && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput
 
 USER cedars
