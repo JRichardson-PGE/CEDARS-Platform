@@ -75,7 +75,8 @@ details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wr
 .grants { margin: 0; padding-left: 1.1rem; }
 .grants li { margin: .15rem 0; }
 .status { font-size: .8rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--control); white-space: nowrap; }
-fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; min-width: 0; }   /* a fieldset is min-content wide by default, which overflows at 320 px */
+select { max-width: 100%; }
 legend { font-weight: 600; padding: 0 .3rem; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .25rem 1rem; }
 .checks label { flex-direction: row; align-items: center; gap: .4rem; }
@@ -99,3 +100,7 @@ form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justif
 dl.facts dd { overflow-wrap: anywhere; min-width: 0; }
 @media (max-width: 480px) { dl.facts { grid-template-columns: 1fr; } dl.facts dd { margin-bottom: .4rem; } }
 .row-form { display: flex; gap: .8rem; align-items: end; flex-wrap: wrap; }
+ul.notices { list-style: none; padding: 0; margin: 0 0 1rem; }
+ul.notices li { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .8rem; margin-bottom: .5rem; background: var(--card); }
+ul.notices li.unread { border-left: 3px solid var(--accent); }   /* also marked "New" in text */
+ul.notices li p { margin: .2rem 0; overflow-wrap: anywhere; }

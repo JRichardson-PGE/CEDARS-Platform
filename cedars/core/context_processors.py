@@ -13,4 +13,7 @@ def platform(request):
             "steward": service.is_steward(user),
             "org_admin": any(service.is_org_admin(user, o) for o in orgs),
         }
+        from cedars.services.notifications.service import unread
+
+        ctx["unread_notifications"] = unread(user)
     return ctx

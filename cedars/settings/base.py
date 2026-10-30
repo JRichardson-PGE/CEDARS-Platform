@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "cedars.services.rules",
     "cedars.services.submissions",
     "cedars.services.refdata",
+    "cedars.services.notifications",
     "cedars.modules.administration",
     "allauth",
     "allauth.account",
@@ -125,6 +126,8 @@ SOCIALACCOUNT_ONLY = False
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = False  # a directory's email claim never signs into an existing platform account by itself
 SOCIALACCOUNT_PROVIDERS = {"openid_connect": {"APPS": []}}
 CEDARS_REQUIRE_MFA = True
+CEDARS_BASE_URL = env("CEDARS_BASE_URL", "http://localhost:8000")  # links in emails
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "cedars@localhost")
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
