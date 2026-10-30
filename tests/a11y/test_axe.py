@@ -17,6 +17,7 @@ from django.utils import timezone
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
 from cedars.services.dictionary import service as dictionary
+from cedars.services.refdata import service as refdata
 from cedars.services.registry import service as registry
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
@@ -88,7 +89,35 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     submissions.confirm(analyst, v, "h1")
     submissions.move_deadline(cpuc_admin, deadline, timezone.now() - timedelta(minutes=1), "close-out for the scene")
     submissions.request_reopen(analyst, v.submission, "Two measures were counted twice")
+    manifest = {
+        "hourly/electric_2026.parquet": {"sha256": "ab" * 32, "bytes": 912_000_000},
+        "README.md": {"sha256": "cd" * 32, "bytes": 2048},
+    }
+    pack = refdata.register_pack(
+        cpuc_admin,
+        kind="acc_electric",
+        label="2026 ACC",
+        version="v2 draft",
+        acc_year=2026,
+        manifest=manifest,
+        storage_uri="s3://refdata/acc/v2/",
+    )
+    refdata.record_tie_out(cpuc_admin, pack, check="source_workbook", passed=False, precision=1e-9, largest_difference=0.02)
+    published = refdata.register_pack(
+        cpuc_admin,
+        kind="acc_electric",
+        label="2026 ACC",
+        version="v1b",
+        acc_year=2026,
+        manifest=manifest,
+        storage_uri="s3://refdata/acc/v1b/",
+    )
+    for check in ("source_workbook", "reference_measures"):
+        refdata.record_tie_out(cpuc_admin, published, check=check, passed=True, precision=1e-9, largest_difference=0)
+    refdata.publish_pack(cpuc_admin, published)
     return {
+        "pack": pack,
+        "published_pack": published,
         "rules": rules,
         "cpuc_admin": cpuc_admin,
         "approver": approver,
@@ -120,7 +149,14 @@ def _open(browser, live_server, scene, path, who, **context_args):
     page = context.new_page()
     response = page.goto(
         live_server.url
-        + path.format(pge=scene["pge"].code, cpuc=scene["cpuc"].code, allocation=scene["allocation"].pk, rules=scene["rules"].pk)
+        + path.format(
+            pge=scene["pge"].code,
+            cpuc=scene["cpuc"].code,
+            allocation=scene["allocation"].pk,
+            rules=scene["rules"].pk,
+            pack=scene["pack"].pk,
+            published_pack=scene["published_pack"].pk,
+        )
     )
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     return context, page

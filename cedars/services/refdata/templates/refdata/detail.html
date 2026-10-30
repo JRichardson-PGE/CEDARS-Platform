@@ -1,0 +1,67 @@
+{% extends "core/base.html" %}
+{% block title %}{{ pack.label }}{% endblock %}
+{% block content %}
+<h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>
+<dl class="facts">
+  <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>
+  <dt>Status</dt><dd>{{ pack.get_status_display }}{% if pack.published_at %}, published {{ pack.published_at|date:"Y-m-d H:i" }} by {{ pack.published_by.email|default:"the system" }}{% endif %}</dd>
+  {% if pack.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ pack.withdrawn_reason }}</dd>{% endif %}
+  {% if pack.acc_year %}<dt>ACC</dt><dd>{{ pack.acc_year }} ACC</dd>{% endif %}
+  <dt>In force from</dt><dd>{{ pack.valid_from|date:"Y-m-d"|default:"not dated" }}</dd>
+  <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
+  <dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>
+  <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
+  {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
+  {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}
+  <dt>Registered</dt><dd>{{ pack.registered_at|date:"Y-m-d H:i" }} by {{ pack.registered_by.email|default:"the system" }}</dd>
+</dl>
+
+<h2>Tie-outs</h2>
+{% if requirements %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Required checks">
+<table class="list">
+  <caption class="sr-only">Checks this kind of pack must pass before it is published, with the latest result</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Latest result</th></tr></thead>
+  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.name }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date:"Y-m-d" }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>This kind of pack needs no tie-out before it is published.</p>{% endif %}
+{% if tie_outs %}
+<h3>Every result</h3>
+<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date:"Y-m-d H:i" }}: {{ t.name }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Files</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Files in the manifest">
+<table class="list">
+  <caption class="sr-only">Files in this pack with their SHA-256{% if pack.files > 200 %}, the first 200{% endif %}</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for path, m in files %}<tr><th scope="row"><code>{{ path }}</code></th><td>{{ m.bytes|filesizeformat }}</td><td class="small"><code>{{ m.sha256 }}</code></td></tr>{% endfor %}</tbody>
+</table>
+</div>
+
+{% if manager %}
+{% if pack.status == "draft" %}
+<section class="card" aria-labelledby="act-h">
+  <h2 id="act-h">Publish or discard</h2>
+  {% if outstanding %}<p>Publishing needs a passed tie-out for: {% for r in outstanding %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <p><label for="reason">Reason (for discarding)</label><input id="reason" name="reason" type="text"></p>
+    <div class="actions">
+      <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>
+      <button type="submit" name="action" value="discard">Discard the draft</button>
+    </div>
+  </form>
+</section>
+{% elif pack.status == "published" %}
+<section class="card" aria-labelledby="act-h">
+  <h2 id="act-h">Withdraw</h2>
+  <p>New runs stop using a withdrawn pack. Runs and filings that used it keep naming it, and it stays stored so they can be reproduced.</p>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    <p><label for="reason">Reason</label><input id="reason" name="reason" type="text" required></p>
+    <div class="actions"><button type="submit" name="action" value="withdraw">Withdraw</button></div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}
