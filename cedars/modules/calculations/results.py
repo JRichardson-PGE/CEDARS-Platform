@@ -115,6 +115,33 @@ def with_measure_rows(run: Run, res):
     return res
 
 
+def cet_comparison(run: Run, files: list[dict]) -> dict | None:
+    """A parallel run's comparison with CET (the engine's cet_comparison_summary_* file): each summed metric's ReCET and CET totals
+    over the measures matched by CET_ID, and their ratio. None when the run has none, or the engine is not installed."""
+    if "cet_outputs" not in run.inputs or run.status != Run.Status.SUCCEEDED:
+        return None
+    names = {PurePosixPath(f["name"]).name.split("_", 3)[2] if f["name"].startswith("cet_comparison_") else "": f["name"] for f in files}
+    if "summary" not in names:
+        return None
+    try:
+        from recet import outputs
+    except ImportError:
+        return None
+    t = outputs.read_table(_fetch(run, run.storage_prefix + "out/" + names["summary"]))
+    rows = []
+    for r in t.to_dict("records"):
+        ours, cet, ratio = r.get("POC"), r.get("CET"), r.get("POC/CET")
+        rows.append(
+            {
+                "metric": r["metric"],
+                "recet": f"{ours:,.0f}",
+                "cet": f"{cet:,.0f}",
+                "ratio": "" if ratio is None or ratio != ratio else f"{ratio:.4f}",  # NaN: CET's total is 0
+            }
+        )
+    return {"rows": rows, "summary": names["summary"], "measures": names.get("measures")}
+
+
 def tiles(res, pa: str, years=None) -> list[dict]:
     """The headline numbers for the PA and program years picked: measures, then HEADLINE's columns this run has."""
     rv = engine()

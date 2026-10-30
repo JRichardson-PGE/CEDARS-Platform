@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -180,6 +181,7 @@ class RunRequest:
     output_format: str = "csv.zip"
     settings: dict | None = None
     allocation_version: AllocationVersion | None = None
+    cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
 
 
 def _check(req: RunRequest) -> dict:
@@ -287,6 +289,8 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     st = _check(req)
     if submission_version is not None and req.calculation != RECET:
         raise AccessDenied("A filing is priced only with ReCET's own calculation (D13: replicas are never a filing's engine).")
+    if req.cet_outputs is not None and req.calculation != RECET:
+        raise AccessDenied("A CET replica does not take a CET outputs comparison: compare the replica's run with ReCET's on Compare.")
     try:
         info = jobfiles.inspect(Path(job_zip))
     except jobfiles.JobFileError as e:
@@ -312,7 +316,16 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     )
     run.storage_prefix = f"runs/{run.id}/"
     uploads, results = storage.store("uploads"), storage.store("results")
-    inputs = {"job_zip": {"key": run.storage_prefix + "job.zip", "sha256": storage.sha256_of(Path(job_zip))}}
+    inputs = {}
+    if req.cet_outputs is not None:  # a parallel run: the engine writes cet_comparison_* (ReCET's RunConfig.cet_outputs)
+        with local_copy(req.cet_outputs, ".csv") as cet:
+            try:
+                jobfiles.check_cet_outputs(cet)
+            except jobfiles.JobFileError as e:
+                raise AccessDenied(str(e)) from None
+            key = run.storage_prefix + "cet_outputs.csv"
+            inputs["cet_outputs"] = {"key": key, "sha256": storage.sha256_of(cet), "bytes": uploads.put_file(key, cet).size}
+    inputs["job_zip"] = {"key": run.storage_prefix + "job.zip", "sha256": storage.sha256_of(Path(job_zip))}
     inputs["job_zip"]["bytes"] = uploads.put_file(inputs["job_zip"]["key"], Path(job_zip)).size
     allocation_sha = None
     if st.get("allocate_statewide"):
@@ -355,16 +368,27 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     return run
 
 
-def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -> Run:
-    """create_run for a Django UploadedFile (spooled to a temporary file first when it is held in memory)."""
+@contextmanager
+def local_copy(upload, suffix: str = ""):
+    """A local path for a file: a path as it is, a Django UploadedFile's temporary file, or a spooled copy of one held in memory."""
+    if isinstance(upload, (str, Path)):
+        yield Path(upload)
+        return
     path = getattr(upload, "temporary_file_path", None)
     if path is not None:
-        return create_run(actor, organisation, req, Path(path()), **kw)
-    with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
+        yield Path(path())
+        return
+    with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
         for chunk in upload.chunks():
             tmp.write(chunk)
         tmp.flush()
-        return create_run(actor, organisation, req, Path(tmp.name), **kw)
+        yield Path(tmp.name)
+
+
+def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -> Run:
+    """create_run for a Django UploadedFile."""
+    with local_copy(upload, ".zip") as job:
+        return create_run(actor, organisation, req, job, **kw)
 
 
 # --- the run's life (the worker side: dispatch.py and the worker command)

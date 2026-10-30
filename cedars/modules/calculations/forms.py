@@ -39,6 +39,11 @@ class NewRunForm(forms.Form):
     include_societal = forms.BooleanField(label="Societal cost test (SCB and SCH)", required=False, initial=True)
     emissions = forms.BooleanField(label="Emissions", required=False, initial=True)
     output_format = forms.ChoiceField(label="Output files", choices=list(service.OUTPUT_FORMATS.items()), initial="csv.zip")
+    cet_outputs = forms.FileField(
+        label="CET outputs to compare with (.csv, optional)",
+        required=False,
+        help_text="A parallel run: CET's outputs CSV for this job, compared measure by measure on CET_ID (ReCET's own calculation only)",
+    )
     output_template = forms.ModelChoiceField(
         label="Output template",
         required=False,
@@ -91,6 +96,7 @@ class NewRunForm(forms.Form):
             output_format=d["output_format"],
             settings=st,
             allocation_version=d.get("allocation_version"),
+            cet_outputs=d.get("cet_outputs"),
         )
 
 
