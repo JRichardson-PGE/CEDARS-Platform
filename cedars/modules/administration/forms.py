@@ -71,3 +71,19 @@ class AllocationUploadForm(forms.Form):
     purpose = forms.ChoiceField(label="For", choices=[("filing", "A budget filing"), ("claims", "Claims")])
     cycle = forms.IntegerField(label="Filing cycle's first year (optional)", required=False, min_value=2000, max_value=2100)
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
+class ApiTokenForm(forms.Form):
+    name = forms.CharField(label="Name", max_length=100, help_text="What will use it, e.g. our claims system")
+    organisation = forms.ChoiceField(label="Acting for")
+    scopes = forms.MultipleChoiceField(
+        label="Modules it may reach", widget=forms.CheckboxSelectMultiple, choices=list(perms.MODULES.items())
+    )
+    days = forms.TypedChoiceField(
+        label="Lasts", coerce=int, choices=[(30, "30 days"), (90, "90 days"), (180, "180 days"), (365, "1 year")], initial=90
+    )
+
+    def __init__(self, *args, organisations=(), max_days=365, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organisation: my own calculations")]
+        self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]

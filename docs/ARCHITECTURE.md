@@ -21,7 +21,7 @@ how far it is built. Update the Status column in the PR that changes it.
 
 | Service | App | Phase | Status | Requirements |
 | --- | --- | --- | --- | --- |
-| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job; API tokens come with the API (Calculations work) | BR-01, D6, F, G |
+| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job, API tokens (`tokens.py`, `api_auth.TokenAuthentication`) | BR-01, D6, F, G |
 | Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); log page in Administration | BR-09.1, 09.3, BR-12.7 |
 | Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Built: programs with effective-dated versions (no overlaps, enforced in PostgreSQL), filing cycles, reporting periods, statewide allocation versions (import, check, confirm, ReCET CSV export, most recent for a year); `import_programs`, `import_allocation` commands. Program pages come with the Programs module | BR-13, BR-06.7, BR-13.8 |
 | Dictionary and templates | `cedars.services.dictionary` | 1 | Built: catalog versions loaded from ReCET's export (`scripts/export_recet_dictionary.py`, `data/dictionary/`), aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads. Claims, budget and monthly tables join the catalog with their modules | BR-02.1, BR-06.9, BR-06.10, BR-08 |
@@ -64,6 +64,11 @@ how far it is built. Update the Status column in the PR that changes it.
   The eTRM database layout is `cedars/modules/impact_profiles/etrm_fixture_schema.sql`: only `etrm.PACKAGES_SQL` and `PERMUTATIONS_SQL`
   change when the real schema is known.
 
+- The API is Django REST Framework under `/api/v1` (JSON only), described by drf-spectacular at `/api/v1/schema`. A call authenticates
+  with an API token (`Authorization: Bearer cedars_...`; only its SHA-256 is stored) or the session. A token acts for one organisation and
+  reaches only its scopes (modules), never more than its user's grants there, and never PII or admin permissions; API views check
+  `cedars.core.api.allowed(request, "<module>.<action>")` or use `ModulePermission.of(...)`. `CEDARS_API_TOKEN_MAX_DAYS` (365) caps a
+  token's life.
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.
 - The calculation job API, run records and S3 orchestration live in the Calculations module; ReCET supplies the worker and the job contract.

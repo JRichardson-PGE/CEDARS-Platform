@@ -27,6 +27,33 @@
 {% endif %}
 <p><a class="button primary" href="{% url 'administration:request_access' %}">Ask an organisation for access</a></p>
 
+<h2 id="tokens-h">API tokens</h2>
+<p>A token lets your own systems call the CEDARS API for one organisation. It can do no more than you can, only in the modules you pick,
+and stops working when it expires, when you revoke it, or when you leave the organisation.</p>
+{% if tokens %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="tokens-h">
+<table class="list">
+  <caption class="sr-only">Your API tokens, newest first</caption>
+  <thead><tr><th scope="col">Name</th><th scope="col">Key starts</th><th scope="col">Acting for</th><th scope="col">Modules</th><th scope="col">Status</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+  <tr><th scope="row">{{ t.name }}</th><td><code>cedars_{{ t.prefix }}</code></td><td>{{ t.organisation.code|default:"Own calculations" }}</td><td>{{ t.scopes|join:", " }}</td>
+    <td>{% if t.status == "active" %}Active until {{ t.expires_at|date:"Y-m-d" }}{% elif t.status == "expired" %}Expired {{ t.expires_at|date:"Y-m-d" }}{% else %}Revoked {{ t.revoked_at|date:"Y-m-d" }}{% endif %}</td>
+    <td>{{ t.last_used_at|date:"Y-m-d H:i"|default:"Never" }}</td>
+    <td>{% if t.status == "active" %}<form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<button type="submit">Revoke<span class="sr-only"> the token {{ t.name }}</span></button></form>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+<details class="card">
+  <summary>Make a token</summary>
+  <form method="post" action="{% url 'administration:token_create' %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in token_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Make the token</button></div>
+  </form>
+</details>
+
 {% if requests %}
 <h2>Your access requests</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Your access requests">

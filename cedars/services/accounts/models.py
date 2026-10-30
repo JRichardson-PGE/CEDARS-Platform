@@ -264,3 +264,43 @@ class PolicyChange(models.Model):
 
     def __str__(self):
         return f"{self.setting} = {self.value!r} ({self.status})"
+
+
+class ApiToken(models.Model):
+    """A key a member's own systems use to call the API for one organisation (decision J; BR-01). Only the SHA-256 of the key is kept:
+    the key is shown once, when it is made. A token never holds more than its user does: its permissions are the user's grants in its
+    organisation, limited to its scopes (modules), and it stops working when it expires, is revoked, or the membership ends."""
+
+    user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
+    organisation = models.ForeignKey(
+        Organisation,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="api_tokens",
+        help_text="Blank: a community account's own",
+    )
+    name = models.CharField(max_length=100, help_text="What it is for, e.g. the system that uses it")
+    prefix = models.CharField(max_length=12, unique=True, help_text="The key's first part, shown so a key can be recognised")
+    key_sha256 = models.CharField(max_length=64, unique=True)
+    scopes = models.JSONField(default=list, help_text="The modules it may reach (permissions.MODULES keys)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    revoke_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} ({self.prefix}…)"
+
+    @property
+    def status(self) -> str:
+        from django.utils import timezone
+
+        if self.revoked_at:
+            return "revoked"
+        return "expired" if self.expires_at <= timezone.now() else "active"

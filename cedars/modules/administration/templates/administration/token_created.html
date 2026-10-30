@@ -1,0 +1,18 @@
+{% extends "core/base.html" %}
+{% block title %}Your new API token{% endblock %}
+{% block content %}
+<h1>Your new API token</h1>
+<p class="alert" role="alert">Copy the key now. It is shown only on this page: CEDARS keeps only a fingerprint of it, so if you lose it,
+revoke the token and make a new one.</p>
+<dl class="facts">
+  <dt>Name</dt><dd>{{ token.name }}</dd>
+  <dt>Acting for</dt><dd>{{ token.organisation|default:"your own calculations (no organisation)" }}</dd>
+  <dt>Modules</dt><dd>{{ token.scopes|join:", " }}</dd>
+  <dt>Expires</dt><dd>{{ token.expires_at|date:"Y-m-d" }}</dd>
+</dl>
+<label for="key">Key</label>
+<input type="text" id="key" readonly value="{{ key }}" class="key" autocomplete="off" spellcheck="false">
+<p class="small">Send it with every call: <code>Authorization: Bearer &lt;key&gt;</code>. The API's description is at
+<a href="{% url 'api-schema' %}">/api/v1/schema</a>.</p>
+<p><a class="button" href="{% url 'administration:account' %}">Back to your account</a></p>
+{% endblock %}

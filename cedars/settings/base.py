@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     "allauth.mfa",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
+    "rest_framework",
+    "drf_spectacular",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -130,6 +132,32 @@ SOCIALACCOUNT_PROVIDERS = {"openid_connect": {"APPS": []}}
 CEDARS_REQUIRE_MFA = True
 CEDARS_BASE_URL = env("CEDARS_BASE_URL", "http://localhost:8000")  # links in emails
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "cedars@localhost")
+
+# The API (/api/v1, decision J): API tokens for members' systems, the session for the platform's own pages' scripts. JSON only (no
+# browsable API pages); the OpenAPI description is at /api/v1/schema. Pages and the API call the same service functions.
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "cedars.services.accounts.api_auth.TokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": [
+        "rest_framework.parsers.JSONParser",
+        "rest_framework.parsers.MultiPartParser",
+        "rest_framework.parsers.FormParser",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
+}
+SPECTACULAR_SETTINGS = {
+    "TITLE": "CEDARS API",
+    "DESCRIPTION": "The CEDARS platform's API. Authenticate with an API token from your account page: Authorization: Bearer <token>.",
+    "VERSION": "1",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+}
+CEDARS_API_TOKEN_MAX_DAYS = int(env("CEDARS_API_TOKEN_MAX_DAYS", "365"))
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

@@ -108,3 +108,5 @@ ul.notices li p { margin: .2rem 0; overflow-wrap: anywhere; }
 .subnav a { padding: .1rem 0; }
 .subnav a[aria-current="page"] { font-weight: 600; text-decoration-thickness: 2px; }   /* current section shown by more than colour */
 code { font-size: .85em; overflow-wrap: anywhere; }
+input.key { width: 100%; font-family: ui-monospace, monospace; }
+code { font-family: ui-monospace, monospace; font-size: .9em; }
