@@ -87,6 +87,15 @@ legend { font-weight: 600; padding: 0 .3rem; }
 dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
 dl.facts dt { font-weight: 600; }
 dl.facts dd { margin: 0; }
+/* Edit inputs: problem cells carry a mark and words (never colour alone); columns that change no result are in italics */
+th.no-effect { font-style: italic; font-weight: normal; }
+td.cell-error, td.cell-warning { outline: 2px solid var(--bad); outline-offset: -2px; }
+td.cell-info { outline: 1px dashed var(--control); outline-offset: -2px; }
+.mark { font-weight: 700; }
+ul.issues { margin: .3rem 0; padding-left: 1.1rem; }
+.issue-error, .issue-warning { color: var(--bad); }
+.row-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .6rem 1rem; }
+.row-fields label { overflow-wrap: anywhere; }
 .head-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .form-narrow { max-width: 40rem; }
 .inline-form { display: inline; margin: 0; }

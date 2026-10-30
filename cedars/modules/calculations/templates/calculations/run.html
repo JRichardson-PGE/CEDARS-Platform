@@ -31,6 +31,7 @@
   <dt>Reference data</dt><dd>{% for kind, p in run.spec.context.packs.items %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
   <dt>Inputs</dt><dd>{% for name, f in run.inputs.items %}{{ name }} <span class="small muted">SHA-256 {{ f.sha256|truncatechars:20 }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
 </dl>
+{% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
 </section>
 
 {% if totals %}
