@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% block title %}Load shape {{ ls.tech_id }}{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="packages" %}
+<h1>Load shape {{ ls.tech_id }}</h1>
+<dl class="facts">
+  <dt>Package</dt><dd><a href="{% url 'impact_profiles:package' ls.package.measure_version_id %}">{{ ls.package.measure_version_id }}</a> {{ ls.package.name }}</dd>
+  <dt>Sector</dt><dd>{{ ls.sector }}</dd><dt>BldgType</dt><dd>{{ ls.bldg_type }}</dd><dt>BldgVint</dt><dd>{{ ls.bldg_vint }}</dd>
+  <dt>BldgHVAC</dt><dd>{{ ls.bldg_hvac }}</dd><dt>Climate zone</dt><dd>{{ ls.bldg_loc }}</dd>
+  <dt>TechGroup and TechType</dt><dd>{{ ls.tech_group }}, {{ ls.tech_type }}</dd>
+  {% if current %}<dt>Current version</dt><dd>{{ current.number }}: {{ current.shape_type }}, {{ current.norm_unit }}, drawn on {{ current.source_year }}; largest hour {{ peak.1 }}</dd>{% endif %}
+</dl>
+{% if months %}
+<h2>Share of the year by month</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Share of the year by month">
+<table class="list">
+  <caption class="sr-only">Percent of the year's energy use in each month, current version</caption>
+  <thead><tr>{% for m, pct in months %}<th scope="col">{{ m|slice:":3" }}</th>{% endfor %}</tr></thead>
+  <tbody><tr>{% for m, pct in months %}<td>{{ pct|floatformat:1 }}%</td>{% endfor %}</tr></tbody>
+</table>
+</div>
+{% endif %}
+<h2>Versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<table class="list">
+  <caption class="sr-only">Every version of this load shape, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">Upload</th><th scope="col">By</th><th scope="col">Added</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for v in versions %}
+  <tr><th scope="row">{{ v.number }}</th><td><a href="{% url 'impact_profiles:upload' v.upload.pk %}">{{ v.upload.file_name }}</a></td><td>{{ v.upload.uploaded_by.email }}</td>
+    <td class="nowrap">{{ v.created_at|date:"Y-m-d H:i" }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -38,7 +38,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | --- | --- | --- | --- |
 | Programs | `cedars.modules.programs` | 2 | Planned |
 | Calculations (ReCET) | `cedars.modules.calculations` | 2 | Planned |
-| Impact profiles | `cedars.modules.impact_profiles` | 2 | Planned |
+| Impact profiles | `cedars.modules.impact_profiles` | 2 | Built: nightly eTRM sync into a versioned snapshot with sync history and exclusions (against a fixture schema until we have database access); load-shape upload with the four validation stages as rules LS-F/T/S/E; generation with CEDARS' formula and ID formula, 2nd-baseline profiles, NR/NC mapping rows; custom profiles (upload, replace, retire); DEER/TOU/legacy import; the library written in the engine's format, numbered and registered as a reference-data pack; per-PA job queues |
 | Budgets (filings, fund shifts) | `cedars.modules.budgets` | 3 | Planned |
 | Claims | `cedars.modules.claims` | 4 | Planned |
 | Monthly reports | `cedars.modules.monthly` | 5 | Planned |
@@ -57,6 +57,12 @@ how far it is built. Update the Status column in the PR that changes it.
   (`SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"]`). Cognito or the CPUC's provider plugs in the same way. A session's assurance
   (password, mfa, federated) comes from allauth's sign-in records and is stamped on every audit event.
 - Run `manage.py bootstrap_cpuc EMAIL --steward` once per environment, and `manage.py close_recertifications` daily.
+- Impact profiles: `manage.py sync_etrm` nightly and `manage.py run_impact_profile_jobs --loop` as a worker (upload checks, generation, syncs
+  and library writes, one at a time per PA queue). `import_profile_library FOLDER` loads legacy CEDARS' library (the engine's
+  catalog.parquet and hourly.parquet). Every 8,760 is one float64 array in default storage under its SHA-256, stored once. The profile
+  catalog lives in the module; each library write registers as a draft `impact_profiles` pack in the reference-data service.
+  The eTRM database layout is `cedars/modules/impact_profiles/etrm_fixture_schema.sql`: only `etrm.PACKAGES_SQL` and `PERMUTATIONS_SQL`
+  change when the real schema is known.
 
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.

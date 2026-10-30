@@ -1,0 +1,31 @@
+{% extends "core/base.html" %}
+{% block title %}Impact profile library{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="library" %}
+<div class="head-row">
+  <h1>Impact profile library</h1>
+  {% if can_add %}<a class="button" href="{% url 'impact_profiles:custom_new' %}">Add a custom profile</a>{% endif %}
+</div>
+<p>Every impact profile a measure can name: deemed profiles generated from eTRM load shapes, custom profiles uploaded by program
+administrators, and the DEER and TOU profiles carried over from CEDARS. Each 8,760 spreads one kWh of savings over the year, per climate
+zone. Profiles are versioned: runs and claims record the version they used.</p>
+<form method="get" class="filters">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Impact profiles">
+<table class="list">
+  <caption class="sr-only">Impact profiles matching the filters</caption>
+  <thead><tr><th scope="col">Profile ID</th><th scope="col">Target sector</th><th scope="col">Territory</th><th scope="col">Kind</th><th scope="col">Owner</th><th scope="col">Versions</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for p in page %}
+  <tr><th scope="row"><a href="{% url 'impact_profiles:profile' p.pk %}">{{ p.profile_key }}</a></th><td>{{ p.target_sector }}</td>
+    <td>{{ p.iou_ac_territory|default:"Every territory" }}</td><td>{{ p.get_family_display }}</td><td>{{ p.owner.code|default:"" }}</td>
+    <td>{{ p.n_versions }}</td><td>{% if p.retired_at %}Retired{% else %}In use{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="7">No profiles match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "impact_profiles/_pager.html" with pager_label="Impact profile pages" %}
+{% endblock %}

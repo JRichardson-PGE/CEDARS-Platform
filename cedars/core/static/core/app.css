@@ -104,3 +104,7 @@ ul.notices { list-style: none; padding: 0; margin: 0 0 1rem; }
 ul.notices li { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .8rem; margin-bottom: .5rem; background: var(--card); }
 ul.notices li.unread { border-left: 3px solid var(--accent); }   /* also marked "New" in text */
 ul.notices li p { margin: .2rem 0; overflow-wrap: anywhere; }
+.subnav { display: flex; gap: .4rem 1.1rem; flex-wrap: wrap; margin: 0 0 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line); font-size: .92rem; }
+.subnav a { padding: .1rem 0; }
+.subnav a[aria-current="page"] { font-weight: 600; text-decoration-thickness: 2px; }   /* current section shown by more than colour */
+code { font-size: .85em; overflow-wrap: anywhere; }

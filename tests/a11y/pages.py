@@ -1,7 +1,7 @@
 """Every page the accessibility check visits, as (name, path, who). A PR that adds a page adds it here (CLAUDE.md).
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
-(signed in with MFA). Paths may name the scene's objects with {pge}, {cpuc}, {allocation}, {rules}."""
+(signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package}, {upload}."""
 
 PAGES = [
     ("home", "/", None),
@@ -37,4 +37,16 @@ PAGES = [
     ("notifications", "/notifications/", "pge_admin"),
     ("notification-settings", "/notifications/settings/", "pge_admin"),
     ("retention", "/admin/retention/", "cpuc_admin"),
+    ("impact-profile-library", "/impact-profiles/?q=Msr", "developer"),
+    ("impact-profile-deemed", "/impact-profiles/{profile}/", "developer"),
+    ("impact-profile-custom", "/impact-profiles/{custom_profile}/", "developer"),
+    ("impact-profile-custom-new", "/impact-profiles/custom/new/", "developer"),
+    ("load-shape-packages", "/impact-profiles/packages/", "developer"),
+    ("load-shape-package", "/impact-profiles/packages/{package}/", "developer"),
+    ("load-shape", "/impact-profiles/load-shapes/{load_shape}/", "developer"),
+    ("load-shape-uploads", "/impact-profiles/uploads/", "developer"),
+    ("load-shape-upload", "/impact-profiles/uploads/{upload}/", "developer"),
+    ("load-shape-upload-rejected", "/impact-profiles/uploads/{rejected}/", "developer"),
+    ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
+    ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
 ]

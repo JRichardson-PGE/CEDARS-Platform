@@ -31,7 +31,48 @@ TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
 
 @pytest.fixture
-def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
+def impact_profiles(cpuc_admin, pge, pge_admin, make_user, settings, tmp_path):
+    """The Impact profiles pages' content: a synced package, an accepted and a rejected upload, generated and custom profiles, a mapping
+    and a library write."""
+    import numpy as np
+    from django.core.files.base import ContentFile
+
+    from cedars.modules.impact_profiles import custom, etrm, generation, jobs, library, loadshapes
+    from cedars.modules.impact_profiles.models import ImpactProfile, LoadShape, MeasurePackage
+
+    from ..test_impact_profiles import FIXTURE, leds_series, load_shape_csv, profile_file
+
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    settings.IMPACT_PROFILES_INLINE_JOBS = False
+    dev = make_user("developer@pge.com", "Dee Veloper")
+    service.grant(pge_admin, dev, pge, "impact_profiles.submit")
+    etrm.sync(cpuc_admin, etrm.FileSource(FIXTURE))
+    leds = MeasurePackage.objects.get(measure_version_id="SWLG999-01-draft")
+    good = loadshapes.create_upload(dev, pge, leds, ContentFile(load_shape_csv(leds_series()), name="shapes.csv"))
+    loadshapes.create_upload(dev, pge, leds, ContentFile(load_shape_csv([({"TechID": "Msr-X"}, np.full(8760, 1 / 8000))]), name="bad.csv"))
+    jobs.run_pending()
+    generation.generate(dev, leds, good)
+    target = ImpactProfile.objects.get(profile_key="OfL*Ex*rDXGF*Msr-LED*Std-Fluor")
+    custom.create_mapping(
+        dev, pge, leds, alias_key="OfL*New*rDXGF*Msr-LED*Std-Fluor", target_sector="Com", target=target, reason="NC reuses Ex"
+    )
+    mine = custom.create_custom(
+        dev, pge, profile_key="PGE Office NMEC", target_sector="Commercial", territory="PGE", data=profile_file(), file_name="p.csv"
+    )
+    library.export(cpuc_admin)
+    return {
+        "developer": dev,
+        "package": leds.measure_version_id,
+        "upload": good.pk,
+        "rejected": good.pk + 1,
+        "profile": target.pk,
+        "custom_profile": mine.pk,
+        "load_shape": LoadShape.objects.first().pk,
+    }
+
+
+@pytest.fixture
+def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     analyst = make_user("analyst@pge.com", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
@@ -132,6 +173,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pge": pge,
         "cpuc": cpuc,
         "allocation": allocation,
+        **impact_profiles,
     }
 
 
@@ -152,17 +194,10 @@ def _open(browser, live_server, scene, path, who, **context_args):
     if who is not None:
         context.add_cookies([_session_cookie(scene[who], "password" if who == "password" else "mfa", live_server)])
     page = context.new_page()
-    response = page.goto(
-        live_server.url
-        + path.format(
-            pge=scene["pge"].code,
-            cpuc=scene["cpuc"].code,
-            allocation=scene["allocation"].pk,
-            rules=scene["rules"].pk,
-            pack=scene["pack"].pk,
-            published_pack=scene["published_pack"].pk,
-        )
-    )
+    from cedars.services.accounts.models import Organisation
+
+    ids = {k: (v.code if isinstance(v, Organisation) else getattr(v, "pk", v)) for k, v in scene.items()}
+    response = page.goto(live_server.url + path.format(**ids))
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     return context, page
 

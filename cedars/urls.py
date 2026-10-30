@@ -11,5 +11,6 @@ urlpatterns = [
     path("filings/", include("cedars.services.submissions.urls")),
     path("reference-data/", include("cedars.services.refdata.urls")),
     path("notifications/", include("cedars.services.notifications.urls")),
+    path("impact-profiles/", include("cedars.modules.impact_profiles.urls")),
     path("django-admin/", admin.site.urls),
 ]

@@ -12,6 +12,8 @@ dependencies = [
     "gunicorn>=23",
     "django-allauth[mfa,socialaccount]>=65.3",
     "openpyxl>=3.1",
+    "numpy>=2.1",                # 8,760 arrays (impact profiles)
+    "pyarrow>=18",               # the profile library in the engine's Parquet format
 ]
 
 [dependency-groups]

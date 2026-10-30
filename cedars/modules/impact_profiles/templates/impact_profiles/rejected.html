@@ -1,0 +1,9 @@
+{% extends "core/base.html" %}
+{% block title %}File not accepted{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="library" %}
+<h1>File not accepted</h1>
+<p class="alert" role="alert" tabindex="-1">The file broke {{ findings|length }} rule{{ findings|length|pluralize }}. Nothing was saved; {{ p.profile_key }} keeps its current version.</p>
+{% include "impact_profiles/_findings.html" %}
+<p><a href="{{ back }}">Back to {{ p.profile_key }}</a></p>
+{% endblock %}

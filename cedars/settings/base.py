@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "cedars.services.notifications",
     "cedars.services.retention",
     "cedars.modules.administration",
+    "cedars.modules.impact_profiles",
     "allauth",
     "allauth.account",
     "allauth.mfa",
@@ -147,6 +148,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # larger uploads spill to a temp
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_ROOT = env("MEDIA_ROOT", str(BASE_DIR / "media"))  # default storage on a developer's machine; S3 elsewhere
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
@@ -164,6 +166,16 @@ CONTENT_SECURITY_POLICY = (
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; "
     "base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 )
+
+# Impact profiles module. The restricted eTRM database is read with a read-only role; until we have access, a fixture file stands in.
+ETRM_DATABASE_URL = env("ETRM_DATABASE_URL", "")
+ETRM_SCHEMA = env("ETRM_SCHEMA", "etrm")
+ETRM_FIXTURE = env("ETRM_FIXTURE", "")
+LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")  # earlier measure versions keep DEER impact profile IDs
+LOAD_SHAPE_MAX_UPLOAD_MB = int(env("LOAD_SHAPE_MAX_UPLOAD_MB", "50"))
+LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
+IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # a profile with no territory is written for each
+IMPACT_PROFILES_INLINE_JOBS = env_bool("IMPACT_PROFILES_INLINE_JOBS", False)  # development: run queued jobs in the request
 
 LOGGING = {
     "version": 1,

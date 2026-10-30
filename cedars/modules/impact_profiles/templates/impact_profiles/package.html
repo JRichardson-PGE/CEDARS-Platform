@@ -1,0 +1,102 @@
+{% extends "core/base.html" %}
+{% block title %}{{ pkg.measure_version_id }}{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="packages" %}
+<h1>{{ pkg.measure_version_id }} <span class="muted">{{ pkg.name }}</span></h1>
+<dl class="facts">
+  <dt>PA lead</dt><dd>{{ pkg.pa_lead }}</dd>
+  <dt>Starts</dt><dd>{{ pkg.start_date|date:"Y-m-d" }}</dd>
+  <dt>eTRM version here</dt><dd>{% if pkg.current %}{{ pkg.current.number }}, synced {{ pkg.current.sync_run.started_at|date:"Y-m-d H:i" }}, {{ pkg.current.permutation_count }} permutations{% else %}none yet{% endif %}</dd>
+  <dt>In the last sync</dt><dd>{% if pkg.in_last_sync %}Yes{% else %}No: eTRM no longer offers this draft{% endif %}</dd>
+</dl>
+
+{% if can_upload %}
+<section class="card" aria-labelledby="up-h">
+  <h2 id="up-h">Upload load shapes</h2>
+  <p>Each series is checked in four stages: the file, its headers, each 8,760 (hours 1 to 8760, adding up to 1), and its match with this
+  package's permutations. Use explicit building types and climate zones; for an "Any" building type use Com or Res.
+  <a href="{% url 'impact_profiles:load_shape_template' %}">Download the template (CSV)</a>.</p>
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Upload and check</button></div>
+  </form>
+</section>
+{% elif request.organisation.code != pkg.pa_lead %}
+<p>Load shapes for this package are uploaded by members of {{ pkg.pa_lead }} with the Impact profiles: submit permission.</p>
+{% endif %}
+
+<h2>Load shapes</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Load shapes">
+<table class="list">
+  <caption class="sr-only">This package's load shapes</caption>
+  <thead><tr><th scope="col">TechID</th><th scope="col">Sector</th><th scope="col">BldgType</th><th scope="col">BldgVint</th><th scope="col">BldgHVAC</th><th scope="col">Zone</th><th scope="col">Versions</th></tr></thead>
+  <tbody>
+  {% for ls in shapes %}
+  <tr><th scope="row"><a href="{% url 'impact_profiles:load_shape' ls.pk %}">{{ ls.tech_id }}<span class="sr-only">, {{ ls.bldg_type }} zone {{ ls.bldg_loc }}</span></a></th><td>{{ ls.sector }}</td>
+    <td>{{ ls.bldg_type }}</td><td>{{ ls.bldg_vint }}</td><td>{{ ls.bldg_hvac }}</td><td>{{ ls.bldg_loc }}</td><td>{{ ls.versions.all|length }}</td></tr>
+  {% empty %}<tr><td colspan="7">No load shapes uploaded yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Impact profiles generated</h2>
+{% if profiles %}
+<ul>{% for p in profiles %}<li><a href="{% url 'impact_profiles:profile' p.pk %}">{{ p.profile_key }}</a> / {{ p.target_sector }}{% if p.retired_at %} (retired){% endif %}</li>{% endfor %}</ul>
+{% else %}<p>None yet. They are generated from an accepted upload's page.</p>{% endif %}
+
+<h2>Profile IDs pointing at another profile</h2>
+<p>When a permutation's own profile ID has no shapes (for example new construction reusing the existing-vintage modelling), map it to the
+profile it should use instead of changing the vintage in eTRM.</p>
+{% if mappings %}
+<ul>
+{% for m in mappings %}
+<li>{{ m.alias_key }} / {{ m.target_sector }} uses <a href="{% url 'impact_profiles:profile' m.target.pk %}">{{ m.target.profile_key }}</a>: {{ m.reason }}
+  {% if can_upload %}<form method="post" action="{% url 'impact_profiles:mapping_end' m.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">End<span class="sr-only"> the mapping for {{ m.alias_key }}</span></button></form>{% endif %}</li>
+{% endfor %}
+</ul>
+{% else %}<p>None.</p>{% endif %}
+{% if mapping_form %}
+<details>
+  <summary>Add a mapping</summary>
+  <form method="post" action="{% url 'impact_profiles:mapping_new' pkg.measure_version_id %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in mapping_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Add the mapping</button></div>
+  </form>
+</details>
+{% endif %}
+
+{% if uploads is not None %}
+<h2>Uploads for this package</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Uploads for this package">
+<table class="list">
+  <caption class="sr-only">Uploads for this package, newest first</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Uploaded</th><th scope="col">By</th><th scope="col">Status</th><th scope="col">Series kept</th></tr></thead>
+  <tbody>
+  {% for u in uploads %}
+  <tr><th scope="row"><a href="{% url 'impact_profiles:upload' u.pk %}">{{ u.file_name }}</a></th><td class="nowrap">{{ u.uploaded_at|date:"Y-m-d H:i" }}</td>
+    <td>{{ u.uploaded_by.email }}</td><td>{{ u.get_status_display }}</td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
+  {% empty %}<tr><td colspan="5">No uploads yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+{% if perm_page %}
+<h2>Permutations (eTRM version {{ pkg.current.number }})</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Permutations">
+<table class="list small">
+  <caption class="sr-only">The package's permutations as synced from eTRM, with their UECs in kWh per unit</caption>
+  <thead><tr><th scope="col">Sector</th><th scope="col">BldgType</th><th scope="col">BldgVint</th><th scope="col">BldgHVAC</th><th scope="col">BldgLoc</th><th scope="col">TechGroup</th><th scope="col">TechType</th><th scope="col">Measure TechID</th><th scope="col">1st baseline TechID</th><th scope="col">2nd baseline TechID</th><th scope="col">UEC measure</th><th scope="col">UEC 1st baseline</th><th scope="col">UEC 2nd baseline</th></tr></thead>
+  <tbody>
+  {% for p in perm_page %}
+  <tr><td>{{ p.sector }}</td><td>{{ p.bldg_type }}</td><td>{{ p.bldg_vint }}</td><td>{{ p.bldg_hvac }}</td><td>{{ p.bldg_loc }}</td><td>{{ p.tech_group }}</td><td>{{ p.tech_type }}</td>
+    <th scope="row">{{ p.measure_tech_id }}</th><td>{{ p.base1_tech_id }}</td><td>{{ p.base2_tech_id }}</td><td>{{ p.uec_kwh_meas }}</td><td>{{ p.uec_kwh_base1 }}</td><td>{{ p.uec_kwh_base2|default_if_none:"" }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "impact_profiles/_pager.html" with page=perm_page query="" pager_label="Permutation pages" %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "core/base.html" %}
+{% block title %}Upload {{ u.file_name }}{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="uploads" %}
+<h1>QC summary: {{ u.file_name }}</h1>
+<dl class="facts">
+  <dt>Package</dt><dd><a href="{% url 'impact_profiles:package' u.package.measure_version_id %}">{{ u.package.measure_version_id }}</a>, checked against its eTRM version {{ u.package_version.number }}</dd>
+  <dt>Uploaded</dt><dd>{{ u.uploaded_at|date:"Y-m-d H:i" }} by {{ u.uploaded_by.email }} for {{ u.organisation.code }}</dd>
+  <dt>Status</dt><dd><strong>{{ u.get_status_display }}</strong>{% if position is not None %}, {% if position %}{{ position }} job{{ position|pluralize }} ahead in {{ u.organisation.code }}'s queue{% else %}next in {{ u.organisation.code }}'s queue{% endif %}{% endif %}</dd>
+  <dt>Series</dt><dd>{{ u.accepted_count }} kept of {{ u.series_count }}{% if u.accept_partial %} (series that pass are kept when others fail){% else %} (one failure rejects the whole file){% endif %}</dd>
+  <dt>File</dt><dd>{{ u.size|filesizeformat }}, SHA-256 <span class="small">{{ u.sha256|truncatechars:20 }}</span></dd>
+</dl>
+{% if u.status == "queued" or u.status == "checking" or generating %}<p><a href="{% url 'impact_profiles:upload' u.pk %}">Refresh this page</a> to see the result.</p>{% endif %}
+
+<h2>Validation stages</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Validation stages">
+<table class="list">
+  <caption class="sr-only">The four validation stages and their results</caption>
+  <thead><tr><th scope="col">Stage</th><th scope="col">Result</th><th scope="col">Findings</th></tr></thead>
+  <tbody>{% for code, name, result, n in stages %}<tr><th scope="row">{{ name }}</th><td>{{ result|capfirst }}</td><td>{{ n }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+
+{% if n_findings %}
+<h2>Findings</h2>
+<p>{{ n_findings }} finding{{ n_findings|pluralize }}{% if n_findings > 500 %}, the first 500 shown{% endif %}. <a href="{% url 'impact_profiles:upload_findings_csv' u.pk %}">Download every finding (CSV)</a>.</p>
+{% include "impact_profiles/_findings.html" with findings_label="Findings" %}
+{% endif %}
+
+{% if can_generate %}
+<section class="card" aria-labelledby="gen-h">
+  <h2 id="gen-h">Generate impact profiles</h2>
+  <p>Pairs every permutation's measure and baseline shapes using its UECs, for all of the package's current load shapes. A profile whose
+  result changed gets a new version; unchanged ones are left alone.</p>
+  {% if generating %}<p><strong>Generation is queued or running.</strong></p>{% else %}
+  <form method="post" action="{% url 'impact_profiles:upload_generate' u.pk %}">{% csrf_token %}<button type="submit" class="primary">Generate impact profiles</button></form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if summary %}
+<h2>Generation result</h2>
+<p>{{ summary.created }} new profile{{ summary.created|pluralize }}, {{ summary.new_version }} new version{{ summary.new_version|pluralize }}, {{ summary.unchanged }} unchanged{% if u.generated_at %}, {{ u.generated_at|date:"Y-m-d H:i" }}{% endif %}.</p>
+{% if summary.profiles %}<ul>{% for pk, key, sector, number in summary.profiles %}<li><a href="{% url 'impact_profiles:profile' pk %}">{{ key }}</a> / {{ sector }}, version {{ number }}</li>{% endfor %}</ul>{% endif %}
+{% if summary.skipped %}
+<h3>Permutations without a profile</h3>
+<ul class="small">{% for perm, reason in summary.skipped %}<li>{{ perm }}: {{ reason }}</li>{% endfor %}</ul>
+{% endif %}
+{% if summary.conflicts or summary.notes %}
+<h3>Notes</h3>
+<ul class="small">{% for c in summary.conflicts %}<li>{{ c }}</li>{% endfor %}{% for n in summary.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+{% endif %}
+{% endif %}
+
+{% if kept %}
+<h2>Load shapes saved from this file</h2>
+<ul class="small">{% for v in kept %}<li><a href="{% url 'impact_profiles:load_shape' v.load_shape.pk %}">{{ v.load_shape }}</a>, version {{ v.number }}</li>{% endfor %}</ul>
+{% endif %}
+{% endblock %}

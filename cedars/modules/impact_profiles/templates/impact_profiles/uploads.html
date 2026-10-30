@@ -1,0 +1,21 @@
+{% extends "core/base.html" %}
+{% block title %}Load shape upload history{% endblock %}
+{% block content %}
+{% include "impact_profiles/_nav.html" with section="uploads" %}
+<h1>Load shape upload history</h1>
+<p>Uploads made for {% if request.user_organisations %}your organisations{% else %}the organisations you belong to (none yet){% endif %}, including other members'.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Uploads">
+<table class="list">
+  <caption class="sr-only">Load shape uploads, newest first</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Package</th><th scope="col">For</th><th scope="col">By</th><th scope="col">Uploaded</th><th scope="col">Status</th><th scope="col">Series kept</th></tr></thead>
+  <tbody>
+  {% for u in page %}
+  <tr><th scope="row"><a href="{% url 'impact_profiles:upload' u.pk %}">{{ u.file_name }}</a></th><td>{{ u.package.measure_version_id }}</td><td>{{ u.organisation.code }}</td>
+    <td>{{ u.uploaded_by.email }}</td><td class="nowrap">{{ u.uploaded_at|date:"Y-m-d H:i" }}</td><td>{{ u.get_status_display }}</td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
+  {% empty %}<tr><td colspan="7">No uploads yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "impact_profiles/_pager.html" with query="" pager_label="Upload pages" %}
+{% endblock %}
