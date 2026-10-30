@@ -33,6 +33,11 @@ def details(collection, type_label, title="2025 Annual Report", **kw):
 
 @pytest.fixture
 def people(cpuc_admin, cpuc, pge, pge_admin, make_user):
+    return make_people(cpuc_admin, cpuc, pge, pge_admin, make_user)
+
+
+def make_people(cpuc_admin, cpuc, pge, pge_admin, make_user):
+    """PG&E's writer and drafter, SCE, BayREN, an evaluation contractor (DNV) and a CPUC ED document administrator."""
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     bayren = access.create_organisation(cpuc_admin, code="BAYREN", name="Bay Area Regional Energy Network", kind="pa", pa_type="REN")
     dnv = access.create_organisation(cpuc_admin, code="DNV", name="DNV Energy Insights", kind="other")
@@ -86,7 +91,7 @@ def test_the_library_starts_with_the_pdas_categories_and_each_collections_docume
     lists = {al.code: al for al in AttributeList.objects.all()}
     pda = [al for al in lists.values() if al.pda_id]
     assert len(pda) == 8
-    assert AttributeOption.objects.filter(attribute_list__in=pda).count() == 82
+    assert AttributeOption.objects.filter(attribute_list__in=pda, pda_id__isnull=False).count() == 82
     assert AttributeOption.objects.filter(pda_id__isnull=False).count() == 82
     assert option("study_lead", "IOU").pda_id == 21
     assert {al.type_of for al in lists.values() if al.type_of} == {c.value for c in Collection}
@@ -330,15 +335,15 @@ def test_only_cpuc_ed_keeps_the_value_lists(people, signed_in, client):
     assert client.get("/documents/lists/").status_code == 200
     sector = AttributeList.objects.get(code="sector")
     c = signed_in(people["pge_writer"])
-    c.post("/documents/lists/sector/add", {"label": "Public"})
-    assert not sector.options.filter(label="Public").exists()
+    c.post("/documents/lists/sector/add", {"label": "Water-Energy Nexus"})
+    assert not sector.options.filter(label="Water-Energy Nexus").exists()
     ed = signed_in(people["ed"])
-    ed.post("/documents/lists/sector/add", {"label": "Public", "reason": "PSR sector"})
-    public = sector.options.get(label="Public")
-    ed.post(f"/documents/lists/options/{public.pk}/retire", {"reason": "not used after all"})
-    public.refresh_from_db()
-    assert public.retired_on == timezone.localdate()
+    ed.post("/documents/lists/sector/add", {"label": "Water-Energy Nexus", "reason": "a new sector"})
+    nexus = sector.options.get(label="Water-Energy Nexus")
+    ed.post(f"/documents/lists/options/{nexus.pk}/retire", {"reason": "not used after all"})
+    nexus.refresh_from_db()
+    assert nexus.retired_on == timezone.localdate()
     assert "Retired" in ed.get("/documents/lists/").content.decode()
-    ed.post(f"/documents/lists/options/{public.pk}/reinstate", {"reason": "used after all"})
-    public.refresh_from_db()
-    assert public.retired_on is None and public.offered_on(timezone.localdate() + timedelta(days=1))
+    ed.post(f"/documents/lists/options/{nexus.pk}/reinstate", {"reason": "used after all"})
+    nexus.refresh_from_db()
+    assert nexus.retired_on is None and nexus.offered_on(timezone.localdate() + timedelta(days=1))

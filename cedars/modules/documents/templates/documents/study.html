@@ -1,0 +1,107 @@
+{% extends "core/base.html" %}
+{% block title %}{{ s.study_id }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'documents:studies' %}">Evaluation studies</a></p>
+<div class="head-row">
+  <h1>{{ s.title }}</h1>
+  <div class="actions">
+    <a href="{% url 'documents:study_report' s.number %}">Download this study as CSV</a>
+    {% if can_edit %}<a class="button" href="{% url 'documents:change_study' s.number %}">Update the study</a>{% endif %}
+  </div>
+</div>
+<p>Study {{ s.study_id }}{% if s.status %} · <strong>{{ s.status.label }}</strong>{% endif %}</p>
+
+<section aria-labelledby="facts-h">
+<h2 id="facts-h">The study</h2>
+<dl class="facts">
+  <dt>Study lead</dt><dd>{{ s.lead.label }}</dd>
+  <dt>Study manager</dt><dd>{{ s.manager.name }} ({{ s.manager.code }})</dd>
+  {% if s.work_order %}<dt>Work order</dt><dd><a href="{{ s.work_order.get_absolute_url }}">{{ s.work_order.number }}</a>{% if s.work_order.name %}: {{ s.work_order.name }}{% endif %}</dd>{% endif %}
+  <dt>Study type</dt><dd>{{ s.study_type.label|default:"Not given" }}</dd>
+  <dt>Sectors</dt><dd>{% for o in sectors %}{{ o.label }}{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
+  {% if s.group %}<dt>Group</dt><dd>{{ s.group.label }}</dd>{% endif %}
+  <dt>Funding cycles</dt><dd>{% for o in cycles %}{{ o.label }}{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
+  <dt>Budget</dt><dd>{% if s.budget is not None %}${{ s.budget|floatformat:"0g" }}{% else %}Not given{% endif %}</dd>
+  {% if s.next_activity or s.next_activity_due %}<dt>Next activity</dt><dd>{{ s.next_activity }}{% if s.next_activity_due %}, due {{ s.next_activity_due|date:"Y-m-d" }}{% endif %}</dd>{% endif %}
+  <dt>Completion date</dt><dd>{{ s.completion_date|date:"Y-m-d"|default:"Not given" }}</dd>
+  {% if s.calmac_id %}<dt>CALMAC ID</dt><dd>{{ s.calmac_id }}</dd>{% endif %}
+  <dt>Last updated</dt><dd>{{ s.updated_at|date:"Y-m-d" }}</dd>
+</dl>
+{% if s.description %}<h3>Description</h3><p>{{ s.description|linebreaksbr }}</p>{% endif %}
+{% if s.objective %}<h3>Objective</h3><p>{{ s.objective|linebreaksbr }}</p>{% endif %}
+{% if s.research_questions %}<h3>Research questions</h3><p>{{ s.research_questions|linebreaksbr }}</p>{% endif %}
+{% if s.methods %}<h3>Potential EM&amp;V methods</h3><p>{{ s.methods|linebreaksbr }}</p>{% endif %}
+{% if s.notes %}<h3>Notes</h3><p>{{ s.notes|linebreaksbr }}</p>{% endif %}
+{% if sees_contacts %}
+<h3>Contacts <span class="small muted">(not public)</span></h3>
+<dl class="facts">
+  <dt>ED program manager</dt><dd>{% if s.ed_program_manager %}{{ s.ed_program_manager.name|default:s.ed_program_manager.email }}{% else %}Not given{% endif %}</dd>
+  <dt>Other contacts</dt><dd>{{ s.contacts|linebreaksbr|default:"None recorded" }}</dd>
+</dl>
+{% endif %}
+</section>
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">Programs evaluated</h2>
+<p class="small muted">Each program listed here shows this study on its own page, with the years covered.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Programs evaluated">
+<table class="list">
+  <caption class="sr-only">Programs this study evaluates and the program years covered</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">Program years</th><th scope="col">Coverage</th>{% if can_edit %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for c in coverage %}
+  <tr>
+    <th scope="row"><a href="{% url 'programs:program' c.program.prg_id %}">{{ c.program.prg_id }}</a></th>
+    <td class="nowrap">{{ c.years }}</td>
+    <td>{% if c.whole %}The whole program{% else %}Part of the program{% endif %}{% if c.note %}: {{ c.note }}{% endif %}</td>
+    {% if can_edit %}<td>
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ c.program.prg_id }}</span></summary>
+        <form method="post" action="{% url 'documents:remove_coverage' s.number c.pk %}">{% csrf_token %}
+          <label>Reason <input type="text" name="reason" required></label>
+          <button type="submit">Remove</button>
+        </form>
+      </details>
+    </td>{% endif %}
+  </tr>
+  {% empty %}<tr><td colspan="{% if can_edit %}4{% else %}3{% endif %}">No programs are named yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if coverage_form %}
+<form method="post" action="{% url 'documents:add_coverage' s.number %}" class="row-form" aria-label="Name a program this study evaluates">{% csrf_token %}
+  {% for field in coverage_form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Add the program</button>
+</form>
+<p class="small muted">Adding a program already listed changes its years.</p>
+{% endif %}
+</section>
+
+<section aria-labelledby="docs-h">
+<h2 id="docs-h">Documents</h2>
+<ul class="links">
+  {% for d in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ d.document_type.label }}, {% if d.published_at %}published {{ d.published_at|date:"Y-m-d" }}{% else %}not published{% endif %}</span></li>
+  {% empty %}<li>No documents are filed for this study yet.</li>{% endfor %}
+</ul>
+</section>
+
+<section aria-labelledby="history-h">
+<h2 id="history-h">History</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="History">
+<table class="list">
+  <caption class="sr-only">Changes to {{ s.study_id }}, newest first</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">By</th><th scope="col">What changed</th><th scope="col">Reason</th></tr></thead>
+  <tbody>
+  {% for h in history %}
+  <tr>
+    <th scope="row" class="nowrap">{{ h.at|date:"Y-m-d" }}</th>
+    <td>{{ h.who }}</td>
+    <td><ul class="grants">{% for field, old, new in h.changes %}<li>{{ field|cut:"_"|capfirst }}: {% if old or old == 0 %}{{ old }} to {% endif %}{{ new|default:"(blank)" }}</li>{% endfor %}</ul></td>
+    <td>{{ h.action }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% endblock %}

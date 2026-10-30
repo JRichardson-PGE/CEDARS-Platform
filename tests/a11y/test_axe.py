@@ -285,9 +285,11 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
     from django.core.files.uploadedfile import SimpleUploadedFile
 
     from cedars.modules.documents import service as documents
+    from cedars.modules.documents import studies
     from cedars.modules.documents.models import AttributeOption
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
+    importlib.import_module("cedars.modules.documents.migrations.0005_study_lists").seed(apps, None)
 
     def opt(code, label):
         return AttributeOption.objects.get(attribute_list__code=code, label=label)
@@ -296,6 +298,45 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
         return [documents.Upload(n, SimpleUploadedFile(n, b"%PDF-1.7 scene")) for n in names]
 
     documents.retire_option(cpuc_admin, opt("portfolio_cycle", "2006-2008"), reason="closed cycle")
+    work_order = studies.add_work_order(cpuc_admin, number="ED_D_Res_1", name="Residential impact evaluations", firm_name="An evaluator")
+    task = studies.add_task(cpuc_admin, work_order, "Task 3: HVAC")
+    study = studies.create_study(
+        cpuc_admin,
+        cpuc,
+        studies.StudyData(
+            title="Residential HVAC impact evaluation",
+            manager=cpuc,
+            lead=opt("study_lead", "CPUC"),
+            study_type=opt("study_type", "Impact Evaluation"),
+            sectors=[opt("sector", "Residential")],
+            funding_cycles=[opt("portfolio_cycle", "2022"), opt("portfolio_cycle", "2023")],
+            budget=850000,
+            status=opt("study_status", "Data/Analysis"),
+            work_order=work_order,
+            description="Gross and net savings of residential HVAC measures.",
+            next_activity="Draft report",
+            next_activity_due=date.today() + timedelta(days=20),
+            contacts="Evaluation contractor's project manager",
+        ),
+    )
+    studies.change_study(
+        cpuc_admin,
+        study,
+        studies.StudyData(
+            title=study.title,
+            manager=cpuc,
+            lead=study.lead,
+            study_type=study.study_type,
+            sectors=list(study.sectors.all()),
+            funding_cycles=list(study.funding_cycles.all()),
+            budget=900000,
+            status=opt("study_status", "Draft Report"),
+            work_order=work_order,
+            description=study.description,
+        ),
+        reason="Draft report delivered",
+    )
+    studies.set_coverage(cpuc_admin, study, hvac, 2022, 2024, whole=False, note="Heat pumps and furnaces")
     report = documents.create_document(
         cpuc_admin,
         cpuc,
@@ -309,6 +350,9 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
             first_year=2022,
             last_year=2024,
             attributes=[opt("study_type", "Impact Evaluation"), opt("sector", "Residential"), opt("study_lead", "CPUC")],
+            study=study,
+            work_order=work_order,
+            task=task,
         ),
         files("hvac_impact_final.pdf", "hvac_impact_appendices.pdf"),
         publish=True,
@@ -324,7 +368,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac):
     f = report.versions.get(number=1).files.first()
     documents.record_download(None, f)
     documents.record_download(cpuc_admin, f, viewed=True)
-    return {"document": report, "document_draft": memo}
+    return {"document": report, "document_draft": memo, "study": study.number, "work_order": work_order.pk}
 
 
 def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):

@@ -1,0 +1,63 @@
+{% extends "core/base.html" %}
+{% block title %}Evaluation studies{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="studies" %}
+<div class="head-row">
+  <h1>Evaluation studies</h1>
+  {% if can_create %}<a class="button" href="{% url 'documents:new_study' %}">Add a study</a>{% endif %}
+</div>
+<p>Every EM&amp;V study, led by CPUC Energy Division, an IOU or a REN, with its budget, status, the programs and years it evaluates and
+its documents. This register replaces the Project Status Report. Everything here is public except each study's contacts.</p>
+
+<details class="card">
+  <summary>Activity: next activities due and recent updates</summary>
+  <div class="row-fields">
+    <section aria-labelledby="upcoming-h">
+      <h2 id="upcoming-h">Next activities due</h2>
+      <ul class="links">{% for s in upcoming %}<li>{{ s.next_activity_due|date:"Y-m-d" }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>, {{ s.next_activity|default:"activity not named" }}</li>{% empty %}<li>No activity is due from today.</li>{% endfor %}</ul>
+    </section>
+    <section aria-labelledby="recent-h">
+      <h2 id="recent-h">Recently updated</h2>
+      <ul class="links">{% for s in recent %}<li>{{ s.updated_at|date:"Y-m-d" }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>{% if s.status %}, {{ s.status.label }}{% endif %}</li>{% empty %}<li>No studies yet.</li>{% endfor %}</ul>
+    </section>
+  </div>
+</details>
+
+<form method="get" class="filters" aria-label="Filter the studies">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Apply</button>
+</form>
+<div class="head-row">
+  <p>{{ total }} stud{{ total|pluralize:"y,ies" }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
+  <p><a href="{% url 'documents:studies_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
+</div>
+<div class="hscroll" tabindex="0" role="region" aria-label="Evaluation studies">
+<table class="list">
+  <caption class="sr-only">Evaluation studies, newest first</caption>
+  <thead><tr><th scope="col">Study ID</th><th scope="col">Study name</th><th scope="col">Lead</th><th scope="col">Work order</th><th scope="col">Budget</th><th scope="col">Status</th><th scope="col">Manager</th><th scope="col">Completion</th><th scope="col">Next activity</th></tr></thead>
+  <tbody>
+  {% for s in page %}
+  <tr>
+    <th scope="row"><a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a></th>
+    <td>{{ s.title }}</td>
+    <td>{{ s.lead.label }}</td>
+    <td>{% if s.work_order %}<a href="{{ s.work_order.get_absolute_url }}">{{ s.work_order.number }}</a>{% endif %}</td>
+    <td class="num">{% if s.budget is not None %}${{ s.budget|floatformat:"0g" }}{% endif %}</td>
+    <td>{{ s.status.label|default:"Not given" }}</td>
+    <td>{{ s.manager.code }}</td>
+    <td class="nowrap">{{ s.completion_date|date:"Y-m-d" }}</td>
+    <td>{{ s.next_activity }}{% if s.next_activity_due %} <span class="nowrap">({{ s.next_activity_due|date:"Y-m-d" }})</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="9">No studies match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.paginator.num_pages > 1 %}
+<nav class="pager" aria-label="Study pages">
+  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

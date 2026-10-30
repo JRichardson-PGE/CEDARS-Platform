@@ -78,6 +78,31 @@
 {% else %}<p>{% if p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
 </section>
 
+<section aria-labelledby="eval-h">
+<h2 id="eval-h">Evaluations</h2>
+{% if evaluations %}
+<p class="small muted">Evaluation studies that cover this program, in whole or in part, and the program years each covers.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Evaluations">
+<table class="list">
+  <caption class="sr-only">Evaluation studies covering {{ p.prg_id }}, newest program years first</caption>
+  <thead><tr><th scope="col">Study</th><th scope="col">Program years</th><th scope="col">Covers</th><th scope="col">Lead</th><th scope="col">Status</th><th scope="col">Latest deliverable</th></tr></thead>
+  <tbody>
+  {% for e in evaluations %}
+  <tr>
+    <th scope="row"><a href="{{ e.url }}">{{ e.study_id }}</a><br><span class="small">{{ e.title }}</span></th>
+    <td class="nowrap">{{ e.years }}</td>
+    <td>{% if e.whole %}The whole program{% else %}Part of the program{% endif %}{% if e.note %}<br><span class="small">{{ e.note }}</span>{% endif %}</td>
+    <td>{{ e.lead }}</td>
+    <td>{{ e.status|default:"Not given" }}</td>
+    <td>{% if e.deliverable %}<a href="{{ e.deliverable.url }}">{{ e.deliverable.title }}</a> <span class="small">({{ e.deliverable.stage }})</span>{% else %}None published yet{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No evaluation study in the register covers this program yet.</p>{% endif %}
+</section>
+
 <section aria-labelledby="fil-h">
 <h2 id="fil-h">Budgets, claims and monthly reports</h2>
 <p>This program's budget filings, fund shifts, claims and monthly reports will be listed here as those parts of CEDARS open.</p>

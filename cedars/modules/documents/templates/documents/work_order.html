@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}
+{% block title %}Work order {{ wo.number }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'documents:work_orders' %}">Work orders</a></p>
+<h1>Work order {{ wo.number }}{% if wo.name %}: {{ wo.name }}{% endif %}</h1>
+<dl class="facts">
+  <dt>Contractor</dt><dd>{% if wo.firm %}{{ wo.firm.name }} ({{ wo.firm.code }}){% else %}{{ wo.firm_name|default:"Not given" }}{% endif %}</dd>
+  {% if wo.cpuc_contract_id %}<dt>CPUC contract id</dt><dd>{{ wo.cpuc_contract_id }}</dd>{% endif %}
+  <dt>Status</dt><dd>{% if wo.cancelled %}Cancelled{% else %}Open{% endif %}</dd>
+</dl>
+<p><a href="{% url 'documents:library' %}?work_order={{ wo.number|urlencode }}">Search the library for this work order's documents</a></p>
+<section aria-labelledby="tasks-h">
+<h2 id="tasks-h">Tasks</h2>
+<ul class="links">{% for t in tasks %}<li>{{ t.name }}</li>{% empty %}<li>No tasks.</li>{% endfor %}</ul>
+{% if admin %}
+<form method="post" action="{% url 'documents:work_order_change' wo.pk 'task' %}" class="row-form">{% csrf_token %}
+  <label>New task <input type="text" name="name" required></label>
+  <button type="submit">Add the task</button>
+</form>
+<form method="post" action="{% url 'documents:work_order_change' wo.pk wo.cancelled|yesno:'reinstate,cancel' %}" class="row-form">{% csrf_token %}
+  <label>Reason <input type="text" name="reason" required></label>
+  <button type="submit">{% if wo.cancelled %}Reinstate the work order{% else %}Mark the work order cancelled{% endif %}</button>
+</form>
+{% endif %}
+</section>
+<section aria-labelledby="studies-h">
+<h2 id="studies-h">Studies</h2>
+<ul class="links">{% for s in studies %}<li><a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>: {{ s.title }}{% if s.status %} ({{ s.status.label }}){% endif %}</li>{% empty %}<li>No studies name this work order.</li>{% endfor %}</ul>
+</section>
+<section aria-labelledby="docs-h">
+<h2 id="docs-h">Documents</h2>
+<ul class="links">{% for d in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ d.document_type.label }}{% if d.task %}, task {{ d.task.name }}{% endif %}</span></li>{% empty %}<li>No documents are filed under this work order.</li>{% endfor %}</ul>
+</section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Work orders{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="work_orders" %}
+<h1>Work orders</h1>
+<p>Energy Division's contract work orders and their tasks: EM&amp;V documents and studies are filed under them, beside their attributes.
+CPUC Energy Division keeps this list.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Work orders">
+<table class="list">
+  <caption class="sr-only">Work orders</caption>
+  <thead><tr><th scope="col">Work order</th><th scope="col">Name</th><th scope="col">Contractor</th><th scope="col">Tasks</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for wo in rows %}
+  <tr><th scope="row"><a href="{{ wo.get_absolute_url }}">{{ wo.number }}</a></th><td>{{ wo.name }}</td><td>{% if wo.firm %}{{ wo.firm.code }}{% else %}{{ wo.firm_name }}{% endif %}</td><td>{{ wo.tasks.all|length }}</td><td>{% if wo.cancelled %}Cancelled{% else %}Open{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">No work orders yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if form %}
+<h2>Add a work order</h2>
+<form method="post" action="{% url 'documents:add_work_order' %}" class="stack form-narrow">{% csrf_token %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit">Add the work order</button></div>
+</form>
+{% endif %}
+{% endblock %}

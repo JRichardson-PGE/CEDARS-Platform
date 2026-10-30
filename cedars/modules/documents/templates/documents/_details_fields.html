@@ -5,4 +5,6 @@
 {{ form.programs.as_field_group }}
 {{ form.first_year.as_field_group }}
 {{ form.last_year.as_field_group }}
+{% if form.study %}{{ form.study.as_field_group }}{% endif %}
+{% if form.work_order %}{{ form.work_order.as_field_group }}{{ form.task.as_field_group }}{% endif %}
 {% for field in form.attribute_fields %}{{ field.as_field_group }}{% endfor %}

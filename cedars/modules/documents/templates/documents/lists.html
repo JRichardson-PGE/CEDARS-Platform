@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Document value lists{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'documents:library' %}">Documents</a></p>
+{% include "documents/_subnav.html" with section="lists" %}
 <h1>Document value lists</h1>
 <p>The values a document can be filed with: each collection's document types, and the attributes the Public Document Area used for
 EM&amp;V documents. CPUC Energy Division keeps them. A retired value stays on the documents filed with it and in search, but is not

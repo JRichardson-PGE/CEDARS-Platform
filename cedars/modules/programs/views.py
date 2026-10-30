@@ -188,6 +188,7 @@ def program(request, prg_id):
                 r for r in p.change_requests.filter(status=ProgramChangeRequest.Status.PENDING) if registry.can_see_request(request.user, r)
             ],
             "events": audit.changes(p).select_related("actor")[:20],
+            "evaluations": registry.evaluations(p),
         },
     )
 
