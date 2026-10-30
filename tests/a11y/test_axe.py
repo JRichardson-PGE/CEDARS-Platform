@@ -256,6 +256,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         **documents,
         "pack": pack,
         "published_pack": published,
+        "etrm_pack": _etrm(cpuc_admin),
         "analyst": analyst,
         "pii_filer": pii_filer,
         "queued_run": queued,
@@ -525,6 +526,14 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         "claims_corrected": v2,
         "claims_letter": v2.change_letter,
     }
+
+
+def _etrm(cpuc_admin):
+    """The eTRM sample download as a published permutations pack (the deemed checks' source)."""
+    from cedars.services.refdata import etrm
+
+    sample = Path(__file__).parent.parent / "data" / "etrm_permutations_export.csv"
+    return refdata.publish_pack(cpuc_admin, etrm.load(cpuc_admin, [sample], label="eTRM published permutations", version="2026-10-30"))
 
 
 def _zip(files: dict[str, str]) -> bytes:

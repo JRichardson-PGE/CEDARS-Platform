@@ -16,6 +16,31 @@
   <dt>Registered</dt><dd>{{ pack.registered_at|date:"Y-m-d H:i" }} by {{ pack.registered_by.email|default:"the system" }}</dd>
 </dl>
 
+{% if etrm %}
+<section aria-labelledby="perm-h">
+<h2 id="perm-h">Permutations</h2>
+<p>{{ permutations|floatformat:"0g" }} published permutations, by Measure Detail ID. Claims check each deemed claim's MeasDetailID against the
+published pack in force: blank fields are filled from it and filed values that differ are flagged.</p>
+<form method="get" class="stack form-narrow" role="search">
+  <div class="field"><label for="mdid">Measure Detail ID (a claim's MeasDetailID)</label><input type="text" id="mdid" name="id" value="{{ mdid }}" maxlength="255"></div>
+  <div class="actions"><button type="submit">Look it up</button></div>
+</form>
+{% if mdid %}
+  {% if permutation %}
+  <h3>{{ permutation.measure_detail_id }}</h3>
+  <p>Measure version {{ permutation.measure_version_id|upper }}, in effect {{ permutation.start_date|date:"Y-m-d"|default:"from the start" }} to {{ permutation.end_date|date:"Y-m-d"|default:"now" }}.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Permutation values">
+  <table class="list">
+    <caption class="sr-only">The permutation's values under eTRM's column names, and the claims fields each fills</caption>
+    <thead><tr><th scope="col">eTRM column</th><th scope="col">Value</th><th scope="col">Fills</th></tr></thead>
+    <tbody>{% for col, value, fills in values %}<tr><th scope="row">{{ col }}</th><td>{{ value }}</td><td>{{ fills }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>This pack has no permutation {{ mdid }}.</p>{% endif %}
+{% endif %}
+</section>
+{% endif %}
+
 <h2>Tie-outs</h2>
 {% if requirements %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Required checks">

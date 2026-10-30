@@ -418,8 +418,9 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
     base = compiled_tables(base_v) if base_v else {}
     previous = corrected_version(v)
     corrected = compiled_tables(previous) if previous else {}
+    deemed, etrm_summary = fill_deemed(own, base)
     comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
-    problems = derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
+    problems = deemed + derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
     found, notes, rule_set = _rule_findings(own, year)
     problems += found
     own_f = own_file(v)
@@ -454,9 +455,163 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
             "changed_claims_count": len(comp.changed_claims),
             "withdrawn": len(withdrawn(own)),
             "withdrawn_total": len(withdrawn(comp.tables)),
+            "etrm": etrm_summary,
         }
     )
+    if etrm_summary.get("note"):
+        summary["notes"] = [*summary["notes"], etrm_summary["note"]]
     return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
+
+
+# --- deemed claims against eTRM (BR-05.8)
+
+
+def _decimals(text: str) -> int:
+    return len(text.split(".", 1)[1]) if "." in text else 0
+
+
+def _same(f: spec.Field, filed: str, etrm_value: str) -> bool:
+    """Whether a filed value agrees with eTRM's: numbers to the precision eTRM's download shows them at, flags as flags, text without
+    regard to case."""
+    if f.type in ("number", "integer"):
+        a, b = _num(filed), _num(etrm_value)
+        if a is not None and b is not None:
+            tol = Decimal(5) * Decimal(10) ** -(_decimals(etrm_value) + 1)
+            return abs(a - b) <= tol + Decimal("1e-9") * max(abs(a), abs(b))
+    if f.type == "bit" and _flag(filed) is not None:
+        return _flag(filed) == _flag(etrm_value)
+    return filed.strip().casefold() == etrm_value.strip().casefold()
+
+
+def fill_deemed(own: dict[str, upload.Table], base: dict[str, upload.Table]) -> tuple[list[Problem], dict]:
+    """Check the upload's deemed claims (ClaimType Deemed with a MeasDetailID) against the published eTRM permutations pack in force,
+    by MeasDetailID (BR-05.8): a blank Claim or Measure field that eTRM gives is filled in from it (in `own`, so the compiled tables and
+    the job carry it, while the stored upload stays as filed), and a filed value that differs from eTRM's rejects the record (Jake,
+    2026-10-30: deemed values are eTRM's), except the NTG fields, which can vary and are a warning (`etrm.WARN_ONLY`). Where eTRM says
+    "Any", any value is valid and the PA supplies it: the field is neither filled nor compared, so a blank one is still required. A
+    MeasDetailID the pack does not have is rejected when the pack has its measure version, and a
+    warning (not checked) when it does not. A permutation not in effect in the claim's quarter is a warning."""
+    from cedars.services.refdata import etrm
+    from cedars.services.refdata import service as refdata
+
+    claims_in = {r.get("ClaimID", ""): (i, r) for i, r in enumerate(base.get("Claim", upload.Table("Claim", [], [])).rows, start=0)}
+    own_claims = own.get("Claim")
+    for i, r in enumerate(own_claims.rows if own_claims else [], start=2):
+        claims_in[r.get("ClaimID", "")] = (i, r)
+    measures = defaultdict(list)
+    m = own.get("Measure")
+    for i, r in enumerate(m.rows if m else [], start=2):
+        measures[r.get("ClaimID", "")].append((i, r))
+    deemed = {
+        cid: (i, r)
+        for cid, (i, r) in claims_in.items()
+        if r.get("ClaimType", "").strip().lower() == "deemed" and r.get("MeasDetailID", "").strip() and (i >= 2 or cid in measures)
+    }
+    if not deemed:
+        return [], {}
+    pack = refdata.in_force(etrm.KIND)
+    if pack is None:
+        return [], {"deemed": len(deemed), "note": "Deemed claims were not checked against eTRM: no published eTRM permutations pack."}
+    found = etrm.lookup(pack, [r["MeasDetailID"] for _, r in deemed.values()])
+    known = etrm.versions(pack, [etrm.measure_version(r["MeasDetailID"]) for _, r in deemed.values()])
+    problems: list[Problem] = []
+    filled: dict[str, int] = defaultdict(int)
+    differ = varied = unchecked = 0
+    fields = spec.fields()
+
+    def fill(table: str, i: int, r: dict, rid: str, field_map: dict, values: dict, compare: bool) -> None:
+        nonlocal differ, varied
+        t = own.get(table)
+        types = {f.name: f for f in fields[table]}
+        for name, col in field_map.items():
+            theirs = values.get(col, "")
+            if not theirs or theirs.strip().lower() == etrm.ANY:
+                continue
+            mine = r.get(name, "")
+            if not mine:
+                r[name] = theirs
+                filled[name] += 1
+                if t is not None and name not in t.columns:
+                    t.columns.append(name)
+            elif compare and not _same(types[name], mine, theirs):
+                differ += name not in etrm.WARN_ONLY
+                varied += name in etrm.WARN_ONLY
+                problems.append(
+                    Problem(
+                        i,
+                        rid,
+                        table,
+                        name,
+                        "CLM-ETRM",
+                        "warning" if name in etrm.WARN_ONLY else "reject",
+                        f"{name} {mine} differs from eTRM's {theirs} ({col})",
+                        f"Enter eTRM's {theirs} or leave it blank to have it filled in; if the measure is not this permutation, "
+                        "give the MeasDetailID of the one it is.",
+                        mine,
+                    )
+                )
+
+    for cid, (i, r) in deemed.items():
+        mdid = r["MeasDetailID"].strip()
+        p = found.get(mdid.lower())
+        if p is None:
+            mv = etrm.measure_version(mdid)
+            if i < 2:  # a claim confirmed earlier this year, with new Measure records in this upload: its MeasDetailID was checked then
+                unchecked += 1
+            elif mv in known:
+                why = f"MeasDetailID {mdid} is not a permutation of {mv.upper()} in eTRM"
+                fix = "Copy the Measure Detail ID of the permutation the measure was installed under from eTRM."
+                problems.append(Problem(i, cid, "Claim", "MeasDetailID", "CLM-ETRM", "reject", why, fix, mdid))
+            else:
+                unchecked += 1
+                why = f"MeasDetailID {mdid} was not checked: the eTRM pack in force has no permutations of {mv.upper() or 'its measure'}"
+                fix = "Nothing to fix if the ID is right; the measure version is not in the platform's eTRM data yet."
+                problems.append(Problem(i, cid, "Claim", "MeasDetailID", "CLM-ETRM", "warning", why, fix, mdid))
+            continue
+        if i >= 2:
+            fill("Claim", i, r, cid, etrm.CLAIM_FIELDS, p.values, True)
+        for mi, mr in measures.get(cid, []):
+            fill("Measure", mi, mr, cid, etrm.MEASURE_FIELDS, p.values, True)
+            fill("Measure", mi, mr, cid, etrm.MEASURE_DESCRIPTIONS, p.values, False)
+            q = _quarter_dates(mr.get("ClaimYearQuarter", ""))
+            if q and ((p.end_date and q[0] > p.end_date) or (p.start_date and q[1] < p.start_date)):
+                problems.append(
+                    Problem(
+                        mi,
+                        cid,
+                        "Measure",
+                        "ClaimYearQuarter",
+                        "CLM-ETRM",
+                        "warning",
+                        f"The permutation {mdid} is in effect {p.start_date or 'from the start'} to {p.end_date or 'now'}, not in "
+                        f"{mr['ClaimYearQuarter']}",
+                        "Check the MeasDetailID: use the measure version in effect when it was installed.",
+                        mr["ClaimYearQuarter"],
+                    )
+                )
+    summary = {
+        "deemed": len(deemed),
+        "checked": len(deemed) - unchecked - sum(1 for p in problems if p.severity == "reject"),
+        "filled": dict(sorted(filled.items())),
+        "filled_total": sum(filled.values()),
+        "differ": differ,
+        "ntg_differ": varied,
+        "pack": refdata.pin([pack])[etrm.KIND],
+    }
+    summary["note"] = (
+        f"{summary['checked']:,} of {len(deemed):,} deemed claims checked against {pack}: {summary['filled_total']:,} blank values "
+        f"filled from eTRM, {differ:,} filed values differ from it (rejected), {varied:,} NTG values differ (warnings)."
+    )
+    return problems, summary
+
+
+def _quarter_dates(text: str) -> tuple[date, date] | None:
+    m = re.fullmatch(r"(\d{4})Q([1-4])", text.strip().upper())
+    if not m:
+        return None
+    y, q = int(m.group(1)), int(m.group(2))
+    end = date(y, 3 * q, 31 if q in (1, 4) else 30)
+    return date(y, 3 * q - 2, 1), end
 
 
 def job_zip(tables: dict[str, upload.Table]) -> bytes:
