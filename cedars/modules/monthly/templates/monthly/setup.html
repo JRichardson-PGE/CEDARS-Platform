@@ -1,0 +1,13 @@
+{% extends "core/base.html" %}
+{% block title %}How {{ setup.year }}'s monthly reports are priced{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a></p>
+<h1>How {{ setup.year }}'s monthly reports are priced</h1>
+<p>Reports already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses
+these. Due dates are moved on the <a href="{% url 'submissions:calendar' %}">filing calendar</a>.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit" class="primary">Save</button>
+</form>
+{% endblock %}

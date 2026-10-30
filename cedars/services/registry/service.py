@@ -558,3 +558,28 @@ def allocation_csv(version: AllocationVersion) -> str:
             row[f"{s.funding_pa}WeightedFactor"] = f"{s.weighted:.4f}"
         w.writerow(row)
     return out.getvalue()
+
+
+# --- the operating budget (BR-04.7)
+
+_operating_budget_sources: list = []
+
+
+def register_operating_budget(source) -> None:
+    """The Budgets module's operating budget: source(organisation, cycle) returns one dict per program and year, {prg_id, year, name,
+    approved, shifted, operating} (Decimal dollars). Monthly reports, Claims and dashboards read it through `operating_budget`, so they
+    never import Budgets (modules never import each other)."""
+    _operating_budget_sources[:] = [source]
+
+
+def operating_budget(organisation: Organisation, cycle: FilingCycle | None) -> list[dict]:
+    """A PA's operating budget by program and year in a cycle: the approved budget plus the fund shifts in effect; [] when Budgets is
+    not installed or there is no cycle."""
+    if cycle is None or not _operating_budget_sources:
+        return []
+    return _operating_budget_sources[0](organisation, cycle)
+
+
+def cycle_for_year(year: int) -> FilingCycle | None:
+    """The filing cycle a program year belongs to."""
+    return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()

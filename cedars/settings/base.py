@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "cedars.services.retention",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
+    "cedars.modules.monthly",
     "cedars.modules.calculations",
     "cedars.modules.programs",
     "cedars.modules.budgets",

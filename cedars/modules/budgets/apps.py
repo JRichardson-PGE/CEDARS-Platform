@@ -11,8 +11,10 @@ class BudgetsConfig(AppConfig):
     verbose_name = "Budgets"
 
     def ready(self):
+        from cedars.services.registry.service import register_operating_budget
         from cedars.services.submissions.service import register_publisher
 
-        from . import service
+        from . import service, shifts
 
         register_publisher("budgets", service.on_publish, service.on_unpublish)
+        register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
