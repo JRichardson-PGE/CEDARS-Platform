@@ -79,3 +79,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t cedars-platform:ci .
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive infra/terraform
+      - name: Validate each environment (never applied from CI)
+        run: |
+          for env in sandbox staging production; do
+            (cd infra/terraform/environments/$env && terraform init -backend=false -input=false && terraform validate)
+          done
+

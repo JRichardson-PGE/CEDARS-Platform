@@ -14,6 +14,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |
 | `engine/recet-commit` | The pinned ReCET engine commit (see `engine/README.md`) |
 | `data/dictionary/` | Field catalogs exported from the pinned engine |
+| `infra/terraform/` | The AWS stack per environment (sandbox, staging, production): written and validated in CI, applied only by the CPUC's cloud team (`infra/terraform/README.md`) |
 | `scripts/` | One-off tools (the catalog export) |
 
 ## Shared services
@@ -60,5 +61,10 @@ how far it is built. Update the Status column in the PR that changes it.
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.
 - The calculation job API, run records and S3 orchestration live in the Calculations module; ReCET supplies the worker and the job contract.
-- Hosting targets: ECS Fargate (web), AWS Batch on Fargate via SQS (workers), RDS PostgreSQL (core and vault), S3, Cognito or the CPUC's
-  OIDC provider. Infrastructure as code arrives with phase 1's last PR and is not applied until the CPUC account exists.
+- Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; daily jobs on EventBridge Scheduler), AWS Batch on Fargate
+  (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), RDS
+  PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
+  snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
+  the CPUC's cloud team reviews it in their account.
+- The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
+  subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it.
