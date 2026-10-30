@@ -40,7 +40,7 @@ def suggested_fix(kind: str, field: str, definition: dict, message: str) -> str:
             "numeric": f"Enter a plain number in {field}: no text, units, commas or currency symbols.",
             "bit": f"Enter 0 or 1 (or True or False) in {field}.",
             "year_quarter": f"Write {field} as a year and quarter, such as 2028Q1.",
-            "value_list": f"Use a code from the {definition.get('list')} value list that is current for the claim year (see the dictionary).",
+            "value_list": f"Use a code from the {definition.get('list')} value list that is current for the claim year.",
             "range": f"Enter a value for {field} within the allowed range ({message.split(' should be ', 1)[-1]}).",
             "starts_with": f"Start {field} with {definition.get('pattern')}.",
             "unique": f"Make each combination of {field} appear only once.",
