@@ -285,7 +285,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
     from django.apps import apps
     from django.core.files.uploadedfile import SimpleUploadedFile
 
-    from cedars.modules.documents import comments, deliverables, studies
+    from cedars.modules.documents import comments, deliverables, studies, subscriptions
     from cedars.modules.documents import service as documents
     from cedars.modules.documents.models import AttributeOption
 
@@ -408,6 +408,28 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         stage="draft_results",
         comment_period=(today - timedelta(days=1), today + timedelta(days=13)),
     )
+    # Search by a file's text, key dates on the home page, and subscriptions (BR-15.2, 15.3, 15.5).
+    documents.create_document(
+        cpuc_admin,
+        cpuc,
+        "guidance",
+        documents.Details(opt("guidance_type", "Guidance document"), "Field verification guidance"),
+        [documents.Upload("field_checks.txt", SimpleUploadedFile("field_checks.txt", b"Refrigerant charge checks for heat pumps & AC."))],
+        publish=True,
+    )
+    subscriptions.add_key_date(
+        cpuc_admin,
+        today + timedelta(days=6),
+        "EM&V stakeholder workshop",
+        detail="Draft results of the HVAC study.",
+        link="https://www.cpuc.ca.gov/",
+    )
+    subscriptions.add_key_date(cpuc_admin, today - timedelta(days=4), "Workplan comments closed")
+    subscriptions.subscribe(community, collection="emv")
+    subscriptions.subscribe(community, option=opt("sector", "Residential"), channel="in_app")
+    subscriptions.subscribe(community, study=study)
+    subscriptions.subscribe(community, work_order=work_order)
+    subscriptions.subscribe(cpuc_admin, collection="guidance")
     return {
         "document": report,
         "document_draft": memo,

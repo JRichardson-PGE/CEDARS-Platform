@@ -1,0 +1,55 @@
+{% extends "core/base.html" %}
+{% block title %}My document subscriptions{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="subscriptions" %}
+<h1>My document subscriptions</h1>
+<p>Follow a collection or any value documents are filed with, and you hear when a document matching it is published, with its comment
+period if it has one, and when a published document opens for comment. Studies and work orders are followed from their own pages. Only
+published documents are announced. Messages land on your <a href="{% url 'notifications:index' %}">notifications page</a>.</p>
+{% if is_ed %}<p><a href="{% url 'documents:subscribers' %}">Who subscribes to what</a> (CPUC staff)</p>{% endif %}
+
+<form method="post" aria-labelledby="choose-h">{% csrf_token %}
+<h2 id="choose-h">Collections and values</h2>
+<fieldset class="column-group">
+  <legend>Collections</legend>
+  <div class="checks">
+    {% for value, label, on in collections %}<label><input type="checkbox" name="collections" value="{{ value }}"{% if on %} checked{% endif %}> {{ label }}</label>{% endfor %}
+  </div>
+</fieldset>
+{% for al, options in lists %}
+<details{% for o, on in options %}{% if on %} open{% endif %}{% endfor %}>
+  <summary>{{ al.name }}</summary>
+  <fieldset class="column-group">
+    <legend>{{ al.name }}</legend>
+    <div class="checks">
+      {% for o, on in options %}<label><input type="checkbox" name="options" value="{{ o.pk }}"{% if on %} checked{% endif %}> {{ o.label }}{% if o.retired_on %} <span class="muted">(retired)</span>{% endif %}</label>{% endfor %}
+    </div>
+  </fieldset>
+</details>
+{% endfor %}
+<fieldset>
+  <legend>How the messages come (for everything you follow)</legend>
+  {% for value, label in channels %}<label class="inline"><input type="radio" name="channel" value="{{ value }}"{% if value == channel %} checked{% endif %}> {{ label }}</label>{% endfor %}
+</fieldset>
+<p><button type="submit">Save my subscriptions</button></p>
+</form>
+
+<section aria-labelledby="followed-h">
+<h2 id="followed-h">Studies and work orders you follow</h2>
+{% if followed %}
+<ul class="links">
+  {% for s in followed %}
+  <li>
+    {% if s.study %}<a href="{{ s.study.get_absolute_url }}">{{ s.target_label }}: {{ s.study.title }}</a>{% else %}<a href="{{ s.work_order.get_absolute_url }}">{{ s.target_label }}{% if s.work_order.name %}: {{ s.work_order.name }}{% endif %}</a>{% endif %}
+    <form method="post" action="{% url 'documents:follow' %}" class="inline-form">{% csrf_token %}
+      <input type="hidden" name="action" value="unfollow">
+      {% if s.study %}<input type="hidden" name="study" value="{{ s.study.number }}">{% else %}<input type="hidden" name="work_order" value="{{ s.work_order.pk }}">{% endif %}
+      <input type="hidden" name="next" value="{% url 'documents:subscriptions' %}">
+      <button type="submit" class="link">Stop following<span class="sr-only"> {{ s.target_label }}</span></button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}<p>None yet. Use Follow on a study's or a work order's page.</p>{% endif %}
+</section>
+{% endblock %}

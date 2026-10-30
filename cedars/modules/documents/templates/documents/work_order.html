@@ -2,7 +2,11 @@
 {% block title %}Work order {{ wo.number }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'documents:work_orders' %}">Work orders</a></p>
-<h1>Work order {{ wo.number }}{% if wo.name %}: {{ wo.name }}{% endif %}</h1>
+<div class="head-row">
+  <h1>Work order {{ wo.number }}{% if wo.name %}: {{ wo.name }}{% endif %}</h1>
+  <div class="actions">{% include "documents/_follow.html" with work_order=wo what=wo.number %}</div>
+</div>
+{% if following %}<p>You follow this work order: you hear when its documents are published.</p>{% endif %}
 <dl class="facts">
   <dt>Contractor</dt><dd>{% if wo.firm %}{{ wo.firm.name }} ({{ wo.firm.code }}){% else %}{{ wo.firm_name|default:"Not given" }}{% endif %}</dd>
   {% if wo.cpuc_contract_id %}<dt>CPUC contract id</dt><dd>{{ wo.cpuc_contract_id }}</dd>{% endif %}

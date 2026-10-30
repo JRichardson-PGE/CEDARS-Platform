@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import aging, forms, service, studies
+from . import aging, forms, service, studies, subscriptions
 from .models import AttributeOption, Study, StudyProgram, WorkOrder
 
 PER_PAGE = 25
@@ -142,6 +142,7 @@ def study(request, number):
             "can_edit": can_edit,
             "sees_contacts": contacts,
             "coverage_form": forms.CoverageForm() if can_edit else None,
+            "following": subscriptions.follows(request.user, study=s),
         },
     )
 
@@ -300,6 +301,7 @@ def work_order(request, pk):
             "studies": list(wo.studies.select_related("status")),
             "documents": list(docs),
             "admin": admin,
+            "following": subscriptions.follows(request.user, work_order=wo),
         },
     )
 

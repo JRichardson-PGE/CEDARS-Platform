@@ -41,7 +41,11 @@ YEAR = {"min_value": 2000, "max_value": 2100, "required": False}
 
 
 class SearchForm(forms.Form):
-    q = forms.CharField(label="Search", required=False, help_text="Words in the title, summary or file names")
+    q = forms.CharField(
+        label="Search",
+        required=False,
+        help_text='Words in the title, summary, file names or the text of the files ("a phrase" in quotes, or, -leave out)',
+    )
     collection = forms.ChoiceField(label="Collection", required=False)
     document_type = forms.ModelChoiceField(label="Document type", queryset=AttributeOption.objects.none(), required=False)
     pa = forms.ModelChoiceField(label="PA", queryset=Organisation.objects.none(), required=False, to_field_name="code")
@@ -601,3 +605,10 @@ class WorkOrderForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["firm"].queryset = Organisation.objects.filter(active=True).exclude(kind="cpuc").order_by("code")
         self.fields["firm"].label_from_instance = lambda o: f"{o.code} ({o.name})"
+
+
+class KeyDateForm(forms.Form):
+    on = forms.DateField(label="Date", widget=forms.DateInput(attrs={"type": "date"}))
+    title = forms.CharField(label="What happens", max_length=200)
+    detail = forms.CharField(label="Detail (optional)", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
+    link = forms.URLField(label="Link (optional)", required=False, max_length=400, assume_scheme="https")

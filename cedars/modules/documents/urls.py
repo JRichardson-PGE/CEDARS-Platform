@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_comments, views_studies
+from . import views, views_comments, views_studies, views_subscriptions
 
 app_name = "documents"
 urlpatterns = [
@@ -10,6 +10,11 @@ urlpatterns = [
     path("lists/", views.value_lists, name="lists"),
     path("lists/<slug:code>/add", views.add_option, name="add_option"),
     path("lists/options/<int:pk>/<str:action>", views.change_option, name="change_option"),
+    path("subscriptions/", views_subscriptions.my_subscriptions, name="subscriptions"),
+    path("subscriptions/follow", views_subscriptions.follow, name="follow"),
+    path("subscribers/", views_subscriptions.subscribers, name="subscribers"),
+    path("key-dates/new", views_subscriptions.add_key_date, name="add_key_date"),
+    path("key-dates/<int:pk>/remove", views_subscriptions.remove_key_date, name="remove_key_date"),
     path("files/<int:pk>/<str:name>", views.download, name="download"),
     path("comments/<int:pk>/withdraw", views_comments.withdraw_comment, name="withdraw_comment"),
     path("comments/<int:pk>/respond", views_comments.respond, name="respond"),

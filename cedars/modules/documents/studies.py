@@ -29,6 +29,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
 
+from . import subscriptions
 from .models import AttributeOption, Document, Study, StudyProgram, Task, WorkOrder
 from .service import ANY, SUBMIT, DocumentError, _cpuc_has, is_admin
 
@@ -248,6 +249,7 @@ def change_study(actor, study: Study, data: StudyData, *, reason: str) -> Study:
     after = snapshot(study)
     if after != before:
         audit.record("documents.study_changed", obj=study, before=before, after=after, reason=reason, actor=actor)
+        subscriptions.on_study_status(study, before["status"], after["status"])
     return study
 
 

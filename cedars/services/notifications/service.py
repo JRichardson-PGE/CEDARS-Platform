@@ -160,6 +160,14 @@ def notify(user, title: str, body: str = "", link: str = "", *, key: str = "") -
     return _create(user, title, body, link, email=pref.email_direct if pref else True, key=key)
 
 
+def send(user, title: str, body: str = "", link: str = "", *, email: bool = True, key: str = "") -> Notification | None:
+    """A message to one user from a module's own subscriptions (e.g. Documents' subscriptions to a study or an attribute, BR-15.5), by
+    the channel that subscription chose. With a key it is sent once per user."""
+    if not user.is_active:
+        return None
+    return _create(user, title, body, link, email=email, key=key)
+
+
 def send_deadline_reminders(today=None) -> int:
     """Remind subscribers of deadlines due in REMINDER_DAYS days. Safe to run more than once a day (each reminder is sent once)."""
     from cedars.services.submissions.models import Deadline

@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Document subscribers{% endblock %}
+{% block content %}
+{% include "documents/_subnav.html" with section="subscriptions" %}
+<h1>Document subscribers</h1>
+<p>{{ users }} user{{ users|pluralize }} follow{{ users|pluralize:"s," }} {{ rows|length }} subscription{{ rows|length|pluralize }}. Only CPUC staff see this page.
+<a href="?format=csv">Download every subscription as CSV</a></p>
+{% if by_target %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Subscriptions by what is followed">
+<table class="list">
+  <caption class="sr-only">What is followed and by whom, the most followed first</caption>
+  <thead><tr><th scope="col">Followed</th><th scope="col">Subscribers</th><th scope="col">Who</th></tr></thead>
+  <tbody>
+  {% for target, subs in by_target %}
+  <tr>
+    <th scope="row">{{ target }}</th>
+    <td>{{ subs|length }}</td>
+    <td class="small">{% for s in subs %}{{ s.user.name|default:s.user.email }} ({{ s.get_channel_display|lower }}){% if not forloop.last %}; {% endif %}{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>Nobody subscribes to anything yet.</p>{% endif %}
+{% endblock %}
