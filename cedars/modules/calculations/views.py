@@ -14,9 +14,9 @@ from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import forms, service
+from . import drafts, forms, service
 from . import results as results_mod
-from .models import EngineRelease, Run
+from .models import EngineRelease, InputDraft, Run
 
 PER_PAGE = 50
 STAGES = {
@@ -119,30 +119,44 @@ def new_run(request):
     releases = list(service.releases())
     if not releases:
         return render(request, "calculations/new.html", {"form": None})
+    draft = _draft_for(request)
     orgs = _submittable(request.user, request.user_organisations)
-    if request.organisation in orgs:
-        orgs.remove(request.organisation)
-        orgs.insert(0, request.organisation)
+    first = draft.organisation if draft is not None else request.organisation
+    if first in orgs:
+        orgs.remove(first)
+        orgs.insert(0, first)
     default = service.default_release()
+    initial = {"engine": f"{default.release}|recet", "acc_version": "2024", "include_societal": True, "emissions": True}
+    if draft is not None:
+        initial |= {"name": draft.name, "run_for": draft.organisation.code if draft.organisation else ""}
     form = forms.NewRunForm(
-        request.POST or None,
-        request.FILES or None,
-        releases=releases,
-        organisations=orgs,
-        user=request.user,
-        initial={"engine": f"{default.release}|recet", "acc_version": "2024", "include_societal": True, "emissions": True},
+        request.POST or None, request.FILES or None, releases=releases, organisations=orgs, user=request.user, draft=draft, initial=initial
     )
     if request.method == "POST" and form.is_valid():
         try:
-            run = service.create_run_from_upload(
-                request.user, form.cleaned_data["organisation"], form.run_request(), form.cleaned_data["job"]
-            )
-        except AccessDenied as e:
+            if draft is not None:
+                run = drafts.start_run(request.user, form.cleaned_data["organisation"], form.run_request(), draft)
+            else:
+                run = service.create_run_from_upload(
+                    request.user, form.cleaned_data["organisation"], form.run_request(), form.cleaned_data["job"]
+                )
+        except (AccessDenied, drafts.NoEngine) as e:
             form.add_error(None, str(e))
         else:
-            messages.success(request, f"{run.name} is queued.")
+            messages.success(request, f"{run.name} is queued{' (inputs check only)' if run.settings.get('preflight_only') else ''}.")
             return redirect("calculations:run", pk=run.pk)
-    return render(request, "calculations/new.html", {"form": form, "releases": releases, "service": service})
+    return render(request, "calculations/new.html", {"form": form, "releases": releases, "service": service, "draft": draft})
+
+
+def _draft_for(request):
+    """The Edit inputs draft New run runs (?draft= on the page, a hidden field when it is sent), or None."""
+    pk = request.POST.get("draft") or request.GET.get("draft")
+    if not pk:
+        return None
+    try:
+        return drafts.visible(request.user).get(pk=pk)
+    except (InputDraft.DoesNotExist, ValidationError):
+        raise Http404 from None
 
 
 @login_required
@@ -170,8 +184,6 @@ def run(request, pk):
 
 def _can_edit_inputs(user, run: Run) -> bool:
     """Edit inputs and rerun: offered on an ended run small enough for Edit inputs, when the engine is installed."""
-    from . import drafts
-
     if drafts.engine() is None or not run.ended or "job_zip" not in run.inputs:
         return False
     return (run.measure_count or 0) <= drafts.max_rows() and service.can_submit(user, run.organisation)

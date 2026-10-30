@@ -7,7 +7,7 @@ from django.test import Client
 from django.utils import timezone
 
 from cedars.modules.calculations import dispatch, drafts, service
-from cedars.modules.calculations.models import InputDraft
+from cedars.modules.calculations.models import InputDraft, Run
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.retention.service import purgers
@@ -192,3 +192,37 @@ def test_when_the_engines_checks_fail_the_pages_say_so(analyst, web, monkeypatch
 def test_without_the_engine_the_page_says_so(web, monkeypatch):
     monkeypatch.setattr(drafts, "engine", lambda: None)
     assert "needs the ReCET engine package" in web.get("/calculations/drafts/").content.decode()
+
+
+def test_run_these_inputs_from_new_run(analyst, pge, release, worker, make_user, tmp_path, web):  # noqa: F811
+    d = drafts.create_from_zip(analyst, pge, "Lighting", edit_zip(tmp_path))
+    drafts.set_row(analyst, d, "Measure", 0, {"IOU_AC_Territory": "PGE"})
+    assert f"/calculations/new/?draft={d.pk}" in web.get(f"/calculations/drafts/{d.pk}/").content.decode()
+    page = web.get(f"/calculations/new/?draft={d.pk}")
+    html = page.content.decode()
+    assert "This runs the tables of" in html and 'name="job"' not in html and f'name="draft" value="{d.pk}"' in html
+    assert page.context["form"].initial["name"] == "Lighting" and page.context["form"].initial["run_for"] == "PGE"
+    fields = {"name": "Lighting run", "run_for": "PGE", "engine": "0.1.78|recet", "acc_version": "2024", "output_format": "csv.zip"}
+
+    r = web.post("/calculations/new/", {**fields, "draft": str(d.pk)})
+    run = Run.objects.get()
+    assert r.status_code == 302 and r["Location"] == f"/calculations/runs/{run.pk}/"
+    assert run.measure_count == 3 and "job_zip" in run.inputs and "preflight_only" not in run.settings
+    e = AuditEvent.objects.get(action="calculation_draft.run")
+    assert e.after == {"run": str(run.pk), "name": "Lighting run"}
+    run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
+    assert run.status == "succeeded"
+    again = drafts.create_from_run(analyst, run)  # the run's inputs are the draft's tables
+    assert drafts.frame(again, "Measure").at[0, "IOU_AC_Territory"] == "PGE"
+
+    r = web.post("/calculations/new/", {**fields, "name": "Check", "draft": str(d.pk), "preflight_only": "1"})
+    checked = Run.objects.get(name="Check")
+    assert r.status_code == 302 and checked.settings["preflight_only"] is True and checked.spec["settings"]["preflight_only"] is True
+    r = web.post(
+        "/calculations/new/", {**fields, "name": "Replica check", "engine": "0.1.78|cet-25.1", "draft": str(d.pk), "preflight_only": "1"}
+    )
+    assert r.status_code == 200 and "replica does not take check inputs only" in r.content.decode()
+
+    theirs = drafts.create_blank(make_user("someone@example.com"), None, "Theirs")
+    assert web.get(f"/calculations/new/?draft={theirs.pk}").status_code == 404
+    assert web.get("/calculations/new/?draft=not-a-uuid").status_code == 404

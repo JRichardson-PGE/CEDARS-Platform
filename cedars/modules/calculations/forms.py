@@ -47,8 +47,11 @@ class NewRunForm(forms.Form):
         help_text="The measure-level file's columns, in order; the Results tables still use every column",
     )
 
-    def __init__(self, *args, releases=(), organisations=(), user=None, **kwargs):
+    def __init__(self, *args, releases=(), organisations=(), user=None, draft=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.draft = draft
+        if draft is not None:
+            del self.fields["job"]  # the draft's tables are the job
         if user is not None:
             self.fields["output_template"].queryset = output_templates.visible(user)
             self.fields["output_template"].initial = output_templates.default_for(user)
@@ -81,6 +84,7 @@ class NewRunForm(forms.Form):
             "filing_year": d.get("filing_year"),
             "include_societal": bool(d.get("include_societal")),
             "emissions": bool(d.get("emissions")),
+            "preflight_only": bool(self.data.get("preflight_only")) or None,  # the "Check the inputs only" button
             **output_templates.settings_for(d.get("output_template")),
         }
         return service.RunRequest(

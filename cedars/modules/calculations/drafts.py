@@ -349,6 +349,19 @@ def job_zip_bytes(draft: InputDraft) -> bytes:
     return buf.getvalue()
 
 
+def start_run(actor, organisation, req: service.RunRequest, draft: InputDraft) -> Run:
+    """Run the draft's tables as they stand (New run's "Run these inputs"): its job zip is the run's upload, so the run is the same record,
+    spec and checks as one started from a file. The draft stays, to edit and run again."""
+    with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
+        tmp.write(job_zip_bytes(draft))
+        tmp.flush()
+        run = service.create_run(actor, organisation, req, Path(tmp.name))
+    audit.record(
+        "calculation_draft.run", obj=draft, organisation=draft.organisation, after={"run": str(run.pk), "name": run.name}, actor=actor
+    )
+    return run
+
+
 def expired_drafts(cutoff):
     """Retention (record class scratch_run): drafts not changed since before the cutoff."""
     for draft in InputDraft.objects.filter(updated_at__lt=cutoff).select_related("organisation"):

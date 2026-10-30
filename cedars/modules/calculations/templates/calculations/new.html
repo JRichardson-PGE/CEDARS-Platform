@@ -6,13 +6,19 @@
 {% if not form %}
 <p>No engine release is set up yet. A CPUC system administrator adds one on the <a href="{% url 'calculations:engines' %}">engine releases</a> page.</p>
 {% else %}
-<p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job. The run is queued and priced
-by the engine release you choose; the run page shows its progress, and its files when it ends.</p>
+{% if draft %}
+<p>This runs the tables of <a href="{% url 'calculations:draft' draft.pk %}">{{ draft.name }}</a> ({{ draft.measure_count }} measure{{ draft.measure_count|pluralize }}),
+as they stand now; the draft stays, to edit and run again. The run is queued and priced by the engine release you choose.</p>
+{% else %}
+<p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or run a job you are
+editing in <a href="{% url 'calculations:drafts' %}">Edit inputs</a>. The run is queued and priced by the engine release you choose;
+the run page shows its progress, and its files when it ends.</p>
+{% endif %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.name.as_field_group }}
   {{ form.run_for.as_field_group }}
-  {{ form.job.as_field_group }}
+  {% if draft %}<input type="hidden" name="draft" value="{{ draft.pk }}">{% else %}{{ form.job.as_field_group }}{% endif %}
   <fieldset><legend>Pricing</legend>
     <div class="stack">
     {{ form.engine.as_field_group }}
@@ -42,7 +48,11 @@ by the engine release you choose; the run page shows its progress, and its files
     <p class="small">Make or change templates on the <a href="{% url 'calculations:templates' %}">output templates</a> page.</p>
     </div>
   </fieldset>
-  <div class="actions"><button type="submit" class="primary">Start the run</button> <a href="{% url 'calculations:runs' %}">Cancel</a></div>
+  <p id="check-only-help" class="small">Check the inputs only runs the engine's input checks (and the filing checks, when chosen) without pricing:
+  a quick way to see what a run would flag. CET replicas do not offer it.</p>
+  <div class="actions"><button type="submit" class="primary">Start the run</button>
+    <button type="submit" name="preflight_only" value="1" aria-describedby="check-only-help">Check the inputs only</button>
+    <a href="{% if draft %}{% url 'calculations:draft' draft.pk %}{% else %}{% url 'calculations:runs' %}{% endif %}">Cancel</a></div>
 </form>
 {% endif %}
 {% endblock %}
