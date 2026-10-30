@@ -76,7 +76,9 @@ how far it is built. Update the Status column in the PR that changes it.
   and the worker (`recet worker run <spec>`, locally through `CALCULATIONS_WORKER_COMMAND` or on Batch through the job definition's
   `Ref::job_spec`) writes outputs, `progress.json` and `receipt.json` beside it. Runs of up to `CALCULATIONS_SMALL_RUN_RECORDS` (10,000)
   measures take the small-runs queue; `CALCULATIONS_MAX_RECORDS` (2,000,000) is refused before queueing. A run that allocates statewide
-  programs carries its allocation version's whole factor table as an input, and the spec names its SHA-256.
+  programs carries its allocation version's whole factor table as an input, and the spec names its SHA-256. The job API
+  (`calculations/api.py`, `/api/v1/calculations`: engines, start, list, follow, stop, download) takes New run's fields as multipart form data and answers with the same run record the run page shows; a call
+  sees its organisation's runs (calculations.read or .submit) and the caller's own.
 - Object storage is `cedars.core.storage`: four areas (uploads, results, refdata, snapshots), one bucket each in AWS, folders under
   `CEDARS_STORAGE_ROOT` locally. Downloads from S3 are pre-signed URLs; nothing large passes through a page.
 - Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; daily jobs on EventBridge Scheduler), AWS Batch on Fargate

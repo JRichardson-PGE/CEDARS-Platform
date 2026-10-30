@@ -34,6 +34,12 @@ runs with:
 In AWS, `CALCULATIONS_BACKEND=batch` submits runs to the Batch queues and `manage.py calculations_sync` (every minute) records their
 progress and receipts.
 
+Systems start runs through the job API (OpenAPI at `/api/v1/schema`) with a token made on the Account page:
+
+    curl -H "Authorization: Bearer $CEDARS_TOKEN" -F job=@job.zip -F name="2028 claims" -F acc_version=2024 \
+         https://<host>/api/v1/calculations/runs
+    curl -H "Authorization: Bearer $CEDARS_TOKEN" https://<host>/api/v1/calculations/runs/<id>     # status, receipt, file URLs
+
 ## Checks
 
     uv run pytest                # unit and page tests (PostgreSQL)
