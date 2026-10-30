@@ -112,3 +112,4 @@ input.key { width: 100%; font-family: ui-monospace, monospace; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 fieldset { min-width: 0; }   /* a fieldset is min-content wide by default: long select options pushed New run past 320 px */
 select, input[type=file] { max-width: 100%; }
+h1, h2 { overflow-wrap: anywhere; }   /* long IDs with no spaces (SW_NC_NonRes_electric) wrap at 320 px (1.4.10) */
