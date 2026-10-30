@@ -21,7 +21,6 @@ EMAIL_PORT = int(env("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "cedars@localhost")
 
 # HSTS preloading binds the whole parent domain (and its subdomains) in browsers; that is the CPUC's call for its domain, not this app's.
 SILENCED_SYSTEM_CHECKS = ["security.W021"]

@@ -14,6 +14,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |
 | `engine/recet-commit` | The pinned ReCET engine commit (see `engine/README.md`) |
 | `data/dictionary/` | Field catalogs exported from the pinned engine |
+| `infra/terraform/` | The AWS stack per environment (sandbox, staging, production): written and validated in CI, applied only by the CPUC's cloud team (`infra/terraform/README.md`) |
 | `scripts/` | One-off tools (the catalog export) |
 
 ## Shared services
@@ -26,8 +27,9 @@ how far it is built. Update the Status column in the PR that changes it.
 | Dictionary and templates | `cedars.services.dictionary` | 1 | Built: catalog versions loaded from ReCET's export (`scripts/export_recet_dictionary.py`, `data/dictionary/`), aliases (CET names) and header mapping, CSV / Excel templates and JSON schemas per module table, public dictionary pages and downloads. Claims, budget and monthly tables join the catalog with their modules | BR-02.1, BR-06.9, BR-06.10, BR-08 |
 | Validation rule library | `cedars.services.rules` | 1 | Built: rule sets as data (CEDARS' claims and budget-filing rules imported from the pinned engine, 215 / 221 rules), published versions never change, the version in force by date, suggested fixes, set comparison, the engine's runner (`recet.filing_rules.check_frame`) over the stored rules, findings in one format, the pre-upload checker page and `check_file` command | BR-03.1-03.4, 03.6, BR-12.6 |
 | Submissions and workflow | `cedars.services.submissions` | 1 | Built: one state machine for every module's filings (draft, validated, confirmed, published; a version is never edited once confirmed), the filing calendar (deadlines per period or cycle, moving one is audited), confirm only on a finished run over the current rows (`record_calculation` + the rows' hash), publication through hooks modules register (`register_publisher`), un-confirm before the due date on the same version, after it a reopen as version n+1 under the module's policy (D1: approval, open, closed) decided by an approver or their delegate; calendar and reopen-request pages | BR-02.3-02.7, BR-05.1-05.2, BR-09.4-09.6 |
-| Notifications | `cedars.services.notifications` | 1 | Planned | BR-06.2, BR-09.2, BR-12.1 |
+| Notifications | `cedars.services.notifications` | 1 | Built: subscriptions per event type (optionally per module or organisation) fed from the audit trail after commit, so a rolled-back change notifies nobody; filing events only to the organisation's members and CPUC staff; every notification on the user's page, email per subscription through Django's mail backend (SES SMTP in production) with failures kept on the notification; `notify(user, ...)` for modules (run finished or failed, honouring the user's preference); deadline reminders 7 days and 1 day before (`send_deadline_reminders`, once each); notifications page, settings page and an unread count in the navigation | BR-06.2, BR-09.2, BR-12.1 |
 | Reference data (pack registry) | `cedars.services.refdata` | 1 | Built: pack versions by kind (ACC electric / gas, impact profiles, eTRM, DEER, value lists, run parameters, engine releases) with a SHA-256 manifest, a fingerprint (the manifest's SHA-256) and a storage URI; registered as drafts (analysis runs only, BR-11.8), published once the tie-outs their kind requires pass (`TieOutRequirement`, data; a difference over the stated precision fails, BR-06.21); published packs never change and are withdrawn, never deleted (database trigger); `in_force`, `usable(pack, purpose)`, `pin()` for runs and submissions; `register_pack` / `record_tie_out` commands; pages to view, publish, withdraw | BR-06.21, BR-11.7, BR-11.8 |
+| Retention (decision M) | `cedars.services.retention` | 1 | Built: a period per record class (the decision M defaults seeded, each changed on the Retention page with a reason), legal holds on one record or a whole class, the daily `purge_expired` job (dry run, one audit event per class, a purge log); notifications and idle unconfirmed filing drafts register their deletion step, Calculations adds scratch runs | BR-09.1, BR-10 (records) |
 | Publication snapshots | `cedars.services.snapshots` | 3 | Planned | BR-07, BR-08.5 |
 
 ## Modules
@@ -59,5 +61,10 @@ how far it is built. Update the Status column in the PR that changes it.
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.
 - The calculation job API, run records and S3 orchestration live in the Calculations module; ReCET supplies the worker and the job contract.
-- Hosting targets: ECS Fargate (web), AWS Batch on Fargate via SQS (workers), RDS PostgreSQL (core and vault), S3, Cognito or the CPUC's
-  OIDC provider. Infrastructure as code arrives with phase 1's last PR and is not applied until the CPUC account exists.
+- Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; daily jobs on EventBridge Scheduler), AWS Batch on Fargate
+  (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), RDS
+  PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
+  snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
+  the CPUC's cloud team reviews it in their account.
+- The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
+  subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it.

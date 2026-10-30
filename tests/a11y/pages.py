@@ -34,4 +34,7 @@ PAGES = [
     ("reference-data", "/reference-data/", "pge_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
+    ("notifications", "/notifications/", "pge_admin"),
+    ("notification-settings", "/notifications/settings/", "pge_admin"),
+    ("retention", "/admin/retention/", "cpuc_admin"),
 ]

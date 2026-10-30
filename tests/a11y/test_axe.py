@@ -17,6 +17,7 @@ from django.utils import timezone
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
 from cedars.services.dictionary import service as dictionary
+from cedars.services.notifications import service as notifications
 from cedars.services.refdata import service as refdata
 from cedars.services.registry import service as registry
 from cedars.services.rules.models import Rule, RuleSet
@@ -115,6 +116,10 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     for check in ("source_workbook", "reference_measures"):
         refdata.record_tie_out(cpuc_admin, published, check=check, passed=True, precision=1e-9, largest_difference=0)
     refdata.publish_pack(cpuc_admin, published)
+    notifications.subscribe(pge_admin, "pack.published")
+    notifications.notify(pge_admin, "Your run finished: 2028 TUAL", "Portfolio TRC 1.21, PAC 1.64", "/reference-data/")
+    notifications.notify(pge_admin, "Your run failed: scratch")
+    notifications.mark_read(pge_admin, list(pge_admin.notifications.filter(title__contains="failed").values_list("pk", flat=True)))
     return {
         "pack": pack,
         "published_pack": published,
