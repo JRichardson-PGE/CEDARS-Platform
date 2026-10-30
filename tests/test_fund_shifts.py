@@ -65,7 +65,9 @@ def sce_confirmer(make_user, cpuc_admin, programs):  # noqa: F811
 def test_an_unbalanced_shift_is_rejected_and_stays_a_draft(filer, pge, cycle, programs):  # noqa: F811
     s = shifts.create(filer, pge, cycle, title="Move marketing", reason="HVAC demand")
     shifts.set_lines(filer, s, L(("PGE_Res_HVAC", 2028, "1,000"), ("PGE_Com_Ltg", 2028, "-$400")))
-    with pytest.raises(shifts.ShiftInvalid, match=r"does not balance: \$1,000.00 in and \$400.00 out, \$600.00 net"):
+    with pytest.raises(
+        shifts.ShiftInvalid, match=r"PGE's part does not balance: \$1,000.00 into its programs and \$400.00 out, \$600.00 net"
+    ):
         shifts.submit(filer, s)
     s.refresh_from_db()
     assert s.status == FundShift.Status.DRAFT and AuditEvent.objects.filter(action="fund_shift.rejected").exists()
@@ -89,7 +91,7 @@ def test_lines_are_checked_and_nothing_is_saved_with_a_problem(filer, pge, cycle
     with pytest.raises(shifts.ShiftInvalid) as e:
         shifts.set_lines(filer, s, bad + [shifts.LineIn("", "", "")])
     assert [p.split(":")[0] for p in e.value.problems] == ["Line 1", "Line 2", "Line 3", "Line 4", "Line 5", "Line 7"]
-    assert "another program administrator's" in e.value.problems[0] and "more than one line" in e.value.problems[-1]
+    assert "not one of PGE's programs" in e.value.problems[0] and "more than one line" in e.value.problems[-1]
     assert [(ln.prg_id, ln.amount) for ln in s.lines.all()] == [("PGE_Com_Ltg", -5), ("PGE_Res_HVAC", 5)]
 
 
@@ -106,7 +108,7 @@ def test_a_balanced_shift_changes_the_operating_budget_not_the_approved_one(file
     shifts.set_lines(filer, s, L(("PGE_Res_HVAC", 2029, 250), ("PGE_Com_Ltg", 2028, -150), ("PGE_Res_HVAC", 2028, -100)))
     assert shifts.warnings(s) == []
     s = shifts.submit(filer, s)
-    assert s.status == FundShift.Status.EFFECTIVE and s.cofunders == {} and s.effective_at is not None
+    assert s.status == FundShift.Status.EFFECTIVE and s.cofunders == [] and s.shares == {} and s.effective_at is not None
     ob = shifts.operating_budget(pge, cycle)
     rows = {(r.prg_id, r.year): r for r in ob.rows}
     assert rows[("PGE_Res_HVAC", 2029)].approved == Decimal(1900 + 200) and rows[("PGE_Res_HVAC", 2029)].shifted == 250
@@ -124,12 +126,14 @@ def test_moving_out_more_than_the_operating_budget_warns(filer, pge, cycle, stan
     assert shifts.warnings(s) == ["PGE_Com_Ltg 2028: moves $1,000.00 out of an operating budget of $400.00."]
 
 
-def test_a_later_filing_carries_the_earlier_shifts(filer, pge, cycle, standing, cpuc_admin, release):  # noqa: F811
+def test_a_later_filing_carries_the_earlier_shifts(client, filer, pge, cycle, standing, cpuc_admin, release):  # noqa: F811
     s = shifts.create(filer, pge, cycle, title="t", reason="r")
     shifts.set_lines(filer, s, L(("PGE_Com_Ltg", 2028, -100), ("PGE_Res_HVAC", 2028, 100)))
     shifts.submit(filer, s)
     mcal = service.add_filing(cpuc_admin, first_year=2028, kind="MCAL", due_at=timezone.now() + timedelta(days=60), acc_version="2026")
     v = service.upload(filer, mcal, pge, job(), "mcal.zip")
+    page = sign_in(client, filer).get(reverse("budgets:filing", args=[mcal.pk])).content.decode()
+    assert "1 fund shift in effect for PGE in this cycle." in page and "Put their amounts into this filing" in page
     finish_run(Run.objects.get(pk=service.price(filer, v)))
     v.refresh_from_db()
     v = service.confirm(filer, v)
@@ -138,32 +142,55 @@ def test_a_later_filing_carries_the_earlier_shifts(filer, pge, cycle, standing, 
     assert ob.total().shifted == 0
 
 
-def test_a_statewide_shift_waits_for_every_co_funder(filer, pge, cycle, statewide, sce_confirmer, programs, make_user):  # noqa: F811
+def test_a_statewide_shift_changes_every_funders_portion(filer, pge, cycle, statewide, sce_confirmer, programs, make_user):  # noqa: F811
     sce = programs
     s = shifts.create(filer, pge, cycle, title="Into SW X", reason="r")
     shifts.set_lines(filer, s, L((statewide, 2028, 500), ("PGE_Com_Ltg", 2028, -500)))
+    # PGE funds 60% of SW X: its portion goes up by $300, so its own lines must move $300 out, not $500
+    with pytest.raises(shifts.ShiftInvalid, match=r"\$500.00 out, with its \$300.00 portion of the statewide lines, -\$200.00 net"):
+        shifts.submit(filer, s)
+    shifts.set_lines(filer, s, L((statewide, 2028, 500), ("PGE_Com_Ltg", 2028, -300)))
     s = shifts.submit(filer, s)
-    assert s.status == FundShift.Status.WAITING and s.cofunders == {"SCE": ["SW_X 2028"]}
+    assert s.status == FundShift.Status.WAITING and s.cofunders == ["SCE"]
+    assert s.shares == {"PGE": {"SW_X 2028": "300.00"}, "SCE": {"SW_X 2028": "200.00"}}
     note = Notification.objects.get(user=sce_confirmer)
-    assert "waiting for SCE" in note.title and note.link == reverse("budgets:shift", args=[s.pk])
+    assert "waiting for SCE" in note.title and "by $200.00" in note.body and note.link == reverse("budgets:shift", args=[s.pk])
     assert shifts.operating_budget(pge, cycle).total().shifted == 0  # not in effect yet
     assert shifts.can_read(sce_confirmer, s) and list(shifts.readable(sce_confirmer)) == [s]
-    assert [x.pk for x in shifts.waiting_for(sce)] == [s.pk]
+    assert [x.pk for x in shifts.waiting_for(sce)] == [s.pk] and shifts.waiting_for(pge) == []
     with pytest.raises(AccessDenied):
-        shifts.acknowledge(filer, s, sce)  # not a member of SCE
+        shifts.acknowledge(filer, s, sce, L(("SCE_Ind", 2028, -200)))  # not a member of SCE
     with pytest.raises(AccessDenied):
-        shifts.acknowledge(filer, s, pge)  # PGE is not a co-funder
-    s = shifts.acknowledge(sce_confirmer, s, sce, note="fine")
+        shifts.acknowledge(filer, s, pge, L(("PGE_Com_Ltg", 2028, -200)))  # PGE is the shift's PA
+    with pytest.raises(shifts.ShiftInvalid, match=r"must add up to -\$200.00 \(they add up to -\$150.00\)"):
+        shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -150)))
+    with pytest.raises(shifts.ShiftInvalid) as e:
+        shifts.acknowledge(sce_confirmer, s, sce, L(("PGE_Res_HVAC", 2028, -100), (statewide, 2028, -100)))
+    assert "not one of SCE's programs" in e.value.problems[0] and "statewide program" in e.value.problems[1]
+    assert s.lines.filter(pa="SCE").count() == 0 and not s.acknowledgements.exists()
+    s = shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -200)), note="from industrial")
     assert s.status == FundShift.Status.EFFECTIVE and shifts.waiting_for(sce) == []
     assert Notification.objects.filter(user=filer, title="Fund shift in effect").exists()
-    assert shifts.operating_budget(pge, cycle).total([2028]).shifted == 0 and len(shifts.operating_budget(pge, cycle).shifts) == 1
+    assert [p.net for p in shifts.parts(s)] == [0, 0]
+    pge_rows = {(r.prg_id, r.year): r.shifted for r in shifts.operating_budget(pge, cycle).rows}
+    sce_rows = {(r.prg_id, r.year): r.shifted for r in shifts.operating_budget(sce, cycle).rows}
+    assert pge_rows == {("SW_X", 2028): 300, ("PGE_Com_Ltg", 2028): -300}  # its portion on the statewide row, not the $500
+    assert sce_rows == {("SW_X", 2028): 200, ("SCE_Ind", 2028): -200}
+    assert shifts.operating_budget(sce, cycle).shifts == [s]
     stranger = make_user("x@example.com")
     assert not shifts.can_read(stranger, s)
 
 
+def test_a_statewide_line_needs_allocation_factors(filer, pge, cycle, programs, cpuc_admin):  # noqa: F811
+    registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW Y")
+    s = shifts.create(filer, pge, cycle, title="t", reason="r")
+    shifts.set_lines(filer, s, L(("SW_Y", 2028, 10), ("PGE_Com_Ltg", 2028, -10)))
+    assert "SW_Y 2028 has no allocation factors in any confirmed allocation version" in shifts.problems(s)[0]
+
+
 def test_a_draft_is_private_and_a_waiting_shift_can_be_withdrawn(filer, pge, cycle, statewide, sce_confirmer):  # noqa: F811
     s = shifts.create(filer, pge, cycle, title="t", reason="r")
-    shifts.set_lines(filer, s, L((statewide, 2028, 1), ("PGE_Com_Ltg", 2028, -1)))
+    shifts.set_lines(filer, s, L((statewide, 2028, 10), ("PGE_Com_Ltg", 2028, -6)))
     assert not shifts.can_read(sce_confirmer, s) and list(shifts.readable(sce_confirmer)) == []
     s = shifts.submit(filer, s)
     with pytest.raises(shifts.ShiftInvalid, match="why"):
@@ -197,7 +224,7 @@ def test_the_pages(client, filer, pge, cycle, standing, statewide, sce_confirmer
     s.refresh_from_db()
     assert s.status == "draft"
     client.post(
-        reverse("budgets:shift_lines", args=[s.pk]), {"prg_id": ["SW_X", "PGE_Com_Ltg"], "year": ["2028"] * 2, "amount": ["20", "-20"]}
+        reverse("budgets:shift_lines", args=[s.pk]), {"prg_id": ["SW_X", "PGE_Com_Ltg"], "year": ["2028"] * 2, "amount": ["20", "-12"]}
     )
     client.post(reverse("budgets:shift_submit", args=[s.pk]))
     s.refresh_from_db()
@@ -206,17 +233,26 @@ def test_the_pages(client, filer, pge, cycle, standing, statewide, sce_confirmer
     client.logout()
     sign_in(client, sce_confirmer)
     assert b"Waiting for SCE to acknowledge" in client.get(reverse("budgets:shifts")).content
-    assert b"Acknowledge for SCE" in client.get(reverse("budgets:shift", args=[s.pk])).content
-    client.post(reverse("budgets:shift_acknowledge", args=[s.pk]), {"note": "ok"})
+    assert b"Place SCE's portion and acknowledge" in client.get(reverse("budgets:shift", args=[s.pk])).content
+    page = client.get(reverse("budgets:shift_acknowledge", args=[s.pk]))
+    assert b"portion changes by $8.00" in page.content and b'<option value="SCE_Ind">' in page.content
+    assert b'<option value="SW_X">' not in page.content
+    bad = client.post(reverse("budgets:shift_acknowledge", args=[s.pk]), {"prg_id": ["SCE_Ind"], "year": ["2028"], "amount": ["-5"]})
+    assert bad.status_code == 200 and b"must add up to -$8.00" in bad.content
+    client.post(
+        reverse("budgets:shift_acknowledge", args=[s.pk]), {"prg_id": ["SCE_Ind"], "year": ["2028"], "amount": ["-8"], "note": "ok"}
+    )
     s.refresh_from_db()
     assert s.status == "effective"
     assert client.get(reverse("budgets:operating", args=[2028]) + "?org=PGE").status_code == 404  # SCE reads its own, not PGE's
     client.logout()
     sign_in(client, filer)
     page = client.get(reverse("budgets:operating", args=[2028]) + "?year=2028")
-    assert page.status_code == 200 and b"Into HVAC" in page.content
+    assert page.status_code == 200 and b"Into HVAC" in page.content and b"Shifts before a later filing are not added" in page.content
+    filing_page = client.get(reverse("budgets:filing", args=[standing.submission.deadline.pk]))
+    assert b"fund shift in effect for PGE" not in filing_page.content  # the filing is confirmed: nothing more to put in it
     csv = client.get(reverse("budgets:operating_csv", args=[2028])).content.decode().splitlines()
-    assert csv[0].startswith("PA,PrgID") and "PGE,SW_X,SW X,2028,0,20.00,20.00" in csv
+    assert csv[0].startswith("PA,PrgID") and "PGE,SW_X,SW X,2028,0,12.00,12.00" in csv
     assert csv[-1].startswith("PGE,Total")
 
 

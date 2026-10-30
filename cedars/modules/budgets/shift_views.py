@@ -65,13 +65,15 @@ def shift(request, pk):
     org = request.organisation
     acks = {a.organisation.code: a for a in s.acknowledgements.select_related("organisation", "acknowledged_by")}
     editable = s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and org == s.organisation
+    shares = shifts.frozen_shares(s)
+    parts = shifts.parts(s)
     return render(
         request,
         "budgets/shift.html",
         {
             "s": s,
-            "lines": list(s.lines.all()),
-            "totals": shifts.totals(s),
+            "parts": parts,
+            "has_lines": any(p.lines for p in parts),
             "problems": shifts.problems(s) if s.status == FundShift.Status.DRAFT else [],
             "warnings": shifts.warnings(s) if s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING) else [],
             "editable": editable,
@@ -79,10 +81,34 @@ def shift(request, pk):
             and shifts.can_submit(request.user, s.organisation)
             and org == s.organisation,
             "can_acknowledge": shifts.can_acknowledge(request.user, s, org),
-            "cofunders": [(code, items, acks.get(code)) for code, items in (s.cofunders or {}).items()],
+            "shares": [
+                (code, sorted(items.items()), sum(items.values()), acks.get(code), code == s.organisation.code)
+                for code, items in shares.items()
+            ],
             "org": org,
         },
     )
+
+
+def _entered(request) -> list:
+    return [
+        shifts.LineIn(p, y, a)
+        for p, y, a in zip(request.POST.getlist("prg_id"), request.POST.getlist("year"), request.POST.getlist("amount"), strict=False)
+    ]
+
+
+def _rows(request, entered, saved) -> list[dict]:
+    rows = (
+        [{"prg_id": ln.prg_id, "year": ln.year, "amount": ln.amount} for ln in entered if not ln.blank()]
+        if entered is not None
+        else [{"prg_id": ln.prg_id, "year": str(ln.year), "amount": f"{ln.amount}"} for ln in saved]
+    )
+    extra = BLANK_ROWS + (int(request.GET.get("more", 0)) if str(request.GET.get("more", "")).isdigit() else 0)
+    return rows + [{"prg_id": "", "year": "", "amount": ""}] * extra
+
+
+def _years(s) -> list[str]:
+    return [str(y) for y in range(s.cycle.first_year, s.cycle.last_year + 1)]
 
 
 @login_required
@@ -92,12 +118,9 @@ def shift_lines(request, pk):
         s.status == FundShift.Status.DRAFT and shifts.can_submit(request.user, s.organisation) and request.organisation == s.organisation
     ):
         raise Http404
-    problems = []
+    problems, entered = [], None
     if request.method == "POST":
-        entered = [
-            shifts.LineIn(p, y, a)
-            for p, y, a in zip(request.POST.getlist("prg_id"), request.POST.getlist("year"), request.POST.getlist("amount"), strict=False)
-        ]
+        entered = _entered(request)
         try:
             shifts.set_lines(request.user, s, entered)
         except shifts.ShiftInvalid as e:
@@ -110,20 +133,55 @@ def shift_lines(request, pk):
                 return redirect(f"{request.path}?more={int(request.GET.get('more', 0) or 0) + BLANK_ROWS}")
             messages.success(request, "Lines saved.")
             return redirect("budgets:shift", pk)
-        rows = [{"prg_id": ln.prg_id, "year": ln.year, "amount": ln.amount} for ln in entered if not ln.blank()]
-    else:
-        rows = [{"prg_id": ln.prg_id, "year": str(ln.year), "amount": f"{ln.amount}"} for ln in s.lines.all()]
-    extra = BLANK_ROWS + (int(request.GET.get("more", 0)) if str(request.GET.get("more", "")).isdigit() else 0)
-    rows += [{"prg_id": "", "year": "", "amount": ""}] * extra
     return render(
         request,
         "budgets/shift_lines.html",
         {
             "s": s,
-            "rows": rows,
-            "years": [str(y) for y in range(s.cycle.first_year, s.cycle.last_year + 1)],
+            "rows": _rows(request, entered, s.lines.filter(pa=s.organisation.code)),
+            "years": _years(s),
             "problems": problems,
             "programs": shifts.programs_for(s),
+        },
+    )
+
+
+@login_required
+def shift_acknowledge(request, pk):
+    """A co-funder places its portion among its own programs and acknowledges the shift."""
+    s = _shift(request, pk)
+    org = request.organisation
+    if not shifts.can_acknowledge(request.user, s, org):
+        raise Http404
+    problems, entered = [], None
+    if request.method == "POST":
+        entered = _entered(request)
+        try:
+            shifts.acknowledge(request.user, s, org, entered, request.POST.get("note", ""))
+        except shifts.ShiftInvalid as e:
+            problems = e.problems
+        except AccessDenied as e:
+            messages.error(request, str(e))
+            return redirect("budgets:shift", pk)
+        else:
+            s.refresh_from_db()
+            messages.success(request, "Acknowledged." + (" The shift is now in effect." if s.status == FundShift.Status.EFFECTIVE else ""))
+            return redirect("budgets:shift", pk)
+    items = sorted((s.shares or {}).get(org.code, {}).items())
+    return render(
+        request,
+        "budgets/shift_acknowledge.html",
+        {
+            "s": s,
+            "org": org,
+            "items": items,
+            "portion": shifts.portion(s, org.code),
+            "owed": -shifts.portion(s, org.code),
+            "rows": _rows(request, entered, []),
+            "years": _years(s),
+            "problems": problems,
+            "programs": shifts.programs_for(s, org),
+            "note": request.POST.get("note", ""),
         },
     )
 
@@ -155,17 +213,6 @@ def shift_submit(request, pk):
 @require_POST
 def shift_withdraw(request, pk):
     return _act(request, pk, lambda s: shifts.withdraw(request.user, s, request.POST.get("reason", "")), "Fund shift withdrawn.")
-
-
-@login_required
-@require_POST
-def shift_acknowledge(request, pk):
-    return _act(
-        request,
-        pk,
-        lambda s: shifts.acknowledge(request.user, s, request.organisation, request.POST.get("note", "")),
-        "Acknowledged.",
-    )
 
 
 # --- the operating budget

@@ -87,6 +87,8 @@ PAGES = [
     ("fund-shift-lines", "/budgets/shifts/{shift_draft}/lines/", "analyst"),
     ("fund-shift-draft", "/budgets/shifts/{shift_draft}/", "analyst"),
     ("fund-shift-waiting", "/budgets/shifts/{shift_waiting}/", "analyst"),
+    ("fund-shift-waiting-cofunder", "/budgets/shifts/{shift_waiting}/", "sce_user"),
+    ("fund-shift-acknowledge", "/budgets/shifts/{shift_waiting}/acknowledge/", "sce_user"),
     ("fund-shift-effective-cpuc", "/budgets/shifts/{shift_effective}/", "cpuc_admin"),
     ("operating-budget", "/budgets/operating/2028/", "analyst"),
     ("operating-budget-cpuc", "/budgets/operating/2028/?org=PGE&year=2028", "cpuc_admin"),

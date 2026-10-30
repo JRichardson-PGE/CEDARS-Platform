@@ -83,8 +83,10 @@ class BudgetResult(models.Model):
 
 class FundShift(models.Model):
     """A fund shift (BR-14.4): dollars moved between programs within a filing cycle, not part of any filing and with no
-    cost-effectiveness run. Its lines add up to zero. Submitted, it takes effect once every co-funder of a statewide program in it
-    has acknowledged it (at once when there is none); the approved filed budget never changes, the operating budget does (BR-04.7)."""
+    cost-effectiveness run. Each PA's part of it adds up to zero. Moving money into or out of a statewide program changes every funding
+    PA's portion of it by its allocation factor; each other funding PA (a co-funder) decides where its portion comes from or goes in its
+    own portfolio and acknowledges the shift, which takes effect once all have (at once when there is none). The approved filed budget
+    never changes; the operating budgets do (BR-04.7)."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -102,8 +104,10 @@ class FundShift(models.Model):
     submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     submitted_at = models.DateTimeField(null=True, blank=True)
     effective_at = models.DateTimeField(null=True, blank=True)
-    cofunders = models.JSONField(
-        default=dict, blank=True, help_text="Set on submission: {funding PA code: [statewide 'PrgID year' it funds in this shift]}"
+    shares = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Set on submission: {funding PA: {'PrgID year': its portion of the statewide line}}",
     )
     withdrawn_reason = models.TextField(blank=True)
 
@@ -113,19 +117,26 @@ class FundShift(models.Model):
     def __str__(self):
         return f"{self.organisation.code} fund shift {self.pk}: {self.title}"
 
+    @property
+    def cofunders(self) -> list[str]:
+        """The other funding PAs whose portion changes, in code order."""
+        return sorted(c for c in (self.shares or {}) if c != self.organisation.code)
+
 
 class FundShiftLine(models.Model):
-    """One program-year's amount in a shift: negative moves dollars out of it, positive into it."""
+    """One program-year's amount in a shift: negative moves dollars out of it, positive into it. `pa` is whose portfolio the line is
+    in: the shift's PA for the lines it entered (statewide ones included), a co-funder for the lines that place its portion."""
 
     shift = models.ForeignKey(FundShift, on_delete=models.CASCADE, related_name="lines")
+    pa = models.CharField("PA", max_length=20)
     prg_id = models.CharField("PrgID", max_length=60)
     year = models.PositiveSmallIntegerField()
     amount = models.DecimalField(max_digits=16, decimal_places=2)
 
     class Meta:
-        ordering = ["year", "prg_id"]
+        ordering = ["pa", "year", "prg_id"]
         constraints = [
-            models.UniqueConstraint(fields=["shift", "prg_id", "year"], name="budgets_one_shift_line"),
+            models.UniqueConstraint(fields=["shift", "pa", "prg_id", "year"], name="budgets_one_shift_line"),
             models.CheckConstraint(condition=~models.Q(amount=0), name="budgets_shift_line_not_zero"),
         ]
 

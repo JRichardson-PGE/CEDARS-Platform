@@ -1,0 +1,19 @@
+{% extends "core/base.html" %}
+{% load budget_money %}
+{% block title %}Acknowledge for {{ org.code }}: {{ s.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'budgets:shifts' %}">Fund shifts</a> › <a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></p>
+<h1>Acknowledge for {{ org.code }}: {{ s.title }}</h1>
+<p>{{ s.organisation.code }}'s shift changes {{ org.code }}'s portion of these statewide programs, by {{ org.code }}'s allocation factors:</p>
+<ul>{% for item, amount in items %}<li>{{ item }}: {{ amount|money:2 }}</li>{% endfor %}</ul>
+<p><strong>{{ org.code }}'s portion changes by {{ portion|money:2 }}.</strong>
+{% if portion %}Choose where it {% if portion > 0 %}comes from{% else %}goes{% endif %} among {{ org.code }}'s own programs: its lines must
+add up to {{ owed|money:2 }} (a negative amount moves money out of a program, a positive one into it).{% else %}Rounded to cents it is zero,
+so no lines are needed.{% endif %}
+The shift takes effect once every co-funder has acknowledged it.</p>
+<form method="post" class="stack">{% csrf_token %}
+  {% include "budgets/_shift_lines_table.html" %}
+  <div class="field form-narrow"><label for="ack-note">Note (optional)</label><textarea id="ack-note" name="note" rows="2">{{ note }}</textarea></div>
+  <div class="actions"><button type="submit" class="primary">Place {{ org.code }}'s portion and acknowledge</button></div>
+</form>
+{% endblock %}

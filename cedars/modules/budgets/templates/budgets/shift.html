@@ -16,54 +16,58 @@
 
 <section aria-labelledby="lines-h">
 <h2 id="lines-h">What it moves</h2>
-{% if lines %}
-<div class="hscroll" tabindex="0" role="region" aria-label="Lines of the shift">
+{% if has_lines %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="lines-caption">
 <table class="list">
-  <caption class="sr-only">Amounts by program and year; negative moves money out</caption>
-  <thead><tr><th scope="col">PrgID</th><th scope="col">Program year</th><th scope="col">Amount</th></tr></thead>
-  <tbody>{% for ln in lines %}<tr><th scope="row">{{ ln.prg_id }}</th><td>{{ ln.year }}</td><td class="num">{{ ln.amount|money:2 }}</td></tr>{% endfor %}</tbody>
-  <tfoot>
-    <tr><th scope="row">Moved in</th><td></td><td class="num">{{ totals.moved_in|money:2 }}</td></tr>
-    <tr><th scope="row">Moved out</th><td></td><td class="num">{{ totals.moved_out|money:2 }}</td></tr>
-    <tr><th scope="row">Net (must be $0.00)</th><td></td><td class="num">{{ totals.net|money:2 }}</td></tr>
-  </tfoot>
+  <caption id="lines-caption" class="sr-only">Lines by PA, program and year; a negative amount moves money out</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">PrgID</th><th scope="col">Program year</th><th scope="col">Amount</th></tr></thead>
+  <tbody>{% for p in parts %}{% for ln in p.lines %}<tr><td>{{ ln.pa }}</td><th scope="row">{{ ln.prg_id }}</th><td>{{ ln.year }}</td><td class="num">{{ ln.amount|money:2 }}</td></tr>{% endfor %}{% endfor %}</tbody>
 </table>
 </div>
 {% else %}<p>No amounts yet.</p>{% endif %}
-{% if editable %}<p><a class="button" href="{% url 'budgets:shift_lines' s.pk %}">{% if lines %}Change the amounts{% else %}Enter the amounts{% endif %}</a></p>{% endif %}
+{% if editable %}<p><a class="button" href="{% url 'budgets:shift_lines' s.pk %}">{% if has_lines %}Change the amounts{% else %}Enter the amounts{% endif %}</a></p>{% endif %}
+
+{% if has_lines %}
+<h3>Each PA's part</h3>
+<p class="small">A statewide program's line changes every funding PA's portion of it by its allocation factor. Each PA's own lines
+and its portion must add up to zero.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="parts-caption">
+<table class="list">
+  <caption id="parts-caption" class="sr-only">Each PA's part: into and out of its own programs, its portion of the statewide lines, and the net</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Into its programs</th><th scope="col">Out of its programs</th><th scope="col">Portion of statewide lines</th><th scope="col">Net (must be $0.00)</th></tr></thead>
+  <tbody>{% for p in parts %}<tr><th scope="row">{{ p.pa }}</th><td class="num">{{ p.moved_in|money:2 }}</td><td class="num">{{ p.moved_out|money:2 }}</td><td class="num">{{ p.portion|money:2 }}</td><td class="num">{{ p.net|money:2 }}{% if p.net and s.status == "waiting" and p.pa != s.organisation.code %} (not placed yet){% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endif %}
 {% if problems %}<div class="alert"><p>Before it can be submitted:</p><ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
 {% if warnings %}<p>Warning, not blocking:</p><ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
 </section>
 
-{% if s.cofunders %}
-<section aria-labelledby="cofunders-h">
-<h2 id="cofunders-h">Co-funders</h2>
-<p>The other PAs funding the statewide programs it moves (their allocation factors). It takes effect once each has acknowledged it.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Co-funders">
+{% if shares %}
+<section aria-labelledby="shares-h">
+<h2 id="shares-h">Statewide portions</h2>
+<p>{% if s.status == "draft" %}On submission these are recorded from the allocation factors and each{% else %}Each{% endif %} other funding PA is asked to place its portion among its own programs and acknowledge the shift. It takes effect once all have.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="shares-caption">
 <table class="list">
-  <caption class="sr-only">Co-funders and their acknowledgements</caption>
-  <thead><tr><th scope="col">PA</th><th scope="col">Statewide program-years</th><th scope="col">Acknowledged</th></tr></thead>
-  <tbody>{% for code, items, a in cofunders %}<tr>
-    <th scope="row">{{ code }}</th><td>{{ items|join:", " }}</td>
-    <td>{% if a %}Yes, {{ a.acknowledged_at|date:"Y-m-d" }} by {{ a.acknowledged_by.email }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}Not yet{% endif %}</td>
+  <caption id="shares-caption" class="sr-only">Each funding PA's portion of the statewide lines and its acknowledgement</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Statewide program-years</th><th scope="col">Portion</th><th scope="col">Acknowledged</th></tr></thead>
+  <tbody>{% for code, items, total, a, own in shares %}<tr>
+    <th scope="row">{{ code }}</th>
+    <td>{% for item, amount in items %}{{ item }}: {{ amount|money:2 }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+    <td class="num">{{ total|money:2 }}</td>
+    <td>{% if own %}Shift's PA{% elif a %}Yes, {{ a.acknowledged_at|date:"Y-m-d" }} by {{ a.acknowledged_by.email }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}Not yet{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>
 </section>
 {% endif %}
 
-{% if editable and lines and not problems %}
-<form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Submit the shift</button> <span class="small muted">{% if s.status == "draft" %}It takes effect at once, or when every co-funder of a statewide program in it has acknowledged it.{% endif %}</span></form>
-{% elif editable and lines %}
-<form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit">Submit the shift</button> <span class="small muted">It will be rejected until the problems above are fixed.</span></form>
+{% if editable and has_lines %}
+<form method="post" action="{% url 'budgets:shift_submit' s.pk %}" class="actions">{% csrf_token %}<button type="submit"{% if not problems %} class="primary"{% endif %}>Submit the shift</button> <span class="small muted">{% if problems %}It will be rejected until the problems above are fixed.{% else %}It takes effect at once, or once every other funding PA of a statewide program in it has acknowledged it.{% endif %}</span></form>
 {% endif %}
 
 {% if can_acknowledge %}
-<form method="post" action="{% url 'budgets:shift_acknowledge' s.pk %}" class="stack form-narrow">{% csrf_token %}
-  <h2>Acknowledge for {{ org.code }}</h2>
-  <div class="field"><label for="ack-note">Note (optional)</label><textarea id="ack-note" name="note" rows="2"></textarea></div>
-  <div class="actions"><button type="submit" class="primary">Acknowledge</button> <span class="small muted">Marks the shift complete for {{ org.code }}'s share.</span></div>
-</form>
+<p><a class="button primary" href="{% url 'budgets:shift_acknowledge' s.pk %}">Place {{ org.code }}'s portion and acknowledge</a></p>
 {% endif %}
 
 {% if can_withdraw %}
@@ -72,5 +76,12 @@
   <div class="actions"><button type="submit">Withdraw the shift</button></div>
 </form>
 {% endif %}
-{% if s.status == "effective" %}<p class="small muted">A shift in effect is not withdrawn: a new shift moves the money back. <a href="{% url 'budgets:operating' s.cycle.first_year %}?org={{ s.organisation.code }}">{{ s.organisation.code }}'s operating budget</a>.</p>{% endif %}
+
+<div class="card" role="note">
+  <p><strong>Shifts and later filings.</strong> A shift adds to a PA's operating budget until that PA confirms a later budget filing
+  for the cycle (a TUAL or MCAL, say). From then on the later filing is taken to include it, and the shift no longer adds anything:
+  put its amounts into the later filing's numbers, or make the shift again after that filing.{% if s.status == "effective" %}
+  A shift in effect is not withdrawn; a new shift moves the money back.{% endif %}</p>
+  {% if s.status == "effective" %}<p><a href="{% url 'budgets:operating' s.cycle.first_year %}?org={{ s.organisation.code }}">{{ s.organisation.code }}'s operating budget</a></p>{% endif %}
+</div>
 {% endblock %}

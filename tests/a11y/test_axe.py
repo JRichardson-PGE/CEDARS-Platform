@@ -240,7 +240,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
-    budgets = _budgets(cpuc_admin, pge, pge_admin, analyst)
+    budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     return {
         **budgets,
         "pack": pack,
@@ -264,7 +264,7 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     }
 
 
-def _budgets(cpuc_admin, pge, pge_admin, analyst):
+def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     """A TUAL priced, confirmed and published, and an MCAL whose upload has rejected records. The scene's impact-profile pack is a
     draft, which a filing's run refuses, so the TUAL's run is recorded as the Calculations module records a finished one."""
     from cedars.modules.budgets import service as budgets
@@ -288,10 +288,16 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst):
     v = budgets.confirm(analyst, v)
     bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
     draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
-    return {"tual": tual, "mcal": mcal, "budget_version": v, "budget_draft": draft, **_fund_shifts(cpuc_admin, pge, analyst, tual.cycle)}
+    return {
+        "tual": tual,
+        "mcal": mcal,
+        "budget_version": v,
+        "budget_draft": draft,
+        **_fund_shifts(cpuc_admin, pge, analyst, tual.cycle, make_user),
+    }
 
 
-def _fund_shifts(cpuc_admin, pge, analyst, cycle):
+def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
     """A shift in effect, a statewide one waiting for its co-funder (SCE, by a confirmed allocation version) and an unbalanced draft."""
     from cedars.modules.budgets import shifts
 
@@ -299,16 +305,23 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle):
 
     registry.confirm_allocation(cpuc_admin, registry.import_allocation_csv(cpuc_admin, FACTORS.encode(), label="SW X", purpose="filing"))
     registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="SW X")
+    from cedars.services.accounts.models import Organisation
+
+    sce = Organisation.objects.get(code="SCE")
+    registry.create_program(cpuc_admin, prg_id="SCE_Ind", administrator=sce, valid_from=date(2024, 1, 1), name="Industrial")
+    sce_admin, sce_user = make_user("admin@sce.com", "Addy Min"), make_user("budgets@sce.com", "Sky Edison")
+    service.grant(cpuc_admin, sce_admin, sce, perms.ORG_ADMIN)
+    service.grant(sce_admin, sce_user, sce, "budgets.confirm")
     made = {}
     for key, title, lines, submit in [
         ("shift_effective", "Into residential HVAC", L(("PGE_Res_HVAC", 2029, 100), ("PGE_Com_Ltg", 2028, -100)), True),
-        ("shift_waiting", "Into SW X", L(("SW_X", 2028, 50), ("PGE_Com_Ltg", 2028, -50)), True),
+        ("shift_waiting", "Into SW X", L(("SW_X", 2028, 50), ("PGE_Com_Ltg", 2028, -30)), True),
         ("shift_draft", "Not balanced yet", L(("PGE_Res_HVAC", 2028, 10), ("PGE_Com_Ltg", 2028, -5000)), False),
     ]:
         s = shifts.create(analyst, pge, cycle, title=title, reason="the scene's shift")
         shifts.set_lines(analyst, s, lines)
         made[key] = (shifts.submit(analyst, s) if submit else s).pk
-    return made
+    return {**made, "sce_user": sce_user}
 
 
 def _session_cookie(user, method, live_server):

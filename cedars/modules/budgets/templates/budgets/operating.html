@@ -5,7 +5,14 @@
 <p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
 <h1>{{ ob.organisation.code }} operating budget, {{ ob.cycle }}</h1>
 <p>The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.kind }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date:"Y-m-d" }}{% else %}not filed yet (taken as zero){% endif %}.
-The operating budget adds the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then{% if ob.earlier %}; {{ ob.earlier|length }} earlier shift{{ ob.earlier|length|pluralize }} {{ ob.earlier|length|pluralize:"is,are" }} taken to be carried in that filing's own numbers{% endif %}.</p>
+The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.</p>
+<div class="card" role="note">
+  <p><strong>Shifts before a later filing are not added.</strong> Once {{ ob.organisation.code }} confirms a later budget filing for the
+  cycle, that filing is taken to include every shift in effect before it, and those shifts stop adding to the operating budget.
+  Put their amounts into the later filing's numbers, or make them again as new shifts after it.</p>
+  {% if ob.earlier %}<p>Not added here, because they took effect before the approved budget was confirmed:</p>
+  <ul>{% for s in ob.earlier %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a>, in effect since {{ s.effective_at|date:"Y-m-d" }}</li>{% endfor %}</ul>{% endif %}
+</div>
 
 <form method="get" class="filters" aria-label="Choose the PA and year">
   {% if orgs.count > 1 %}<label>PA <select name="org">{% for o in orgs %}<option value="{{ o.code }}"{% if o == ob.organisation %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>{% endif %}
@@ -40,6 +47,6 @@ The operating budget adds the {{ ob.shifts|length }} fund shift{{ ob.shifts|leng
 
 {% if ob.shifts %}
 <h2>Shifts in effect</h2>
-<ul>{% for s in ob.shifts %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a>, since {{ s.effective_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
+<ul>{% for s in ob.shifts %}<li><a href="{% url 'budgets:shift' s.pk %}">{{ s.organisation.code }}: {{ s.title }}</a>, since {{ s.effective_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
 {% endif %}
 {% endblock %}
