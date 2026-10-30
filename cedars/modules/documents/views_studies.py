@@ -8,11 +8,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import forms, service, studies
+from . import aging, forms, service, studies
 from .models import AttributeOption, Study, StudyProgram, WorkOrder
 
 PER_PAGE = 25
@@ -97,6 +98,7 @@ def register(request):
             "upcoming": studies.upcoming(),
             "recent": studies.recently_updated(),
             "can_create": request.user.is_authenticated and studies.can_create(request.user, getattr(request, "organisation", None)),
+            "show_aging": _sees_aging(request.user),
         },
     )
 
@@ -135,7 +137,7 @@ def study(request, number):
             "sectors": list(s.sectors.all()),
             "cycles": list(s.funding_cycles.all()),
             "coverage": list(s.coverage.select_related("program")),
-            "documents": list(docs),
+            "documents": [(d, studies.stage_of(d)) for d in docs],
             "history": studies.history(s, public=not contacts),
             "can_edit": can_edit,
             "sees_contacts": contacts,
@@ -318,3 +320,55 @@ def work_order_change(request, pk, action):
     except (service.DocumentError, AccessDenied) as e:
         messages.error(request, str(e))
     return redirect(wo)
+
+
+# --- the aging review (Jake, 2026-10-30)
+
+
+def _sees_aging(user) -> bool:
+    return user.is_authenticated and (service.is_admin(user) or service._cpuc_has(user, *service.ANY))
+
+
+@login_required
+def aging_review(request):
+    """For CPUC staff: what each study manager (and each PA asked to respond) owes, and for how long."""
+    if not _sees_aging(request.user):
+        raise Http404
+    stale = request.GET.get("stale", "")
+    stale_days = int(stale) if stale.isdigit() and 0 < int(stale) <= 3650 else aging.STALE_DAYS
+    day = timezone.localdate()
+    found = aging.items(day, stale_days)
+    kind = request.GET.get("kind", "")
+    shown = [i for i in found if i.kind == kind] if kind in aging.KINDS else found
+    if request.GET.get("format") == "csv":
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="emv_aging_{day:%Y%m%d}.csv"'
+        w = csv.writer(response, lineterminator="\n")
+        w.writerow(["Owes", "Item", "StudyID", "What", "Since", "DaysWaiting", "AgeBand", "Link"])
+        for i in shown:
+            w.writerow(
+                [
+                    i.owner.code,
+                    i.kind_label,
+                    i.study.study_id if i.study else "",
+                    i.what,
+                    i.since.isoformat(),
+                    i.age(day),
+                    aging.bucket(i.age(day)),
+                    request.build_absolute_uri(i.url),
+                ]
+            )
+        return response
+    return render(
+        request,
+        "documents/aging.html",
+        {
+            "rows": aging.by_owner(found, day),
+            "items": [(i, i.age(day), aging.bucket(i.age(day))) for i in sorted(shown, key=lambda i: i.since)],
+            "kinds": list(aging.KINDS.items()),
+            "kind": kind,
+            "buckets": [label for _, _, label in aging.BUCKETS],
+            "stale_days": stale_days,
+            "query": request.GET.urlencode(),
+        },
+    )

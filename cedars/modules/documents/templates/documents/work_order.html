@@ -8,7 +8,7 @@
   {% if wo.cpuc_contract_id %}<dt>CPUC contract id</dt><dd>{{ wo.cpuc_contract_id }}</dd>{% endif %}
   <dt>Status</dt><dd>{% if wo.cancelled %}Cancelled{% else %}Open{% endif %}</dd>
 </dl>
-<p><a href="{% url 'documents:library' %}?work_order={{ wo.number|urlencode }}">Search the library for this work order's documents</a></p>
+<p><a href="{% url 'documents:library' %}?work_order={{ wo.number|urlencode }}">Search the library for this work order's documents</a>. <a href="{% url 'documents:work_order_comments_csv' wo.pk %}">Comment-and-response report (CSV)</a></p>
 <section aria-labelledby="tasks-h">
 <h2 id="tasks-h">Tasks</h2>
 <ul class="links">{% for t in tasks %}<li>{{ t.name }}</li>{% empty %}<li>No tasks.</li>{% endfor %}</ul>

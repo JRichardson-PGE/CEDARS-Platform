@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Respond to {{ doc.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<h1>Respond to the recommendations</h1>
+<ul>{% for r, status in requests %}<li>{{ r.pa.code }}: {{ status }}</li>{% endfor %}</ul>
+<p>The response is kept as a version of this deliverable, at the stage PA response. Once published it is public and never changes; a revised
+response is a further version with its reason.</p>
+<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">File the response</button> <a href="{{ doc.get_absolute_url }}">Cancel</a></div>
+</form>
+{% endblock %}

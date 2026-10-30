@@ -3,7 +3,8 @@ lists, search and downloads. Every change writes an audit event; so does every d
 
 Who may do what (permissions in the documents module, held in an organisation):
   - anyone, signed in or not, reads a published document and its published versions;
-  - documents.read, .submit, .confirm or .admin in the owning organisation or in a PA named on the document (a joint document) shows
+  - documents.read, .submit, .confirm or .admin in the owning organisation, in a PA named on the document (a joint document) or in the
+    manager of the study it belongs to (BR-15.9: evaluators manage the deliverables of their studies) shows
     its unpublished versions too, and so does any of them in the CPUC (BR-15.2: "only their owning organisation and CPUC ED");
   - documents.submit there adds versions and changes the details; documents.confirm publishes a version;
   - documents.submit in the acting organisation files a new document there: a PA files PA documents, program files and EM&V documents,
@@ -32,7 +33,18 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
 
-from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile, DocumentVersion, Study, Task, WorkOrder
+from .models import (
+    AttributeList,
+    AttributeOption,
+    Collection,
+    CommentPeriod,
+    Document,
+    DocumentFile,
+    DocumentVersion,
+    Study,
+    Task,
+    WorkOrder,
+)
 
 READ = "documents.read"
 SUBMIT = "documents.submit"
@@ -87,7 +99,11 @@ def is_admin(user) -> bool:
 
 
 def _parties(doc: Document) -> list[Organisation]:
-    return [doc.owner, *[o for o in doc.pas.all() if o.pk != doc.owner_id]]
+    """The organisations that manage a document: its owner, the PAs named on it and, for a study's document, the study manager."""
+    parties = [doc.owner, *[o for o in doc.pas.all() if o.pk != doc.owner_id]]
+    if doc.study_id and doc.study.manager_id not in {o.pk for o in parties}:
+        parties.append(doc.study.manager)
+    return parties
 
 
 def _party_has(user, doc: Document, *permissions) -> bool:
@@ -128,11 +144,27 @@ def collections_for(user, organisation: Organisation | None) -> list[str]:
     return [c.value for c in OTHER_COLLECTIONS]
 
 
+def _response_organisations(user) -> list[int]:
+    if user is None or not user.is_authenticated:
+        return []
+    return [o.pk for o in access.organisations_of(user) if access.effective_permissions(user, o) & set(ANY)]
+
+
+def sees_version(user, version: DocumentVersion) -> bool:
+    """A published version is public; an unpublished one is seen by those who see the document's unpublished work and, for a PA's
+    response to the recommendations, by that PA."""
+    if version.published or sees_unpublished(user, version.document):
+        return True
+    return version.responding_pa_id is not None and version.responding_pa_id in _response_organisations(user)
+
+
 def visible_versions(user, doc: Document) -> list[DocumentVersion]:
-    """Newest first; published ones only for readers who do not see unpublished work."""
-    qs = doc.versions.select_related("organisation", "created_by", "published_by").prefetch_related("files")
+    """Newest first; published ones only for readers who do not see unpublished work (and a PA's own unpublished response)."""
+    qs = doc.versions.select_related("organisation", "created_by", "published_by", "responding_pa", "comment_period").prefetch_related(
+        "files"
+    )
     if not sees_unpublished(user, doc):
-        qs = qs.filter(published_at__isnull=False)
+        qs = qs.filter(Q(published_at__isnull=False) | Q(responding_pa__in=_response_organisations(user)))
     return list(qs.order_by("-number"))
 
 
@@ -373,6 +405,7 @@ def _detail_snapshot(doc: Document) -> dict:
     snap["study"] = doc.study.study_id if doc.study else ""
     snap["work_order"] = doc.work_order.number if doc.work_order else ""
     snap["task"] = doc.task.name if doc.task else ""
+    snap["deliverable"] = doc.deliverable
     return snap
 
 
@@ -386,14 +419,45 @@ def _require_organisation(actor, organisation: Organisation | None, collection: 
         raise AccessDenied(f"{organisation.code} cannot file {Collection(collection).label.lower()}.")
 
 
+def _check_period(period) -> tuple[date, date] | None:
+    if not period or not any(period):
+        return None
+    opens, closes = period
+    if not opens or not closes:
+        raise DocumentError("Give both the date comments open and the date they close.")
+    if opens > closes:
+        raise DocumentError("Comments close on or after the day they open.")
+    return opens, closes
+
+
 @transaction.atomic
 def create_document(
-    actor, organisation: Organisation, collection: str, details: Details, uploads: list[Upload], *, publish: bool = False
+    actor,
+    organisation: Organisation,
+    collection: str,
+    details: Details,
+    uploads: list[Upload],
+    *,
+    publish: bool = False,
+    deliverable: bool = False,
+    stage: str = "",
+    comment_period: tuple[date, date] | None = None,
 ) -> Document:
-    """File a document with its first version. A PA's own document names the PA itself among the PAs it applies to."""
+    """File a document with its first version. A PA's own document names the PA itself among the PAs it applies to. An EM&V deliverable
+    (BR-15.11) belongs to a study and its first version names its revision stage; any version may open a comment period (BR-15.4)."""
+    from . import deliverables
+
     _require_organisation(actor, organisation, collection)
     _check_details(collection, details)
     _check_links(actor, collection, details)
+    if deliverable:
+        if collection != Collection.EMV or details.study is None:
+            raise DocumentError("A deliverable is an EM&V document of a study: name its study.")
+        if stage not in deliverables.WORK_STAGES:
+            raise DocumentError("Choose the deliverable's stage: draft or final workplan, draft or final study results.")
+    elif stage:
+        raise DocumentError("Only a deliverable has revision stages.")
+    period = _check_period(comment_period)
     checked = _check_uploads(uploads)
     doc = Document.objects.create(
         collection=collection,
@@ -406,6 +470,7 @@ def create_document(
         study=details.study,
         work_order=details.work_order,
         task=details.task,
+        deliverable=deliverable,
         created_by=actor,
     )
     pas = list(details.pas)
@@ -415,7 +480,7 @@ def create_document(
     doc.programs.set(details.programs)
     doc.attributes.set(details.attributes)
     audit.record("documents.filed", obj=doc, after=_detail_snapshot(doc), actor=actor, organisation=organisation)
-    version = _new_version(actor, organisation, doc, uploads, checked, reason="")
+    version = _new_version(actor, organisation, doc, uploads, checked, reason="", stage=stage, period=period)
     if publish:
         publish_version(actor, version)
         doc.refresh_from_db()
@@ -451,35 +516,68 @@ def change_details(actor, doc: Document, details: Details, *, reason: str) -> Do
     return doc
 
 
-def _new_version(actor, organisation, doc: Document, uploads, checked, *, reason: str) -> DocumentVersion:
+def _new_version(
+    actor, organisation, doc: Document, uploads, checked, *, reason: str, stage: str = "", responding_pa=None, period=None
+) -> DocumentVersion:
     number = (doc.versions.aggregate(m=Max("number"))["m"] or 0) + 1
-    version = DocumentVersion.objects.create(document=doc, number=number, reason=reason, organisation=organisation, created_by=actor)
-    files = _store_files(version, uploads, checked)
-    audit.record(
-        "documents.version_added",
-        obj=version,
-        after={"number": number, "files": [{"name": f.name, "sha256": f.sha256, "size": f.size} for f in files]},
+    stage_number = None
+    if stage:
+        same = doc.versions.filter(stage=stage)
+        if responding_pa is not None:
+            same = same.filter(responding_pa=responding_pa)
+        stage_number = same.count() + 1
+    version = DocumentVersion.objects.create(
+        document=doc,
+        number=number,
         reason=reason,
-        actor=actor,
         organisation=organisation,
+        created_by=actor,
+        stage=stage,
+        stage_number=stage_number,
+        responding_pa=responding_pa,
     )
+    files = _store_files(version, uploads, checked)
+    after = {"number": number, "files": [{"name": f.name, "sha256": f.sha256, "size": f.size} for f in files]}
+    if stage:
+        after["stage"] = version.stage_label
+    if period:
+        CommentPeriod.objects.create(version=version, opens=period[0], closes=period[1])
+        after["comments"] = {"opens": period[0].isoformat(), "closes": period[1].isoformat()}
+    audit.record("documents.version_added", obj=version, after=after, reason=reason, actor=actor, organisation=organisation)
     return version
 
 
 @transaction.atomic
 def add_version(
-    actor, organisation: Organisation | None, doc: Document, uploads: list[Upload], *, reason: str, publish: bool = False
+    actor,
+    organisation: Organisation | None,
+    doc: Document,
+    uploads: list[Upload],
+    *,
+    reason: str,
+    publish: bool = False,
+    stage: str = "",
+    comment_period: tuple[date, date] | None = None,
 ) -> DocumentVersion:
-    """Replace a document's files with a new version; earlier versions stay listed and downloadable (BR-15.1, BR-09.6)."""
+    """Replace a document's files with a new version; earlier versions stay listed and downloadable (BR-15.1, BR-09.6). A deliverable's
+    version names its stage, which never goes back (deliverables.next_stages)."""
+    from . import deliverables
+
     if not can_manage(actor, doc):
         raise AccessDenied("You cannot add versions to this document.")
     if not reason.strip():
         raise DocumentError("Say why this version replaces the previous one.")
-    checked = _check_uploads(uploads)
     Document.objects.select_for_update().get(pk=doc.pk)
-    version = _new_version(actor, organisation or doc.owner, doc, uploads, checked, reason=reason.strip())
+    if doc.deliverable:
+        if stage not in deliverables.next_stages(actor, doc):
+            raise DocumentError(deliverables.stage_refusal(actor, doc, stage))
+    elif stage:
+        raise DocumentError("Only a deliverable has revision stages.")
+    period = _check_period(comment_period)
+    checked = _check_uploads(uploads)
+    version = _new_version(actor, organisation or doc.owner, doc, uploads, checked, reason=reason.strip(), stage=stage, period=period)
     if publish:
-        publish_version(actor, version)
+        version = publish_version(actor, version)
     return version
 
 
@@ -487,7 +585,8 @@ def add_version(
 def publish_version(actor, version: DocumentVersion) -> DocumentVersion:
     """Publish a version: it becomes public and never changes again. The document's published date is its first publication's."""
     doc = Document.objects.select_for_update().get(pk=version.document_id)
-    if not can_publish(actor, doc):
+    responder = version.responding_pa_id is not None and actor is not None and access.has_permission(actor, version.responding_pa, CONFIRM)
+    if not (can_publish(actor, doc) or responder):
         raise AccessDenied("You need the Documents: confirm permission of an organisation on this document to publish it.")
     version = DocumentVersion.objects.select_for_update().get(pk=version.pk)
     if version.published:
@@ -552,7 +651,7 @@ def readable(user) -> QuerySet:
     mine = []
     if user is not None and user.is_authenticated:
         mine = [o.pk for o in access.organisations_of(user) if access.effective_permissions(user, o) & set(ANY)]
-    return qs.filter(Q(published_at__isnull=False) | Q(owner__in=mine) | Q(pas__in=mine)).distinct()
+    return qs.filter(Q(published_at__isnull=False) | Q(owner__in=mine) | Q(pas__in=mine) | Q(study__manager__in=mine)).distinct()
 
 
 def search(user, s: Search) -> QuerySet:
@@ -602,7 +701,12 @@ def search(user, s: Search) -> QuerySet:
             "pas",
             "programs",
             Prefetch("attributes", queryset=AttributeOption.objects.select_related("attribute_list")),
-            Prefetch("versions", queryset=DocumentVersion.objects.order_by("-number").prefetch_related("files")),
+            Prefetch(
+                "versions",
+                queryset=DocumentVersion.objects.order_by("-number")
+                .select_related("responding_pa", "comment_period")
+                .prefetch_related("files"),
+            ),
         )
     )
 

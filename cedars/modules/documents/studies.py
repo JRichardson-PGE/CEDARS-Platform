@@ -326,6 +326,15 @@ def latest_deliverable(study: Study) -> Document | None:
     return study.documents.filter(published_at__isnull=False).order_by("-published_at").first()
 
 
+def stage_of(doc: Document) -> str:
+    """A deliverable's current stage (BR-15.11), else the document's type."""
+    if doc.deliverable:
+        from .deliverables import current, stage_label
+
+        return stage_label(doc, current(doc)) or doc.document_type.label
+    return doc.document_type.label
+
+
 def evaluations(program: Program) -> list[dict]:
     """The registry hook (registry.service.evaluations): each study covering the program, newest years first."""
     rows = (
@@ -348,7 +357,7 @@ def evaluations(program: Program) -> list[dict]:
                 "note": r.note,
                 "status": r.study.status.label if r.study.status else "",
                 "lead": r.study.lead.label,
-                "deliverable": {"title": d.title, "url": d.get_absolute_url(), "stage": d.document_type.label} if d else None,
+                "deliverable": {"title": d.title, "url": d.get_absolute_url(), "stage": stage_of(d)} if d else None,
             }
         )
     return out

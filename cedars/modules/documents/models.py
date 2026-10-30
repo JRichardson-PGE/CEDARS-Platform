@@ -15,6 +15,18 @@ class Collection(models.TextChoices):
     EMV = "emv", "EM&V documents"
 
 
+class Stage(models.TextChoices):
+    """The stages of an EM&V deliverable's revision workflow (BR-15.11), in order. The comment stages ("workplan comments", "study-result
+    comments") are the comment windows of the draft versions, not versions of their own."""
+
+    DRAFT_WORKPLAN = "draft_workplan", "Draft workplan"
+    FINAL_WORKPLAN = "final_workplan", "Final workplan"
+    DRAFT_RESULTS = "draft_results", "Draft study results"
+    FINAL_RESULTS = "final_results", "Final study results"
+    PA_RESPONSE = "pa_response", "PA response to the recommendations"
+    ED_REPLY = "ed_reply", "CPUC ED reply"
+
+
 class AttributeList(models.Model):
     """A controlled list of document attributes kept by CPUC ED (BR-15.3): the PDA's eight categories (sector, stage of work, study type,
     technology type, portfolio cycle, deliverable type, study lead, evaluation firm) and each collection's document types. Data with an
@@ -92,6 +104,9 @@ class Document(models.Model):
         help_text="The contract it was delivered under",
     )
     task = models.ForeignKey("Task", null=True, blank=True, on_delete=models.PROTECT, related_name="documents")
+    deliverable = models.BooleanField(
+        default=False, help_text="An EM&V deliverable: its versions go through the revision stages (BR-15.11) on this one record"
+    )
     published_at = models.DateTimeField(null=True, blank=True, help_text="When its first version was published")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,10 +148,28 @@ class DocumentVersion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    stage = models.CharField(max_length=20, choices=Stage.choices, blank=True, help_text="A deliverable's revision stage (BR-15.11)")
+    stage_number = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Draft 1, 2 ... of a draft stage; revision 1, 2 ... of a final; a PA's response 1, 2 ..."
+    )
+    responding_pa = models.ForeignKey(
+        "accounts.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="The PA whose response to the recommendations this is",
+    )
 
     class Meta:
         ordering = ["document", "-number"]
-        constraints = [models.UniqueConstraint(fields=["document", "number"], name="documents_version_number_unique")]
+        constraints = [
+            models.UniqueConstraint(fields=["document", "number"], name="documents_version_number_unique"),
+            models.CheckConstraint(condition=Q(stage="") | Q(stage_number__isnull=False), name="documents_version_stage_numbered"),
+            models.CheckConstraint(
+                condition=Q(responding_pa__isnull=True) | Q(stage="pa_response"), name="documents_version_response_has_pa_stage"
+            ),
+        ]
 
     def __str__(self):
         return f"{self.document} v{self.number}"
@@ -144,6 +177,117 @@ class DocumentVersion(models.Model):
     @property
     def published(self) -> bool:
         return self.published_at is not None
+
+    @property
+    def stage_label(self) -> str:
+        """e.g. "Draft workplan 2", "Final study results, revision 1", "PA response to the recommendations (PGE)"."""
+        if not self.stage:
+            return ""
+        label = Stage(self.stage).label
+        if self.stage == Stage.PA_RESPONSE:
+            pa = self.responding_pa.code if self.responding_pa_id else ""
+            return f"{label} ({pa})" + (f", revision {self.stage_number - 1}" if self.stage_number and self.stage_number > 1 else "")
+        if self.stage in (Stage.DRAFT_WORKPLAN, Stage.DRAFT_RESULTS):
+            return f"{label} {self.stage_number}"
+        if self.stage_number and self.stage_number > 1:
+            return f"{label}, revision {self.stage_number - 1}"
+        return label
+
+
+class CommentPeriod(models.Model):
+    """The window in which registered users comment on a published version (BR-15.4; the PDA's Comment Start and Comment End). Set by
+    whoever posts the version and changed only with a reason (an extension is common), so it lives beside the version, which never
+    changes once published."""
+
+    version = models.OneToOneField(DocumentVersion, on_delete=models.CASCADE, related_name="comment_period")
+    opens = models.DateField()
+    closes = models.DateField()
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(opens__lte=F("closes")), name="documents_comment_period_in_order")]
+
+    def __str__(self):
+        return f"{self.opens} to {self.closes}"
+
+    def open_on(self, day) -> bool:
+        return self.opens <= day <= self.closes
+
+
+class ResponseRequest(models.Model):
+    """CPUC ED's request that a PA respond to a deliverable's recommendations by a due date (BR-15.11); the PA's response is a version of
+    the deliverable at the stage PA response."""
+
+    document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="response_requests")
+    pa = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="response_requests")
+    due = models.DateField()
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    requested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["document", "pa__code"]
+        constraints = [models.UniqueConstraint(fields=["document", "pa"], name="documents_one_request_per_pa")]
+
+    def __str__(self):
+        return f"{self.document}: {self.pa.code} by {self.due}"
+
+
+class Comment(models.Model):
+    """A comment or question on a published version, posted in its comment period by a registered user (BR-15.4). Public, dated and
+    attributed to its author and organisation. Never edited; the author may withdraw it until it is answered (it then stops being shown
+    but is kept, with its audit event)."""
+
+    class Kind(models.TextChoices):
+        COMMENT = "comment", "Comment"
+        QUESTION = "question", "Question"
+
+    version = models.ForeignKey(DocumentVersion, on_delete=models.PROTECT, related_name="comments")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    subject = models.CharField(max_length=100)
+    section = models.CharField(max_length=100, blank=True, help_text="The section or page it is about")
+    text = models.TextField(max_length=2000)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author_name = models.CharField(max_length=200, help_text="The author's name as shown, kept as it was when posted")
+    organisation = models.ForeignKey(
+        "accounts.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="The organisation it was posted for",
+    )
+    file_name = models.CharField(max_length=255, blank=True)
+    file_key = models.CharField(max_length=500, blank=True)
+    file_sha256 = models.CharField(max_length=64, blank=True)
+    file_size = models.PositiveBigIntegerField(null=True, blank=True)
+    file_type = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["version", "created_at", "id"]
+
+    def __str__(self):
+        return self.subject
+
+    def get_file_url(self):
+        return f"/documents/comments/{self.pk}/{self.file_name}" if self.file_name else ""
+
+
+class CommentResponse(models.Model):
+    """A response to a comment by CPUC ED, a PA on the document or the study's evaluator (BR-15.4). Public and never edited."""
+
+    comment = models.ForeignKey(Comment, on_delete=models.PROTECT, related_name="responses")
+    text = models.TextField(max_length=2000)
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author_name = models.CharField(max_length=200)
+    organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["comment", "created_at", "id"]
+
+    def __str__(self):
+        return f"Response to {self.comment}"
 
 
 class DocumentFile(models.Model):

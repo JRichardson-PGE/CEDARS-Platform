@@ -47,14 +47,14 @@ behind the filters are kept by CPUC Energy Division.</p>
   <caption class="sr-only">Documents, newest publication first</caption>
   <thead><tr><th scope="col">Title</th><th scope="col">Collection and type</th><th scope="col">PAs</th><th scope="col">Years</th><th scope="col">Published</th><th scope="col">Version</th></tr></thead>
   <tbody>
-  {% for doc, v in rows %}
+  {% for doc, v, stage in rows %}
   <tr>
     <th scope="row"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a>{% if doc.summary %}<br><span class="small muted">{{ doc.summary|truncatewords:30 }}</span>{% endif %}</th>
     <td>{{ doc.get_collection_display }}<br><span class="small">{{ doc.document_type.label }}</span></td>
     <td>{% for o in doc.pas.all %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}{{ doc.owner.code }}{% endfor %}</td>
     <td class="nowrap">{{ doc.years }}</td>
     <td class="nowrap">{% if doc.published_at %}{{ doc.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>{% endif %}</td>
-    <td>{% if v %}{{ v.number }}{% endif %}</td>
+    <td>{% if v %}{{ v.number }}{% endif %}{% if stage %}<br><span class="small">{{ stage }}</span>{% endif %}</td>
   </tr>
   {% empty %}<tr><td colspan="6">No documents match.</td></tr>
   {% endfor %}
