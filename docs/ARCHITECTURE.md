@@ -75,7 +75,8 @@ how far it is built. Update the Status column in the PR that changes it.
   measures) as text in Postgres and checks them cell by cell with the pinned engine's `recet.editor` (Jake, 2026-10-30: the web app
   installs ReCET); impact profiles are not matched there (no profile library on the web servers), the run checks them. Pages are
   server-rendered forms, one row at a time; a draft downloads as a job zip, or starts from a run's inputs (Edit inputs and rerun).
-  Drafts are scratch data, purged with scratch runs from their last change.
+  "Run these inputs" opens New run on the draft (`?draft=`): its job zip is the run's upload. New run's "Check the inputs only" button
+  queues a preflight-only run (setting `preflight_only`), from a file or a draft. Drafts are scratch data, purged with scratch runs from their last change.
 - The calculation job API, run records and S3 orchestration live in the Calculations module; ReCET supplies the worker and the job contract.
   The platform never imports the engine: it writes a job spec (spec version 1) to the results bucket with every input pinned by SHA-256,
   and the worker (`recet worker run <spec>`, locally through `CALCULATIONS_WORKER_COMMAND` or on Batch through the job definition's

@@ -59,6 +59,7 @@ PAGES = [
     ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
     ("edit-inputs-program-costs", "/calculations/drafts/{draft}/?table=ProgramCost", "analyst"),
     ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
+    ("new-run-from-draft", "/calculations/new/?draft={draft}", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
     ("results", "/calculations/runs/{finished_run}/results/", "analyst"),
     ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
