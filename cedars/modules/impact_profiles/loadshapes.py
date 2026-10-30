@@ -384,12 +384,15 @@ def _allowed(permutations) -> dict:
     """The package's allowed values per field and its combinations, from its permutations."""
     combos, values = [], {f: set() for f in KEY_FIELDS}
     for p in permutations:
-        techs = {t for t in (p.measure_tech_id, p.standard_tech_id, p.pre_existing_tech_id) if t}
+        techs = frozenset(t for t in p.technologies() if t[2])
         loc = zone(p.bldg_loc)
-        combos.append((p.sector, p.bldg_type, p.bldg_vint, p.bldg_hvac, loc, p.tech_group, p.tech_type, frozenset(techs)))
-        for f, v in zip(KEY_FIELDS[:-1], (p.sector, p.bldg_type, p.bldg_vint, p.bldg_hvac, loc, p.tech_group, p.tech_type), strict=True):
+        combos.append((p.sector, p.bldg_type, p.bldg_vint, p.bldg_hvac, loc, techs))
+        for f, v in zip(KEY_FIELDS[:5], (p.sector, p.bldg_type, p.bldg_vint, p.bldg_hvac, loc), strict=True):
             values[f].add(v)
-        values["tech_id"] |= techs
+        for group, ttype, tech_id in techs:
+            values["tech_group"].add(group)
+            values["tech_type"].add(ttype)
+            values["tech_id"].add(tech_id)
     return {"combos": combos, "values": values}
 
 
@@ -398,17 +401,16 @@ def _matches(perm_value: str, upload_value: str) -> bool:
 
 
 def matches_permutation(key: tuple, combo: tuple) -> bool:
+    """Whether an uploaded series' key fits a permutation: its building, and one of its technologies (TechGroup, TechType, TechID)."""
     sector, bldg_type, bldg_vint, bldg_hvac, bldg_loc, tech_group, tech_type, tech_id = key
-    p_sector, p_type, p_vint, p_hvac, p_loc, p_group, p_ttype, p_techs = combo
+    p_sector, p_type, p_vint, p_hvac, p_loc, p_techs = combo
     return (
         sector == p_sector
         and _matches(p_type, bldg_type)
         and bldg_vint == p_vint
         and _matches(p_hvac, bldg_hvac)
         and _matches(p_loc, bldg_loc)
-        and tech_group == p_group
-        and tech_type == p_ttype
-        and tech_id in p_techs
+        and (tech_group, tech_type, tech_id) in p_techs
     )
 
 

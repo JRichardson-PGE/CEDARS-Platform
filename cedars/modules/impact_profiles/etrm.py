@@ -7,11 +7,13 @@ with bad data is excluded and listed with the reason instead of stopping the syn
 version; a changed package gets a new one, so an upload can name the exact permutations it was checked against.
 
 The database's real schema is not known yet (no access): DatabaseSource reads the fixture schema in `etrm_fixture_schema.sql`, and only
-its two queries need to change when the credentials arrive. FileSource reads the same data from a JSON file, for development and tests.
-The public eTRM API (specification of 11 March 2026) is no substitute: its /permutations endpoints return published measure versions
-only, every value as a string, and name no draft data, so the drafts a load shape is uploaded against come only from the database.
-"""
+its two queries need to change when the credentials arrive. FileSource reads the same data from a JSON file, for development and tests,
+and ExportSource reads the permutations CSV that eTRM's measure pages download (a stop-gap until the database: the column labels are
+eTRM's own). The public eTRM API (specification of 11 March 2026) is no substitute: its /permutations endpoints return published
+measure versions only, every value as a string, and name no draft data, so the drafts a load shape is uploaded against come only from
+the database or a download."""
 
+import csv
 import hashlib
 import json
 from dataclasses import dataclass, field
@@ -37,6 +39,10 @@ TEXT_FIELDS = [
     "measure_tech_id",
     "standard_tech_id",
     "pre_existing_tech_id",
+    "standard_tech_group",
+    "standard_tech_type",
+    "pre_existing_tech_group",
+    "pre_existing_tech_type",
     "norm_unit",
     "measure_application_type",
     "elec_target_sector",
@@ -108,6 +114,83 @@ class FileSource:
         except (OSError, ValueError) as e:
             raise SourceError(f"could not read {self.path}: {e}") from e
         return [_record(p, list(p.get("permutations") or [])) for p in data.get("packages", [])]
+
+
+# eTRM's permutations download ("Exported from: https://www.caetrm.com/measure/<id>/<version>/permutations/", then one row per
+# permutation under eTRM's labels; 123 columns in the 2026 sample). It has no electric target sector, so a profile made from it is
+# targeted at the permutation's Sector.
+EXPORT_PACKAGE_COLUMNS = {
+    "measure_version_id": "Measure Version ID",
+    "statewide_id": "Statewide Measure ID",
+    "name": "Measure Name",
+    "pa_lead": "PA Lead",
+    "start_date": "Effective Start Date",
+}
+EXPORT_COLUMNS = {
+    "sector": "Sector",
+    "bldg_type": "Building Type",
+    "bldg_vint": "Building Vintage",
+    "bldg_hvac": "Building HVAC",
+    "bldg_loc": "Building Location",
+    "tech_group": "Technology Group",
+    "tech_type": "Technology Type",
+    "measure_tech_id": "Measure Technology ID",
+    "standard_tech_id": "Standard Technology ID",
+    "pre_existing_tech_id": "Pre-Existing Technology ID",
+    "standard_tech_group": "Standard Technology Group",
+    "standard_tech_type": "Standard Technology Type",
+    "pre_existing_tech_group": "Pre-Existing Technology Group",
+    "pre_existing_tech_type": "Pre-Existing Technology Type",
+    "norm_unit": "Normalized Unit",
+    "measure_application_type": "Measure Application Type",
+    "electric_impact_profile_id": "Electric Impact Profile ID",
+    "uec_kwh_meas": "Measure UEC kWh",
+    "uec_kwh_base1": "First Baseline - UEC kWh",
+    "uec_kwh_base2": "Second Baseline - UEC kWh",
+}
+
+
+class ExportSource:
+    """One or more eTRM permutations downloads. Rows are grouped into packages by Measure Version ID; the package's name, PA lead
+    and start date come from its first row."""
+
+    def __init__(self, paths):
+        self.paths = [str(p) for p in ([paths] if isinstance(paths, str | bytes) or not hasattr(paths, "__iter__") else paths)]
+        self.label = "eTRM export " + ", ".join(p.rsplit("/", 1)[-1] for p in self.paths)
+
+    def _rows(self, path: str):
+        try:
+            with open(path, "rb") as f:
+                raw = f.read()
+        except OSError as e:
+            raise SourceError(f"could not read {path}: {e}") from e
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = raw.decode("cp1252", errors="replace")
+        lines = text.splitlines()
+        start = next((i for i, line in enumerate(lines[:5]) if "Measure Version ID" in line), None)
+        name = path.rsplit("/", 1)[-1]
+        if start is None:
+            raise SourceError(f"{name} is not an eTRM permutations download: no Measure Version ID column in its first lines")
+        reader = csv.DictReader(lines[start:])
+        wanted = list(EXPORT_PACKAGE_COLUMNS.values()) + list(EXPORT_COLUMNS.values())
+        missing = [c for c in wanted if c not in (reader.fieldnames or [])]
+        if missing:
+            raise SourceError(f"{name} has no column {', '.join(missing)}")
+        yield from reader
+
+    def packages(self) -> list[PackageRecord]:
+        headers: dict[str, dict] = {}
+        perms: dict[str, list[dict]] = {}
+        for path in self.paths:
+            for row in self._rows(path):
+                mvid = (row[EXPORT_PACKAGE_COLUMNS["measure_version_id"]] or "").strip()
+                if not mvid:
+                    continue
+                headers.setdefault(mvid, {k: row[c] for k, c in EXPORT_PACKAGE_COLUMNS.items()})
+                perms.setdefault(mvid, []).append({k: row[c] for k, c in EXPORT_COLUMNS.items()})
+        return [_record(h, perms[m]) for m, h in headers.items()]
 
 
 PACKAGES_SQL = "SELECT measure_version_id, statewide_id, name, pa_lead, start_date FROM {schema}.measure_versions WHERE is_draft"
@@ -226,7 +309,8 @@ def sync(actor=None, source=None, trigger: str = EtrmSyncRun.Trigger.AUTOMATIC) 
         run.packages_seen += 1
         seen.add(rec.measure_version_id)
         try:
-            perms = [_clean(p) for p in rec.permutations]
+            # rows that differ only in fields load shapes do not use (delivery type, NTG, offering ...) are one permutation here
+            perms = list({json.dumps(c, sort_keys=True): c for c in map(_clean, rec.permutations)}.values())
             reason = exclusion_reason(rec, perms)
         except (TypeError, ValueError) as e:
             reason = f"Unexpected processing error: {e}"

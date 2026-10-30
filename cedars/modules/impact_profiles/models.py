@@ -116,7 +116,8 @@ class PackageVersion(models.Model):
 class Permutation(models.Model):
     """One eTRM permutation's load-shape fields: the building and technology it applies to and its full-precision UECs (kWh per unit).
     The 1st baseline is the pre-existing technology when there is one (accelerated replacement), else the standard; an accelerated
-    replacement's 2nd baseline is the standard technology."""
+    replacement's 2nd baseline is the standard technology. Each technology has its own Technology Group and Type in eTRM (a fuel
+    substitution's standard furnace is not in the measure's heat-pump group); a blank base-case group or type means the measure's."""
 
     version = models.ForeignKey(PackageVersion, on_delete=models.CASCADE, related_name="permutations")
     sector = models.CharField(max_length=40)
@@ -129,6 +130,10 @@ class Permutation(models.Model):
     measure_tech_id = models.CharField(max_length=160)
     standard_tech_id = models.CharField(max_length=160, blank=True)
     pre_existing_tech_id = models.CharField(max_length=160, blank=True)
+    standard_tech_group = models.CharField(max_length=80, blank=True)
+    standard_tech_type = models.CharField(max_length=80, blank=True)
+    pre_existing_tech_group = models.CharField(max_length=80, blank=True)
+    pre_existing_tech_type = models.CharField(max_length=80, blank=True)
     norm_unit = models.CharField(max_length=40, blank=True)
     measure_application_type = models.CharField(max_length=20, blank=True)
     uec_kwh_meas = models.FloatField(null=True, blank=True)
@@ -153,6 +158,32 @@ class Permutation(models.Model):
     @property
     def base2_tech_id(self) -> str:
         return self.standard_tech_id if self.pre_existing_tech_id else ""
+
+    @property
+    def measure_technology(self) -> tuple[str, str, str]:
+        return (self.tech_group, self.tech_type, self.measure_tech_id)
+
+    @property
+    def standard_technology(self) -> tuple[str, str, str]:
+        return (self.standard_tech_group or self.tech_group, self.standard_tech_type or self.tech_type, self.standard_tech_id)
+
+    @property
+    def pre_existing_technology(self) -> tuple[str, str, str]:
+        return (self.pre_existing_tech_group or self.tech_group, self.pre_existing_tech_type or self.tech_type, self.pre_existing_tech_id)
+
+    def technologies(self) -> list[tuple[str, str, str]]:
+        """(TechGroup, TechType, TechID) of the measure and each base case it names: the load shapes it can be paired with."""
+        out = [self.measure_technology]
+        out += [t for t in (self.pre_existing_technology, self.standard_technology) if t[2]]
+        return out
+
+    def baselines(self) -> list[tuple[str, tuple[str, str, str], float | None]]:
+        """("1st" / "2nd", the base case's (TechGroup, TechType, TechID), its UEC kWh)."""
+        first = self.pre_existing_technology if self.pre_existing_tech_id else self.standard_technology
+        out = [("1st", first, self.uec_kwh_base1)]
+        if self.pre_existing_tech_id and self.standard_tech_id and self.uec_kwh_base2 is not None:
+            out.append(("2nd", self.standard_technology, self.uec_kwh_base2))
+        return out
 
 
 class ExcludedPackage(models.Model):
