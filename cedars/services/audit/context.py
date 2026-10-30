@@ -28,3 +28,9 @@ def acting_as(user=None, organisation=None, assurance="", request_id=""):
         yield
     finally:
         _current.reset(token)
+
+
+def set_actor(user=None, organisation=None, assurance=""):
+    """Replace the actor for the rest of the current request or job, keeping its request id: for authentication that happens inside the
+    view (API tokens). The enclosing `acting_as` restores the previous actor when it ends."""
+    _current.set(Actor(user, organisation, assurance, current().request_id))

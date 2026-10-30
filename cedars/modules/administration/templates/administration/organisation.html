@@ -119,4 +119,22 @@
 </form>
 {% else %}<p>None open.</p>{% endif %}
 </section>
+{% if is_admin %}
+<section aria-labelledby="tokens-h">
+<h2 id="tokens-h">API tokens</h2>
+{% if tokens %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Active API tokens">
+<table class="list">
+  <thead><tr><th scope="col">Member</th><th scope="col">Name</th><th scope="col">Modules</th><th scope="col">Expires</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+  <tr><th scope="row">{{ t.user.email }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|join:", " }}</td><td>{{ t.expires_at|date:"Y-m-d" }}</td><td>{{ t.last_used_at|date:"Y-m-d"|default:"Never" }}</td>
+    <td><form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<input type="hidden" name="from" value="organisation"><button type="submit">Revoke<span class="sr-only"> {{ t.user.email }}'s token {{ t.name }}</span></button></form></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No member has an active API token for {{ org.code }}.</p>{% endif %}
+</section>
+{% endif %}
 {% endblock %}

@@ -15,7 +15,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.utils import timezone
 
 from cedars.services.accounts import permissions as perms
-from cedars.services.accounts import service
+from cedars.services.accounts import service, tokens
 from cedars.services.dictionary import service as dictionary
 from cedars.services.notifications import service as notifications
 from cedars.services.refdata import service as refdata
@@ -80,6 +80,8 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     community = make_user("community@example.com")
     service.request_access(community, pge, ["claims.read", "budgets.read"], "I work on PG&E's filings")
     service.open_recertification(pge_admin, pge, timezone.now() + timedelta(days=30))
+    tokens.create_token(pge_admin, pge, name="Claims system", scopes=["calculations", "claims"], days=90)
+    tokens.create_token(analyst, pge, name="Analyst laptop", scopes=["calculations"], days=30)
     factors = (
         (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv")
         .read_bytes()

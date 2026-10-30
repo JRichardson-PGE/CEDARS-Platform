@@ -9,11 +9,12 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from cedars.services.accounts import permissions as perms
-from cedars.services.accounts import service
+from cedars.services.accounts import service, tokens
 from cedars.services.accounts.middleware import ORG_SESSION_KEY
 from cedars.services.accounts.models import (
     AccessPolicy,
     AccessRequest,
+    ApiToken,
     Grant,
     Membership,
     Organisation,
@@ -66,8 +67,44 @@ def account(request):
             "rows": rows,
             "requests": AccessRequest.objects.filter(user=user).select_related("organisation")[:20],
             "assurance": request.assurance,
+            "tokens": ApiToken.objects.filter(user=user).select_related("organisation")[:50],
+            "token_form": forms.ApiTokenForm(organisations=request.user_organisations, max_days=tokens.max_days()),
         },
     )
+
+
+@login_required
+@require_POST
+def token_create(request):
+    """Make an API token and show its key once, on this response only (never stored, never put in a message or a redirect)."""
+    form = forms.ApiTokenForm(request.POST, organisations=request.user_organisations, max_days=tokens.max_days())
+    if not form.is_valid():
+        messages.error(request, "Check the token form: " + "; ".join(f"{k}: {' '.join(v)}" for k, v in form.errors.items()))
+        return redirect("administration:account")
+    d = form.cleaned_data
+    org = next((o for o in request.user_organisations if o.code == d["organisation"]), None)
+    try:
+        token, key = tokens.create_token(request.user, org, name=d["name"], scopes=d["scopes"], days=d["days"])
+    except AccessDenied as e:
+        return _refused(request, e, "administration:account")
+    response = render(request, "administration/token_created.html", {"token": token, "key": key})
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+@login_required
+@require_POST
+def token_revoke(request, pk):
+    token = get_object_or_404(ApiToken, pk=pk)
+    from_org = request.POST.get("from") == "organisation" and token.organisation is not None
+    back = f"/admin/organisations/{token.organisation.code}/" if from_org else "administration:account"
+    if not tokens.can_revoke(request.user, token):
+        raise Http404
+    try:
+        tokens.revoke_token(request.user, token, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    return _done(request, f"Revoked the token {token}.", back)
 
 
 @login_required
@@ -195,6 +232,11 @@ def organisation(request, code):
             "items": items,
             "recert_form": forms.RecertificationForm(),
             "no_admin": not service.org_admins(org).exists(),
+            "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
+                "user"
+            )
+            if is_admin
+            else [],
         },
     )
 
