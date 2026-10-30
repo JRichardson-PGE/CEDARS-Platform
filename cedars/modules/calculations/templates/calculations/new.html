@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+{% block title %}New run{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<h1>New run</h1>
+{% if not form %}
+<p>No engine release is set up yet. A CPUC system administrator adds one on the <a href="{% url 'calculations:engines' %}">engine releases</a> page.</p>
+{% else %}
+<p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job. The run is queued and priced
+by the engine release you choose; the run page shows its progress, and its files when it ends.</p>
+<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.name.as_field_group }}
+  {{ form.run_for.as_field_group }}
+  {{ form.job.as_field_group }}
+  <fieldset><legend>Pricing</legend>
+    <div class="stack">
+    {{ form.engine.as_field_group }}
+    {{ form.acc_version.as_field_group }}
+    <details>
+      <summary>Which ACCs each engine has</summary>
+      <ul>{% for r in releases %}{% for calc in r.calculations %}<li>{% if calc == "recet" %}ReCET{% else %}CET {{ calc|cut:"cet-" }} replica{% endif %} (ReCET {{ r.release }}): {% for c, accs in r.accs.items %}{% if c == calc %}{{ accs|join:", " }}{% endif %}{% endfor %}</li>{% endfor %}{% endfor %}</ul>
+      <p class="small">A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history. It is never used for a filing and does not take statewide allocation or filing checks.</p>
+    </details>
+    {{ form.acc_purpose.as_field_group }}
+    {{ form.include_societal.as_field_group }}
+    {{ form.emissions.as_field_group }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Statewide programs</legend>
+    <div class="stack">
+    {{ form.allocate_statewide.as_field_group }}
+    {{ form.allocation_version.as_field_group }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Checks and outputs</legend>
+    <div class="stack">
+    {{ form.filing_validation.as_field_group }}
+    {{ form.filing_year.as_field_group }}
+    {{ form.output_format.as_field_group }}
+    </div>
+  </fieldset>
+  <div class="actions"><button type="submit" class="primary">Start the run</button> <a href="{% url 'calculations:runs' %}">Cancel</a></div>
+</form>
+{% endif %}
+{% endblock %}

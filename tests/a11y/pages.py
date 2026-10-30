@@ -1,7 +1,8 @@
 """Every page the accessibility check visits, as (name, path, who). A PR that adds a page adds it here (CLAUDE.md).
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
-(signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package}, {upload}."""
+(signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
+{upload}, {queued_run}."""
 
 PAGES = [
     ("home", "/", None),
@@ -49,4 +50,9 @@ PAGES = [
     ("load-shape-upload-rejected", "/impact-profiles/uploads/{rejected}/", "developer"),
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
+    ("calculations", "/calculations/", "analyst"),
+    ("new-run", "/calculations/new/", "analyst"),
+    ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
+    ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
+    ("engine-releases", "/calculations/engines/", "cpuc_admin"),
 ]

@@ -22,6 +22,18 @@ Without Docker (Python 3.12, [uv](https://docs.astral.sh/uv/), PostgreSQL 16 wit
     uv run python manage.py migrate
     uv run python manage.py runserver
 
+## Calculations locally
+
+Runs are priced by the ReCET worker (`recet worker run`), which the platform starts and never imports. With the engine installed
+(`engine/README.md`), add a release on the Engine releases page (CPUC system administrator), start a run on New run, and price queued
+runs with:
+
+    uv run python manage.py calculations_worker          # --once to price one run; --lane small|large
+
+`CALCULATIONS_WORKER_COMMAND` (default `recet worker`) names the worker; files go under `CEDARS_STORAGE_ROOT` (default `var/storage`).
+In AWS, `CALCULATIONS_BACKEND=batch` submits runs to the Batch queues and `manage.py calculations_sync` (every minute) records their
+progress and receipts.
+
 ## Checks
 
     uv run pytest                # unit and page tests (PostgreSQL)
