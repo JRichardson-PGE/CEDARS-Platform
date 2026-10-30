@@ -1,0 +1,42 @@
+# Secret scan (CI job "secret-scan"): gitleaks' default rules plus what must never be published from this project:
+# personal email addresses, Windows user folders, SSH key files, EC2 logins and public IP addresses.
+title = "project secret scan"
+
+[extend]
+useDefault = true
+
+# Vendored, minified libraries (their WCAG and SVG numbers look like IP addresses) and the field names gitleaks' generic rule reads as keys.
+[allowlist]
+paths = ['''(?:^|/)vendor/.*\.min\.js$''']
+regexes = ['''E3MeaElecEndUseShape''']
+
+[[rules]]
+id = "personal-email"
+description = "A personal email address (commit as the GitHub noreply address; fixtures use example.com)"
+regex = '''(?i)\b[a-z0-9._%+-]+@(?:gmail|googlemail|yahoo|hotmail|outlook|live|icloud|me|aol|proton|protonmail)\.(?:com|me)\b'''
+
+[[rules]]
+id = "windows-user-folder"
+description = "A path inside a Windows user folder (C:\\Users\\<name>)"
+regex = '''(?i)\b[a-z]:\\{1,2}users\\{1,2}[a-z0-9._-]+'''
+[rules.allowlist]
+regexes = ['''(?i)users\\{1,2}(?:me|you|name|user|example|\.\.\.)''']
+
+[[rules]]
+id = "ssh-key-file"
+description = "An SSH or TLS private key file name"
+regex = '''(?i)[a-z0-9_~:\\/.-]+\.(?:pem|ppk)\b'''
+
+[[rules]]
+id = "ec2-login"
+description = "An EC2 login (user@host)"
+regex = '''\bec2-user@[a-z0-9.-]+'''
+
+[[rules]]
+id = "public-ipv4"
+description = "A public IPv4 address"
+regex = '''\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b'''
+[rules.allowlist]
+regexes = [
+  '''^(?:0\.|10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|255\.)''',
+]
