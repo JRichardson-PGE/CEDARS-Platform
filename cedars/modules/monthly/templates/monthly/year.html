@@ -28,7 +28,8 @@ spend this month is the change since the month before, and the year-to-date spen
   </tr>{% endfor %}</tbody>
 </table>
 </div>
-<p><a class="button" href="{% url 'monthly:year_csv' year %}{{ csv_query }}">Download the year (CSV)</a>{% if latest %} · <a href="{% url 'monthly:version' latest.version.pk %}">The latest report by program</a>{% endif %}</p>
+<p><a class="button" href="{% url 'monthly:year_csv' year %}{{ csv_query }}">Download the year (CSV)</a>{% if latest %} · <a href="{% url 'monthly:version' latest.version.pk %}">The latest report by program</a>{% endif %}
+  · <a href="{% url 'monthly:closing' year %}{{ csv_query }}">The 13th-month report, from the confirmed claims</a></p>
 {% else %}
 <p>Choose a program administrator to see its year.</p>
 {% endif %}

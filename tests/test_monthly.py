@@ -1,6 +1,7 @@
 import io
 import zipfile
 from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
 from django.urls import reverse
@@ -300,6 +301,73 @@ def test_the_year_in_one_view_flags_a_falling_year_to_date(filer, year, pge, pro
     assert months[1].spend == -100 and not months[1].consistent and months[2].spend is None
 
 
+# --- the 13th-month report
+
+
+def fake_claims(totals):
+    def claims_totals(organisation, year):
+        return [dict(t, year=year) for t in totals] if organisation.code == "PGE" and year == 2028 else []
+
+    return [claims_totals]
+
+
+def claimed(prg, expenditures, quarters=(1, 2, 3, 4), final=True, tsb=900.0):
+    return {
+        "prg_id": prg, "pa": "PGE", "quarters": list(quarters), "final": final, "records": 3, "expenditures": Decimal(expenditures),
+        "incentives": Decimal(0), "gross_kwh": 120.0, "gross_kw": 0.1, "gross_therm": 0.0, "net_kwh": 100.0, "net_kw": 0.1,
+        "net_therm": 0.0, "tsb": tsb,
+    }  # fmt: skip
+
+
+def test_the_13th_month_report_is_the_confirmed_claims(filer, year, pge, programs, monkeypatch):
+    assert not service.closing(pge, 2028).claimed  # no confirmed claims yet
+    monkeypatch.setattr(submissions, "_claims_totals", fake_claims([claimed("PGE_Res_HVAC", 600, quarters=(1, 2), final=False)]))
+    c = service.closing(pge, 2028)
+    assert c.claimed and not c.final and c.quarters == [1, 2] and c.december is None and not c.unreconciled
+    december = report("202812", measures=[], costs=[cost(), cost("PGE_Com_Ltg", admin=200)])
+    service.confirm(filer, priced(filer, pge, 12, december))
+    totals = [claimed("PGE_Res_HVAC", 600), claimed("PGE_Com_Ltg", 250), claimed("PGE_Com_Ltg", 10)]  # a program on two PAs' rows
+    monkeypatch.setattr(submissions, "_claims_totals", fake_claims(totals))
+    c = service.closing(pge, 2028)
+    assert c.final and c.december is not None
+    rows = {r.prg_id: r for r in c.rows}
+    assert rows["PGE_Res_HVAC"].reconciles and rows["PGE_Com_Ltg"].get("expenditures") == 260
+    assert rows["PGE_Com_Ltg"].spend_difference == 60 and [r.prg_id for r in c.unreconciled] == ["PGE_Com_Ltg"]
+    assert c.total.get("expenditures") == 860 and c.total.get("tsb") == 2700 and c.total.records == 9  # matches the claims' totals
+    assert service.closing(pge, 2027).rows == []
+
+
+def test_the_13th_month_report_reads_the_claims_module(filer, year, pge, programs, pge_admin, cpuc_admin):
+    """Claims' own totals through the submissions service: a confirmed Q1 gives a provisional report."""
+    from unittest import mock
+
+    from cedars.modules.claims import service as claims
+
+    from .test_budgets import group_sums
+    from .test_claims import claim, claims_zip, row, tables
+
+    for p in ("claims.submit", "claims.confirm"):
+        access.grant(pge_admin, filer, pge, p)
+    due = {kind: timezone.now() + timedelta(days=30 * (i + 1)) for i, (kind, _) in enumerate(claims.PERIODS)}
+    claims.add_year(cpuc_admin, year=2028, acc_version="2026", due=due)
+    first = tables(
+        claim("PGE-2028-001", prg="PGE_Res_HVAC"),
+        ProgramCost=[row("ProgramCost", PrgID="PGE_Res_HVAC")],
+        Site=[row("Site", SiteID="PGE-S1")],
+        ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
+    )
+    with mock.patch.object(claims, "_rule_findings", return_value=([], [], "")):
+        v = claims.upload_claims(filer, claims.periods(2028)[0], pge, claims_zip(first, full=True), "q1.zip")
+    key = "runs/claims/out/_results/group_sums2_measure_level_run.parquet"
+    storage.store("results").put_bytes(key, group_sums())
+    details = {"job_sha256": v.findings["job_sha256"], "acc": "2026", "results": {"group_sums": key}}
+    claims.confirm(filer, submissions.record_calculation(None, v, run="claims", input_hash="h", details=details))
+    c = service.closing(pge, 2028)
+    assert c.quarters == [1] and not c.final
+    expected = {t["prg_id"]: t["expenditures"] for t in submissions.claims_totals(pge, 2028)}
+    assert {r.prg_id: r.get("expenditures") for r in c.rows if r.claimed} == expected and expected
+
+
 # --- pages
 
 
@@ -329,6 +397,8 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert csv.splitlines()[0].startswith("PrgID,ProgramName,InBCAInputs") and "EstimatedTotalSystemBenefit" in csv
     assert client.get(reverse("monthly:file", args=[v.pk, 0])).status_code == 200
     assert client.get(reverse("monthly:year", args=[2028])).status_code == 200
+    assert b"Not available yet" in client.get(reverse("monthly:closing", args=[2028])).content
+    assert client.get(reverse("monthly:closing_csv", args=[2028])).content.decode().startswith("PrgID,ProgramName,Final,Records")
     assert client.get(reverse("monthly:year_csv", args=[2028])).content.decode().splitlines()[1].startswith("202801,1,published,1200")
     community = make_user("someone@example.com")
     client.logout()

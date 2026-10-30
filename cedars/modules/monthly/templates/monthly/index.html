@@ -14,6 +14,7 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
   <h2 id="year-{{ y.setup.year }}">{{ y.setup.year }}</h2>
   <div class="actions">
     <a class="button" href="{% url 'monthly:year' y.setup.year %}">The year in one view</a>
+    <a class="button" href="{% url 'monthly:closing' y.setup.year %}">13th-month report</a>
     {% if sysadmin %}<a class="button" href="{% url 'monthly:setup' y.setup.year %}">How {{ y.setup.year }} is priced</a>{% endif %}
   </div>
 </div>

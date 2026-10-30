@@ -832,6 +832,128 @@ def year_view(organisation, year: int, *, published_only: bool = False) -> list[
     return out
 
 
+# --- the 13th-month report (BR-14.2)
+
+
+CLAIMED = [
+    ("expenditures", "Expenditures", "money"),
+    ("incentives", "Rebates and incentives", "money"),
+    ("gross_kwh", "First-year gross kWh", "number"),
+    ("gross_kw", "First-year gross kW", "number"),
+    ("gross_therm", "First-year gross therms", "number"),
+    ("net_kwh", "First-year net kWh", "number"),
+    ("net_kw", "First-year net kW", "number"),
+    ("net_therm", "First-year net therms", "number"),
+    ("tsb", "TSB", "money"),
+]
+MONEY_CLAIMED = {"expenditures", "incentives"}
+
+
+@dataclass
+class ClosingRow:
+    """One program of the 13th-month report: its claimed totals, its operating budget and December's report."""
+
+    prg_id: str
+    name: str = ""
+    approved: Decimal | None = None
+    operating: Decimal | None = None
+    claimed: dict | None = None  # {CLAIMED key: total}, None when the program has no confirmed claims
+    records: int = 0
+    december_spend: Decimal | None = None  # December's report: spend, year to date
+    december_tsb: float | None = None  # December's report: estimated TSB (unvalidated)
+
+    def get(self, key: str):
+        return None if self.claimed is None else self.claimed.get(key)
+
+    @property
+    def spent_share(self) -> float | None:
+        spend = self.get("expenditures")
+        return float(spend / self.operating) if spend is not None and self.operating else None
+
+    @property
+    def spend_difference(self) -> Decimal | None:
+        """Claimed expenditures less December's year-to-date spend: what the claims add or take away."""
+        if self.claimed is None and self.december_spend is None:
+            return None
+        return (self.get("expenditures") or Decimal(0)) - (self.december_spend or Decimal(0))
+
+    @property
+    def reconciles(self) -> bool:
+        d = self.spend_difference
+        return d is None or abs(d) <= YTD_TOLERANCE
+
+    def add(self, other: "ClosingRow") -> None:
+        for attr in ("approved", "operating", "december_spend"):
+            if getattr(other, attr) is not None:
+                setattr(self, attr, (getattr(self, attr) or Decimal(0)) + getattr(other, attr))
+        if other.december_tsb is not None:
+            self.december_tsb = (self.december_tsb or 0.0) + other.december_tsb
+        if other.claimed is not None:
+            self.claimed = self.claimed or {k: Decimal(0) if k in MONEY_CLAIMED else 0.0 for k, *_ in CLAIMED}
+            for k, *_ in CLAIMED:
+                self.claimed[k] += other.claimed[k]
+        self.records += other.records
+
+
+@dataclass
+class Closing:
+    """A PA's 13th-month report for a program year, generated from its confirmed claims (BR-14.2): final once the annual claim is
+    confirmed, provisional (the confirmed quarters' year to date) before."""
+
+    year: int
+    rows: list[ClosingRow]
+    total: ClosingRow
+    quarters: list[int]
+    final: bool
+    december: SubmissionVersion | None  # December's standing monthly report, reconciled against the claims
+    budget: bool
+
+    @property
+    def claimed(self) -> bool:
+        return self.final or bool(self.quarters)
+
+    @property
+    def unreconciled(self) -> list[ClosingRow]:
+        return [r for r in self.rows if not r.reconciles] if self.final and self.december else []
+
+
+def closing(organisation, year: int) -> Closing:
+    """The 13th-month report: each program's totals from the PA's confirmed claims for the year (submissions.claims_totals, which the
+    Claims module answers), so it always matches the standing annual claim; the operating budget; and December's confirmed monthly
+    report beside them, so the year's monthly spend reconciles to the claims."""
+    totals = submissions.claims_totals(organisation, year)
+    rows: dict[str, ClosingRow] = {}
+    quarters, final = [], False
+    for t in totals:
+        r = rows.setdefault(t["prg_id"], ClosingRow(t["prg_id"]))
+        claimed = {k: Decimal(str(t.get(k) or 0)) if k in MONEY_CLAIMED else float(t.get(k) or 0) for k, *_ in CLAIMED}
+        r.add(ClosingRow(t["prg_id"], claimed=claimed, records=int(t.get("records") or 0)))
+        quarters, final = sorted(set(quarters) | set(t.get("quarters") or [])), final or bool(t.get("final"))
+    dec = Deadline.objects.filter(module=MODULE, period__kind=ReportingPeriod.Kind.MONTH, period__year=year, period__number=12).first()
+    december = standing(organisation, dec) if dec else None
+    if december is not None:
+        for row in report(december).rows:
+            if row.reported or row.estimated:
+                r = rows.setdefault(row.prg_id, ClosingRow(row.prg_id))
+                r.december_spend = row.get("YTDExpenditures")
+                r.december_tsb = row.estimate("TotalSystemBenefit")
+    budget = budget_rows(organisation, year)
+    for b in budget:
+        r = rows.setdefault(b["prg_id"], ClosingRow(b["prg_id"]))
+        r.name = r.name or b.get("name", "")
+        r.approved = (r.approved or Decimal(0)) + Decimal(b["approved"])
+        r.operating = (r.operating or Decimal(0)) + Decimal(b["operating"])
+    for p in Program.objects.filter(prg_id__in=[r.prg_id for r in rows.values() if not r.name]).prefetch_related("versions"):
+        pv = registry._for_year(sorted(p.versions.all(), key=lambda x: x.valid_from, reverse=True), year)
+        if pv:
+            rows[p.prg_id].name = pv.name
+    out = sorted(rows.values(), key=lambda r: r.prg_id)
+    total = ClosingRow("Total")
+    for r in out:
+        total.add(r)
+    return Closing(year, out, total, quarters, final, december, bool(budget))
+
+
 def years():
     return YearSetup.objects.select_related("allocation_version").order_by("-year")
 
