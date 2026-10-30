@@ -323,7 +323,8 @@ def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename
     folder = f"{_prefix(v)}{sha[:12]}/"
     store = storage.store("uploads")
     store.put_bytes(folder + "claims.zip", content)
-    old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key")} - {folder}
+    # the superseded upload, once this one is recorded; a reopened version starts with its predecessor's files, which stay with it
+    old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
     transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
     ignored = {t.name: t.ignored for t in tables.values() if t.ignored}
     entry = {"name": "claims.zip", "key": folder + "claims.zip", "sha256": sha, "bytes": len(content), "uploaded_as": filename}
@@ -331,6 +332,17 @@ def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename
         entry["ignored_columns"] = ignored
     v = submissions.attach_files(actor, v, [entry])
     return check(actor, v)
+
+
+def _adopt(actor, v: SubmissionVersion, f: dict) -> dict:
+    """Copy a predecessor's upload into this version's own folder, so its compiled tables, job and findings are written there and the
+    published version's files are never changed or deleted."""
+    store = storage.store("uploads")
+    content = store.get_bytes(f["key"])
+    entry = {**f, "key": f"{_prefix(v)}{f['sha256'][:12]}/claims.zip"}
+    store.put_bytes(entry["key"], content)
+    submissions.attach_files(actor, v, [entry])
+    return entry
 
 
 def _require_in_order(organisation, deadline: Deadline) -> None:
@@ -367,8 +379,11 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
     found, notes, rule_set = _rule_findings(own, year)
     problems += found
     own_f = own_file(v)
-    folder = own_f["key"].rsplit("/", 1)[0] + "/"
     store = storage.store("uploads")
+    if not own_f["key"].startswith(_prefix(v)):  # a reopened version's predecessor's upload: copy it, never write beside the original
+        own_f = _adopt(actor, v, own_f)
+        v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    folder = own_f["key"].rsplit("/", 1)[0] + "/"
     compiled = upload.to_zip(comp.tables)
     store.put_bytes(folder + "compiled.zip", compiled)
     job = job_zip(comp.tables)

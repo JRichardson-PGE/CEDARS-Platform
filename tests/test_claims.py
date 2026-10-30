@@ -393,7 +393,15 @@ def test_the_claims_totals_hook_gives_the_year_to_date_by_program(filer, year, p
     assert rows["PGE_Com"]["expenditures"] == 300 + 20
 
 
-def test_a_reopened_version_is_compiled_from_its_predecessors_upload(filer, year, pge, programs, release, cpuc_admin):  # noqa: F811
+def test_a_reopened_version_is_compiled_from_its_predecessors_upload(
+    filer,
+    year,
+    pge,
+    programs,
+    release,  # noqa: F811
+    cpuc_admin,
+    django_capture_on_commit_callbacks,
+):
     v1 = confirmed(filer, pge, q1())
     submissions.move_deadline(cpuc_admin, deadline(), timezone.now() - timedelta(days=1), "test")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
@@ -402,6 +410,12 @@ def test_a_reopened_version_is_compiled_from_its_predecessors_upload(filer, year
     service.ensure_checked(v2)
     v2.refresh_from_db()
     assert v2.status == SubmissionVersion.Status.VALIDATED and v2.findings["compiled"] == v1.findings["compiled"]
+    # the copy is v2's own: v1's published files are never written over or deleted
+    v1_files = [key for _, area, key in service.published_files(v1) if area == "uploads"]
+    assert service.own_file(v2)["key"].startswith(f"claims/{v2.submission_id}/v2/") and v2.findings["compiled_key"] not in v1_files
+    with django_capture_on_commit_callbacks(execute=True):
+        service.upload_claims(filer, deadline(), pge, one_claim(EMV="7"), "correction.zip")
+    assert all(storage.store("uploads").exists(key) for key in v1_files)
 
 
 # --- the claims rule set

@@ -299,7 +299,9 @@ def test_the_appendix_is_built_from_the_version(filer, filing, pge, programs, re
     assert dict((r[0], r[1]) for r in wb["About"].iter_rows(values_only=True))["ACC"] == "2026 ACC"
 
 
-def test_after_the_due_date_a_correction_is_a_new_version(filer, filing, pge, programs, release, cpuc_admin):
+def test_after_the_due_date_a_correction_is_a_new_version(
+    filer, filing, pge, programs, release, cpuc_admin, django_capture_on_commit_callbacks
+):
     v, _ = priced_version(filer, filing, pge, release)
     v = service.confirm(filer, v)
     submissions.move_deadline(cpuc_admin, filing, timezone.now() - timedelta(minutes=1), "closed")
@@ -309,6 +311,9 @@ def test_after_the_due_date_a_correction_is_a_new_version(filer, filing, pge, pr
     service.ensure_lines(v2)
     assert v2.budget_lines.count() == v.budget_lines.count()
     assert SubmissionVersion.objects.get(pk=v.pk).status == SubmissionVersion.Status.PUBLISHED
+    with django_capture_on_commit_callbacks(execute=True):  # a correction's upload leaves the published version's files alone
+        service.upload(filer, filing, pge, job(), "correction.zip")
+    assert all(storage.store("uploads").exists(f["key"]) for f in v.files)
 
 
 # --- pages

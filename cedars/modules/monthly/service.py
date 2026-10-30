@@ -472,8 +472,9 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str) 
     store.put_bytes(folder + "report.zip", report)
     store.put_bytes(folder + "job.zip", job)
     store.put_bytes(findings_key, json.dumps([f.__dict__ for f in found]).encode())
-    old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key")} - {folder}
-    transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])  # the superseded upload, once this one is recorded
+    # the superseded upload, once this one is recorded; a reopened version starts with its predecessor's files, which stay with it
+    old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
+    transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
     files = [
         {"name": "report.zip", "key": folder + "report.zip", "sha256": sha, "bytes": len(report), "uploaded_as": filename},
         {
