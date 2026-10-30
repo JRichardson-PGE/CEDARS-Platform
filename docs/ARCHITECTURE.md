@@ -17,8 +17,8 @@ how far it is built. Update the Status column in the PR that changes it.
 
 | Service | App | Phase | Status | Requirements |
 | --- | --- | --- | --- | --- |
-| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Rules and records built (`service.py`); sign-in and pages next | BR-01, D6, F, G |
-| Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); pages next | BR-09.1, 09.3, BR-12.7 |
+| Identity and access (organisations, memberships, grants, recertification) | `cedars.services.accounts` | 1 | Built: rules (`service.py`), sign-in with MFA for everyone and OIDC federation (django-allauth), session assurance, recertification job; API tokens come with the API | BR-01, D6, F, G |
+| Audit and change log | `cedars.services.audit` | 1 | Built: append-only in the database (migration 0002); log page in Administration | BR-09.1, 09.3, BR-12.7 |
 | Program registry (programs, effective-dated versions, allocation versions, filing cycles, periods) | `cedars.services.registry` | 1 | Planned | BR-13, BR-06.7 |
 | Dictionary and templates | `cedars.services.dictionary` | 1 | Planned | BR-02.1, BR-08 |
 | Validation rule library | `cedars.services.rules` | 1 | Planned | BR-03 |
@@ -39,9 +39,15 @@ how far it is built. Update the Status column in the PR that changes it.
 | Monthly reports | `cedars.modules.monthly` | 5 | Planned |
 | Data, dashboards, downloads | `cedars.modules.data` | 6 | Planned |
 | Documents and DEER resources | `cedars.modules.documents` | 6 | Planned |
-| Admin and configuration | `cedars.modules.admin_config` | 1-2 | Planned |
+| Admin and configuration | `cedars.modules.administration` | 1-2 | Access pages built: account, organisations, members and grants, access requests, recertification, stewardship, access settings, audit log |
 
 ## Choices made in code
+
+- Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) required of every
+  account (`RequireMFAMiddleware`), and each federating organisation's directory as an OpenID Connect app
+  (`SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"]`). Cognito or the CPUC's provider plugs in the same way. A session's assurance
+  (password, mfa, federated) comes from allauth's sign-in records and is stamped on every audit event.
+- Run `manage.py bootstrap_cpuc EMAIL --steward` once per environment, and `manage.py close_recertifications` daily.
 
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.

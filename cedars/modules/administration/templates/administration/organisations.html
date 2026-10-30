@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+{% block title %}Organisations{% endblock %}
+{% block content %}
+<div class="head-row"><h1>Organisations</h1>{% if sysadmin %}<a class="button primary" href="{% url 'administration:organisation_new' %}">Add an organisation</a>{% endif %}</div>
+<p>Each organisation's administrators manage its members. The CPUC assigns only an organisation's first administrator.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Organisations">
+<table class="list">
+  <caption class="sr-only">Organisations, their administrators and recertification status</caption>
+  <thead><tr><th scope="col">Organisation</th><th scope="col">Kind</th><th scope="col">Administrators</th><th scope="col">Members</th><th scope="col">Recertification</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'administration:organisation' r.org.code %}">{{ r.org.code }}</a> <span class="small muted">{{ r.org.name }}</span></th>
+    <td>{{ r.org.get_kind_display }}{% if r.org.pa_type %} ({{ r.org.pa_type }}){% endif %}{% if r.org.federated %}, federated{% endif %}</td>
+    <td>{% if r.admins %}{{ r.admins }}{% else %}<strong>None: needs a first administrator</strong>{% endif %}</td>
+    <td>{{ r.members }}</td>
+    <td>{% if r.campaign %}Open, due {{ r.campaign.due_at|date:"Y-m-d" }}, {{ r.undecided }} not reviewed{% elif r.last %}Last closed {{ r.last.closed_at|date:"Y-m-d" }}{% else %}Never run{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

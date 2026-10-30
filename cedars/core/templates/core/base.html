@@ -13,9 +13,34 @@
 {% if environment == "sandbox" %}<p class="env-banner">Sandbox: test data only. Nothing here is filed with the CPUC.</p>{% endif %}
 <header class="top">
   <a class="brand" href="{% url 'core:home' %}">CEDARS</a>
-  {% block nav %}{% endblock %}
+  {% if user.is_authenticated %}
+  {% with here=request.path %}
+  <nav aria-label="Main">
+    <a href="{% url 'administration:account' %}"{% if here == '/account/' %} aria-current="page"{% endif %}>Account</a>
+    {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:organisations' %}"{% if '/admin/organisations/' in here %} aria-current="page"{% endif %}>Organisations</a>{% endif %}
+    {% if nav.steward %}<a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a>{% endif %}
+    {% if nav.sysadmin %}<a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a>{% endif %}
+    {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a>{% endif %}
+  </nav>
+  {% endwith %}
+  <div class="who">
+    {% if request.user_organisations|length > 1 %}
+    <form method="post" action="{% url 'administration:switch_organisation' %}" class="org-switch">{% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <label for="org-switch">Acting for</label>
+      <select id="org-switch" name="organisation">{% for o in request.user_organisations %}<option value="{{ o.code }}"{% if o == request.organisation %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select>
+      <button type="submit">Switch</button>
+    </form>
+    {% elif request.organisation %}<span>Acting for {{ request.organisation.code }}</span>{% endif %}
+    <span class="muted">{{ user.email }}</span>
+    <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
+  </div>
+  {% else %}
+  <div class="who"><a href="{% url 'account_login' %}">Sign in</a></div>
+  {% endif %}
 </header>
 <main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
+{% if messages %}<ul class="messages" role="status">{% for message in messages %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
 {% block content %}{% endblock %}
 </main>
 {# One page-wide live region: scripts announce through window.cedarsAnnounce, never a new live region (ReCET 0.1.70: NVDA missed role=status beside a control). #}

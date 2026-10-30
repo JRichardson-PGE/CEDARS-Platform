@@ -304,6 +304,18 @@ def decide_request(
     return req
 
 
+@transaction.atomic
+def withdraw_request(user: User, req: AccessRequest) -> AccessRequest:
+    if req.user_id != user.pk:
+        raise AccessDenied("Only the person who asked can withdraw a request.")
+    if req.status != AccessRequest.Status.PENDING:
+        raise AccessDenied("That request has already been decided.")
+    req.status, req.decided_at = AccessRequest.Status.WITHDRAWN, timezone.now()
+    req.save()
+    audit.record("access_request.withdrawn", obj=req, actor=user)
+    return req
+
+
 # --- recertification
 
 

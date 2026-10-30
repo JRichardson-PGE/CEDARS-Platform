@@ -43,3 +43,21 @@ def pge_admin(make_user, cpuc_admin, pge):
     u = make_user("admin@pge.com", "Pat Admin")
     service.grant(cpuc_admin, u, pge, perms.ORG_ADMIN, reason="first admin")
     return u
+
+
+def sign_in(client, user, method="mfa"):
+    """Sign a test client in as user, with a session established by method: password, mfa or socialaccount (federated)."""
+    client.force_login(user)
+    session = client.session
+    records = [{"method": "password", "at": 0}]
+    if method != "password":
+        records.append({"method": method, "at": 0})
+    session["account_authentication_methods"] = records
+    session["account_authentication_methods_user"] = str(user.pk)
+    session.save()
+    return client
+
+
+@pytest.fixture
+def signed_in(client):
+    return lambda user, method="mfa": sign_in(client, user, method)

@@ -44,9 +44,15 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     # shared services (cedars/services), then modules (cedars/modules); see docs/ARCHITECTURE.md
-    "cedars.core",
+    "cedars.core",  # first, so its templates (allauth's layout and form elements) win
     "cedars.services.accounts",
     "cedars.services.audit",
+    "cedars.modules.administration",
+    "allauth",
+    "allauth.account",
+    "allauth.mfa",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.openid_connect",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
@@ -59,7 +65,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "cedars.services.accounts.middleware.ActiveOrganisationMiddleware",
+    "cedars.services.accounts.middleware.RequireMFAMiddleware",
     "cedars.services.audit.middleware.AuditContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -87,6 +95,30 @@ TEMPLATES = [
 # PostgreSQL only: the audit trail's append-only trigger and the registry's effective-date ranges need it.
 DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL", "postgres://cedars:cedars@localhost:5432/cedars"), conn_max_age=60)}
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# Sign-in (decision F): the platform directory with MFA for everyone; organisations that can federate sign in through their own
+# directory as OpenID Connect providers (SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"], one per organisation, from the environment).
+LOGIN_URL = "account_login"
+LOGIN_REDIRECT_URL = "administration:account"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes", "webauthn"]
+MFA_TOTP_ISSUER = "CEDARS"
+MFA_PASSKEY_LOGIN_ENABLED = False
+SOCIALACCOUNT_ONLY = False
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = False  # a directory's email claim never signs into an existing platform account by itself
+SOCIALACCOUNT_PROVIDERS = {"openid_connect": {"APPS": []}}
+CEDARS_REQUIRE_MFA = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

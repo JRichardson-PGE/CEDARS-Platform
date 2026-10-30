@@ -9,7 +9,8 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
 
 - **Services and modules.** `cedars/services/<name>` holds the shared services (registry, submissions, rules, dictionary, audit,
   notifications, reference data, snapshots); `cedars/modules/<name>` the modules (Programs, Calculations, Impact profiles, Budgets, ...). A module
-  reaches data only through a service's functions, never another module's models; a service never imports a module.
+  changes data only through a service's functions (it may read a service's models to show them) and never imports another module;
+  a service never imports a module.
 - **Versions, not edits.** A confirmed submission is never updated in place; a correction is a new version with a reason. The audit trail is
   append-only (no UPDATE or DELETE on its table).
 - **Every change audited.** A service that changes a record writes an audit event (who, active organisation, what, why, before, after).

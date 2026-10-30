@@ -55,5 +55,44 @@ table.list { border-collapse: collapse; width: 100%; background: var(--card); }
 table.list th, table.list td { border-bottom: 1px solid var(--line); padding: .4rem .55rem; text-align: left; vertical-align: top; }
 table.list thead th { font-size: .82rem; color: var(--muted); font-weight: 600; }
 table.list tbody th { font-weight: 600; }
-.hscroll { overflow-x: auto; }   /* wide tables scroll inside their box at 320 px (1.4.10) */
+.hscroll { overflow-x: auto; position: relative; }   /* wide tables scroll inside their box at 320 px (1.4.10); relative so .sr-only text inside stays inside */
 .hscroll:focus-visible { outline: 2px solid var(--accent); }
+.messages { list-style: none; padding: 0; margin: 0 0 1rem; }
+.messages li { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--ok); padding: .5rem .75rem; margin-bottom: .4rem; }
+.messages li.msg-error { border-left-color: var(--bad); }
+.messages li.msg-warning { border-left-color: var(--warn); }
+.field { display: flex; flex-direction: column; gap: .25rem; }
+.field .check { display: flex; gap: .4rem; align-items: center; }
+.field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); }
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; }
+.actions { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin: .4rem 0; }
+.actions form { margin: 0; }
+.org-switch { display: flex; gap: .4rem; align-items: center; }
+.org-switch label { flex-direction: row; }
+details.inline { display: inline-block; }
+details.inline > summary { font-weight: normal; color: var(--accent); }
+details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
+.grants { margin: 0; padding-left: 1.1rem; }
+.grants li { margin: .15rem 0; }
+.status { font-size: .8rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid var(--control); white-space: nowrap; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; }
+legend { font-weight: 600; padding: 0 .3rem; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .25rem 1rem; }
+.checks label { flex-direction: row; align-items: center; gap: .4rem; }
+.pager { display: flex; gap: 1rem; align-items: center; margin: .8rem 0; }
+dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; }
+dl.facts dt { font-weight: 600; }
+dl.facts dd { margin: 0; }
+.head-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.form-narrow { max-width: 40rem; }
+.inline-form { display: inline; margin: 0; }
+h3 { font-size: 1rem; margin: .2rem 0 .5rem; }
+.filters { display: flex; gap: 1rem; align-items: end; flex-wrap: wrap; margin-bottom: 1rem; }
+.nowrap { white-space: nowrap; }
+pre { white-space: pre-wrap; word-break: break-word; font-size: .8rem; margin: .3rem 0; }
+input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; margin: 0; accent-color: var(--accent); }   /* 2.5.8 */
+/* Django's own form rendering (<p> per field, as on the sign-in page): label, field and help text stacked, so a link in the help text
+   never sits beside the field it describes (2.5.8 found it crowding the password box). */
+form.stack > p { display: flex; flex-direction: column; gap: .25rem; margin: 0; }
+form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: .5rem; }
+.helptext { font-size: .85rem; color: var(--muted); }

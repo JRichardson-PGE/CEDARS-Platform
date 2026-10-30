@@ -10,6 +10,7 @@ dependencies = [
     "dj-database-url>=2.3",
     "whitenoise>=6.8",           # static files from the app container (no separate web server)
     "gunicorn>=23",
+    "django-allauth[mfa,socialaccount]>=65.3",
 ]
 
 [dependency-groups]

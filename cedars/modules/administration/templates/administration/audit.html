@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<h1>Audit log</h1>
+<form method="get" class="filters">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Audit events">
+<table class="list">
+  <caption class="sr-only">Audit events, newest first</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Record</th><th scope="col">Reason</th><th scope="col">Change</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+  <tr>
+    <td class="nowrap">{{ e.at|date:"Y-m-d H:i:s" }}</td>
+    <td>{{ e.actor_label }}{% if e.organisation %} <span class="small muted">for {{ e.organisation.code }}</span>{% endif %}{% if e.assurance %} <span class="small muted">({{ e.assurance }})</span>{% endif %}</td>
+    <th scope="row">{{ e.action }}</th>
+    <td>{{ e.object_repr }} <span class="small muted">{{ e.object_type }} {{ e.object_id }}</span></td>
+    <td>{{ e.reason }}</td>
+    <td class="small">{% if e.before or e.after %}<details><summary>Before and after<span class="sr-only"> for event {{ e.pk }}</span></summary><pre>{{ e.before|default:"" }}
+{{ e.after|default:"" }}</pre></details>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="6">No events match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<nav class="pager" aria-label="Audit log pages">
+  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Older</a>{% endif %}
+</nav>
+{% endblock %}
