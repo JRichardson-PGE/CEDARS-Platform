@@ -166,6 +166,9 @@ class NewRun(serializers.Serializer):
     include_societal = serializers.BooleanField(default=True)
     emissions = serializers.BooleanField(default=True)
     preflight_only = serializers.BooleanField(default=False, help_text="Check the inputs only")
+    cet_outputs = serializers.FileField(
+        required=False, help_text="A parallel run: the outputs CSV of the same job run in CET, compared measure by measure (ReCET only)"
+    )
     output_template = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -240,6 +243,7 @@ def _request(data: dict, user) -> service.RunRequest:
         output_format=data["output_format"],
         settings=settings,
         allocation_version=allocation,
+        cet_outputs=data.get("cet_outputs"),
     )
 
 

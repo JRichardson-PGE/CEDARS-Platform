@@ -98,3 +98,20 @@ def inspect(path: Path) -> JobInfo:
         except (zipfile.BadZipFile, EOFError, NotImplementedError, csv.Error) as e:
             raise JobFileError(f"Measure.csv could not be read: {e}") from None
     return JobInfo(found["measures"].filename, found["programcost"].filename if "programcost" in found else None, records, first)
+
+
+def check_cet_outputs(path: Path) -> None:
+    """A CET outputs file to compare a run against (the engine's RunConfig.cet_outputs): a CET run's *_outputs.csv, comma- or
+    pipe-delimited, with its CET_ID column (CEInputID also accepted). Only the header is read here; the engine matches the rows."""
+    with open(path, "rb") as f:
+        head = f.read(65536)
+    if not head.strip():
+        raise JobFileError("The CET outputs file is empty.")
+    try:
+        text = head.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = head.decode("cp1252", errors="replace")
+    first = text.splitlines()[0]
+    names = {c.strip().strip('"').lower() for c in first.split("|" if first.count("|") > first.count(",") else ",")}
+    if not names & {"cet_id", "ceinputid"}:
+        raise JobFileError("The CET outputs file has no CET_ID column: upload the outputs CSV of the CET run to compare with.")

@@ -86,6 +86,9 @@ how far it is built. Update the Status column in the PR that changes it.
   (`calculations/api.py`, `/api/v1/calculations`: engines, start, list, follow, stop, download) takes New run's fields as multipart form data and answers with the same run record the run page shows; a call
   sees its organisation's runs (calculations.read or .submit) and the caller's own. A call names an output template by id (`templates`
   lists those it sees), `default` for the caller's default, or gives `output_columns`; one that names none writes every column.
+- Parallel runs (the engine beside CET, phase 2): New run and the job API take a CET run's outputs CSV for the same job
+  (`cet_outputs`, ReCET's own calculation only); it is an input of the run, so the worker compares each measure on CET_ID and writes
+  `cet_comparison_measures_*` and `cet_comparison_summary_*`, and the run page shows the summary's totals and ratios.
 - Object storage is `cedars.core.storage`: four areas (uploads, results, refdata, snapshots), one bucket each in AWS, folders under
   `CEDARS_STORAGE_ROOT` locally. Downloads from S3 are pre-signed URLs; nothing large passes through a page.
 - A run's Results and Compare pages (`calculations/results.py`) call the pinned engine's `recet.results_view` unchanged (Jake, 2026-10-30:

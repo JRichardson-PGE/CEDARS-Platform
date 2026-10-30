@@ -41,6 +41,22 @@
 </section>
 {% endif %}
 
+{% if cet_comparison %}
+<section aria-labelledby="cet-h">
+<h2 id="cet-h">Compared with CET</h2>
+<p>Totals over the measures matched by CET_ID with the CET run's outputs supplied with this run. A ratio of 1 means the same total.
+Where ReCET departs from CET on purpose (its documented corrections), the totals differ.{% if cet_comparison.measures %} Each measure's
+differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison.measures %}">{{ cet_comparison.measures }}</a>.{% endif %}</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Comparison with CET">
+<table class="list">
+  <caption class="sr-only">ReCET and CET totals by metric</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">ReCET</th><th scope="col">CET</th><th scope="col">ReCET / CET</th></tr></thead>
+  <tbody>{% for r in cet_comparison.rows %}<tr><th scope="row">{{ r.metric }}</th><td class="num">{{ r.recet }}</td><td class="num">{{ r.cet }}</td><td class="num">{{ r.ratio|default:"Not defined (CET total 0)" }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
 {% if files %}
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>

@@ -187,12 +187,19 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
     job = Path(settings.CEDARS_STORAGE["root"]).parent / "job.zip"
     with zipfile.ZipFile(job, "w") as z:
         z.writestr("Measure.csv", "CEInputID|ClaimYearQuarter\nM1|2028Q1\nM2|2028Q2\n")
-    req = calculations.RunRequest(name="2028 claims, all programs", release=release, calculation="recet", acc_version="2024")
+    cet_outputs = job.with_name("job_outputs.csv")  # a parallel run: compared with CET's outputs for the same job
+    cet_outputs.write_text("CET_ID,TRCCost\nM1,1000\n")
+    req = calculations.RunRequest(
+        name="2028 claims, all programs", release=release, calculation="recet", acc_version="2024", cet_outputs=cet_outputs
+    )
     finished = calculations.create_run(analyst, pge, req, job)
     calculations.mark_started(finished, worker="scene")
     out = finished.storage_prefix + "out/"
     storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
     storage.store("results").put_bytes(out + "receipt.json", b"{}")
+    storage.store("results").put_bytes(
+        out + "cet_comparison_summary_run.csv", b"metric,POC,CET,POC/CET\nTRCCost,1200,1000,1.2\nGasBen,5,0,\n"
+    )
     write_results(storage.store("results").path(out), 1.0)  # the Results tables (with the engine installed; a note without it)
     calculations.finish(
         finished,

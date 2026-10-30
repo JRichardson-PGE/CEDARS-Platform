@@ -163,13 +163,14 @@ def _draft_for(request):
 def run(request, pk):
     run = _run_or_404(request, pk)
     receipt = run.receipt or {}
+    files = service.output_files(run) if run.status != Run.Status.QUEUED else []
     return render(
         request,
         "calculations/run.html",
         {
             "run": run,
             "status": status_view(run),
-            "files": service.output_files(run) if run.status != Run.Status.QUEUED else [],
+            "files": files,
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
             "settings": settings_view(run.settings),
@@ -178,6 +179,7 @@ def run(request, pk):
             "totals": receipt.get("totals") or {},
             "notes": receipt.get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
+            "cet_comparison": results_mod.cet_comparison(run, files),
         },
     )
 
