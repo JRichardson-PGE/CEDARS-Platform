@@ -2,7 +2,7 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}."""
+{upload}, {queued_run}, {sw}."""
 
 PAGES = [
     ("home", "/", None),
@@ -55,4 +55,8 @@ PAGES = [
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
+    ("programs", "/programs/", "community"),
+    ("program", "/programs/PGE_Res_HVAC/", "pge_admin"),
+    ("program-statewide", "/programs/{sw}/", "community"),
+    ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
 ]

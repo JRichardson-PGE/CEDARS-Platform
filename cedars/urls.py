@@ -11,6 +11,7 @@ urlpatterns = [
     path("filings/", include("cedars.services.submissions.urls")),
     path("reference-data/", include("cedars.services.refdata.urls")),
     path("notifications/", include("cedars.services.notifications.urls")),
+    path("programs/", include("cedars.modules.programs.urls")),
     path("impact-profiles/", include("cedars.modules.impact_profiles.urls")),
     path("api/v1/", include("cedars.core.api_urls")),
     path("calculations/", include("cedars.modules.calculations.urls")),
