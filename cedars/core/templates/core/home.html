@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1>California Energy Data and Reporting System</h1>
+<p>Program administrators file energy-efficiency budgets, claims and monthly reports here, and the CPUC reviews and publishes them.
+The platform is being built in phases; legacy CEDARS stays the system of record for each function until that function moves here.</p>
+<h2>What the platform will hold</h2>
+<table class="list">
+  <caption class="sr-only">Platform modules and the phase each arrives in</caption>
+  <thead><tr><th scope="col">Module</th><th scope="col">What it does</th><th scope="col">Phase</th></tr></thead>
+  <tbody>
+  {% for name, what, phase in modules %}<tr><th scope="row">{{ name }}</th><td>{{ what }}</td><td>{{ phase }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

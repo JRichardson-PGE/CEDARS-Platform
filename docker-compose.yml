@@ -1,0 +1,33 @@
+# Development: the app on http://localhost:8000 with its own PostgreSQL 16.
+#   docker compose up --build
+#   docker compose exec web python manage.py migrate
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cedars
+      POSTGRES_PASSWORD: cedars
+      POSTGRES_DB: cedars
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cedars"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    environment:
+      DJANGO_SETTINGS_MODULE: cedars.settings.dev
+      DATABASE_URL: postgres://cedars:cedars@db:5432/cedars
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./cedars:/app/cedars
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

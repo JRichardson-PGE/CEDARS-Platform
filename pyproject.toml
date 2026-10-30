@@ -1,0 +1,47 @@
+[project]
+name = "cedars-platform"
+dynamic = ["version"]
+description = "The CEDARS replacement: one Django application for budgets, claims, monthly reports and calculations, with ReCET as its engine"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "django>=5.2,<5.3",          # LTS, supported to April 2028
+    "psycopg[binary]>=3.2",
+    "dj-database-url>=2.3",
+    "whitenoise>=6.8",           # static files from the app container (no separate web server)
+    "gunicorn>=23",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "ruff>=0.8",
+    "playwright>=1.49",          # the accessibility check drives Chromium with axe-core (tests/a11y)
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "cedars.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["cedars*"]
+
+[tool.setuptools.package-data]
+cedars = ["**/templates/**/*", "**/static/**/*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "cedars.settings.test"
+testpaths = ["tests"]
+markers = ["a11y: drives a browser with axe-core (needs Chromium; run with -m a11y)"]
+addopts = "-m 'not a11y'"
+
+[tool.ruff]
+line-length = 140
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ"]

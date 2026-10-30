@@ -1,0 +1,27 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>{% block title %}CEDARS{% endblock %} · CEDARS</title>
+<link rel="stylesheet" href="{% static 'core/app.css' %}">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{% if environment == "sandbox" %}<p class="env-banner">Sandbox: test data only. Nothing here is filed with the CPUC.</p>{% endif %}
+<header class="top">
+  <a class="brand" href="{% url 'core:home' %}">CEDARS</a>
+  {% block nav %}{% endblock %}
+</header>
+<main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+{# One page-wide live region: scripts announce through window.cedarsAnnounce, never a new live region (ReCET 0.1.70: NVDA missed role=status beside a control). #}
+<div id="announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<footer class="foot">CEDARS platform {{ version }}</footer>
+<script src="{% static 'core/app.js' %}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
