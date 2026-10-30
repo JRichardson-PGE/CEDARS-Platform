@@ -1,0 +1,63 @@
+{% extends "core/base.html" %}
+{% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' report.year %}?org={{ v.submission.organisation.code|urlencode }}">{{ report.year }}</a> › <a href="{% url 'monthly:report' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
+<h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
+<dl class="facts">
+  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
+  {% if calc.nothing_priced %}<dt>Estimates</dt><dd>None: the report's Measure table has no rows</dd>
+  {% elif calc.acc %}<dt>Estimates priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
+</dl>
+<div class="card" role="note"><p><strong>{{ unvalidated }}s.</strong> Savings, total system benefit and ratios here are estimated from the
+report's year-to-date BCA inputs, checked only as a calculation run checks them, not as claims are (D2). They show how programs are
+trending and are never part of a claim.</p></div>
+{% if not report.budget %}<p>No operating budget was found for {{ v.submission.organisation.code }}'s {{ report.year }} cycle (no confirmed budget filing or fund shift), so expenditures are not compared with a budget.</p>{% endif %}
+
+<section aria-labelledby="tiles-h">
+  <h2 id="tiles-h" class="sr-only">Totals</h2>
+  <dl class="tiles">{% for name, value in tiles %}<div class="tile"><dt>{{ name }}</dt><dd>{{ value|default:"none" }}</dd></div>{% endfor %}</dl>
+</section>
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">By program</h2>
+<p class="small muted">{{ report.rows|length }} program{{ report.rows|length|pluralize }}: those in the report and those with an operating budget for {{ report.year }}. The operating budget is the approved budget plus fund shifts in effect.</p>
+<p><a class="button" href="{% url 'monthly:version_csv' v.pk %}">Download this report by program (CSV)</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="money-caption">
+<table class="list data">
+  <caption id="money-caption">Expenditures and commitments against the operating budget</caption>
+  <thead><tr><th scope="col">Program</th>{% for h in columns %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}{% if not forloop.last %}<tr>
+    <th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}{% if row.flags %}<br><span class="small">({{ row.flags|join:", " }})</span>{% endif %}</th>
+    {% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}
+  </tr>{% endif %}{% endfor %}
+  </tbody>
+  <tfoot>{% with row=rows|last %}<tr><th scope="row">Total</th>{% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}</tr>{% endwith %}</tfoot>
+</table>
+</div>
+{% if report.estimated %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="est-caption">
+<table class="list data">
+  <caption id="est-caption">Estimates from the year-to-date BCA inputs ({{ unvalidated|lower }}s)</caption>
+  <thead><tr><th scope="col">Program</th>{% for h in estimates %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}{% if not forloop.last and row.r.estimated %}<tr>
+    <th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}</th>
+    {% for c in row.estimates %}<td class="num">{{ c }}</td>{% endfor %}
+  </tr>{% endif %}{% endfor %}
+  </tbody>
+  <tfoot>{% with row=rows|last %}<tr><th scope="row">Total</th>{% for c in row.estimates %}<td class="num">{{ c }}</td>{% endfor %}</tr>{% endwith %}</tfoot>
+</table>
+</div>
+{% endif %}
+<details class="small"><summary>Commitment fields in the CSV</summary>
+  <dl class="facts">{% for f, help in commitment_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }}</dd>{% endfor %}</dl></details>
+</section>
+
+<section aria-labelledby="files-h">
+<h2 id="files-h">Files</h2>
+{% if public %}<p>This report is confirmed: its upload and the estimate run's settings are published.</p>{% endif %}
+<ul>{% for name, i in files %}<li><a href="{% url 'monthly:file' v.pk i %}">{{ name }}</a></li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
+</section>
+{% endblock %}

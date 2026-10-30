@@ -26,6 +26,7 @@
     <a href="{% url 'refdata:index' %}"{% if '/reference-data/' in here %} aria-current="page"{% endif %}>Reference data</a>
     <a href="{% url 'notifications:index' %}"{% if '/notifications/' in here %} aria-current="page"{% endif %}>Notifications{% if unread_notifications %} ({{ unread_notifications }} unread){% endif %}</a>
     <a href="{% url 'impact_profiles:library' %}"{% if '/impact-profiles/' in here %} aria-current="page"{% endif %}>Impact profiles</a>
+    <a href="{% url 'monthly:index' %}"{% if here|slice:":9" == '/monthly/' %} aria-current="page"{% endif %}>Monthly reports</a>
     {% if nav.sysadmin or nav.org_admin %}<a href="{% url 'administration:organisations' %}"{% if '/admin/organisations/' in here %} aria-current="page"{% endif %}>Organisations</a>{% endif %}
     {% if nav.steward %}<a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a>{% endif %}
     {% if nav.sysadmin %}<a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a>{% endif %}

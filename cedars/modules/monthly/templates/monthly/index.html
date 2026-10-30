@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}Monthly reports{% endblock %}
+{% block content %}
+<div class="head-row">
+  <h1>Monthly reports</h1>
+  {% if sysadmin %}<div class="actions"><a class="button" href="{% url 'monthly:year_new' %}">Set up a program year</a></div>{% endif %}
+</div>
+<p>Each month a program administrator reports its expenditures, its commitments and the year's BCA inputs so far. Expenditures are
+compared with the operating budget (the approved budget plus fund shifts in effect), and the BCA inputs give estimated savings and total
+system benefit, which are unvalidated. Fund shifts are made in <a href="{% url 'budgets:shifts' %}">Budgets</a>.</p>
+{% for y in years %}
+<section aria-labelledby="year-{{ y.setup.year }}">
+<div class="head-row">
+  <h2 id="year-{{ y.setup.year }}">{{ y.setup.year }}</h2>
+  <div class="actions">
+    <a class="button" href="{% url 'monthly:year' y.setup.year %}">The year in one view</a>
+    {% if sysadmin %}<a class="button" href="{% url 'monthly:setup' y.setup.year %}">How {{ y.setup.year }} is priced</a>{% endif %}
+  </div>
+</div>
+<p class="small muted">Estimates priced on the {{ y.setup.acc_version }} ACC. Each report is due on day {{ y.setup.due_day }} of the following month.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ y.setup.year }} monthly reports">
+<table class="list">
+  <caption class="sr-only">{{ y.setup.year }} monthly reports{% if org %} and {{ org.code }}'s status{% endif %}</caption>
+  <thead><tr><th scope="col">Month</th><th scope="col">Due</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for m in y.months %}
+  <tr>
+    <th scope="row"><a href="{% url 'monthly:report' m.deadline.pk %}">{{ m.deadline.period.starts|date:"F" }}</a></th>
+    <td class="nowrap">{{ m.deadline.due_at|date:"Y-m-d" }}{% if m.past_due %} <span class="small">(passed)</span>{% endif %}</td>
+    {% if org %}<td>{{ m.status }}</td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% empty %}
+<p>No program year is set up for monthly reports yet.{% if sysadmin %} <a href="{% url 'monthly:year_new' %}">Set up the first one</a>.{% endif %}</p>
+{% endfor %}
+{% endblock %}

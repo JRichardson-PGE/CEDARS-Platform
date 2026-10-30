@@ -241,8 +241,10 @@ def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
+    monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
     return {
         **budgets,
+        **monthly,
         "pack": pack,
         "published_pack": published,
         "analyst": analyst,
@@ -295,6 +297,31 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
         "budget_draft": draft,
         **_fund_shifts(cpuc_admin, pge, analyst, tual.cycle, make_user),
     }
+
+
+def _monthly(cpuc_admin, pge, pge_admin, analyst):
+    """2028's monthly reports: January priced (estimates recorded as the Calculations module records a finished run), confirmed and
+    published against the TUAL's operating budget; February uploaded with rejected records. Every month is open now."""
+    from cedars.modules.monthly import service as monthly
+    from cedars.services.submissions.models import Deadline
+
+    from ..test_budgets import group_sums
+    from ..test_monthly import report
+
+    for p in ("monthly.submit", "monthly.confirm"):
+        service.grant(pge_admin, analyst, pge, p)
+    monthly.set_up_year(cpuc_admin, year=2028, acc_version="2026", due_day=20)
+    Deadline.objects.filter(module="monthly").update(opens_at=None, due_at=timezone.now() + timedelta(days=30))
+    jan, feb, mar = monthly.months(2028)[:3]
+    v = monthly.upload(analyst, jan, pge, report(), "january.zip")
+    key = "runs/monthly/out/_results/group_sums2_measure_level_run.parquet"
+    storage.store("results").put_bytes(key, group_sums())
+    details = {"job_sha256": monthly.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
+    v = submissions.record_calculation(None, v, run="monthly", input_hash="h", details=details)
+    v = monthly.confirm(analyst, v)
+    bad = report("202802", expenditures=["PGE|NOPE|202802|1|1|0|0|0|", "PGE|PGE_Res_HVAC|202801|1|1|0|0|0|"])
+    monthly.upload(analyst, feb, pge, bad, "february.zip")
+    return {"monthly_jan": jan, "monthly_feb": feb, "monthly_mar": mar, "monthly_version": v}
 
 
 def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):

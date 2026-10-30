@@ -548,6 +548,14 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
     return OperatingBudget(organisation, cycle, v, sorted(rows.values(), key=lambda r: (r.prg_id, r.year)), applied, earlier)
 
 
+def operating_rows(organisation, cycle: FilingCycle) -> list[dict]:
+    """The operating budget as plain rows, for the registry service's hook (registry.operating_budget): other modules read it there."""
+    return [
+        {"prg_id": r.prg_id, "year": r.year, "name": r.name, "approved": r.approved, "shifted": r.shifted, "operating": r.operating}
+        for r in operating_budget(organisation, cycle).rows
+    ]
+
+
 def programs_for(shift: FundShift, organisation=None) -> list[tuple[str, str]]:
     """The programs the PA can name in the shift, for the entry page's suggestions: the shift's PA its own and the statewide ones, a
     co-funder its own."""
