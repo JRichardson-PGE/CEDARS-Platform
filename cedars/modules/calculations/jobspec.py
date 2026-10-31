@@ -20,6 +20,7 @@ SETTINGS = {
     "base_year": "First year",
     "output_template": "Output template",
     "output_template_name": "Output template name",
+    "cost_test_set": "Cost-test set",  # a published set's id; a draft goes as inputs.cost_tests (service.cost_test_pack)
 }
 
 

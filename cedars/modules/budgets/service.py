@@ -25,6 +25,7 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
+from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program
 from cedars.services.rules import service as rules
@@ -54,23 +55,35 @@ def label(deadline: Deadline) -> str:
 
 @transaction.atomic
 def add_filing(
-    actor, *, first_year: int, kind: str, due_at, acc_version: str, allocation_version=None, opens_at=None, notes=""
+    actor, *, first_year: int, kind: str, due_at, acc_version: str, allocation_version=None, opens_at=None, notes="", cost_test_set=None
 ) -> Deadline:
     """A budget filing for a four-year cycle, due on a date, priced on an ACC (and an allocation version, or the most recent)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up budget filings.")
     _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
     cycle = registry.ensure_cycle(first_year)
     if Deadline.objects.filter(module=MODULE, kind=kind, cycle=cycle).exists():
         raise AccessDenied(f"The {cycle} cycle already has a {kind} filing.")
     deadline = submissions.add_deadline(actor, module=MODULE, kind=kind, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes)
-    setup = FilingSetup.objects.create(deadline=deadline, acc_version=acc_version, allocation_version=allocation_version)
+    setup = FilingSetup.objects.create(
+        deadline=deadline, acc_version=acc_version, allocation_version=allocation_version, cost_test_set=cost_test_set
+    )
     audit.record("budget_filing.set_up", obj=setup, after=_setup_fields(setup), actor=actor)
     return deadline
 
 
 def _setup_fields(setup: FilingSetup) -> dict:
-    return {"acc": setup.acc_version, "allocation_version": str(setup.allocation_version or "most recent")}
+    return {
+        "acc": setup.acc_version,
+        "allocation_version": str(setup.allocation_version or "most recent"),
+        "cost_test_set": str(setup.cost_test_set or "in force"),
+    }
+
+
+def _check_cost_tests(pack) -> None:
+    if pack is not None and (pack.kind != PackVersion.Kind.COST_TESTS or pack.status != PackVersion.Status.PUBLISHED):
+        raise AccessDenied(f"{pack} is not a published cost-test set; a filing is priced only on a published one.")
 
 
 def _check_allocation(version: AllocationVersion | None) -> None:
@@ -79,15 +92,16 @@ def _check_allocation(version: AllocationVersion | None) -> None:
 
 
 @transaction.atomic
-def change_setup(actor, setup: FilingSetup, *, acc_version: str, allocation_version=None, reason: str) -> FilingSetup:
+def change_setup(actor, setup: FilingSetup, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None) -> FilingSetup:
     """Change how a filing is priced. Versions already priced keep what they were priced with; the next pricing uses the new setting."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator changes how a budget filing is priced.")
     if not reason.strip():
         raise AccessDenied("Give the reason for the change.")
     _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
     before = _setup_fields(setup)
-    setup.acc_version, setup.allocation_version = acc_version, allocation_version
+    setup.acc_version, setup.allocation_version, setup.cost_test_set = acc_version, allocation_version, cost_test_set
     setup.save()
     audit.record("budget_filing.setup_changed", obj=setup, before=before, after=_setup_fields(setup), reason=reason, actor=actor)
     return setup
@@ -494,6 +508,7 @@ def price(actor, v: SubmissionVersion) -> str:
             acc_version=setup.acc_version,
             allocation_version=setup.allocation_version,
             settings={"allocate_statewide": statewide},
+            cost_test_set=setup.cost_test_set,
         )
 
 

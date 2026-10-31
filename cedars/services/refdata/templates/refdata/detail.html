@@ -16,6 +16,19 @@
   <dt>Registered</dt><dd>{{ pack.registered_at|date:"Y-m-d H:i" }} by {{ pack.registered_by.email|default:"the system" }}</dd>
 </dl>
 
+{% if cost_set %}
+<section aria-labelledby="set-h">
+<h2 id="set-h">The set</h2>
+<dl class="facts">
+  <dt>Set</dt><dd>{{ cost_set.label }} ({{ cost_set.id }}, version {{ cost_set.version }}){% if cost_set.draft %}. The file is marked draft, so it is never published{% endif %}</dd>
+  <dt>Program years</dt><dd>{{ cost_years }}</dd>
+  <dt>Tests</dt><dd>{% for tid, label in cost_set.tests.items %}{{ tid }}: {{ label }}{% if tid in cost_set.headline %} (headline){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+  <dt>File</dt><dd class="small">definition.yaml, SHA-256 <code>{{ cost_sha }}</code></dd>
+</dl>
+<p><a href="{% url 'refdata:cost_tests' %}">Every cost-test set</a></p>
+</section>
+{% endif %}
+
 {% if etrm %}
 <section aria-labelledby="perm-h">
 <h2 id="perm-h">Permutations</h2>

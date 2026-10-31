@@ -5,7 +5,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
-{legacy_filing}."""
+{legacy_filing}, {cost_set}."""
 
 PAGES = [
     ("home", "/", None),
@@ -61,6 +61,8 @@ PAGES = [
     ("reference-data", "/reference-data/", "pge_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
+    ("cost-test-sets", "/reference-data/cost-tests/", "cpuc_admin"),
+    ("cost-test-set", "/reference-data/{cost_set}/", "cpuc_admin"),
     (
         "pack-etrm-lookup",
         "/reference-data/{etrm_pack}/?id=SWHC052-02-A-NR-DnDeemDI-Com-Com-Ex-cWtd-CZ01-Com-Default%3E2yrs-Def-GSIA-Any-Any",
