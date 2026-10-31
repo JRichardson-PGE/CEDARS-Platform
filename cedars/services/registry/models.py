@@ -244,3 +244,89 @@ class ProgramChangeRequest(models.Model):
 
     def __str__(self):
         return f"change to {self.program.prg_id} from {self.effective} ({self.get_status_display().lower()})"
+
+
+class GoalSet(models.Model):
+    """The energy efficiency goals one CPUC decision adopts (e.g. D.25-08-034): for each IOU, cumulative goals per cycle and annual
+    targets. The CPUC resets goals by decision about every two years, and the newest confirmed set replaces the earlier ones for every
+    year it covers (Jake, 2026-10-31); a superseded set stays, read-only, for the record. A draft can be discarded; a confirmed set never
+    changes. One CPUC system administrator loads a set and a different one confirms it."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        CONFIRMED = "confirmed", "Confirmed"
+
+    decision = models.CharField(max_length=40, unique=True, help_text="e.g. D.25-08-034")
+    adopted = models.DateField(help_text="The date the Commission adopted the decision")
+    url = models.URLField(max_length=400, blank=True, help_text="The decision's published document")
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    source_name = models.CharField(max_length=255, blank=True)
+    source_sha256 = models.CharField(max_length=64, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-confirmed_at", "-created_at"]
+
+    def __str__(self):
+        return f"Goals of {self.decision}"
+
+
+class Goal(models.Model):
+    """One IOU's goal for a cycle (cumulative, e.g. 2028-2031) or a target for one year, as the decision's table prints it. A blank
+    is a value the decision does not set (SCE therms, SoCalGas electric), never zero."""
+
+    class Kind(models.TextChoices):
+        CYCLE = "cycle", "Cumulative cycle goal"
+        ANNUAL = "annual", "Annual target"
+
+    goal_set = models.ForeignKey(GoalSet, on_delete=models.CASCADE, related_name="goals")
+    utility = models.CharField(max_length=10, help_text="The IOU territory: PGE, SCE, SDGE or SCG")
+    kind = models.CharField(max_length=10, choices=Kind.choices)
+    first_year = models.PositiveSmallIntegerField()
+    last_year = models.PositiveSmallIntegerField()
+    program_tsb = models.DecimalField("incentive programs TSB ($)", max_digits=16, decimal_places=2, null=True, blank=True)
+    program_gwh = models.DecimalField("incentive programs GWh", max_digits=12, decimal_places=3, null=True, blank=True)
+    program_mw = models.DecimalField("incentive programs MW", max_digits=12, decimal_places=3, null=True, blank=True)
+    program_mmtherms = models.DecimalField("incentive programs MMTherms", max_digits=12, decimal_places=3, null=True, blank=True)
+    cs_gwh = models.DecimalField("codes and standards GWh", max_digits=12, decimal_places=3, null=True, blank=True)
+    cs_mw = models.DecimalField("codes and standards MW", max_digits=12, decimal_places=3, null=True, blank=True)
+    cs_mmtherms = models.DecimalField("codes and standards MMTherms", max_digits=12, decimal_places=3, null=True, blank=True)
+
+    class Meta:
+        ordering = ["utility", "kind", "first_year"]
+        constraints = [
+            models.UniqueConstraint(fields=["goal_set", "utility", "kind", "first_year"], name="registry_one_goal"),
+            models.CheckConstraint(condition=Q(last_year__gte=models.F("first_year")), name="registry_goal_years_in_order"),
+        ]
+
+    def __str__(self):
+        years = str(self.first_year) if self.first_year == self.last_year else f"{self.first_year}-{self.last_year}"
+        return f"{self.utility} {years}"
+
+
+class GoalCountingRule(models.Model):
+    """Which PAs' claims count toward an IOU territory's goals, and at what share (D.23-08-005 sets them for CCAs and RENs; the goals
+    tables themselves are silent). Rules belong to a goal set; the newest confirmed set that lists any rules governs."""
+
+    class AppliesTo(models.TextChoices):
+        ALL = "all", "All goals"
+        PROGRAMS = "programs", "Incentive program goals"
+        CS = "cs", "Codes and standards goals"
+
+    goal_set = models.ForeignKey(GoalSet, on_delete=models.CASCADE, related_name="counting_rules")
+    pa = models.CharField("PA", max_length=20, help_text="The claiming PA's code, e.g. MCE or BAYREN")
+    territory = models.CharField(max_length=10, help_text="The IOU territory it counts toward: PGE, SCE, SDGE or SCG")
+    share = models.DecimalField(max_digits=7, decimal_places=4, help_text="0 to 1")
+    applies_to = models.CharField(max_length=10, choices=AppliesTo.choices, default=AppliesTo.ALL)
+    source = models.CharField(max_length=60, blank=True, help_text="The decision that sets the rule, e.g. D.23-08-005")
+
+    class Meta:
+        ordering = ["territory", "pa"]
+        constraints = [models.UniqueConstraint(fields=["goal_set", "pa", "territory", "applies_to"], name="registry_one_counting_rule")]
+
+    def __str__(self):
+        return f"{self.pa} toward {self.territory} at {self.share}"

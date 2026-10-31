@@ -565,3 +565,86 @@ def allocation_csv(request, pk):
     response = HttpResponse(registry.allocation_csv(v), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="statewide_factors_{v.pk}.csv"'
     return response
+
+
+@login_required
+def goal_sets(request):
+    from cedars.services.registry import goals
+    from cedars.services.registry.models import GoalSet
+
+    _require_sysadmin(request)
+    form = forms.GoalSetUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        upload, rules = d["file"], d["rules"]
+        if upload.size > 1024 * 1024 or (rules and rules.size > 1024 * 1024):
+            messages.error(request, "That file is over 1 MB; a decision's goal tables are a few dozen rows.")
+            return redirect("administration:goal_sets")
+        try:
+            s = goals.import_goals(
+                request.user,
+                upload.read(),
+                decision=d["decision"],
+                adopted=d["adopted"],
+                url=d["url"],
+                rules=rules.read() if rules else None,
+                source_name=upload.name,
+                notes=d["notes"],
+            )
+        except (ValueError, KeyError, UnicodeDecodeError) as e:
+            messages.error(request, f"The file could not be read: {e}")
+            return redirect("administration:goal_sets")
+        except AccessDenied as e:
+            return _refused(request, e, "administration:goal_sets")
+        return _done(
+            request,
+            f"{s.decision} loaded as a draft. Another administrator checks it against the decision and confirms it.",
+            f"/admin/goals/{s.pk}/",
+        )
+    sets = [(s, goals.in_force_years(s)) for s in GoalSet.objects.select_related("confirmed_by")]
+    return render(request, "administration/goal_sets.html", {"sets": sets, "form": form})
+
+
+@login_required
+def goal_set(request, pk):
+    from cedars.services.registry import goals
+    from cedars.services.registry.models import GoalSet
+
+    _require_sysadmin(request)
+    s = get_object_or_404(GoalSet, pk=pk)
+    if request.method == "POST":
+        try:
+            if request.POST.get("action") == "confirm":
+                goals.confirm(request.user, s)
+                return _done(request, f"{s.decision}'s goals are in force for the years they cover.", f"/admin/goals/{s.pk}/")
+            if request.POST.get("action") == "discard":
+                goals.discard(request.user, s, request.POST.get("reason", ""))
+                return _done(request, "Draft discarded.", "administration:goal_sets")
+        except AccessDenied as e:
+            return _refused(request, e, f"/admin/goals/{s.pk}/")
+    return render(
+        request,
+        "administration/goal_set.html",
+        {
+            "s": s,
+            "issues": goals.check(s),
+            "cycle_goals": s.goals.filter(kind="cycle"),
+            "annual_goals": s.goals.filter(kind="annual"),
+            "rules": s.counting_rules.all(),
+            "in_force": goals.in_force_years(s),
+        },
+    )
+
+
+@login_required
+def goal_set_csv(request, pk):
+    from django.http import HttpResponse
+
+    from cedars.services.registry import goals
+    from cedars.services.registry.models import GoalSet
+
+    _require_sysadmin(request)
+    s = get_object_or_404(GoalSet, pk=pk)
+    response = HttpResponse(goals.goals_csv(s), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="goals_{s.decision.replace(".", "")}.csv"'
+    return response
