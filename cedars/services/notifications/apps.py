@@ -18,3 +18,7 @@ class NotificationsConfig(AppConfig):
         from cedars.services.retention.service import register_purger
 
         register_purger("notification", service.expired)
+
+        from . import health
+
+        health.register()

@@ -37,6 +37,12 @@ variable "worker_image" {
   type = string
 }
 
+variable "alarm_emails" {
+  description = "Who the CloudWatch alarms email"
+  type        = list(string)
+  default     = []
+}
+
 module "platform" {
   source = "../../modules/platform"
 
@@ -45,6 +51,7 @@ module "platform" {
   certificate_arn     = var.certificate_arn
   web_image           = var.web_image
   worker_image        = var.worker_image
+  alarm_emails        = var.alarm_emails
   domain_name         = "sandbox.cedars.example.invalid" # the CPUC sets this
   pii_vault           = false                            # the sandbox holds no PII
   db_instance_class   = "db.t4g.medium"

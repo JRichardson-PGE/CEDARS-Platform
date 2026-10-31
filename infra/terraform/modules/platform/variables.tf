@@ -139,6 +139,18 @@ variable "small_run_max_vcpus" {
   default     = 8
 }
 
+variable "alarm_emails" {
+  description = "Who the CloudWatch alarms email (the CPUC's hosting team; each address confirms its subscription). Empty: the SNS topic only"
+  type        = list(string)
+  default     = []
+}
+
+variable "alarm_5xx_per_5min" {
+  description = "Server errors in 5 minutes, two periods running, before the web 5xx alarm"
+  type        = number
+  default     = 10
+}
+
 variable "log_retention_days" {
   description = "Decision M: application logs 1 year"
   type        = number

@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from cedars.core import health
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.accounts.middleware import ORG_SESSION_KEY
@@ -648,3 +649,29 @@ def goal_set_csv(request, pk):
     response = HttpResponse(goals.goals_csv(s), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="goals_{s.decision.replace(".", "")}.csv"'
     return response
+
+
+# --- job and system health (BR-12.2)
+
+STATUS_CLASS = {health.OK: "ok", health.ATTENTION: "warn", health.FAILING: "bad"}
+
+
+@login_required
+def health_page(request):
+    """Every registered health check (cedars/core/health.py): stalled and failed jobs, the eTRM sync, unread document text, emails.
+    The same checks run every 10 minutes (`manage.py check_health`), which alerts system administrators and feeds CloudWatch."""
+    if not service.is_system_admin(request.user):
+        raise Http404
+    results = health.run_all()
+    counts = {s: sum(r.status == s for r in results) for s in (health.FAILING, health.ATTENTION, health.OK)}
+    return render(
+        request,
+        "administration/health.html",
+        {
+            "results": [(r, STATUS_CLASS[r.status]) for r in results],
+            "failing": counts[health.FAILING],
+            "attention": counts[health.ATTENTION],
+            "ok": counts[health.OK],
+            "checked_at": timezone.now(),
+        },
+    )

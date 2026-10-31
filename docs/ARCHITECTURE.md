@@ -156,6 +156,12 @@ how far it is built. Update the Status column in the PR that changes it.
   PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
   snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
   the CPUC's cloud team reviews it in their account.
+- Job and system health (BR-12.2): `cedars/core/health.py` holds checks that services and modules register in their `ready()` (so the
+  Administration page never imports a module): Calculations (runs queued or running too long, failed runs), Impact profiles (jobs
+  queued or running too long, failed jobs, the eTRM sync: failed, or no success for 36 hours), Documents (files not yet searchable by
+  their text), Notifications (emails that failed). Thresholds are `HEALTH_*` settings. `/admin/health/` (CPUC system administrators,
+  "Jobs and health" in the menu) shows them failing first; `manage.py check_health`, every 10 minutes in Terraform, alerts every system
+  administrator once for each new set of things failing and prints the JSON line CloudWatch's alarms read (`monitoring.tf`).
 - Output templates (BR-06.10; `calculations/output_templates.py`, page `/calculations/templates/`) name fields of the published field
   catalog (Measure inputs and outputs; CET and older names saved as the canonical name). Templates with no owner are offered to everyone
   and kept by CPUC system administrators (ReCET's two shipped ones added by migration); the rest are their owner's. A run carries the
