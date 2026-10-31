@@ -4,6 +4,7 @@ which check access and write the audit events; a refused action comes back as Ac
 import csv
 import io
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.storage import default_storage
@@ -433,6 +434,7 @@ def sync_history(request):
             "page": Paginator(excluded, 50).get_page(request.GET.get("page")),
             "query": _query(request),
             "is_admin": access.is_admin(request.user),
+            "retry_minutes": " and ".join(f"{m:g}" for m in settings.ETRM_SYNC_RETRY_MINUTES),
         },
     )
 

@@ -244,6 +244,9 @@ CONTENT_SECURITY_POLICY = (
 ETRM_DATABASE_URL = env("ETRM_DATABASE_URL", "")
 ETRM_SCHEMA = env("ETRM_SCHEMA", "etrm")
 ETRM_FIXTURE = env("ETRM_FIXTURE", "")
+# BR-11.3: a nightly sync that fails is tried again after each of these waits (minutes); when the last attempt fails too, the CPUC's
+# administrators are alerted. Empty = one attempt.
+ETRM_SYNC_RETRY_MINUTES = [float(m) for m in env_list("ETRM_SYNC_RETRY_MINUTES", "10,30")]
 LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")  # earlier measure versions keep DEER impact profile IDs
 LOAD_SHAPE_MAX_UPLOAD_MB = int(env("LOAD_SHAPE_MAX_UPLOAD_MB", "50"))
 LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
