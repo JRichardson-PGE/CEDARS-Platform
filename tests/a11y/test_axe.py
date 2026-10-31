@@ -804,6 +804,61 @@ def _run_axe(page, within="html"):
     ]
 
 
+# The header sticks to the top of a window at least 861 px wide and 480 px tall (app.css). A long page with links and fields all the way
+# down: going back up through it with Shift+Tab is where a sticky header would hide the focus (2.4.11).
+STICKY_PAGE = ("/data/overview/?by=program", None)
+
+
+def _header_box(page):
+    return page.evaluate(
+        "(() => { const r = document.querySelector('body > header').getBoundingClientRect(); return [r.top, r.bottom]; })()"
+    )
+
+
+# Seen if any of five points down the middle of an element shows the element itself rather than something over it.
+SEEN = """(e) => { const r = e.getBoundingClientRect(), x = Math.min(Math.max(r.left + r.width / 2, 0), innerWidth - 1);
+  return [0.1, 0.3, 0.5, 0.7, 0.9].some(f => { const y = r.top + r.height * f; if (y < 0 || y >= innerHeight) return false;
+    const hit = document.elementFromPoint(x, y); return hit && (e === hit || e.contains(hit)); }) }"""
+FOCUS_SEEN = f"""(() => {{ const e = document.activeElement;
+  return e === document.body || !!e.closest('body > header') || ({SEEN})(e); }})()"""
+# Chromium centres what it scrolls to on focus; other browsers scroll it just into view, which is where a sticky header covers it. This
+# does that from the bottom of the page for every visible link and field in the content, and lists the ones left out of sight.
+NEAREST_HIDDEN = f"""(() => {{ const seen = {SEEN}, out = [];
+  for (const e of document.querySelectorAll('main a[href], main button, main input, main select, main summary, main [tabindex]')) {{
+    if (!e.checkVisibility()) continue;  // folded away in a closed disclosure: not reachable
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    e.scrollIntoView({{block: 'nearest'}});
+    if (!seen(e)) out.push(e.outerHTML.slice(0, 80));
+  }}
+  return out; }})()"""
+
+
+def test_header_stays_in_view_and_never_hides_the_focus(browser, site, scene):
+    context, page = _open(browser, site, scene, *STICKY_PAGE, viewport={"width": 1280, "height": 720})
+    assert page.evaluate("document.documentElement.scrollHeight") > 720 + 400, "the page is too short to show anything"
+    page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+    top, bottom = _header_box(page)
+    assert top == 0 and bottom > 0, "the header scrolled away"
+    hidden = []
+    page.evaluate("[...document.querySelectorAll('footer a')].pop().focus()")
+    for _ in range(60):  # back up the page with Shift+Tab, as a keyboard user does
+        page.keyboard.press("Shift+Tab")
+        if not page.evaluate(FOCUS_SEEN):
+            hidden.append(page.evaluate("document.activeElement.outerHTML.slice(0, 80)"))
+    hidden += page.evaluate(NEAREST_HIDDEN)
+    context.close()
+    assert not hidden, f"focus hidden under the header: {hidden}"
+
+
+@pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
+def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
+    context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)
+    page.evaluate("window.scrollTo(0, document.documentElement.scrollHeight)")
+    _, bottom = _header_box(page)
+    context.close()
+    assert bottom <= 0, f"the header stays on a {viewport['width']} x {viewport['height']} window"
+
+
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 @pytest.mark.parametrize("name,path,who", PAGES, ids=[p[0] for p in PAGES])
 def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
