@@ -175,6 +175,7 @@ PAGES = [
     ("document-manager", "/documents/{document}/", "cpuc_admin"),
     ("document-unpublished", "/documents/{document_draft}/", "cpuc_admin"),
     ("document-new", "/documents/new/?collection=emv", "cpuc_admin"),
+    ("document-new-for-study", "/documents/new/?collection=emv&study={study}", "cpuc_admin"),
     ("document-change", "/documents/{document}/change/", "cpuc_admin"),
     ("document-version-new", "/documents/{document}/versions/new/", "cpuc_admin"),
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),

@@ -4,15 +4,16 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.utils import timezone
 
 from cedars.modules.documents import service, studies
-from cedars.modules.documents.models import AttributeOption, Study
+from cedars.modules.documents.models import AttributeOption, Document, Study
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
 from tests.conftest import sign_in
-from tests.test_documents import details, make_people, option, upload
+from tests.test_documents import PDF, details, make_people, option, upload
 
 pytestmark = pytest.mark.django_db
 
@@ -285,3 +286,81 @@ def test_study_pages_and_access(people, pge, study, client):
     assert r.status_code == 302
     s = Study.objects.get(title="PG&E market study")
     assert s.manager == pge and s.budget == Decimal("1200")
+
+
+def _new_study(pge, **extra):
+    return {"title": "PG&E market study", "manager": pge.pk, "lead": option("study_lead", "IOU").pk, **extra}
+
+
+def test_a_study_is_added_with_its_first_document(people, pge, client):
+    """Add a study offers an upload: the study and its document are saved together, the document filed under the study."""
+    sign_in(client, people["pge_writer"])
+    page = client.get("/documents/studies/new/").content.decode()
+    assert 'enctype="multipart/form-data"' in page and "Upload a document" in page and 'name="doc-main_file"' in page
+    report = service.type_list("emv").options.get(label="Report")
+    r = client.post(
+        "/documents/studies/new/",
+        _new_study(
+            pge,
+            **{
+                "doc-main_file": SimpleUploadedFile("draft_workplan.pdf", PDF),
+                "doc-document_type": report.pk,
+                "doc-stage": "draft_workplan",
+            },
+        ),
+    )
+    assert r.status_code == 302
+    s = Study.objects.get(title="PG&E market study")
+    doc = Document.objects.get(study=s)
+    assert doc.title == "draft_workplan" and doc.collection == "emv" and doc.owner == pge and doc.deliverable
+    assert doc.versions.get().stage == "draft_workplan" and doc.published_at is None
+    assert doc.title in client.get(s.get_absolute_url()).content.decode()
+
+
+def test_a_study_is_added_without_a_document(people, pge, client):
+    sign_in(client, people["pge_writer"])
+    r = client.post("/documents/studies/new/", _new_study(pge, **{"doc-stage": "", "doc-title": "ignored"}))
+    assert r.status_code == 302
+    assert not Document.objects.filter(study__title="PG&E market study").exists()
+
+
+def test_a_document_that_cannot_be_filed_adds_no_study(people, pge, client):
+    sign_in(client, people["pge_writer"])
+    # A file without a type is refused before anything is saved.
+    r = client.post("/documents/studies/new/", _new_study(pge, **{"doc-main_file": SimpleUploadedFile("a.pdf", PDF)}))
+    assert r.status_code == 200 and "Choose the document&#x27;s type." in r.content.decode()
+    assert "choose the files again" in r.content.decode()
+    # A file the library refuses rolls the study back too.
+    report = service.type_list("emv").options.get(label="Report")
+    r = client.post(
+        "/documents/studies/new/",
+        _new_study(pge, **{"doc-main_file": SimpleUploadedFile("setup.exe", b"MZ"), "doc-document_type": report.pk}),
+    )
+    assert r.status_code == 200 and "The study is not added either." in r.content.decode()
+    assert not Study.objects.filter(title="PG&E market study").exists()
+
+
+def test_the_study_page_offers_an_upload_with_the_study_filled_in(people, study, client):
+    url = study.get_absolute_url()
+    upload_link = f"/documents/new/?collection=emv&amp;study={study.study_id}"
+    assert upload_link not in client.get(url).content.decode()  # the public cannot upload
+    sign_in(client, people["pge_writer"])
+    assert upload_link not in client.get(url).content.decode()  # not this study's manager
+    sign_in(client, people["evaluator"])
+    assert upload_link in client.get(url).content.decode()
+    page = client.get(f"/documents/new/?collection=emv&study={study.study_id}")
+    assert page.status_code == 200 and page.context["form"].initial["study"] == study.study_id
+    assert f"Upload a document for {study.study_id}" in page.content.decode()
+    report = service.type_list("emv").options.get(label="Report")
+    r = client.post(
+        f"/documents/new/?collection=emv&study={study.study_id}",
+        {
+            "collection": "emv",
+            "document_type": report.pk,
+            "title": "Interim memo",
+            "study": study.study_id,
+            "main_file": SimpleUploadedFile("memo.pdf", PDF),
+        },
+    )
+    assert r.status_code == 302 and Document.objects.get(title="Interim memo").study == study
+    assert upload_link in client.get(f"{url}change/").content.decode()

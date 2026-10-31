@@ -7,6 +7,7 @@
   <div class="actions">
     <a href="{% url 'documents:study_report' s.number %}">Download this study as CSV</a>
     {% include "documents/_follow.html" with study=s what=s.study_id %}
+    {% if can_file %}<a class="button primary" href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">Upload a document</a>{% endif %}
     {% if can_edit %}<a class="button" href="{% url 'documents:change_study' s.number %}">Update the study</a>{% endif %}
   </div>
 </div>
@@ -92,6 +93,7 @@
   {% for d, stage in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ stage }}, {% if d.published_at %}published {{ d.published_at|date:"Y-m-d" }}{% else %}not published{% endif %}</span></li>
   {% empty %}<li>No documents are filed for this study yet.</li>{% endfor %}
 </ul>
+{% if can_file %}<p><a class="button primary" href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">Upload a document<span class="sr-only"> for {{ s.study_id }}</span></a></p>{% endif %}
 <p><a href="{% url 'documents:study_comments_csv' s.number %}">Comment-and-response report for this study (CSV)</a></p>
 </section>
 
