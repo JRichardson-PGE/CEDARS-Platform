@@ -208,3 +208,28 @@ def test_the_total_system_benefit_page(both, client):
         assert caption in page
     assert 'href="/data/overview/?sector=Residential&amp;by=program"' in page
     assert "View by" not in page
+
+
+def test_the_cost_effectiveness_page(both, client):
+    from cedars.modules.data import dashboard as d
+
+    page = d.PAGES["cost-effectiveness"]
+    assert page.metrics[:2] == ("trc", "trc_no_admin") and len(page.metrics) == 10
+    c = d.compare(d.parse(page, _qd({})), "sector")
+    assert {r.key: r.values["claims"] for r in c.rows} == {"Residential": 1.0, "Commercial": 2.0}
+    assert c.totals.values["claims"] == pytest.approx(240 / 220)  # from sums, not the mean of 1.0 and 2.0
+    html = client.get("/data/cost-effectiveness/?metric=pac").content.decode()
+    assert "PAC ratio" in html and "% of forecast" not in html and "Claimed less forecast" in html  # no % of a ratio
+    assert client.get("/data/cost-effectiveness/?metric=tsb").status_code == 200  # refused in words, not an error page
+
+
+def test_the_savings_and_environment_pages(both, client):
+    from cedars.modules.data import dashboard as d
+
+    view = d.parse(d.PAGES["energy-savings"], _qd({"metric": "kwh", "lifecycle": "1", "gross": "1"}))
+    assert view.metric.code == "kwh_lifecycle_gross"
+    assert d.parse(d.PAGES["energy-savings"], _qd({"metric": "kw", "lifecycle": "1"})).metric.code == "kw_first_year_net"
+    assert d.parse(d.PAGES["environmental-impact"], _qd({"metric": "nox"})).metric.code == "nox_first_year_net"
+    html = client.get("/data/energy-savings/?metric=therms").content.decode()
+    assert "Gas savings, first year net (MMTherms) by primary sector" in html
+    assert "(metric tons) by year" in client.get("/data/environmental-impact/").content.decode()

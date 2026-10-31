@@ -73,6 +73,29 @@ PAGES = {
                 Section("program", "by program", chart=False),
             ),
         ),
+        Page(
+            "cost-effectiveness",
+            "Cost effectiveness",
+            "Cost-test ratios by sector, by year and by program, each computed from summed benefits and costs (never an average of "
+            "ratios). Without admin leaves administration costs out of the cost.",
+            tuple(f"{t}{v}" for t in catalog.TESTS for v in ("", "_no_admin")),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+        ),
+        Page(
+            "energy-savings",
+            "Energy savings",
+            "Electric energy, demand and gas savings by sector, by year and by program, gross or net, first year or lifecycle "
+            "(demand savings are first year only).",
+            ("kwh", "therms", "kw"),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+        ),
+        Page(
+            "environmental-impact",
+            "Environmental impact",
+            "Emissions avoided, in metric tons, by sector, by year and by program, gross or net, first year or lifecycle.",
+            tuple(catalog.EMISSIONS),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+        ),
     ]
 }
 
