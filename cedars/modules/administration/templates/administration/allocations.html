@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Statewide allocation factors{% endblock %}
 {% block content %}
-<h1>Statewide allocation factors</h1>
+<div class="page-title"><h1>Statewide allocation factors</h1>{% page_help "administration/allocations" %}</div>
 <p>Each version is a complete table of factors. A confirmed version never changes; filings, claims and runs record the version they used,
 and a run that names none uses the most recently confirmed version with factors for its program year.</p>
 <p>The CPUC's energy efficiency goals are kept on <a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a>.</p>

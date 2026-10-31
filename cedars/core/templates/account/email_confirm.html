@@ -2,7 +2,7 @@
 {% load allauth account %}
 {% block head_title %}Confirm your email address{% endblock head_title %}
 {% block content %}
-<h1>Confirm your email address</h1>
+<div class="page-title"><h1>Confirm your email address</h1>{% page_help "account/email_confirm" %}</div>
 {% if confirmation %}
   {% if can_confirm %}
     <p>Confirm that <strong>{{ confirmation.email_address.email }}</strong> is your address. You can then sign in to CEDARS.</p>

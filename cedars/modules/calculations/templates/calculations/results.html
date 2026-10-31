@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></p>
 <div class="head-row">
-  <h1>Results: {{ run.name }}</h1>
+  <div class="page-title"><h1>Results: {{ run.name }}</h1>{% page_help "calculations/results" %}</div>
   <div class="actions">
     <a class="button" href="{% url 'calculations:run' run.pk %}">Run page and files</a>
     {% if res %}<a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}

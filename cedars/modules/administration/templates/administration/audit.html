@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Audit log{% endblock %}
 {% block content %}
-<h1>Audit log</h1>
+<div class="page-title"><h1>Audit log</h1>{% page_help "administration/audit" %}</div>
 <form method="get" class="filters">
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>

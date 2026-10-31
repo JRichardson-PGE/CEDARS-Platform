@@ -6,7 +6,7 @@
   <a href="{% url 'data:records' %}">Record downloads</a>
   <a href="{% url 'data:downloads' %}" aria-current="page">Your downloads</a>
 </nav>
-<h1>Your downloads</h1>
+<div class="page-title"><h1>Your downloads</h1>{% page_help "data/downloads" %}</div>
 <p>Record downloads too large to make while you wait. Each is made in the background and you are told when it is ready.
 {% if keep_days %}A file is kept for {{ keep_days }} day{{ keep_days|pluralize }} after it is made.{% endif %}</p>
 {% if jobs %}

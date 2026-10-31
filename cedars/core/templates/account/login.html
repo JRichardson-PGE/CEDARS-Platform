@@ -3,7 +3,7 @@
 {# CEDARS' own wording over django-allauth's sign-in page (UAT F12). The form and its flow are allauth's. #}
 {% block head_title %}Sign in{% endblock head_title %}
 {% block content %}
-<h1>Sign in to CEDARS</h1>
+<div class="page-title"><h1>Sign in to CEDARS</h1>{% page_help "account/login" %}</div>
 <p>Use the email address and password of your CEDARS account. Every account also uses a second factor: you set it up the first time you sign in.</p>
 {% url 'account_login' as login_url %}
 {% element form form=form method="post" action=login_url tags="entrance,login" %}

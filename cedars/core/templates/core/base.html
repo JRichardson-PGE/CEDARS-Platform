@@ -117,6 +117,8 @@
   </ul>
   <span>CEDARS platform {{ version }}</span>
 </footer>
+{# The page's help and tour, opened by the (?) beside its heading (cedars/core/page_help.py); with them, core/tour.js. #}
+{% page_help_dialog %}
 <script src="{% static 'core/app.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>

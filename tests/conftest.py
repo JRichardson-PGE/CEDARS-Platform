@@ -87,3 +87,9 @@ def sign_in(client, user, method="mfa"):
 @pytest.fixture
 def signed_in(client):
     return lambda user, method="mfa": sign_in(client, user, method)
+
+
+def page_only(html: str) -> str:
+    """A page's HTML without its help dialog and tour (cedars/core/page_help.py), which describe parts some visitors do not see: for
+    checks that something is not on the page."""
+    return html.split('<dialog id="page-help"', 1)[0]

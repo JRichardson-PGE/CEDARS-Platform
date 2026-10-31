@@ -1,10 +1,12 @@
 from django.db import connection
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from . import help as site_help
+from . import page_help as pages
 
 # What the platform will hold, in the order the phases deliver it (architecture page, "Phasing toward program year 2028").
 MODULES = [
@@ -49,6 +51,33 @@ def help_contact(request):
 def help_tour(request):
     """The tour as one page: every step, for anyone without scripts or who would rather read it."""
     return render(request, "core/help/tour.html", {"tour": site_help.tour_steps(site_help.visitor(request))})
+
+
+@require_GET
+def help_pages(request):
+    """Every page's help, by part of CEDARS: the same guides the (?) beside each heading opens."""
+    return render(request, "core/help/pages.html", {"areas": pages.by_area()})
+
+
+@require_GET
+def help_page(request, key):
+    """One page's help on a page of its own: what the (?) beside its heading opens without scripts, with the tour written out. ?from= is
+    the page it was opened from (a local path only), for the links back to it and to its tour."""
+    entry = pages.entries().get(key.strip("/"))
+    if entry is None:
+        raise Http404
+    back = request.GET.get("from", "")
+    if not back.startswith("/") or not url_has_allowed_host_and_scheme(back, allowed_hosts={request.get_host()}):
+        back = ""
+    steps = pages.steps_for(entry, request)
+    tour_link = (back + ("&" if "?" in back else "?") + "tour=1") if back and steps else ""
+    if entry.tour_from == "front":
+        tour_link = "/?tour=1"
+    return render(
+        request,
+        "core/help/page.html",
+        {"entry": entry, "steps": steps, "back": back, "tour_link": tour_link, "guide": site_help.BY_SLUG.get(entry.see)},
+    )
 
 
 @never_cache

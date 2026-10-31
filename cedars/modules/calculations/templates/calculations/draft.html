@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:drafts' %}">Edit inputs</a></p>
 <div class="head-row">
-  <h1>{{ draft.name }}</h1>
+  <div class="page-title"><h1>{{ draft.name }}</h1>{% page_help "calculations/draft" %}</div>
   <div class="actions">{% if can_change %}<a class="button primary" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a></div>
 </div>
 <p class="small muted">{{ draft.source }}{% if draft.source_run %} (<a href="{% url 'calculations:run' draft.source_run.pk %}">the run</a>){% endif %}. For {{ draft.organisation.code|default:"you only" }}. Changed {{ draft.updated_at|date:"Y-m-d H:i T" }}.</p>

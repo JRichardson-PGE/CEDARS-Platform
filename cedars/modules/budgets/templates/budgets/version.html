@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:filing' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
 <div class="head-row">
-  <h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
+  <div class="page-title"><h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "budgets/version" %}</div>
   <a class="button" href="{% url 'budgets:compare' %}?a={{ v.pk }}">Compare with another version</a>
 </div>
 <dl class="facts">

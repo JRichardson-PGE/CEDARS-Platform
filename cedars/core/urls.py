@@ -12,6 +12,8 @@ urlpatterns = [
     path("help/", views.help_index, name="help"),
     path("help/contact/", views.help_contact, name="help_contact"),
     path("help/tour/", views.help_tour, name="help_tour"),
+    path("help/pages/", views.help_pages, name="help_pages"),
+    path("help/pages/<path:key>/", views.help_page, name="help_page"),
     path("help/<slug:slug>/", views.help_guide, name="help_guide"),
     path("healthz", views.healthz, name="healthz"),
 ]

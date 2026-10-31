@@ -10,6 +10,8 @@ from cedars.services.audit.models import AuditEvent
 from cedars.services.refdata import service
 from cedars.services.refdata.models import PackVersion
 
+from .conftest import page_only
+
 pytestmark = pytest.mark.django_db
 
 
@@ -141,7 +143,7 @@ def test_pages(signed_in, cpuc_admin, pge_admin, acc):
     page = signed_in(pge_admin).get("/reference-data/").content.decode()
     assert "2026 ACC" in page and "Draft (analysis only)" in page
     detail = signed_in(pge_admin).get(f"/reference-data/{acc.pk}/").content.decode()
-    assert "hourly/electric_2026.parquet" in detail and "Publish" not in detail
+    assert "hourly/electric_2026.parquet" in detail and "Publish" not in page_only(detail)
     signed_in(pge_admin).post(f"/reference-data/{acc.pk}/", {"action": "discard"})
     assert PackVersion.objects.filter(pk=acc.pk).exists()  # not theirs to manage
     c = signed_in(cpuc_admin)

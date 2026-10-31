@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Reference data{% endblock %}
 {% block content %}
-<h1>Reference data</h1>
+<div class="page-title"><h1>Reference data</h1>{% page_help "refdata/index" %}</div>
 <p>The data packs the engine and the modules read. The cost tests runs price are on <a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>. Every run and every filing records the packs it used. A draft can be used for analysis runs but not for filings, and a pack is published only once its tie-outs pass.</p>
 {% if in_force %}
 <h2>In force today</h2>

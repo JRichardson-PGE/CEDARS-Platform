@@ -11,6 +11,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import ProgramChangeRequest
 from cedars.services.submissions import service as submissions
 
+from .conftest import page_only
 from .test_programs import programs  # noqa: F401 - fixture
 
 pytestmark = pytest.mark.django_db
@@ -152,7 +153,7 @@ def test_the_pages(signed_in, pge_admin, approver, cpuc_admin, make_user, progra
     outsider = signed_in(make_user("someone@example.com"))
     assert outsider.get(f"/programs/requests/{req.pk}/").status_code == 404
     assert "No requests here" in outsider.get("/programs/requests/?status=all").content.decode()
-    assert "Set a new policy" not in outsider.get("/programs/locked/").content.decode()
+    assert "Set a new policy" not in page_only(outsider.get("/programs/locked/").content.decode())
     assert outsider.post("/programs/locked/", {}).status_code == 404
 
     admin = signed_in(cpuc_admin)

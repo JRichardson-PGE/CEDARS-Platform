@@ -1,0 +1,17 @@
+# Help for each page (cedars/core/page_help.py): retention periods and legal holds.
+
+retention/index:
+  title: Retention
+  guide:
+    - For CPUC system administrators. How long each class of record is kept. The retention job runs daily and deletes only classes with a
+      period and a deletion step; nothing under a legal hold is deleted. Every change needs a reason and is in the audit log.
+  tour:
+    - heading: Periods
+      title: Periods
+      text: Each record class's retention period. Change one with its reason.
+    - heading: Legal holds
+      title: Legal holds
+      text: Holds in place, which stop deletion of a class until released, and Place a hold.
+    - heading: Recent purges
+      title: Recent purges
+      text: What the retention job deleted, and when.

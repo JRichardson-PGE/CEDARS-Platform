@@ -3,7 +3,7 @@
 {% block title %}Calculations{% endblock %}
 {% block content %}
 <div class="head-row">
-  <h1>Calculations</h1>
+  <div class="page-title"><h1>Calculations</h1>{% page_help "calculations/runs" %}</div>
   <div class="actions">{% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
     <a class="button" href="{% url 'calculations:templates' %}">Output templates</a></div>
 </div>

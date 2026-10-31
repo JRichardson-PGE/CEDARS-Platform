@@ -16,6 +16,8 @@ from cedars.services.notifications.models import Notification
 from tests.conftest import sign_in
 from tests.test_documents import details, make_people, option, upload
 
+from .conftest import page_only
+
 pytestmark = pytest.mark.django_db
 TODAY = timezone.localdate()
 
@@ -304,7 +306,7 @@ def test_cpuc_ed_posts_key_dates_on_the_home_page(people, pge, client):
     client.logout()
     page = client.get("/documents/").content.decode()
     assert "Workplan comments closed" in page and "Post a key date" not in page and "Remove" not in page
-    assert "Key dates" not in client.get("/documents/", {"q": "x"}).content.decode()  # a search shows results only
+    assert "Key dates" not in page_only(client.get("/documents/", {"q": "x"}).content.decode())  # a search shows results only
 
 
 def test_the_home_page_lists_what_is_open_for_comment(people, pge, client):

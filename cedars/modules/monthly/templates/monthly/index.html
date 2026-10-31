@@ -2,7 +2,7 @@
 {% block title %}Monthly reports{% endblock %}
 {% block content %}
 <div class="head-row">
-  <h1>Monthly reports</h1>
+  <div class="page-title"><h1>Monthly reports</h1>{% page_help "monthly/index" %}</div>
   <div class="actions">
     <a class="button" href="{% url 'monthly:changes' %}">Change log</a>
     {% if sysadmin %}<a class="button" href="{% url 'monthly:year_new' %}">Set up a program year</a>{% endif %}

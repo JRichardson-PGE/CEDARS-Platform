@@ -97,6 +97,12 @@ class Step:
     text: str
     link: str = ""  # where to go to try it
     link_text: str = ""
+    heading = ""  # (page_help.TourStep's fields: the tour template reads both kinds of step)
+    optional = False
+
+    @property
+    def selector(self) -> str:
+        return f'[data-tour="{self.target}"]' if self.target else ""
 
 
 @dataclass(frozen=True)

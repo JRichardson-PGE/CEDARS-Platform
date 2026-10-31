@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Jobs and health{% endblock %}
 {% block content %}
-<h1>Jobs and health</h1>
+<div class="page-title"><h1>Jobs and health</h1>{% page_help "administration/health" %}</div>
 <p>Checked {{ checked_at|date:"Y-m-d H:i:s T" }}: <strong>{{ failing }} failing</strong>, {{ attention }} needing attention, {{ ok }} OK.
 The same checks run every 10 minutes; when one starts failing, every CPUC system administrator is told by notification and email, once
 for each set of things failing, and the hosting team's CloudWatch alarms see it. <a href="{% url 'administration:health' %}">Check again</a>.</p>

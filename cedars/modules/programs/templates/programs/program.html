@@ -4,7 +4,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
 <div class="head-row">
-  <h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>
+  <div class="page-title"><h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>{% page_help "programs/program" %}</div>
   <div class="actions">
     {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
     {% if signed_in %}

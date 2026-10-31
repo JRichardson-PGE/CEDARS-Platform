@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Data dictionary{% endblock %}
 {% block content %}
-<h1>Data dictionary</h1>
+<div class="page-title"><h1>Data dictionary</h1>{% page_help "dictionary/index" %}</div>
 <p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by. Catalog version: <strong>{{ version.label }}</strong>.</p>
 <p class="actions">
   <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>

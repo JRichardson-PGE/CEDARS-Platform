@@ -2,7 +2,7 @@
 {% block title %}My document subscriptions{% endblock %}
 {% block content %}
 {% include "documents/_subnav.html" with section="subscriptions" %}
-<h1>My document subscriptions</h1>
+<div class="page-title"><h1>My document subscriptions</h1>{% page_help "documents/subscriptions" %}</div>
 <p>Follow a collection or any value documents are filed with, and you hear when a document matching it is published, with its comment
 period if it has one, and when a published document opens for comment. Studies and work orders are followed from their own pages. Only
 published documents are announced. Messages land on your <a href="{% url 'notifications:index' %}">notifications page</a>.</p>

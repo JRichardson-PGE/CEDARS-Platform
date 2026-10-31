@@ -2,7 +2,7 @@
 {% block title %}Study budgets{% endblock %}
 {% block content %}
 {% include "documents/_subnav.html" with section="budgets" %}
-<h1>Study budgets{% if cycle %}: {{ cycle.label }}{% endif %}</h1>
+<div class="page-title"><h1>Study budgets{% if cycle %}: {{ cycle.label }}{% endif %}</h1>{% page_help "documents/summary" %}</div>
 <p>The study lists and budget tables each EM&amp;V plan compiles, from the register: the number of studies and their budgets by type,
 sector, lead, status and group, planned against completed. Canceled studies are left out. A study with several sectors counts in each
 sector, so that table can add up to more than the total.</p>

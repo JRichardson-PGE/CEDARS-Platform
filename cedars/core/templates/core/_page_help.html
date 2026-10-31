@@ -1,0 +1,20 @@
+{% load static %}{% comment %}The page's help (cedars/core/page_help.py), opened by the (?) beside its heading (core/tour.js). Without scripts it is
+never shown: the (?) is a link to the same help on a page of its own.{% endcomment %}
+<dialog id="page-help" class="page-help-dialog" aria-labelledby="page-help-title">
+  <h2 id="page-help-title" tabindex="-1"><span class="tour-count">Help with this page</span><span class="sr-only">: </span>{{ entry.title }}</h2>
+  {% for p in entry.guide %}<p>{{ p }}</p>
+  {% endfor %}
+  {% if entry.how %}<h3>How to</h3>
+  <ul>{% for h in entry.how %}<li>{{ h }}</li>{% endfor %}</ul>{% endif %}
+  <div class="actions">
+    {% if tour %}<button type="button" class="primary" data-tour-start>Take a tour of this page</button>{% endif %}
+    <button type="button" data-page-help-close>Close</button>
+  </div>
+  <ul class="links">
+    {% if guide %}<li><a href="{% url 'core:help_guide' guide.slug %}">User guide: {{ guide.title }}</a></li>{% endif %}
+    <li><a href="{{ help_url }}">This help on a page of its own</a></li>
+    <li><a href="{% url 'core:help' %}">All of Help</a></li>
+  </ul>
+</dialog>
+{% if tour %}{% include "core/_tour.html" %}{% endif %}
+<script src="{% static 'core/tour.js' %}" defer></script>

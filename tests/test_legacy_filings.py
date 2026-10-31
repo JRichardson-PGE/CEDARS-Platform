@@ -15,6 +15,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program
 from cedars.services.submissions.models import SubmissionVersion
 
+from .conftest import page_only
 from .legacy_fixtures import csv_text, filing_row, manifest_row, manifest_text, write_zip
 
 pytestmark = pytest.mark.django_db
@@ -213,6 +214,8 @@ def test_the_pages_show_a_legacy_filing_as_imported_and_read_only(downloads, sig
     assert "https://cedars.example.org/reports/download-record-level-report/all/2028/filings/" in page
     assert "Reconciliation report (JSON)" in page and "TRCBen = ratio x cost" in page
     filing = signed_in(cpuc_admin).get(f"/budgets/filings/{v.submission.deadline.pk}/?org=PGE").content.decode()
-    assert "Imported from legacy CEDARS, 8 records" in filing and "Ask to reopen" not in filing and "records checked" not in filing
+    assert (
+        "Imported from legacy CEDARS, 8 records" in filing and "Ask to reopen" not in page_only(filing) and "records checked" not in filing
+    )
     index = client.get("/budgets/").content.decode()
     assert "Imported from legacy CEDARS" in index and "imported from legacy CEDARS" in index

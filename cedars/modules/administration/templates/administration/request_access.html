@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Ask for access{% endblock %}
 {% block content %}
-<h1>Ask an organization for access</h1>
+<div class="page-title"><h1>Ask an organization for access</h1>{% page_help "administration/request_access" %}</div>
 <p>Your request goes to the organization's administrators, who decide it. PII access also needs a CPUC data steward's approval.</p>
 <form method="post" class="stack">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}

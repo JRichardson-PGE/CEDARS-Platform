@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Validation rules{% endblock %}
 {% block content %}
-<h1>Validation rules</h1>
+<div class="page-title"><h1>Validation rules</h1>{% page_help "rules/index" %}</div>
 <p>The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective by then;
 every submission and run records the version it was checked against.</p>
 <p class="actions"><a class="button primary" href="{% url 'rules:check' %}">Check a file before you file it</a> <a class="button" href="{% url 'rules:differences' %}">Compare two rule sets</a></p>

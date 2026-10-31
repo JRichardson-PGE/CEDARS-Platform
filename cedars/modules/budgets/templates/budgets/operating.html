@@ -3,7 +3,7 @@
 {% block title %}Operating budget · {{ ob.organisation.code }} {{ ob.cycle }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
-<h1>{{ ob.organisation.code }} operating budget, {{ ob.cycle }}</h1>
+<div class="page-title"><h1>{{ ob.organisation.code }} operating budget, {{ ob.cycle }}</h1>{% page_help "budgets/operating" %}</div>
 <p>The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.kind }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date:"Y-m-d" }}{% else %}not filed yet (taken as zero){% endif %}.
 The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.</p>
 <div class="card" role="note">

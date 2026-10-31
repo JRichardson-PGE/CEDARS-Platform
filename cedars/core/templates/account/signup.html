@@ -2,7 +2,7 @@
 {% load allauth %}
 {% block head_title %}Create an account{% endblock head_title %}
 {% block content %}
-<h1>Create a CEDARS account</h1>
+<div class="page-title"><h1>Create a CEDARS account</h1>{% page_help "account/signup" %}</div>
 <p>An account lets you ask a program administrator for access to its filings and calculations. The public pages (dashboards, record downloads, documents, the data dictionary and the validation rules) need no account. CEDARS emails you a link to confirm the address.</p>
 {% url 'account_signup' as action_url %}
 {% element form form=form method="post" action=action_url tags="entrance,signup" %}

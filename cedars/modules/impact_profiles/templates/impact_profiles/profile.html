@@ -2,7 +2,7 @@
 {% block title %}{{ p.profile_key }}{% endblock %}
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="library" %}
-<h1>{{ p.profile_key }}</h1>
+<div class="page-title"><h1>{{ p.profile_key }}</h1>{% page_help "impact_profiles/profile" %}</div>
 <dl class="facts">
   <dt>Target sector</dt><dd>{{ p.target_sector }}</dd>
   <dt>IOU territory</dt><dd>{{ p.iou_ac_territory|default:"Every territory" }}</dd>

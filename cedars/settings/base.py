@@ -110,6 +110,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "cedars.core.context_processors.platform",
             ],
+            # The (?) help button beside every page's heading, usable in any template without {% load %} (cedars/core/page_help.py).
+            "builtins": ["cedars.core.templatetags.page_help"],
         },
     },
 ]

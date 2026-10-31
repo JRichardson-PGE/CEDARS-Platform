@@ -2,7 +2,7 @@
 {% load allauth %}
 {% block head_title %}Confirm it is you{% endblock head_title %}
 {% block content %}
-<h1>Confirm it is you</h1>
+<div class="page-title"><h1>Confirm it is you</h1>{% page_help "account/base_reauthenticate" %}</div>
 <p>This step changes your account's security settings, so CEDARS asks you to sign in again first.</p>
 {% block reauthenticate_content %}{% endblock %}
 {% if reauthentication_alternatives %}

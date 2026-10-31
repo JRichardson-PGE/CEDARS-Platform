@@ -58,6 +58,7 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 | `details.section` with `h2` in `summary` and `.section-body` | an earlier cycle or year, collapsed with a count | the newest stays an open `section.cycle` |
 | `ui/empty.html` (`.empty`) | an empty state with its one action | `{% include "ui/empty.html" with title=... text=... action_url=... action=... %}` |
 | `.id` | an identifier (PA code, PrgID, field name) in the mono face | |
+| `.page-title` + `h1` + `{% page_help "<template>" %}` | every page's heading with its help button (?) | the guide and tour are in the app's `page_help.yaml` (`cedars/core/page_help.py`); the button opens a modal dialog with the guide and "Take a tour of this page", and is a link to `/help/pages/<key>/` without scripts |
 
 Later additions planned (CEDARS-Research, UI review 2026-10-30): sortable headers with `aria-sort`, pagination top and bottom,
 active-filter chips, and a `/ui/` gallery page that the axe suite visits.

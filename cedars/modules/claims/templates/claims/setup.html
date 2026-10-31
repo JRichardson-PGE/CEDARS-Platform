@@ -2,7 +2,7 @@
 {% block title %}How {{ cy.year }} claims are priced{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
-<h1>How {{ cy.year }} claims are priced</h1>
+<div class="page-title"><h1>How {{ cy.year }} claims are priced</h1>{% page_help "claims/setup" %}</div>
 <p>Versions already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses these.
 {% if default_acc %}Claims normally use the ACC of the year's final budget filing: the {{ default_acc }} ACC for {{ cy.year }}.{% endif %}</p>
 <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}

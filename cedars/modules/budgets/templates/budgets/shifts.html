@@ -4,7 +4,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
 <div class="head-row">
-  <h1>Fund shifts</h1>
+  <div class="page-title"><h1>Fund shifts</h1>{% page_help "budgets/shifts" %}</div>
   {% if can_submit %}<div class="actions"><a class="button" href="{% url 'budgets:shift_new' %}">New fund shift</a></div>{% endif %}
 </div>
 <p>A fund shift moves dollars between programs within a filing cycle, across its program years if need be. It is not part of a budget

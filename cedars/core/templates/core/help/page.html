@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Help: {{ entry.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'core:help' %}">Help</a> › <a href="{% url 'core:help_pages' %}">Help for each page</a></p>
+<div class="page-title"><h1>Help: {{ entry.title }}</h1>{% page_help "core/help/page" %}</div>
+<p class="muted">{{ entry.area_label }}</p>
+{% for p in entry.guide %}<p class="measure">{{ p }}</p>
+{% endfor %}
+{% if entry.how %}<h2>How to</h2>
+<ul class="measure">{% for h in entry.how %}<li>{{ h }}</li>{% endfor %}</ul>{% endif %}
+{% if back or guide %}<ul class="links">
+  {% if back %}<li><a href="{{ back }}">Back to the page</a></li>{% endif %}
+  {% if guide %}<li><a href="{% url 'core:help_guide' guide.slug %}">User guide: {{ guide.title }}</a></li>{% endif %}
+</ul>{% endif %}
+{% if steps %}
+<h2>A tour of the page</h2>
+<p class="measure">On the page, the (?) beside the heading opens this help, and Take a tour of this page shows these steps one at a time beside
+the part of the page each describes. Some steps are only for parts that some people see, or that only some pages of this kind have.</p>
+{% if tour_link %}<div class="actions"><a class="button primary" href="{{ tour_link }}">Take the tour on the page</a></div>{% endif %}
+<ol class="tour-list">
+  {% for step in steps %}
+  <li>
+    <h3>{{ step.title }}</h3>
+    <p>{{ step.text }}</p>
+    {% if step.link %}<p><a href="{{ step.link }}">{{ step.link_text }}</a></p>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endif %}
+{% endblock %}

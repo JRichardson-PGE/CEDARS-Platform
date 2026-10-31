@@ -11,6 +11,8 @@ from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
 from cedars.services.registry.importers import import_cedars_programs
 
+from .conftest import page_only
+
 pytestmark = pytest.mark.django_db
 DATA = Path(__file__).parent / "data"
 
@@ -70,12 +72,12 @@ def test_the_catalog_and_program_pages_are_public(client, programs):
     """BR-01.5 / BR-07.7: anyone finds a program by name or PrgID, signed in or not; changing one still needs an account."""
     page = client.get("/programs/?q=PGE21001")
     assert page.status_code == 200 and "PGE21001" in page.content.decode()
-    assert "change requests" not in page.content.decode()
+    assert "change requests" not in page_only(page.content.decode())
     assert client.get("/programs/programs.csv").status_code == 200
     html = client.get("/programs/PGE21001/").content.decode()
     assert "PGE21001" in html and "Versions" in html
     assert "@" not in html.split('id="ver-h"')[1].split("</section>")[0]  # nobody's email for the public
-    assert "Change this program" not in html
+    assert "Change this program" not in page_only(html)
     for path in ("/programs/PGE21001/change", "/programs/requests/", "/programs/locked/"):
         assert client.get(path).status_code == 302
 
@@ -93,7 +95,7 @@ def test_a_program_page_shows_its_definition_and_versions(signed_in, make_user, 
     html = signed_in(make_user("someone@example.com")).get("/programs/PGE21001/").content.decode()
     assert "PGE21001: Old Lighting" in html and "Closed" in html
     assert "closed by D.21-05-031" in html and "Status: active to closed" in html and "First version" in html
-    assert "Change this program" not in html  # not PG&amp;E's admin
+    assert "Change this program" not in page_only(html)  # not PG&amp;E's admin
     assert "Not a statewide program" in html
 
 

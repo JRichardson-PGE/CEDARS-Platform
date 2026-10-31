@@ -1059,3 +1059,86 @@ def test_other_filters_by_keyboard(browser, site, scene):
     page.locator(".other-body > button").click()
     assert "end_year_from=2030" in page.url and "End year: 2030 or later" in page.locator(".chips").inner_text()
     context.close()
+
+
+# ---------- Page help (Jake, 2026-10-31): the (?) beside every page's heading, its guide and the tour of the page ----------
+
+
+@pytest.mark.parametrize("name,path,who", PAGES, ids=[p[0] for p in PAGES])
+def test_every_page_has_help_and_its_tour_finds_the_page(browser, site, scene, name, path, who):
+    """The (?) is beside the heading, and every tour step not marked optional finds its part of the page (cedars/core/page_help.py):
+    a section renamed or removed fails here rather than leaving a tour that points at nothing."""
+    context, page = _open(browser, site, scene, path, who)
+    assert page.locator(".page-title > h1 + .page-help").count() == 1, f"{name}: no (?) beside the heading"
+    steps = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null")
+    context.close()
+    assert steps, f"{name}: no tour"
+    missing = [s["title"] for s in steps if not s["found"] and not s["optional"]]
+    assert not missing, f"{name}: tour steps whose part of the page is missing: {missing}"
+
+
+HELP_PAGES = [
+    ("/data/overview/?by=sector", None),
+    ("/budgets/filings/{tual}/", "analyst"),
+    ("/calculations/runs/{finished_run}/", "analyst"),
+    ("/documents/{deliverable}/", "cpuc_admin"),
+]
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("path,who", HELP_PAGES, ids=[p[0].split("/")[1] for p in HELP_PAGES])
+def test_page_help_by_keyboard(browser, axe_source, site, scene, path, who, scheme):
+    """The (?) opens a modal dialog with the page's guide, named by its heading, which takes the focus; axe finds nothing with it open;
+    Escape closes it with the focus back on the (?). Take a tour of this page closes it and starts the tour, and closing the tour puts
+    the focus back on the (?) too."""
+    context, page = _open(browser, site, scene, path, who, color_scheme=scheme, bypass_csp=True)
+    page.add_script_tag(content=axe_source)
+    button = page.locator(".page-help")
+    assert button.get_attribute("aria-haspopup") == "dialog"
+    box = button.bounding_box()
+    assert box["width"] >= 24 and box["height"] >= 24
+    button.focus()
+    page.keyboard.press("Enter")
+    assert page.locator("#page-help").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.id") == "page-help-title"
+    found = _run_axe(page)
+    assert not found, f"page help ({scheme}): " + json.dumps(found, indent=1)
+    page.keyboard.press("Escape")
+    assert not page.locator("#page-help").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.classList.contains('page-help')")
+    page.keyboard.press("Enter")
+    page.locator("#page-help [data-tour-start]").focus()
+    page.keyboard.press("Enter")
+    assert not page.locator("#page-help").evaluate("d => d.open") and page.locator("#tour").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.id") == "tour-title"
+    assert page.locator("#tour-title").text_content().startswith("Step 1 of ")
+    assert page.locator(".tour-target").count() == 1
+    found = _run_axe(page)
+    assert not found, f"page tour ({scheme}): " + json.dumps(found, indent=1)
+    page.keyboard.press("ArrowRight")
+    assert page.locator("#tour-title").text_content().startswith("Step 2 of ")
+    page.keyboard.press("Escape")
+    assert not page.locator("#tour").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.classList.contains('page-help')")
+    context.close()
+
+
+def test_page_help_without_scripts(browser, site, scene):
+    """Without scripts the (?) is a link to the page's help on a page of its own, with the tour written out and a way back."""
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    page.goto(f"{site.url}/rules/")
+    page.locator(".page-help").click()
+    assert page.url.startswith(f"{site.url}/help/pages/rules/index/?from=")
+    assert page.locator("ol.tour-list > li").count() >= 2
+    assert page.locator("a", has_text="Back to the page").get_attribute("href") == "/rules/"
+    assert page.locator("a", has_text="Take the tour on the page").get_attribute("href") == "/rules/?tour=1"
+    context.close()
+
+
+def test_a_page_tour_starts_from_its_link(browser, site, scene):
+    """The written tour's "Take the tour on the page" opens the page with its tour running."""
+    context, page = _open(browser, site, scene, "/rules/?tour=1", None)
+    assert page.locator("#tour").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.id") == "tour-title"
+    context.close()

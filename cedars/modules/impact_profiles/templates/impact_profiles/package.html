@@ -2,7 +2,7 @@
 {% block title %}{{ pkg.measure_version_id }}{% endblock %}
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="packages" %}
-<h1>{{ pkg.measure_version_id }} <span class="muted">{{ pkg.name }}</span></h1>
+<div class="page-title"><h1>{{ pkg.measure_version_id }} <span class="muted">{{ pkg.name }}</span></h1>{% page_help "impact_profiles/package" %}</div>
 <dl class="facts">
   <dt>PA lead</dt><dd>{{ pkg.pa_lead }}</dd>
   <dt>Starts</dt><dd>{{ pkg.start_date|date:"Y-m-d" }}</dd>

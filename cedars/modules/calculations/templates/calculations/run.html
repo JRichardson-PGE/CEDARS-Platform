@@ -4,7 +4,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
 <div class="head-row">
-  <h1>{{ run.name }}</h1>
+  <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
   {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
   {% if run.status == "succeeded" %}<div class="actions"><a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a></div>{% endif %}
 </div>

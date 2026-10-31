@@ -2,7 +2,7 @@
 {% block title %}Load shape upload history{% endblock %}
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="uploads" %}
-<h1>Load shape upload history</h1>
+<div class="page-title"><h1>Load shape upload history</h1>{% page_help "impact_profiles/uploads" %}</div>
 <p>Uploads made for {% if request.user_organisations %}your organizations{% else %}the organizations you belong to (none yet){% endif %}, including other members'.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Uploads">
 <table class="list">

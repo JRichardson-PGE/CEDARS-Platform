@@ -2,7 +2,7 @@
 {% block title %}Load shape {{ ls.tech_id }}{% endblock %}
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="packages" %}
-<h1>Load shape {{ ls.tech_id }}</h1>
+<div class="page-title"><h1>Load shape {{ ls.tech_id }}</h1>{% page_help "impact_profiles/load_shape" %}</div>
 <dl class="facts">
   <dt>Package</dt><dd><a href="{% url 'impact_profiles:package' ls.package.measure_version_id %}">{{ ls.package.measure_version_id }}</a> {{ ls.package.name }}</dd>
   <dt>Sector</dt><dd>{{ ls.sector }}</dd><dt>BldgType</dt><dd>{{ ls.bldg_type }}</dd><dt>BldgVint</dt><dd>{{ ls.bldg_vint }}</dd>

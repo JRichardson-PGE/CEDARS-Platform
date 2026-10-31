@@ -3,7 +3,7 @@
 {% block title %}Home{% endblock %}
 {% block content %}
 <section class="front-intro" data-tour="intro" aria-labelledby="intro-title">
-  <h1 id="intro-title">California Energy Data and Reporting System</h1>
+  <div class="page-title"><h1 id="intro-title">California Energy Data and Reporting System</h1>{% page_help "data/front" %}</div>
   <p class="lede">CEDARS is where California's energy-efficiency program administrators (the investor-owned utilities, regional energy
   networks and community choice aggregators) file their program budgets, their claims of what the programs achieved, and monthly
   reports, and where the California Public Utilities Commission reviews them and publishes the results.</p>
@@ -93,6 +93,5 @@
   </div>
 </section>
 
-{% include "core/_tour.html" %}
 {% endblock %}
-{% block scripts %}<script src="{% static 'core/tour.js' %}" defer></script>{% endblock %}
+

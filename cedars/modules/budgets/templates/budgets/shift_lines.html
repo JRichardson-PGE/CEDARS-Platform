@@ -2,7 +2,7 @@
 {% block title %}Amounts: {{ s.title }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'budgets:shifts' %}">Fund shifts</a> › <a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></p>
-<h1>Amounts: {{ s.title }}</h1>
+<div class="page-title"><h1>Amounts: {{ s.title }}</h1>{% page_help "budgets/shift_lines" %}</div>
 <p>One line per program and year. A negative amount moves money out of that program-year, a positive one into it. Blank lines are
 ignored. {{ s.organisation.code }}'s lines must add up to zero before the shift can be submitted.</p>
 <p>A statewide program's line is the change to the whole program. Each funding PA's portion of it changes by its allocation factor:

@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'documents:studies' %}">Evaluation studies</a></p>
 <div class="head-row">
-  <h1>{{ s.title }}</h1>
+  <div class="page-title"><h1>{{ s.title }}</h1>{% page_help "documents/study" %}</div>
   <div class="actions">
     <a href="{% url 'documents:study_report' s.number %}">Download this study as CSV</a>
     {% include "documents/_follow.html" with study=s what=s.study_id %}

@@ -1,0 +1,153 @@
+# Help for each page (cedars/core/page_help.py): the program registry.
+
+programs/catalog:
+  title: The program catalog
+  guide:
+    - Every program in the registry, closed ones included, one row per PrgID with its current definition. The catalog is public;
+      signed in, the same filters apply.
+    - Filter by text, PA, sector, status and years, or pick any other attribute under Other filters. A program's ID opens its page,
+      with its versions, allocation factors, evaluations and filings.
+  how:
+    - Applied filters show as chips; Remove takes one off and Reset all clears them.
+    - Program change requests (signed in) lists changes to locked attributes waiting for a CPUC decision.
+  see: programs
+  tour:
+    - target: form.catalog-filters
+      title: Search and filter
+      text: Search the ID and names, choose PAs, sectors, statuses and years, then Apply.
+    - heading: Other filters
+      title: Other filters
+      text: Any other program attribute. Choose the attribute, then its values or range, and Apply filters.
+    - target: section.applied
+      title: Applied filters
+      text: What the list is filtered by. Remove one, or Reset all.
+      optional: true
+    - target: main table.list
+      title: The programs
+      text: One row per program, by PrgID. Select an ID to open the program's page.
+
+programs/program:
+  title: A program
+  guide:
+    - One program's definition as it stands today, every earlier version, and where it appears across CEDARS. A program is never edited
+      in place; a change starts a new version on its effective date, and the version before it is kept as it was.
+    - >-
+      A statewide program shows its allocation factors, the share each funding PA carries by year. The last section lists everything on
+      record about the program, each linked to its record, for one program year or every year: budget filings by cycle, fund shifts,
+      claims, monthly reports, the evaluations that cover it and the documents that name it.
+  how:
+    - The program's own administrators change it with Change this program. A change to a locked attribute goes to a CPUC approver as a
+      request; the page says when one is waiting.
+    - Signed in, Follow this program sends you a notice when a filing that includes it is published or corrected, a fund shift moves its
+      funds, its details change or a document about it is published. Your notification settings choose which of these you hear about.
+    - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
+  see: programs
+  tour:
+    - target: "#def-h"
+      title: The definition
+      text: The program's attributes in force today, and since when.
+    - target: main .head-row .actions
+      title: Change or follow
+      text: The program's administrators change it here; the change starts a new version on the date you give. Anyone signed in can follow it.
+    - target: "#ver-h"
+      title: Versions
+      text: Every version of the program, what changed in each and why.
+    - target: "#alloc-h"
+      title: Statewide allocation
+      text: For a statewide program, each funding PA's share by version and year.
+    - target: "#rec-h"
+      title: Filings, reports and documents
+      text: Everything on record about the program. Choose a program year and Show, or see every year.
+    - target: "#bud-h"
+      title: Budget filings
+      text: Each cycle's budget filings that include the program, with its budget in each.
+      optional: true
+    - target: "#shift-h"
+      title: Fund shifts
+      text: Fund shifts with lines on the program.
+      optional: true
+    - target: "#claim-h"
+      title: Claims
+      text: Claims confirmations that include it, newest year first.
+      optional: true
+    - target: "#mon-h"
+      title: Monthly reports
+      text: Monthly reports that include it, newest month first.
+      optional: true
+    - target: "#eval-h"
+      title: Evaluations
+      text: The EM&V studies that evaluate the program, and the program years each covers.
+      optional: true
+    - target: "#doc-h"
+      title: Documents
+      text: Documents that name the program, newest first.
+      optional: true
+
+programs/change:
+  title: Changing a program
+  guide:
+    - Your change starts a new version of the program on its effective date; the version before it ends the day before and is kept. The
+      date may be in the future, but not on or before the day the latest version started. Only the attributes you change are recorded as
+      changed, with your reason.
+    - Locked attributes are listed above the form. A change that touches one goes, with the rest of the change, to a CPUC approver as a
+      request, and nothing changes until it is approved.
+  see: programs
+  tour:
+    - target: main form
+      title: The change
+      text: The effective date, the attributes to change and why. Save the change, or Cancel.
+
+programs/requests:
+  title: Program change requests
+  guide:
+    - Changes to locked program attributes that a program's administrators asked for, waiting for a CPUC programs approver's decision,
+      and the ones already decided. Filter by status or program.
+  see: programs
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By status (waiting, approved, declined, withdrawn) or by program.
+    - target: main table.list
+      title: The requests
+      text: Each request, its program, its effective date and where it stands. Select one to see what would change.
+
+programs/request:
+  title: A program change request
+  guide:
+    - What a change to a program would do, attribute by attribute, before and after, and who asked for it and why. A CPUC programs
+      approver approves or declines it with a reason; the PA that asked may withdraw it while it waits.
+  see: programs
+  tour:
+    - target: main table.list
+      title: What would change
+      text: Each attribute the request changes, as it is now and as it would be.
+    - target: "#decide-h"
+      title: Decide
+      text: For CPUC programs approvers. Approving starts the new version on its effective date.
+      optional: true
+    - target: "#withdraw-h"
+      title: Withdraw
+      text: For the PA that asked, while the request waits.
+      optional: true
+    - target: "#hist-h"
+      title: History
+      text: Who asked, who decided, and when.
+
+programs/locked:
+  title: Locked program attributes
+  guide:
+    - The program attributes a PA changes only through a request that a CPUC programs approver decides. CPUC system administrators and
+      programs approvers change them directly; every other attribute stays with the program's administrators.
+    - A policy starts today or later and is never edited; the ones before it are kept, so what was locked on any date can be seen.
+  see: programs
+  tour:
+    - heading: In force today
+      title: In force today
+      text: The attributes locked now.
+    - heading: Policies
+      title: Policies
+      text: Every policy, newest first, with what it locks, why and who set it.
+    - target: "#set-h"
+      title: Set a new policy
+      text: For CPUC administrators. Choose the attributes, the start date and the reason.
+      optional: true

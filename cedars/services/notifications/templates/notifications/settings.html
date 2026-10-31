@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Notification settings{% endblock %}
 {% block content %}
-<h1>Notification settings</h1>
+<div class="page-title"><h1>Notification settings</h1>{% page_help "notifications/settings" %}</div>
 <p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Events about a filing in progress (un-confirmed, reopened) reach you only for organizations you belong to; CPUC staff hear about every organization's.</p>
 <form method="post" class="stack form-narrow">{% csrf_token %}
   <input type="hidden" name="follows" value="1">

@@ -3,7 +3,7 @@
 {% block title %}Claims{% endblock %}
 {% block content %}
 <div class="head-row">
-  <h1>Claims</h1>
+  <div class="page-title"><h1>Claims</h1>{% page_help "claims/index" %}</div>
   <div class="actions">
     <a class="button" href="{% url 'claims:template' %}">Claims template (Excel)</a>
     <a class="button" href="{% url 'claims:changes' %}">Change log</a>

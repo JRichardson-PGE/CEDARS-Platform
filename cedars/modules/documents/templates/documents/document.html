@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'documents:library' %}">Documents</a> · {{ doc.get_collection_display }}</p>
 <div class="head-row">
-  <h1>{{ doc.title }}</h1>
+  <div class="page-title"><h1>{{ doc.title }}</h1>{% page_help "documents/document" %}</div>
   {% if can_manage %}<div class="actions"><a class="button" href="{% url 'documents:new_version' doc.pk %}">Add a version</a> <a class="button" href="{% url 'documents:change' doc.pk %}">Change the details</a></div>{% endif %}
 </div>
 {% if not doc.published_at %}<p><span class="status">Not published</span> Only {{ doc.owner.code }}{% if pas|length > 1 %}, the PAs named on it{% endif %} and CPUC staff can see this document until a version is published.</p>{% endif %}
