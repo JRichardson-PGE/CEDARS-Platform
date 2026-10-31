@@ -1,6 +1,6 @@
 """Template filters behind the shared components (docs/DESIGN.md): a due date's urgency in words, and a status's badge tone.
 
-Words, never colour alone: a badge always carries its status text, and a due cell says "Passed 7 months ago" or "Due in 12 days" under the
+Words, never color alone: a badge always carries its status text, and a due cell says "Passed 7 months ago" or "Due in 12 days" under the
 date, so the urgency is read by everyone (WCAG 1.4.1)."""
 
 from django import template

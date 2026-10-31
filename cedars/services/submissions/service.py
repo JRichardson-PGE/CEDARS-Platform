@@ -1,5 +1,5 @@
 """The submission state machine. Modules call these functions; every transition checks the actor's permission in the submitting
-organisation (`<module>.submit`, `<module>.confirm`; approvers hold `<module>.approve` in the CPUC organisation), writes an audit
+organization (`<module>.submit`, `<module>.confirm`; approvers hold `<module>.approve` in the CPUC organization), writes an audit
 event, and runs the module's hooks.
 
 Hooks (`register_publisher`): when a version is confirmed it is published at once with no further calculation; a module or the
@@ -189,7 +189,7 @@ def move_deadline(actor, deadline: Deadline, due_at, reason: str) -> Deadline:
 
 @transaction.atomic
 def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVersion:
-    """Open a submission for the organisation (version 1, draft). Starting again returns the open draft."""
+    """Open a submission for the organization (version 1, draft). Starting again returns the open draft."""
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
     _refuse_imported(submission)
@@ -439,7 +439,7 @@ def _new_version(actor, submission: Submission, reason: str) -> SubmissionVersio
 
 @transaction.atomic
 def request_reopen(actor, submission: Submission, reason: str) -> ReopenRequest | SubmissionVersion:
-    """After the due date: ask to correct this organisation's filing for this deadline only. Under an "open" policy the new draft
+    """After the due date: ask to correct this organization's filing for this deadline only. Under an "open" policy the new draft
     version is created at once (returned); under "approval" a request waits for an approver (returned); "closed" refuses."""
     submission = Submission.objects.select_related("deadline", "organisation").get(pk=submission.pk)
     _require(actor, submission, "submit")
@@ -464,7 +464,7 @@ def request_reopen(actor, submission: Submission, reason: str) -> ReopenRequest 
 
 
 def approver_for(actor, module: str, on=None):
-    """The approver the actor acts for: themselves if they hold `<module>.approve` in the CPUC organisation, else the approver who
+    """The approver the actor acts for: themselves if they hold `<module>.approve` in the CPUC organization, else the approver who
     delegated to them for today, else None."""
     org = access.cpuc()
     if org is None:

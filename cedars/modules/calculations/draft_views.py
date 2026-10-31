@@ -23,7 +23,7 @@ SYMBOL = {"error": "✕", "warning": "!", "info": "i"}
 class NewDraftForm(djforms.Form):
     name = djforms.CharField(label="Name", max_length=200, help_text="e.g. Lighting retrofit, 2028")
     run_for = djforms.ChoiceField(
-        label="For", required=False, help_text="An organisation's drafts are shared with its members who may start runs"
+        label="For", required=False, help_text="An organization's drafts are shared with its members who may start runs"
     )
     start = djforms.ChoiceField(
         label="Start from",

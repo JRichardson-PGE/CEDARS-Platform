@@ -43,7 +43,7 @@ def _deadline(pk) -> Deadline:
 
 
 def _organisation(request, deadline: Deadline) -> Organisation | None:
-    """The organisation whose filing the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
+    """The organization whose filing the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
         org = access.by_code_or_404(code)
@@ -86,7 +86,7 @@ def _fmt(kind: str, x) -> str:
 
 @login_required
 def index(request):
-    """Budget filings by cycle: each filing's due date and the acting organisation's status, and the budgets that stand for every PA."""
+    """Budget filings by cycle: each filing's due date and the acting organization's status, and the budgets that stand for every PA."""
     org = request.organisation
     cycles = []
     for cycle in FilingCycle.objects.filter(deadlines__module=service.MODULE).distinct().order_by("-first_year"):
@@ -175,7 +175,7 @@ def setup(request, pk):
 
 @login_required
 def filing(request, pk):
-    """One filing for one organisation: its versions and the next step (upload, fix, price, confirm, un-confirm, ask to reopen)."""
+    """One filing for one organization: its versions and the next step (upload, fix, price, confirm, un-confirm, ask to reopen)."""
     deadline = _deadline(pk)
     org = _organisation(request, deadline)
     sub = Submission.objects.filter(deadline=deadline, organisation=org).first() if org else None

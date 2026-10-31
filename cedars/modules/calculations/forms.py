@@ -16,7 +16,7 @@ class NewRunForm(forms.Form):
     """New run (BR-06.1, 06.4, 06.5, 06.7): the job zip and the settings a person picks. The API takes the same fields."""
 
     name = forms.CharField(label="Run name", max_length=200, help_text="e.g. 2028 claims Q1, PG&E")
-    run_for = forms.ChoiceField(label="Run for", help_text="An organisation's runs are seen by its members and stay with it")
+    run_for = forms.ChoiceField(label="Run for", help_text="An organization's runs are seen by its members and stay with it")
     job = forms.FileField(
         label="Job file (.zip)", help_text="Measure.csv and, optionally, ProgramCost.csv, zipped together, as CET takes a job"
     )

@@ -27,7 +27,7 @@ class LegacySource(models.Model):
 
 
 class LegacyImport(models.Model):
-    """One organisation's filing or claim year loaded from legacy CEDARS: the imported version it became, the files it came from, the
+    """One organization's filing or claim year loaded from legacy CEDARS: the imported version it became, the files it came from, the
     record count and the reconciliation report. A year that fails the hard checks is not published, so every row here is a published
     imported version."""
 

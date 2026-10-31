@@ -1,4 +1,4 @@
-"""API tokens (decision J): made by members for their own systems, revoked by them or their organisation's admins, every change
+"""API tokens (decision J): made by members for their own systems, revoked by them or their organization's admins, every change
 audited. A key reads `cedars_<prefix>_<secret>`; only its SHA-256 is stored, so a lost key is revoked and replaced, never shown again."""
 
 import hashlib
@@ -41,7 +41,7 @@ def create_token(user: User, organisation: Organisation | None, *, name: str, sc
         if not Membership.objects.filter(user=user, organisation=organisation, ended_at__isnull=True).exists():
             raise AccessDenied(f"You are not a member of {organisation.code}.")
     elif scopes != ["calculations"]:
-        raise AccessDenied("A token without an organisation can reach only your own calculations.")
+        raise AccessDenied("A token without an organization can reach only your own calculations.")
     prefix = secrets.token_hex(4)
     key = f"{KEY_START}{prefix}_{secrets.token_urlsafe(32)}"
     token = ApiToken.objects.create(
@@ -72,7 +72,7 @@ def can_revoke(actor: User, token: ApiToken) -> bool:
 @transaction.atomic
 def revoke_token(actor: User, token: ApiToken, reason: str = "") -> ApiToken:
     if not can_revoke(actor, token):
-        raise AccessDenied("Only the token's owner, their organisation's admins or the CPUC can revoke it.")
+        raise AccessDenied("Only the token's owner, their organization's admins or the CPUC can revoke it.")
     token = ApiToken.objects.select_for_update().get(pk=token.pk)
     if token.revoked_at:
         raise AccessDenied("That token is already revoked.")
@@ -83,7 +83,7 @@ def revoke_token(actor: User, token: ApiToken, reason: str = "") -> ApiToken:
 
 
 def authenticate(key: str) -> ApiToken | None:
-    """The active token for a key, or None: unknown, revoked, expired, its user inactive, or its membership or organisation ended."""
+    """The active token for a key, or None: unknown, revoked, expired, its user inactive, or its membership or organization ended."""
     if not key.startswith(KEY_START):
         return None
     token = ApiToken.objects.select_related("user", "organisation").filter(key_sha256=_hash(key)).first()
@@ -101,7 +101,7 @@ def authenticate(key: str) -> ApiToken | None:
 
 
 def token_allows(token: ApiToken, permission: str) -> bool:
-    """Whether a call made with the token may use a module permission: the user holds it in the token's organisation now and the
+    """Whether a call made with the token may use a module permission: the user holds it in the token's organization now and the
     token's scopes include its module. Special permissions (PII, admin) are never reachable with a token."""
     module, _, _ = permission.partition(".")
     if permission in perms.SPECIAL or module not in token.scopes or token.organisation is None:

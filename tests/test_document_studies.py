@@ -64,7 +64,7 @@ def test_who_adds_and_changes_studies(people, pge, study):
         studies.create_study(writer, pge, data(people["dnv"], "Not mine"))
     s2 = studies.create_study(writer, pge, pa_led)
     assert s2.number == 2 and s2.study_id == f"{timezone.localdate().year}_Cross-Cutting_2"
-    # An evaluator's organisation has no right to add studies, but updates the ones it manages.
+    # An evaluator's organization has no right to add studies, but updates the ones it manages.
     assert not studies.can_create(people["evaluator"], people["dnv"])
     assert studies.can_edit(people["evaluator"], study) and not studies.can_edit(writer, study)
     with pytest.raises(AccessDenied):

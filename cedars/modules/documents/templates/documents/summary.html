@@ -4,7 +4,7 @@
 {% include "documents/_subnav.html" with section="budgets" %}
 <h1>Study budgets{% if cycle %}: {{ cycle.label }}{% endif %}</h1>
 <p>The study lists and budget tables each EM&amp;V plan compiles, from the register: the number of studies and their budgets by type,
-sector, lead, status and group, planned against completed. Cancelled studies are left out. A study with several sectors counts in each
+sector, lead, status and group, planned against completed. Canceled studies are left out. A study with several sectors counts in each
 sector, so that table can add up to more than the total.</p>
 <form method="get" class="filters" aria-label="Choose the funding cycle">
   <label for="cycle">Funding cycle
@@ -17,7 +17,7 @@ sector, so that table can add up to more than the total.</p>
   <div class="tile"><dt>Budget</dt><dd>${{ total.budget|floatformat:"0g" }}</dd></div>
   <div class="tile"><dt>Completed</dt><dd>{{ total.completed }}</dd></div>
   <div class="tile"><dt>Completed budget</dt><dd>${{ total.completed_budget|floatformat:"0g" }}</dd></div>
-  <div class="tile"><dt>Cancelled, left out</dt><dd>{{ total.cancelled }}</dd></div>
+  <div class="tile"><dt>Canceled, left out</dt><dd>{{ total.cancelled }}</dd></div>
 </dl>
 <p><a href="?{% if cycle %}cycle={{ cycle.pk }}&amp;{% endif %}format=csv">Download these tables as CSV</a></p>
 {% for key, table in tables.items %}

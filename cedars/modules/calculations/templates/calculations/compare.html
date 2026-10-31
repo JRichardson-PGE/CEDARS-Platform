@@ -19,7 +19,7 @@
   <fieldset aria-describedby="years-help">
     <legend>Program years</legend>
     {% for y in all_years %}<label class="inline"><input type="checkbox" name="years" value="{{ y }}"{% if y in years %} checked{% endif %}> {{ y }}</label>{% endfor %}
-    <span class="small muted" id="years-help">Both runs totalled over the ticked years; none ticked is every year.</span>
+    <span class="small muted" id="years-help">Both runs totaled over the ticked years; none ticked is every year.</span>
   </fieldset>
   {% endif %}
   <button type="submit">Compare</button>

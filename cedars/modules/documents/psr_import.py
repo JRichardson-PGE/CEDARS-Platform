@@ -7,7 +7,7 @@ The PSR's lists are free text, so each value is mapped:
   - status, sectors, group (sub-sector), funding cycles and study type are matched to the register's option of the same label,
     ignoring case, spaces and punctuation ("Cross-Cutting" is "Cross Cutting"), plus the short study types ("Impact", "Process",
     "Market") the PSR collected over the years;
-  - the study manager (65 free-text values mixing firms, PAs and people) is matched to an organisation by its code or name, and by
+  - the study manager (65 free-text values mixing firms, PAs and people) is matched to an organization by its code or name, and by
     the usual spellings of the PAs (PG&E, SoCalGas, ...);
   - a map file (--map, a CSV of field, psr_value, register_value; --write-map writes one with every value the PSR holds and what it
     maps to now) adds or overrides any of these, so CPUC ED settles the mapping without a code change.
@@ -90,7 +90,7 @@ KEPT_AS_IS = [("planPostedToPDA", "Plan posted to the PDA"), ("xRefNum", "Cross-
 NONE = {"", "na", "none", "tbd", "tba", "null"}
 CPUC_CONTRACT = re.compile(r"\d{2}[A-Z]{2}\d{4}")  # 23NC0465, 17PS5017
 
-# The usual ways the PSR names a study lead, a study type or a PA (normalised: letters and digits only, lower case)
+# The usual ways the PSR names a study lead, a study type or a PA (normalized: letters and digits only, lower case)
 BUILTIN = {
     "lead": {"ed": "CPUC", "cpuc": "CPUC", "cpuced": "CPUC", "energydivision": "CPUC", "iou": "IOU", "ren": "REN"},
     "study_type": {
@@ -103,7 +103,7 @@ BUILTIN = {
         "marketeffects": "Market Effects",
         "other": "Other",
     },
-    # A manager is matched by its organisation's code or name; these are the other spellings the PSR holds for the same one.
+    # A manager is matched by its organization's code or name; these are the other spellings the PSR holds for the same one.
     "manager": {
         "pacificgasandelectric": "PGE",
         "southerncaliforniaedison": "SCE",
@@ -274,7 +274,7 @@ class Report:
             out.append(f"{len(self.no_lead)} projects with no study lead filed as CPUC-led: {_ids(self.no_lead)}")
         if self.managers_unmatched:
             out.append(
-                f"{self.managers_unmatched} projects whose study manager matched no organisation, managed by the CPUC until it "
+                f"{self.managers_unmatched} projects whose study manager matched no organization, managed by the CPUC until it "
                 f"assigns them ({len(self.unmapped['manager'])} values; --write-map lists them)"
             )
         for name in MAP_FIELDS:
@@ -497,7 +497,7 @@ def records_of(data) -> list[dict]:
 def run(records: list[dict], mapping: Mapping, *, dry_run: bool = False) -> Report:
     """Import the projects in their PSR number order."""
     if mapping.cpuc is None:
-        raise RuntimeError("Set up the CPUC organisation before importing the PSR.")
+        raise RuntimeError("Set up the CPUC organization before importing the PSR.")
     report = Report()
     for record in sorted(records, key=lambda r: int(r["projectID"])):
         import_project(record, mapping, report, dry_run=dry_run)

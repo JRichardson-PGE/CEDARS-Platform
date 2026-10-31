@@ -665,7 +665,7 @@ class RegisterForm(forms.Form):
 class WorkOrderForm(forms.Form):
     number = forms.CharField(label="Work order number", max_length=50)
     name = forms.CharField(label="Name", max_length=255, required=False)
-    firm = forms.ModelChoiceField(label="Contractor organisation", queryset=Organisation.objects.none(), required=False)
+    firm = forms.ModelChoiceField(label="Contractor organization", queryset=Organisation.objects.none(), required=False)
     firm_name = forms.CharField(label="Contractor as the contract names it", max_length=200, required=False)
     cpuc_contract_id = forms.CharField(label="CPUC contract id", max_length=50, required=False)
 

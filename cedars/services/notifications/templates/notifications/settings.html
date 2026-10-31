@@ -2,7 +2,7 @@
 {% block title %}Notification settings{% endblock %}
 {% block content %}
 <h1>Notification settings</h1>
-<p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Filing events reach you only for organisations you belong to (CPUC staff hear about every organisation's).</p>
+<p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Filing events reach you only for organizations you belong to (CPUC staff hear about every organization's).</p>
 <form method="post" class="stack form-narrow">{% csrf_token %}
   {% for group, rows in groups %}
   <fieldset>

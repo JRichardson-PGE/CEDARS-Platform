@@ -1,12 +1,12 @@
 {% extends "core/base.html" %}
-{% block title %}Organisations{% endblock %}
+{% block title %}Organizations{% endblock %}
 {% block content %}
-<div class="head-row"><h1>Organisations</h1>{% if sysadmin %}<a class="button primary" href="{% url 'administration:organisation_new' %}">Add an organisation</a>{% endif %}</div>
-<p>Each organisation's administrators manage its members. The CPUC assigns only an organisation's first administrator.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Organisations">
+<div class="head-row"><h1>Organizations</h1>{% if sysadmin %}<a class="button primary" href="{% url 'administration:organisation_new' %}">Add an organization</a>{% endif %}</div>
+<p>Each organization's administrators manage its members. The CPUC assigns only an organization's first administrator.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Organizations">
 <table class="list">
-  <caption class="sr-only">Organisations, their administrators and recertification status</caption>
-  <thead><tr><th scope="col">Organisation</th><th scope="col">Kind</th><th scope="col">PA type</th><th scope="col">Administrators</th><th scope="col">Members</th><th scope="col">Recertification</th></tr></thead>
+  <caption class="sr-only">Organizations, their administrators and recertification status</caption>
+  <thead><tr><th scope="col">Organization</th><th scope="col">Kind</th><th scope="col">PA type</th><th scope="col">Administrators</th><th scope="col">Members</th><th scope="col">Recertification</th></tr></thead>
   <tbody>
   {% for r in rows %}
   <tr>

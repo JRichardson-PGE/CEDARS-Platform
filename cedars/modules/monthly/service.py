@@ -6,7 +6,7 @@ submission with versions.
     -> priced (Calculations, through the submissions service: estimated savings and TSB) -> confirm -> published
 
 A report is year to date: its BCA inputs are the year's measures and program costs so far, so its estimates show how programs are
-trending toward their goals (BR-14.5). The estimates are labelled unvalidated everywhere and never enter a claim. The BCA inputs get
+trending toward their goals (BR-14.5). The estimates are labeled unvalidated everywhere and never enter a claim. The BCA inputs get
 BCA-level validation only, the engine's own input check when they are priced, not the claims rules (D2). Before the due date a PA can
 un-confirm, change and re-confirm (BR-14.3); after it a correction is a new version. Each program's spend is read from the BCA inputs
 (ProgramCost and the measures' rebates and incentives, as Budgets counts a budget; Jake, 2026-10-30), the month's spend being the change
@@ -152,7 +152,7 @@ def can_read_submission(user, submission: Submission) -> bool:
 
 
 def can_read(user, v: SubmissionVersion) -> bool:
-    """A published report is open to every signed-in user, as CEDARS' monthly reports are; the rest only to the organisation and CPUC
+    """A published report is open to every signed-in user, as CEDARS' monthly reports are; the rest only to the organization and CPUC
     staff."""
     if not user.is_authenticated:
         return False
@@ -195,7 +195,7 @@ def derive(tables: dict[str, bytes], organisation, period: ReportingPeriod, prev
     incentives (NumUnits x the four unit fields), as Budgets counts a budget; YTDExpenditures is the costs plus the rebates and
     incentives. Commitments are their own table.
 
-    Checks (rule IDs MON-*): Commitments' PA is the filing organisation and its YearMonth the report's month; PrgIDs in the program
+    Checks (rule IDs MON-*): Commitments' PA is the filing organization and its YearMonth the report's month; PrgIDs in the program
     registry and the PA's own or statewide; the spend and commitment fields are numbers (CEDARS has the commitments NotEmpty); one row per
     program in Commitments and in ProgramCost; the BCA inputs are this year's up to the report's quarter (ProgramCost PrgYear, Measure
     ClaimYearQuarter). Warnings: a program's year-to-date spend below the previous month's standing report's; measures whose program has
@@ -833,7 +833,7 @@ class Month:
 
 
 def year_view(organisation, year: int, *, published_only: bool = False) -> list[Month]:
-    """Each month of the year with its standing report's totals (or, for the organisation's own readers, its latest version), the month's
+    """Each month of the year with its standing report's totals (or, for the organization's own readers, its latest version), the month's
     spend (the change in the year-to-date spend since the month before) and the accuracy check: the year-to-date spend should not fall
     from one month's report to the next."""
     out, before = [], Decimal(0)

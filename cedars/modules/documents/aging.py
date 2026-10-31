@@ -1,7 +1,7 @@
 """The aging review (Jake, 2026-10-30): for CPUC ED, where each study manager is falling behind. Drafts are kept however old they are (no
 purge); this review shows how long each has waited instead. Items, each with the day it became late and its age in days:
   - an unpublished version of a study's document (age from when it was filed);
-  - a study's next activity past its due date (the study not completed, cancelled or combined);
+  - a study's next activity past its due date (the study not completed, canceled or combined);
   - a question nobody has answered once its comment period has closed (owed by the document's study manager, else its owner; not
     the questions migrated from the PDA);
   - an active study nobody has updated in `stale_days` days;
@@ -33,7 +33,7 @@ STALE_DAYS = 90
 @dataclass
 class Item:
     kind: str
-    owner: object  # the Organisation that owes it
+    owner: object  # the Organization that owes it
     study: Study | None
     what: str
     url: str
@@ -116,7 +116,7 @@ def bucket(age: int) -> str:
 
 
 def by_owner(found: list[Item], day: date | None = None) -> list[dict]:
-    """One row per organisation that owes something: counts by kind and by age band, and the oldest item's age; oldest first."""
+    """One row per organization that owes something: counts by kind and by age band, and the oldest item's age; oldest first."""
     day = day or timezone.localdate()
     rows = defaultdict(lambda: {"kinds": defaultdict(int), "buckets": defaultdict(int), "oldest": 0, "total": 0})
     for i in found:

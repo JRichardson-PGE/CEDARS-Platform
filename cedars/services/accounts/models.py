@@ -21,7 +21,7 @@ class PlatformUserManager(UserManager):
 
 
 class User(AbstractUser):
-    """One identity per person, whatever organisations they belong to (BR-01.1). Accounts are deactivated, never deleted, so their audit
+    """One identity per person, whatever organizations they belong to (BR-01.1). Accounts are deactivated, never deleted, so their audit
     history keeps its actor. An account with no membership is a community account (public read and its own runs)."""
 
     email = models.EmailField("email address", unique=True)
@@ -45,7 +45,7 @@ class User(AbstractUser):
 
 
 class Organisation(models.Model):
-    """A program administrator (IOU, REN or CCA), the CPUC, or another organisation (an evaluator, an implementer)."""
+    """A program administrator (IOU, REN or CCA), the CPUC, or another organization (an evaluator, an implementer)."""
 
     class Kind(models.TextChoices):
         PA = "pa", "Program administrator"
@@ -65,9 +65,9 @@ class Organisation(models.Model):
         max_length=3,
         choices=PAType.choices,
         blank=True,
-        help_text="A program administrator's type, for grouping its data (e.g. all RENs); blank for other organisations",
+        help_text="A program administrator's type, for grouping its data (e.g. all RENs); blank for other organizations",
     )
-    federated = models.BooleanField(default=False, help_text="Its members sign in through the organisation's own directory (decision F)")
+    federated = models.BooleanField(default=False, help_text="Its members sign in through the organization's own directory (decision F)")
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,11 +77,13 @@ class Organisation(models.Model):
         blank=True,
         on_delete=models.PROTECT,
         related_name="predecessors",
-        help_text="Set when it was merged into another organisation as the same party; its data stays its own and counts under it",
+        help_text="Set when it was merged into another organization as the same party; its data stays its own and counts under it",
     )
     merged_on = models.DateField(null=True, blank=True, help_text="When the successor took over")
 
     class Meta:
+        verbose_name = "organization"
+        verbose_name_plural = "organizations"
         ordering = ["code"]
         constraints = [models.UniqueConstraint(fields=["kind"], condition=models.Q(kind="cpuc"), name="accounts_one_cpuc_organisation")]
 
@@ -98,9 +100,9 @@ class CodeRange(Func):
 
 
 class OrganisationCode(models.Model):
-    """Every code an organisation has had and when (e.g. EBCE until 2023, AVA from 2024). The organisation keeps its identity (its
+    """Every code an organization has had and when (e.g. EBCE until 2023, AVA from 2024). The organization keeps its identity (its
     primary key) through a rename, so everything it filed stays its own; the current code is also `Organisation.code`. A code belongs to
-    one organisation for good: a former code is never given to another one, so a record filed under it always leads back to the same
+    one organization for good: a former code is never given to another one, so a record filed under it always leads back to the same
     party. Rows change only through accounts.service (rename, merge), each change audited."""
 
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT, related_name="codes")
@@ -120,12 +122,12 @@ class OrganisationCode(models.Model):
             ),
             models.CheckConstraint(condition=Q(code=Upper("code")), name="accounts_code_upper_case"),
             models.UniqueConstraint(fields=["organisation"], condition=Q(valid_to__isnull=True), name="accounts_one_current_code"),
-            # A code is one organisation's for good (btree_gist: = on the code, <> on the organisation).
+            # A code is one organization's for good (btree_gist: = on the code, <> on the organization).
             ExclusionConstraint(
                 name="accounts_code_one_organisation",
                 expressions=[("code", RangeOperators.EQUAL), ("organisation", RangeOperators.NOT_EQUAL)],
             ),
-            # An organisation has one code on any day.
+            # An organization has one code on any day.
             ExclusionConstraint(
                 name="accounts_codes_do_not_overlap",
                 expressions=[("organisation", RangeOperators.EQUAL), (CodeRange("valid_from", "valid_to"), RangeOperators.OVERLAPS)],
@@ -150,8 +152,8 @@ class OrganisationCode(models.Model):
 
 
 class Membership(models.Model):
-    """A user's membership of an organisation. Granting one promotes a community account; ending it demotes the account again, which
-    keeps its own history. Runs and uploads made under a membership belong to the organisation."""
+    """A user's membership of an organization. Granting one promotes a community account; ending it demotes the account again, which
+    keeps its own history. Runs and uploads made under a membership belong to the organization."""
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="memberships")
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT, related_name="memberships")
@@ -230,7 +232,7 @@ class Grant(models.Model):
 
 
 class AccessRequest(models.Model):
-    """A user asking an organisation's admins for membership and permissions (D6: they are the only approval step)."""
+    """A user asking an organization's admins for membership and permissions (D6: they are the only approval step)."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -256,7 +258,7 @@ class AccessRequest(models.Model):
 
 
 class RecertificationCampaign(models.Model):
-    """An organisation's periodic access review: its admins confirm or remove each open grant by the due date; what is not certified by
+    """An organization's periodic access review: its admins confirm or remove each open grant by the due date; what is not certified by
     then is suspended when AccessPolicy.recertification_auto_suspend is on."""
 
     organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT, related_name="recertifications")
@@ -304,7 +306,7 @@ class AccessPolicy(models.Model):
     recertification_auto_suspend = models.BooleanField(default=True, help_text="Suspend grants not certified by the campaign's due date")
     recertification_interval_days = models.PositiveIntegerField(default=365)
     pii_requires_federated = models.BooleanField(
-        default=False, help_text="PII grants only for federated organisations, usable only in a federated session (decision F)"
+        default=False, help_text="PII grants only for federated organizations, usable only in a federated session (decision F)"
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -345,9 +347,9 @@ class PolicyChange(models.Model):
 
 
 class ApiToken(models.Model):
-    """A key a member's own systems use to call the API for one organisation (decision J; BR-01). Only the SHA-256 of the key is kept:
+    """A key a member's own systems use to call the API for one organization (decision J; BR-01). Only the SHA-256 of the key is kept:
     the key is shown once, when it is made. A token never holds more than its user does: its permissions are the user's grants in its
-    organisation, limited to its scopes (modules), and it stops working when it expires, is revoked, or the membership ends."""
+    organization, limited to its scopes (modules), and it stops working when it expires, is revoked, or the membership ends."""
 
     user = models.ForeignKey(User, on_delete=models.PROTECT, related_name="api_tokens")
     organisation = models.ForeignKey(
@@ -359,7 +361,7 @@ class ApiToken(models.Model):
         help_text="Blank: a community account's own",
     )
     name = models.CharField(max_length=100, help_text="What it is for, e.g. the system that uses it")
-    prefix = models.CharField(max_length=12, unique=True, help_text="The key's first part, shown so a key can be recognised")
+    prefix = models.CharField(max_length=12, unique=True, help_text="The key's first part, shown so a key can be recognized")
     key_sha256 = models.CharField(max_length=64, unique=True)
     scopes = models.JSONField(default=list, help_text="The modules it may reach (permissions.MODULES keys)")
     created_at = models.DateTimeField(auto_now_add=True)

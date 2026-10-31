@@ -97,7 +97,7 @@ def test_personal_runs(analyst, release, tmp_path, key):  # noqa: F811
     assert r.status_code == 201 and r.json()["organisation"] is None
     r = start(key, tmp_path, personal="true")
     assert r.status_code == 201 and r.json()["organisation"] is None
-    # an organisation token also sees the caller's own runs
+    # an organization token also sees the caller's own runs
     assert Client().get("/api/v1/calculations/runs", **bearer(key)).json()["count"] == 2
 
 

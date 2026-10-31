@@ -71,7 +71,7 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
       - run: uv run playwright install --with-deps chromium
-      - name: axe-core (WCAG 2.2 AA) on every page, both colour schemes, and reflow at 320 px
+      - name: axe-core (WCAG 2.2 AA) on every page, both color schemes, and reflow at 320 px
         run: uv run pytest -q -m a11y -n auto
 
   docker:

@@ -63,7 +63,7 @@ def test_revoked_expired_and_unknown_keys_are_refused(analyst, pge, pge_admin):
     assert call(key).status_code in (401, 403)
     ApiToken.objects.filter(pk=token.pk).update(expires_at=timezone.now() + timedelta(days=1))
     assert call(key).status_code == 200
-    tokens.revoke_token(pge_admin, token, "leaked in a log")  # the organisation's admin can revoke a member's token
+    tokens.revoke_token(pge_admin, token, "leaked in a log")  # the organization's admin can revoke a member's token
     r = call(key)
     assert r.status_code in (401, 403) and "not valid" in r.json()["detail"]
     e = AuditEvent.objects.get(action="api_token.revoked")
@@ -138,10 +138,10 @@ def test_a_member_makes_a_token_and_sees_its_key_once(signed_in, analyst):
 def test_an_organisation_admin_sees_and_revokes_members_tokens(signed_in, analyst, pge, pge_admin):
     token, _ = tokens.create_token(analyst, pge, name="claims system", scopes=["calculations"], days=30)
     c = signed_in(pge_admin)
-    html = c.get("/admin/organisations/PGE/").content.decode()
+    html = c.get("/admin/organizations/PGE/").content.decode()
     assert "analyst@pge.com" in html and f"cedars_{token.prefix}" in html
     r = c.post(f"/account/tokens/{token.pk}/revoke", {"from": "organisation"})
-    assert r["Location"] == "/admin/organisations/PGE/"
+    assert r["Location"] == "/admin/organizations/PGE/"
     assert ApiToken.objects.get().status == "revoked"
 
 

@@ -25,7 +25,7 @@
   {% endif %}
   <button type="submit">Apply</button>
 </form>
-<p class="small muted">{{ res.n|floatformat:"0g" }} measures{% if years %}, totalled over program year{{ years|length|pluralize }} {{ years|join:", " }}{% endif %}{% if pa != all_pas %}, {{ pa }} only{% endif %}. Every level above the measure is a sum of its measures; ratios are recomputed from the summed benefits and costs.</p>
+<p class="small muted">{{ res.n|floatformat:"0g" }} measures{% if years %}, totaled over program year{{ years|length|pluralize }} {{ years|join:", " }}{% endif %}{% if pa != all_pas %}, {{ pa }} only{% endif %}. Every level above the measure is a sum of its measures; ratios are recomputed from the summed benefits and costs.</p>
 
 {% if tiles %}
 <section aria-labelledby="tiles-h">

@@ -151,7 +151,7 @@ def test_repeated_claim_ids_get_a_suffix_on_their_claim_record(tmp_path, batch_r
 
 
 def test_a_load_that_finds_its_pa_published_meanwhile_adds_nothing(tmp_path, monkeypatch):
-    """Two loads of the same year at once: the second to reach record_import finds the first's import (record_import serialises them on
+    """Two loads of the same year at once: the second to reach record_import finds the first's import (record_import serializes them on
     a lock) and adds no second version and no records to the first's."""
     _year(tmp_path)
     legacy.load(2023)

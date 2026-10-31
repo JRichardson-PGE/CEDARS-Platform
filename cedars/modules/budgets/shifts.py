@@ -56,7 +56,7 @@ def can_submit(user, organisation) -> bool:
 
 
 def can_read(user, shift: FundShift) -> bool:
-    """The organisation's readers, CPUC staff, and once submitted, the co-funders asked to acknowledge it."""
+    """The organization's readers, CPUC staff, and once submitted, the co-funders asked to acknowledge it."""
     if service._org_reader(user, shift.organisation) or service._cpuc_reader(user):
         return True
     if shift.status == FundShift.Status.DRAFT:
@@ -66,7 +66,7 @@ def can_read(user, shift: FundShift) -> bool:
 
 
 def readable(user, organisation=None):
-    """The shifts the user may read, newest first: CPUC staff see every PA's; others their organisations' and those they co-fund."""
+    """The shifts the user may read, newest first: CPUC staff see every PA's; others their organizations' and those they co-fund."""
     qs = FundShift.objects.select_related("organisation", "cycle")
     if service._cpuc_reader(user):
         return qs
@@ -76,7 +76,7 @@ def readable(user, organisation=None):
 
 
 def waiting_for(organisation):
-    """Shifts waiting for the organisation's acknowledgement."""
+    """Shifts waiting for the organization's acknowledgment."""
     if organisation is None:
         return []
     return list(

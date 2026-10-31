@@ -127,8 +127,8 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-# Sign-in (decision F): the platform directory with MFA for everyone; organisations that can federate sign in through their own
-# directory as OpenID Connect providers (SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"], one per organisation, from the environment).
+# Sign-in (decision F): the platform directory with MFA for everyone; organizations that can federate sign in through their own
+# directory as OpenID Connect providers (SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"], one per organization, from the environment).
 LOGIN_URL = "account_login"
 LOGIN_REDIRECT_URL = "administration:account"
 ACCOUNT_LOGIN_METHODS = {"email"}

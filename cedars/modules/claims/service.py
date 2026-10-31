@@ -184,7 +184,7 @@ def can_read_submission(user, submission: Submission) -> bool:
 
 
 def can_read(user, v: SubmissionVersion) -> bool:
-    """A published version is public to every signed-in user (BR-05.9); the rest only to the organisation and CPUC staff."""
+    """A published version is public to every signed-in user (BR-05.9); the rest only to the organization and CPUC staff."""
     if not user.is_authenticated:
         return False
     return v.status == SubmissionVersion.Status.PUBLISHED or can_read_submission(user, v.submission)
@@ -221,7 +221,7 @@ def base_for(organisation, deadline: Deadline) -> SubmissionVersion | None:
 
 
 def later_locked(organisation, deadline: Deadline) -> Deadline | None:
-    """A later confirmation of the same year that the organisation has confirmed, if any."""
+    """A later confirmation of the same year that the organization has confirmed, if any."""
     later = [d for d in periods(deadline.period.year) if number(d) > number(deadline)]
     for d in later:
         sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
@@ -1486,7 +1486,7 @@ def change_letters(*, organisation=None, year: int | None = None):
 
 
 def standing_versions(*, organisation=None, year: int | None = None) -> list[SubmissionVersion]:
-    """Each PA's year to date that stands: per organisation and claim year, the published version of its latest confirmation."""
+    """Each PA's year to date that stands: per organization and claim year, the published version of its latest confirmation."""
     qs = SubmissionVersion.objects.filter(
         status=SubmissionVersion.Status.PUBLISHED, submission__deadline__module=MODULE, submission__deadline__kind__in=KINDS
     ).select_related("submission__deadline__period", "submission__organisation")

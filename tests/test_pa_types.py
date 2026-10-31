@@ -57,7 +57,7 @@ def tsb_by(q: dq.Query, by: str) -> dict:
     return {r[by]: r["tsb"] for r in dq.run(q.but(by=(by,))).rows}
 
 
-# --- the PA type on each organisation
+# --- the PA type on each organization
 
 
 def test_cedars_codes_are_typed_when_added(cpuc_admin):
@@ -110,22 +110,22 @@ def test_a_system_admin_changes_the_pa_type_with_a_reason(cpuc_admin, pge, pge_a
 def test_the_organisation_pages(signed_in, cpuc_admin, pge, pge_admin):
     access.create_organisation(cpuc_admin, code="NEWPA", name="New", kind="pa")
     c = signed_in(cpuc_admin)
-    listing = c.get("/admin/organisations/").content.decode()
+    listing = c.get("/admin/organizations/").content.decode()
     assert '<th scope="col">PA type</th>' in listing and "Not set" in listing
-    page = c.get("/admin/organisations/NEWPA/").content.decode()
+    page = c.get("/admin/organizations/NEWPA/").content.decode()
     assert "PA type" in page and "Not set" in page and "Change the name or PA type" in page
-    r = c.post("/admin/organisations/NEWPA/details", {"name": "New", "pa_type": "CCA", "reason": "a CCA"})
+    r = c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "CCA", "reason": "a CCA"})
     assert r.status_code == 302 and Organisation.objects.get(code="NEWPA").pa_type == "CCA"
-    c.post("/admin/organisations/NEWPA/details", {"name": "New", "pa_type": "", "reason": "blank"})
+    c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "", "reason": "blank"})
     assert Organisation.objects.get(code="NEWPA").pa_type == "CCA"  # refused: a PA needs a type
-    # adding a PA asks for its type; another kind of organisation has none
-    r = c.post("/admin/organisations/new/", {"code": "XYZ", "name": "XYZ", "kind": "pa", "pa_type": ""})
+    # adding a PA asks for its type; another kind of organization has none
+    r = c.post("/admin/organizations/new/", {"code": "XYZ", "name": "XYZ", "kind": "pa", "pa_type": ""})
     assert r.status_code == 200 and "Choose the program administrator" in r.content.decode()
-    r = c.post("/admin/organisations/new/", {"code": "EVAL", "name": "Evaluator", "kind": "other", "pa_type": "IOU"})
+    r = c.post("/admin/organizations/new/", {"code": "EVAL", "name": "Evaluator", "kind": "other", "pa_type": "IOU"})
     assert r.status_code == 200 and "Only a program administrator has a PA type" in r.content.decode()
     pa = signed_in(pge_admin)  # the same client, now signed in as PG&E's administrator: no details form, no changes
-    assert "Change the name or PA type" not in pa.get(f"/admin/organisations/{pge.code}/").content.decode()
-    assert pa.post("/admin/organisations/NEWPA/details", {"name": "x", "pa_type": "IOU", "reason": "x"}).status_code == 404
+    assert "Change the name or PA type" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
+    assert pa.post("/admin/organizations/NEWPA/details", {"name": "x", "pa_type": "IOU", "reason": "x"}).status_code == 404
 
 
 # --- grouped selection on the dashboards and record downloads

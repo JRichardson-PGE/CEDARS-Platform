@@ -236,7 +236,7 @@ def _organisation(request):
 
 @login_required
 def new(request):
-    """File a new document in one of the collections the acting organisation files in."""
+    """File a new document in one of the collections the acting organization files in."""
     allowed = service.collections_for(request.user, _organisation(request))
     if not allowed:
         raise Http404

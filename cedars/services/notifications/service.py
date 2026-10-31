@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 class EventType:
     code: str
     label: str
-    scope: str  # "public": anyone; "organisation": members of the organisation it concerns, and CPUC staff; "cpuc": CPUC staff only
+    scope: str  # "public": anyone; "organisation": members of the organization it concerns, and CPUC staff; "cpuc": CPUC staff only
     group: str
 
 
@@ -49,11 +49,11 @@ BY_CODE = {e.code: e for e in EVENTS}
 REMINDER_DAYS = (7, 1)
 
 
-# --- what an event concerns: its organisation, module and page
+# --- what an event concerns: its organization, module and page
 
 
 def _concerns(event) -> tuple[int | None, str, str]:
-    """(organisation id, module, link) for an audit event, from the record it is about."""
+    """(organization id, module, link) for an audit event, from the record it is about."""
     t, oid = event.object_type, event.object_id
     try:
         if t == "submissions.submissionversion":

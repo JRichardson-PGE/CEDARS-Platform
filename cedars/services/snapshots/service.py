@@ -203,7 +203,7 @@ def as_of(dataset: str):
 
 def release_files(release: Release) -> list[dict]:
     """One entry per snapshot in a release, with what a query needs to label its rows: the file's address (file:// or s3://), the
-    submitting organisation (under its party's current code: a renamed or merged PA's filings count as the one PA), the year, the
+    submitting organization (under its party's current code: a renamed or merged PA's filings count as the one PA), the year, the
     filing or claim kind and the version."""
     out = []
     mapping = access.code_map()

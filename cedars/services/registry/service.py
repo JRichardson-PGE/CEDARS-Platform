@@ -353,7 +353,7 @@ def add_history(
 
 # --- locked attributes and change requests (BR-13.7)
 
-APPROVALS = "programs"  # programs.approve in the CPUC organisation decides requests (submissions' approvers and delegates)
+APPROVALS = "programs"  # programs.approve in the CPUC organization decides requests (submissions' approvers and delegates)
 
 
 def _names(fields) -> str:

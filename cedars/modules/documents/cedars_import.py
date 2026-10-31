@@ -15,9 +15,9 @@ of the files. Columns (MANIFEST; the rest optional):
                   the EM&V site's files, "edw/" and its path ("edw/pdaHomeDocs/2/EMV 9-9-14.zip")
   document_type   a label of the collection's type list ("Disposition", "Template", "Implementation plan"); CPUC ED keeps the lists
   title, summary  the record's title and notes
-  pas, programs   organisation codes and PrgIDs, separated by ";"
+  pas, programs   organization codes and PrgIDs, separated by ";"
   first_year, last_year   the reporting year or the years it covers
-  owner           the organisation that filed it (default: the first PA for PA and program documents, else the CPUC)
+  owner           the organization that filed it (default: the first PA for PA and program documents, else the CPUC)
   version         1, 2 ... in order (DEER's history rows, the implementation plan's version numbers)
   posted          when the version was posted (date or ISO date-time): its filing and publication date
   in_effect_from, in_effect_to, notes   the version's start and end dates and notes, kept in its reason
@@ -188,7 +188,7 @@ class Context:
         self.files = Path(files)
         self.cpuc = access.cpuc()
         if self.cpuc is None:
-            raise RuntimeError("Set up the CPUC organisation before importing CEDARS' documents.")
+            raise RuntimeError("Set up the CPUC organization before importing CEDARS' documents.")
         self.organisations = {o.code.upper(): o for o in Organisation.objects.all()}
         self.programs = {p.prg_id.upper(): p for p in Program.objects.all()}
         self.types = {}
