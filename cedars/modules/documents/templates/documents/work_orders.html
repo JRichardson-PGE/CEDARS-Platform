@@ -11,7 +11,7 @@ CPUC Energy Division keeps this list.</p>
   <thead><tr><th scope="col">Work order</th><th scope="col">Name</th><th scope="col">Contractor</th><th scope="col">Tasks</th><th scope="col">Status</th></tr></thead>
   <tbody>
   {% for wo in rows %}
-  <tr><th scope="row"><a href="{{ wo.get_absolute_url }}">{{ wo.number }}</a></th><td>{{ wo.name }}</td><td>{% if wo.firm %}{{ wo.firm.code }}{% else %}{{ wo.firm_name }}{% endif %}</td><td>{{ wo.tasks.all|length }}</td><td>{% if wo.cancelled %}Cancelled{% else %}Open{% endif %}</td></tr>
+  <tr><th scope="row"><a href="{{ wo.get_absolute_url }}">{{ wo.number }}</a></th><td>{{ wo.name }}</td><td>{% if wo.firm %}{{ wo.firm.code }}{% else %}{{ wo.firm_name }}{% endif %}</td><td>{{ wo.tasks.all|length }}</td><td>{% if wo.cancelled %}Canceled{% else %}Open{% endif %}</td></tr>
   {% empty %}<tr><td colspan="5">No work orders yet.</td></tr>
   {% endfor %}
   </tbody>

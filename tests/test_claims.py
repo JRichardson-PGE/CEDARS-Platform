@@ -426,7 +426,7 @@ def test_a_reopened_version_is_compiled_from_its_predecessors_upload(
 # --- withdrawals and corrections
 
 
-def withdraw(*claims: str, reason="Customer cancelled the project") -> dict:
+def withdraw(*claims: str, reason="Customer canceled the project") -> dict:
     return {"Withdrawal": [row("Withdrawal", ClaimID=c, WithdrawalReason=reason) for c in claims]}
 
 
@@ -441,7 +441,7 @@ def test_a_withdrawn_claim_keeps_its_records_but_is_not_priced_or_counted(filer,
     compiled = service.compiled_tables(v)
     assert "PGE-2028-002" in {r["ClaimID"] for r in compiled["Measure"].rows}  # kept in the year's history
     assert compiled["Withdrawal"].rows == [
-        {"ClaimID": "pge-2028-002", "WithdrawalReason": "Customer cancelled the project", "WithdrawnIn": "2028 Q2 claim, version 1"}
+        {"ClaimID": "pge-2028-002", "WithdrawalReason": "Customer canceled the project", "WithdrawnIn": "2028 Q2 claim, version 1"}
     ]
     job = zipfile.ZipFile(io.BytesIO(storage.store("uploads").get_bytes(v.findings["job_key"])))
     assert [m["CEInputID"] for m in csv.DictReader(io.StringIO(job.read("Measure.csv").decode()))] == ["PGE-2028-001", "PGE-2028-010"]
@@ -490,7 +490,7 @@ def test_a_correction_publishes_a_change_letter(
     v1 = confirmed(filer, pge, q1())
     submissions.move_deadline(cpuc_admin, deadline(), timezone.now() - timedelta(days=1), "test")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
-    v2 = service.request_reopen(filer, v1.submission, "PGE-2028-002 was cancelled; PGE-2028-001 had 20 units")
+    v2 = service.request_reopen(filer, v1.submission, "PGE-2028-002 was canceled; PGE-2028-001 had 20 units")
     correction = tables(
         claim("PGE-2028-001", NumUnits="20"),
         claim("PGE-2028-003"),
@@ -509,12 +509,12 @@ def test_a_correction_publishes_a_change_letter(
     v2.refresh_from_db()
     v2 = service.confirm(filer, v2)
     letter = ChangeLetter.objects.get()
-    assert letter.version == v2 and letter.previous == v1 and letter.reason.startswith("PGE-2028-002 was cancelled")
+    assert letter.version == v2 and letter.previous == v1 and letter.reason.startswith("PGE-2028-002 was canceled")
     c = letter.changes
     assert c["previous_label"] == "2028 Q1 claim, version 1"
     assert {k: g["count"] for k, g in c["claims"].items()} == {"added": 1, "changed": 1, "removed": 0, "reinstated": 0, "withdrawn": 1}
     assert c["claims"]["added"]["ids"] == ["PGE-2028-003"] and c["claims"]["changed"]["ids"] == ["PGE-2028-001"]
-    assert c["claims"]["withdrawn"]["ids"] == [{"claim": "PGE-2028-002", "reason": "Customer cancelled the project"}]
+    assert c["claims"]["withdrawn"]["ids"] == [{"claim": "PGE-2028-002", "reason": "Customer canceled the project"}]
     by_table = {t["table"]: t for t in c["tables"]}
     assert by_table["Measure"] == {"table": "Measure", "before": 2, "after": 3, "added": 1, "changed": 1, "removed": 0}
     assert by_table["Withdrawal"]["added"] == 1
@@ -539,7 +539,7 @@ def test_a_correction_publishes_a_change_letter(
     assert r.status_code == 200 and b"PGE 2028 Q1 claim, version 2" in r.content
     assert client.get(reverse("claims:changes") + "?org=PGE&year=2027").content.count(b"version 2</a>") == 0
     r = client.get(reverse("claims:change_letter", args=[letter.pk]))
-    assert r.status_code == 200 and b"Customer cancelled the project" in r.content and b"PGE-2028-003" in r.content
+    assert r.status_code == 200 and b"Customer canceled the project" in r.content and b"PGE-2028-003" in r.content
     assert b"+$4,500" in r.content  # PGE_Res's total system benefit
     r = client.get(reverse("claims:version", args=[v2.pk]))
     assert b"change letter" in r.content and b"Withdrawn claims" in r.content and b"2028 Q1 claim, version 2" in r.content

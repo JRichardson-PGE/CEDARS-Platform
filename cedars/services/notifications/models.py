@@ -4,7 +4,7 @@ from django.db.models import Q
 
 
 class Subscription(models.Model):
-    """A user's wish to hear about one kind of event, optionally for one module or organisation only (BR-09.2, BR-12.1)."""
+    """A user's wish to hear about one kind of event, optionally for one module or organization only (BR-09.2, BR-12.1)."""
 
     class Channel(models.TextChoices):
         IN_APP = "in_app", "On the notifications page"

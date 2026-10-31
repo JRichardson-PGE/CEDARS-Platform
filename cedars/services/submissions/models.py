@@ -51,7 +51,7 @@ class WorkflowPolicy(models.Model):
 
 
 class Submission(models.Model):
-    """One organisation's filing for one deadline: a series of versions."""
+    """One organization's filing for one deadline: a series of versions."""
 
     deadline = models.ForeignKey(Deadline, on_delete=models.PROTECT, related_name="submissions")
     organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="submissions")
@@ -125,7 +125,7 @@ class SubmissionVersion(models.Model):
 
 
 class ReopenRequest(models.Model):
-    """A request to correct a submission after its due date: only this organisation and deadline, with a reason (BR-05.2, BR-09.5)."""
+    """A request to correct a submission after its due date: only this organization and deadline, with a reason (BR-05.2, BR-09.5)."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"

@@ -89,7 +89,7 @@ def test_renames_are_refused_without_the_right_or_a_good_code(cpuc_admin, pge, p
     rename(cpuc_admin, ebce, code="AVA", reason="x", effective=FIRST_DAY)
     with pytest.raises(AccessDenied, match="after 2024-01-01"):
         rename(cpuc_admin, ebce, code="AVA3", reason="x", effective=FIRST_DAY)
-    # a former code stays the organisation's for good: no one else may take it, here or when adding an organisation
+    # a former code stays the organization's for good: no one else may take it, here or when adding an organization
     with pytest.raises(AccessDenied, match="EBCE is a former code of theirs: AVA"):
         rename(cpuc_admin, pge, code="EBCE", reason="x")
     with pytest.raises(AccessDenied, match="former code"):
@@ -145,7 +145,7 @@ def test_the_same_party_loaded_twice_is_merged(cpuc_admin, make_user):
         access.rename_organisation(cpuc_admin, ebce, code="X", reason="x")
 
 
-# --- filed codes: legacy loads and importers find the one organisation
+# --- filed codes: legacy loads and importers find the one organization
 
 
 def test_a_known_rename_finds_one_organisation_whichever_code_comes_first(cpuc_admin):
@@ -171,7 +171,7 @@ def test_legacy_files_under_the_old_code_load_under_the_renamed_pa(cpuc_admin, a
 def test_the_migration_applies_known_renames_and_audits_each(cpuc_admin, make_user):
     migration = importlib.import_module("cedars.services.accounts.migrations.0004_organisation_codes")
     assert migration.KNOWN_RENAMES == access.KNOWN_RENAMES  # the copy matches the service's table as it stands
-    # as before the migration: organisations with no code history
+    # as before the migration: organizations with no code history
     old = Organisation.objects.create(code="EBCE", name="EBCE", kind="pa", pa_type="CCA")
     plain = Organisation.objects.create(code="SCP", name="Sonoma Clean Power", kind="pa", pa_type="CCA")
     migration.record_codes(apps, None)
@@ -275,27 +275,27 @@ def test_load_shapes_led_under_the_old_code_belong_to_the_renamed_pa(cpuc_admin,
 def test_the_organisation_page_shows_the_codes_and_takes_changes(signed_in, cpuc_admin, pge, pge_admin, ebce):
     c = signed_in(cpuc_admin)
     r = c.post(
-        f"/admin/organisations/{ebce.code}/rename",
+        f"/admin/organizations/{ebce.code}/rename",
         {"code": "AVA", "name": "Ava Community Energy", "effective": "2024-01-01", "reason": "CEDARS changelog"},
     )
-    assert r.status_code == 302 and r["Location"] == "/admin/organisations/AVA/"
-    assert c.get("/admin/organisations/EBCE/")["Location"] == "/admin/organisations/AVA/"  # an old link still leads to it
-    page = c.get("/admin/organisations/AVA/").content.decode()
+    assert r.status_code == 302 and r["Location"] == "/admin/organizations/AVA/"
+    assert c.get("/admin/organizations/EBCE/")["Location"] == "/admin/organizations/AVA/"  # an old link still leads to it
+    page = c.get("/admin/organizations/AVA/").content.decode()
     assert '<h2 id="codes-h">Codes</h2>' in page and "until 2023-12-31" in page and "from 2024-01-01" in page
     assert "Rename: give AVA a new code" in page and "Merge in an organization recorded under an old code" in page
-    assert "formerly EBCE" in c.get("/admin/organisations/").content.decode()
-    r = c.post("/admin/organisations/AVA/former-code", {"code": "EBCE2", "until": "2024-01-01", "reason": "x"})
+    assert "formerly EBCE" in c.get("/admin/organizations/").content.decode()
+    r = c.post("/admin/organizations/AVA/former-code", {"code": "EBCE2", "until": "2024-01-01", "reason": "x"})
     assert r.status_code == 302 and not OrganisationCode.objects.filter(code="EBCE2").exists()  # overlaps EBCE: refused
     twice = _pa(cpuc_admin, "AVA2")
-    r = c.post("/admin/organisations/AVA/merge", {"source": twice.pk, "effective": "2025-01-01", "reason": "same party"})
+    r = c.post("/admin/organizations/AVA/merge", {"source": twice.pk, "effective": "2025-01-01", "reason": "same party"})
     assert r.status_code == 302
     twice.refresh_from_db()
     assert twice.successor.code == "AVA"
-    merged = c.get("/admin/organisations/AVA2/").content.decode()
+    merged = c.get("/admin/organizations/AVA2/").content.decode()
     assert "is the same party as" in merged and "Rename: give" not in merged  # no further changes on a merged organization
     pa = signed_in(pge_admin)
-    assert "Rename: give" not in pa.get(f"/admin/organisations/{pge.code}/").content.decode()
-    assert pa.post(f"/admin/organisations/{pge.code}/rename", {"code": "X", "effective": "2024-01-01", "reason": "x"}).status_code == 404
+    assert "Rename: give" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
+    assert pa.post(f"/admin/organizations/{pge.code}/rename", {"code": "X", "effective": "2024-01-01", "reason": "x"}).status_code == 404
 
 
 def test_cedars_programs_list_puts_ebce_and_ava_programs_under_one_pa(cpuc_admin):

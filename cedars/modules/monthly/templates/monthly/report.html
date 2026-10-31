@@ -47,7 +47,7 @@
   {% endif %}
 
   {% if v.status == "validated" and priced and can_confirm %}
-  <form method="post" action="{% url 'monthly:confirm' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">Signs off on exactly this report; it becomes open to every user, the estimates labelled unvalidated.</span></form>
+  <form method="post" action="{% url 'monthly:confirm' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">Signs off on exactly this report; it becomes open to every user, the estimates labeled unvalidated.</span></form>
   {% endif %}
   {% if v.locked and can_confirm and not past_due and v.number == 1 %}
   <form method="post" action="{% url 'monthly:unconfirm' deadline.pk %}" class="stack form-narrow">{% csrf_token %}

@@ -35,8 +35,8 @@ class EngineRelease(models.Model):
 class InputDraft(models.Model):
     """A small job's Measure and ProgramCost tables being edited on the Edit inputs pages (up to the engine's MAX_EDIT_ROWS measures),
     started from an upload, a run's inputs or a blank job. Tables are kept as text, in CET's column order, as ReCET's editor keeps them:
-    {"columns": [...], "rows": [[...], ...]}. A draft for an organisation is shared with its members who may start runs there; a draft
-    with no organisation is its owner's own. Drafts are scratch data (retention class scratch_run, from their last change)."""
+    {"columns": [...], "rows": [[...], ...]}. A draft for an organization is shared with its members who may start runs there; a draft
+    with no organization is its owner's own. Drafts are scratch data (retention class scratch_run, from their last change)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     organisation = models.ForeignKey(
@@ -63,9 +63,9 @@ class InputDraft(models.Model):
 
 
 class Run(models.Model):
-    """One calculation run: who asked for it, for which organisation, the settings, the inputs (by key and SHA-256), the job spec the
+    """One calculation run: who asked for it, for which organization, the settings, the inputs (by key and SHA-256), the job spec the
     worker was given, its progress, and the worker's receipt (engine, packs, allocation table, outputs and their hashes). A run belongs to
-    its organisation, so it stays with the organisation when its owner leaves; a run with no organisation is its owner's own."""
+    its organization, so it stays with the organization when its owner leaves; a run with no organization is its owner's own."""
 
     class Status(models.TextChoices):
         QUEUED = "queued", "Queued"

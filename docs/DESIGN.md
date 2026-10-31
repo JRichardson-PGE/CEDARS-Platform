@@ -11,7 +11,7 @@ what it is for, and never styled inline.
 
 ## Tokens
 
-Colour tokens are custom properties on `:root`, with a second set under `prefers-color-scheme: dark`. Each is chosen for its job and
+Color tokens are custom properties on `:root`, with a second set under `prefers-color-scheme: dark`. Each is chosen for its job and
 checked for contrast in both schemes (the ratios are in the comments beside them):
 
 | Token | Job |
@@ -19,9 +19,9 @@ checked for contrast in both schemes (the ratios are in the comments beside them
 | `--bg`, `--surface`, `--surface-2` | the page, a raised object on it (card, table, header), a tint inside one |
 | `--fg`, `--fg-2`, `--fg-3` | text, secondary text (descriptions, muted), small labels (table headers, tile captions) |
 | `--line`, `--line-2` | borders between objects, borders inside one |
-| `--primary`, `--primary-fg`, `--primary-hover` | the one brand colour: primary buttons, the current item's bar, the mark |
+| `--primary`, `--primary-fg`, `--primary-hover` | the one brand color: primary buttons, the current item's bar, the mark |
 | `--link` | links. Blue, never red: red means wrong |
-| `--focus` | the focus ring, a colour used for nothing else |
+| `--focus` | the focus ring, a color used for nothing else |
 | `--control` | borders of fields and buttons (3:1 on both surfaces) |
 | `--ok`, `--warn`, `--bad`, `--info` and their `-bg` tints | state: badges, alerts, messages. Always with words; never the only cue |
 
@@ -35,7 +35,7 @@ under an open menu.
 ## App shell
 
 `core/base.html`: an identity bar (agency, product, environment), a header with the brand, five grouped navigation entries (Filings,
-Programs, Calculations, Reference, Administration) as native `<details>` disclosures, and a utility cluster (acting-for organisation,
+Programs, Calculations, Reference, Administration) as native `<details>` disclosures, and a utility cluster (acting-for organization,
 notifications with the unread count, account, sign out), then `main`, then a footer with the agency and the public reference pages.
 Below 860 px the navigation stacks behind a Menu button that `app.js` adds; without scripts the list is simply shown. The open group is
 marked with `.current` and the page inside it with `aria-current="page"`.

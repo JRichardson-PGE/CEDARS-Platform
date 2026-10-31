@@ -4,7 +4,7 @@ from django.db import models
 
 
 class AuditEvent(models.Model):
-    """One change: who (and under which organisation and sign-in assurance), when, what, why, before and after. Never updated or
+    """One change: who (and under which organization and sign-in assurance), when, what, why, before and after. Never updated or
     deleted; kept permanently (decision M)."""
 
     at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -16,7 +16,7 @@ class AuditEvent(models.Model):
         blank=True,
         on_delete=models.PROTECT,
         related_name="+",
-        help_text="The actor's active organisation",
+        help_text="The actor's active organization",
     )
     assurance = models.CharField(max_length=20, blank=True, help_text="How the actor's session was established: password, mfa or federated")
     action = models.CharField(max_length=80, db_index=True, help_text="dotted name, e.g. grant.revoked")

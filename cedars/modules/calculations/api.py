@@ -1,6 +1,6 @@
 """The calculation job API (decision J: calculations first; BR-06.12): start a run from a job zip, follow it, stop it and fetch its
-files, as the New run and run pages do. A call acts for one organisation, the API token's (or the session's active one); a run made
-with `personal` set, or with a token that has no organisation, is the caller's own and seen only by them. The service checks the
+files, as the New run and run pages do. A call acts for one organization, the API token's (or the session's active one); a run made
+with `personal` set, or with a token that has no organization, is the caller's own and seen only by them. The service checks the
 request exactly as it checks New run, so a run started here is the same record, job spec and audit trail."""
 
 from pathlib import PurePosixPath
@@ -39,7 +39,7 @@ def _org_reads(request) -> bool:
 
 
 def _visible(request):
-    """The runs this call may read: the acting organisation's (with calculations.read or .submit) and the caller's own."""
+    """The runs this call may read: the acting organization's (with calculations.read or .submit) and the caller's own."""
     q = Q(pk__in=[])
     if _org_reads(request):
         q |= Q(organisation=api.organisation(request))
@@ -159,7 +159,7 @@ class NewRun(serializers.Serializer):
 
     job = serializers.FileField(help_text="Measure.csv and, optionally, ProgramCost.csv, zipped together")
     name = serializers.CharField(max_length=200)
-    personal = serializers.BooleanField(default=False, help_text="The caller's own run, not the organisation's")
+    personal = serializers.BooleanField(default=False, help_text="The caller's own run, not the organization's")
     release = serializers.CharField(required=False, help_text="A ReCET release from /engines; the default release when left out")
     calculation = serializers.CharField(default=service.RECET, help_text="recet, or a CET replica such as cet-25.1 (D13)")
     acc_version = serializers.CharField(help_text="The ACC by year, e.g. 2024")

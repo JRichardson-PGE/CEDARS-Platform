@@ -1,4 +1,4 @@
-"""Django REST Framework authentication for API tokens: `Authorization: Bearer cedars_...`. The call acts for the token's organisation
+"""Django REST Framework authentication for API tokens: `Authorization: Bearer cedars_...`. The call acts for the token's organization
 (request.organisation) and its audit events carry assurance "token"."""
 
 from rest_framework import authentication, exceptions

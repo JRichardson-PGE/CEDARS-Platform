@@ -452,7 +452,7 @@ def run(records: list[dict], source, *, comments_for=None, dry_run: bool = False
     report = report or Report()
     cpuc = access.cpuc()
     if cpuc is None:
-        raise RuntimeError("Set up the CPUC organisation before importing the PDA.")
+        raise RuntimeError("Set up the CPUC organization before importing the PDA.")
     for record in sorted(records, key=lambda r: int(r[FIELDS["id"]])):
         pda_id = int(record[FIELDS["id"]])
         import_document(record, source, cpuc, report, comments=comments_for(pda_id) if comments_for else None, dry_run=dry_run)

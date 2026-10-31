@@ -2,10 +2,10 @@
 action raises AccessDenied with a sentence the page can show as it is.
 
 Who may grant what:
-  - an organisation's admins grant its module permissions and org.admin, never to themselves;
-  - while an organisation has no admin, only a CPUC system administrator can grant its first one (D6), and only then;
-  - claims.pii granted by an organisation's admin waits for any data steward's approval;
-  - system.admin and pii.steward exist only in the CPUC organisation and are granted by a system administrator;
+  - an organization's admins grant its module permissions and org.admin, never to themselves;
+  - while an organization has no admin, only a CPUC system administrator can grant its first one (D6), and only then;
+  - claims.pii granted by an organization's admin waits for any data steward's approval;
+  - system.admin and pii.steward exist only in the CPUC organization and are granted by a system administrator;
   - the last active data steward cannot be revoked, suspended or removed.
 `actor=None` is the system itself (the bootstrap command and scheduled jobs).
 """
@@ -41,7 +41,7 @@ class AccessDenied(PermissionDenied):
 
 
 # Each PA code in CEDARS' Programs list (2026-10-03) and its type. A PA added under one of these codes is typed on creation (importers,
-# legacy loads); any other code is left for a CPUC system administrator to type on its organisation page. Migration
+# legacy loads); any other code is left for a CPUC system administrator to type on its organization page. Migration
 # accounts/0003_pa_types typed the PAs already in the platform from this table.
 KNOWN_PA_TYPES = {
     # investor-owned utilities
@@ -80,16 +80,16 @@ def pa_types() -> dict[str, str]:
     return dict(Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(pa_type="").values_list("code", "pa_type"))
 
 
-# --- organisation codes and their history
+# --- organization codes and their history
 #
-# An organisation keeps its identity (its primary key) whatever its code: a rename closes the old code and opens the new one on a date
-# (OrganisationCode), and everything filed under either stays the organisation's. A code is one organisation's for good. Where the same
-# party was recorded twice (an old code's data loaded before the rename was known), the old organisation is merged into the new: it
+# An organization keeps its identity (its primary key) whatever its code: a rename closes the old code and opens the new one on a date
+# (OrganisationCode), and everything filed under either stays the organization's. A code is one organization's for good. Where the same
+# party was recorded twice (an old code's data loaded before the rename was known), the old organization is merged into the new: it
 # keeps its own data and codes, points at its successor, and is counted under it. Data keeps the code as filed (versions, not edits);
 # `code_map` / `current_code` read any code as its party's current one, which is what the dashboards group and filter by.
 
 # Renames CEDARS has made: former code -> (new code, new name, first day of the new code, where it is recorded). A legacy load or a PA
-# added under either code finds the one organisation; migration accounts/0004 applied them to the organisations already in the platform.
+# added under either code finds the one organization; migration accounts/0004 applied them to the organizations already in the platform.
 KNOWN_RENAMES = {
     "EBCE": (
         "AVA",
@@ -107,7 +107,7 @@ def _norm(code) -> str:
 
 
 def party(org: Organisation | None) -> Organisation | None:
-    """The organisation a merged one now counts under (its successor's successor, and so on); the organisation itself otherwise."""
+    """The organization a merged one now counts under (its successor's successor, and so on); the organization itself otherwise."""
     seen = set()
     while org is not None and org.successor_id and org.pk not in seen:
         seen.add(org.pk)
@@ -116,8 +116,8 @@ def party(org: Organisation | None) -> Organisation | None:
 
 
 def by_code(code: str, *, follow: bool = True) -> Organisation | None:
-    """The organisation a code names, current or former (e.g. EBCE finds Ava Community Energy). follow=True (the default) goes on to
-    the party a merged organisation counts under; follow=False stops at the organisation that holds the code."""
+    """The organization a code names, current or former (e.g. EBCE finds Ava Community Energy). follow=True (the default) goes on to
+    the party a merged organization counts under; follow=False stops at the organization that holds the code."""
     c = _norm(code)
     if not c:
         return None
@@ -129,7 +129,7 @@ def by_code(code: str, *, follow: bool = True) -> Organisation | None:
 
 
 def by_code_or_404(code: str, *, follow: bool = False) -> Organisation:
-    """by_code for a page's URL (by default the organisation holding the code, so a merged one's own page still opens)."""
+    """by_code for a page's URL (by default the organization holding the code, so a merged one's own page still opens)."""
     from django.http import Http404
 
     org = by_code(code, follow=follow)
@@ -139,7 +139,7 @@ def by_code_or_404(code: str, *, follow: bool = False) -> Organisation:
 
 
 def party_members(org: Organisation) -> list[Organisation]:
-    """The organisation and every organisation merged into it, directly or through another: one party."""
+    """The organization and every organization merged into it, directly or through another: one party."""
     org = party(org)
     successors = dict(Organisation.objects.filter(successor__isnull=False).values_list("pk", "successor_id"))
     members = {org.pk}
@@ -162,7 +162,7 @@ def party_codes(org: Organisation) -> list[str]:
 
 
 def code_map() -> dict[str, str]:
-    """Every code that is not its party's current code -> the party's current code (former codes and merged organisations' codes),
+    """Every code that is not its party's current code -> the party's current code (former codes and merged organizations' codes),
     e.g. {"EBCE": "AVA"}. Empty when nothing was ever renamed or merged."""
     orgs = {pk: (code, succ) for pk, code, succ in Organisation.objects.values_list("pk", "code", "successor_id")}
 
@@ -185,7 +185,7 @@ def current_code(code: str, mapping: dict[str, str] | None = None) -> str:
 
 
 def code_history(org: Organisation) -> list[OrganisationCode]:
-    """The party's codes in order of use, merged organisations' included (an organisation added before code history was kept shows its
+    """The party's codes in order of use, merged organizations' included (an organization added before code history was kept shows its
     one code as an unsaved row)."""
     members = party_members(org)
     rows = list(OrganisationCode.objects.filter(organisation__in=members).select_related("organisation", "recorded_by"))
@@ -204,7 +204,7 @@ def code_on(org: Organisation, day: date) -> str:
 
 def _current_row(org: Organisation) -> OrganisationCode:
     row = org.codes.filter(valid_to__isnull=True).first()
-    if row is None:  # an organisation added before code history was kept
+    if row is None:  # an organization added before code history was kept
         row = OrganisationCode.objects.create(organisation=org, code=_norm(org.code))
     return row
 
@@ -238,7 +238,7 @@ def _effective_day(effective, after: date | None, what: str) -> date:
 def rename_organisation(
     actor: User | None, org: Organisation, *, code: str, reason: str, effective: date | None = None, name: str = ""
 ) -> Organisation:
-    """Give an organisation a new code from a date (default today), and optionally a new name (a CPUC system administrator, with a
+    """Give an organization a new code from a date (default today), and optionally a new name (a CPUC system administrator, with a
     reason). The old code is kept in its history and still finds it; nothing it filed changes."""
     _require_system_admin(actor, "rename an organization")
     if not reason.strip():
@@ -267,8 +267,8 @@ def rename_organisation(
 def add_former_code(
     actor: User | None, org: Organisation, *, code: str, until: date, reason: str, since: date | None = None
 ) -> OrganisationCode:
-    """Record a code an organisation used before, from `since` (blank: from the start) up to but not including `until`, so records
-    filed under it count as the organisation's (a CPUC system administrator, with a reason). A current code with no start then starts
+    """Record a code an organization used before, from `since` (blank: from the start) up to but not including `until`, so records
+    filed under it count as the organization's (a CPUC system administrator, with a reason). A current code with no start then starts
     on `until`."""
     _require_system_admin(actor, "change an organization's codes")
     if not reason.strip():
@@ -307,7 +307,7 @@ def merge_organisation(
     """Record that `source` and `into` are the same party under an old and a new code (a CPUC system administrator, with a reason):
     `source`'s codes end on `effective` (default `into`'s first day under its code, else today), it becomes inactive and points at
     `into`, and its data, which stays its own, is counted under `into`. Its members must be moved or removed first."""
-    _require_system_admin(actor, "merge organisations")
+    _require_system_admin(actor, "merge organizations")
     if not reason.strip():
         raise AccessDenied("Give a reason for the merge.")
     into = party(into)
@@ -344,7 +344,7 @@ def merge_organisation(
 @transaction.atomic
 def organisation_for_filed_code(code: str, actor: User | None = None) -> Organisation:
     """The program administrator a filed code names (legacy loads, importers): the party that has or had the code; for a code in
-    KNOWN_RENAMES, the one organisation under its old or new code (renamed or given the former code as needed); otherwise a new PA
+    KNOWN_RENAMES, the one organization under its old or new code (renamed or given the former code as needed); otherwise a new PA
     under the code (typed when CEDARS uses it). `actor` (a CPUC system administrator running an import, or None for the system) is
     recorded on what it adds."""
     c = _norm(code)
@@ -359,9 +359,9 @@ def organisation_for_filed_code(code: str, actor: User | None = None) -> Organis
     if target is None:
         target = create_organisation(actor, code=new, name=name, kind=Organisation.Kind.PA)
         add_former_code(actor, target, code=old, until=first_day, reason=source)
-    elif c == old:  # the new organisation is here; the old code was never recorded
+    elif c == old:  # the new organization is here; the old code was never recorded
         add_former_code(actor, target, code=old, until=first_day, reason=source)
-    else:  # the old organisation is here; the rename was never recorded
+    else:  # the old organization is here; the rename was never recorded
         rename_organisation(actor, target, code=new, reason=source, effective=first_day, name=name if target.name == old else "")
     return target
 
@@ -386,7 +386,7 @@ def effective_permissions(user: User, organisation: Organisation) -> set[str]:
 
 
 def has_permission(user: User, organisation: Organisation, permission: str, assurance: str | None = None) -> bool:
-    """Whether the user holds the permission in the organisation now. claims.pii also checks the session's assurance when the CPUC
+    """Whether the user holds the permission in the organization now. claims.pii also checks the session's assurance when the CPUC
     requires federated sessions for PII (pass the session's assurance; None means "not in a session" and fails that check)."""
     if permission not in effective_permissions(user, organisation):
         return False
@@ -410,7 +410,7 @@ def is_org_admin(user: User, organisation: Organisation) -> bool:
 
 
 def holders(organisation: Organisation, permission: str):
-    """The users who hold the permission in the organisation now."""
+    """The users who hold the permission in the organization now."""
     return User.objects.filter(
         pk__in=_effective(Grant.objects.filter(membership__organisation=organisation, permission=permission)).values("membership__user"),
         is_active=True,
@@ -422,7 +422,7 @@ def org_admins(organisation: Organisation):
 
 
 def organisations_of(user: User):
-    """The organisations the user is an active member of (the ones they can switch to)."""
+    """The organizations the user is an active member of (the ones they can switch to)."""
     return Organisation.objects.filter(memberships__user=user, memberships__ended_at__isnull=True, active=True).distinct()
 
 
@@ -437,7 +437,7 @@ def active_stewards():
 
 
 def can_grant(actor: User | None, user: User, organisation: Organisation, permission: str) -> tuple[bool, str]:
-    """(allowed, reason refused) for actor granting permission to user in organisation."""
+    """(allowed, reason refused) for actor granting permission to user in organization."""
     if not perms.is_valid(permission):
         return False, f"{permission} is not a permission."
     if not organisation.active:
@@ -445,9 +445,9 @@ def can_grant(actor: User | None, user: User, organisation: Organisation, permis
     if not user.is_active:
         return False, f"{user.email}'s account is deactivated."
     if permission in perms.CPUC_ONLY and organisation.kind != Organisation.Kind.CPUC:
-        return False, f"{perms.label(permission)} exists only in the CPUC organisation."
+        return False, f"{perms.label(permission)} exists only in the CPUC organization."
     if permission == perms.PII and AccessPolicy.current().pii_requires_federated and not organisation.federated:
-        return False, f"PII access needs a federated organisation, and {organisation.code} does not federate."
+        return False, f"PII access needs a federated organization, and {organisation.code} does not federate."
     if actor is None:
         return True, ""
     if actor.pk == user.pk:
@@ -476,13 +476,13 @@ def _guard_last_steward(grant: Grant, what: str) -> None:
         raise AccessDenied(f"You cannot {what} the last data steward. Grant another steward first.")
 
 
-# --- organisations and memberships
+# --- organizations and memberships
 
 
 @transaction.atomic
 def create_organisation(actor: User | None, *, code: str, name: str, kind: str, pa_type: str = "", federated: bool = False) -> Organisation:
     if actor is not None and not is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator can add an organisation.")
+        raise AccessDenied("Only a CPUC system administrator can add an organization.")
     code = _check_new_code(code, None)
     if kind == Organisation.Kind.PA and not pa_type:
         pa_type = known_pa_type(code)  # a CEDARS code is typed as CEDARS has it; any other is left for the CPUC to type
@@ -497,10 +497,10 @@ ORGANISATION_DETAILS = ["name", "pa_type"]
 
 @transaction.atomic
 def change_organisation(actor: User | None, org: Organisation, *, reason: str, **changes) -> Organisation:
-    """Change an organisation's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
-    administrator and refused for any other kind of organisation."""
+    """Change an organization's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
+    administrator and refused for any other kind of organization."""
     if actor is not None and not is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator can change an organisation's details.")
+        raise AccessDenied("Only a CPUC system administrator can change an organization's details.")
     unknown = set(changes) - set(ORGANISATION_DETAILS)
     if unknown:
         raise AccessDenied(f"{', '.join(sorted(unknown))} cannot be changed here.")
@@ -512,7 +512,7 @@ def change_organisation(actor: User | None, org: Organisation, *, reason: str, *
     if org.kind != Organisation.Kind.PA and pa_type:
         raise AccessDenied("Only a program administrator has a PA type.")
     if "name" in changes and not changes["name"].strip():
-        raise AccessDenied("The organisation needs a name.")
+        raise AccessDenied("The organization needs a name.")
     before = audit.snapshot(org, ORGANISATION_DETAILS)
     for k, v in changes.items():
         setattr(org, k, v.strip() if isinstance(v, str) else v)
@@ -657,7 +657,7 @@ def request_access(user: User, organisation: Organisation, permission_codes: lis
 def decide_request(
     actor: User, req: AccessRequest, approve: bool, note: str = "", permission_codes: list[str] | None = None
 ) -> AccessRequest:
-    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organisation's
+    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organization's
     admins decide; the CPUC is not in the path (D6)."""
     _require_org_admin(actor, req.organisation, "decide its access requests")
     if req.status != AccessRequest.Status.PENDING:

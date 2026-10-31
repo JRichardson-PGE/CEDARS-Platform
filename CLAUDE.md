@@ -16,15 +16,20 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   a service never imports a module.
 - **Versions, not edits.** A confirmed submission is never updated in place; a correction is a new version with a reason. The audit trail is
   append-only (no UPDATE or DELETE on its table).
-- **Every change audited.** A service that changes a record writes an audit event (who, active organisation, what, why, before, after).
+- **Every change audited.** A service that changes a record writes an audit event (who, active organization, what, why, before, after).
 - **Configure rather than recode.** Rule sets, periods, value lists, templates, retention periods and policy choices (BRD D1-D14) are data with
   effective dates and an admin page, not code paths.
 - **PII stays in the vault.** Only `PII_Contact` and `PII_Site`, in their own database; everything else holds SiteID / ContactID keys only.
 - **Names.** ReCET's renamed field dictionary is canonical (decision L); CET names are accepted on upload through the crosswalk. Name ACCs by year
   ("2024 ACC"). The BRD never names the development vendor; neither do pages, docs or commits here.
+- **US spelling** (Jake, 2026-10-31): every page, label, help text, message, doc and comment uses US English ("organization",
+  "color", "canceled", "behavior"). Code identifiers, URL route names, database tables and columns, audit action names and API field
+  names keep their original `organisation` spelling (renaming them is a schema and API change); write new identifiers in US spelling.
+  Page URLs are US (`/admin/organizations/`; old `/admin/organisations/` links redirect). `tests/test_us_spelling.py` checks templates and docs.
+  Data values from CEDARS or the PAs (e.g. the PSR's "Cancelled" status) stay as filed.
 - **WCAG 2.2 AA on every page** (decision K; a California state agency requirement). Pages render on the server and work without scripts.
   Every page change keeps: a visible label or accessible name on every control; keyboard reach and a visible focus for everything a mouse can do;
-  status in text, not colour alone; 4.5:1 text and 3:1 control-border/focus contrast in both colour schemes; announcements through
+  status in text, not color alone; 4.5:1 text and 3:1 control-border/focus contrast in both color schemes; announcements through
   `window.cedarsAnnounce` (one page-wide live region), never a new live region; never disable the focused control (use aria-disabled); targets
   at least 24 x 24 px; reflow at 320 px and 200% zoom. Add every new page to `tests/a11y/pages.py`; CI runs axe on it in both schemes.
   ReCET's web templates, CSS and NVDA fixes are the reference (`recet/web`, `tests/screenreader`).

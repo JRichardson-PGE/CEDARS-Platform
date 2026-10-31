@@ -86,7 +86,7 @@ class Document(models.Model):
     title = models.CharField(max_length=200)
     summary = models.TextField(blank=True, max_length=3500)
     owner = models.ForeignKey(
-        "accounts.Organisation", on_delete=models.PROTECT, related_name="owned_documents", help_text="The organisation that filed it"
+        "accounts.Organisation", on_delete=models.PROTECT, related_name="owned_documents", help_text="The organization that filed it"
     )
     pas = models.ManyToManyField(
         "accounts.Organisation", blank=True, related_name="documents", help_text="The PAs it applies to: several for a joint document"
@@ -164,7 +164,7 @@ class DocumentVersion(models.Model):
     number = models.PositiveSmallIntegerField()
     reason = models.TextField(blank=True, help_text="Why it replaces the previous version (required from version 2)")
     organisation = models.ForeignKey(
-        "accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The author's organisation"
+        "accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The author's organization"
     )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     created_at = models.DateTimeField(default=timezone.now)
@@ -255,7 +255,7 @@ class ResponseRequest(models.Model):
 
 class Comment(models.Model):
     """A comment or question on a published version, posted in its comment period by a registered user (BR-15.4). Public, dated and
-    attributed to its author and organisation. Never edited; the author may withdraw it until it is answered (it then stops being shown
+    attributed to its author and organization. Never edited; the author may withdraw it until it is answered (it then stops being shown
     but is kept, with its audit event)."""
 
     class Kind(models.TextChoices):
@@ -277,7 +277,7 @@ class Comment(models.Model):
         blank=True,
         on_delete=models.PROTECT,
         related_name="+",
-        help_text="The organisation it was posted for",
+        help_text="The organization it was posted for",
     )
     file_name = models.CharField(max_length=255, blank=True)
     file_key = models.CharField(max_length=500, blank=True)
@@ -359,7 +359,7 @@ class WorkOrder(models.Model):
         blank=True,
         on_delete=models.PROTECT,
         related_name="work_orders",
-        help_text="The contractor, when it has an organisation here",
+        help_text="The contractor, when it has an organization here",
     )
     firm_name = models.CharField(max_length=200, blank=True, help_text="The contractor as the contract names it")
     cpuc_contract_id = models.CharField("CPUC contract id", max_length=50, blank=True)
@@ -408,7 +408,7 @@ class Task(models.Model):
 class Study(models.Model):
     """One EM&V study, as the Project Status Report keeps it (BR-15.6): its study ID (year, sector, number) never changes; status,
     type, group, lead and sectors come from value lists CPUC ED keeps, replacing the PSR's free text. Changes go through the service
-    with an audit event, which is its status and budget history. Public except the contacts. The study manager's organisation and
+    with an audit event, which is its status and budget history. Public except the contacts. The study manager's organization and
     CPUC ED update it (BR-15.9)."""
 
     number = models.PositiveIntegerField(unique=True, help_text="The PSR project number, continued for new studies")

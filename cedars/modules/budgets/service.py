@@ -4,7 +4,7 @@ the submissions service's calendar) with this module's FilingSetup; each PA's fi
     upload (.zip or .xlsx) -> lines and checks -> validated -> priced (Calculations, through the submissions service) -> confirm
     -> published: inputs, run settings and results readable by every signed-in user (BR-04.4)
 
-Every filed version is kept and comparable (BR-04.2); results are read by program year and totalled over the years chosen (BR-04.1);
+Every filed version is kept and comparable (BR-04.2); results are read by program year and totaled over the years chosen (BR-04.1);
 programs flagged exclude-from-budget or exclude-from-C/E keep their values and are filtered, never zeroed (BR-04.3); each version
 records the allocation version it was priced with, and a later one never changes it (BR-04.8)."""
 
@@ -131,7 +131,7 @@ def can_read_submission(user, submission: Submission) -> bool:
 
 
 def can_read(user, v: SubmissionVersion) -> bool:
-    """A published version is public to every signed-in user (BR-04.4); the rest only to the organisation and CPUC staff."""
+    """A published version is public to every signed-in user (BR-04.4); the rest only to the organization and CPUC staff."""
     if not user.is_authenticated:
         return False
     return v.status == SubmissionVersion.Status.PUBLISHED or can_read_submission(user, v.submission)
@@ -188,7 +188,7 @@ def _prefix(v: SubmissionVersion) -> str:
 def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], list[Problem], int]:
     """The version's budget lines {prg_id, year, pa, program_costs, on_bill_financing, rebates_and_incentives, measures} from its
     tables, the module's own checks, and the number of records. Module checks: each ProgramCost year and measure claim year in the
-    cycle, every PrgID in the program registry and the organisation's own (or statewide), the cost and unit fields numbers, and a
+    cycle, every PrgID in the program registry and the organization's own (or statewide), the cost and unit fields numbers, and a
     warning for measures whose program has no ProgramCost row that year (priced with no program costs)."""
     problems: list[Problem] = []
     _, costs = jobfile.rows(tables["ProgramCost"])

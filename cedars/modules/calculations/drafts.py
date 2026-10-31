@@ -58,7 +58,7 @@ def max_rows() -> int:
 
 
 def visible(user):
-    """The drafts a user may open: their own, and those of organisations where they may start runs."""
+    """The drafts a user may open: their own, and those of organizations where they may start runs."""
     orgs = [o for o in service.readable_organisations(user) if service.can_submit(user, o)]
     return InputDraft.objects.filter(Q(organisation__isnull=True, owner=user) | Q(organisation__in=orgs)).select_related(
         "organisation", "owner"
@@ -177,7 +177,7 @@ def create_blank(actor, organisation, name: str) -> InputDraft:
 
 
 def create_from_run(actor, run: Run) -> InputDraft:
-    """A draft from a run's own inputs (Edit inputs and rerun), for the run's organisation."""
+    """A draft from a run's own inputs (Edit inputs and rerun), for the run's organization."""
     if not service.can_read(actor, run):
         raise AccessDenied("You cannot see this run.")
     if "job_zip" not in run.inputs:

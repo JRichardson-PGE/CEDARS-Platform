@@ -1,6 +1,6 @@
 from django.db import models
 
-# Everything here lives in the vault database (router.VaultRouter). It holds no foreign keys into the core database: organisation,
+# Everything here lives in the vault database (router.VaultRouter). It holds no foreign keys into the core database: organization,
 # submission version and user are stored by id, and the claims service resolves them.
 
 

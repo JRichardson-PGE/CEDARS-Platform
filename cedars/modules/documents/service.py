@@ -1,14 +1,14 @@
 """The document library (BR-15.1, 15.2, 15.9): who may see and change what, filing a document, its versions and their publication, value
 lists, search and downloads. Every change writes an audit event; so does every download (BR-15.9, replacing the PDA's download report).
 
-Who may do what (permissions in the documents module, held in an organisation):
+Who may do what (permissions in the documents module, held in an organization):
   - anyone, signed in or not, reads a published document and its published versions;
-  - documents.read, .submit, .confirm or .admin in the owning organisation, in a PA named on the document (a joint document) or in the
+  - documents.read, .submit, .confirm or .admin in the owning organization, in a PA named on the document (a joint document) or in the
     manager of the study it belongs to (BR-15.9: evaluators manage the deliverables of their studies) shows
-    its unpublished versions too, and so does any of them in the CPUC (BR-15.2: "only their owning organisation and CPUC ED");
+    its unpublished versions too, and so does any of them in the CPUC (BR-15.2: "only their owning organization and CPUC ED");
   - documents.submit there adds versions and changes the details; documents.confirm publishes a version;
-  - documents.submit in the acting organisation files a new document there: a PA files PA documents, program files and EM&V documents,
-    another organisation (an evaluator) EM&V documents, the CPUC any collection (guidance and DEER resources are the CPUC's alone);
+  - documents.submit in the acting organization files a new document there: a PA files PA documents, program files and EM&V documents,
+    another organization (an evaluator) EM&V documents, the CPUC any collection (guidance and DEER resources are the CPUC's alone);
   - documents.admin in the CPUC (or a CPUC system administrator) does all of it on every document and keeps the value lists.
 `actor=None` is the system (imports)."""
 
@@ -104,7 +104,7 @@ def is_admin(user) -> bool:
 
 
 def _parties(doc: Document) -> list[Organisation]:
-    """The organisations that manage a document: its owner, the PAs named on it and, for a study's document, the study manager."""
+    """The organizations that manage a document: its owner, the PAs named on it and, for a study's document, the study manager."""
     parties = [doc.owner, *[o for o in doc.pas.all() if o.pk != doc.owner_id]]
     if doc.study_id and doc.study.manager_id not in {o.pk for o in parties}:
         parties.append(doc.study.manager)
@@ -137,7 +137,7 @@ def can_publish(user, doc: Document) -> bool:
 
 
 def collections_for(user, organisation: Organisation | None) -> list[str]:
-    """The collections the user may file new documents in while acting for the organisation."""
+    """The collections the user may file new documents in while acting for the organization."""
     if organisation is None or not organisation.active:
         return []
     if user is not None and not (access.has_permission(user, organisation, SUBMIT) or (organisation.kind == "cpuc" and is_admin(user))):
@@ -427,7 +427,7 @@ def _detail_snapshot(doc: Document) -> dict:
 
 def _require_organisation(actor, organisation: Organisation | None, collection: str) -> None:
     if organisation is None:
-        raise AccessDenied("Choose the organisation you are acting for before you file a document.")
+        raise AccessDenied("Choose the organization you are acting for before you file a document.")
     if collection not in collections_for(actor, organisation):
         allowed = collections_for(actor, organisation)
         if not allowed:
@@ -603,7 +603,7 @@ def publish_version(actor, version: DocumentVersion) -> DocumentVersion:
     doc = Document.objects.select_for_update().get(pk=version.document_id)
     responder = version.responding_pa_id is not None and actor is not None and access.has_permission(actor, version.responding_pa, CONFIRM)
     if not (can_publish(actor, doc) or responder):
-        raise AccessDenied("You need the Documents: confirm permission of an organisation on this document to publish it.")
+        raise AccessDenied("You need the Documents: confirm permission of an organization on this document to publish it.")
     version = DocumentVersion.objects.select_for_update().get(pk=version.pk)
     if version.published:
         raise DocumentError(f"Version {version.number} is already published.")
@@ -662,7 +662,7 @@ class Search:
 
 
 def readable(user) -> QuerySet:
-    """The documents the user may open: every published one, and the unpublished ones of their organisations (all of them for CPUC
+    """The documents the user may open: every published one, and the unpublished ones of their organizations (all of them for CPUC
     readers)."""
     qs = Document.objects.all()
     if _sees_everything(user):
@@ -675,7 +675,7 @@ def _sees_everything(user) -> bool:
 
 
 def _own_documents(user) -> QuerySet:
-    """The documents whose unpublished work the user sees through an organisation on them (not as CPUC staff)."""
+    """The documents whose unpublished work the user sees through an organization on them (not as CPUC staff)."""
     mine = _response_organisations(user)
     return Document.objects.filter(Q(owner__in=mine) | Q(pas__in=mine) | Q(study__manager__in=mine))
 

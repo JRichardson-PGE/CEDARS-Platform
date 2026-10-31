@@ -8,7 +8,7 @@ ORG_SESSION_KEY = "cedars_organisation"
 
 
 class ActiveOrganisationMiddleware:
-    """request.organisation: the organisation the user is acting for, switched in the session (BR-01.1), always one they are an active
+    """request.organisation: the organization the user is acting for, switched in the session (BR-01.1), always one they are an active
     member of (None for a community account). request.assurance: how the session was established (assurance.py)."""
 
     def __init__(self, get_response):

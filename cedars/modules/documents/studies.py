@@ -5,9 +5,9 @@ are delivered under, and the study lists and budget summaries the EM&V plans com
 Who may do what:
   - everyone, signed in or not, reads every study and the register, except the contacts;
   - CPUC ED's document administrators add and change any study, keep the work orders and assign a study's manager;
-  - a PA with Documents: submit adds the studies it leads and manages (PA-led studies), and the study manager's organisation (an
+  - a PA with Documents: submit adds the studies it leads and manages (PA-led studies), and the study manager's organization (an
     evaluation contractor or a PA) updates its studies with Documents: submit;
-  - the contacts are seen by CPUC staff and the study manager's organisation.
+  - the contacts are seen by CPUC staff and the study manager's organization.
 Every change is an audit event with the fields before and after, labels rather than ids, which is the study's history (status and
 budget history, BR-15.6)."""
 
@@ -253,7 +253,7 @@ def import_study(data: StudyData, *, number: int, study_id: str, psr: dict, crea
 def change_study(actor, study: Study, data: StudyData, *, reason: str) -> Study:
     """Change a study (its ID never changes). Only CPUC ED changes who manages it."""
     if not can_edit(actor, study):
-        raise AccessDenied("Only the study manager's organisation and CPUC ED update a study.")
+        raise AccessDenied("Only the study manager's organization and CPUC ED update a study.")
     if not reason.strip():
         raise DocumentError("Give the reason for the change.")
     if data.manager != study.manager and not is_admin(actor):
@@ -272,7 +272,7 @@ def change_study(actor, study: Study, data: StudyData, *, reason: str) -> Study:
 
 
 def history(study: Study, *, public: bool = True) -> list[dict]:
-    """Every change to the study, newest first: when, who (their organisation for the public), why, and each field changed (old, new).
+    """Every change to the study, newest first: when, who (their organization for the public), why, and each field changed (old, new).
     Contacts are left out for the public."""
     out = []
     for e in audit.changes(study).select_related("organisation").order_by("-at", "-id"):
@@ -287,7 +287,7 @@ def history(study: Study, *, public: bool = True) -> list[dict]:
         out.append(
             {
                 "at": e.at,
-                # The public sees the organisation only, never a person.
+                # The public sees the organization only, never a person.
                 "who": (e.organisation.code if e.organisation else "imported" if e.actor_id is None else "not recorded")
                 if public
                 else e.actor_label or "imported",
@@ -308,7 +308,7 @@ def set_coverage(
 ) -> StudyProgram:
     """Name a program the study evaluates and the years it covers (or change them)."""
     if not can_edit(actor, study):
-        raise AccessDenied("Only the study manager's organisation and CPUC ED update a study.")
+        raise AccessDenied("Only the study manager's organization and CPUC ED update a study.")
     if not first_year or not last_year or first_year > last_year:
         raise DocumentError("Give the first and last program years covered, in order.")
     row = StudyProgram.objects.filter(study=study, program=program).first()
@@ -332,7 +332,7 @@ def set_coverage(
 @transaction.atomic
 def remove_coverage(actor, row: StudyProgram, *, reason: str) -> None:
     if not can_edit(actor, row.study):
-        raise AccessDenied("Only the study manager's organisation and CPUC ED update a study.")
+        raise AccessDenied("Only the study manager's organization and CPUC ED update a study.")
     if not reason.strip():
         raise DocumentError("Give the reason for removing the program.")
     before = {"program": row.program.prg_id, **audit.snapshot(row, ["first_year", "last_year", "whole", "note"])}
@@ -454,7 +454,7 @@ SUMMARY_BY = {"type": "Study type", "sector": "Sector", "lead": "Study lead", "s
 
 def summary(cycle: AttributeOption | None = None) -> dict:
     """The EM&V plan's study and budget tables (BR-15.8): for one funding cycle (or all studies), by study type, sector, lead, status and
-    group, the number of studies and their budgets, planned (every study not cancelled) against completed. A study with several sectors
+    group, the number of studies and their budgets, planned (every study not canceled) against completed. A study with several sectors
     counts in each sector, so the sector table can add up to more than the total; every other table adds up to it."""
     studies = list(register(RegisterFilter(cycles=[cycle] if cycle else [])))
     tables = {}

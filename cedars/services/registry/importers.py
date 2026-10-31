@@ -45,7 +45,7 @@ def _year(v: str) -> int | None:
 
 @transaction.atomic
 def import_cedars_programs(content: bytes, actor=None) -> dict[str, int]:
-    """Add every program not yet in the registry, as its first version. Organisations missing for a PA code are added, typed IOU, REN
+    """Add every program not yet in the registry, as its first version. Organizations missing for a PA code are added, typed IOU, REN
     or CCA when CEDARS uses the code (accounts.KNOWN_PA_TYPES; the rest left for the CPUC to type). Existing programs are left alone:
     changes go through service.change_program."""
     rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))

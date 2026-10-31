@@ -1,5 +1,5 @@
 """What every API view shares: who the call acts for and whether it may use a permission. A call made with an API token acts for the
-token's organisation and reaches only its scopes; a session call acts for the session's active organisation."""
+token's organization and reaches only its scopes; a session call acts for the session's active organization."""
 
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from drf_spectacular.plumbing import build_bearer_security_scheme_object
@@ -20,7 +20,7 @@ def organisation(request):
 
 
 def allowed(request, permission: str) -> bool:
-    """Whether this call may use a module permission in the organisation it acts for."""
+    """Whether this call may use a module permission in the organization it acts for."""
     token = token_of(request)
     if token is not None:
         return tokens.token_allows(token, permission)

@@ -1,6 +1,6 @@
 """How a session was established (decision F), read from the sign-in records django-allauth keeps in the session:
 
-federated  signed in through an organisation's own directory (an OpenID Connect or SAML provider)
+federated  signed in through an organization's own directory (an OpenID Connect or SAML provider)
 mfa        platform password (or passkey) plus a second factor
 password   a password alone: the session can only reach the pages that set up a second factor (RequireMFAMiddleware)
 """

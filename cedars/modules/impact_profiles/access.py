@@ -1,7 +1,7 @@
 """Who may do what in the Impact profiles module.
 
-Everyone signed in sees the libraries and the eTRM sync history (as in CEDARS). Load shapes are uploaded under an organisation membership
-with impact_profiles.submit, and only for packages whose PA lead is that organisation: the PA-lead match is a rule on the package, not a
+Everyone signed in sees the libraries and the eTRM sync history (as in CEDARS). Load shapes are uploaded under an organization membership
+with impact_profiles.submit, and only for packages whose PA lead is that organization: the PA-lead match is a rule on the package, not a
 separate account per PA (one identity with a membership per PA, BR-01.1). A PA's members see its upload history. Custom profiles belong
 to the PA that uploaded them. The CPUC's system administrators, or its members with impact_profiles.admin, run the sync and write the
 library."""
@@ -27,13 +27,13 @@ def can_submit(user, organisation: Organisation | None) -> bool:
 
 def require_submit(user, organisation: Organisation | None, what: str) -> None:
     if organisation is None:
-        raise AccessDenied(f"Choose the organisation you are acting for before you {what}.")
+        raise AccessDenied(f"Choose the organization you are acting for before you {what}.")
     if not can_submit(user, organisation):
         raise AccessDenied(f"You need the Impact profiles: submit permission in {organisation.code} to {what}.")
 
 
 def require_package_lead(user, organisation: Organisation | None, package) -> None:
-    """Upload rule from the Load Shapes user guide: the package's PA lead must be the organisation the user acts for (under its current
+    """Upload rule from the Load Shapes user guide: the package's PA lead must be the organization the user acts for (under its current
     code or a former one: a package eTRM still lists under EBCE is Ava's)."""
     require_submit(user, organisation, "upload load shapes")
     if user is not None and access.by_code(package.pa_lead) != access.party(organisation):

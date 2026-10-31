@@ -9,7 +9,7 @@
 {% if pending %}
 <div class="hscroll" tabindex="0" role="region" aria-label="PII access waiting for approval">
 <table class="list">
-  <thead><tr><th scope="col">Person</th><th scope="col">Organisation</th><th scope="col">Asked by</th><th scope="col">Decision</th></tr></thead>
+  <thead><tr><th scope="col">Person</th><th scope="col">Organization</th><th scope="col">Asked by</th><th scope="col">Decision</th></tr></thead>
   <tbody>
   {% for g in pending %}
   <tr><th scope="row">{{ g.membership.user.email }}</th><td>{{ g.membership.organisation.code }}{% if g.membership.organisation.federated %} (federated){% endif %}</td>
@@ -32,7 +32,7 @@
 
 <section aria-labelledby="rules-h">
 <h2 id="rules-h">PII rules</h2>
-<p>PII only for federated organisations and sessions: <strong>{% if policy.pii_requires_federated %}required{% else %}not required{% endif %}</strong>.</p>
+<p>PII only for federated organizations and sessions: <strong>{% if policy.pii_requires_federated %}required{% else %}not required{% endif %}</strong>.</p>
 {% for c in changes %}
 <div class="card">
   <p>{{ c.proposed_by.email }} proposed {{ c.proposed_at|date:"Y-m-d" }}: federated sessions for PII <strong>{% if c.value %}required{% else %}not required{% endif %}</strong>. Reason: {{ c.reason }}</p>
@@ -52,6 +52,6 @@
 <section aria-labelledby="stewards-h">
 <h2 id="stewards-h">Data stewards</h2>
 <ul>{% for g in stewards %}<li>{{ g.membership.user.email }}{% if g.certified_at %} <span class="small muted">certified {{ g.certified_at|date:"Y-m-d" }}</span>{% endif %}</li>{% endfor %}</ul>
-<p class="small muted">A CPUC system administrator grants and revokes stewards from the CPUC organisation's page. The last steward cannot be revoked.</p>
+<p class="small muted">A CPUC system administrator grants and revokes stewards from the CPUC organization's page. The last steward cannot be revoked.</p>
 </section>
 {% endblock %}

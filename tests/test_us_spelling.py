@@ -1,0 +1,50 @@
+"""The site uses US spelling (CLAUDE.md): no British spellings in what a page shows or in the docs.
+
+Template tags, variables and identifier attributes (id, name, for, href, class, action, value) are left out: route names, template file
+names and fields keep their original `organisation` spelling.
+"""
+
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+BRITISH = re.compile(
+    r"\b(organis(e|es|ed|ing|ation|ations|ational)|colours?|behaviours?|favour\w*|honour\w*|cancelled|cancelling|totalled|labelled|"
+    r"catalogue|centres?|licence|recognis\w+|analys(e|ed|ing)|summaris\w+|prioritis\w+|authoris\w+|customis\w+|optimis\w+|"
+    r"normalis\w+|initialis\w+|serialis\w+|modelling|acknowledgements?)\b",
+    re.I,
+)
+TAG = re.compile(r"\{\{.*?\}\}|\{%.*?%\}|\{#.*?#\}", re.S)
+IDENT_ATTR = re.compile(
+    r"""\s(id|name|for|href|src|class|action|value|aria-labelledby|aria-describedby|aria-controls|data-[\w-]+)"""
+    r"""=("[^"]*"|'[^']*')"""
+)
+CODE = re.compile(r"```.*?```|`[^`\n]*`", re.S)
+
+
+def _found(text: str) -> list[str]:
+    return sorted({m.group(0) for m in BRITISH.finditer(text)})
+
+
+def test_templates_use_us_spelling():
+    bad = {}
+    for p in sorted((ROOT / "cedars").rglob("templates/**/*.html")):
+        text = IDENT_ATTR.sub(" ", TAG.sub(" ", p.read_text(encoding="utf-8")))
+        if words := _found(text):
+            bad[str(p.relative_to(ROOT))] = words
+    assert not bad, f"British spellings on pages: {bad}"
+
+
+def test_docs_use_us_spelling():
+    bad = {}
+    for p in [ROOT / "CLAUDE.md", ROOT / "README.md", *sorted((ROOT / "docs").glob("*.md"))]:
+        text = CODE.sub(" ", p.read_text(encoding="utf-8"))
+        text = re.sub(r"\(e\.g\. the PSR's \"Cancelled\" status\)", "", text)
+        if words := _found(text):
+            bad[str(p.relative_to(ROOT))] = words
+    assert not bad, f"British spellings in the docs: {bad}"
+
+
+def test_old_organisation_links_redirect(client):
+    r = client.get("/admin/organisations/PGE/?tab=members")
+    assert r.status_code == 302 and r["Location"] == "/admin/organizations/PGE/?tab=members"

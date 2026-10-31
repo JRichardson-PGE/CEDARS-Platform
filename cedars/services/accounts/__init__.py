@@ -1,1 +1,1 @@
-"""Identity and access (BR-01): one identity per person, memberships in organisations, module permissions as grant records."""
+"""Identity and access (BR-01): one identity per person, memberships in organizations, module permissions as grant records."""

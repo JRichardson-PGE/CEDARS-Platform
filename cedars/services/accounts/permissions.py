@@ -1,12 +1,12 @@
-"""The permission catalogue. A grant gives one of these to a member of one organisation.
+"""The permission catalog. A grant gives one of these to a member of one organization.
 
 Module permissions are "<module>.<action>". Four more are special:
-  org.admin     an organisation's administrator: manages its members and grants, runs its recertification (D6: the CPUC grants only
-                an organisation's first admin)
-  claims.pii    reaching the PII vault for the organisation's claims; any data steward must approve the grant, and the CPUC can require
+  org.admin     an organization's administrator: manages its members and grants, runs its recertification (D6: the CPUC grants only
+                an organization's first admin)
+  claims.pii    reaching the PII vault for the organization's claims; any data steward must approve the grant, and the CPUC can require
                 a federated session for it (AccessPolicy.pii_requires_federated, decision F)
-  system.admin  a CPUC system administrator (CPUC organisation only)
-  pii.steward   a data steward (CPUC organisation only; decision G): approves PII grants, confirms rule changes; never the last one revoked
+  system.admin  a CPUC system administrator (CPUC organization only)
+  pii.steward   a data steward (CPUC organization only; decision G): approves PII grants, confirms rule changes; never the last one revoked
 """
 
 MODULES = {
@@ -34,7 +34,7 @@ SYSTEM_ADMIN = "system.admin"
 STEWARD = "pii.steward"
 
 SPECIAL = {
-    ORG_ADMIN: "Organisation administrator",
+    ORG_ADMIN: "Organization administrator",
     PII: "Claims PII (vault)",
     SYSTEM_ADMIN: "CPUC system administrator",
     STEWARD: "Data steward",

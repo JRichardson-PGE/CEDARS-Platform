@@ -1,7 +1,7 @@
 """The PII vault's functions (decision G, BR-10.1, BR-10.4). A claims PII file (PII_Contact and PII_Site, as a .zip of CSVs or a workbook
 with a sheet per table) is checked at once against CEDARS' PII data rules and the claim's own keys, and kept only when nothing is
-rejected. Reading it needs claims.pii in the organisation (a data steward approves every such grant, and the CPUC can require a
-federated session for it) or in the CPUC organisation. Every upload, rejection and read is audited with counts and keys, never values.
+rejected. Reading it needs claims.pii in the organization (a data steward approves every such grant, and the CPUC can require a
+federated session for it) or in the CPUC organization. Every upload, rejection and read is audited with counts and keys, never values.
 
 Nothing here is published, and no other part of the platform reads these tables: they join claims only through this service, by
 ContactID and SiteID."""
@@ -40,7 +40,7 @@ def enabled() -> bool:
 
 
 def can_read(user, organisation, assurance: str | None) -> bool:
-    """claims.pii in the organisation, or in the CPUC organisation, in a session that meets the PII policy."""
+    """claims.pii in the organization, or in the CPUC organization, in a session that meets the PII policy."""
     cpuc = access.cpuc()
     return access.has_permission(user, organisation, perms.PII, assurance) or (
         cpuc is not None and access.has_permission(user, cpuc, perms.PII, assurance)
@@ -256,7 +256,7 @@ def export(actor, organisation, up: PIIUpload, assurance: str | None, reason: st
     if not can_read(actor, organisation, assurance):
         raise AccessDenied("Reading PII needs the PII grant, approved by a data steward.")
     if up.organisation_id != organisation.pk or up.status != PIIUpload.Status.ACCEPTED:
-        raise AccessDenied("That is not this organisation's PII.")
+        raise AccessDenied("That is not this organization's PII.")
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         tables = (("PII_Contact", up.contacts.order_by("contact_id"), "contact_id"), ("PII_Site", up.sites.order_by("site_id"), "site_id"))

@@ -26,7 +26,7 @@ DICTIONARY = Path(settings.BASE_DIR) / "data" / "dictionary"
 
 
 class Command(BaseCommand):
-    help = "Fill a sandbox (or a developer database) with organisations, a cycle, periods, test deadlines and the dictionary. Re-runnable."
+    help = "Fill a sandbox (or a developer database) with organizations, a cycle, periods, test deadlines and the dictionary. Re-runnable."
 
     def add_arguments(self, parser):
         parser.add_argument("--year", type=int, default=timezone.localdate().year + 1, help="program year for the test deadlines")
@@ -63,4 +63,4 @@ class Command(BaseCommand):
             latest = sorted(DICTIONARY.glob("*.json"))[-1]
             dictionary.load_catalog(None, json.loads(latest.read_text()))
             loaded = f", dictionary {latest.name}"
-        self.stdout.write(f"Sandbox ready: {Organisation.objects.count()} organisations, {added} deadlines added for {year}{loaded}.")
+        self.stdout.write(f"Sandbox ready: {Organisation.objects.count()} organizations, {added} deadlines added for {year}{loaded}.")

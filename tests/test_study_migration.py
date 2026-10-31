@@ -132,7 +132,7 @@ def test_a_dry_run_maps_everything_and_stores_nothing(people, capture, cpuc_admi
     assert out.startswith("Dry run: nothing stored.")
     assert "3 studies imported" in out
     assert "1 projects linked to a work order; 1 work orders added" in out and "1 other work order numbers kept" in out
-    assert "1 projects whose study manager matched no organisation" in out
+    assert "1 projects whose study manager matched no organization" in out
     assert "'Market Assessment' x1" in out and "'Cross-Cutting (Group B)' x1" in out
     assert "description x1" in out
     assert not Study.objects.exists() and WorkOrder.objects.count() == 1
