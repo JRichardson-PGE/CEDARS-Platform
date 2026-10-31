@@ -43,7 +43,7 @@ def _options(layout: str):
     names = crosswalk.layouts()[layout]
     return (
         names,
-        pacsv.ReadOptions(column_names=names, skip_rows=1, encoding="utf-8", block_size=1 << 25),
+        pacsv.ReadOptions(column_names=names, skip_rows=1, encoding="utf-8", block_size=1 << 23),
         pacsv.ConvertOptions(column_types={n: "string" for n in names}, strings_can_be_null=False),
     )
 
