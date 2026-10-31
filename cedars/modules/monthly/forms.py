@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
 
+from cedars.core import uploads
 from cedars.services.registry.models import AllocationVersion
 
 
@@ -46,9 +47,10 @@ class SetupForm(forms.Form):
 
 
 class UploadForm(forms.Form):
-    file = forms.FileField(
-        label="Report file",
+    file = uploads.MultipleFileField(
+        label="Report files",
         help_text="A .zip of Commitments.csv, Measure.csv and ProgramCost.csv (comma- or pipe-delimited), or an Excel workbook with "
-        "those three sheets.",
-        widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
+        "those three sheets. To send a report in several files, choose them all at once: .zip, .xlsx or one table's .csv each, a "
+        "table split into parts named after it (Measure_1.csv, Measure_2.csv) with the same columns. They are joined into one report.",
+        widget=uploads.MultipleFileInput(attrs={"accept": ".zip,.xlsx,.csv,.txt"}),
     )

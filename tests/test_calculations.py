@@ -182,6 +182,74 @@ def test_statewide_allocation_pins_the_version_used(tmp_path, analyst, pge, cpuc
     assert run.spec["context"]["allocation_version"] == "2028 TUAL draft"
 
 
+# --- the registry's programs in every run (BR-13.1)
+
+
+def _registry_programs(cpuc_admin, pge):
+    from datetime import date
+
+    hvac = registry.create_program(
+        cpuc_admin,
+        prg_id="PGE_Res_HVAC",
+        administrator=pge,
+        valid_from=date(2024, 1, 1),
+        name="Residential HVAC",
+        status="active",
+        segment="resource_acquisition",
+        primary_sector="Residential",
+        sectors={"Residential": 0.75, "Commercial": 0.25},
+        start_year=2024,
+        flags={"Resource_Flag": "True", "Deemed_Flag": "True"},
+    )
+    registry.change_program(cpuc_admin, hvac, effective=date(2029, 1, 1), reason="renamed", name="Home Comfort", exclude_from_ce=True)
+    later = date(2030, 1, 1)
+    registry.create_program(cpuc_admin, prg_id="SW_HVAC_Up", administrator=None, statewide=True, valid_from=later, name="SW HVAC")
+    return hvac
+
+
+def test_a_run_carries_the_registrys_programs_for_its_program_year(tmp_path, analyst, pge, cpuc_admin, release):
+    import csv
+
+    plain = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
+    assert "programs" not in plain.inputs  # an empty registry: the engine keeps its own table
+    assert service.programs_label(plain).startswith("The engine's own copy")
+    _registry_programs(cpuc_admin, pge)
+    run = service.create_run(analyst, pge, request(release), job_zip(tmp_path, year=2028))
+    table = storage.store("uploads").get_bytes(run.inputs["programs"]["key"])
+    assert run.inputs["programs"]["sha256"] == storage.hashlib.sha256(table).hexdigest()
+    assert run.spec["inputs"]["programs"]["sha256"] == run.inputs["programs"]["sha256"]
+    rows = {r["PrgID"]: r for r in csv.DictReader(io.StringIO(table.decode()))}
+    assert list(rows) == ["PGE_Res_HVAC", "SW_HVAC_Up"]
+    hvac = rows["PGE_Res_HVAC"]
+    assert (hvac["PA"], hvac["ProgramName"], hvac["Exclude_From_CE"]) == ("PGE", "Residential HVAC", "False")  # 2028's version
+    assert set(hvac["BPSector"].split(", ")) == {"Residential: 0.750000", "Commercial: 0.250000"}  # CEDARS' layout (jsonb keeps no order)
+    assert (hvac["Resource_Flag"], hvac["Deemed_Flag"], hvac["Upstream_Flag"]) == ("True", "True", "")
+    assert (rows["SW_HVAC_Up"]["PA"], rows["SW_HVAC_Up"]["ProgramName"]) == ("SW", "SW HVAC")  # starts later: its latest version
+    assert service.programs_label(run) == "Program registry, program year 2028 (2 programs)"
+    assert AuditEvent.objects.get(action="calculation_run.queued", object_id=str(run.pk)).after["programs"] == service.programs_label(run)
+    later = service.create_run(analyst, pge, request(release), job_zip(tmp_path, year=2029, name="2029.zip"))
+    table = storage.store("uploads").get_bytes(later.inputs["programs"]["key"]).decode()
+    hvac = next(r for r in csv.DictReader(io.StringIO(table)) if r["PrgID"] == "PGE_Res_HVAC")
+    assert (hvac["ProgramName"], hvac["Exclude_From_CE"]) == ("Home Comfort", "True")
+    assert later.input_hash != run.input_hash
+
+
+def test_the_engine_reads_the_registrys_programs_over_its_own(tmp_path, analyst, pge, cpuc_admin, release):
+    programs = pytest.importorskip("recet.programs")
+    _registry_programs(cpuc_admin, pge)
+    run = service.create_run(analyst, pge, request(release), job_zip(tmp_path, year=2029))
+    path = tmp_path / "programs.csv"
+    path.write_bytes(storage.store("uploads").get_bytes(run.inputs["programs"]["key"]))
+    table, notes = programs.load_programs(path)
+    assert any("Sector" in n for n in notes) and not any("extra columns" in n for n in notes)
+    programs.set_user_programs(table)
+    try:
+        got = programs.lookup(["PGE_Res_HVAC"]).iloc[0]
+    finally:
+        programs.set_user_programs(None)
+    assert (got["Prg_ProgramName"], got["Prg_Exclude_From_CE"], got["Prg_PrimarySector"]) == ("Home Comfort", "True", "Residential")
+
+
 # --- the local worker
 
 
@@ -385,10 +453,11 @@ def test_the_s3_store(monkeypatch):
 
 def test_specs_pass_the_engines_validator(tmp_path, analyst, pge, release, cpuc_admin):
     jobspec = pytest.importorskip("recet.jobspec")
+    _registry_programs(cpuc_admin, pge)  # the programs table is one of the spec's inputs
     run = service.create_run(
         analyst, pge, request(release, settings={"acc_purpose": "claims", "include_societal": False}), job_zip(tmp_path)
     )
-    assert jobspec.validate(run.spec) == []
+    assert "programs" in run.spec["inputs"] and jobspec.validate(run.spec) == []
 
 
 # --- pages
