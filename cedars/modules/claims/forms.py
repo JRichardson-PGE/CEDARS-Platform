@@ -2,9 +2,16 @@ from django import forms
 from django.utils import timezone
 
 from cedars.core import uploads
+from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion
 
 from .service import PERIODS
+
+
+def _cost_test_sets():
+    return PackVersion.objects.filter(kind=PackVersion.Kind.COST_TESTS, status=PackVersion.Status.PUBLISHED).order_by(
+        "label", "-published_at"
+    )
 
 
 def _allocations():
@@ -24,12 +31,20 @@ class YearForm(forms.Form):
         required=False,
         empty_label="The most recent confirmed version with factors for the year",
     )
+    cost_test_set = forms.ModelChoiceField(
+        label="Cost-test set",
+        queryset=PackVersion.objects.none(),
+        required=False,
+        empty_label="The published set in force for the program year",
+        help_text="The cost tests it is priced on (Reference data, Cost-test sets); only published sets",
+    )
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
     def __init__(self, *args, accs=(), **kw):
         super().__init__(*args, **kw)
         self.fields["acc_version"].choices = [(a, f"{a} ACC") for a in accs]
         self.fields["allocation_version"].queryset = _allocations()
+        self.fields["cost_test_set"].queryset = _cost_test_sets()
         self.fields["year"].initial = timezone.localdate().year + 1
         for kind, _ in PERIODS:
             self.fields[due_field(kind)] = forms.DateField(label=f"{kind}: due", widget=forms.DateInput(attrs={"type": "date"}))
@@ -46,12 +61,20 @@ class SetupForm(forms.Form):
         required=False,
         empty_label="The most recent confirmed version with factors for the year",
     )
+    cost_test_set = forms.ModelChoiceField(
+        label="Cost-test set",
+        queryset=PackVersion.objects.none(),
+        required=False,
+        empty_label="The published set in force for the program year",
+        help_text="The cost tests it is priced on (Reference data, Cost-test sets); only published sets",
+    )
     reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
 
     def __init__(self, *args, accs=(), **kw):
         super().__init__(*args, **kw)
         self.fields["acc_version"].choices = [(a, f"{a} ACC") for a in accs]
         self.fields["allocation_version"].queryset = _allocations()
+        self.fields["cost_test_set"].queryset = _cost_test_sets()
 
 
 class UploadForm(forms.Form):

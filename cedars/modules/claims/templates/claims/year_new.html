@@ -11,6 +11,7 @@ following spring). Its claims are priced on the ACC chosen here, with statewide 
   {{ form.year.as_field_group }}
   {{ form.acc_version.as_field_group }}
   {{ form.allocation_version.as_field_group }}
+  {{ form.cost_test_set.as_field_group }}
   <fieldset class="stack">
     <legend>Due dates</legend>
     {% for field in form.due_fields %}{{ field.as_field_group }}{% endfor %}

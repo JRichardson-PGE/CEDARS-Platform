@@ -89,6 +89,7 @@ def run_json(request, run: Run, detail: bool = True) -> dict:
             "settings": run.settings,
             "output_format": run.output_format,
             "allocation_version": str(run.allocation_version) if run.allocation_version else None,
+            "cost_tests": run.cost_tests or None,
             "programs": service.programs_label(run),
             "input_hash": run.input_hash,
             "inputs": {k: {"sha256": v["sha256"], "bytes": v.get("bytes")} for k, v in run.inputs.items()},
@@ -133,6 +134,9 @@ RunDetail = inline_serializer(
         "settings": serializers.DictField(),
         "output_format": serializers.CharField(),
         "allocation_version": serializers.CharField(allow_null=True),
+        "cost_tests": serializers.DictField(
+            allow_null=True, help_text="The cost-test set the run is pinned to: id, version, status, sha256 of its file, pack id"
+        ),
         "programs": serializers.CharField(help_text="The program table the run was priced with"),
         "input_hash": serializers.CharField(),
         "inputs": serializers.DictField(),
@@ -163,6 +167,12 @@ class NewRun(serializers.Serializer):
     acc_purpose = serializers.CharField(required=False, allow_blank=True)
     allocate_statewide = serializers.BooleanField(default=False)
     allocation_version = serializers.IntegerField(required=False, help_text="A confirmed allocation version's id")
+    cost_test_set = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="A registered cost-test set's id, e.g. EE-2026 (its published version, else its draft); the set in force for the job's "
+        "first program year when left out",
+    )
     filing_validation = serializers.ChoiceField(choices=list(service.FILING_CHECKS), required=False, allow_blank=True)
     filing_year = serializers.IntegerField(required=False, min_value=2000, max_value=2100)
     include_societal = serializers.BooleanField(default=True)
@@ -235,6 +245,7 @@ def _request(data: dict, user) -> service.RunRequest:
         "include_societal": data["include_societal"],
         "emissions": data["emissions"],
         "preflight_only": data.get("preflight_only") or None,
+        "cost_test_set": (data.get("cost_test_set") or "").strip() or None,
         **_template_settings(data, user),
     }
     return service.RunRequest(

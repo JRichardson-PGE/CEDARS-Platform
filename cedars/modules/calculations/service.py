@@ -25,6 +25,7 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import cost_tests
 from cedars.services.refdata import service as refdata
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
@@ -183,6 +184,7 @@ class RunRequest:
     settings: dict | None = None
     allocation_version: AllocationVersion | None = None
     cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
+    cost_test_set: PackVersion | None = None  # a cost_tests pack (blank: the set in force for the job's first program year)
 
 
 def _check(req: RunRequest) -> dict:
@@ -203,7 +205,9 @@ def _check(req: RunRequest) -> dict:
     if unknown:
         raise AccessDenied(f"Not run settings: {', '.join(unknown)}.")
     if req.calculation != RECET:
-        refused = [k for k in REPLICA_REFUSES if st.get(k)]
+        if req.cost_test_set is not None:
+            st["cost_test_set"] = req.cost_test_set.label
+        refused = [k for k in (*REPLICA_REFUSES, "cost_test_set") if st.get(k)]
         if refused:
             raise AccessDenied(
                 f"A CET replica does not take {', '.join(jobspec.SETTINGS[k] for k in refused).lower()}: it prices the job as that CET "
@@ -266,10 +270,45 @@ def packs_for(req: RunRequest, *, filing: bool) -> list[PackVersion]:
     return out
 
 
+def cost_test_pack(req: RunRequest, st: dict, first_year: int | None, *, filing: bool) -> PackVersion | None:
+    """The cost-test set a ReCET run is priced on (BR-06.8, BR-06.14; ReCET COST_TESTS.md): the pack the request names (by pack, or by
+    its id in settings.cost_test_set), else the set in force for the job's first program year. A filing, or a run with CEDARS filing
+    checks or priced for a filing, takes a published set only (the engine refuses anything else for them); an analysis run may take a
+    draft. None when no set is registered: the engine's own default set is used, as for any kind with no pack. Takes cost_test_set out
+    of `st`; create_run puts back the id it sends."""
+    named = st.pop("cost_test_set", None)
+    if req.calculation != RECET:
+        return None
+    strict = filing or bool(st.get("filing_validation") or st.get("acc_purpose"))
+    pack = req.cost_test_set
+    if pack is None and named:
+        packs = PackVersion.objects.filter(kind=cost_tests.KIND, label=str(named).strip()).exclude(status=PackVersion.Status.WITHDRAWN)
+        pack = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at").first()
+        pack = pack or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            raise AccessDenied(f"No cost-test set {named} is registered (Reference data, Cost-test sets).")
+    if pack is None:
+        return cost_tests.for_year(first_year, include_drafts=not strict)
+    if pack.kind != cost_tests.KIND:
+        raise AccessDenied(f"{pack} is not a cost-test set.")
+    ok, why = refdata.usable(pack, "filing" if strict else "analysis")
+    if not ok:
+        raise AccessDenied(f"{why} A filing, or a run with CEDARS filing checks or priced for a filing, takes a published cost-test set.")
+    return pack
+
+
+def cost_tests_record(pack: PackVersion) -> dict:
+    """What the run's spec context (and so its receipt) and its filing record say about its set; the SHA-256 is checked against the
+    receipt's when the run ends."""
+    return {"id": pack.label, "version": pack.version, "status": pack.status, "sha256": cost_tests.sha256(pack), "pack": pack.pk}
+
+
 def pack_files(packs, acc: str) -> dict:
     """The job spec's packs.files: {reference-folder path: {sha256, version}} for the files of `packs` under their kind's folder."""
     files = {}
     for p in packs:
+        if p.kind not in REFERENCE_PREFIXES:  # a cost-test set is sent by its id or as an input, not as a reference-folder file
+            continue
         prefix = REFERENCE_PREFIXES[p.kind].format(acc=acc)
         for rel, entry in sorted(p.manifest.items()):
             if rel.startswith(prefix):
@@ -354,12 +393,24 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
         "program_year": programs.year,
         "programs": programs.programs,
     }
-    run.inputs = inputs
     packs = packs_for(req, filing=submission_version is not None)
+    cset = cost_test_pack(req, st, info.first_year, filing=submission_version is not None)
+    if cset is not None:
+        packs.append(cset)
+        if cset.status == PackVersion.Status.PUBLISHED:  # by its id: the engine prices its built-in set and records the file's SHA-256
+            st["cost_test_set"] = cset.label
+        else:  # a draft (analysis runs only): the file itself, pinned like any input
+            data = cost_tests.file_bytes(cset)
+            key = run.storage_prefix + "cost_tests.yaml"
+            inputs["cost_tests"] = {"key": key, "sha256": hashlib.sha256(data).hexdigest(), "bytes": uploads.put_bytes(key, data).size}
+    run.settings = st
+    run.inputs = inputs
     pinned = refdata.pin(packs)
     run.input_hash = input_hash(inputs, st, req.release.release, req.calculation, req.acc_version, allocation_sha, pinned)
     run.estimate_seconds = estimate_seconds(run)
     run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
+    if cset is not None:
+        run.spec["context"]["cost_tests"] = cost_tests_record(cset)
     run.save()
     results.put_bytes(run.storage_prefix + "job.json", json.dumps(run.spec, indent=2).encode())
     audit.record(
@@ -453,6 +504,9 @@ def finish(run: Run, *, exit_code: int | None, receipt: dict | None = None, erro
     else:
         status = EXIT_STATUS.get(exit_code, Run.Status.FAILED)
     receipt = receipt or {}
+    mismatch = cost_tests_mismatch(run, receipt) if status == Run.Status.SUCCEEDED else ""
+    if mismatch:
+        status, error = Run.Status.FAILED, mismatch
     run.status, run.finished_at, run.receipt = status, timezone.now(), receipt
     run.error = (error or receipt.get("error") or "")[:20000]
     if status == Run.Status.SUCCEEDED and run.progress.get("stage") != "done":
@@ -464,6 +518,23 @@ def finish(run: Run, *, exit_code: int | None, receipt: dict | None = None, erro
     if status != Run.Status.CANCELLED:
         transaction.on_commit(lambda: _notify_owner(run))
     return run
+
+
+def cost_tests_mismatch(run: Run, receipt: dict) -> str:
+    """Why a finished run's receipt does not match the cost-test set it was pinned to ("" when it does, or the run pinned none): the
+    engine priced a set whose file differs from the pack's (a built-in set that is not the published file), so its results are not the
+    set's."""
+    want = ((run.spec or {}).get("context") or {}).get("cost_tests") or {}
+    if not want.get("sha256"):
+        return ""
+    got = (receipt.get("cost_tests") or {}).get("sha256") or ""
+    if got == want["sha256"]:
+        return ""
+    return (
+        f"The engine priced a cost-test set whose file (SHA-256 {got[:12] or 'not recorded'}) is not the pinned {want['id']} "
+        f"{want['version']} ({want['sha256'][:12]}), so these results are not that set's. Register the engine's file as the set, or use a "
+        "release that ships it."
+    )
 
 
 NOTICE_TITLES = {
@@ -522,10 +593,21 @@ def expired_runs(cutoff):
         yield f"calculation_run:{run.pk}", delete
 
 
-def price_submission(actor, version, job_zip: Path, *, name: str, acc_version: str, allocation_version=None, settings: dict | None = None):
+def price_submission(
+    actor,
+    version,
+    job_zip: Path,
+    *,
+    name: str,
+    acc_version: str,
+    allocation_version=None,
+    settings: dict | None = None,
+    cost_test_set: PackVersion | None = None,
+):
     """The pricer the submissions service calls (registered in apps.py): a filing version's job on the default release, ReCET's own
     calculation; with settings allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most
-    recent confirmed one for the program year)."""
+    recent confirmed one for the program year). `cost_test_set`: the published set the filing's setup requires (blank: the published
+    set in force for the job's first program year)."""
     release = default_release()
     if release is None:
         raise AccessDenied("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
@@ -536,6 +618,7 @@ def price_submission(actor, version, job_zip: Path, *, name: str, acc_version: s
         acc_version=acc_version,
         settings=settings or {},
         allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
+        cost_test_set=cost_test_set,
     )
     return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
 
@@ -570,6 +653,7 @@ def _record_for_submission(run: Run) -> None:
         "allocation_version": {"id": run.allocation_version_id, "label": run.allocation_version.label} if run.allocation_version else None,
         "allocation_sha256": (run.inputs.get("sw_factors") or {}).get("sha256"),
         "programs_sha256": (run.inputs.get("programs") or {}).get("sha256"),
+        "cost_tests": ((run.spec or {}).get("context") or {}).get("cost_tests"),
         "spec_key": run.storage_prefix + "job.json",
         "receipt_key": out + "receipt.json",
         "results": results_keys(run),

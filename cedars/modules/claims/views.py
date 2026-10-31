@@ -122,6 +122,7 @@ def year_new(request):
                 year=d["year"],
                 acc_version=d["acc_version"],
                 allocation_version=d["allocation_version"],
+                cost_test_set=d["cost_test_set"],
                 due={kind: service.due_at(d[forms.due_field(kind)]) for kind, _ in service.PERIODS},
                 notes=d["notes"],
             )
@@ -139,13 +140,20 @@ def setup(request, year):
     if not access.is_system_admin(request.user):
         raise Http404
     form = forms.SetupForm(
-        request.POST or None, accs=accs(), initial={"acc_version": cy.acc_version, "allocation_version": cy.allocation_version}
+        request.POST or None,
+        accs=accs(),
+        initial={"acc_version": cy.acc_version, "allocation_version": cy.allocation_version, "cost_test_set": cy.cost_test_set},
     )
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
-                request.user, cy, acc_version=d["acc_version"], allocation_version=d["allocation_version"], reason=d["reason"]
+                request.user,
+                cy,
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                reason=d["reason"],
+                cost_test_set=d["cost_test_set"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))

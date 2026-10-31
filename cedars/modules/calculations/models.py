@@ -138,6 +138,11 @@ class Run(models.Model):
         return f"run-{self.id}"
 
     @property
+    def cost_tests(self) -> dict:
+        """The cost-test set the run was pinned to (calculations.service.cost_tests_record), {} when none was registered."""
+        return ((self.spec or {}).get("context") or {}).get("cost_tests") or {}
+
+    @property
     def seconds(self) -> float | None:
         if self.started_at and self.finished_at:
             return (self.finished_at - self.started_at).total_seconds()

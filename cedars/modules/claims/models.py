@@ -32,12 +32,21 @@ class ClaimYear(models.Model):
     """One claim (program) year: its five confirmations are deadlines of the "claims" module on the year's quarters and on the year
     (Q1 to Q4, then the final annual one), and this says how its claims are priced: the ACC (claims use the ACC of the year's final
     budget filing) and, optionally, the statewide allocation version (blank: the most recent confirmed version with factors for the
-    year). Set by a CPUC system administrator, a setting rather than code."""
+    year) and the published cost-test set (blank: the one in force for the year). Set by a CPUC system administrator, a setting rather
+    than code."""
 
     year = models.PositiveSmallIntegerField(unique=True)
     acc_version = models.CharField("ACC", max_length=10)
     allocation_version = models.ForeignKey(
         "registry.AllocationVersion", null=True, blank=True, on_delete=models.PROTECT, related_name="claim_years"
+    )
+    cost_test_set = models.ForeignKey(
+        "refdata.PackVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="claim_years",
+        help_text="The published cost-test set the year's claims are priced on (blank: the one in force for the year)",
     )
     notes = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
