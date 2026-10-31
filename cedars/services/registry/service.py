@@ -210,6 +210,57 @@ def _start_version(actor, program: Program, *, effective: date, reason: str, cha
     return new
 
 
+@transaction.atomic
+def add_history(
+    actor, *, prg_id: str, administrator: Organisation | None, statewide: bool, years: dict[int, dict], reason: str
+) -> tuple[Program, int]:
+    """Program years from before the registry (legacy CEDARS' records): for each year with no version yet, a version over that calendar
+    year with the given attributes; consecutive years with the same attributes share one version. Years a version already covers are
+    left alone (the registry's own history wins), and the program is created when it is new. A system job, or a CPUC system
+    administrator. Returns the program and the number of versions added."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator adds program history.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason (the source of the history).")
+    program = Program.objects.filter(prg_id=prg_id.strip()).first()
+    if program is None:
+        if administrator is None and not statewide:
+            raise AccessDenied("A program needs an administrator unless it is statewide.")
+        program = Program.objects.create(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide)
+        audit.record(
+            "program.created",
+            obj=program,
+            after={"prg_id": program.prg_id, "administrator": administrator.code if administrator else None},
+            reason=reason,
+            actor=actor,
+        )
+    existing = list(program.versions.select_for_update().order_by("-valid_from"))
+    added, last = [], None
+    for year in sorted(years):
+        if _for_year(existing, year) is not None:
+            last = None
+            continue
+        fields = _clean(dict(years[year]))
+        end = date(year, 12, 31)
+        if last is not None and last.valid_to == date(year - 1, 12, 31) and all(getattr(last, f) == val for f, val in fields.items()):
+            last.valid_to = end
+            last.save(update_fields=["valid_to"])
+            continue
+        last = ProgramVersion.objects.create(
+            program=program, valid_from=date(year, 1, 1), valid_to=end, created_by=actor, reason=reason, **fields
+        )
+        added.append(last)
+    if added:
+        audit.record(
+            "program.history_added",
+            obj=program,
+            after={"versions": [audit.snapshot(v, ["valid_from", "valid_to", *VERSION_FIELDS]) for v in added]},
+            reason=reason,
+            actor=actor,
+        )
+    return program, len(added)
+
+
 # --- locked attributes and change requests (BR-13.7)
 
 APPROVALS = "programs"  # programs.approve in the CPUC organisation decides requests (submissions' approvers and delegates)

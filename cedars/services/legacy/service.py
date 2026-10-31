@@ -170,9 +170,9 @@ def sources(dataset: str, year: str) -> list[LegacySource]:
 
 
 @contextmanager
-def open_member(source: LegacySource, member: str):
-    """A text stream over one CSV inside a staged zip, read from storage (never from CEDARS). A zip needs random access, so one in S3
-    is copied to a temporary file first."""
+def open_member(source: LegacySource, member: str, *, text: bool = True):
+    """A stream over one CSV inside a staged zip (text, or bytes with text=False), read from storage (never from CEDARS). A zip needs
+    random access, so one in S3 is copied to a temporary file first."""
     if member not in source.members:
         raise LegacyError(f"{source.name} holds no {member}")
     store = storage.store(AREA)
@@ -185,12 +185,25 @@ def open_member(source: LegacySource, member: str):
             tmp.flush()
             path = tmp.name
         z = stack.enter_context(zipfile.ZipFile(path))
-        yield stack.enter_context(io.TextIOWrapper(z.open(member), encoding="utf-8-sig", newline=""))
+        raw = stack.enter_context(z.open(member))
+        yield stack.enter_context(io.TextIOWrapper(raw, encoding="utf-8-sig", newline="")) if text else raw
 
 
 def hard_failures(reconciliation: dict) -> list[str]:
     """The names of the hard checks that failed: reconciliation["checks"] = [{name, kind: hard|soft|info, ok, ...}]."""
     return [c["name"] for c in reconciliation.get("checks", []) if c.get("kind") == "hard" and not c.get("ok")]
+
+
+def already_imported(deadline, organisation, sources: list[LegacySource]) -> LegacyImport | None:
+    """The import of this organisation's filing made from exactly these sources, if there is one (any version, not only the latest:
+    an earlier snapshot loaded again is not a new version)."""
+    shas = sorted(s.sha256 for s in sources)
+    for imp in LegacyImport.objects.filter(
+        version__submission__deadline=deadline, version__submission__organisation=organisation
+    ).prefetch_related("sources"):
+        if sorted(s.sha256 for s in imp.sources.all()) == shas:
+            return imp
+    return None
 
 
 @transaction.atomic
@@ -214,13 +227,10 @@ def record_import(
     if failed:
         raise LegacyError(f"{organisation.code} {period} is not published: the hard checks {', '.join(failed)} failed.")
     shas = sorted(s.sha256 for s in sources)
-    previous = (
-        LegacyImport.objects.filter(version__submission__deadline=deadline, version__submission__organisation=organisation)
-        .order_by("-version__number")
-        .first()
-    )
-    if previous is not None and sorted(previous.sources.values_list("sha256", flat=True)) == shas:
-        return previous
+    done = already_imported(deadline, organisation, sources)
+    if done is not None:
+        return done
+    previous = LegacyImport.objects.filter(version__submission__deadline=deadline, version__submission__organisation=organisation).first()
     reason = "Imported from legacy CEDARS: " + ", ".join(s.url for s in sources)
     if previous is not None:
         reason = "Re-imported: the legacy CEDARS download changed. " + reason
