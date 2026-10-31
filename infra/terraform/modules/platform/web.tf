@@ -1,4 +1,4 @@
-# The Django application on ECS Fargate behind an HTTPS load balancer with AWS WAF, plus its daily jobs.
+# The Django application on ECS Fargate behind an HTTPS load balancer with AWS WAF (its background work is in jobs.tf).
 
 resource "aws_ecs_cluster" "main" {
   name = local.name
@@ -86,6 +86,8 @@ locals {
     { name = "CEDARS_BASE_URL", value = "https://${var.domain_name}" },
     { name = "DEFAULT_FROM_EMAIL", value = "CEDARS <no-reply@${var.domain_name}>" },
     { name = "EMAIL_HOST", value = "email-smtp.${data.aws_region.current.name}.amazonaws.com" },
+    { name = "CEDARS_STORAGE_BACKEND", value = "s3" },
+    { name = "CALCULATIONS_BACKEND", value = "batch" },
     { name = "CEDARS_BUCKET_UPLOADS", value = aws_s3_bucket.data["uploads"].bucket },
     { name = "CEDARS_BUCKET_RESULTS", value = aws_s3_bucket.data["results"].bucket },
     { name = "CEDARS_BUCKET_REFDATA", value = aws_s3_bucket.data["refdata"].bucket },
@@ -262,61 +264,4 @@ resource "aws_wafv2_web_acl" "web" {
 resource "aws_wafv2_web_acl_association" "web" {
   resource_arn = aws_lb.web.arn
   web_acl_arn  = aws_wafv2_web_acl.web.arn
-}
-
-# --- daily jobs: the web image with a management command (EventBridge Scheduler, Pacific time)
-
-locals {
-  daily_jobs = {
-    purge-expired          = { command = ["python", "manage.py", "purge_expired"], at = "cron(15 2 * * ? *)" }
-    deadline-reminders     = { command = ["python", "manage.py", "send_deadline_reminders"], at = "cron(0 7 * * ? *)" }
-    close-recertifications = { command = ["python", "manage.py", "close_recertifications"], at = "cron(30 2 * * ? *)" }
-  }
-}
-
-resource "aws_iam_role" "scheduler" {
-  name = "${local.name}-scheduler"
-  assume_role_policy = jsonencode({
-    Version   = "2012-10-17"
-    Statement = [{ Effect = "Allow", Principal = { Service = "scheduler.amazonaws.com" }, Action = "sts:AssumeRole" }]
-  })
-  tags = local.tags
-}
-
-resource "aws_iam_role_policy" "scheduler" {
-  role = aws_iam_role.scheduler.id
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      { Effect = "Allow", Action = ["ecs:RunTask"], Resource = "${aws_ecs_task_definition.web.arn_without_revision}:*" },
-      { Effect = "Allow", Action = ["iam:PassRole"], Resource = [aws_iam_role.execution.arn, aws_iam_role.web.arn] },
-    ]
-  })
-}
-
-resource "aws_scheduler_schedule" "daily" {
-  for_each                     = local.daily_jobs
-  name                         = "${local.name}-${each.key}"
-  schedule_expression          = each.value.at
-  schedule_expression_timezone = "America/Los_Angeles"
-  flexible_time_window {
-    mode = "OFF"
-  }
-  target {
-    arn      = aws_ecs_cluster.main.arn
-    role_arn = aws_iam_role.scheduler.arn
-    ecs_parameters {
-      task_definition_arn = aws_ecs_task_definition.web.arn
-      launch_type         = "FARGATE"
-      network_configuration {
-        subnets          = aws_subnet.private[*].id
-        security_groups  = [aws_security_group.web.id]
-        assign_public_ip = false
-      }
-    }
-    input = jsonencode({ containerOverrides = [{ name = "web", command = each.value.command }] })
-    retry_policy {
-      maximum_retry_attempts = 2
-    }
-  }
 }
