@@ -111,7 +111,7 @@ class StudyData:
 TEXT_LIMITS = {"description": 1000, "objective": 500, "research_questions": 1500, "methods": 250, "notes": 500}
 
 
-def _check(data: StudyData, keep: set[int]) -> None:
+def _check(data: StudyData, keep: set[int], *, limits: bool = True) -> None:
     today = timezone.localdate()
     if not data.title.strip():
         raise DocumentError("Give the study a title.")
@@ -128,7 +128,7 @@ def _check(data: StudyData, keep: set[int]) -> None:
                 raise DocumentError(f"{o.label} is retired.")
     if data.budget is not None and data.budget < 0:
         raise DocumentError("A budget is not negative.")
-    for name, limit in TEXT_LIMITS.items():
+    for name, limit in TEXT_LIMITS.items() if limits else ():
         if len(getattr(data, name) or "") > limit:
             raise DocumentError(f"Keep the {name.replace('_', ' ')} to {limit:,} characters.")
 
@@ -218,16 +218,34 @@ def create_study(actor, organisation: Organisation | None, data: StudyData, *, n
     _check(data, set())
     if number is None:
         number = (Study.objects.select_for_update().aggregate(m=Max("number"))["m"] or 0) + 1
-    study = Study(number=number, study_id=make_study_id(number, data), created_by=actor)
+    study = _add(Study(number=number, study_id=make_study_id(number, data), created_by=actor), data)
+    audit.record("documents.study_added", obj=study, after=snapshot(study), actor=actor)
+    return study
+
+
+def _add(study: Study, data: StudyData) -> Study:
     _apply(study, data)
     try:
         with transaction.atomic():
             study.save()
     except IntegrityError as e:
-        raise DocumentError(f"Study number {number} is taken.") from e
+        raise DocumentError(f"Study number {study.number} or study ID {study.study_id} is taken.") from e
     study.sectors.set(data.sectors)
     study.funding_cycles.set(data.funding_cycles)
-    audit.record("documents.study_added", obj=study, after=snapshot(study), actor=actor)
+    return study
+
+
+@transaction.atomic
+def import_study(data: StudyData, *, number: int, study_id: str, psr: dict, created_at, updated_at, label: str) -> Study:
+    """A study migrated from the PSR (psr_import), under its PSR number and study ID, with its PSR dates. Its lists are checked as a
+    new study's are, except that a retired value is kept and a text longer than the form takes is kept whole (an update has to
+    shorten it). The audit event names the migration, not a person."""
+    keep = {o.pk for name in LISTS for o in (getattr(data, name) if isinstance(getattr(data, name), list) else [getattr(data, name)]) if o}
+    _check(data, keep, limits=False)
+    study = _add(Study(number=number, study_id=study_id or make_study_id(number, data), psr=psr, created_at=created_at), data)
+    Study.objects.filter(pk=study.pk).update(updated_at=updated_at)  # update() leaves auto_now alone
+    study.updated_at = updated_at
+    audit.record("documents.study_added", obj=study, after=snapshot(study), reason="Migrated from the PSR", actor_label=label)
     return study
 
 
