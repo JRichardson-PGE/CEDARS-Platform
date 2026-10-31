@@ -19,6 +19,8 @@
   /* Interaction. primary 7.7:1 on bg, white on primary 8.3:1; link 8.9:1; focus 3.6:1 on bg and 3.9:1 on surface; control border 4.0:1. */
   --primary: #1c4f8a; --primary-fg: #ffffff; --primary-hover: #163f70; --link: #1a4480; --focus: #c26b00; --control: #6f7a86;
   /* State. Each text colour 6:1 or better on bg, surface and its own tint. */
+  /* Charts (3:1 on surface and bg, 1.4.11). Claims solid; forecast hatched with an outline, so the series differ by pattern too: claims 8.3:1, forecast 5.5:1. */
+  --chart-claims: #1c4f8a; --chart-forecast: #0f766e;
   --ok: #1f6a30; --ok-bg: #e6f3e8; --warn: #8a4600; --warn-bg: #fdf1e2; --bad: #a3171b; --bad-bg: #fbe9e9; --info: #0b5b79; --info-bg: #e4f3f8;
   /* Older names, kept for templates and scripts that use them. */
   --muted: var(--fg-2); --card: var(--surface); --accent: var(--primary); --accent-fg: var(--primary-fg);
@@ -33,6 +35,7 @@
     /* fg 15.5:1 on bg; fg-2 9.8:1; fg-3 7.1:1; link 8.8:1; white on primary 5:1, primary 3.2:1 on surface; focus 10.5:1; control 6.2:1. */
     --bg: #0f1418; --surface: #171d23; --surface-2: #1f2730; --fg: #e7ebef; --fg-2: #b4bec8; --fg-3: #95a1ae; --line: #2c353f; --line-2: #222a32;
     --primary: #2d6bb6; --primary-fg: #ffffff; --primary-hover: #3b7fd0; --link: #8ab4f8; --focus: #ffb547; --control: #8a96a3;
+    --chart-claims: #5b9be0; --chart-forecast: #2dd4bf;   /* 5.8:1 and 9.1:1 on surface */
     --ok: #7fd18f; --ok-bg: #16301c; --warn: #f0b36b; --warn-bg: #3a2a12; --bad: #ff8a86; --bad-bg: #3d1a1b; --info: #7cc9e6; --info-bg: #12303b;
   }
 }
@@ -278,3 +281,30 @@ section.cycle { margin-bottom: .5rem; }
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }
 .nowrap { white-space: nowrap; }
+
+/* ---------- Dashboards (cedars/modules/data): controls, applied-filter chips, server-rendered bar charts ---------- */
+.dash-controls fieldset { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+.dash-controls legend { font-weight: 600; font-size: .9rem; padding: 0 .25rem; }
+.dash-controls label.check, .dash-filters label.check { display: inline-flex; flex-direction: row; gap: .4rem; align-items: center; font-weight: 400; min-height: 24px; }
+.dash-filters { flex-basis: 100%; }
+.dash-filters summary { cursor: pointer; font-weight: 600; min-height: 24px; }
+.dash-filters fieldset { margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
+ul.downloads { padding-left: 1.2rem; }
+.chart { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; margin: 0 0 1rem; }
+.chart-legend { list-style: none; display: flex; gap: 1.25rem; flex-wrap: wrap; padding: 0; margin: 0 0 .5rem; font-size: .9rem; }
+.chart-legend li { display: inline-flex; align-items: center; gap: .4rem; }
+.chart-defs { position: absolute; }
+.chart-rows { list-style: none; padding: 0; margin: 0; }
+.chart-rows li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr; gap: .25rem .75rem; align-items: center; padding: .3rem 0; border-top: 1px solid var(--line-2); }
+.chart-rows li:first-child { border-top: 0; }
+.chart-label { font-size: .9rem; overflow-wrap: anywhere; }
+.chart-bars { display: block; overflow: visible; }
+.bar-claims { fill: var(--chart-claims); }
+.bar-forecast { fill: url(#hatch); stroke: var(--chart-forecast); stroke-width: 1.5; }
+.hatch-bg { fill: var(--surface); }
+.hatch-line { stroke: var(--chart-forecast); stroke-width: 3; }
+.zero { stroke: var(--fg); stroke-width: 1; }
+@media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
+.goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */

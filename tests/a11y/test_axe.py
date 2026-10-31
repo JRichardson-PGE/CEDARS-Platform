@@ -505,6 +505,21 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
     }
 
 
+def _dashboard_data(version, pge):
+    """The portfolio dashboard's forecast: a snapshot of the confirmed TUAL with measure-level results, released."""
+    from cedars.services.snapshots import service as snapshots
+    from cedars.services.snapshots.models import Snapshot
+
+    from ..test_data_query import results_file
+
+    data = results_file()
+    snap = Snapshot(dataset="forecast", version=version, organisation=pge, rows=5, bytes=len(data), sha256="ab" * 32)
+    snap.key = f"forecast/{snap.id}/results.parquet"
+    storage.store("snapshots").put_bytes(snap.key, data)
+    snap.save()
+    snapshots.rebuild("forecast", "scene")
+
+
 def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     """A TUAL priced, confirmed and published, and an MCAL whose upload has rejected records. The scene's impact-profile pack is a
     draft, which a filing's run refuses, so the TUAL's run is recorded as the Calculations module records a finished one."""
@@ -527,6 +542,7 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     details = {"job_sha256": budgets.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
     v = submissions.record_calculation(None, v, run="scene", input_hash="h", details=details)
     v = budgets.confirm(analyst, v)
+    _dashboard_data(v, pge)
     bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
     draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
     return {

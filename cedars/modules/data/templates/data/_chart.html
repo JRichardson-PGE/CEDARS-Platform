@@ -1,0 +1,23 @@
+{% load data_tags %}{# A server-rendered bar chart: one group per row, one bar per series. The table below is its text alternative. #}
+<div class="chart" role="img" aria-label="{{ caption }}. Bar chart; the values are in the table below.">
+  <ul class="chart-legend" aria-hidden="true">
+    {% for s in chart.series %}<li><svg width="18" height="12" focusable="false"><rect class="bar bar-{{ s.code }}" width="18" height="12"/></svg> {{ s.label }}</li>{% endfor %}
+    {% if chart.goal %}<li><svg width="18" height="12" focusable="false"><line class="goal" x1="9" x2="9" y1="0" y2="12"/></svg> Goal</li>{% endif %}
+  </ul>
+  <svg class="chart-defs" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-bg" width="6" height="6"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>
+  </svg>
+  <ol class="chart-rows" aria-hidden="true">
+    {% for g in chart.groups %}
+    <li>
+      <span class="chart-label">{{ g.label|default_if_none:"(blank)" }}</span>
+      <svg class="chart-bars" width="100%" height="{{ chart.height }}" focusable="false">
+        {% for b in g.bars %}{% if not b.missing %}<rect class="bar bar-{{ b.series }}" x="{{ b.x }}%" y="{{ b.y }}" width="{{ b.w }}%" height="12"/>{% endif %}{% endfor %}
+        {% if g.goal is not None %}<line class="goal" x1="{{ g.goal }}%" x2="{{ g.goal }}%" y1="0" y2="100%"/>{% endif %}
+        {% if chart.negative %}<line class="zero" x1="{{ chart.zero }}%" x2="{{ chart.zero }}%" y1="0" y2="100%"/>{% endif %}
+      </svg>
+    </li>
+    {% empty %}<li class="chart-empty">Nothing to show for this choice.</li>
+    {% endfor %}
+  </ol>
+</div>

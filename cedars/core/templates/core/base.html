@@ -42,9 +42,10 @@
         {% if nav.sysadmin %}<li><a href="{% url 'calculations:engines' %}"{% if '/calculations/engines/' in here %} aria-current="page"{% endif %}>Engine releases</a></li>{% endif %}
       </ul>
     </details>
-    <details{% if here|slice:":11" == '/documents/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here %} class="current"{% endif %}>
+    <details{% if here|slice:":11" == '/documents/' or here|slice:":6" == '/data/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here %} class="current"{% endif %}>
       <summary>Reference</summary>
       <ul>
+        <li><a href="{% url 'data:dashboards' %}"{% if here|slice:":6" == '/data/' %} aria-current="page"{% endif %}>Portfolio dashboard</a></li>
         <li><a href="{% url 'documents:library' %}"{% if here|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a></li>
         <li><a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a></li>
         <li><a href="{% url 'rules:index' %}"{% if '/rules/' in here %} aria-current="page"{% endif %}>Validation rules</a></li>
@@ -81,6 +82,7 @@
   </div>
   {% else %}
   <nav aria-label="Main" id="main-nav">
+    <a href="{% url 'data:dashboards' %}"{% if request.path|slice:":6" == '/data/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
     <a href="{% url 'documents:library' %}"{% if request.path|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a>
     <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in request.path %} aria-current="page"{% endif %}>Data dictionary</a>
     <a href="{% url 'rules:index' %}"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>Validation rules</a>
@@ -102,6 +104,7 @@
     <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
     <li><a href="{% url 'rules:index' %}">Validation rules</a></li>
     <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li>
+    <li><a href="{% url 'data:dashboards' %}">Portfolio dashboard</a></li>
   </ul>
   <span>CEDARS platform {{ version }}</span>
 </footer>
