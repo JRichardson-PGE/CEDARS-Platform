@@ -39,6 +39,12 @@ variable "allowed_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "waf_requests_per_5min" {
+  description = "Requests one address may make in 5 minutes before the WAF blocks it (an agency network behind one address counts as one)"
+  type        = number
+  default     = 3000
+}
+
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.medium"

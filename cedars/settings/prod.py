@@ -24,3 +24,7 @@ EMAIL_USE_TLS = True
 
 # HSTS preloading binds the whole parent domain (and its subdomains) in browsers; that is the CPUC's call for its domain, not this app's.
 SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+# Behind the load balancer: the caller's address for the API's per-address rate limit is the last X-Forwarded-For entry (the one the
+# load balancer added), never one a caller wrote.
+REST_FRAMEWORK = {**REST_FRAMEWORK, "NUM_PROXIES": int(env("CEDARS_NUM_PROXIES", "1"))}  # noqa: F405
