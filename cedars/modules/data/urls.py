@@ -10,5 +10,9 @@ urlpatterns = [
     path("metrics.csv", views.metrics_csv, name="metrics_csv"),
     path("records/", views.records_page, name="records"),
     path("records/download.<str:fmt>", views.records_download, name="records_download"),
+    path("downloads/", views.download_list, name="downloads"),
+    path("downloads/request", views.download_request, name="download_request"),
+    path("downloads/<int:pk>/", views.download_job, name="download_job"),
+    path("downloads/<int:pk>/file", views.download_file, name="download_file"),
     path("<slug:slug>/", views.dashboard_page, name="dashboard"),
 ]

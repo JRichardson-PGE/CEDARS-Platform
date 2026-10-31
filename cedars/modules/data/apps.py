@@ -9,3 +9,10 @@ class DataConfig(AppConfig):
     name = "cedars.modules.data"
     label = "data"
     verbose_name = "Data, dashboards and downloads"
+
+    def ready(self):
+        from cedars.services.retention.service import register_purger
+
+        from . import jobs
+
+        register_purger("data_download", jobs.expired)

@@ -14,3 +14,4 @@ STORAGES = {**STORAGES, "staticfiles": {"BACKEND": "django.contrib.staticfiles.s
 WHITENOISE_USE_FINDERS = True  # serve app static files without collectstatic
 WHITENOISE_AUTOREFRESH = True
 IMPACT_PROFILES_INLINE_JOBS = env("IMPACT_PROFILES_INLINE_JOBS", "1") == "1"  # no separate worker needed on a laptop
+DATA_DOWNLOAD_INLINE_JOBS = env("DATA_DOWNLOAD_INLINE_JOBS", "1") == "1"  # background downloads made in the request on a laptop

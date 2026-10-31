@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Your downloads · Record downloads{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:downloads' %}" aria-current="page">Your downloads</a>
+</nav>
+<h1>Your downloads</h1>
+<p>Record downloads too large to make while you wait. Each is made in the background and you are told when it is ready.
+{% if keep_days %}A file is kept for {{ keep_days }} day{{ keep_days|pluralize }} after it is made.{% endif %}</p>
+{% if jobs %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Your downloads">
+<table class="list">
+  <caption class="sr-only">Your record downloads, newest first</caption>
+  <thead><tr><th scope="col">Asked for</th><th scope="col">Records</th><th scope="col">Format</th><th scope="col">Status</th><th scope="col">File</th></tr></thead>
+  <tbody>
+  {% for j in jobs %}
+  <tr><th scope="row"><a href="{% url 'data:download_job' j.pk %}">{{ j.created_at|date:"Y-m-d H:i" }}</a></th>
+    <td class="num">{{ j.records }}</td><td>{{ j.fmt|upper }}</td><td>{{ j.get_status_display }}</td>
+    <td>{% if j.status == "done" %}<a href="{% url 'data:download_file' j.pk %}" download>{{ j.filename }}</a>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet. Ask for one on the <a href="{% url 'data:records' %}">records page</a>.</p>{% endif %}
+{% endblock %}
