@@ -73,8 +73,11 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .env-banner { margin: 0; margin-left: auto; padding: .1rem .6rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-weight: 600; font-size: .78rem; }
 .top { display: flex; align-items: center; gap: 1.25rem; padding: 0 var(--gutter); min-height: 56px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.05rem; text-decoration: none; color: var(--fg); letter-spacing: .01em; padding: .6rem 0; }
-.brand .mark { width: 28px; height: 28px; border-radius: 6px; background: var(--primary); position: relative; flex: none; }
-.brand .mark::after { content: ""; position: absolute; inset: 7px 6px 6px; border: 2px solid var(--primary-fg); border-top: 0; border-radius: 0 0 3px 3px; }
+/* The cedar mark: white on primary, 8.3:1 light and 5:1 dark (the same pair as primary buttons); system colours in forced-colours mode. */
+.brand .logo { width: 28px; height: 28px; flex: none; display: block; }
+.brand .logo-bg { fill: var(--primary); }
+.brand .logo-tree { fill: var(--primary-fg); }
+@media (forced-colors: active) { .brand .logo-bg { fill: CanvasText; } .brand .logo-tree { fill: Canvas; } }
 .menu-btn { display: none; margin-left: auto; }
 .top nav { display: flex; gap: .15rem; align-self: stretch; align-items: stretch; }
 .top nav > a, .top nav summary { display: flex; align-items: center; gap: .3rem; padding: 0 .75rem; color: var(--fg); text-decoration: none; font-weight: 500;
