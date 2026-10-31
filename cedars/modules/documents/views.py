@@ -5,6 +5,7 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import escape, format_html
@@ -442,6 +443,23 @@ def psr_other(request, rest=""):
     return HttpResponsePermanentRedirect("/documents/studies/")
 
 
+def _legacy_link(request, paths: set[str], *, any_case: bool = False):
+    """The redirect to the migrated document or file an old address names (models.LegacyLink), or None when none does."""
+    from .models import LegacyLink
+
+    match = Q(path__in=paths)
+    for p in paths if any_case else ():
+        match |= Q(path__iexact=p)
+    link = LegacyLink.objects.filter(match).select_related("document", "file").first()
+    if link is None:
+        return None
+    if not service.can_read(request.user, link.document):
+        raise Http404
+    if link.file is None:
+        return HttpResponsePermanentRedirect(link.document.get_absolute_url())
+    return HttpResponsePermanentRedirect(link.file.get_absolute_url() + ("?view=1" if service.opens_inline(link.file) else ""))
+
+
 # The old CEDARS site's document addresses, by prefix: the collection its other pages (lists, sections) lead to
 CEDARS_PREFIXES = {
     "/deer-resources/": "deer",
@@ -456,17 +474,51 @@ CEDARS_RECORD = re.compile(r"^/documents/(history|download|guidance-document/dow
 def cedars_legacy(request, rest=""):
     """An address of CEDARS' Reports & Documents, DEER Resources or program documents: the migrated document or file it names
     (models.LegacyLink), else, for a list or a section, the library's collection; a record that was not migrated is not found."""
-    from .models import LegacyLink
-
     path = request.path
-    link = LegacyLink.objects.filter(path__in={path, path.rstrip("/"), path.rstrip("/") + "/"}).select_related("document", "file").first()
-    if link is not None:
-        if not service.can_read(request.user, link.document):
-            raise Http404
-        if link.file is None:
-            return HttpResponsePermanentRedirect(link.document.get_absolute_url())
-        return HttpResponsePermanentRedirect(link.file.get_absolute_url() + ("?view=1" if service.opens_inline(link.file) else ""))
+    found = _legacy_link(request, {path, path.rstrip("/"), path.rstrip("/") + "/"})
+    if found is not None:
+        return found
     if CEDARS_RECORD.search(path):
         raise Http404
     collection = next(c for prefix, c in CEDARS_PREFIXES.items() if path.startswith(prefix) or path == prefix.rstrip("/"))
     return HttpResponsePermanentRedirect(f"/documents/?collection={collection}")
+
+
+# The 2006-2013 EM&V site (www.energydataweb.com/cpuc, the PDA's predecessor, on IIS: addresses in any case). Its document pages carry
+# the deliverableID the PDA kept, so they lead to the PDA's migrated documents.
+EDW_PAGE = re.compile(r"^/cpuc/(deliverableview|deliverabledownload|search|comment)\.aspx$")
+EDW_PDA_FILE = re.compile(r"^/cpucfiles/pdadocs/(\d+)/(.+)$", re.IGNORECASE)
+
+
+def edw_archive(request, rest=""):
+    """An address of the 2006-2013 EM&V site (the edge sends its /cpuc and /cpucFiles addresses here, under /documents/edw/):
+    deliverableView.aspx?did=<id> and /cpucFiles/pdaDocs/<id>/<file> (where it sent them) the PDA document's main file; search.aspx,
+    deliverableDownload.aspx and comment.aspx with a did its page (comments for comment.aspx); a home-page file migrated from the
+    site (cedars_import, kept under /edw) that file; any other page the EM&V collection. A document or file not migrated is not found."""
+    from .cedars_import import ARCHIVE_PREFIX
+
+    old = "/" + rest
+    page = EDW_PAGE.match(old.lower())
+    if page:
+        params = {k.lower(): v for k, v in request.GET.items()}
+        did = (params.get("did") or params.get("delivid") or "").strip()
+        if not did.isdigit():
+            return HttpResponsePermanentRedirect(f"/documents/?collection={Collection.EMV}")
+        doc = get_object_or_404(Document, pda_id=int(did))
+        if not service.can_read(request.user, doc):
+            raise Http404
+        if page.group(1) == "deliverableview":
+            main = DocumentFile.objects.filter(version__document=doc, position=0).order_by("-version__number").first()
+            if main is None:
+                raise Http404
+            return HttpResponsePermanentRedirect(main.get_absolute_url() + ("?view=1" if service.opens_inline(main) else ""))
+        return HttpResponsePermanentRedirect(doc.get_absolute_url() + ("comments/" if page.group(1) == "comment" else ""))
+    pda = EDW_PDA_FILE.match(old)
+    if pda:
+        return pda_file(request, int(pda.group(1)), pda.group(2), "view")
+    found = _legacy_link(request, {ARCHIVE_PREFIX + old}, any_case=True)
+    if found is not None:
+        return found
+    if old.lower().startswith("/cpucfiles/"):
+        raise Http404
+    return HttpResponsePermanentRedirect(f"/documents/?collection={Collection.EMV}")

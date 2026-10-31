@@ -48,7 +48,7 @@
   {% if doc.calmac_id %}<dt>CALMAC ID</dt><dd>{{ doc.calmac_id }}</dd>{% endif %}
   <dt>First published</dt><dd>{{ doc.published_at|date:"Y-m-d"|default:"Not yet" }}</dd>
   {% if doc.pda_id %}<dt>Migrated from</dt><dd>The PDA, document {{ doc.pda_id }}: its old links lead here</dd>{% endif %}
-  {% if doc.cedars_key %}<dt>Migrated from</dt><dd>CEDARS{% if doc.legacy_links.exists %}: its old links lead here{% endif %}</dd>{% endif %}
+  {% if doc.cedars_key %}<dt>Migrated from</dt><dd>{{ doc.migrated_from }}{% if doc.legacy_links.exists %}: its old links lead here{% endif %}</dd>{% endif %}
 </dl>
 </section>
 
