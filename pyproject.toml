@@ -18,6 +18,7 @@ dependencies = [
     "drf-spectacular>=0.28",      # its OpenAPI description at /api/v1/schema
     "boto3>=1.35",               # S3 storage and AWS Batch dispatch (imported only when used)
     "pypdf>=5.1",                # the text of PDF documents, for search (BR-15.2)
+    "duckdb>=1.1",               # dashboard queries over the publication snapshots (decision I)
 ]
 
 [dependency-groups]
