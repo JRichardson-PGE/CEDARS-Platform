@@ -13,13 +13,15 @@ The expected file is one row per published number, columns:
             statewide (statewide unallocated claims), or all
   source    where the number came from (shown in the report only)
 
-Each (dataset, year, filing, scope) runs one query by PA and one total, with codes and standards, ESA and Pension and Benefits left out
-unless the scope names them, and an ALL row limited to the IOUs unless it names cca_ren. Statewide unallocated claims are never in the
-dashboard (they stay outside every total), so a scope that names them is noted on every row it touches.
+Each (dataset, year, filing, scope) runs one query by PA and one total, with codes and standards and ESA left out unless the scope
+names them, and an ALL row limited to the IOUs unless it names cca_ren. Pension and Benefits programs are always counted: CEDARS' pages
+have no switch for them (the platform's pages leave them out by default). Statewide unallocated claims are never in the dashboard
+(they stay outside every total), so a scope that names them is noted on every row it touches.
 
-A sum agrees within `rel` of the published value (default 0.5%, the reconciliation's threshold); a ratio, printed to two decimals,
-within 0.005 + `rel`. A known-differences file (dataset, year, pa, metric, reason; blank year / pa / metric = any) marks the
-differences already explained so they do not fail the check."""
+A sum agrees within `rel` of the published value (default 0.5%, the reconciliation's threshold) or 0.5 of its unit (the pages print
+whole numbers); a ratio, printed to two decimals, within 0.005 + `rel`. A published ratio of 0 agrees with a blank one: the dashboard
+leaves a ratio blank over a zero cost where CEDARS prints 0. A known-differences file (dataset, year, pa, metric, reason; blank year,
+pa or metric = any) marks the differences already explained so they do not fail the check."""
 
 import csv
 from collections import defaultdict
@@ -34,6 +36,7 @@ COLUMNS = ("dataset", "year", "pa", "filing", "metric", "value", "scope", "sourc
 SCOPES = {"cs", "esa", "pension", "cca_ren", "statewide", "all"}
 REL = 0.005
 RATIO_ABS = 0.005
+SUM_ABS = 0.5
 OUTCOMES = ("agrees", "differs", "known", "missing", "not checked")
 
 
@@ -153,7 +156,7 @@ def _known(c: Check, known: list[dict]) -> str:
 def _exclusions(scope: set[str]) -> tuple[str, ...]:
     if "all" in scope:
         return ()
-    return tuple(e for e in ("pension", "esa", "cs") if e not in scope)
+    return tuple(e for e in ("esa", "cs") if e not in scope)
 
 
 def _raw(m: catalog.Metric, value):
@@ -188,10 +191,13 @@ def run(expected: list[Check], known: list[dict] = (), rel: float = REL) -> Repo
             notes = []
             if "statewide" in scope:
                 notes.append("the page includes statewide unallocated claims; the dashboard never does")
-            if c.platform is None:
+            if c.platform is None and m.denominator and c.expected == 0 and source:
+                c.outcome = "agrees"
+                notes.append("blank over a zero cost; CEDARS prints 0")
+            elif c.platform is None:
                 c.outcome = "missing"
             else:
-                tolerance = rel * abs(c.expected) + (RATIO_ABS if m.denominator else 0.0)
+                tolerance = rel * abs(c.expected) + (RATIO_ABS if m.denominator else SUM_ABS)
                 c.outcome = "agrees" if abs(c.platform - c.expected) <= max(tolerance, 1e-9) else "differs"
             if c.outcome in ("differs", "missing") and (reason := _known(c, known)):
                 c.outcome = "known"

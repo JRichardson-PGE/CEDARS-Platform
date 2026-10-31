@@ -35,16 +35,18 @@ def test_published_totals_that_agree_pass_and_the_report_has_every_row(tmp_path,
             ("claims", 2023, "ALL", "", "kwh_first_year_net", "300", "cs", "page.html"),
             ("claims", 2023, "PGE", "", "pac", "2.50", "cs", "page.html"),
             ("claims", 2023, "PGE", "", "filing_budget", "1", "cs", "page.html"),
+            ("claims", 2023, "PGE", "", "kw_first_year_net", "0.4", "cs", "page.html"),  # within half a unit (pages print whole numbers)
+            ("claims", 2023, "PGE", "", "rim", "0", "cs", "page.html"),  # no RIM cost: blank here, 0 on CEDARS' page
         ],
     )
     report = tmp_path / "report.csv"
     call_command("dashboard_parity", "--expected", str(path), "--report", str(report))
     out = capsys.readouterr().out
-    assert "4 agrees, 0 differs, 0 known, 0 missing, 1 not checked" in out and "claims release 1" in out
+    assert "6 agrees, 0 differs, 0 known, 0 missing, 1 not checked" in out and "claims release 1" in out
     rows = list(csv.DictReader(report.open(encoding="utf-8")))
-    assert [r["outcome"] for r in rows] == ["agrees", "agrees", "agrees", "agrees", "not checked"]
+    assert [r["outcome"] for r in rows] == ["agrees", "agrees", "agrees", "agrees", "not checked", "agrees", "agrees"]
     assert float(rows[0]["dashboard"]) == pytest.approx(200.0)  # back in kWh, not the page's MWh
-    assert rows[4]["note"] == "not a dashboard metric"
+    assert rows[4]["note"] == "not a dashboard metric" and rows[6]["note"] == "blank over a zero cost; CEDARS prints 0"
 
 
 def test_a_difference_fails_unless_it_is_known(tmp_path, loaded, capsys):
@@ -69,10 +71,10 @@ def test_a_difference_fails_unless_it_is_known(tmp_path, loaded, capsys):
 
 
 def test_the_scope_decides_what_is_left_out():
-    assert parity._exclusions({"cs", "cca_ren"}) == ("pension", "esa")
-    assert parity._exclusions({"cs", "esa", "pension"}) == ()
+    assert parity._exclusions({"cs", "cca_ren"}) == ("esa",)  # Pension and Benefits always counted: CEDARS has no switch
+    assert parity._exclusions({"cs", "esa"}) == ()
     assert parity._exclusions({"all"}) == ()
-    assert parity._exclusions(set()) == ("pension", "esa", "cs")
+    assert parity._exclusions(set()) == ("esa", "cs")
 
 
 def test_a_bad_expected_file_is_refused_with_its_row(tmp_path):
