@@ -5,8 +5,9 @@ import csv
 import io
 
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from . import dashboard, downloads, metrics, query
 
@@ -194,6 +195,7 @@ def records_page(request):
 
 
 def _records_context(request, page, number, error) -> dict:
+    from django.urls import reverse
     from django.utils.http import urlencode
 
     from . import records
@@ -260,6 +262,8 @@ def _records_context(request, page, number, error) -> dict:
         "next": at(number + 1) if page.offset + len(page.rows) < page.count else "",
         "downloads": [(fmt.upper(), label, f"/data/records/download.{fmt}?{base}") for fmt, label in records.FORMAT_LABELS.items()],
         "too_many": page.count > settings.DATA_DOWNLOAD_MAX_ROWS,
+        "job_query": base,
+        "sign_in": reverse("account_login") + "?" + urlencode({"next": request.get_full_path()}),
         "xlsx_too_many": page.count > records.XLSX_MAX_ROWS,
     }
     return context
@@ -282,8 +286,8 @@ def records_download(request, fmt):
         return HttpResponse(f"That download could not be made: {e}", status=400, content_type="text/plain; charset=utf-8")
     if page.count > settings.DATA_DOWNLOAD_MAX_ROWS:
         return HttpResponse(
-            f"That download has {page.count:,} records, more than the {settings.DATA_DOWNLOAD_MAX_ROWS:,} a download holds for now. "
-            "Narrow the filters (a PA, program, measure or years) and download again.",
+            f"That download has {page.count:,} records, more than the {settings.DATA_DOWNLOAD_MAX_ROWS:,} made while you wait. "
+            "Sign in and ask for it on the records page: it is made in the background and you are told when it is ready.",
             status=413,
             content_type="text/plain; charset=utf-8",
         )
@@ -297,3 +301,93 @@ def records_download(request, fmt):
     records.write(page, fmt, out)
     out.seek(0)
     return FileResponse(out, as_attachment=True, filename=records.filename(page, fmt), content_type=records.FORMATS[fmt])
+
+
+# --- background downloads (BR-07.2): more records than DATA_DOWNLOAD_MAX_ROWS, made by run_data_downloads, announced by notification
+
+
+@login_required
+@require_POST
+def download_request(request):
+    from urllib.parse import parse_qs
+
+    from django.contrib import messages
+    from django.shortcuts import redirect
+
+    from . import jobs, records
+
+    qs = request.POST.get("query", "")
+    try:
+        page = records.page(records.from_params(parse_qs(qs)), limit=0)
+        job = jobs.request(request.user, page, request.POST.get("format", "csv"))
+    except (query.QueryError, jobs.JobRefused) as e:
+        messages.error(request, f"That download could not be queued: {e}")
+        return redirect(f"/data/records/?{qs}")
+    messages.success(request, "Your download is queued. You will be told when it is ready, on your notifications page and by email.")
+    return redirect("data:download_job", job.pk)
+
+
+@login_required
+@require_GET
+def download_list(request):
+    from django.shortcuts import render
+
+    from . import jobs
+    from .models import DownloadJob
+
+    rows = list(DownloadJob.objects.filter(user=request.user)[:100])
+    return render(request, "data/downloads.html", {"jobs": rows, "keep_days": jobs.retention_days()})
+
+
+def _own_job(request, pk):
+    from django.shortcuts import get_object_or_404
+
+    from .models import DownloadJob
+
+    return get_object_or_404(DownloadJob, pk=pk, user=request.user)  # someone else's download is not found, not forbidden
+
+
+@login_required
+@require_GET
+def download_job(request, pk):
+    from django.shortcuts import render
+
+    from . import jobs
+
+    job = _own_job(request, pk)
+    return render(
+        request,
+        "data/download_job.html",
+        {"job": job, "ahead": jobs.queue_position(job), "keep_days": jobs.retention_days(), "series": _series(job.dataset)},
+    )
+
+
+@login_required
+@require_GET
+def download_file(request, pk):
+    from django.http import FileResponse
+    from django.shortcuts import redirect
+
+    from cedars.core import storage
+
+    from . import jobs, records
+    from .models import DownloadJob
+
+    job = _own_job(request, pk)
+    if job.status != DownloadJob.Status.DONE:
+        raise Http404
+    store = storage.store(jobs.AREA)
+    url = store.download_url(job.key, job.filename, content_type=records.FORMATS[job.fmt])
+    if url:  # S3: a pre-signed address; large files never pass through a page
+        return redirect(url)
+    try:
+        f = store.open(job.key)
+    except storage.StorageError as e:
+        raise Http404 from e
+    return FileResponse(f, as_attachment=True, filename=job.filename, content_type=records.FORMATS[job.fmt])
+
+
+def _series(dataset):
+    from . import records
+
+    return records.DATASETS.get(dataset, dataset)

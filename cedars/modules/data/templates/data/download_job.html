@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Download {{ job.pk }} · Your downloads{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:downloads' %}">Your downloads</a>
+</nav>
+<h1>{{ series }} records, {{ job.fmt|upper }}</h1>
+<dl class="facts">
+  <dt>Status</dt><dd><strong>{{ job.get_status_display }}</strong>{% if job.status == "queued" %}{% if ahead %}: {{ ahead }} download{{ ahead|pluralize }} ahead of it{% else %}: next to be made{% endif %}{% endif %}</dd>
+  <dt>Asked for</dt><dd>{{ job.created_at|date:"Y-m-d H:i e" }}</dd>
+  <dt>Records</dt><dd>{% if job.rows is not None %}{{ job.rows }}{% else %}{{ job.records }} when asked for{% endif %}</dd>
+  {% if job.finished_at %}<dt>Finished</dt><dd>{{ job.finished_at|date:"Y-m-d H:i e" }}</dd>{% endif %}
+  {% if job.size %}<dt>Size</dt><dd>{{ job.size|filesizeformat }}</dd><dt>SHA-256</dt><dd class="mono">{{ job.sha256 }}</dd>{% endif %}
+</dl>
+{% if job.status == "done" %}
+<p><a class="button primary" href="{% url 'data:download_file' job.pk %}" download>Download {{ job.filename }}</a></p>
+{% if keep_days %}<p class="small muted">Kept for {{ keep_days }} day{{ keep_days|pluralize }} after it was made; ask for it again after that.</p>{% endif %}
+{% elif job.status == "failed" %}
+<p class="alert" role="alert">This download could not be made: {{ job.message }}</p>
+{% else %}
+<p>You are told when it is ready, on your <a href="{% url 'notifications:index' %}">notifications page</a> and by email unless you turned
+  that off. You can leave this page.</p>
+{% endif %}
+<p><a href="{% url 'data:records' %}?{{ job.query }}">The records and columns it holds</a></p>
+{% endblock %}

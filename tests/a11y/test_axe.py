@@ -91,6 +91,7 @@ def scene(django_db_setup, django_db_blocker, tmp_path_factory):
         CALCULATIONS_RESULTS_CACHE=str(root / "results_cache"),
         MEDIA_ROOT=str(root / "media"),
         IMPACT_PROFILES_INLINE_JOBS=False,
+        DATA_DOWNLOAD_MAX_ROWS=5,  # the forecast's 6 records are a background download, so its request form is checked
     )
     with django_db_blocker.unblock(), files:
         storage.reset()
@@ -305,7 +306,9 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
     documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
     legacy_years = _legacy()
+    downloads = _downloads(community)
     return {
+        **downloads,
         **legacy_years,
         **claims,
         **budgets,
@@ -503,6 +506,17 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         "deliverable": plan.pk,
         "deliverable_open": open_plan.pk,
     }
+
+
+def _downloads(community):
+    """Background record downloads: one ready (the file made from the forecast records) and one queued."""
+    from cedars.modules.data import jobs, records
+
+    page = records.page(records.from_params({"dataset": ["forecast"]}), limit=0)
+    ready = jobs.request(community, page, "csv")
+    jobs.run(jobs._claim())
+    queued = jobs.request(community, page, "parquet")
+    return {"ready_download": ready.pk, "queued_download": queued.pk}
 
 
 def _dashboard_data(version, pge):
