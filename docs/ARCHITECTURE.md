@@ -147,3 +147,9 @@ how far it is built. Update the Status column in the PR that changes it.
   chosen template's columns in its settings (`output_template`, `output_template_name`), so a later change never alters what it asked for.
 - The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
   subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it.
+- Job and system health (BR-12.2): `cedars/core/health.py` holds checks that services and modules register in their `ready()` (so the
+  Administration page never imports a module): Calculations (runs queued or running too long, failed runs), Impact profiles (jobs
+  queued or running too long, failed jobs, the eTRM sync: failed, or no success for 36 hours), Documents (files not yet searchable by
+  their text), Notifications (emails that failed). Thresholds are `HEALTH_*` settings. `/admin/health/` (CPUC system administrators,
+  "Jobs and health" in the menu) shows them failing first; `manage.py check_health`, every 10 minutes in Terraform, alerts every system
+  administrator once for each new set of things failing and prints the JSON line CloudWatch's alarms read (`monitoring.tf`).

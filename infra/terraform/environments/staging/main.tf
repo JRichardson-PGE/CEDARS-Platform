@@ -37,6 +37,12 @@ variable "worker_image" {
   type = string
 }
 
+variable "alarm_emails" {
+  description = "Who the CloudWatch alarms email"
+  type        = list(string)
+  default     = []
+}
+
 variable "allowed_cidrs" {
   description = "CPUC and PA test networks"
   type        = list(string)
@@ -49,6 +55,7 @@ module "platform" {
   certificate_arn     = var.certificate_arn
   web_image           = var.web_image
   worker_image        = var.worker_image
+  alarm_emails        = var.alarm_emails
   domain_name         = "staging.cedars.example.invalid"
   allowed_cidrs       = var.allowed_cidrs # staging is not public
   db_instance_class   = "db.t4g.large"

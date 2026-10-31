@@ -12,6 +12,7 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
   - `storage.tf`: S3 buckets for uploads, results, data packs and snapshots (versioned, KMS, TLS only, never public), and ECR repositories with immutable tags.
   - `web.tf`: ECS Fargate web service behind an HTTPS load balancer (TLS 1.2+) with AWS WAF managed rules, and the daily jobs (`purge_expired`, `send_deadline_reminders`, `close_recertifications`) on EventBridge Scheduler.
   - `workers.tf`: AWS Batch on Fargate for `recet worker run`, with a large-run queue and a small-run queue that has its own capacity.
+  - `monitoring.tf`: health monitoring (BR-12.2). `manage.py check_health` every 10 minutes (it alerts the CPUC's system administrators in the app and prints one JSON line); log metric filters on that line, and CloudWatch alarms for failing checks, checks that stop reporting, unhealthy or missing web tasks, 5xx answers, web memory, and database CPU and storage, all to one KMS-encrypted SNS topic that emails `alarm_emails`.
   - `secrets.tf`: the application secret (one JSON value in Secrets Manager).
 - `environments/{sandbox,staging,production}/`: each calls the module with its own sizes. The sandbox has no PII vault and no deletion protection. Staging is reachable only from `allowed_cidrs`. Production runs NAT per zone and Multi-AZ databases.
 
@@ -24,6 +25,7 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 | Domain name and its ACM certificate | `domain_name` (placeholder `*.example.invalid`), `certificate_arn` |
 | Images | `web_image` (this repository's Dockerfile), `worker_image` (a ReCET release's worker image) |
 | Application secret | after the first apply: `DJANGO_SECRET_KEY`, `DATABASE_URL`, `VAULT_DATABASE_URL` (not in the sandbox), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (SES SMTP) |
+| Alarm recipients | `alarm_emails` (each address confirms the SNS subscription) |
 | DNS | a record for `domain_name` pointing at the `load_balancer_dns` output |
 
 ## After the first apply

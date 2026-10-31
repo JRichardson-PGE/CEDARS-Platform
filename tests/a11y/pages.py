@@ -45,6 +45,7 @@ PAGES = [
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
     ("settings", "/admin/settings/", "cpuc_admin"),
     ("audit", "/admin/audit/", "cpuc_admin"),
+    ("health", "/admin/health/", "cpuc_admin"),
     ("allocations", "/admin/allocations/", "cpuc_admin"),
     ("allocation", "/admin/allocations/{allocation}/", "cpuc_admin"),
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
