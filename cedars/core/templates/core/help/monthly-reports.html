@@ -1,0 +1,20 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>What a monthly report holds</h2>
+<p>Each month a PA reports its commitments and the year's inputs so far, due on the day of the following month that the year's set-up
+gives. <a href="{% url 'monthly:index' %}">Monthly reports</a> lists the year's months. The file has three tables:</p>
+<ul>
+  <li><strong>Commitments</strong>: one row per program with commitments (PA, PrgID, YearMonth, the committed amounts and optional
+  comments).</li>
+  <li><strong>Measure</strong> and <strong>ProgramCost</strong>: the year's inputs so far, as a calculation run takes them. ProgramCost
+  has one row per program with its costs for the year to date; Measure may have no rows.</li>
+</ul>
+<p>Spending is read from the inputs (program costs plus the measures' rebates and incentives) and compared with the operating budget.
+Savings and total system benefit are estimated from the same inputs and are not validated. Fund shifts are made in Budgets, not here.</p>
+<h2>Filing it</h2>
+<p>Upload, check, price and confirm, as with budgets and claims. Before the due date you can un-confirm; after it, a correction is a new
+version with a reason.</p>
+<h2>The year in one view and the 13th-month report</h2>
+<p>Each year has a page with every month side by side, and a 13th-month report that sets the year's monthly figures beside its final
+claims.</p>
+{% endblock %}

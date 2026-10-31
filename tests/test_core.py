@@ -8,10 +8,9 @@ from django.core.exceptions import ImproperlyConfigured
 pytestmark = pytest.mark.django_db
 
 
-def test_the_site_opens_on_the_portfolio_dashboard(client):
-    r = client.get("/", follow=True)
-    assert r.redirect_chain[-1][0] == "/data/overview/"
-    assert r.status_code == 200
+def test_the_site_opens_on_its_front_page(client):
+    r = client.get("/")
+    assert r.status_code == 200 and "California Energy Data and Reporting System" in r.content.decode()
 
 
 def test_about_lists_the_modules(client):

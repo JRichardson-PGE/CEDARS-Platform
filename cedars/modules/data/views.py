@@ -45,6 +45,28 @@ def metrics_csv(request):
     return response
 
 
+@require_GET
+def front_page(request):
+    """The site's front page (Jake, 2026-10-31): what CEDARS is, the program cycle at a glance (front.py) and the way to Help."""
+    from django.shortcuts import render
+
+    from cedars.core import help as site_help
+
+    from . import front
+
+    summary = front.summary(request.GET.get("cycle", ""))
+    return render(
+        request,
+        "data/front.html",
+        {
+            "summary": summary,
+            "guides": site_help.GUIDES,
+            "support": site_help.support(),
+            "tour": site_help.tour_steps(site_help.visitor(request)),
+        },
+    )
+
+
 DASHBOARD_HELP = {
     "use_category": "Measure use categories, separated by commas.",
     "program": "PrgIDs, separated by commas.",

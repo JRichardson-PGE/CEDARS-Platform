@@ -1,0 +1,11 @@
+{% if support.email %}
+<p>For questions, a problem with a filing or an account, or something that does not work, write to
+<a href="{{ support.support_mailto }}">{{ support.email }}</a>. Say which page you were on and what you expected to happen.</p>
+{% else %}
+<p>This site has no support address set yet. The CPUC sets it for each site (the CEDARS_SUPPORT_EMAIL setting); until then, ask your
+organization's CEDARS administrator.</p>
+{% endif %}
+{% if support.feedback %}
+<p><a href="{{ support.feedback }}">{% if support.feedback_is_form %}Send feedback on the feedback form{% else %}Send feedback by email{% endif %}</a>:
+what helps, what gets in the way and what is missing. Feedback shapes what is built next.</p>
+{% endif %}

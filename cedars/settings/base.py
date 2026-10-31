@@ -139,7 +139,9 @@ ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
 # The platform's own wording on allauth's forms, pages and emails (cedars/core/templates/account, mfa); the subject prefix replaces
-# allauth's "[<site domain>] ". CEDARS_SUPPORT_EMAIL is the address the sign-in pages give for help (blank = none shown).
+# allauth's "[<site domain>] ". CEDARS_SUPPORT_EMAIL is the address the sign-in pages and Help give for support (blank = none shown);
+# CEDARS_FEEDBACK_URL a feedback form or survey that Help links to (blank = an email to the support address). Both are set per
+# environment, never written into the code.
 ACCOUNT_FORMS = {
     "login": "cedars.services.accounts.forms.LoginForm",
     "signup": "cedars.services.accounts.forms.SignupForm",
@@ -147,6 +149,7 @@ ACCOUNT_FORMS = {
 }
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[CEDARS] "
 CEDARS_SUPPORT_EMAIL = env("CEDARS_SUPPORT_EMAIL", "")
+CEDARS_FEEDBACK_URL = env("CEDARS_FEEDBACK_URL", "")
 
 # One cache that every web process shares, so rate limits (the API's and allauth's sign-in limits) count across all of them: a table
 # in the core database (created by migration core 0001; `manage.py createcachetable` makes it again).

@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}Getting support{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'core:help' %}">Help</a></p>
+<h1>Getting support</h1>
+<p>Where to ask for help, report a problem or send feedback.</p>
+{% include "core/help/_support.html" %}
+<h2>Before you write</h2>
+<ul>
+  <li>For a filing that will not pass its checks, download its findings (each version's page has a findings file): each finding names
+  the line, record, field and rule, and says how to fix it. The <a href="{% url 'rules:index' %}">validation rules</a> explain every rule.</li>
+  <li>For access to an organization's filings, ask that organization's administrators from <a href="{% url 'administration:account' %}">your
+  account page</a>; they decide, not the CPUC. Access to personal information also needs a CPUC data steward's approval.</li>
+  <li>For a field's meaning or unit, see the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</li>
+  <li>For a lost second factor, use one of your recovery codes to sign in, then set up a new factor. Without them, write to support.</li>
+</ul>
+<h2>What to include</h2>
+<ul>
+  <li>The page's address (copy it from the browser), and the organization you were acting for.</li>
+  <li>What you did, what you expected and what happened instead, with any message the page showed.</li>
+  <li>Never a password, a recovery code, an API token or personal information about customers.</li>
+</ul>
+<h2>Accessibility barriers</h2>
+<p>If a page cannot be used with your keyboard, screen reader, magnifier or other assistive technology, tell us which page and what
+got in the way{% if support.accessibility %} at <a href="{{ support.accessibility }}">{{ support.email }}</a>{% endif %}. CEDARS is
+built to meet WCAG 2.2 Level AA, and a barrier is a defect we fix. See <a href="{% url 'core:help_guide' 'accessibility' %}">keyboard and
+screen reader use</a>.</p>
+{% endblock %}

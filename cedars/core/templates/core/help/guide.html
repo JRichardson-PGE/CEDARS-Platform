@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}
+{% block title %}{{ guide.title }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'core:help' %}">Help</a></p>
+<h1>{{ guide.title }}</h1>
+<p>{{ guide.summary }}</p>
+<p class="small muted">Who it is for: {{ guide.audience }}.</p>
+<div class="guide">
+{% block guide %}{% endblock %}
+</div>
+<h2>Other guides</h2>
+<ul class="links">
+  {% for g in guides %}{% if g.slug != guide.slug %}<li><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></li>{% endif %}{% endfor %}
+</ul>
+<p class="small muted">Still stuck? <a href="{% url 'core:help_contact' %}">Getting support</a>.</p>
+{% endblock %}
