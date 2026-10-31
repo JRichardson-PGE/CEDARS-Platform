@@ -149,6 +149,26 @@ def test_repeated_claim_ids_get_a_suffix_on_their_claim_record(tmp_path, batch_r
     assert not SubmissionVersion.objects.filter(submission__organisation__code="SCE").exists()
 
 
+def test_a_load_that_finds_its_pa_published_meanwhile_adds_nothing(tmp_path, monkeypatch):
+    """Two loads of the same year at once: the second to reach record_import finds the first's import (record_import serialises them on
+    a lock) and adds no second version and no records to the first's."""
+    _year(tmp_path)
+    legacy.load(2023)
+    records = ClaimRecord.objects.count()
+    real, asked = staging.already_imported, set()
+
+    def not_yet(deadline, org, sources):  # the load's own first look: as if the first load had not finished when this one began
+        if org.pk not in asked:
+            asked.add(org.pk)
+            return None
+        return real(deadline, org, sources)  # record_import's look, under its lock
+
+    monkeypatch.setattr(staging, "already_imported", not_yet)
+    out = legacy.load(2023)
+    assert out.published == [] and out.unchanged == ["PGE", "SCE", "SW"]
+    assert SubmissionVersion.objects.filter(origin="imported").count() == 3 and ClaimRecord.objects.count() == records
+
+
 def test_a_pa_failing_a_hard_check_is_not_published(tmp_path):
     _year(tmp_path, pge=[legacy_claim("PGE-2023-1", "PGE", "PGE_1", 2023, **{"Weighted Program Cost": "999"})])
     out = legacy.load(2023)

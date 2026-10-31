@@ -348,6 +348,9 @@ def _load_pa(outcome: Outcome, year, acc, deadline, org, paths, layout, src, per
                 "outside_totals": statewide,
             },
         )
+        if not imp.created:  # another load of the same files published it while this one ran
+            outcome.unchanged.append(code)
+            return
         v = imp.version
         seen: dict[str, int] = defaultdict(int)
         present = set(pq.ParquetFile(paths[0]).schema_arrow.names)

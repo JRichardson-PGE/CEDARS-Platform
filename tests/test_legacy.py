@@ -291,13 +291,15 @@ def test_a_year_is_published_only_when_its_hard_checks_pass(downloads, claims_de
     assert not SubmissionVersion.objects.exists()
     passing = {"checks": [{"name": "rows", "kind": "hard", "ok": True}, {"name": "published totals", "kind": "soft", "ok": False}]}
     imp = service.record_import(None, reconciliation=passing, outside_totals=1, **kwargs)
+    assert imp.created
     v = imp.version
     assert v.imported and v.findings == {"records": 2, "outside_totals": 1}
     assert v.calculation["engine"] == "CET (legacy CEDARS), release not published"
     assert "https://cedars.example.org/reports/download-record-level-report/all/2023/claims/" in v.reason
     assert set(imp.sources.all()) == set(sources)
     # the same sources again: nothing new
-    assert service.record_import(cpuc_admin, reconciliation=passing, **kwargs) == imp
+    again = service.record_import(cpuc_admin, reconciliation=passing, **kwargs)
+    assert again == imp and not again.created
     assert LegacyImport.objects.count() == 1 and AuditEvent.objects.filter(action="legacy.imported").count() == 1
     # a changed download: the next version, with the reason
     imp2 = service.record_import(cpuc_admin, reconciliation=passing, **{**kwargs, "sources": sources[:1]})
