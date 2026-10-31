@@ -60,7 +60,14 @@ def _version(code, year=2023):
     )
 
 
-def test_a_claim_year_loads_as_imported_annual_claims_with_the_statewide_claims_outside_the_totals(tmp_path):
+@pytest.fixture(params=[legacy.BATCH_ROWS, 1], ids=["one batch", "a batch per record"])
+def batch_rows(request, monkeypatch):
+    """Each PA is read in batches: the results must not depend on where the batches split."""
+    monkeypatch.setattr(legacy, "BATCH_ROWS", request.param)
+    return request.param
+
+
+def test_a_claim_year_loads_as_imported_annual_claims_with_the_statewide_claims_outside_the_totals(tmp_path, batch_rows):
     _year(tmp_path)
     out = legacy.load(2023)
     assert out.published == ["PGE", "SCE", "SW"] and out.refused == []
@@ -122,18 +129,23 @@ def test_a_claim_year_loads_as_imported_annual_claims_with_the_statewide_claims_
     assert SubmissionVersion.objects.filter(origin="imported").count() == 3
 
 
-def test_repeated_claim_ids_get_a_suffix_on_their_claim_record(tmp_path):
+def test_repeated_claim_ids_get_a_suffix_on_their_claim_record(tmp_path, batch_rows):
     rows = [legacy_claim("PGE-2019-1", "PGE", "PGE_1", 2019) for _ in range(3)] + [legacy_claim("", "PGE", "PGE_1", 2019)]
+    rows.insert(1, legacy_claim("PGE-2019-2", "PGE", "PGE_2", 2019))
     _year(tmp_path, 2019, layout="claims_a", pge=rows, sw=False)
     assert legacy.load(2019, only="PGE").published == ["PGE"]
     v = _version("PGE", 2019)
     ids = sorted(ClaimRecord.objects.filter(version=v).values_list("claim_id", flat=True))
-    assert ids == ["PGE-2019-1", "PGE-2019-1#2", "PGE-2019-1#3"]
+    assert ids == ["PGE-2019-1", "PGE-2019-1#2", "PGE-2019-1#3", "PGE-2019-2"]
     checks = {c["name"]: c for c in LegacyImport.objects.get(version=v).reconciliation["checks"]}
     assert checks["repeated ClaimIDs"]["count"] == 1 and checks["records with no ClaimID"]["count"] == 1
+    assert checks["repeated ClaimIDs"]["examples"] == ["PGE-2019-1"]
+    assert {r.prg_id: r.measures for r in ClaimResult.objects.filter(version=v)} == {"PGE_1": 4, "PGE_2": 1}
+    programs = next(f for f in v.files if f["name"] == "Programs.parquet")
+    assert programs["rows"] == 2
     assert checks["program lines = Budget"]["ok"]  # the 2016-2022 layout's Budget column
     assert "PACBen = ratio x cost" not in checks  # no PAC benefit column before 2023: rebuilt instead
-    assert ClaimResult.objects.get(version=v).values["PACBen"] == 200.0  # 2.5 x 20, four records
+    assert ClaimResult.objects.get(version=v, prg_id="PGE_1").values["PACBen"] == 200.0  # 2.5 x 20, four records
     assert not SubmissionVersion.objects.filter(submission__organisation__code="SCE").exists()
 
 
