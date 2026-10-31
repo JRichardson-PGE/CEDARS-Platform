@@ -202,7 +202,7 @@ input[type=file] { min-height: 24px; max-width: 100%; }   /* 2.5.8: targets at l
 input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; margin: 0; accent-color: var(--primary); }   /* 2.5.8 */
 input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; }
 select { max-width: 100%; }
-.field { display: flex; flex-direction: column; gap: .3rem; }
+.field { display: flex; flex-direction: column; gap: .3rem; min-width: 0; max-width: 100%; }   /* a flex or grid item shrinks below its select's width at 320 px (1.4.10) */
 .field .check { display: flex; gap: .5rem; align-items: center; font-weight: 400; color: var(--fg); }
 .field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); font-size: .9rem; }
 .helptext { font-size: .85rem; color: var(--fg-2); font-weight: 400; }
