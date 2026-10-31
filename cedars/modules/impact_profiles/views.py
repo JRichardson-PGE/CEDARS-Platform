@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import access, custom, etrm, forms, jobs, loadshapes, shapes
+from . import access, custom, etrm, forms, identical, jobs, loadshapes, shapes
 from .models import (
     EtrmSyncRun,
     ExcludedPackage,
@@ -107,13 +107,20 @@ def profile(request, pk):
             "current": current,
             "detail": detail,
             "months": [m for m, _ in detail[0]["months"]] if detail else [],
-            "aliases": p.aliases.filter(ended_at__isnull=True).select_related("package"),
+            "names": identical.other_names(p),
             "can_replace": can_change and p.family == ImpactProfile.Family.CUSTOM,
             "can_retire": can_change,
             "replace_form": forms.ReplaceForm(),
             "retire_form": forms.ReasonForm(),
         },
     )
+
+
+def _identical_note(p: ImpactProfile, version) -> str:
+    same = identical.same_profile(version.content_sha256, exclude=p).first() if version is not None else None
+    if same is None:
+        return ""
+    return f" Its 8,760s are identical to {same}'s, so it is listed as another name of that profile and the library stores them once."
 
 
 @login_required
@@ -151,7 +158,7 @@ def profile_replace(request, pk):
         return render(request, "impact_profiles/rejected.html", {"p": p, "findings": e.findings, "back": back}, status=400)
     except AccessDenied as e:
         return _refused(request, e, back)
-    messages.success(request, f"Version {v.number} added. Runs and claims that named an earlier version keep it.")
+    messages.success(request, f"Version {v.number} added. Runs and claims that named an earlier version keep it." + _identical_note(p, v))
     return redirect(back)
 
 
@@ -196,7 +203,7 @@ def custom_new(request):
         except AccessDenied as e:
             messages.error(request, str(e))
             return render(request, "impact_profiles/custom_new.html", {"form": form}, status=400)
-        messages.success(request, f"{p.profile_key} added as version 1.")
+        messages.success(request, f"{p.profile_key} added as version 1." + _identical_note(p, p.current_version()))
         return redirect(f"/impact-profiles/{p.pk}/")
     return render(request, "impact_profiles/custom_new.html", {"form": form})
 

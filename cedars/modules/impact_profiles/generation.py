@@ -29,7 +29,7 @@ from django.utils import timezone
 from cedars.services import audit
 from cedars.services.accounts import service as access
 
-from . import shapes
+from . import identical, shapes
 from .loadshapes import zone
 from .models import ImpactProfile, LoadShape, LoadShapeUpload, LoadShapeVersion, MeasurePackage, ProfileVersion, ProfileZone
 
@@ -204,6 +204,9 @@ def generate(actor, package: MeasurePackage, upload: LoadShapeUpload | None = No
                 created_by=actor,
             )
             ProfileZone.objects.bulk_create(ProfileZone(version=version, climate_zone=z, shape=s) for z, s in stored.items())
+            same = identical.same_profile(identical.stamp(version), exclude=profile).first()
+            if same is not None:  # attached to that profile as another name: the library stores the 8,760s once (BR-06.18)
+                summary.setdefault("identical", []).append([key, sector, str(same)])
             summary["created" if current is None else "new_version"] += 1
             summary["profiles"].append([profile.pk, key, sector, version.number])
             audit.record(

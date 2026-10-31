@@ -71,6 +71,9 @@ def _impact_profiles(cpuc_admin, pge, pge_admin, make_user):
     mine = custom.create_custom(
         dev, pge, profile_key="PGE Office NMEC", target_sector="Commercial", territory="PGE", data=profile_file(), file_name="p.csv"
     )
+    custom.create_custom(  # identical to it: the page lists it as another name of the profile (BR-06.18)
+        dev, pge, profile_key="SCE Office NMEC", target_sector="Commercial", territory="SCE", data=profile_file(), file_name="s.csv"
+    )
     library.export(cpuc_admin)
     return {
         "developer": dev,
@@ -148,7 +151,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         .replace(b"0.4440,0.1550", b"0.4000,0.1550", 1)
     )
     dictionary.load_catalog(
-        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.86.json").read_text())
+        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.87.json").read_text())
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
     from cedars.services.registry import goals

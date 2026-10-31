@@ -125,6 +125,30 @@ def test_custom_profile_pages(signed_in, developer, pge):
     assert bad.status_code == 400 and "LS-T01" in bad.content.decode()
 
 
+def test_a_profile_page_lists_every_name_of_an_identical_profile(signed_in, developer, pge):
+    c = signed_in(developer)
+    first = {"profile_key": "PGE Office NMEC", "target_sector": "Commercial", "territory": "PGE"}
+    c.post("/impact-profiles/custom/new/", {**first, "file": SimpleUploadedFile("p.csv", profile_file())})
+    r = c.post(
+        "/impact-profiles/custom/new/",
+        {
+            "profile_key": "SCE Office (renamed)",
+            "target_sector": "Commercial",
+            "territory": "SCE",
+            "file": SimpleUploadedFile("q.csv", profile_file()),
+        },
+        follow=True,
+    )
+    page = r.content.decode()
+    assert "identical to PGE Office NMEC / Commercial (PGE)" in page and "listed as another name" in page
+    a = ImpactProfile.objects.get(profile_key="PGE Office NMEC")
+    page = c.get(f"/impact-profiles/{a.pk}/").content.decode()
+    assert "Names of this profile" in page and "SCE Office (renamed)" in page
+    c.post(f"/impact-profiles/{a.pk}/replace", {"file": SimpleUploadedFile("c.csv", profile_file(zones=("12",))), "reason": "true-up"})
+    page = c.get(f"/impact-profiles/{a.pk}/").content.decode()
+    assert "SCE Office (renamed)" not in page and "only this name" in page
+
+
 def test_cpuc_admin_syncs_and_writes_the_library(signed_in, cpuc_admin, synced, settings, django_capture_on_commit_callbacks):
     settings.IMPACT_PROFILES_INLINE_JOBS = True
     c = signed_in(cpuc_admin)

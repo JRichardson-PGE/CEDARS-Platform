@@ -229,7 +229,7 @@ def test_metric_fields_are_canonical_output_fields():
     """Every field a metric sums is in the field dictionary the platform ships (decision L)."""
     from pathlib import Path
 
-    catalog = json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.86.json").read_text())
+    catalog = json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.87.json").read_text())
     names = {f["name"] for f in catalog["fields"]}
     missing = {f for m in metrics.CATALOG.values() for f in m.fields} - names
     assert not missing
