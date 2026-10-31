@@ -7,7 +7,7 @@
   {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">How it is priced</a>{% endif %}
 </div>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
+  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if setup.acc_version %} ({{ setup.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}; cost tests: {% if setup.cost_test_set %}{{ setup.cost_test_set }}{% else %}the published set in force for the program year{% endif %}</dd>{% endif %}
@@ -26,8 +26,8 @@
   <div class="hscroll" tabindex="0" role="region" aria-label="Findings by rule">
   <table class="list">
     <caption class="sr-only">Findings by rule, rejects first</caption>
-    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Records</th><th scope="col">For example</th></tr></thead>
-    <tbody>{% for r in v.findings.by_rule %}<tr><th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejected{% else %}Warning{% endif %}</td><td class="num">{{ r.count|floatformat:"0g" }}</td><td>{{ r.example }}</td></tr>{% endfor %}</tbody>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">How many</th><th scope="col">For example</th></tr></thead>
+    <tbody>{% for r in v.findings.by_rule %}<tr><th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejected{% else %}Warning{% endif %}</td><td class="num">{{ r.count|floatformat:"0g" }} {{ r.unit|default:"records" }}</td><td>{{ r.example }}</td></tr>{% endfor %}</tbody>
   </table>
   </div>
   <p><a href="{% url 'budgets:findings_csv' v.pk %}">Download every finding (CSV)</a>: line, record, field, rule, severity, message and how to fix it.</p>

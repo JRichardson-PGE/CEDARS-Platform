@@ -57,7 +57,7 @@
     {% if f.options %}
     <fieldset>
       <legend>{{ f.label }}</legend>
-      {% for o in f.options %}<label class="check"><input type="checkbox" name="{{ f.code }}" value="{{ o }}"{% if o in f.selected %} checked{% endif %}> {{ o }}</label>{% endfor %}
+      {% for o in f.options %}<label class="check"><input type="checkbox" name="{{ f.code }}" value="{{ o }}"{% if o in f.selected %} checked{% endif %}> {{ o|code_label }}</label>{% endfor %}
     </fieldset>
     {% else %}
     <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.selected|join:',' }}" autocomplete="off"><span class="helptext">{{ f.help }}</span></label>
@@ -71,7 +71,7 @@
 <section aria-labelledby="applied-heading" class="applied">
   <h2 id="applied-heading" class="sr-only">Applied filters</h2>
   <ul class="chips">
-    {% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong> <a href="{{ a.remove }}">Remove<span class="sr-only"> the {{ a.label }} filter {{ a.value }}</span></a></li>{% endfor %}
+    {% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value|code_label }}</strong> <a href="{{ a.remove }}">Remove<span class="sr-only"> the {{ a.label }} filter {{ a.value }}</span></a></li>{% endfor %}
     <li><a href="{% url 'data:dashboard' page.slug %}">Reset all</a></li>
   </ul>
 </section>
@@ -81,7 +81,7 @@
 {% if totals %}<dl class="tiles">
   {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ totals.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
   {% if totals.both and metric.adds_up %}<div class="tile"><dt>% of forecast</dt><dd>{{ totals.totals.percent|percent }}</dd></div>{% endif %}
-</dl>{% endif %}
+</dl>{% if totals.percent_note %}<p class="small">{{ totals.percent_note }}</p>{% endif %}{% endif %}
 {% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 
 {% for b in blocks %}
@@ -113,7 +113,7 @@ columns, or to look through the records first, open them on the records page.</p
 <ul class="downloads record-downloads">
   {% for d in record_downloads %}<li>
     {% if not d.count %}{{ d.series }}: no records.
-    {% elif d.background %}{{ d.series }}, {{ d.count }} record{{ d.count|pluralize }}: more than the {{ max_rows }} made while you
+    {% elif d.background %}{{ d.series }}, {{ d.count|floatformat:"0g" }} record{{ d.count|pluralize }}: more than the {{ max_rows|floatformat:"0g" }} made while you
     wait, so the file is made in the background and you are told when it is ready.
     {% if user.is_authenticated %}
     <form method="post" action="{% url 'data:download_request' %}" class="inline-download">
@@ -122,11 +122,11 @@ columns, or to look through the records first, open them on the records page.</p
       <label>Format <span class="sr-only">of the {{ d.series|lower }} records</span>
         <select name="format">{% for fmt, label in d.formats %}<option value="{{ fmt }}">{{ label }}</option>{% endfor %}</select>
       </label>
-      <button type="submit">Make this download<span class="sr-only"> of the {{ d.count }} {{ d.series|lower }} records</span></button>
+      <button type="submit">Make this download<span class="sr-only"> of the {{ d.count|floatformat:"0g" }} {{ d.series|lower }} records</span></button>
     </form>
     {% else %}<a href="{{ sign_in }}">Sign in to have it made<span class="sr-only"> ({{ d.series|lower }} records)</span></a> (anyone can register).{% endif %}
     <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
-    {% else %}{{ d.series }}, {{ d.count }} record{{ d.count|pluralize }}:
+    {% else %}{{ d.series }}, {{ d.count|floatformat:"0g" }} record{{ d.count|pluralize }}:
     {% for fmt, label, href in d.links %}<a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ d.series|lower }} records</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}
     · <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
     {% endif %}

@@ -191,6 +191,7 @@ def test_downloads_hold_only_the_chosen_records_and_columns_with_a_stamp(two_pas
     assert json.loads(stamp["pas"]) == {"SCE": 2}  # the PAs the records hold (BR-08.3)
     assert stamp["records"] == "2" and json.loads(stamp["columns"]) == ["CEInputID", "TotalSystemBenefit", "MeasureID"]
     assert json.loads(stamp["filters"]) == {"pa": ["SCE"]} and stamp["release"] == "2" and stamp["kind"] == "records"
+    assert all(f.startswith("SCE ") for f in json.loads(stamp["filings"]))  # only the filings that contribute rows (F26)
 
     t = pq.read_table(io.BytesIO(b"".join(client.get(f"/data/records/download.parquet?{qs}").streaming_content)))
     assert t.column_names == ["CEInputID", "TotalSystemBenefit", "MeasureID"] and t.column("TotalSystemBenefit").to_pylist() == [11, 22]

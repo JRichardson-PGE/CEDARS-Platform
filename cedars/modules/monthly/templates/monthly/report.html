@@ -4,7 +4,7 @@
 <p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' deadline.period.year %}{% if org %}?org={{ org.code|urlencode }}{% endif %}">{{ deadline.period.year }}</a></p>
 <h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
+  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
   <dt>Estimates priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for {{ setup.year }}{% endif %}</dd>
 </dl>

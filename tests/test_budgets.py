@@ -382,6 +382,7 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
     v = service.upload(filer, filing, pge, job(), "tual.zip")  # a file without the specification's columns
     assert {f["rule_id"] for f in service.findings(v)} == {"BUD-COL"} and v.status == "draft"
     assert any("were not run" in n for n in v.findings["notes"])
+    assert v.findings["by_rule"][0]["unit"] == "columns"  # missing columns are counted as columns, not records (F18)
     tables = {}
     for table, rows in (("ProgramCost", job_rows(COSTS)), ("Measure", job_rows(MEASURE))):
         spec = sorted(set(rs.rules.filter(table=table, kind="spec").values_list("field", flat=True)))

@@ -84,12 +84,12 @@ def import_from_engine(actor, code: str, as_of: str | None = None) -> RuleSet:
             severity=r.severity,
             table=r.table,
             field=r.field,
-            message=r.text,
+            message=canonical_text(r.text),
             kind=r.kind,
             definition=r.spec,
             source=r.source,
             modules=MODULES_FOR.get(code, []),
-            fix=suggested_fix(r.kind, r.field, r.spec, r.text),
+            fix=suggested_fix(r.kind, canonical_field(r.field), r.spec, canonical_text(r.text)),
         )
         for r in ers.rules
     )
@@ -189,11 +189,58 @@ def _is_utf8(content: bytes) -> bool:
     return True
 
 
+# The engine's note when the profile-combination rules cannot run, and what it means on this server.
+_NO_LIBRARY = "the CEDARS impact-profile library is not installed"
+_NO_LIBRARY_HERE = (
+    "the impact-profile library is not in the engine's reference folder on this server (RECET_DATA for the web service); the "
+    "profile-combination rules are checked when the job is priced"
+)
+
+
+def canonical_text(text: str) -> str:
+    """A rule's wording with the data dictionary's field names (decision L): the first mention of a CET name becomes
+    "AC_Climate_Zone (E3ClimateZone)", later mentions the canonical name alone. Idempotent."""
+    import re
+
+    _, fieldnames = _engine()
+    for cet, ours in fieldnames.LEGACY_TO_RECET.items():
+        if cet == ours or cet not in text:
+            continue
+        pattern = re.compile(rf"(?<![\w(]){re.escape(cet)}\b")
+        first = True
+
+        def swap(m, cet=cet, ours=ours):
+            nonlocal first
+            out = f"{ours} ({cet})" if first else ours
+            first = False
+            return out
+
+        text = pattern.sub(swap, text)
+    return text
+
+
+def canonical_field(field: str) -> str:
+    """A rule's field under the data dictionary's name (a two-column key keeps both names)."""
+    _, fieldnames = _engine()
+    return " + ".join(fieldnames.LEGACY_TO_RECET.get(part.strip(), part.strip()) for part in field.split("+")) if field else field
+
+
+def library_available() -> bool:
+    """Whether the engine on this server has the impact-profile library the profile-combination rules read."""
+    try:
+        from recet.pipeline import real_impact_profiles
+    except ImportError:
+        return False
+    return bool(real_impact_profiles.is_available())
+
+
 def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_column: str = "CEInputID") -> tuple[list[Finding], list[str]]:
     """Run a rule set's rules for `table` on a raw-text frame: every failing (record, rule) as a Finding, rejects first, and notes on rules
-    that could not be checked."""
+    that could not be checked. Findings name fields and wording with the data dictionary's names."""
     filing_rules, _ = _engine()
-    results, notes = filing_rules.check_frame(_engine_rule_set(rs), table, df, filing_rules.Context(filing_year=filing_year))
+    ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
+    results, notes = filing_rules.check_frame(_engine_rule_set(rs), table, df, ctx)
+    notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]
     fixes = dict(rs.rules.values_list("rule_id", "fix"))
     ids = df[id_column].astype(str).to_numpy() if id_column in df.columns else [""] * len(df)
     findings = []
@@ -206,10 +253,10 @@ def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_col
                     int(i) + 2,
                     ids[i],
                     table,
-                    res.rule.field,
+                    canonical_field(res.rule.field),
                     res.rule.id,
                     res.rule.severity,
-                    res.rule.text + (f", but is {value}" if value and value != "<NA>" else ""),
+                    canonical_text(res.rule.text) + (f", but is {value}" if value and value != "<NA>" else ""),
                     fixes.get(res.rule.id, ""),
                     "" if value == "<NA>" else value,
                 )

@@ -324,3 +324,31 @@ def test_monthly_reports_give_their_spending_to_the_registry(pge):
     from cedars.services.registry import service as registry
 
     assert registry.reported_spend(pge, 2028) == []  # the Monthly reports module's source, with nothing published
+
+
+def test_the_default_years_follow_the_forecast_when_the_current_cycle_has_none(both, monkeypatch):
+    """F09: a page opens on years that hold a forecast, not on a current cycle nothing has been filed for."""
+    old = FilingCycle.objects.create(first_year=2024, last_year=2027)
+    monkeypatch.setattr(dashboard, "current_cycle", lambda today=None: old)
+    assert (view().query.year_from, view().query.year_to) == (2028, 2031)
+    assert dashboard.default_cycle().first_year == 2028
+
+
+def test_percent_of_forecast_covers_only_the_years_both_series_have(both, filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    """F10: claims for 2028 and 2029 against a forecast for 2028 alone compare 2028 with 2028, and the page says so."""
+    later = [r[:5] + ("2029",) + r[6:] for r in RECORDS]
+    publish(filer, claims_deadline(cpuc_admin, 1, year=2029), pge, django_capture_on_commit_callbacks, "c2", records=later)
+    c = dashboard.compare(view(year_from="2028", year_to="2031"))
+    assert c.totals.values == {"forecast": 360, "claims": 360}  # 2028 and 2029 claims against the 2028 forecast
+    assert c.totals.percent == 50 and c.shared_years == [2028] and c.series_years == {"claims": [2028, 2029], "forecast": [2028]}
+    assert c.percent_note == "% of forecast compares the years both series cover, 2028 (claims 2028-2029, forecast 2028)."
+    assert c.rows[0].values["claims"] == 2 * c.rows[0].shared["claims"] and c.rows[0].percent == 50
+    none = dashboard.compare(view(year_from="2029", year_to="2031"))
+    assert none.totals.percent is None and none.percent_note.startswith("% of forecast is blank: no year has both")
+    by_year = dashboard.compare(view(), by="year")
+    assert by_year.shared_years is None and [r.key for r in by_year.rows] == [2028, 2029]  # by year, each year stands alone
+
+
+def test_registry_codes_read_as_words():
+    assert dashboard.code_label("codes_and_standards") == "Codes and standards"
+    assert dashboard.code_label("Residential") == "Residential" and dashboard.code_label(None) is None

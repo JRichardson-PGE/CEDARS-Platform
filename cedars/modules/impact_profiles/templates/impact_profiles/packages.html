@@ -3,7 +3,7 @@
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="packages" %}
 <h1>Deemed load shapes</h1>
-<p>Draft measure packages from eTRM starting in 2027 or later, synced nightly{% if last_sync %} (last synced {{ last_sync.finished_at|date:"Y-m-d H:i" }}){% endif %}.
+<p>Draft measure packages from eTRM starting in 2027 or later, synced nightly{% if last_sync %} (last synced {{ last_sync.finished_at|date:"Y-m-d H:i T" }}){% endif %}.
 Upload a package's 8,760 baseline and measure load shapes from its page; its permutations' UECs turn them into impact profiles.
 Measure versions starting before 2027 keep their DEER impact profile IDs. <a href="{% url 'impact_profiles:load_shape_template' %}">Download the load-shape template (CSV)</a>.</p>
 <form method="get" class="filters">
