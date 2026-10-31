@@ -72,10 +72,12 @@ EXCLUSIONS = {
         Exclusion("pension", "Pension and Benefits programs", "Prg_ProgramCategory", ("Pension and Benefits",)),
         Exclusion("esa", "Energy Savings Assistance programs", "Prg_ProgramCategory", ("Energy Savings Assistance",)),
         Exclusion("cs", "Codes and standards", "Prg_ProgramSegment", ("codes_and_standards", "Codes and Standards")),
+        Exclusion("no_ce", "Programs excluded from cost-effectiveness", "Prg_Exclude_From_CE", ("true", "1", "yes", "y", "t")),
     ]
 }
 # As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages, ESA out on
-# the goals page only. A page passes its own defaults to from_params; the page and the download say what was left out.
+# the goals page only; programs flagged Exclude_From_CE out of the cost-effectiveness page (Jake, 2026-10-31). A page passes its own
+# defaults to from_params; the page and the download say what was left out.
 DEFAULT_EXCLUDE = ("pension", "cs")
 
 

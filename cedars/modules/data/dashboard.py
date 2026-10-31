@@ -106,8 +106,10 @@ PAGES = {
             "cost-effectiveness",
             "Cost effectiveness",
             "Cost-test ratios by sector, by year and by program, each computed from summed benefits and costs (never an average of "
-            "ratios). Without admin leaves administration costs out of the cost.",
+            "ratios). Without admin leaves administration costs out of the cost. Programs flagged as excluded from cost-effectiveness "
+            "are left out unless included.",
             tuple(f"{t}{v}" for t in catalog.TESTS for v in ("", "_no_admin")),
+            exclude=(*dq.DEFAULT_EXCLUDE, "no_ce"),
             sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
         ),
         Page(
@@ -158,7 +160,21 @@ DRILL = {
     "use_category": "measure",
     "program": "measure",
 }
-VIEW_PARAMS = ("series", "filing", "year_from", "year_to", "by", "metric", "period", "gross", "lifecycle", "cs", "esa", "pension") + FILTERS
+VIEW_PARAMS = (
+    "series",
+    "filing",
+    "year_from",
+    "year_to",
+    "by",
+    "metric",
+    "period",
+    "gross",
+    "lifecycle",
+    "cs",
+    "esa",
+    "pension",
+    "no_ce",
+) + FILTERS
 
 
 def current_cycle(today: date | None = None) -> FilingCycle | None:

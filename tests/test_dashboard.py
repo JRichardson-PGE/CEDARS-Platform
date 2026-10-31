@@ -216,8 +216,11 @@ def test_the_cost_effectiveness_page(both, client):
     page = d.PAGES["cost-effectiveness"]
     assert page.metrics[:2] == ("trc", "trc_no_admin") and len(page.metrics) == 10
     c = d.compare(d.parse(page, _qd({})), "sector")
+    assert {r.key: r.values["claims"] for r in c.rows} == {"Residential": 1.0}  # PGE_Com_Lt is flagged excluded from CE
+    c = d.compare(d.parse(page, _qd({"no_ce": "include"})), "sector")
     assert {r.key: r.values["claims"] for r in c.rows} == {"Residential": 1.0, "Commercial": 2.0}
     assert c.totals.values["claims"] == pytest.approx(240 / 220)  # from sums, not the mean of 1.0 and 2.0
+    assert view().query.exclude == ("pension", "cs")  # other pages count them
     html = client.get("/data/cost-effectiveness/?metric=pac").content.decode()
     assert "PAC ratio" in html and "% of forecast" not in html and "Claimed less forecast" in html  # no % of a ratio
     assert client.get("/data/cost-effectiveness/?metric=tsb").status_code == 200  # refused in words, not an error page

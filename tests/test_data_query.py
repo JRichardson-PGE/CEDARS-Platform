@@ -40,6 +40,7 @@ def results_file(records=RECORDS, scale=1.0, drop=()) -> bytes:
         "UseCategory": [r[4] for r in records],
         "Used_Year": [r[5] for r in records],
         "Fuel_Sub_Flag": [r[6] for r in records],
+        "Prg_Exclude_From_CE": [r[0] == "PGE_Com_Lt" for r in records],  # a boolean column, as a program table may give it
         "TotalSystemBenefit": [scale * r[7] for r in records],
         "FirstYearNetKWh": [scale * r[8] for r in records],
         "FirstYearNetThm": [scale * r[9] for r in records],
@@ -234,6 +235,14 @@ def test_metric_fields_are_canonical_output_fields():
     assert not missing
     assert {d.column for d in dq.DIMENSIONS.values() if d.column} <= names
     assert {e.column for e in dq.EXCLUSIONS.values()} <= names
+
+
+def test_programs_excluded_from_cost_effectiveness_can_be_left_out(claims):
+    q = dq.Query("claims", ("trc", "tsb"), exclude=("pension",))
+    assert dq.run(q).totals["trc"] == pytest.approx(240 / 220)
+    r = dq.run(q.but(exclude=("pension", "no_ce")))
+    assert r.totals["trc"] == pytest.approx(200 / 200) and r.totals["tsb"] == 1150  # PGE_Com_Lt left out
+    assert "Left out: Programs excluded from cost-effectiveness." in r.notes
 
 
 def test_metric_catalog_download(client):
