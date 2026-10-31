@@ -12,6 +12,8 @@ PAGES = [
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("rules", "/rules/", None),
+    ("dashboard-overview", "/data/overview/?by=sector", None),
+    ("dashboard-filtered", "/data/overview/?by=program&sector=Residential&series=forecast&metric=kwh", None),
     ("rule-set", "/rules/{rules}/", None),
     ("rule", "/rules/{rules}/W4d5e6f/", None),
     ("rule-differences", "/rules/differences/?a={rules}&b={rules}", None),
