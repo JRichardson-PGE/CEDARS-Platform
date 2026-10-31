@@ -1,10 +1,12 @@
 {% extends "core/base.html" %}
 {% block title %}File a document{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'documents:library' %}">Documents</a></p>
-<h1>File a document</h1>
+<p class="small">{% if study %}<a href="{{ study.get_absolute_url }}">{{ study.study_id }}</a>{% else %}<a href="{% url 'documents:library' %}">Documents</a>{% endif %}</p>
+<h1>{% if study %}Upload a document for {{ study.study_id }}{% else %}File a document{% endif %}</h1>
+{% if study %}<p>For the study <strong>{{ study.title }}</strong>. Its study ID is filled in below; the document is listed on the study's page.</p>{% endif %}
 {% if collections|length > 1 %}
 <form method="get" class="filters" aria-label="Choose the collection">
+  {% if study %}<input type="hidden" name="study" value="{{ study.study_id }}">{% endif %}
   <label for="collection">Collection
     <select id="collection" name="collection">{% for code, label in collections %}<option value="{{ code }}"{% if code == collection %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   </label>
@@ -24,6 +26,6 @@ Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p
   {{ form.comments_open.as_field_group }}
   {{ form.comments_close.as_field_group }}
   {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
-  <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% url 'documents:library' %}">Cancel</a></div>
+  <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% if study %}{{ study.get_absolute_url }}{% else %}{% url 'documents:library' %}{% endif %}">Cancel</a></div>
 </form>
 {% endblock %}

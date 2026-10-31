@@ -6,6 +6,7 @@ import csv
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -14,7 +15,7 @@ from django.views.decorators.http import require_POST
 from cedars.services.accounts.service import AccessDenied
 
 from . import aging, forms, service, studies, subscriptions
-from .models import AttributeOption, Study, StudyProgram, WorkOrder
+from .models import AttributeOption, Collection, Study, StudyProgram, WorkOrder
 
 PER_PAGE = 25
 REGISTER_COLUMNS = [
@@ -143,6 +144,7 @@ def study(request, number):
             "sees_contacts": contacts,
             "coverage_form": forms.CoverageForm() if can_edit else None,
             "following": subscriptions.follows(request.user, study=s),
+            "can_file": _can_file_for(request, s),
         },
     )
 
@@ -165,22 +167,62 @@ def study_report(request, number):
     return response
 
 
+def _can_file_for(request, s: Study) -> bool:
+    """Whether the user, acting for their current organization, may upload a document under the study: they may update the study and
+    the organization files EM&V documents."""
+    user = request.user
+    if not user.is_authenticated or not studies.can_edit(user, s):
+        return False
+    return Collection.EMV in service.collections_for(user, getattr(request, "organisation", None))
+
+
 @login_required
 def new_study(request):
+    """Add a study, and optionally upload its first document with it: both are saved, or neither."""
     org = getattr(request, "organisation", None)
     if not studies.can_create(request.user, org):
         raise Http404
     admin = service.is_admin(request.user)
+    files = Collection.EMV in service.collections_for(request.user, org)
+    can_publish = admin or service.access.has_permission(request.user, org, service.CONFIRM)
     form = forms.StudyForm(request.POST or None, organisation=org, admin=admin)
-    if request.method == "POST" and form.is_valid():
+    doc_form = forms.StudyDocumentForm(request.POST or None, request.FILES or None, can_publish=can_publish) if files else None
+    if request.method == "POST" and form.is_valid() and (doc_form is None or doc_form.is_valid()):
+        target = form  # the form an error belongs to: the study's until the study is saved, then the document's
         try:
-            s = studies.create_study(request.user, org, form.data_object())
+            with transaction.atomic():
+                s = studies.create_study(request.user, org, form.data_object())
+                doc = None
+                if doc_form is not None and doc_form.has_file():
+                    target = doc_form
+                    flow = doc_form.workflow()
+                    doc = service.create_document(
+                        request.user,
+                        org,
+                        Collection.EMV,
+                        doc_form.details(s),
+                        doc_form.uploads(),
+                        publish=flow["publish"],
+                        deliverable=flow["deliverable"],
+                        stage=flow["stage"],
+                    )
         except (service.DocumentError, AccessDenied) as e:
-            form.add_error(None, str(e))
+            target.add_error(None, str(e) + (" The study is not added either." if target is doc_form else ""))
         else:
-            messages.success(request, f"Study {s.study_id} is added to the register.")
+            if doc is None:
+                messages.success(request, f"Study {s.study_id} is added to the register. Upload its documents from this page.")
+            else:
+                messages.success(
+                    request,
+                    f"Study {s.study_id} is added to the register with its document {doc.title}"
+                    + ("." if doc.published_at else ", which is not published yet."),
+                )
             return redirect(s)
-    return render(request, "documents/study_form.html", {"form": form, "s": None})
+    return render(
+        request,
+        "documents/study_form.html",
+        {"form": form, "doc_form": doc_form, "s": None, "choose_again": request.method == "POST" and bool(request.FILES)},
+    )
 
 
 @login_required
@@ -197,7 +239,7 @@ def change_study(request, number):
         else:
             messages.success(request, "The study is updated.")
             return redirect(s)
-    return render(request, "documents/study_form.html", {"form": form, "s": s})
+    return render(request, "documents/study_form.html", {"form": form, "s": s, "can_file": _can_file_for(request, s)})
 
 
 @login_required
