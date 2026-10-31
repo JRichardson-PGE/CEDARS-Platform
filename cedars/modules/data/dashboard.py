@@ -317,7 +317,8 @@ def compare(view: View, by: str | None = None, drill: tuple[str, str] = ("", "")
             for s in results:
                 q = view.for_series(s)
                 filters = dict(q.filters) | {"measure": (str(row.key),)}
-                qs = replace(q, by=(), filters=tuple(filters.items())).query_string(view.page.exclude)
+                # every exclusion stated: the records page leaves nothing out unless asked
+                qs = replace(q, by=(), filters=tuple(filters.items())).query_string(defaults_exclude=())
                 row.links.append((f"{SERIES[s][0]} records", f"/data/records/?{qs}"))
     first = view.series[-1]  # claims when shown, else forecast: the chart's and the table's order
     if by == "year":
