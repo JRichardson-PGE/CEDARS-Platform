@@ -1,0 +1,5 @@
+# HTTPS for the demo: Caddy gets and renews a Let's Encrypt certificate for CEDARS_DOMAIN (ports 80 and 443 must be open).
+{$CEDARS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:8000
+}

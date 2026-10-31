@@ -22,6 +22,8 @@ Without Docker (Python 3.12, [uv](https://docs.astral.sh/uv/), PostgreSQL 16 wit
     uv run python manage.py migrate
     uv run python manage.py runserver
 
+For a demo on one small AWS server (HTTPS, sandbox settings, about $32 a month, about $7 stopped), see `deploy/demo/README.md`.
+
 ## Calculations locally
 
 Runs are priced by the ReCET worker (`recet worker run`), which the platform starts and never imports. With the engine installed

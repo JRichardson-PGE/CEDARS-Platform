@@ -15,6 +15,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | `engine/recet-commit` | The pinned ReCET engine commit (see `engine/README.md`) |
 | `data/dictionary/` | Field catalogs exported from the pinned engine |
 | `infra/terraform/` | The AWS stack per environment (sandbox, staging, production): written and validated in CI, applied only by the CPUC's cloud team (`infra/terraform/README.md`) |
+| `deploy/demo/` | A low-cost demo on one server: Docker Compose with Caddy, PostgreSQL and the local worker, sandbox settings (`cedars.settings.demo`); not the production design |
 | `scripts/` | One-off tools (the catalog export) |
 
 ## Shared services

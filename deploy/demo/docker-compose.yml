@@ -1,0 +1,94 @@
+# The platform on one small server for demos and reviews (README.md in this folder): the web app behind Caddy (HTTPS), PostgreSQL 16,
+# and the local calculations worker. Sandbox settings: a banner on every page, no PII vault, test or public data only.
+#   cp .env.example .env    (fill it in)
+#   docker compose up -d --build
+name: cedars-demo
+
+x-app: &app
+  image: cedars-platform:demo
+  env_file: .env
+  environment: &app-env
+    DJANGO_SETTINGS_MODULE: cedars.settings.demo
+    DATABASE_URL: postgres://cedars:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/cedars
+    DJANGO_ALLOWED_HOSTS: ${CEDARS_DOMAIN:?set CEDARS_DOMAIN in .env},127.0.0.1,localhost
+    DJANGO_CSRF_TRUSTED_ORIGINS: https://${CEDARS_DOMAIN}
+    CEDARS_BASE_URL: https://${CEDARS_DOMAIN}
+    CEDARS_STORAGE_ROOT: /var/cedars/storage
+    CALCULATIONS_RESULTS_CACHE: /var/cedars/cache/results
+    MEDIA_ROOT: /var/cedars/media
+    IMPACT_PROFILES_INLINE_JOBS: "1" # load-shape jobs run in the request: no separate worker on a small server
+  volumes:
+    - cedars-data:/var/cedars
+    - ${CEDARS_IMPORT_DIR:-./import}:/import:ro
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: cedars
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: cedars
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=16MB", "-c", "max_connections=50"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cedars"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # The image runs as an unprivileged user; give it the data volume once
+  init:
+    image: cedars-platform:demo
+    user: root
+    command: ["sh", "-c", "mkdir -p /var/cedars/storage /var/cedars/cache/results /var/cedars/media && chown -R 10001:10001 /var/cedars"]
+    volumes:
+      - cedars-data:/var/cedars
+    restart: "no"
+
+  web:
+    <<: *app
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    command:
+      - sh
+      - -c
+      - python manage.py migrate --noinput && exec gunicorn cedars.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 300 --access-logfile -
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+
+  # Prices queued runs with `recet worker run` (needs the engine in the image: scripts/build_engine_wheel.sh before building)
+  worker:
+    <<: *app
+    command: ["python", "manage.py", "calculations_worker"]
+    healthcheck:
+      disable: true # the image's check asks the web server, which this container does not run
+    depends_on:
+      web:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2.10
+    environment:
+      CEDARS_DOMAIN: ${CEDARS_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  cedars-data:
+  caddy-data:
+  caddy-config:

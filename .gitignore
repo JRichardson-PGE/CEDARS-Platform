@@ -18,3 +18,4 @@ test-results/
 # local object storage (CEDARS_STORAGE_ROOT)
 var/
 engine/wheels/
+deploy/demo/import/

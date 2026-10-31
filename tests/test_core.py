@@ -52,3 +52,14 @@ def test_prod_settings_need_a_secret_key():
     env = {k: v for k, v in os.environ.items() if k != "DJANGO_SECRET_KEY"}
     with mock.patch.dict(os.environ, env, clear=True), pytest.raises(ImproperlyConfigured, match="DJANGO_SECRET_KEY"):
         importlib.reload(importlib.import_module("cedars.settings.prod"))
+
+
+def test_demo_settings_print_email_unless_smtp_is_set():
+    """deploy/demo: the sandbox's settings, with email in the log until an SMTP server is named."""
+    base = {k: v for k, v in os.environ.items() if k not in ("EMAIL_HOST", "EMAIL_BACKEND")} | {"DJANGO_SECRET_KEY": "x"}
+    with mock.patch.dict(os.environ, base, clear=True):
+        demo = importlib.reload(importlib.import_module("cedars.settings.demo"))
+        assert demo.EMAIL_BACKEND.endswith("console.EmailBackend")
+        assert demo.ENVIRONMENT == "sandbox" and "vault" not in demo.DATABASES
+    with mock.patch.dict(os.environ, base | {"EMAIL_HOST": "smtp.example.org"}, clear=True):
+        assert importlib.reload(importlib.import_module("cedars.settings.demo")).EMAIL_BACKEND.endswith("smtp.EmailBackend")
