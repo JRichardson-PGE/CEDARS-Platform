@@ -24,6 +24,17 @@ def a_fresh_password_counts_as_recent(sender, request, user, **kwargs):
         record_authentication(request, user, "password", reauthenticated=True)
 
 
+@receiver(user_logged_in)
+def a_password_sign_in_goes_to_the_set_up_first(sender, request, user, **kwargs):
+    """The first page after a password-only sign-in sends the person to the second-factor set-up without an error
+    (RequireMFAMiddleware); only leaving the set-up page after that shows one."""
+    from .assurance import PASSWORD, session_assurance
+    from .middleware import RequireMFAMiddleware
+
+    if session_assurance(request) == PASSWORD:
+        request.session[RequireMFAMiddleware.FIRST_STOP] = True
+
+
 @receiver(authenticator_added)
 def an_activated_authenticator_is_a_second_factor(sender, request, user, authenticator, **kwargs):
     if authenticator.type in (Authenticator.Type.TOTP, Authenticator.Type.WEBAUTHN) and request is not None:
