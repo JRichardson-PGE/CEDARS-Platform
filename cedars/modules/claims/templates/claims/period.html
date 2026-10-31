@@ -11,7 +11,7 @@
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
   <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
-  {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}</dd>{% endif %}
+  {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}; cost tests: {% if cy.cost_test_set %}{{ cy.cost_test_set }}{% else %}the published set in force for {{ cy.year }}{% endif %}</dd>{% endif %}
 </dl>
 {% if not org %}<p>You are not acting for a program administrator. Confirmed claims are listed on each confirmation's page with ?org= for CPUC staff.</p>{% endif %}
 

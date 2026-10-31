@@ -27,6 +27,7 @@ from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.dictionary import service as dictionary
 from cedars.services.notifications import service as notifications
+from cedars.services.refdata import cost_tests
 from cedars.services.refdata import service as refdata
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import ProgramChangePolicy
@@ -36,6 +37,7 @@ from cedars.services.submissions.models import SubmissionVersion
 
 from ..conftest import create_cpuc_admin, create_pge, create_pge_admin, create_user
 from ..fake_recet_worker import write_results
+from ..test_cost_test_sets import set_file
 from .pages import PAGES
 
 pytestmark = pytest.mark.a11y
@@ -141,7 +143,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         .replace(b"0.4440,0.1550", b"0.4000,0.1550", 1)
     )
     dictionary.load_catalog(
-        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.82.json").read_text())
+        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.83.json").read_text())
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
     from cedars.services.registry import goals
@@ -223,6 +225,9 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     for check in ("source_workbook", "reference_measures"):
         refdata.record_tie_out(cpuc_admin, published, check=check, passed=True, precision=1e-9, largest_difference=0)
     refdata.publish_pack(cpuc_admin, published)
+    cost_set = cost_tests.register_set(cpuc_admin, set_file(), source="ReCET 0.1.85")
+    refdata.record_tie_out(cpuc_admin, cost_set, check="engine_check", passed=True, engine_release="0.1.85")
+    refdata.publish_pack(cpuc_admin, cost_set)
     notifications.subscribe(pge_admin, "pack.published")
     notifications.notify(pge_admin, "Your run finished: 2028 TUAL", "Portfolio TRC 1.21, PAC 1.64", "/reference-data/")
     notifications.notify(pge_admin, "Your run failed: scratch")
@@ -317,6 +322,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pack": pack,
         "published_pack": published,
         "etrm_pack": _etrm(cpuc_admin),
+        "cost_set": cost_set,
         "analyst": analyst,
         "pii_filer": pii_filer,
         "queued_run": queued,

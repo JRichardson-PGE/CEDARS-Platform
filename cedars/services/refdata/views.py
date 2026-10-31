@@ -1,10 +1,11 @@
+from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import etrm, service
+from . import cost_tests, etrm, service
 from .models import PackVersion, TieOutRequirement
 
 
@@ -51,6 +52,8 @@ def detail(request, pk):
     ctx = {}
     if pack.kind == etrm.KIND:
         ctx = _permutation(pack, request.GET.get("id", "").strip())
+    if pack.kind == cost_tests.KIND:
+        ctx = {"cost_set": cost_tests.header(pack), "cost_years": cost_tests.years_text(pack), "cost_sha": cost_tests.sha256(pack)}
     return render(
         request,
         "refdata/detail.html",
@@ -80,3 +83,35 @@ def _permutation(pack: PackVersion, mdid: str) -> dict:
                 fills.setdefault(col, []).append(f"{table}.{name}")
         out["values"] = [(col, value, ", ".join(fills.get(col, []))) for col, value in sorted(p.values.items())]
     return out
+
+
+class CostTestSetForm(forms.Form):
+    file = forms.FileField(
+        label="Set file (definition.yaml)",
+        help_text="A cost-test definition set as ReCET reads it (ReCET's COST_TESTS.md); registered as a draft",
+    )
+    source = forms.CharField(label="Where it came from (optional)", max_length=200, required=False, help_text="e.g. ReCET 0.1.85")
+
+
+@login_required
+def cost_test_sets(request):
+    """The cost-test definition sets (BR-06.8, BR-06.14, D14): which tests runs and filings price, by program year. CPUC system
+    administrators register a set file as a draft here, then record its engine check and publish it on the pack's page."""
+    manager = service.can_manage(request.user, cost_tests.KIND)
+    form = CostTestSetForm(request.POST or None, request.FILES or None) if manager else None
+    if request.method == "POST" and manager and form.is_valid():
+        f = form.cleaned_data["file"]
+        if f.size > 1 << 20:
+            form.add_error("file", "A set file is a few kilobytes; this one is over 1 MB.")
+        else:
+            try:
+                pack = cost_tests.register_set(request.user, f.read(), source=form.cleaned_data["source"] or f.name)
+            except (cost_tests.SetError, AccessDenied) as e:
+                form.add_error("file", str(e))
+            else:
+                messages.success(request, f"{pack.label} {pack.version} registered as a draft. Record its engine check, then publish it.")
+                return redirect("refdata:detail", pk=pack.pk)
+    packs = PackVersion.objects.filter(kind=cost_tests.KIND).order_by("label", "-registered_at")
+    rows = [(p, cost_tests.header(p), cost_tests.years_text(p)) for p in packs]
+    in_force = cost_tests.for_year(None)
+    return render(request, "refdata/cost_tests.html", {"rows": rows, "form": form, "in_force": in_force})
