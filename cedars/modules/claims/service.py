@@ -1701,9 +1701,10 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
 def year_totals(organisation, year: int) -> list[dict]:
     """A PA's confirmed claims for a year by program (submissions.claims_totals; the Monthly reports module's 13th-month report reads it):
     the year to date of its latest confirmation. Expenditures = the ten ProgramCost fields + the measures' rebates and incentives;
-    savings and TSB are the priced first-year values summed over every credited PA."""
+    savings and TSB are the priced first-year values summed over every credited PA. A legacy year's statewide unallocated claims (the SW
+    version, `legacy.py`) are outside every total: none."""
     v, quarters, final = year_standing(organisation, year)
-    if v is None:
+    if v is None or (v.calculation or {}).get("outside_totals"):
         return []
     t = table(v)
     out = []
