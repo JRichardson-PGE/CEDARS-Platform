@@ -1,0 +1,13 @@
+{% comment %}Every form field rendered with as_field_group (docs/DESIGN.md): one block per field, so a field stays together when a form
+wraps (the filter bars), in the order label, hint, errors, control. Same contents as Django's own template, wrapped in .field.{% endcomment %}
+<div class="field{% if field.errors %} has-errors{% endif %}">
+{% if field.use_fieldset %}
+  <fieldset{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>
+  {% if field.label %}{{ field.legend_tag }}{% endif %}
+{% else %}
+  {% if field.label %}{{ field.label_tag }}{% endif %}
+{% endif %}
+{% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
+{{ field.errors }}
+{{ field }}{% if field.use_fieldset %}</fieldset>{% endif %}
+</div>
