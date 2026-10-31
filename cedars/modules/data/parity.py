@@ -18,10 +18,10 @@ names them, and an ALL row limited to the IOUs unless it names cca_ren. Pension 
 have no switch for them (the platform's pages leave them out by default). Statewide unallocated claims are never in the dashboard
 (they stay outside every total), so a scope that names them is noted on every row it touches.
 
-A sum agrees within `rel` of the published value (default 0.5%, the reconciliation's threshold) or 0.5 of its unit (the pages print
-whole numbers); a ratio, printed to two decimals, within 0.005 + `rel`. A published ratio of 0 agrees with a blank one: the dashboard
-leaves a ratio blank over a zero cost where CEDARS prints 0. A known-differences file (dataset, year, pa, metric, reason; blank year,
-pa or metric = any) marks the differences already explained so they do not fail the check."""
+A sum agrees within `rel` of the published value (default 0.5%, the reconciliation's threshold) or 1 of its unit (the pages print whole
+numbers, some rounded and some truncated); a ratio, printed to two decimals, within 0.005 + `rel`. A published ratio of 0 agrees with a
+blank one: the dashboard leaves a ratio blank over a zero cost where CEDARS prints 0. A known-differences file (dataset, year, pa, metric,
+reason; blank year, pa or metric = any) marks the differences already explained so they do not fail the check."""
 
 import csv
 from collections import defaultdict
@@ -36,7 +36,7 @@ COLUMNS = ("dataset", "year", "pa", "filing", "metric", "value", "scope", "sourc
 SCOPES = {"cs", "esa", "pension", "cca_ren", "statewide", "all"}
 REL = 0.005
 RATIO_ABS = 0.005
-SUM_ABS = 0.5
+SUM_ABS = 1.0
 OUTCOMES = ("agrees", "differs", "known", "missing", "not checked")
 
 

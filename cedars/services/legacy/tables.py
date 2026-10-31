@@ -228,9 +228,10 @@ def add_program_history(programs_table, org: Organisation | None, reason: str, *
 # Each cost test's benefits per record (Jake's reconciliation, 2026-10-31: CEDARS' published ratios are the benefit columns over the
 # costs; the files' ratio columns are rounded and, for some PAs, disagree with the record's own benefits): the filed benefit column where
 # the layout has one, else the sum of the benefit columns below, else ratio x cost. A record whose benefit columns are all blank falls
-# back to ratio x cost (a batch with no benefit values at all is "ratio x cost" throughout).
+# back to ratio x cost (a batch with no benefit values at all is "ratio x cost" throughout). RIM's benefits are PAC's (CET prices both on
+# the avoided costs; RIM's bill losses are a cost), as CEDARS' published RIM ratios show.
 NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
-BENEFIT_PARTS = {"TRCBen": ("ElecBen", "GasBen", "OtherBen"), "PACBen": ("ElecBen", "GasBen"), "RIMBen": ()}
+BENEFIT_PARTS = {"TRCBen": ("ElecBen", "GasBen", "OtherBen"), "PACBen": ("ElecBen", "GasBen"), "RIMBen": ("ElecBen", "GasBen")}
 
 
 @dataclass

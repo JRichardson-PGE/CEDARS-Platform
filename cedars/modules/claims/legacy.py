@@ -30,7 +30,7 @@ Reconciliation per PA (the plan's levels 1 and 2):
   info  (year) participant rows whose program is in no PA's claims
 
 The downloads carry no TRC benefit column (and the 2016-2022 layout no PAC or RIM one), so the benefits are built per record as
-`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = ElecBen + GasBen, ratio x cost only where a record has no
+`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = RIMBen = ElecBen + GasBen, ratio x cost where a record has no
 benefit values (CEDARS' published ratios are the benefit columns over the costs; the files' ratios are rounded and, for some PAs,
 disagree with them). Program ratios come from summed benefits and costs. `rebuild_benefits` corrects the results of years loaded before
 (when every missing benefit was ratio x cost)."""
@@ -603,10 +603,12 @@ def rebuild_benefits() -> list[str]:
     """Correct the results of claim years loaded when every benefit the layout lacks was ratio x cost (before 2026-10-31): TRCBen,
     PACBen and RIMBen built again from the stored Outputs table as the load now builds them. Audited per import; the snapshots are
     replaced separately (`manage.py snapshot_legacy --replace`)."""
-    out = []
+    out, checked, corrected, filed = [], 0, 0, 0
     for imp in legacy.LegacyImport.objects.filter(module=service.MODULE).select_related("version__submission__organisation"):
+        checked += 1
         sums = legacy_snapshot.stored_benefits(imp, ("PrgID",))
         if not sums:
+            filed += 1
             continue
         before, after = defaultdict(float), defaultdict(float)
         changed = []
@@ -629,5 +631,7 @@ def rebuild_benefits() -> list[str]:
                 reason="Benefits built from the benefit columns, not ratio x cost (CEDARS' published ratios use the columns)",
                 organisation=imp.version.submission.organisation,
             )
+        corrected += bool(changed)
         out.append(f"{imp.period} {code}: {len(changed)} program results corrected")
+    out.append(f"{checked} imports checked, {corrected} corrected, {filed} with every benefit filed (nothing to rebuild)")
     return out

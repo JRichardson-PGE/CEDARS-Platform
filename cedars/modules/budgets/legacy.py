@@ -18,7 +18,7 @@ Reconciliation per PA (the plan's levels 1 and 2; level 3, the published dashboa
   info  records whose ratio has no cost to rebuild a numerator from
 
 Layouts without per-test benefit columns (TRC in every layout; PAC and RIM in the archived filings) get them built per record as
-`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = ElecBen + GasBen, ratio x cost only where a record has no
+`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = RIMBen = ElecBen + GasBen, ratio x cost where a record has no
 benefit values. Program ratios come from summed benefits and costs like every other result. `rebuild_benefits` corrects the results of
 filings loaded before (when every missing benefit was ratio x cost)."""
 
@@ -399,10 +399,12 @@ def rebuild_benefits() -> list[str]:
     """Correct the results of filings loaded when every benefit the layout lacks was ratio x cost (before 2026-10-31): TRCBen, PACBen
     and RIMBen built again from the stored Outputs table as the load now builds them, per program and year. Audited per import; the
     snapshots are replaced separately (`manage.py snapshot_legacy --replace`)."""
-    out = []
+    out, checked, corrected, filed = [], 0, 0, 0
     for imp in legacy.LegacyImport.objects.filter(module=service.MODULE).select_related("version__submission__organisation"):
+        checked += 1
         sums = legacy_snapshot.stored_benefits(imp, ("PrgID", "Used_Year"))
         if not sums:
+            filed += 1
             continue
         by_key = {(prg, int(y) if str(y).strip().isdigit() else 0): v for (prg, y), v in sums.items()}
         before, after = defaultdict(float), defaultdict(float)
@@ -426,5 +428,7 @@ def rebuild_benefits() -> list[str]:
                 reason="Benefits built from the benefit columns, not ratio x cost (CEDARS' published ratios use the columns)",
                 organisation=imp.version.submission.organisation,
             )
+        corrected += bool(changed)
         out.append(f"{imp.period} {code}: {len(changed)} program results corrected")
+    out.append(f"{checked} imports checked, {corrected} corrected, {filed} with every benefit filed (nothing to rebuild)")
     return out

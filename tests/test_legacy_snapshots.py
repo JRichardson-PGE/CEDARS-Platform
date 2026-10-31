@@ -88,7 +88,7 @@ def test_imports_loaded_without_a_snapshot_get_one_from_the_backfill(tmp_path, m
     assert "0 snapshots made" in capsys.readouterr().out and Release.objects.filter(dataset="claims").count() == 1
 
 
-def test_a_filing_publishes_forecast_snapshots(downloads):  # noqa: F811 - the fixture
+def test_a_filing_publishes_forecast_snapshots(downloads, capsys):  # noqa: F811 - the fixture
     downloads()
     out = legacy_filings.load(legacy_filings.BY_KEY["2028-2031-application"])
     assert out.snapshots == 2
@@ -98,6 +98,9 @@ def test_a_filing_publishes_forecast_snapshots(downloads):  # noqa: F811 - the f
         assert rows[code]["trc_benefit"] == pytest.approx(loaded["TRCBen"]) and rows[code]["pac_benefit"] == pytest.approx(loaded["PACBen"])
     by_year = dq.run(dq.Query(dataset="forecast", metrics=("expenditure",), by=("year",), exclude=())).rows
     assert [r["year"] for r in by_year] == [2028, 2029, 2030, 2031]
+
+    call_command("load_legacy_filings", "--rebuild-benefits")  # filings file TRC and PAC benefits and no RIM: nothing to rebuild
+    assert "2 imports checked, 0 corrected, 2 with every benefit filed" in capsys.readouterr().out
 
 
 def test_measure_and_outputs_batches_line_up_whatever_their_row_groups():
@@ -131,6 +134,8 @@ def test_benefits_come_from_the_benefit_columns_and_fall_back_to_ratio_times_cos
     assert b["TRCBen"].from_ratio.to_pylist() == [50.0, 20.0, 0.0]
     assert b["PACBen"].values.to_pylist() == [40.0, 20.0, 8.0]
     assert b["RIMBen"].values.to_pylist() == [7.0, 7.0, 7.0] and b["RIMBen"].source == "filed"
+    rim = tables.benefits({k: cols[k] for k in ("ElecBen", "GasBen", "RIMRatio", "RIMCost")})["RIMBen"]  # PAC's parts
+    assert rim.values.to_pylist() == [40.0, 4.0, 8.0]
     only_ratios = tables.benefits({k: v for k, v in cols.items() if k not in ("ElecBen", "GasBen", "OtherBen", "RIMBen")})
     assert only_ratios["TRCBen"].source == "ratio x cost" and only_ratios["RIMBen"].values.to_pylist() == [3.0, 4.0, 5.0]
 
@@ -165,7 +170,8 @@ def test_years_loaded_by_the_old_rule_are_corrected_and_their_snapshots_replaced
     monkeypatch.undo()
 
     call_command("load_legacy_claims", "--rebuild-benefits")
-    assert "2019 PGE: 1 program results corrected" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "2019 PGE: 1 program results corrected" in out and "imports checked, 1 corrected" in out
     assert _results(_version("PGE", 2019))["TRCBen"] == pytest.approx(90.0)
     assert AuditEvent.objects.filter(action="legacy.benefits_rebuilt").count() == 1
 
