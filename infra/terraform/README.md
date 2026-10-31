@@ -23,9 +23,9 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 | AWS account, region | provider (`region`, default us-west-2) |
 | State bucket, lock table, KMS key | `backend.hcl` for `terraform init -backend-config=backend.hcl` |
 | Domain name and its ACM certificate | `domain_name` (placeholder `*.example.invalid`), `certificate_arn` |
+| Alarm recipients | `alarm_emails` (each address confirms the SNS subscription) |
 | Images | `web_image` (this repository's Dockerfile), `worker_image` (a ReCET release's worker image) |
 | Application secret | after the first apply: `DJANGO_SECRET_KEY`, `DATABASE_URL`, `VAULT_DATABASE_URL` (not in the sandbox), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` (SES SMTP) |
-| Alarm recipients | `alarm_emails` (each address confirms the SNS subscription) |
 | DNS | a record for `domain_name` pointing at the `load_balancer_dns` output |
 
 ## After the first apply
