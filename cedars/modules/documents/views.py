@@ -4,7 +4,7 @@ from urllib.parse import quote
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
+from django.http import FileResponse, Http404, HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
@@ -395,3 +395,47 @@ def change_option(request, pk, action):
     else:
         messages.success(request, f"{o.attribute_list.name}: {o.label} is {'renamed' if action == 'rename' else action + 'd'}.")
     return _back(o.attribute_list)
+
+
+# --- the old sites' links (BR-15.10): the PDA's and PSR's addresses, mirrored under /documents/pda/ and /documents/psr/, so the old
+# domains redirect with a fixed prefix (docs/LEGACY_LINKS.md)
+
+
+def pda_document(request, pda_id, page=""):
+    """#!/documents/<id>/view and #!/documents/<id>/comments/list on the PDA."""
+    doc = get_object_or_404(Document, pda_id=pda_id)
+    if not service.can_read(request.user, doc):
+        raise Http404
+    url = doc.get_absolute_url() + ("comments/" if page.startswith("comments") else "")
+    return HttpResponsePermanentRedirect(url)
+
+
+def pda_file(request, pda_id, name, how):
+    """/api/view/<id>/<file> (opens in the browser) and /api/downloads/<id>/<file> on the PDA: the file under its PDA name, which is
+    its name here unless it was cleaned or wrapped in a zip."""
+    if how not in ("view", "downloads"):
+        raise Http404
+    files = DocumentFile.objects.filter(version__document__pda_id=pda_id).select_related("version__document")
+    f = files.filter(legacy_name=name).first() or files.filter(name=name, legacy_name="").first()
+    if f is None or not service.can_read(request.user, f.version.document):
+        raise Http404
+    view = how == "view" and service.opens_inline(f)
+    return HttpResponsePermanentRedirect(f.get_absolute_url() + ("?view=1" if view else ""))
+
+
+def pda_other(request, rest=""):
+    """Any other PDA address (search, EM&V Docs, the home page): the library."""
+    return HttpResponsePermanentRedirect("/documents/")
+
+
+def psr_project(request, number):
+    """#!/project-status-view-edit/<id> on the PSR: the study imported with that project number."""
+    from .models import Study
+
+    study = get_object_or_404(Study, number=number)
+    return HttpResponsePermanentRedirect(study.get_absolute_url())
+
+
+def psr_other(request, rest=""):
+    """Any other PSR address (the project status list, budget status): the study register."""
+    return HttpResponsePermanentRedirect("/documents/studies/")

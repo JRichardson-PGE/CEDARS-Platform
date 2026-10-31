@@ -303,10 +303,14 @@ def _check_uploads(uploads: list[Upload]) -> list[tuple[str, str]]:
     return out
 
 
-def _store_files(version: DocumentVersion, uploads: list[Upload], checked: list[tuple[str, str]]) -> list[DocumentFile]:
+def _store_files(
+    version: DocumentVersion, uploads: list[Upload], checked: list[tuple[str, str]], *, legacy_names: list[str] | None = None
+) -> list[DocumentFile]:
+    """Store a version's files; legacy_names (a migration) are each file's name in the old site's links, where it differs."""
     store = storage.store("uploads")
+    legacy_names = legacy_names or [""] * len(uploads)
     rows = []
-    for position, (u, (name, content_type)) in enumerate(zip(uploads, checked, strict=True)):
+    for position, (u, (name, content_type), legacy) in enumerate(zip(uploads, checked, legacy_names, strict=True)):
         key = f"documents/{version.document_id}/v{version.number}/{position}/{name}"
         digest = hashlib.sha256()
         with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -325,7 +329,14 @@ def _store_files(version: DocumentVersion, uploads: list[Upload], checked: list[
                 raise DocumentError(f"{name} is empty.")
             store.put_file(key, Path(tmp.name))
             row = DocumentFile.objects.create(
-                version=version, position=position, name=name, key=key, sha256=digest.hexdigest(), size=size, content_type=content_type
+                version=version,
+                position=position,
+                name=name,
+                key=key,
+                sha256=digest.hexdigest(),
+                size=size,
+                content_type=content_type,
+                legacy_name=legacy[:300],
             )
             textract.save(row, Path(tmp.name))
         finally:
