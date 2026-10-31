@@ -3,7 +3,7 @@
 # - the app's checks failing (stalled or failed runs and Impact profiles jobs, the eTRM sync), from its JSON line in the app log;
 # - the checks not reporting at all (the scheduler, the task or the database is down);
 # - the web service: unhealthy targets, 5xx answers, too few tasks, memory;
-# - the background job services (Impact profiles jobs, calculations sync): no task running;
+# - each always-on background job service in jobs.tf: no task running;
 # - the databases: CPU, free storage.
 # Nothing in an alarm message is personal information.
 
