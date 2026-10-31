@@ -25,10 +25,11 @@ from pathlib import Path
 from django.db import transaction
 from django.utils import timezone
 
-from cedars.core import storage
+from cedars.core import letters, storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.notifications.service import Concern
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
@@ -36,7 +37,16 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
 from . import upload as up
-from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, MonthlyResult, ReportLine, YearSetup
+from .models import (
+    COMMITMENT_FIELDS,
+    INCENTIVE_FIELDS,
+    PROGRAM_COST_FIELDS,
+    SPEND_FIELDS,
+    ChangeLetter,
+    MonthlyResult,
+    ReportLine,
+    YearSetup,
+)
 
 MODULE = "monthly"
 KIND = "Monthly report"
@@ -666,8 +676,11 @@ def confirm(actor, v: SubmissionVersion) -> SubmissionVersion:
 
 
 def on_publish(v: SubmissionVersion) -> None:
-    """Publication hook: the estimates the version was confirmed on are read now, so the published version holds them."""
+    """Publication hook: the estimates the version was confirmed on are read now, so the published version holds them; a correction
+    (version 2 or later) gets its change letter."""
     import_results(v)
+    if v.number > 1:
+        write_change_letter(v)
 
 
 def on_unpublish(v: SubmissionVersion) -> None:
@@ -814,6 +827,119 @@ def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
     for r in out:
         total.add(r)
     return Report(out, total, period.year, bool(budget), any(r.estimated for r in out), month_known)
+
+
+# --- change letters (BR-09.3) and what notifications say (BR-09.2)
+
+
+LETTER_FIGURES = [
+    ("YTDExpenditures", "Spend, year to date", "money"),
+    ("YTDCommittedFunds", "Funds committed, year to date", "money"),
+    ("TotalSystemBenefit", "Estimated TSB", "money"),
+    ("FirstYearNetKWh", "Estimated first-year net kWh", "number"),
+]
+_REPORTED = {"YTDExpenditures", "YTDCommittedFunds"}
+
+
+def corrected_version(v: SubmissionVersion) -> SubmissionVersion | None:
+    """The published version a correction (version 2 or later) replaces."""
+    if v.number < 2:
+        return None
+    return (
+        SubmissionVersion.objects.filter(submission=v.submission_id, number__lt=v.number, status=SubmissionVersion.Status.PUBLISHED)
+        .select_related("submission__deadline__period", "submission__organisation")
+        .order_by("-number")
+        .first()
+    )
+
+
+def _letter_figures(r: Row) -> dict:
+    out = {}
+    for key, _, _ in LETTER_FIGURES:
+        x = r.get(key) if key in _REPORTED else r.estimate(key)
+        out[key] = None if x is None else float(x)
+    return out
+
+
+def correction_changes(previous: SubmissionVersion, v: SubmissionVersion) -> dict:
+    """What a correction changed against the report it replaces: each program whose reported spend or commitments, or whose estimates,
+    differ (LETTER_FIGURES; the operating budget is left out, as a correction does not change it), before and after (None for a program
+    only one of them reports), and the totals."""
+    rb, ra = report(previous, budget=[]), report(v, budget=[])
+    rows_b, rows_a = {r.prg_id: r for r in rb.rows}, {r.prg_id: r for r in ra.rows}
+    programs = []
+    for prg in sorted(rows_b.keys() | rows_a.keys()):
+        fb = _letter_figures(rows_b[prg]) if prg in rows_b else None
+        fa = _letter_figures(rows_a[prg]) if prg in rows_a else None
+        differs = (fb is None) != (fa is None) or any(
+            (fb[k] is None) != (fa[k] is None) or (fb[k] is not None and abs(fb[k] - fa[k]) > 0.005) for k in (fb or {})
+        )
+        if differs:
+            programs.append({"prg_id": prg, "name": (rows_a.get(prg) or rows_b.get(prg)).name, "before": fb, "after": fa})
+    return {
+        "previous_label": f"{label(previous.submission.deadline)}, version {previous.number}",
+        "programs": programs,
+        "totals": {"before": _letter_figures(rb.total), "after": _letter_figures(ra.total)},
+        "estimated": {"before": rb.estimated, "after": ra.estimated},
+    }
+
+
+def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
+    """Write a correction's change letter on its publication (once); None when there is no earlier published version to compare."""
+    if ChangeLetter.objects.filter(version=v).exists():
+        return None
+    previous = corrected_version(v)
+    if previous is None:
+        return None
+    changes = correction_changes(previous, v)
+    letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
+    audit.record(
+        "monthly.change_letter_published",
+        obj=letter,
+        reason=v.reason,
+        after={"version": v.pk, "previous": previous.pk, "programs": len(changes["programs"])},
+        organisation=v.submission.organisation,
+    )
+    return letter
+
+
+def change_letters(*, organisation=None, year: int | None = None):
+    """Published change letters, newest first."""
+    out = ChangeLetter.objects.select_related("version__submission__deadline__period", "version__submission__organisation", "previous")
+    if organisation is not None:
+        out = out.filter(version__submission__organisation=organisation)
+    if year is not None:
+        out = out.filter(version__submission__deadline__period__year=year)
+    return out
+
+
+def notice(v: SubmissionVersion, event) -> Concern:
+    """What a notification about one of the module's versions says (registered with the notification service): the programs it
+    reports, or for a published correction the programs it changed, a summary and the page to open."""
+    what = f"{v.submission.organisation.code} {label(v.submission.deadline)}"
+    link = f"/monthly/versions/{v.pk}/"
+    programs = set(v.monthly_lines.values_list("prg_id", flat=True))
+    if event.action == "submission.published":
+        letter = ChangeLetter.objects.filter(version=v).first()
+        if letter is not None:
+            c = letter.changes or {}
+            body = "\n".join(x for x in [f"Reason: {letter.reason}" if letter.reason else "", letters.summary(c, LETTER_FIGURES)] if x)
+            return Concern(
+                programs={p["prg_id"] for p in c.get("programs", [])},
+                link=f"/monthly/changes/{letter.pk}/",
+                title=f"Corrected monthly report: {what}, version {v.number}",
+                body=body + "\nThe change letter has every changed program before and after.",
+            )
+        spend = sum(
+            (Decimal(ln.values.get("YTDExpenditures", "0")) for ln in v.monthly_lines.filter(table=ReportLine.Table.SPEND)), Decimal(0)
+        )
+        return Concern(
+            programs=programs,
+            link=link,
+            title=f"Monthly report published: {what}",
+            body=f"{len(programs)} program{'s' if len(programs) != 1 else ''}, spend year to date {letters.money(spend)}.",
+        )
+    return Concern(programs=programs, link=link)
 
 
 # --- the year in one view (BR-14.1)

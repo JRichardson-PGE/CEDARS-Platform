@@ -364,6 +364,8 @@ def _submit(actor, shift: FundShift) -> FundShift:
         actor=actor,
         organisation=shift.organisation,
     )
+    if shift.status == FundShift.Status.EFFECTIVE:  # no co-funder: in effect at once (what subscribers hear, BR-09.2)
+        audit.record("fund_shift.effective", obj=shift, after=_fields(shift), actor=actor, organisation=shift.organisation)
     if shift.status == FundShift.Status.WAITING:
         for code in shift.cofunders:
             org = access.by_code(code)
@@ -572,3 +574,25 @@ def programs_for(shift: FundShift, organisation=None) -> list[tuple[str, str]]:
 
 def can_read_operating(user, organisation) -> bool:
     return service._org_reader(user, organisation) or service._cpuc_reader(user)
+
+
+NOTICE_LINES = 10  # the shift's lines listed in a notification; the page has every one
+
+
+def notice(event) -> notifications.Concern | None:
+    """What a notification about a fund shift says (registered with the notification service for budgets.fundshift): the PAs whose
+    portfolios it moves (its PA and its co-funders), its programs, and its lines."""
+    shift = FundShift.objects.select_related("organisation").get(pk=event.object_id)
+    lines = list(shift.lines.all())
+    orgs = {shift.organisation_id} | {o.pk for o in Organisation.objects.filter(code__in=shift.cofunders)}
+    listed = [f"{ln.pa} {ln.prg_id} {ln.year}: {'+' if ln.amount > 0 else ''}{service_money(ln.amount)}" for ln in lines[:NOTICE_LINES]]
+    if len(lines) > NOTICE_LINES:
+        listed.append(f"and {len(lines) - NOTICE_LINES} more lines.")
+    return notifications.Concern(
+        orgs,
+        MODULE,
+        _link(shift),
+        {ln.prg_id for ln in lines},
+        title=f"Fund shift in effect: {shift.organisation.code}, {shift.title}"[:300],
+        body="\n".join([f"Reason: {shift.reason}", *listed]),
+    )

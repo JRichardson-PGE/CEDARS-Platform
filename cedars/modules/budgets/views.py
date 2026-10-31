@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import letters, storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -20,7 +20,7 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, jobfile, service, shifts
-from .models import PROGRAM_COST_FIELDS
+from .models import PROGRAM_COST_FIELDS, ChangeLetter
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
 
@@ -396,6 +396,7 @@ def version(request, pk):
             "calc": v.calculation or {},
             "cost_fields": PROGRAM_COST_FIELDS,
             "legacy": legacy.imported(v) if v.imported else None,
+            "letter": ChangeLetter.objects.filter(version=v).first(),
         },
     )
 
@@ -498,3 +499,50 @@ def compare(request):
 
 def _version_label(v: SubmissionVersion) -> str:
     return f"{v.submission.organisation.code} {service.label(v.submission.deadline)}, version {v.number} ({v.get_status_display().lower()})"
+
+
+# --- change letters (BR-09.3)
+
+
+def changes(request):
+    """Every published budget correction's change letter, newest first, by PA and cycle. Public: the record of corrections (BR-09.3)."""
+    every = service.change_letters()
+    out = every
+    org = access.by_code(request.GET.get("org", ""), follow=False)
+    cycle = request.GET.get("cycle", "")
+    if org is not None:
+        out = out.filter(version__submission__organisation=org)
+    if cycle.isdigit():
+        out = out.filter(version__submission__deadline__cycle__first_year=int(cycle))
+    return render(
+        request,
+        "budgets/changes.html",
+        {
+            "letters": out[:500],
+            "orgs": sorted({c.version.submission.organisation.code for c in every}),
+            "cycles": sorted({c.version.submission.deadline.cycle for c in every}, key=lambda x: -x.first_year),
+            "org": org.code if org else "",
+            "cycle": cycle,
+        },
+    )
+
+
+def change_letter(request, pk):
+    """One correction's change letter: when it was published, why, and each program whose budget or results changed. Public."""
+    letter = get_object_or_404(service.change_letters(), pk=pk)
+    v = letter.version
+    c = letter.changes or {}
+    return render(
+        request,
+        "budgets/change_letter.html",
+        {
+            "letter": letter,
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "c": c,
+            "priced": c.get("priced", {}),
+            "caption": "Each changed program's budget and results before and after the correction, and the difference",
+            "empty": "No program's budget or results changed.",
+            **letters.program_rows(c, service.LETTER_FIGURES),
+        },
+    )
