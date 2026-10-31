@@ -1,0 +1,98 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="front-intro" data-tour="intro" aria-labelledby="intro-title">
+  <h1 id="intro-title">California Energy Data and Reporting System</h1>
+  <p class="lede">CEDARS is where California's energy-efficiency program administrators (the investor-owned utilities, regional energy
+  networks and community choice aggregators) file their program budgets, their claims of what the programs achieved, and monthly
+  reports, and where the California Public Utilities Commission reviews them and publishes the results.</p>
+  <p>Each filing is checked against the CPUC's rules and priced for cost effectiveness on the CPUC's avoided costs, and every confirmed
+  version is kept. Published budgets, claims, documents and the data dictionary are open to everyone, with no account needed.
+  <a href="{% url 'core:about' %}">About CEDARS</a> lists what the platform holds.</p>
+  {% if not user.is_authenticated %}
+  <div class="actions">
+    <a class="button primary" href="{% url 'account_login' %}">Sign in</a>
+    <a class="button" href="{% url 'account_signup' %}">Create an account</a>
+  </div>
+  {% endif %}
+  {# Without scripts the link opens the written tour; tour.js turns it into the guided one. The Hide button needs scripts, so it starts hidden. #}
+  <p class="tour-offer" data-tour-offer>New to CEDARS? <a href="{% url 'core:help_tour' %}" data-tour-start>Take the tour</a> of this page
+    and where things are. <button type="button" class="link" data-tour-dismiss hidden>Hide this</button></p>
+</section>
+
+<section class="front-cycle" data-tour="cycle" aria-labelledby="cycle-title">
+  <div class="head-row">
+    <h2 id="cycle-title">{% if summary.cycle %}The {{ summary.cycle }} program cycle so far{% else %}This program cycle{% endif %}</h2>
+    {% if summary.cycles|length > 1 %}
+    <form method="get" action="{% url 'core:home' %}" class="cycle-pick">
+      <label for="cycle">Program cycle
+        <select id="cycle" name="cycle">{% for c in summary.cycles %}<option value="{{ c }}"{% if c == summary.cycle %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
+      </label>
+      <button type="submit">Show</button>
+    </form>
+    {% endif %}
+  </div>
+  {% if summary.cycle %}
+  <p class="muted small">Statewide totals of the published, confirmed filings{% if summary.as_of %}, as of {{ summary.as_of|date:"F j, Y" }}{% endif %}.
+    {% if summary.claimed_span %}Claims cover {{ summary.claimed_span }} so far; the budget and forecast cover the whole cycle.{% else %}No claims are published for this cycle yet.{% endif %}
+    Each card links to the dashboard page that breaks its numbers down.</p>
+  <div class="front-cards">
+    {% for card in summary.cards %}
+    <article class="card front-card" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
+      <h3 id="card-{{ card.key }}">{{ card.title }}</h3>
+      {% if card.empty %}<p class="muted">{{ card.empty }}</p>{% endif %}
+      {% if card.figures and not card.empty %}
+      <dl class="figures">
+        {% for f in card.figures %}<div class="figure{% if forloop.first %} lead{% endif %}"><dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.detail %} <span class="detail">{{ f.detail }}</span>{% endif %}</dd></div>{% endfor %}
+      </dl>
+      {% endif %}
+      {% if card.bar is not None %}
+      {# The bar repeats the words beside it, so it is hidden from assistive technology; its width is an attribute (the CSP forbids inline styles). #}
+      <div class="meter-row">
+        <svg class="meter" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="meter-track" width="100" height="8" rx="2"/><rect class="meter-fill" width="{{ card.bar }}" height="8" rx="2"/></svg>
+        <p class="meter-label">{{ card.percent_label }}</p>
+      </div>
+      {% endif %}
+      {% for line in card.lines %}<p class="small muted">{{ line }}</p>{% endfor %}
+      <p class="card-link"><a href="{{ card.link }}">{{ card.link_text }}</a></p>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  {% for n in summary.notes %}<p class="muted">{{ n }}</p>{% endfor %}
+  {% endif %}
+</section>
+
+<section class="front-help" data-tour="help" aria-labelledby="help-title">
+  <h2 id="help-title">Help</h2>
+  <div class="cards">
+    <div class="card">
+      <h3>User guides</h3>
+      <ul class="links">
+        {% for g in guides %}<li><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></li>{% endfor %}
+      </ul>
+      <p><a href="{% url 'core:help' %}">All of Help</a></p>
+    </div>
+    <div class="card">
+      <h3>Feedback and support</h3>
+      {% if support.email %}
+      <p>Questions, a problem with a filing or an account, or something that does not work: write to <a href="{{ support.support_mailto }}">{{ support.email }}</a>.</p>
+      {% else %}
+      <p>This site has no support address set yet.</p>
+      {% endif %}
+      {% if support.feedback %}<p><a href="{{ support.feedback }}">{% if support.feedback_is_form %}Send feedback on the feedback form{% else %}Send feedback by email{% endif %}</a>: what helps, what gets in the way, what is missing.</p>{% endif %}
+      <p><a href="{% url 'core:help_contact' %}">Getting support</a></p>
+    </div>
+    <div class="card">
+      <h3>A tour for new users</h3>
+      <p>A short walk through this page and the main parts of CEDARS, one step at a time. It works with a keyboard and a screen reader,
+      and you can leave it at any step with Escape.</p>
+      <p><a class="button" href="{% url 'core:help_tour' %}" data-tour-start>Take the tour</a></p>
+    </div>
+  </div>
+</section>
+
+{% include "core/_tour.html" %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'core/tour.js' %}" defer></script>{% endblock %}

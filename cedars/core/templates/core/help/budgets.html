@@ -1,0 +1,28 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>The filing cycle</h2>
+<p>Budget filings follow the four-year program cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice
+letters. <a href="{% url 'budgets:index' %}">Budgets</a> lists each cycle's filings with their due dates; the newest cycle is open and
+earlier ones are folded under their heading. The <a href="{% url 'submissions:calendar' %}">filing calendar</a> has every due date.</p>
+<h2>Filing a budget</h2>
+<ol>
+  <li><strong>Upload</strong> the filing: one .zip with Measure.csv and ProgramCost.csv (the way CET takes a job) or one Excel workbook
+  with Measure and ProgramCost sheets. Field names may be CEDARS' or CET's.</li>
+  <li><strong>Check</strong>: CEDARS checks every record against the budget filing rules. The version's page lists the findings by rule,
+  rejects first, and the findings file names each line, record, field and rule and says how to fix it. Fix and upload again; the new
+  upload replaces the version's earlier one.</li>
+  <li><strong>Price</strong>: once nothing is rejected, CEDARS runs the cost-effectiveness calculation on the cycle's ACC and allocation
+  version. The run's page shows its progress.</li>
+  <li><strong>Confirm</strong>: the priced results are what confirming signs off on. A confirmed filing is published.</li>
+</ol>
+<p>Before the due date you can <strong>un-confirm</strong> (the version goes back to validated and is unpublished). After it, a
+correction is a new version with a reason: <strong>Ask to reopen</strong>, and the earlier version stays as filed. Every confirmed
+version is kept, and <a href="{% url 'budgets:compare' %}">Compare two versions</a> shows what changed.</p>
+<p>A program's budget is its ProgramCost row plus its measures' rebates and incentives, by program year.</p>
+<h2>Fund shifts and the operating budget</h2>
+<p>A <a href="{% url 'budgets:shifts' %}">fund shift</a> moves budget between programs within the cycle. Name it and say why, enter the
+lines (they must add up to zero), then submit. A shift touching a statewide program changes each co-funding PA's share too: each
+co-funder acknowledges it and says where its part comes from, and the shift takes effect once all have. The <strong>operating
+budget</strong> is the standing filing plus the shifts in effect; the dashboard's Budget and spending page compares spending with it.
+A later filing is taken to carry the earlier shifts, and its page says so.</p>
+{% endblock %}

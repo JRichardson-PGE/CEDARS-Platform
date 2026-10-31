@@ -359,3 +359,54 @@ ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: cent
 .zero { stroke: var(--fg); stroke-width: 1; }
 @media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
 .goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */
+
+/* ---------- Front page (data/front.html): the introduction, the program cycle's cards, Help ---------- */
+.front-intro { max-width: 72ch; margin-bottom: 1.5rem; }
+.front-intro .lede { font-size: 1.12rem; color: var(--fg); }
+.tour-offer { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; background: var(--info-bg); border-left: 4px solid var(--info);
+  border-radius: var(--r); padding: .55rem .9rem; margin: 1rem 0 0; }
+.tour-offer button.link { margin-left: auto; }
+.front-cycle > .head-row { align-items: flex-end; }
+.cycle-pick { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; margin: 0; }
+.front-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; margin: .75rem 0 1rem; }
+.front-card { margin: 0; display: flex; flex-direction: column; }
+.front-card h3 { margin: 0 0 .5rem; color: var(--fg-2); text-transform: uppercase; letter-spacing: .04em; font-size: .8rem; }
+.front-card .card-link { margin-top: auto; padding-top: .4rem; }
+dl.figures { margin: 0 0 .5rem; display: grid; gap: .45rem; }
+dl.figures .figure { min-width: 0; }
+dl.figures dt { font-size: .85rem; color: var(--fg-2); }
+dl.figures dd { margin: 0; font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+dl.figures .lead dd { font-size: clamp(1.5rem, 1rem + 1.4vw, 1.9rem); line-height: 1.15; }
+dl.figures .detail { display: block; font-size: .85rem; font-weight: 400; color: var(--fg-2); }
+/* The progress bar repeats the words beside it (aria-hidden); fill 3:1 on its track in both schemes: primary on surface-2. */
+.meter-row { margin: .1rem 0 .4rem; }
+.meter { display: block; width: 100%; height: .6rem; }
+.meter-track { fill: var(--surface-2); stroke: var(--control); stroke-width: .5; vector-effect: non-scaling-stroke; }
+.meter-fill { fill: var(--primary); }
+@media (forced-colors: active) { .meter-track { fill: Canvas; stroke: CanvasText; } .meter-fill { fill: Highlight; } }
+.meter-label { margin: .25rem 0 0; font-size: .9rem; font-weight: 600; }
+.front-help .card h3 { margin-top: 0; }
+.front-help .cards { gap: 0 1rem; }
+.guide { max-width: 75ch; }
+.guide li { margin: .3rem 0; }
+ol.tour-list { padding-left: 1.4rem; max-width: 75ch; }
+ol.tour-list h2 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
+
+/* ---------- The guided tour (core/tour.js): a modal dialog beside the part of the page a step describes ---------- */
+/* The step's part keeps the page's own colors with a focus-colored outline, and the rest of the page is dimmed behind it by a wide shadow.
+   The backdrop itself is clear, so the part shows through; in forced-colors mode the shadow drops and the outline stays. */
+dialog.tour { position: fixed; inset: auto 1rem 1rem auto; margin: 0; width: min(26rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto;
+  background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1rem 1.15rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+dialog.tour.tour-top { inset: 1rem 1rem auto auto; }
+dialog.tour::backdrop { background: transparent; }
+dialog.tour h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
+dialog.tour h2:focus { outline: none; }
+dialog.tour h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+dialog.tour .tour-count { display: block; font-size: .78rem; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; }
+dialog.tour p { margin: .3rem 0 .7rem; }
+.tour-actions { margin: .5rem 0 0; }
+.tour-actions [data-tour-close] { margin-left: auto; }
+.tour-target { position: relative; z-index: 5; outline: 3px solid var(--focus); outline-offset: 4px; border-radius: var(--r);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+@media (max-width: 480px) { dialog.tour, dialog.tour.tour-top { inset: auto .5rem .5rem .5rem; width: auto; } dialog.tour.tour-top { inset: .5rem .5rem auto .5rem; } }

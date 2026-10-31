@@ -1,0 +1,27 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>Five confirmations a year</h2>
+<p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims.
+<a href="{% url 'claims:index' %}">Claims</a> lists the year's periods and their due dates. The
+<a href="{% url 'claims:template' %}">claims template</a> (Excel) lists every table and field.</p>
+<h2>Filing a quarter</h2>
+<ol>
+  <li><strong>Upload</strong> the records that are new or changed since the last confirmation. CEDARS compiles them over the earlier
+  confirmed quarters: a record with the same key as one confirmed earlier replaces it.</li>
+  <li><strong>Check</strong>: every record is checked against the claims rules, and deemed measures against eTRM. A deemed value that
+  differs from eTRM rejects the record, except the net-to-gross fields, which may vary and only warn. Blanks that eTRM sets are filled
+  in. The findings file says how to fix each finding.</li>
+  <li><strong>Price</strong> the year to date, then <strong>confirm</strong>. Quarters are confirmed in order.</li>
+</ol>
+<h2>Withdrawing a claim</h2>
+<p>To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload with the reason. Its
+records stay, marked withdrawn, and are no longer priced or counted.</p>
+<h2>Personal information</h2>
+<p>Contacts and sites (PII_Contact, PII_Site) never go in the claims file. They are uploaded separately on the period's page, checked
+against the claims' ContactIDs and SiteIDs, and kept apart in the PII vault. Uploading or reading them needs the PII permission, which a
+CPUC data steward approves, and every use is recorded with its reason.</p>
+<h2>Corrections and the change log</h2>
+<p>Before a due date you can un-confirm. After it, a correction is a new version: ask to reopen, and the version you correct stays as
+confirmed. Each new version is published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.
+<a href="{% url 'claims:links' %}">Linked claims</a> shows claims that continue a project across years.</p>
+{% endblock %}

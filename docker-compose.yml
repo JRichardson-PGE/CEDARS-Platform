@@ -21,6 +21,7 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: cedars.settings.dev
       DATABASE_URL: postgres://cedars:cedars@db:5432/cedars
+      CEDARS_REQUIRE_MFA: ${CEDARS_REQUIRE_MFA:-1}  # 0 = a laptop demo signs in with a password alone
     ports:
       - "8000:8000"
     volumes:

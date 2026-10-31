@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}Help{% endblock %}
+{% block content %}
+<h1>Help</h1>
+<p>Guides to each part of CEDARS, how to get support or send feedback, and a tour for new users.</p>
+<h2>User guides</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="User guides">
+<table class="list">
+  <caption class="sr-only">User guides, with what each covers and who it is for</caption>
+  <thead><tr><th scope="col">Guide</th><th scope="col">What it covers</th><th scope="col">For</th></tr></thead>
+  <tbody>
+  {% for g in guides %}<tr><th scope="row"><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></th><td>{{ g.summary }}</td><td>{{ g.audience }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="cards">
+  <section class="card" aria-labelledby="support-title">
+    <h2 id="support-title">Feedback and support</h2>
+    {% include "core/help/_support.html" %}
+    <p><a href="{% url 'core:help_contact' %}">More on getting support</a></p>
+  </section>
+  <section class="card" aria-labelledby="tour-title-help">
+    <h2 id="tour-title-help">A tour for new users</h2>
+    <p>The tour walks through the front page and the main parts of CEDARS one step at a time. It works with a keyboard and a screen
+    reader, and Escape leaves it at any step.</p>
+    <div class="actions">
+      <a class="button primary" href="{% url 'core:home' %}?tour=1">Start the tour on the front page</a>
+      <a href="{% url 'core:help_tour' %}">Read the tour on one page</a>
+    </div>
+  </section>
+</div>
+<h2>More reference</h2>
+<ul class="links">
+  <li><a href="{% url 'core:about' %}">About CEDARS</a>: what the platform holds and when each part arrives.</li>
+  <li><a href="{% url 'dictionary:index' %}">Data dictionary</a>: every field's name, definition and unit, and the names CET used.</li>
+  <li><a href="{% url 'rules:index' %}">Validation rules</a>: what each filing is checked against.</li>
+  <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a>: every due date.</li>
+  <li><a href="/api/v1/schema">API description</a> (OpenAPI): for systems that file or read through the API.</li>
+</ul>
+{% endblock %}
