@@ -85,6 +85,30 @@ variable "web_count" {
   default = 2
 }
 
+variable "profile_jobs_cpu" {
+  description = "CPU units for the always-on Impact profiles job worker"
+  type        = number
+  default     = 1024
+}
+
+variable "profile_jobs_memory" {
+  description = "MiB for the Impact profiles job worker (profile generation and the library export)"
+  type        = number
+  default     = 4096
+}
+
+variable "profile_jobs_disk_gb" {
+  description = "Scratch disk for the Impact profiles job worker: the library export writes about 10 GB before uploading it"
+  type        = number
+  default     = 40
+}
+
+variable "etrm_database" {
+  description = "eTRM's read-only database URL is in the app secret (ETRM_DATABASE_URL): pass it to the jobs and sync nightly (BR-11.3)"
+  type        = bool
+  default     = false
+}
+
 variable "worker_vcpu" {
   description = "vCPU per calculation job (Fargate)"
   type        = number

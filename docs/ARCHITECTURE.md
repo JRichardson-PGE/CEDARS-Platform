@@ -59,7 +59,8 @@ how far it is built. Update the Status column in the PR that changes it.
   (`SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"]`). Cognito or the CPUC's provider plugs in the same way. A session's assurance
   (password, mfa, federated) comes from allauth's sign-in records and is stamped on every audit event.
 - Run `manage.py bootstrap_cpuc EMAIL --steward` once per environment, and `manage.py close_recertifications` daily.
-- Impact profiles: `manage.py sync_etrm` nightly and `manage.py run_impact_profile_jobs --loop` as a worker (upload checks, generation, syncs
+- Impact profiles: `manage.py sync_etrm` nightly (scheduled in Terraform once `etrm_database` is set) and `manage.py run_impact_profile_jobs
+  --loop` as an always-on service (upload checks, generation, syncs
   and library writes, one at a time per PA queue). `import_profile_library FOLDER` loads legacy CEDARS' library (the engine's
   catalog.parquet and hourly.parquet). Every 8,760 is one float64 array in default storage under its SHA-256, stored once. The profile
   catalog lives in the module; each library write registers as a draft `impact_profiles` pack in the reference-data service.
@@ -136,7 +137,8 @@ how far it is built. Update the Status column in the PR that changes it.
   `documents/service.py`'s docstring: documents.read, .submit, .confirm, .admin held in the owning organisation or a PA named on the
   document, or in the CPUC; guidance and DEER resources are the CPUC's to file. Search reads titles, summaries and file names; reading the
   files' own text waits for a text-extraction job.
-- Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; daily jobs on EventBridge Scheduler), AWS Batch on Fargate
+- Hosting: ECS Fargate (web, behind an HTTPS load balancer with AWS WAF; two always-on services, the Impact profiles job worker and the
+  calculations sync; scheduled jobs on EventBridge Scheduler, `infra/terraform/modules/platform/jobs.tf`), AWS Batch on Fargate
   (workers; a large-run queue and a small-run queue with its own capacity, submitted to directly by the Calculations module), RDS
   PostgreSQL 16 (core, and the vault as its own instance and KMS key; workers reach neither), S3 (uploads, results, data packs,
   snapshots), the CPUC's OIDC provider or the platform's own MFA sign-in. `infra/terraform/` describes it; nothing is applied until
