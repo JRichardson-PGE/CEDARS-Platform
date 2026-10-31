@@ -339,9 +339,12 @@ def compiled_tables(v: SubmissionVersion) -> dict[str, upload.Table]:
 
 
 @transaction.atomic
-def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename: str) -> SubmissionVersion:
+def upload_claims(
+    actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None
+) -> SubmissionVersion:
     """Take a PA's upload for one confirmation: start the submission (or use its open draft), keep the upload as this version's records
-    (the version's earlier upload is deleted: superseded uploads are not kept, BR-05.9), then compile and check it (`check`)."""
+    (the version's earlier upload is deleted: superseded uploads are not kept, BR-05.9), then compile and check it (`check`).
+    `sources`: the files a combined upload was made of (upload.combine), kept with the version's file entry."""
     if deadline.module != MODULE or deadline.kind not in KINDS or deadline.period_id is None:
         raise AccessDenied("That is not a claims deadline.")
     claim_year(deadline)
@@ -362,6 +365,8 @@ def upload_claims(actor, deadline: Deadline, organisation, data: bytes, filename
     entry = {"name": "claims.zip", "key": folder + "claims.zip", "sha256": sha, "bytes": len(content), "uploaded_as": filename}
     if ignored:
         entry["ignored_columns"] = ignored
+    if sources:
+        entry["sources"] = sources
     v = submissions.attach_files(actor, v, [entry])
     return check(actor, v)
 

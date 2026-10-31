@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
@@ -21,6 +22,7 @@ from cedars.services.submissions.models import Deadline, SubmissionVersion
 
 from .conftest import sign_in
 from .test_budgets import COSTS, MEASURE, finish_run, release  # noqa: F401 (release is a fixture)
+from .test_uploads import split
 
 pytestmark = pytest.mark.django_db
 COM = (
@@ -372,7 +374,6 @@ def test_the_13th_month_report_reads_the_claims_module(filer, year, pge, program
 
 
 def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make_user):  # noqa: F811
-    from django.core.files.uploadedfile import SimpleUploadedFile
 
     sign_in(client, filer)
     assert client.get(reverse("monthly:index")).status_code == 200
@@ -414,3 +415,14 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert client.get(reverse("monthly:setup", args=[2028])).status_code == 200
     r = client.post(reverse("monthly:year_new"), {"year": 2029, "due_day": 15, "acc_version": "2026"})
     assert r.status_code == 302 and service.months(2029).count() == 12
+
+
+def test_a_monthly_report_in_several_files(client, filer, year, pge, programs):
+    sign_in(client, filer)
+    jan = month(1)
+    measures = ["M1|PGE_Res_HVAC|2028Q1|10|40|0|0|0", "M2|PGE_Res_HVAC|2028Q1|1|0|0|0|0"]
+    client.post(reverse("monthly:upload", args=[jan.pk]), {"file": split(report(measures=measures))})
+    v = SubmissionVersion.objects.get()
+    assert v.status == "validated", v.findings
+    assert v.files[0]["uploaded_as"] == "combined upload (4 files).zip" and len(v.files[0]["sources"]) == 4
+    assert v.files[1]["measures"] == 2

@@ -8,6 +8,7 @@ from pathlib import Path
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
@@ -24,6 +25,7 @@ from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
 from .conftest import sign_in
+from .test_uploads import split
 
 pytestmark = pytest.mark.django_db
 DATA = Path(__file__).parent / "data"
@@ -401,3 +403,19 @@ def job_rows(header: str) -> list[dict]:
     tables, _ = jobfile.read_upload(job(), "j.zip")
     name = "ProgramCost" if header == COSTS else "Measure"
     return jobfile.rows(tables[name])[1]
+
+
+def test_a_budget_filing_in_several_files(client, filing, pge, programs, filer):
+    sign_in(client, filer)
+    r = client.post(reverse("budgets:upload", args=[filing.pk]), {"file": split(job())}, follow=True)
+    assert b"Checked 6 records: none rejected" in r.content
+    v = SubmissionVersion.objects.get()
+    entry = service.job_file(v)
+    assert entry["uploaded_as"] == "combined upload (3 files).zip"
+    assert [s["name"] for s in entry["sources"]] == ["ProgramCost.csv", "Measure_1.csv", "Measure_2.csv"]
+    lines = set(BudgetLine.objects.filter(version=v).values_list("prg_id", "year", "rebates_and_incentives"))
+    one = service.upload(filer, filing, pge, job(), "tual.zip")  # the same filing in one file: the same lines, no sources
+    assert set(BudgetLine.objects.filter(version=one).values_list("prg_id", "year", "rebates_and_incentives")) == lines
+    assert "sources" not in service.job_file(one)
+    r = client.post(reverse("budgets:upload", args=[filing.pk]), {"file": [SimpleUploadedFile("Measure.csv", b"CEInputID\n")]}, follow=True)
+    assert b"There is no ProgramCost file" in r.content

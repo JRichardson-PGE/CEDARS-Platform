@@ -193,7 +193,8 @@ def from_params(params, *, dataset: str | None = None, metrics: tuple[str, ...] 
         by=tuple(dict.fromkeys(many("by"))),
         year_from=_year(one("year_from"), "year_from"),
         year_to=_year(one("year_to"), "year_to"),
-        filters=tuple((d, tuple(dict.fromkeys(many(d)))) for d in DIMENSIONS if many(d)),
+        # "filing" names the forecast filing to read (below), never a filter on the filing dimension's label
+        filters=tuple((d, tuple(dict.fromkeys(many(d)))) for d in DIMENSIONS if d != "filing" and many(d)),
         exclude=tuple(c for c in EXCLUSIONS if c in excluded),
         filing=one("filing"),
         release=int(release) if release.isdigit() else None,
@@ -313,19 +314,17 @@ def _start(q: Query) -> Result:
     return result
 
 
+def files_of(q: Query) -> list[dict]:
+    """The snapshots a query reads (none when nothing is published)."""
+    return _start(q).files
+
+
 def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[str] = ()) -> tuple[str, list[str], list]:
     """The rows a query reads: the release's files unioned under one set of columns (a missing column reads as blank), and its WHERE
     terms (years, filters, exclusions) with their arguments."""
     import pyarrow.parquet as pq
 
-    texts = list(
-        dict.fromkeys(
-            [DIMENSIONS[d].column for d in q.by + tuple(d for d, _ in q.filters) if DIMENSIONS[d].column]
-            + [EXCLUSIONS[e].column for e in q.exclude]
-            + ["Used_Year", "CreditedPA", *extra_texts]
-        )
-    )
-    texts = [c for c in texts if c not in numbers]
+    texts = [c for c in text_columns(q, extra_texts) if c not in numbers]
     selects = []
     for f in files:
         names = set(pq.read_schema(local_path(f)).names)
@@ -333,10 +332,27 @@ def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[s
             f"try_cast({_ident(c)} AS DOUBLE) AS {_ident(c)}" if c in names else f"CAST(NULL AS DOUBLE) AS {_ident(c)}" for c in numbers
         ]
         cols += [f"CAST({_ident(c)} AS VARCHAR) AS {_ident(c)}" if c in names else f"CAST(NULL AS VARCHAR) AS {_ident(c)}" for c in texts]
-        filing = f"{f['cycle']} {f['kind']}".strip() if f["cycle"] else f["kind"]
-        cols += [f"{_literal(f['organisation'])} AS _organisation", f"{_literal(filing)} AS _filing"]
+        cols += [f"{_literal(f['organisation'])} AS _organisation", f"{_literal(filing_label(f))} AS _filing"]
         selects.append(f"SELECT {', '.join(cols)} FROM read_parquet({_literal(str(local_path(f)))})")
+    where, args = where_terms(q)
+    source = f"WITH data AS ({' UNION ALL '.join(selects)}) "
+    return source, where, args
 
+
+def text_columns(q: Query, extra: list[str] = ()) -> list[str]:
+    """The columns a query's WHERE terms and dimensions read as text: they must be in the source rows under their own names."""
+    return list(
+        dict.fromkeys(
+            [DIMENSIONS[d].column for d in q.by + tuple(d for d, _ in q.filters) if DIMENSIONS[d].column]
+            + [EXCLUSIONS[e].column for e in q.exclude]
+            + ["Used_Year", "CreditedPA", *extra]
+        )
+    )
+
+
+def where_terms(q: Query) -> tuple[list[str], list]:
+    """A query's WHERE terms (years, filters, exclusions) and their arguments, over rows that carry `text_columns(q)` as text and
+    _organisation / _filing."""
     where, args = [], []
     year = DIMENSIONS["year"].expression
     if q.year_from:
@@ -357,14 +373,23 @@ def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[s
         ex = EXCLUSIONS[e]
         where.append(f"coalesce(lower(trim({_ident(ex.column)})), '') NOT IN ({', '.join('?' for _ in ex.values)})")
         args += [v.lower() for v in ex.values]
-    source = f"WITH data AS ({' UNION ALL '.join(selects)}) "
-    return source, where, args
+    return where, args
+
+
+def filing_label(f: dict) -> str:
+    """A snapshot's filing as the pages and files name it ("2028-2031 TUAL", or a claim's kind)."""
+    return f"{f['cycle']} {f['kind']}".strip() if f["cycle"] else f["kind"]
+
+
+def connect():
+    """A DuckDB connection of the request's own, within the query limits (it spills to disk beyond the memory limit)."""
+    import duckdb
+
+    return duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
 
 
 def _fetch(sql: str, args: list) -> tuple[list[str], list[tuple]]:
-    import duckdb
-
-    con = duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
+    con = connect()
     try:
         cursor = con.execute(sql, args)
         return [c[0] for c in cursor.description], cursor.fetchall()
@@ -398,47 +423,6 @@ def run(q: Query) -> Result:
         result.rows.append(row)
     _finish(result)
     return result
-
-
-RECORD_COLUMNS = ["CEInputID", "PrgID", "MeasureID", "UseCategory", "Used_Year", "CreditedPA"]
-
-
-@dataclass
-class Records:
-    """The records behind a number (spec "Drill"; BR-07.6): one page of them, how many there are, and their sums, which equal the
-    grouped row they came from."""
-
-    result: Result  # release, files, notes and the totals over every matching record
-    columns: list[str]
-    rows: list[dict]
-    count: int
-    offset: int
-    limit: int
-
-
-def records(q: Query, *, limit: int = 100, offset: int = 0) -> Records:
-    """The measure-level records a query keeps (its `by` is ignored), in CEInputID order, with each metric per record."""
-    q = replace(q, by=())
-    totals = run(q)
-    if not totals.files or not totals.totals["_rows"]:
-        return Records(totals, RECORD_COLUMNS, [], 0, offset, limit)
-    numbers = totals.fields
-    source, where, args = _source(q, totals.files, numbers, RECORD_COLUMNS)
-    cols = [_ident(c) for c in RECORD_COLUMNS] + ["_organisation", "_filing"] + [_ident(c) for c in numbers]
-    sql = (
-        source
-        + f"SELECT {', '.join(cols)} FROM data"
-        + (f" WHERE {' AND '.join(where)}" if where else "")
-        + ' ORDER BY "CEInputID", _organisation LIMIT ? OFFSET ?'
-    )
-    names, raw = _fetch(sql, [*args, limit, offset])
-    rows = []
-    for values in raw:
-        record = dict(zip(names, values, strict=True))
-        sums = {c: record[c] or 0 for c in numbers}
-        record |= {m.code: m.value(sums) for m in totals.metric_list}
-        rows.append(record)
-    return Records(totals, RECORD_COLUMNS, rows, totals.totals["_rows"], offset, limit)
 
 
 def _expression(d: Dimension) -> str:

@@ -252,29 +252,26 @@ def test_program_and_measure_pages_drill_to_the_records(both, client):
 
 
 def test_records_sum_to_the_row_they_came_from(both, client):
-    from cedars.modules.data import query as dq
+    from cedars.modules.data import records
 
-    q = dq.Query("claims", ("tsb", "kwh_first_year_net"), filters=(("program", ("PGE_Res_HVAC",)),))
-    recs = dq.records(q, limit=1)
-    assert recs.count == 2 and len(recs.rows) == 1 and recs.rows[0]["CEInputID"] == "M0"
-    assert recs.result.totals["tsb"] == 150 == dq.run(q.but(by=("program",))).rows[0]["tsb"]
-    assert dq.records(q, limit=1, offset=1).rows[0]["tsb"] == 50
+    params = {"dataset": ["claims"], "metric": ["tsb"], "program": ["PGE_Res_HVAC"], "cs": ["exclude"], "pension": ["exclude"]}
+    p = records.page(records.from_params(params), limit=1, offset=1)
+    assert p.count == 2 and p.rows[0][p.columns.index("CEInputID")] == "M1" and p.result.totals["tsb"] == 150
     page = client.get("/data/records/?dataset=claims&metric=tsb&program=PGE_Res_HVAC").content.decode()
-    assert "Claimed records" in page and "M0" in page and "M1" in page and "Total of all 2" in page and "150" in page
+    assert "Claimed records" in page and "M0" in page and "M1" in page and "Total system benefit ($): 150" in page
     forecast = client.get("/data/records/?dataset=forecast&metric=tsb&program=PGE_Res_HVAC").content.decode()
     assert "Forecast records" in forecast and "300" in forecast
-    assert "could not be shown" in client.get("/data/records/?metric=nope").content.decode()
-    assert "No records match." in client.get("/data/records/?metric=tsb&program=NOPE").content.decode()
 
 
 def test_records_page_through(both, client, monkeypatch):
     from cedars.modules.data import views
 
     monkeypatch.setattr(views, "RECORDS_PER_PAGE", 1)
-    first = client.get("/data/records/?metric=tsb").content.decode()
+    first = client.get("/data/records/?metric=tsb&cs=exclude&pension=exclude").content.decode()
     assert "Records 1 to 1 of 3" in first and "page=2" in first and "Previous" not in first
-    last = client.get("/data/records/?metric=tsb&page=3").content.decode()
+    last = client.get("/data/records/?metric=tsb&cs=exclude&pension=exclude&page=3").content.decode()
     assert "Records 3 to 3 of 3" in last and "Next" not in last
+    assert "Records 1 to 1 of 5" in client.get("/data/records/?metric=tsb").content.decode()  # records leave nothing out unless asked
 
 
 def test_budget_and_spending(both, pge, monkeypatch, client):

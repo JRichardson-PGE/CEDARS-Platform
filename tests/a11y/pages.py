@@ -23,6 +23,8 @@ PAGES = [
     ("dashboard-programs", "/data/programs/", None),
     ("dashboard-measures", "/data/measures/?program=PGE_Res_HVAC", None),
     ("dashboard-records", "/data/records/?dataset=forecast&metric=tsb&metric=kwh", None),
+    ("records-download", "/data/records/?dataset=forecast&columns=all&pa=PGE", None),
+    ("records-default", "/data/records/", None),
     ("dashboard-budget", "/data/budget/?year_from=2028&year_to=2031", None),
     ("rule-set", "/rules/{rules}/", None),
     ("rule", "/rules/{rules}/W4d5e6f/", None),

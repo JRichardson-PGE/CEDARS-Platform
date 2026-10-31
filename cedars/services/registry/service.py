@@ -109,6 +109,95 @@ def catalog(year: int | None = None):
     return out
 
 
+# The program table a calculation run is priced with: ReCET's supplied-programs layout (`programs.COLUMNS`, the CEDARS Programs list
+# columns; `programs_file`). The registry has no `Sector` label column ("Commercial (Com)"), so the file leaves it out.
+RUN_PROGRAM_COLUMNS = [
+    "PA",
+    "PrgID",
+    "ProgramName",
+    "ProgramStatus",
+    "ProgramSegment",
+    "StatewideProgram",
+    "PrimarySector",
+    "BPSector",
+    "ProgramImplementer",
+    "ProgramCategory",
+    "ImplementationContractor",
+    "StartYear",
+    "EndYear",
+    "Resource_Flag",
+    "NonResource_Flag",
+    "Deemed_Flag",
+    "Custom_Flag",
+    "Upstream_Flag",
+    "Midstream_Flag",
+    "Downstream_Flag",
+    "DirectInstall",
+    "Audit_Flag",
+    "Financing",
+    "ParentProgram",
+    "Exclude_From_Budget",
+    "Exclude_From_CE",
+    "Exclude_From_Statewide_Flag",
+]
+FLAG_COLUMNS = RUN_PROGRAM_COLUMNS[13:23]
+
+
+def pa_code(program: Program) -> str:
+    """The program's PA as CEDARS' Programs list has it: SW for a statewide program, else its administrator's code."""
+    return "SW" if program.statewide or program.administrator is None else program.administrator.code
+
+
+@dataclass
+class RunPrograms:
+    csv: str
+    year: int | None
+    programs: int
+
+
+def run_programs(year: int | None) -> RunPrograms | None:
+    """Every program in the registry, portfolio-cost IDs included, as the table a run for program year `year` is priced with (BR-13.1):
+    each program's version for that year (`version_for_year`), or for a program with none that year (not started yet, or closed
+    before it) its latest version, so a registry program never falls back to the engine's shipped copy of CEDARS' list. With no year,
+    the version in force today. None when the registry has no programs (the engine then uses its own table)."""
+    today = timezone.localdate()
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(RUN_PROGRAM_COLUMNS)
+    n = 0
+    programs = Program.objects.select_related("administrator").order_by("prg_id")
+    for p in programs.prefetch_related(Prefetch("versions", queryset=ProgramVersion.objects.order_by("-valid_from"))):
+        versions = list(p.versions.all())
+        if not versions:
+            continue
+        v = (_for_year(versions, year) if year else _in_force(versions, today)) or versions[0]
+        flags = v.flags or {}
+        w.writerow(
+            [
+                pa_code(p),
+                p.prg_id,
+                v.name,
+                v.status,
+                v.segment,
+                v.statewide_program,
+                v.primary_sector,
+                ", ".join(f"{k}: {float(share):.6f}" for k, share in (v.sectors or {}).items()),
+                v.implementer,
+                v.category,
+                v.implementation_contractor,
+                v.start_year or "",
+                v.end_year or "",
+                *(flags.get(c, "") for c in FLAG_COLUMNS),
+                v.parent_program,
+                v.exclude_from_budget,
+                v.exclude_from_ce,
+                v.exclude_from_statewide,
+            ]
+        )
+        n += 1
+    return RunPrograms(out.getvalue(), year, n) if n else None
+
+
 def can_edit(actor, program: Program) -> bool:
     """Whether actor may change the program: a CPUC system administrator, or its administrator's org admins and programs.admin holders."""
     if actor is None or access.is_system_admin(actor):

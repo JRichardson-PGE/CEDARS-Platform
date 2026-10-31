@@ -111,7 +111,7 @@
 {% if opens_later %}<p>These claims open on {{ deadline.opens_at|date:"Y-m-d" }}.</p>
 {% elif later_locked %}<p>{{ later_locked.kind }} is already confirmed, so this confirmation takes no more uploads.</p>
 {% else %}
-<p>The file replaces this version's upload; an earlier upload is not kept. Records with the same key as a record confirmed in an earlier
+<p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept. Records with the same key as a record confirmed in an earlier
 quarter replace it. To withdraw a claim filed earlier this year, list its ClaimID in the Withdrawal table with the reason: its records
 stay, marked withdrawn, and are no longer priced or counted. Personal information (PII_Contact, PII_Site) never goes in this file. <a href="{% url 'claims:template' %}">The claims template</a> lists every table and field.</p>
 <form method="post" enctype="multipart/form-data" action="{% url 'claims:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}

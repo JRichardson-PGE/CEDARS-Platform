@@ -4,6 +4,7 @@
 {% block content %}
 <nav class="subnav" aria-label="Portfolio dashboard pages">
   {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
+  <a href="{% url 'data:records' %}">Record downloads</a>
 </nav>
 <h1>{{ page.title }}</h1>
 <p>{{ page.description }} Confirmed data only; each series shows when its data last changed.</p>

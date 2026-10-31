@@ -1,6 +1,7 @@
 from django import forms
 from django.utils import timezone
 
+from cedars.core import uploads
 from cedars.services.registry.models import AllocationVersion, FilingCycle
 
 from .models import FILING_KINDS
@@ -50,11 +51,12 @@ class SetupForm(forms.Form):
 
 
 class UploadForm(forms.Form):
-    file = forms.FileField(
-        label="Filing file",
+    file = uploads.MultipleFileField(
+        label="Filing files",
         help_text="A .zip of Measure.csv and ProgramCost.csv (comma- or pipe-delimited), or an Excel workbook with Measure and "
-        "ProgramCost sheets.",
-        widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
+        "ProgramCost sheets. To send a filing in several files, choose them all at once: .zip, .xlsx or one table's .csv each, a table "
+        "split into parts named after it (Measure_1.csv, Measure_2.csv) with the same columns. They are joined into one filing.",
+        widget=uploads.MultipleFileInput(attrs={"accept": ".zip,.xlsx,.csv,.txt"}),
     )
 
 
