@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block title %}Cost-test sets{% endblock %}
+{% block content %}
+<h1>Cost-test sets</h1>
+<p>A cost-test definition set says which value streams each cost test adds up and how it shares the program costs (ReCET's
+COST_TESTS.md). Every run is pinned to one.
+A filing is priced only on a published set: the one its filing setup names, or the one in force for its first program year. An
+analysis run may also use a draft. A change to a set is a new version, never an edit.</p>
+<dl class="facts">
+  <dt>In force today</dt><dd>{% if in_force %}<a href="{% url 'refdata:detail' in_force.pk %}">{{ in_force }}</a>{% else %}No published set yet: runs use the engine's own default set{% endif %}</dd>
+</dl>
+<h2>Every set</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Cost-test sets">
+<table class="list">
+  <caption class="sr-only">Cost-test definition sets with their program years, tests and status</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Label</th><th scope="col">Program years</th><th scope="col">Tests</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for p, h, years in rows %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p.label }} {{ p.version }}</a></th><td>{{ h.label }}</td><td>{{ years }}</td><td>{{ h.tests|join:", " }}</td><td>{{ p.get_status_display }}{% if h.draft %} (the file is marked draft){% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">No sets registered yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% if form %}
+<section class="card" aria-labelledby="reg-h">
+  <h2 id="reg-h">Register a set</h2>
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Register as a draft</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

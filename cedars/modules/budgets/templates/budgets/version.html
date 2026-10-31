@@ -10,7 +10,8 @@
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
   {% elif calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
-  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
+  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>
+  {% if calc.cost_tests %}<dt>Cost tests</dt><dd>{{ calc.cost_tests.id }} {{ calc.cost_tests.version }}</dd>{% endif %}{% endif %}
   {% if v.findings.rule_set %}<dt>Rule set</dt><dd>{{ v.findings.rule_set }}</dd>{% endif %}
 </dl>
 {% if legacy %}{% include "legacy/_imported.html" %}{% endif %}

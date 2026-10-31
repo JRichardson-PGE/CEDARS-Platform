@@ -24,12 +24,21 @@ FILING_KINDS = [
 class FilingSetup(models.Model):
     """How one budget filing is priced: a filing is a deadline of the "budgets" module on a filing cycle (the submissions service's
     calendar); this says which ACC it is priced on and, optionally, which statewide allocation version (blank: the most recent confirmed
-    version with factors for the program year, as any run). Set by a CPUC system administrator, a setting rather than code."""
+    version with factors for the program year, as any run) and which published cost-test set (blank: the one in force). Set by a CPUC
+    system administrator, a setting rather than code."""
 
     deadline = models.OneToOneField("submissions.Deadline", on_delete=models.PROTECT, related_name="budget_setup")
     acc_version = models.CharField("ACC", max_length=10)
     allocation_version = models.ForeignKey(
         "registry.AllocationVersion", null=True, blank=True, on_delete=models.PROTECT, related_name="budget_filings"
+    )
+    cost_test_set = models.ForeignKey(
+        "refdata.PackVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="budget_filings",
+        help_text="The published cost-test set the filing is priced on (blank: the one in force for the job's first program year)",
     )
     notes = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
