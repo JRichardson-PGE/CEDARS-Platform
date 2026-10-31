@@ -17,3 +17,9 @@ class ClaimsConfig(AppConfig):
 
         register_publisher("claims", service.on_publish, service.on_unpublish)
         register_claims_totals(service.year_totals)
+
+        from cedars.services.registry.service import register_program_records
+
+        from . import program_page
+
+        register_program_records("claims", program_page.confirmations)  # each program's page lists its claims (BR-07.6)

@@ -18,6 +18,12 @@ class DocumentsConfig(AppConfig):
 
         register_evaluations(studies.evaluations)  # each program's page lists the studies that evaluate it (BR-15.7)
 
+        from cedars.services.registry.service import register_program_records
+
+        from . import program_page
+
+        register_program_records("documents", program_page.documents)  # and the documents that name it (BR-07.6)
+
         from . import health
 
         health.register()

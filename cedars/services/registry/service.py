@@ -758,3 +758,36 @@ def evaluations(program: Program) -> list[dict]:
 def cycle_for_year(year: int) -> FilingCycle | None:
     """The filing cycle a program year belongs to."""
     return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()
+
+
+# --- what each module holds about one program (BR-07.6)
+
+PROGRAM_SECTIONS = ("budgets", "fund_shifts", "claims", "monthly", "documents")
+_program_record_sources: dict[str, object] = {}
+
+
+def register_program_records(section: str, source) -> None:
+    """A module's records about one program, for the program page: source(program, user, year) returns the rows `user` may read
+    (an anonymous user reads published records only), each a dict with at least {title, url, organisation, status, published, when};
+    year (or None for every year) narrows them to one program year. The shapes of the other keys are the section's own:
+
+    budgets      one row per version of each budget filing that has the program: cycle, years {year: Decimal budget}, total, standing
+    fund_shifts  one row per fund shift with lines on the program: lines [{pa, year, amount}], net
+    claims       one row per claims confirmation (year to date) that has the program: year, quarter label, records, expenditures,
+                 net_kwh, net_therm, tsb, standing
+    monthly      one row per monthly report that has the program: year, month, ytd (spend), committed, standing
+    documents    one row per document that names the program: collection, type, years
+
+    The program page reads them through `program_records`, so Programs never imports the filing modules."""
+    if section not in PROGRAM_SECTIONS:
+        raise ValueError(f"Unknown program section: {section}")
+    _program_record_sources[section] = source
+
+
+def program_records(program: Program, user, year: int | None = None) -> dict[str, list[dict] | None]:
+    """{section: rows} for every section; None for a section whose module is not installed."""
+    out: dict[str, list[dict] | None] = {}
+    for section in PROGRAM_SECTIONS:
+        source = _program_record_sources.get(section)
+        out[section] = None if source is None else list(source(program, user, year))
+    return out

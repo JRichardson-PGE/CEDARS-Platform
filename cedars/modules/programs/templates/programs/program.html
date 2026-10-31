@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui %}
 {% block title %}{{ p.prg_id }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
@@ -78,8 +79,126 @@
 {% else %}<p>{% if p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
 </section>
 
+<section aria-labelledby="rec-h">
+<h2 id="rec-h">Filings, reports and documents</h2>
+<p>Everything on record about this program, each linked to its record.{% if not signed_in %} You see what is published. Opening a filing needs you to <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">sign in</a>; once signed in, a PA's own staff and CPUC staff also see filings not yet published and fund shifts.{% endif %}</p>
+<form method="get" class="filters" aria-label="Choose a program year">
+  <label>Program year <select name="year"><option value="">Every year</option>{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
+  <button type="submit">Show</button>
+</form>
+{% if year %}<p>Showing program year {{ year }} only. <a href="{% url 'programs:program' p.prg_id %}">Show every year</a></p>{% endif %}
+
+<section aria-labelledby="bud-h">
+<h3 id="bud-h">Budget filings</h3>
+{% if records.budgets is None %}<p>Budget filings are not part of this site.</p>
+{% elif budget_groups %}
+<p class="small muted">The program's filed budget in each version of each filing: program costs plus its measures' rebates and incentives, nominal dollars, with the priced total system benefit (TSB) and TRC ratio. Every version is kept; the standing one is the latest published.</p>
+{% for g in budget_groups %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget filings for the {{ g.cycle }} cycle">
+<table class="list">
+  <caption>{{ g.cycle }} cycle</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">PA</th><th scope="col">Status</th>{% for y in g.years %}<th scope="col" class="num">{{ y }}</th>{% endfor %}<th scope="col" class="num">Total</th><th scope="col" class="num">TSB</th><th scope="col" class="num">TRC</th></tr></thead>
+  <tbody>
+  {% for r in g.rows %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    {% for c in r.cells %}<td class="num">{{ c }}</td>{% endfor %}
+    <td class="num">{{ r.shown.total }}</td>
+    <td class="num">{{ r.shown.tsb|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.trc|default:"Not priced" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endfor %}
+{% else %}<p>No {% if not signed_in %}published {% endif %}budget filing has this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="shift-h">
+<h3 id="shift-h">Fund shifts</h3>
+{% if records.fund_shifts is None %}<p>Fund shifts are not part of this site.</p>
+{% elif not signed_in %}<p>Fund shifts are shown to the PAs involved and CPUC staff once signed in. The operating budget they lead to is on the dashboards.</p>
+{% elif records.fund_shifts %}
+<p class="small muted">Shifts that move money into this program (positive) or out of it (negative), by program year. A shift changes the operating budget once it is in effect; the filed budget never changes.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Fund shifts">
+<table class="list">
+  <caption class="sr-only">Fund shifts with lines on {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">Shift</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col">Date</th><th scope="col">Lines on this program</th><th scope="col" class="num">Net</th></tr></thead>
+  <tbody>
+  {% for r in records.fund_shifts %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">{{ r.cycle }} cycle</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="nowrap">{{ r.when|date:"Y-m-d" }}</td>
+    <td><ul class="grants">{% for pa, y, amount in r.shown.lines %}<li>{{ y }}: {{ amount }}{% if pa != r.organisation %} ({{ pa }}'s portion){% endif %}</li>{% endfor %}</ul></td>
+    <td class="num">{{ r.shown.net }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No fund shift you can see moves this program's money{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="claim-h">
+<h3 id="claim-h">Claims</h3>
+{% if records.claims is None %}<p>Claims are not part of this site.</p>
+{% elif records.claims %}
+<p class="small muted">Each confirmation is the year to date: the first quarter's claims, then each later quarter adds to them, and the annual claim is the final year. Expenditures are program costs plus rebates and incentives; savings and TSB are the priced first-year net values.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Claims">
+<table class="list">
+  <caption class="sr-only">Claims confirmations that include {{ p.prg_id }}, newest year first</caption>
+  <thead><tr><th scope="col">Confirmation</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Claims</th><th scope="col" class="num">Expenditures</th><th scope="col" class="num">First-year net kWh</th><th scope="col" class="num">First-year net therms</th><th scope="col" class="num">TSB</th></tr></thead>
+  <tbody>
+  {% for r in records.claims %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}{% if r.outside_totals %}; statewide unallocated, outside every total{% endif %}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="num">{{ r.records }}</td>
+    <td class="num">{{ r.shown.expenditures }}</td>
+    <td class="num">{{ r.shown.net_kwh|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.net_therm|default:"Not priced" }}</td>
+    <td class="num">{{ r.shown.tsb|default:"Not priced" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}claims include this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
+<section aria-labelledby="mon-h">
+<h3 id="mon-h">Monthly reports</h3>
+{% if records.monthly is None %}<p>Monthly reports are not part of this site.</p>
+{% elif records.monthly %}
+<p class="small muted">Year-to-date spend (program costs plus rebates and incentives) and funds committed, as each month's report gives them. Monthly figures are not validated; the claims are.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Monthly reports">
+<table class="list">
+  <caption class="sr-only">Monthly reports that include {{ p.prg_id }}, newest month first</caption>
+  <thead><tr><th scope="col">Report</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Spend, year to date</th><th scope="col" class="num">Funds committed, year to date</th></tr></thead>
+  <tbody>
+  {% for r in records.monthly %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">version {{ r.version }}</span></th>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
+    <td class="num">{{ r.shown.ytd|default:"Not reported" }}</td>
+    <td class="num">{{ r.shown.committed|default:"Not reported" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}monthly report includes this program{% if year %} in {{ year }}{% endif %}.</p>{% endif %}
+</section>
+
 <section aria-labelledby="eval-h">
-<h2 id="eval-h">Evaluations</h2>
+<h3 id="eval-h">Evaluations</h3>
 {% if evaluations %}
 <p class="small muted">Evaluation studies that cover this program, in whole or in part, and the program years each covers.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Evaluations">
@@ -100,11 +219,33 @@
   </tbody>
 </table>
 </div>
-{% else %}<p>No evaluation study in the register covers this program yet.</p>{% endif %}
+{% else %}<p>No evaluation study in the register covers this program{% if year %} in {{ year }}{% endif %} yet.</p>{% endif %}
 </section>
 
-<section aria-labelledby="fil-h">
-<h2 id="fil-h">Budgets, claims and monthly reports</h2>
-<p>This program's budget filings, fund shifts, claims and monthly reports will be listed here as those parts of CEDARS open.</p>
+<section aria-labelledby="doc-h">
+<h3 id="doc-h">Documents</h3>
+{% if records.documents is None %}<p>The document library is not part of this site.</p>
+{% elif records.documents %}
+<p class="small muted">Documents that name this program: implementation plans and other program files, PA documents and EM&amp;V documents.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Documents">
+<table class="list">
+  <caption class="sr-only">Documents naming {{ p.prg_id }}, newest first</caption>
+  <thead><tr><th scope="col">Document</th><th scope="col">Collection</th><th scope="col">Type</th><th scope="col">Program years</th><th scope="col">Filed by</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for r in records.documents %}
+  <tr>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a></th>
+    <td>{{ r.collection }}</td>
+    <td>{{ r.type }}</td>
+    <td class="nowrap">{{ r.years|default:"Not given" }}</td>
+    <td>{{ r.organisation }}</td>
+    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date:"Y-m-d" }}</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No {% if not signed_in %}published {% endif %}document names this program{% if year %} for {{ year }}{% endif %}.</p>{% endif %}
+</section>
 </section>
 {% endblock %}

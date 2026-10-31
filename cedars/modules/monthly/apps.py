@@ -21,3 +21,9 @@ class MonthlyConfig(AppConfig):
         from cedars.services.registry.service import register_reported_spend
 
         register_reported_spend(service.reported_spend)  # what the budget-and-spending dashboard shows (BR-07.3)
+
+        from cedars.services.registry.service import register_program_records
+
+        from . import program_page
+
+        register_program_records("monthly", program_page.reports)  # each program's page lists its monthly reports (BR-07.6)
