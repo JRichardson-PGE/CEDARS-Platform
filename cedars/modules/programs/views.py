@@ -83,10 +83,9 @@ def _filtered(form: forms.CatalogFilter):
     return rows
 
 
-@login_required
 def catalog(request):
     """Every program, searchable by name or PrgID, closed programs included (BR-13.5); the version shown is the one for the chosen program
-    year, or the one in force today."""
+    year, or the one in force today. Public (BR-01.5, BR-07.7): the registry holds published program definitions only."""
     form = forms.CatalogFilter(request.GET or None)
     rows = _filtered(form)
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
@@ -105,7 +104,6 @@ def catalog(request):
     )
 
 
-@login_required
 def catalog_csv(request):
     """The filtered catalog as a file, from the same filter (decision H), in CEDARS' Programs list column names."""
     rows = _filtered(forms.CatalogFilter(request.GET or None))
@@ -160,9 +158,10 @@ def allocation_history(program: Program) -> list[dict]:
     return out
 
 
-@login_required
 def program(request, prg_id):
+    """A program's page. Public (BR-01.5): signed out, it leaves out who entered each version and any pending change request."""
     p = _program_or_404(prg_id)
+    signed_in = request.user.is_authenticated
     current = registry.current_version(p) or p.versions.order_by("-valid_from").first()
     history = list(reversed(registry.history(p)))
     allocation = allocation_history(p)
@@ -183,11 +182,13 @@ def program(request, prg_id):
             "upcoming": [v for v, _ in history if current and v.valid_from > current.valid_from],
             "allocation": [(row, [row["shares"].get(pa) for pa in pas]) for row in allocation],
             "allocation_pas": pas,
-            "can_edit": registry.can_edit(request.user, p),
+            "signed_in": signed_in,
+            "can_edit": signed_in and registry.can_edit(request.user, p),
             "pending": [
                 r for r in p.change_requests.filter(status=ProgramChangeRequest.Status.PENDING) if registry.can_see_request(request.user, r)
-            ],
-            "events": audit.changes(p).select_related("actor")[:20],
+            ]
+            if signed_in
+            else [],
             "evaluations": registry.evaluations(p),
         },
     )
