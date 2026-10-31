@@ -20,7 +20,8 @@ correction is a new version, published with a change letter in the <a href="{% u
   <h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
   {% if sysadmin %}<a class="button" href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a>{% endif %}
 </div>
-<p class="small muted">Priced on the {{ y.cy.acc_version }} ACC; statewide programs allocated with {% if y.cy.allocation_version %}{{ y.cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ y.cy.year }}{% endif %}.</p>
+{% if y.legacy %}<p class="small muted">Imported from legacy CEDARS: each PA's year as CEDARS publishes it, read-only, on the annual (final) claim, with CEDARS' own CET results{% if y.cy.acc_version %} ({{ y.cy.acc_version }} ACC){% endif %}.</p>
+{% else %}<p class="small muted">Priced on the {{ y.cy.acc_version }} ACC; statewide programs allocated with {% if y.cy.allocation_version %}{{ y.cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ y.cy.year }}{% endif %}.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Confirmations of {{ y.cy.year }} claims">
 <table class="list">
   <caption class="sr-only">Confirmations of {{ y.cy.year }} claims{% if org %} and {{ org.code }}'s status{% endif %}</caption>

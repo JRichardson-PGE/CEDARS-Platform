@@ -4,7 +4,8 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
-{deliverable}, {deliverable_open}."""
+{deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
+{legacy_filing}."""
 
 PAGES = [
     ("home", "/", None),
@@ -97,6 +98,9 @@ PAGES = [
     ("claims-links", "/claims/links/", "community"),
     ("claims-links-chain", "/claims/links/?kind=claim&q=PGE-2028-001", "community"),
     ("claims-links-project", "/claims/links/?kind=project&q=PGE-P1", "community"),
+    ("claims-legacy-version", "/claims/versions/{legacy_claims}/", "community"),
+    ("claims-legacy-statewide", "/claims/versions/{legacy_claims_sw}/", "community"),
+    ("claims-legacy-period", "/claims/periods/{legacy_claims_period}/?org=PGE", "cpuc_admin"),
     ("budgets", "/budgets/", "analyst"),
     ("budget-filing-new", "/budgets/filings/new/", "cpuc_admin"),
     ("budget-filing-setup", "/budgets/filings/{tual}/setup/", "cpuc_admin"),
@@ -104,6 +108,8 @@ PAGES = [
     ("budget-filing-rejected", "/budgets/filings/{mcal}/", "analyst"),
     ("budget-filing-cpuc", "/budgets/filings/{tual}/?org=PGE", "cpuc_admin"),
     ("budget-version", "/budgets/versions/{budget_version}/?years=2028&hide_budget=1", "community"),
+    ("budget-legacy-version", "/budgets/versions/{legacy_budget}/", "community"),
+    ("budget-legacy-filing", "/budgets/filings/{legacy_filing}/?org=PGE", "cpuc_admin"),
     ("budget-compare", "/budgets/compare/?a={budget_version}&b={budget_draft}", "analyst"),
     ("fund-shifts", "/budgets/shifts/", "analyst"),
     ("fund-shift-new", "/budgets/shifts/new/", "analyst"),

@@ -35,6 +35,7 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
+from cedars.services.legacy import service as legacy
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
@@ -1679,7 +1680,10 @@ def table(v: SubmissionVersion, *, pa: str = "") -> Table:
 def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
     """(label, area, key) of what a confirmed version publishes so it can be reproduced (BR-05.9): the compiled non-PII year-to-date
     inputs (every table of the template, the infrastructure cost table among them, BR-05.13), this version's own upload, the job priced,
-    the run's job spec and its receipt."""
+    the run's job spec and its receipt. A version imported from legacy CEDARS publishes the tables it was loaded as and its
+    reconciliation report."""
+    if v.imported:
+        return legacy.published_files(v)
     s, calc, out = v.findings or {}, v.calculation or {}, []
     if s.get("compiled_key"):
         out.append(("Year-to-date inputs (every claims table, compiled)", "uploads", s["compiled_key"]))

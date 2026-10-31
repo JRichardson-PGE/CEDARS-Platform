@@ -24,6 +24,7 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.legacy import service as legacy
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program
 from cedars.services.rules import service as rules
@@ -720,7 +721,10 @@ def compare(a: SubmissionVersion, b: SubmissionVersion, *, years=None, changed_o
 
 def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
     """(label, area, key) of what a confirmed version publishes so it can be reproduced (BR-04.4): its job, the run's job spec (the
-    settings, release, ACC, packs and allocation table it was priced with) and the run's receipt."""
+    settings, release, ACC, packs and allocation table it was priced with) and the run's receipt. A version imported from legacy CEDARS
+    publishes the tables it was loaded as and its reconciliation report."""
+    if v.imported:
+        return legacy.published_files(v)
     calc, out = v.calculation or {}, []
     f = job_file(v)
     if f:

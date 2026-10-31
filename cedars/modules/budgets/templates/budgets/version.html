@@ -8,10 +8,12 @@
 </div>
 <dl class="facts">
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
-  {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
+  {% elif calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
   {% if v.findings.rule_set %}<dt>Rule set</dt><dd>{{ v.findings.rule_set }}</dd>{% endif %}
 </dl>
+{% if legacy %}{% include "legacy/_imported.html" %}{% endif %}
 {% if not t.priced %}<p>Not priced yet: the table shows the filed budget only.</p>{% endif %}
 
 <form method="get" class="filters" aria-label="What to show">
@@ -73,7 +75,8 @@
 
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>
-{% if public %}<p>This version is confirmed: its inputs and run settings are published so anyone can reproduce its results.</p>{% endif %}
+{% if legacy %}<p>The tables this version was loaded as, and its full reconciliation report.</p>
+{% elif public %}<p>This version is confirmed: its inputs and run settings are published so anyone can reproduce its results.</p>{% endif %}
 <ul>
   {% for name, i in files %}<li><a href="{% url 'budgets:file' v.pk i %}">{{ name }}</a></li>{% endfor %}
   <li><a href="{% url 'budgets:appendix' v.pk %}">Appendix tables (Excel)</a>: budget by program and year with its cost categories, cost-effectiveness by program, savings by year</li>

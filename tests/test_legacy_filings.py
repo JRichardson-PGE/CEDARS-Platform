@@ -201,3 +201,18 @@ def test_annual_filings_get_one_year_cycles_and_a_filing_not_staged_is_reported(
     with pytest.raises(CommandError):
         call_command("load_legacy_filings", "--filing", "2020")
     assert "2020: not loaded: 2020: the all-PA file for filings 2020 is not staged" in capsys.readouterr().out
+
+
+def test_the_pages_show_a_legacy_filing_as_imported_and_read_only(downloads, signed_in, pge_admin, cpuc_admin):
+    downloads()
+    legacy.load(legacy.BY_KEY["2028-2031-application"], only="PGE")
+    v = _version("PGE")
+    client = signed_in(pge_admin)
+    page = client.get(f"/budgets/versions/{v.pk}/").content.decode()
+    assert "Imported from legacy CEDARS" in page and "CEDARS' own CET outputs, as filed (2024 ACC)" in page
+    assert "https://cedars.example.org/reports/download-record-level-report/all/2028/filings/" in page
+    assert "Reconciliation report (JSON)" in page and "TRCBen = ratio x cost" in page
+    filing = signed_in(cpuc_admin).get(f"/budgets/filings/{v.submission.deadline.pk}/?org=PGE").content.decode()
+    assert "Imported from legacy CEDARS, 8 records" in filing and "Ask to reopen" not in filing and "records checked" not in filing
+    index = client.get("/budgets/").content.decode()
+    assert "Imported from legacy CEDARS" in index and "imported from legacy CEDARS" in index

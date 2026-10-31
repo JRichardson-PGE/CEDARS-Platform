@@ -32,6 +32,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import ProgramChangePolicy
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions.models import SubmissionVersion
 
 from ..conftest import create_cpuc_admin, create_pge, create_pge_admin, create_user
 from ..fake_recet_worker import write_results
@@ -292,7 +293,9 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
     documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
+    legacy_years = _legacy()
     return {
+        **legacy_years,
         **claims,
         **budgets,
         **monthly,
@@ -643,6 +646,49 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         "claims_version": v,
         "claims_corrected": v2,
         "claims_letter": v2.change_letter,
+    }
+
+
+def _legacy():
+    """Legacy CEDARS years loaded from made-up downloads as the load commands load them: 2023's claims (PG&E's, with a PAC benefit that
+    differs from ratio x cost so the reconciliation shows a difference, and the statewide unallocated claims) and the 2021 budget filing."""
+    import tempfile
+
+    from cedars.modules.budgets import legacy as budget_legacy
+    from cedars.modules.claims import legacy as claims_legacy
+    from cedars.services.legacy import service as staging
+
+    from ..legacy_fixtures import csv_text, filing_row, legacy_claim, manifest_row, manifest_text, write_zip
+
+    folder = Path(tempfile.mkdtemp())
+    pge_claims = [
+        legacy_claim("PGE-2023-0001", "PGE", "PGE_Com_Legacy", 2023),
+        legacy_claim("PGE-2023-0002", "PGE", "PGE_Com_Legacy", 2023, **{"PAC Benefits": "49.0"}),
+    ]
+    statewide = [legacy_claim("SW-2023-0001", "SW", "SW_HVAC_Legacy", 2023)]
+    files = [
+        ("claims", "2023", "all", write_zip(folder / "claims/all_2023.zip", {"all.csv": csv_text("claims_b", pge_claims)})),
+        ("claims", "2023", "SW", write_zip(folder / "claims/sw_2023.zip", {"sw.csv": csv_text("claims_b", statewide)})),
+        (
+            "filings",
+            "2021",
+            "all",
+            write_zip(
+                folder / "filings/all_2021.zip", {"f.csv": csv_text("filings", [filing_row("PGE-2021-1", "PGE", "PGE_Com_Legacy", 2021)])}
+            ),
+        ),
+    ]
+    assert staging.stage(None, manifest_text([manifest_row(*f) for f in files]), folder).ok
+    assert claims_legacy.load(2023).published == ["PGE", "SW"]
+    assert budget_legacy.load(budget_legacy.BY_KEY["2021"]).published == ["PGE"]
+    versions = SubmissionVersion.objects.filter(origin=SubmissionVersion.Origin.IMPORTED).select_related("submission__organisation")
+    claims_pge = versions.get(submission__deadline__module="claims", submission__organisation__code="PGE")
+    return {
+        "legacy_claims": claims_pge,
+        "legacy_claims_sw": versions.get(submission__deadline__module="claims", submission__organisation__code="SW"),
+        "legacy_claims_period": claims_pge.submission.deadline,
+        "legacy_budget": (budget := versions.get(submission__deadline__module="budgets")),
+        "legacy_filing": budget.submission.deadline,
     }
 
 
