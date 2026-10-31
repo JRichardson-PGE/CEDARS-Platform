@@ -25,6 +25,7 @@
   <dt>Engine</dt><dd>{{ calculation }}, ReCET {{ run.engine_release }}{% if engine.image %} <span class="small muted">({{ engine.image }})</span>{% endif %}</dd>
   <dt>ACC</dt><dd>{{ run.acc_version }} ACC</dd>
   <dt>Measures</dt><dd>{{ run.measure_count|default_if_none:"" }}</dd>
+  <dt>Programs</dt><dd>{{ programs }}</dd>
   <dt>Statewide allocation</dt><dd>{% if run.allocation_version %}{{ run.allocation_version.label }}{% else %}Not allocated{% endif %}</dd>
   {% for label, value in settings %}<dt>{{ label }}</dt><dd>{% if value is True %}On{% elif value is False %}Off{% else %}{{ value }}{% endif %}</dd>{% endfor %}
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
