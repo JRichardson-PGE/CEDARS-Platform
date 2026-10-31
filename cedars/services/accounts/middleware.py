@@ -42,7 +42,7 @@ class RequireMFAMiddleware:
             getattr(settings, "CEDARS_REQUIRE_MFA", True)
             and request.user.is_authenticated
             and getattr(request, "assurance", "") == PASSWORD
-            and request.path != "/"
+            and request.path not in ("/", "/about/")
             and not request.path.startswith(self.OPEN_PREFIXES)
         ):
             from allauth.mfa.utils import is_mfa_enabled

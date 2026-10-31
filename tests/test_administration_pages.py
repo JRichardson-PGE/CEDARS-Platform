@@ -14,7 +14,7 @@ def test_password_only_sessions_are_sent_to_set_up_a_second_factor(signed_in, ma
     c = signed_in(make_user("new@example.com"), "password")
     r = c.get("/account/")
     assert r.status_code == 302 and r["Location"].startswith("/accounts/2fa/totp/activate")
-    assert c.get("/").status_code == 200  # public pages stay open
+    assert c.get("/about/").status_code == 200  # public pages stay open
     assert c.get("/accounts/2fa/").status_code == 200
 
 
