@@ -24,7 +24,9 @@ COPY manage.py ./
 COPY cedars ./cedars
 COPY data ./data
 RUN uv sync --locked --no-dev --inexact \
- && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput
+ && DJANGO_SECRET_KEY=build-only python manage.py collectstatic --noinput \
+ && pip uninstall --yes uv
+# uv only builds the image; nothing runs it after this, so it is not left in (CI's image scan, .github/workflows/ci.yml)
 
 USER cedars
 EXPOSE 8000
