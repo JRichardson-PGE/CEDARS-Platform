@@ -91,6 +91,8 @@ PAGES = [
     ("compare", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
     ("programs", "/programs/", "community"),
+    ("programs-public", "/programs/?q=PGE", None),
+    ("program-public", "/programs/PGE_Res_HVAC/", None),
     ("program", "/programs/PGE_Res_HVAC/", "pge_admin"),
     ("program-statewide", "/programs/{sw}/", "community"),
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
