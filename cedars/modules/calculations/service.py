@@ -342,19 +342,18 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
         key = run.storage_prefix + "sw_factors.csv"
         inputs["sw_factors"] = {"key": key, "sha256": allocation_sha, "bytes": uploads.put_bytes(key, factors).size}
         run.allocation_version = version
-    # the registry's programs for the job's program year (BR-13.1): ReCET's supplied-programs table, whose rows replace its shipped copy of
-    # CEDARS' Programs list (the Prg_ columns, Exclude_From_CE), so a run reads the programs as the registry has them
+    # the registry's programs for the job's program year (BR-13.1) as the engine's WHOLE program table (programs_replace, set in the
+    # spec): the Prg_ columns, Exclude_From_CE and the PrgID checks read the registry, never the engine's shipped copy of CEDARS' list
     programs = registry.run_programs(info.first_year)
-    if programs is not None:
-        table = programs.csv.encode()
-        key = run.storage_prefix + "programs.csv"
-        inputs["programs"] = {
-            "key": key,
-            "sha256": hashlib.sha256(table).hexdigest(),
-            "bytes": uploads.put_bytes(key, table).size,
-            "program_year": programs.year,
-            "programs": programs.programs,
-        }
+    table = programs.csv.encode()
+    key = run.storage_prefix + "programs.csv"
+    inputs["programs"] = {
+        "key": key,
+        "sha256": hashlib.sha256(table).hexdigest(),
+        "bytes": uploads.put_bytes(key, table).size,
+        "program_year": programs.year,
+        "programs": programs.programs,
+    }
     run.inputs = inputs
     packs = packs_for(req, filing=submission_version is not None)
     pinned = refdata.pin(packs)
@@ -388,7 +387,7 @@ def programs_label(run: Run) -> str:
     """How the run's program table was chosen, for the run page and the audit trail."""
     p = run.inputs.get("programs")
     if not p:
-        return "The engine's own copy of CEDARS' Programs list (the registry has no programs)"
+        return "The engine's own copy of CEDARS' Programs list (a run queued before the registry was its program table)"
     year = f"program year {p['program_year']}" if p.get("program_year") else "in force on the day the run was queued"
     return f"Program registry, {year} ({p['programs']:,} programs)"
 

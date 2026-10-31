@@ -155,11 +155,12 @@ class RunPrograms:
     programs: int
 
 
-def run_programs(year: int | None) -> RunPrograms | None:
-    """Every program in the registry, portfolio-cost IDs included, as the table a run for program year `year` is priced with (BR-13.1):
-    each program's version for that year (`version_for_year`), or for a program with none that year (not started yet, or closed
-    before it) its latest version, so a registry program never falls back to the engine's shipped copy of CEDARS' list. With no year,
-    the version in force today. None when the registry has no programs (the engine then uses its own table)."""
+def run_programs(year: int | None) -> RunPrograms:
+    """Every program in the registry, portfolio-cost IDs included, as the whole program table a run for program year `year` is priced
+    with (BR-13.1; the engine's programs_replace, so its shipped copy of CEDARS' Programs list is never used: Jake, 2026-10-31): each
+    program's version for that year (`version_for_year`), or for a program with none that year (not started yet, or closed before it)
+    its latest version. With no year, the version in force today. A registry with no programs gives the header alone, and every PrgID
+    is then unknown to the run."""
     today = timezone.localdate()
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\n")
@@ -195,7 +196,7 @@ def run_programs(year: int | None) -> RunPrograms | None:
             ]
         )
         n += 1
-    return RunPrograms(out.getvalue(), year, n) if n else None
+    return RunPrograms(out.getvalue(), year, n)
 
 
 def can_edit(actor, program: Program) -> bool:

@@ -103,7 +103,7 @@ def test_a_run_stores_its_inputs_pins_them_and_queues(tmp_path, analyst, pge, re
     assert spec["engine"] == {"release": "0.1.78", "calculation": "recet"}
     assert spec["inputs"]["job_zip"] == {"uri": uploads.uri(run.inputs["job_zip"]["key"]), "sha256": run.inputs["job_zip"]["sha256"]}
     assert "/uploads/" in spec["inputs"]["job_zip"]["uri"] and "/results/" in spec["outputs"]["uri"]
-    assert spec["settings"] == {"acc_version": "2024", "acc_purpose": "claims", "emissions": False}
+    assert spec["settings"] == {"acc_version": "2024", "acc_purpose": "claims", "emissions": False, "programs_replace": True}
     assert spec["outputs"]["uri"].endswith(f"runs/{run.id}/out/") and spec["outputs"]["format"] == "csv.zip"
     assert spec["context"] == {"platform_run_id": str(run.id), "organisation": "PGE", "input_hash": run.input_hash}
     e = AuditEvent.objects.get(action="calculation_run.queued")
@@ -211,8 +211,10 @@ def test_a_run_carries_the_registrys_programs_for_its_program_year(tmp_path, ana
     import csv
 
     plain = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
-    assert "programs" not in plain.inputs  # an empty registry: the engine keeps its own table
-    assert service.programs_label(plain).startswith("The engine's own copy")
+    # an empty registry is still the whole table: the engine never uses its own copy of CEDARS' Programs list (Jake, 2026-10-31)
+    assert storage.store("uploads").get_bytes(plain.inputs["programs"]["key"]).decode().count("\n") == 1
+    assert plain.spec["settings"]["programs_replace"] is True and plain.spec["inputs"]["programs"]
+    assert service.programs_label(plain) == "Program registry, program year 2028 (0 programs)"
     _registry_programs(cpuc_admin, pge)
     run = service.create_run(analyst, pge, request(release), job_zip(tmp_path, year=2028))
     table = storage.store("uploads").get_bytes(run.inputs["programs"]["key"])
@@ -242,12 +244,17 @@ def test_the_engine_reads_the_registrys_programs_over_its_own(tmp_path, analyst,
     path.write_bytes(storage.store("uploads").get_bytes(run.inputs["programs"]["key"]))
     table, notes = programs.load_programs(path)
     assert any("Sector" in n for n in notes) and not any("extra columns" in n for n in notes)
-    programs.set_user_programs(table)
+    programs.set_user_programs(table, replace=run.spec["settings"]["programs_replace"])
     try:
-        got = programs.lookup(["PGE_Res_HVAC"]).iloc[0]
+        got = programs.lookup(["PGE_Res_HVAC", "PGE_Ag_001"])  # PGE_Ag_001 is in the engine's shipped list, not the registry
     finally:
         programs.set_user_programs(None)
-    assert (got["Prg_ProgramName"], got["Prg_Exclude_From_CE"], got["Prg_PrimarySector"]) == ("Home Comfort", "True", "Residential")
+    assert (got.loc[0, "Prg_ProgramName"], got.loc[0, "Prg_Exclude_From_CE"], got.loc[0, "Prg_PrimarySector"]) == (
+        "Home Comfort",
+        "True",
+        "Residential",
+    )
+    assert got.loc[1, "Prg_MatchedOn"] == "(not found)"
 
 
 # --- the local worker

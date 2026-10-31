@@ -120,10 +120,11 @@ how far it is built. Update the Status column in the PR that changes it.
   `Ref::job_spec`) writes outputs, `progress.json` and `receipt.json` beside it. Runs of up to `CALCULATIONS_SMALL_RUN_RECORDS` (10,000)
   measures take the small-runs queue; `CALCULATIONS_MAX_RECORDS` (2,000,000) is refused before queueing. A run that allocates statewide
   programs carries its allocation version's whole factor table as an input, and the spec names its SHA-256. Every run also carries
-  the registry's programs (`registry.run_programs`, BR-13.1) as the engine's supplied-programs table (`inputs.programs`, ReCET's
-  `programs_file`): every program with its version for the job's earliest program year (its latest version when it has none that year), so
-  the Prg_ columns and Exclude_From_CE come from the registry, not the engine's shipped copy of CEDARS' Programs list. The engine merges
-  the table over its own by PrgID, so only a PrgID the registry does not hold still gets the shipped row. The job API
+  the registry's programs (`registry.run_programs`, BR-13.1) as the engine's whole program table (`inputs.programs`, ReCET's
+  `programs_file` with `programs_replace`, 0.1.82; Jake, 2026-10-31: the engine has no program set of its own in the platform): every
+  program with its version for the job's earliest program year (its latest version when it has none that year), so the Prg_ columns,
+  Exclude_From_CE and the PrgID checks come from the registry; a PrgID the registry does not hold is unknown to the run, and an empty
+  registry sends the header alone. ReCET releases before 0.1.82 refuse such a spec (unknown setting). The job API
   (`calculations/api.py`, `/api/v1/calculations`: engines, start, list, follow, stop, download) takes New run's fields as multipart form data and answers with the same run record the run page shows; a call
   sees its organisation's runs (calculations.read or .submit) and the caller's own. A call names an output template by id (`templates`
   lists those it sees), `default` for the caller's default, or gives `output_columns`; one that names none writes every column.
