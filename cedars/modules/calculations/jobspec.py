@@ -46,6 +46,10 @@ def build(run, uploads, results, *, packs: dict | None = None, pack_files: dict 
         spec["packs"] = {"files": pack_files}
     if packs:
         spec["context"]["packs"] = packs
+    if "programs" in run.inputs:
+        # the registry's programs are the engine's whole program table (ReCET's programs_replace, 0.1.82): its shipped copy of CEDARS'
+        # Programs list is never used
+        spec["settings"]["programs_replace"] = True
     if "sw_factors" in run.inputs:
         # the version's whole table and nothing else (no built-in row applies: ReCET's sw_factors_replace, PR #75), and the worker
         # refuses a run that would use another table

@@ -141,7 +141,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         .replace(b"0.4440,0.1550", b"0.4000,0.1550", 1)
     )
     dictionary.load_catalog(
-        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.80.json").read_text())
+        None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.82.json").read_text())
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
     from cedars.services.registry import goals

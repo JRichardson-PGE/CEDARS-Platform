@@ -14,7 +14,7 @@ from .conftest import sign_in
 from .test_calculations import analyst, job_zip, release, request, worker  # noqa: F401 - fixtures
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.80.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.82.json"
 
 
 @pytest.fixture
