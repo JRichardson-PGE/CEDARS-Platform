@@ -150,9 +150,10 @@ GOAL_METRICS = {
 
 SERIES = {"forecast": ("Forecast", "forecast"), "claims": ("Claimed", "claims")}
 TEXT_FILTERS = ("use_category", "program", "measure")
-FILTERS = ("pa", "sector", "segment", "implementer_type", "use_category", "program", "measure", "measure_type")
-# One level down from each view-by (spec "Drill"): PA > sector > program > measure.
+FILTERS = ("pa_type", "pa", "sector", "segment", "implementer_type", "use_category", "program", "measure", "measure_type")
+# One level down from each view-by (spec "Drill"): PA type > PA > sector > program > measure.
 DRILL = {
+    "pa_type": "pa",
     "pa": "sector",
     "sector": "program",
     "segment": "program",
@@ -383,21 +384,55 @@ def applied_filters(view: View) -> list[dict]:
 
 
 def filter_options() -> dict[str, list[str]]:
-    """The filter lists come from the registry, not the data, so each value appears once (spec "Filters")."""
-    from cedars.services.accounts.models import Organisation
-
+    """The filter lists come from the registry, not the data, so each value appears once (spec "Filters"). The PAs are pa_groups'."""
     versions = ProgramVersion.objects.all()
 
     def distinct(f):
         return sorted({v for v in versions.values_list(f, flat=True).distinct() if v})
 
     return {
-        "pa": list(Organisation.objects.filter(kind="pa").order_by("code").values_list("code", flat=True)),
         "sector": distinct("primary_sector"),
         "segment": distinct("segment"),
         "implementer_type": distinct("implementer"),
         "measure_type": ["Energy efficiency", "Fuel substitution"],
     }
+
+
+PA_GROUP_LABELS = {
+    "IOU": ("IOUs", "investor-owned utilities"),
+    "REN": ("RENs", "regional energy networks"),
+    "CCA": ("CCAs", "community choice aggregators"),
+}
+
+
+def pa_groups(selected: dict) -> list[dict]:
+    """The PA filter's choices grouped by PA type (Jake, 2026-10-31): each type's "all" choice (the pa_type filter) and its PAs (the pa
+    filter), then any PA with no type yet. `selected` is the query's filter map."""
+    from cedars.services.accounts.models import Organisation
+
+    picked = {v.upper() for v in selected.get("pa", ())}
+    picked_types = {v.upper() for v in selected.get("pa_type", ())}
+    orgs = list(Organisation.objects.filter(kind="pa").order_by("code"))
+    groups = []
+    for code in Organisation.PAType.values:
+        members = [o for o in orgs if o.pa_type == code]
+        if members:
+            label, description = PA_GROUP_LABELS[code]
+            groups.append(
+                {
+                    "type": code,
+                    "label": label,
+                    "description": description,
+                    "all": code in picked_types,
+                    "pas": [(o.code, o.code in picked) for o in members],
+                }
+            )
+    untyped = [o for o in orgs if o.pa_type not in Organisation.PAType.values]
+    if untyped:
+        groups.append(
+            {"type": "", "label": "No PA type", "description": "", "all": False, "pas": [(o.code, o.code in picked) for o in untyped]}
+        )
+    return groups
 
 
 def filings() -> list[tuple[str, str]]:

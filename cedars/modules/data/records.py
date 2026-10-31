@@ -57,7 +57,8 @@ KEY_COLUMNS = (
 )
 PRESETS = ("key", "all", "none")
 TEXT_FILTERS = ("program", "measure", "use_category")  # typed as comma-separated lists
-FORM_FILTERS = ("pa", "program", "measure", "sector", "segment", "implementer_type", "measure_type", "use_category")  # the page's form
+# The filters the page's form shows; any other filter rides along as a hidden field.
+FORM_FILTERS = ("pa_type", "pa", "program", "measure", "sector", "segment", "implementer_type", "measure_type", "use_category")
 DATASETS = {"claims": "Claimed", "forecast": "Forecast", "monthly": "Monthly reported"}
 FORMAT_LABELS = {"csv": "CSV", "xlsx": "Excel (XLSX)", "parquet": "Parquet"}
 XLSX_MAX_ROWS = 1_048_575  # a worksheet's rows, less the header

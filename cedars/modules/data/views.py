@@ -93,7 +93,7 @@ def dashboard_page(request, slug):
         goals = goal_view.compare(view, period)
         blocks.append({"kind": "goals", "comparison": goals, "chart": goal_view.chart(goals), "caption": _goal_caption(goals)})
     else:
-        sections = page.sections or (dashboard.Section(view.by, f"by {query.DIMENSIONS[view.by].label.lower()}"),)
+        sections = page.sections or (dashboard.Section(view.by, f"by {query.DIMENSIONS[view.by].in_sentence}"),)
         for sec in sections:
             caption = f"{metric.label}{unit} {sec.title}"
             if sec.columns:
@@ -149,7 +149,9 @@ def dashboard_page(request, slug):
                 "help": DASHBOARD_HELP.get(d, ""),
             }
             for d in dashboard.FILTERS
+            if d not in query.PA_SELECTION
         ],
+        "pa_groups": dashboard.pa_groups(selected),
     }
     return render(request, "data/dashboard.html", context)
 
@@ -210,7 +212,7 @@ def _records_context(request, page, number, error) -> dict:
         "datasets": list(records.DATASETS.items()),
         "filings": dashboard.filings(),
         "exclusions": [(code, e.label, code in q.exclude) for code, e in query.EXCLUSIONS.items()],
-        "pas": [(pa, pa in selected.get("pa", ())) for pa in options["pa"]],
+        "pa_groups": dashboard.pa_groups(selected),
         "text_filters": [
             {"code": d, "label": query.DIMENSIONS[d].label, "value": ",".join(selected.get(d, ())), "help": DASHBOARD_HELP[d]}
             for d in ("program", "measure")

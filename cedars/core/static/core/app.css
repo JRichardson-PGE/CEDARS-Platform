@@ -289,6 +289,9 @@ section.cycle { margin-bottom: .5rem; }
 .dash-filters { flex-basis: 100%; }
 .dash-filters summary { cursor: pointer; font-weight: 600; min-height: 24px; }
 .dash-filters fieldset { margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+/* The PA filter: one group per PA type, each on its own line, its "All" box first and in bold. */
+fieldset.pa-filter > fieldset { flex-basis: 100%; margin: .25rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
+fieldset.pa-filter label.pa-all { font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
