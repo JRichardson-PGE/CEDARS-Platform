@@ -31,6 +31,33 @@ HEADLINE = [
 ]
 
 
+def headline_totals(totals: dict, measures: int | None) -> list[dict]:
+    """The run page's tiles from the receipt's portfolio totals, labelled and formatted as the Results page shows them: the measure
+    count, then HEADLINE's columns the run has (whole dollars; ratios to two decimals)."""
+    out = [] if measures is None else [{"label": "Measures", "value": f"{int(measures):,}"}]
+    for key, label in HEADLINE:
+        if key in totals and totals[key] is not None:
+            out.append({"label": label, "value": format_total(key, totals[key])})
+    return out
+
+
+def format_total(key: str, value) -> str:
+    """A receipt total as text: ratios to two decimals, dollars and quantities to the whole number, blank for nothing."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if v != v:  # NaN
+        return "–"
+    return f"{v:,.2f}" if key.lower().endswith(("_ratio", "ratio", "rationoadmin")) else f"{v:,.0f}"
+
+
+def other_totals(totals: dict) -> list[tuple[str, str]]:
+    """Every other total of the receipt, formatted, for the run page's full list."""
+    shown = {k for k, _ in HEADLINE}
+    return [(k, format_total(k, v)) for k, v in totals.items() if k not in shown]
+
+
 class NoResults(Exception):
     """The run has no Results tables; the message says why."""
 

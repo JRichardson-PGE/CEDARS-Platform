@@ -157,6 +157,7 @@ def test_who_sees_a_run(tmp_path, make_user, analyst, pge, pge_admin, cpuc_admin
     assert set(service.visible_runs(analyst)) == {run, mine}
     assert set(service.visible_runs(colleague)) == {run}
     assert service.can_read(colleague, run) and not service.can_read(colleague, mine) and not service.can_read(other, run)
+    assert service.can_read(cpuc_admin, run) and service.can_read(cpuc_admin, mine)  # a system administrator follows Health's links
     # the run stays with PG&E when its owner leaves
     access.end_membership(pge_admin, analyst.memberships.get(), "left")
     assert set(service.visible_runs(analyst)) == {mine} and service.can_read(colleague, run)
@@ -513,6 +514,9 @@ def test_a_finished_runs_page_lists_its_files_and_serves_them(tmp_path, worker, 
     c = signed_in(analyst)
     html = c.get(f"/calculations/runs/{run.pk}/").content.decode()
     assert "measure_level_run.csv" in html and "Finished" in html and "TRCRatio" in html
+    assert "Portfolio totals" in html and ">1.50<" in html  # the receipt's totals, formatted
+    run.refresh_from_db()
+    assert all(len(f["sha256"]) == 64 for f in service.output_files(run))  # receipt.json's is computed; the receipt has the rest
     r = c.get(f"/calculations/runs/{run.pk}/files/measure_level_run.csv")
     assert r.status_code == 200 and b"".join(r.streaming_content) == b"CEInputID,TRCRatio\nM1,1.5\n"
     assert c.get(f"/calculations/runs/{run.pk}/files/../job.json").status_code == 404
@@ -622,6 +626,30 @@ def test_s3_needs_a_bucket_per_area(settings):
         storage.store("uploads")
     with pytest.raises(storage.StorageError, match="no storage area"):
         storage.store("elsewhere")
+
+
+def test_a_failed_runs_page_says_why_in_plain_words(tmp_path, worker, monkeypatch, signed_in, analyst, cpuc_admin, pge, release):
+    monkeypatch.setenv("FAKE_RECET_EXIT", "1")
+    run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
+    run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
+    html = signed_in(analyst).get(f"/calculations/runs/{run.pk}/").content.decode()
+    assert "no CEInputID column" in html and "What the engine said" not in html
+    assert "What the engine said" in signed_in(cpuc_admin).get(f"/calculations/runs/{run.pk}/").content.decode()
+
+
+def test_plain_error_keeps_paths_and_private_names_out():
+    text = (
+        "Traceback (most recent call last):\n  File x\nFileNotFoundError: /srv/data/cet_versions/manifest.csv is missing: export the "
+        "release's tables with SomeRepo poc/export_tables.py"
+    )
+    plain = service.plain_error(text)
+    assert plain.startswith("A reference file the calculation needs is missing on the worker (manifest.csv).")
+    assert "/srv" not in plain and "SomeRepo" not in plain
+    assert service.plain_error("ValueError: Measure.csv has no CEInputID column (/tmp/w/in/Measure.csv)") == (
+        "Measure.csv has no CEInputID column (Measure.csv)"
+    )
+    assert service.plain_error("recet worker: job refused: engine.release 9.9.9") == "recet worker: job refused: engine.release 9.9.9"
+    assert service.plain_error("") == ""
 
 
 def test_new_run_for_only_me_is_the_users_own(tmp_path, signed_in, analyst, release):

@@ -169,10 +169,10 @@ button.link:hover { text-decoration-thickness: 2px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1rem 1.15rem; margin: 1rem 0; }
 .card > h2:first-child, .card > h3:first-child { margin-top: 0; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0 1rem; }   /* side by side when they fit, else stacked (320 px) */
-dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .75rem; margin: .75rem 0 1.25rem; }
+dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; margin: .75rem 0 1.25rem; }
 dl.tiles .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .65rem .9rem; }
 dl.tiles dt { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-3); font-weight: 600; }
-dl.tiles dd { margin: 0; font-size: 1.35rem; font-weight: 600; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+dl.tiles dd { margin: 0; font-size: clamp(1.05rem, .6rem + 1vw, 1.35rem); font-weight: 600; white-space: nowrap; overflow-x: auto; font-variant-numeric: tabular-nums; }   /* a number never breaks mid-way; a very long one scrolls inside its tile */
 dl.facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.25rem; }
 dl.facts dt { font-weight: 600; color: var(--fg-2); }
 dl.facts dd { margin: 0; overflow-wrap: anywhere; min-width: 0; }

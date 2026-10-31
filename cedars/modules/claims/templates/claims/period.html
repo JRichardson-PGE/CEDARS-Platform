@@ -7,7 +7,7 @@
   {% if sysadmin %}<a class="button" href="{% url 'claims:setup' cy.year %}">How {{ cy.year }} claims are priced</a>{% endif %}
 </div>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
+  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
   <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
@@ -52,8 +52,8 @@
   <div class="hscroll" tabindex="0" role="region" aria-label="Findings by rule">
   <table class="list">
     <caption class="sr-only">Findings by rule, rejects first</caption>
-    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Records</th><th scope="col">For example</th></tr></thead>
-    <tbody>{% for r in s.by_rule %}<tr><th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejected{% else %}Warning{% endif %}</td><td class="num">{{ r.count|floatformat:"0g" }}</td><td>{{ r.example }}</td></tr>{% endfor %}</tbody>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">How many</th><th scope="col">For example</th></tr></thead>
+    <tbody>{% for r in s.by_rule %}<tr><th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejected{% else %}Warning{% endif %}</td><td class="num">{{ r.count|floatformat:"0g" }} {{ r.unit|default:"records" }}</td><td>{{ r.example }}</td></tr>{% endfor %}</tbody>
   </table>
   </div>
   <p><a href="{% url 'claims:findings_csv' v.pk %}">Download every finding (CSV)</a>: line, record, table, field, rule, severity, message and how to fix it.</p>
@@ -135,9 +135,9 @@ stay, marked withdrawn, and are no longer priced or counted. Personal informatio
 SiteID. Reading them needs the PII grant, which a data steward approves; every upload and download is recorded in the audit trail.</p>
 {% if pii %}
   {% if pii.status == "accepted" %}
-  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|date:"Y-m-d H:i" }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
+  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|date:"Y-m-d H:i T" }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
   {% else %}
-  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|date:"Y-m-d H:i" }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
+  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|date:"Y-m-d H:i T" }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
   <div class="hscroll" tabindex="0" role="region" aria-label="PII findings">
   <table class="list">
     <caption class="sr-only">PII findings: the record's key and field, never its value</caption>

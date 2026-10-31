@@ -10,7 +10,7 @@
     <li{% if not n.read_at %} class="unread"{% endif %}>
       <p><strong>{% if not n.read_at %}<span class="status">New</span> {% endif %}{% if n.link %}<a href="{{ n.link }}">{{ n.title }}</a>{% else %}{{ n.title }}{% endif %}</strong></p>
       {% if n.body %}<p>{{ n.body|linebreaksbr }}</p>{% endif %}
-      <p class="small muted">{{ n.created_at|date:"Y-m-d H:i" }}{% if n.emailed_at %} · emailed{% elif n.email_error %} · the email could not be sent{% endif %}</p>
+      <p class="small muted">{{ n.created_at|date:"Y-m-d H:i T" }}{% if n.emailed_at %} · emailed{% elif n.email_error %} · the email could not be sent{% endif %}</p>
     </li>
   {% endfor %}
   </ul>

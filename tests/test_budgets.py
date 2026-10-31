@@ -386,6 +386,7 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
     # the ProgramCost table has every column (its key rule "PrgID + PrgYear" names two of them), so its rules ran
     assert not [n for n in v.findings["notes"] if "ProgramCost rules were not run" in n]
     assert [f for f in found if f["table"] == "ProgramCost" and f["rule_id"] != "BUD-COL"]
+    assert [r for r in v.findings["by_rule"] if r["rule_id"] == "BUD-COL"][0]["unit"] == "columns"  # columns, not records (F24)
     tables = {}
     for table, rows in (("ProgramCost", job_rows(COSTS)), ("Measure", job_rows(MEASURE))):
         spec = rules.spec_columns(rs, table)  # the key rule "PrgID + PrgYear" names two columns, not one

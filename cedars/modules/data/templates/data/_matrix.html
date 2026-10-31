@@ -5,7 +5,7 @@
   <thead><tr><th scope="col">{{ by_label }}</th>{% for col in m.columns %}<th scope="col" class="num">{{ col|default_if_none:"(blank)" }}</th>{% endfor %}<th scope="col" class="num">Total</th></tr></thead>
   <tbody>
   {% for r in m.rows %}
-  <tr><th scope="row">{{ r.key|default_if_none:"(blank)" }}</th>
+  <tr><th scope="row">{{ r.key|code_label|default_if_none:"(blank)" }}</th>
     {% for cell in r.cells %}<td class="num">{{ cell.share|percent }}<br><span class="small muted">{{ cell.value|metric_value:metric }}</span></td>{% endfor %}
     <td class="num">{{ r.total|metric_value:metric }}</td></tr>
   {% empty %}<tr><td colspan="2">Nothing matches these filters.</td></tr>

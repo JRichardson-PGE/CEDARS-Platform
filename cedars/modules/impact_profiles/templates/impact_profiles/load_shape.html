@@ -28,7 +28,7 @@
   <tbody>
   {% for v in versions %}
   <tr><th scope="row">{{ v.number }}</th><td><a href="{% url 'impact_profiles:upload' v.upload.pk %}">{{ v.upload.file_name }}</a></td><td>{{ v.upload.uploaded_by.email }}</td>
-    <td class="nowrap">{{ v.created_at|date:"Y-m-d H:i" }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td></tr>
+    <td class="nowrap">{{ v.created_at|date:"Y-m-d H:i T" }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>

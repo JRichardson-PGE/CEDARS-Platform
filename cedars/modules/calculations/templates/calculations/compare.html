@@ -4,8 +4,8 @@
 <p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:run' a.pk %}">{{ a.name }}</a></p>
 <h1>Compare two runs</h1>
 <dl class="facts">
-  <dt>A</dt><dd><a href="{% url 'calculations:results' a.pk %}">{{ a.name }}</a> <span class="small muted">{{ calc_a|default:a.calculation }}, ReCET {{ a.engine_release }}, {{ a.acc_version }} ACC, {{ a.created_at|date:"Y-m-d H:i" }}</span></dd>
-  {% if b %}<dt>B</dt><dd><a href="{% url 'calculations:results' b.pk %}">{{ b.name }}</a> <span class="small muted">{{ calc_b }}, ReCET {{ b.engine_release }}, {{ b.acc_version }} ACC, {{ b.created_at|date:"Y-m-d H:i" }}</span></dd>{% endif %}
+  <dt>A</dt><dd><a href="{% url 'calculations:results' a.pk %}">{{ a.name }}</a> <span class="small muted">{{ calc_a|default:a.calculation }}, ReCET {{ a.engine_release }}, {{ a.acc_version }} ACC, {{ a.created_at|date:"Y-m-d H:i T" }}</span></dd>
+  {% if b %}<dt>B</dt><dd><a href="{% url 'calculations:results' b.pk %}">{{ b.name }}</a> <span class="small muted">{{ calc_b }}, ReCET {{ b.engine_release }}, {{ b.acc_version }} ACC, {{ b.created_at|date:"Y-m-d H:i T" }}</span></dd>{% endif %}
 </dl>
 
 <form method="get" class="filters" aria-label="What to compare">
@@ -13,7 +13,7 @@
   {% if keys %}<input type="hidden" name="columns" value="{{ keys|join:',' }}">{% endif %}
   <label>Run B <select name="with">
     {% if not b %}<option value="">Choose a finished run</option>{% endif %}
-    {% for c in candidates %}<option value="{{ c.pk }}"{% if b and c.pk == b.pk %} selected{% endif %}>{{ c.name }} · {{ c.acc_version }} ACC · {{ c.created_at|date:"Y-m-d H:i" }}</option>{% endfor %}
+    {% for c in candidates %}<option value="{{ c.pk }}"{% if b and c.pk == b.pk %} selected{% endif %}>{{ c.name }} · {{ c.acc_version }} ACC · {{ c.created_at|date:"Y-m-d H:i T" }}</option>{% endfor %}
   </select></label>
   {% if all_years|length > 1 %}
   <fieldset aria-describedby="years-help">

@@ -414,7 +414,10 @@ def _summary(problems: list, records: int, notes: list[str], rule_set: str, key:
         "rule_set": rule_set,
         "findings_key": key,
         "findings": len(problems),
-        "by_rule": [{"rule_id": k, "count": c, "severity": s, "example": m} for k, (c, s, m) in top[:20]],
+        "by_rule": [
+            {"rule_id": k, "count": c, "severity": s, "example": m, "unit": "columns" if k.endswith("-COL") else "records"}
+            for k, (c, s, m) in top[:20]
+        ],
     }
 
 

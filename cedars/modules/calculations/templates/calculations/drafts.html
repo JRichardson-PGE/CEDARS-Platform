@@ -15,7 +15,7 @@ offline). Each cell is checked by the engine's own input rules as you save, and 
   <tbody>
   {% for d, mine in drafts %}
   <tr><th scope="row"><a href="{% url 'calculations:draft' d.pk %}">{{ d.name }}</a></th><td>{{ d.organisation.code|default:"Only you" }}</td>
-    <td>{{ d.measure_count }}</td><td class="small">{{ d.source }}</td><td class="nowrap">{{ d.updated_at|date:"Y-m-d H:i" }}</td></tr>
+    <td>{{ d.measure_count }}</td><td class="small">{{ d.source }}</td><td class="nowrap">{{ d.updated_at|date:"Y-m-d H:i T" }}</td></tr>
   {% empty %}<tr><td colspan="5">No drafts yet.</td></tr>
   {% endfor %}
   </tbody>

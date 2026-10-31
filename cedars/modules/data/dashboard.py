@@ -9,6 +9,8 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from urllib.parse import urlencode
 
+from django.utils import timezone
+
 from cedars.services.registry.models import FilingCycle, ProgramVersion
 from cedars.services.snapshots import service as snapshots
 
@@ -184,6 +186,20 @@ def current_cycle(today: date | None = None) -> FilingCycle | None:
     return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()
 
 
+def default_cycle(today: date | None = None) -> FilingCycle | None:
+    """The years a page opens on (BR-07.7): the current cycle, unless the forecast release holds no filing for it, when it is the newest
+    cycle the forecast release does hold (a demo or a new cycle's first months would otherwise open on years with no forecast)."""
+    cycle = current_cycle(today) if today else current_cycle()
+    release = snapshots.current_release("forecast")
+    if release is None:
+        return cycle
+    filed = {f["cycle"] for f in snapshots.release_files(release) if f["cycle"]}
+    if not filed or (cycle is not None and str(cycle) in filed):
+        return cycle
+    first_years = [int(c.split("-")[0]) for c in filed if c.split("-")[0].isdigit()]
+    return FilingCycle.objects.filter(first_year__in=first_years).order_by("-first_year").first() or cycle
+
+
 @dataclass
 class View:
     page: Page
@@ -230,7 +246,7 @@ def parse(page: Page, params) -> View:
     if choice not in page.metrics:
         raise dq.QueryError(f"this page does not show {choice!r}")
     qparams = dict(raw) | {"metric": [GOAL_METRICS[choice].metric if page.kind == "goals" else choice], "by": [by]}
-    if "year_from" not in raw and "year_to" not in raw and (cycle := current_cycle()):
+    if "year_from" not in raw and "year_to" not in raw and (cycle := default_cycle()):
         qparams |= {"year_from": [str(cycle.first_year)], "year_to": [str(cycle.last_year)]}
     q = dq.from_params(qparams, dataset="claims", exclude=page.exclude)
     return View(page, series, q, choice, raw)
@@ -245,6 +261,7 @@ class Row:
     values: dict  # series -> metric value
     drill: str = ""  # the link one level down, or "" at the bottom
     links: list = field(default_factory=list)  # (text, href): the program page, each series' records
+    shared: dict | None = None  # series -> value over the years both series cover, when those are not all the years
 
     def value(self, series):
         return self.values.get(series)
@@ -256,7 +273,10 @@ class Row:
 
     @property
     def percent(self):
-        c, f = self.values.get("claims"), self.values.get("forecast")
+        """Claims as a share of the forecast, over the years that have both (a claim year with no forecast, or a forecast year with no
+        claims yet, would otherwise be compared with nothing)."""
+        values = self.shared if self.shared is not None else self.values
+        c, f = values.get("claims"), values.get("forecast")
         return None if c is None or not f else 100 * c / f
 
 
@@ -267,10 +287,23 @@ class Comparison:
     rows: list[Row]
     totals: Row
     by: str = ""
+    shared_years: list[int] | None = None  # the years both series cover, when they differ from the years shown
+    series_years: dict = field(default_factory=dict)  # series -> its years with data
 
     @property
     def both(self) -> bool:
         return len(self.results) == 2
+
+    @property
+    def percent_note(self) -> str:
+        """What "% of forecast" compares, when the two series do not cover the same years."""
+        if not self.both or self.shared_years is None:
+            return ""
+        span = _span(self.series_years.get("claims", []))
+        fspan = _span(self.series_years.get("forecast", []))
+        if not self.shared_years:
+            return f"% of forecast is blank: no year has both claims ({span}) and a forecast ({fspan})."
+        return f"% of forecast compares the years both series cover, {_span(self.shared_years)} (claims {span}, forecast {fspan})."
 
     @property
     def notes(self) -> list[str]:
@@ -283,7 +316,7 @@ class Comparison:
 
     def series_label(self, s: str) -> str:
         as_of = self.results[s].as_of
-        return f"{SERIES[s][0]} (as of {as_of:%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
+        return f"{SERIES[s][0]} (as of {timezone.localtime(as_of):%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
 
     def downloads(self) -> list[dict]:
         """One download per series, each the series' own query (BR-07.2)."""
@@ -328,7 +361,50 @@ def compare(view: View, by: str | None = None, drill: tuple[str, str] = ("", "")
     else:
         rows = sorted(keyed.values(), key=lambda r: (r.values.get(first) is None, -(r.values.get(first) or 0), str(r.key)))
     totals = Row("Total", {s: r.totals.get(code) for s, r in results.items()})
-    return Comparison(view, results, rows, totals, by)
+    comparison = Comparison(view, results, rows, totals, by)
+    if len(results) == 2 and by != "year" and view.metric.adds_up:
+        _share_years(view, by, comparison)
+    return comparison
+
+
+def code_label(value):
+    """A registry code shown as words: "codes_and_standards" -> "Codes and standards"; anything else as it is."""
+    if isinstance(value, str) and "_" in value and value == value.lower():
+        return value.replace("_", " ").capitalize()
+    return value
+
+
+def _span(years) -> str:
+    years = sorted(y for y in years if y is not None)
+    if not years:
+        return "no years"
+    return str(years[0]) if years[0] == years[-1] else f"{years[0]}-{years[-1]}"
+
+
+def _share_years(view: View, by: str, comparison: Comparison) -> None:
+    """Restrict "% of forecast" to the years both series have data for: each series again by (row, year), the rows' and total's
+    values over the shared years only. Nothing changes when the series cover the same years."""
+    code = view.metric.code
+    metric = catalog.get(code)
+    by_year = {s: dq.run(replace(view.for_series(s), by=(by, "year"))) for s in comparison.results}
+    years = {s: {r["year"] for r in res.rows} for s, res in by_year.items()}
+    comparison.series_years = {s: sorted(y for y in ys if y is not None) for s, ys in years.items()}
+    shared = years["claims"] & years["forecast"]
+    if shared == years["claims"] | years["forecast"]:
+        return
+    comparison.shared_years = sorted(y for y in shared if y is not None)
+    per_row: dict[object, dict] = {}
+    total: dict[str, dict] = {}
+    for s, res in by_year.items():
+        for r in res.rows:
+            if r["year"] not in shared:
+                continue
+            for sums in (per_row.setdefault(r[by], {}).setdefault(s, {}), total.setdefault(s, {})):
+                for k, v in r["_sums"].items():
+                    sums[k] = sums.get(k, 0) + v
+    for row in comparison.rows:
+        row.shared = {s: (metric.value(per_row.get(row.key, {}).get(s)) if per_row.get(row.key, {}).get(s) else None) for s in by_year}
+    comparison.totals.shared = {s: (metric.value(total[s]) if total.get(s) else None) for s in by_year}
 
 
 @dataclass
@@ -480,7 +556,7 @@ def chart(comparison: Comparison, limit: int = 0) -> dict:
                 continue
             x = 100 * (min(v, 0) - low) / span
             bars.append({"series": s, "x": round(x, 3), "w": round(100 * abs(v) / span, 3), "y": 14 * i, "missing": False})
-        groups.append({"label": r.key, "bars": bars})
+        groups.append({"label": code_label(r.key), "bars": bars})
     return {
         "series": [{"code": s, "label": SERIES[s][0]} for s in series],
         "groups": groups,
