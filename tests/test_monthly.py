@@ -426,3 +426,22 @@ def test_a_monthly_report_in_several_files(client, filer, year, pge, programs):
     assert v.status == "validated", v.findings
     assert v.files[0]["uploaded_as"] == "combined upload (4 files).zip" and len(v.files[0]["sources"]) == 4
     assert v.files[1]["measures"] == 2
+
+
+def test_a_pricing_run_that_ends_without_pricing_lets_the_report_be_priced_again(client, filer, year, pge, programs, release):  # noqa: F811
+    from cedars.modules.calculations import service as calculations
+
+    v = service.upload(filer, month(1), pge, report(), "january.zip")
+    run = Run.objects.get(pk=service.price(filer, v))
+    sign_in(client, filer)
+    url = reverse("monthly:report", args=[month(1).pk])
+    html = client.get(url).content.decode()
+    assert "the run's page" in html and "Price the estimates" not in html
+    calculations.finish(
+        run, exit_code=2, error="recet worker: job refused: engine.release 0.1.80 was asked for; this worker is recet 0.1.83"
+    )
+    html = client.get(url).content.decode()
+    assert "refused by the engine" in html and "this worker is recet 0.1.83" in html and "Price the estimates" in html
+    assert submissions.pricing_run(v)["ended"] and not service.priced(v)
+    again = Run.objects.get(pk=service.price(filer, v))
+    assert again.pk != run.pk and not submissions.pricing_run(v)["ended"]

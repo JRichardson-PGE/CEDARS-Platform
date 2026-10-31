@@ -183,3 +183,24 @@ class OutputTemplateDefault(models.Model):
 
     def __str__(self):
         return f"{self.user}: {self.template}"
+
+
+class Worker(models.Model):
+    """A local worker process (`manage.py calculations_worker`) and the ReCET release it runs, refreshed each time it polls the queue,
+    so the platform knows which releases have a worker now: New run says when a release has none, a worker takes only its own
+    release's runs, and the health page fails when a release with queued runs (or the default) has no worker polling."""
+
+    name = models.CharField(max_length=200, unique=True, help_text="host:pid")
+    release = models.CharField(
+        max_length=40, blank=True, help_text="The ReCET release the worker command runs; blank when it could not say"
+    )
+    lanes = models.JSONField(default=list, help_text="The queues it serves")
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(db_index=True)
+    runs_priced = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-last_seen_at"]
+
+    def __str__(self):
+        return f"{self.name} (ReCET {self.release or 'unknown release'})"

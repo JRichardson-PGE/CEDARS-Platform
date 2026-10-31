@@ -43,6 +43,7 @@ def test_every_module_registers_its_checks():
     assert {
         "calculations.stalled",
         "calculations.failed",
+        "calculations.workers",
         "impact_profiles.stalled",
         "impact_profiles.failed",
         "impact_profiles.etrm",
@@ -67,6 +68,23 @@ def test_failed_runs_need_attention(cpuc_admin):
     old_run(cpuc_admin, 5, Run.Status.FAILED, error="worker exited 137\nkilled", finished_at=timezone.now())
     r = by_code()["calculations.failed"]
     assert r.status == health.ATTENTION and r.items[0].detail == "worker exited 137"
+
+
+def test_a_release_with_queued_runs_and_no_worker_fails_the_check(cpuc_admin, settings):
+    from cedars.modules.calculations import dispatch
+
+    assert by_code()["calculations.workers"].status == health.ATTENTION  # nothing queued, no default release, no worker
+    old_run(cpuc_admin, 1)  # queued on 0.1.80, local backend
+    r = by_code()["calculations.workers"]
+    assert r.status == health.FAILING and [i.label for i in r.items] == ["ReCET 0.1.80"] and "1 run queued" in r.items[0].detail
+    dispatch.heartbeat("host:1", "0.1.80")
+    r = by_code()["calculations.workers"]
+    assert r.status == health.OK and "ReCET 0.1.80" in r.summary
+    dispatch.heartbeat("host:1", "0.1.80")
+    settings.HEALTH = {**settings.HEALTH, "worker_seen": 0}  # a worker not seen within the limit no longer counts
+    assert by_code()["calculations.workers"].status == health.FAILING
+    settings.CALCULATIONS_BACKEND = "batch"
+    assert by_code()["calculations.workers"].status == health.OK
 
 
 def test_profile_jobs_waiting_too_long_fail_the_check():

@@ -276,6 +276,7 @@ HEALTH = {
     "job_running": int(env("HEALTH_PROFILE_JOB_MINUTES", "240")),  # an Impact profiles job still running (library writes are long)
     "etrm": int(env("HEALTH_ETRM_MINUTES", str(36 * 60))),  # since the last successful eTRM sync (it runs nightly)
     "failures": int(env("HEALTH_FAILURES_MINUTES", str(24 * 60))),  # failed runs, jobs and emails listed this far back
+    "worker_seen": int(env("HEALTH_WORKER_SEEN_MINUTES", "10")),  # a local calculations worker counts as running if it polled this recently
 }
 
 # Documents & EM&V module: the largest file a document version may carry (the PDA's largest main files are tens of MB)

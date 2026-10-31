@@ -360,7 +360,7 @@ def _rule_findings(tables: dict[str, bytes], cycle) -> tuple[list, list[str], st
     for table, year_col, id_col in (("ProgramCost", "PrgYear", "PrgID"), ("Measure", "ClaimYearQuarter", "CEInputID")):
         df = frames[table]
         have = {c.lower() for c in df.columns}
-        spec = sorted(set(rs.rules.filter(table=table, kind="spec").values_list("field", flat=True)))
+        spec = rules.spec_columns(rs, table)
         missing = [c for c in spec if c.lower() not in have and _recet_name(c).lower() not in have]
         if missing:  # CEDARS rejects a file without its spec's columns; the rules are run once they are there
             out += [
