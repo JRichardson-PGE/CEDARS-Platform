@@ -670,7 +670,8 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     draft = service.upload_claims(filer, d2, pge, claims_zip(claim("SCE-2028-1")), "bad.zip")
     sign_in(client, filer)
     r = client.get(reverse("claims:index"))
-    assert r.status_code == 200 and b"2028 claims" in r.content and b"Version 1: published" in r.content
+    assert r.status_code == 200 and b"2028 claims" in r.content
+    assert b">Published</span>" in r.content and b"version 1" in r.content  # the status badge and the version beside it
     r = client.get(reverse("claims:period", args=[deadline().pk]))
     assert b"Year-to-date results" in r.content and b"Records by table" in r.content
     r = client.get(reverse("claims:period", args=[d2.pk]))
