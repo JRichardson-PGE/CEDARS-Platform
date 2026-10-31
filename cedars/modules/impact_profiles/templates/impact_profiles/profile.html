@@ -48,9 +48,29 @@
 </table>
 </div>
 
-{% if aliases %}
-<h2>Profile IDs that use this profile</h2>
-<ul>{% for m in aliases %}<li>{{ m.alias_key }} / {{ m.target_sector }} ({{ m.package.measure_version_id }}): {{ m.reason }}</li>{% endfor %}</ul>
+<h2 id="names-h">Names of this profile</h2>
+{% if names.profiles or names.mappings %}
+<p>Its current 8,760s are identical, in every climate zone and on the same calendar, to those of the profiles below, so they are one profile under
+several names: the library stores the 8,760s once and every name prices on them. Each name keeps its own versions; replacing one does not change the others.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="names-h">
+<table class="list">
+  <caption class="sr-only">Every name this profile is filed under, this one first</caption>
+  <thead><tr><th scope="col">Profile ID</th><th scope="col">Target sector</th><th scope="col">IOU territory</th><th scope="col">How</th></tr></thead>
+  <tbody>
+  <tr><th scope="row">{{ p.profile_key }}</th><td>{{ p.target_sector }}</td><td>{{ p.iou_ac_territory|default:"Every territory" }}</td><td>This page</td></tr>
+  {% for o in names.profiles %}
+  <tr><th scope="row"><a href="{% url 'impact_profiles:profile' o.pk %}">{{ o.profile_key }}</a></th><td>{{ o.target_sector }}</td>
+    <td>{{ o.iou_ac_territory|default:"Every territory" }}</td><td>Identical 8,760s ({{ o.get_family_display }}{% if o.owner %}, {{ o.owner.code }}{% endif %})</td></tr>
+  {% endfor %}
+  {% for m in names.mappings %}
+  <tr><th scope="row">{{ m.alias_key }}</th><td>{{ m.target_sector }}</td><td>{{ m.target.iou_ac_territory|default:"Every territory" }}</td>
+    <td>Mapped to {{ m.target.profile_key }} by {{ m.package.measure_version_id }}: {{ m.reason }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>This profile has only this name: no other profile in use has identical 8,760s.</p>
 {% endif %}
 
 {% if can_replace %}

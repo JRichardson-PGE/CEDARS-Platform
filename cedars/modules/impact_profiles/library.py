@@ -1,17 +1,20 @@
 """The profile library in the engine's format, and importing legacy CEDARS' library into the catalog.
 
 Export: every profile that is not retired, at its current version, written as ReCET reads its reference folder's impact_profiles/
-(recet.pipeline.real_impact_profiles): catalog.parquet (one row per key: id, end_use_name, iou_ac_territory, target_sector,
-year_represented ...) and hourly.parquet (impact_profile_id, climate_zone, hour_of_year 1-8760, impact), one row group per profile,
-which the engine indexes from the file's metadata. A profile with no territory gets a catalog row for each of
-settings.IMPACT_PROFILE_TERRITORIES (CEDARS stores the deemed shapes once per IOU territory); the shapes are written once. An open
-mapping row adds a catalog row with the alias ID and the target's id, so both IDs price on the same shapes. Each export is numbered,
+(recet.pipeline.real_impact_profiles, ReCET 0.1.87's consolidated form): catalog.parquet (one row per name: id, end_use_name,
+iou_ac_territory, target_sector, year_represented ..., and shape_id) and hourly.parquet (impact_profile_id, climate_zone, hour_of_year
+1-8760, impact), one row group per STORED profile, which the engine indexes from the file's metadata; each catalog row's shape_id names
+the row group its 8,760s are in. Profiles whose current versions are identical (identical.py: every zone's 8,760 and the calendar,
+BR-06.18) are stored once, under the first one's id, and each keeps its own catalog rows. A profile with no territory gets a catalog row
+for each of settings.IMPACT_PROFILE_TERRITORIES (CEDARS stores the deemed shapes once per IOU territory). An open mapping row adds a
+catalog row with the alias ID and the target's id and shape_id, so both IDs price on the same shapes. Each export is numbered,
 kept, hashed and registered as a draft impact_profiles pack in the reference-data service (usable for analysis runs at once,
 for filings once published there), so a run pins the one it used.
 
-Import: legacy CEDARS' library (the scraped catalog.parquet and hourly.parquet ReCET uses today) into the catalog, as DEER, TOU and
-"imported from CEDARS" profiles, so the platform holds the whole library and the engine's file can be produced here. A zone that is
-not exactly 8,760 distinct hours is left out and reported, never repaired (the re-scrape fixed the duplicate hours at the source).
+Import: legacy CEDARS' library (the scraped catalog.parquet and hourly.parquet ReCET uses today, consolidated or not) into the catalog,
+as DEER, TOU and "imported from CEDARS" profiles, one per catalog row (identical ones share their shapes and are grouped as above), so
+the platform holds the whole library and the engine's file can be produced here. A zone that is not exactly 8,760 distinct hours is
+left out and reported, never repaired (the re-scrape fixed the duplicate hours at the source).
 """
 
 import hashlib
@@ -35,7 +38,7 @@ from cedars.services import audit
 from cedars.services.accounts.models import Organisation
 from cedars.services.refdata import service as refdata
 
-from . import access, shapes
+from . import access, identical, shapes
 from .models import HOURS, ImpactProfile, LibraryExport, ProfileMapping, ProfileVersion, ProfileZone
 
 HOURLY_SCHEMA = pa.schema(
@@ -78,6 +81,7 @@ def export(actor=None) -> LibraryExport:
         cat_path, hourly_path = os.path.join(tmp, "catalog.parquet"), os.path.join(tmp, "hourly.parquet")
         rows, families, profiles, zone_shapes = [], Counter(), 0, 0
         written: dict[int, dict] = {}
+        stored: dict[str, int] = {}  # identical.content_key -> the stored profile's id (the first profile with it)
         with pq.ParquetWriter(hourly_path, HOURLY_SCHEMA, compression="zstd") as w:
             for p in current_profiles().iterator(chunk_size=500):
                 version = p.current_versions[0] if p.current_versions else None
@@ -86,22 +90,28 @@ def export(actor=None) -> LibraryExport:
                 zones = sorted(version.zones.all(), key=lambda z: _zone_order(z.climate_zone))
                 if not zones:
                     continue
-                arrays = [shapes.load(z.shape) for z in zones]
-                n = len(zones)
-                table = pa.table(
-                    {
-                        "impact_profile_id": pa.array(np.full(n * HOURS, p.pk, dtype=np.int32)),
-                        "climate_zone": pa.array(np.repeat([z.climate_zone for z in zones], HOURS)),
-                        "hour_of_year": pa.array(np.tile(HOUR_INDEX, n)),
-                        "impact": pa.array(np.concatenate(arrays)),
-                    },
-                    schema=HOURLY_SCHEMA,
-                )
-                w.write_table(table, row_group_size=len(table))  # one row group per profile: the engine indexes them from metadata
+                key = identical.content_key(version.represents_year, {z.climate_zone: z.shape.sha256 for z in zones})
+                shape_id = stored.get(key)
+                if shape_id is None:  # the first name of this profile: its 8,760s are written once, under its id
+                    shape_id = stored[key] = p.pk
+                    arrays = [shapes.load(z.shape) for z in zones]
+                    n = len(zones)
+                    table = pa.table(
+                        {
+                            "impact_profile_id": pa.array(np.full(n * HOURS, p.pk, dtype=np.int32)),
+                            "climate_zone": pa.array(np.repeat([z.climate_zone for z in zones], HOURS)),
+                            "hour_of_year": pa.array(np.tile(HOUR_INDEX, n)),
+                            "impact": pa.array(np.concatenate(arrays)),
+                        },
+                        schema=HOURLY_SCHEMA,
+                    )
+                    w.write_table(
+                        table, row_group_size=len(table)
+                    )  # one row group per stored profile: the engine indexes them from metadata
+                    zone_shapes += n
                 profiles += 1
-                zone_shapes += n
                 families[p.family] += 1
-                base = _catalog_row(p, version, [z.climate_zone for z in zones])
+                base = _catalog_row(p, version, [z.climate_zone for z in zones], shape_id)
                 written[p.pk] = base
                 territories = [p.iou_ac_territory] if p.iou_ac_territory else list(settings.IMPACT_PROFILE_TERRITORIES)
                 rows += [dict(base, iou_ac_territory=t, pa=t) for t in territories]
@@ -130,7 +140,8 @@ def export(actor=None) -> LibraryExport:
                 manifest=manifest,
                 storage_uri=folder,
                 source=f"Impact profiles module, library export {number}",
-                notes=f"{profiles} profiles, {len(rows)} catalog rows: " + ", ".join(f"{n} {k}" for k, n in sorted(families.items())),
+                notes=f"{profiles} profiles ({len(stored)} stored: identical ones once), {len(rows)} catalog rows: "
+                + ", ".join(f"{n} {k}" for k, n in sorted(families.items())),
             )
             export = LibraryExport.objects.create(
                 number=number,
@@ -141,6 +152,7 @@ def export(actor=None) -> LibraryExport:
                 hourly_sha256=manifest["hourly.parquet"]["sha256"],
                 catalog_rows=len(rows),
                 profiles=profiles,
+                stored_profiles=len(stored),
                 zone_shapes=zone_shapes,
                 families=dict(families),
                 pack=pack,
@@ -151,6 +163,7 @@ def export(actor=None) -> LibraryExport:
                 after={
                     "number": number,
                     "profiles": profiles,
+                    "stored_profiles": len(stored),
                     "catalog_rows": len(rows),
                     "catalog_sha256": export.catalog_sha256,
                     "hourly_sha256": export.hourly_sha256,
@@ -179,11 +192,12 @@ def _catalog_schema() -> pa.Schema:
             ("profile_version", pa.int32()),
             ("owner", pa.string()),
             ("mapping", pa.int64()),
+            ("shape_id", pa.int64()),
         ]
     )
 
 
-def _catalog_row(p: ImpactProfile, version: ProfileVersion, zones: list[str]) -> dict:
+def _catalog_row(p: ImpactProfile, version: ProfileVersion, zones: list[str], shape_id: int) -> dict:
     src = version.source or {}
     start = src.get("start_year")
     if start is None and p.package and p.package.start_date:
@@ -205,6 +219,7 @@ def _catalog_row(p: ImpactProfile, version: ProfileVersion, zones: list[str]) ->
         "profile_version": version.number,
         "owner": p.owner.code if p.owner else "",
         "mapping": None,
+        "shape_id": shape_id,
     }
 
 
@@ -245,7 +260,8 @@ def import_library(catalog_path: str | Path, hourly_path: str | Path, *, limit: 
     for row in catalog:
         if limit is not None and done >= limit:
             break
-        gi = groups.get(int(row["id"]))
+        stored_id = row.get("shape_id")  # a consolidated library (ReCET 0.1.87) stores identical profiles once
+        gi = groups.get(int(row["id"] if stored_id is None or stored_id != stored_id else stored_id))
         if gi is None:
             counts["no hourly data"] += 1
             continue
@@ -320,4 +336,5 @@ def _import_one(row: dict, zones: dict, orgs: dict, file_label: str) -> str:
         },
     )
     ProfileZone.objects.bulk_create(ProfileZone(version=version, climate_zone=z, shape=s) for z, s in stored.items())
+    identical.stamp(version)
     return "imported" if current is None else "new version"
