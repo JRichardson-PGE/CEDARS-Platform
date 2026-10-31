@@ -1,5 +1,6 @@
 from django import forms
 
+from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion
 
 from . import output_templates, service
@@ -33,6 +34,13 @@ class NewRunForm(forms.Form):
         required=False,
         queryset=AllocationVersion.objects.filter(status=AllocationVersion.Status.CONFIRMED),
         empty_label="The most recent for the job's program year",
+    )
+    cost_test_set = forms.ModelChoiceField(
+        label="Cost-test set",
+        required=False,
+        queryset=PackVersion.objects.filter(kind=PackVersion.Kind.COST_TESTS).exclude(status=PackVersion.Status.WITHDRAWN),
+        empty_label="The set in force for the job's first program year",
+        help_text="The cost tests it is priced on (ReCET's own calculation). A draft set is for analysis runs only",
     )
     filing_validation = forms.ChoiceField(label="CEDARS filing checks", required=False, choices=list(service.FILING_CHECKS.items()))
     filing_year = forms.IntegerField(label="Filing year (optional)", required=False, min_value=2000, max_value=2100)
@@ -101,6 +109,7 @@ class NewRunForm(forms.Form):
             settings=st,
             allocation_version=d.get("allocation_version"),
             cet_outputs=d.get("cet_outputs"),
+            cost_test_set=d.get("cost_test_set"),
         )
 
 

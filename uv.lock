@@ -65,6 +65,7 @@ dependencies = [
     { name = "psycopg", extra = ["binary"] },
     { name = "pyarrow" },
     { name = "pypdf" },
+    { name = "pyyaml" },
     { name = "whitenoise" },
 ]
 
@@ -93,6 +94,7 @@ requires-dist = [
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyarrow", specifier = ">=18" },
     { name = "pypdf", specifier = ">=5.1" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "whitenoise", specifier = ">=6.8" },
 ]
 
