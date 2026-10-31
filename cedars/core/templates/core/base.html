@@ -15,7 +15,7 @@
   {% if environment == "sandbox" %}<span class="env-banner">Sandbox: test data only. Nothing here is filed with the CPUC.</span>{% endif %}</p>
 <div class="top">
   <a class="brand" href="{% url 'core:home' %}">{# The mark is a cedar: three flat, drooping tiers of boughs on one trunk. Decorative (the link is named by its text), so hidden from assistive technology. #}<svg class="logo" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true" focusable="false"><rect class="logo-bg" width="28" height="28" rx="6"/><g class="logo-tree"><path d="M13.2 6h1.6l.35 18.5h-2.3z"/><path d="M14 3.2c.9 1.3 1.5 2.5 1.7 3.6-1.1.3-2.3.3-3.4 0 .2-1.1.8-2.3 1.7-3.6z"/><path d="M9.2 10.8C11.4 9.5 12.8 7.9 14 7.9S16.6 9.5 18.8 10.8C16.4 10.7 11.6 10.7 9.2 10.8Z"/><path d="M6.4 15.3C9.8 13.7 12.1 11.9 14 11.9S18.2 13.7 21.6 15.3C17.8 15.1 10.2 15.1 6.4 15.3Z"/><path d="M3.6 20.2C8.3 18.4 11.4 16.3 14 16.3S19.7 18.4 24.4 20.2C19.2 19.9 8.8 19.9 3.6 20.2Z"/></g></svg><span>CEDARS</span></a>
-  {% if user.is_authenticated %}
+  {% if user.is_authenticated and request.assurance != "password" %}
   {% with here=request.path %}
   {% comment %}Grouped navigation. Each group is a native disclosure (works without scripts); the group whose page is open is marked
      .current and the page link inside it carries aria-current. app.js adds Escape, one-open-at-a-time and the narrow-screen Menu button.{% endcomment %}
@@ -81,6 +81,10 @@
     <a href="{% url 'administration:account' %}"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
     <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
   </div>
+  {% elif user.is_authenticated %}
+  {# Signed in with a password only: the modules wait until the second factor is set up (RequireMFAMiddleware), so the header says so instead of offering them. #}
+  <p class="setting-up">Finish setting up your second factor to use CEDARS.</p>
+  <div class="who"><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form></div>
   {% else %}
   <nav aria-label="Main" id="main-nav">
     <a href="{% url 'data:dashboards' %}"{% if request.path|slice:":6" == '/data/' and request.path|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>

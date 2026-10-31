@@ -854,6 +854,17 @@ def test_header_stays_in_view_and_never_hides_the_focus(browser, site, scene):
     assert not hidden, f"focus hidden under the header: {hidden}"
 
 
+def test_the_full_header_stays_on_one_row_at_1280(browser, site, scene):
+    """A CPUC system administrator has every menu and the account cluster; at 1280 px they fit one row (UAT F16), so the sticky header
+    does not double in height."""
+    context, page = _open(browser, site, scene, "/data/overview/?by=program", "cpuc_admin", viewport={"width": 1280, "height": 720})
+    top_h = page.evaluate("document.querySelector('.top').getBoundingClientRect().height")
+    first = page.evaluate("document.querySelector('.top .brand').getBoundingClientRect().top")
+    who = page.evaluate("document.querySelector('.top .who').getBoundingClientRect().top")
+    context.close()
+    assert top_h <= 64 and abs(who - first) < 20, f"header row {top_h:.0f} px tall; account cluster {who - first:.0f} px below the brand"
+
+
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
 def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
     context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)

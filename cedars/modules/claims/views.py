@@ -182,6 +182,7 @@ def period(request, pk):
         service.ensure_checked(v)
         v.refresh_from_db()
     cy = service.claim_year(deadline)
+    earlier_open = service.earlier_unconfirmed(org, deadline) if org else None
     earlier = []
     if org is not None:
         for d in service.periods(cy.year):
@@ -208,6 +209,7 @@ def period(request, pk):
         "earlier": earlier,
         "last_quarter": service.last_quarter(deadline),
         "later_locked": service.later_locked(org, deadline) if org else None,
+        "earlier_open": service.label(earlier_open) if earlier_open else "",
         "tables": spec.TABLES,
         "legacy": legacy.imported(v) if v is not None and v.imported else None,
     }
@@ -525,9 +527,8 @@ def published_file(request, pk, which):
 # --- corrections: the change log (BR-09.3)
 
 
-@login_required
 def changes(request):
-    """Every published correction's change letter, newest first, by PA and claim year."""
+    """Every published correction's change letter, newest first, by PA and claim year. Public: the record of corrections (BR-09.3)."""
     letters = service.change_letters()
     org = access.by_code(request.GET.get("org", ""), follow=False)
     year = request.GET.get("year", "")
@@ -565,9 +566,8 @@ def _difference(kind: str, before, after) -> str:
     return sign + _figure(kind, abs(d)).lstrip("-")
 
 
-@login_required
 def change_letter(request, pk):
-    """One correction's change letter: when it was published, why, and what it changed against the version it replaces."""
+    """One correction's change letter: when it was published, why, and what it changed against the version it replaces. Public (BR-09.3)."""
     letter = get_object_or_404(service.change_letters(), pk=pk)
     c = letter.changes or {}
     v = letter.version
@@ -625,10 +625,9 @@ LINK_KINDS = [
 ]
 
 
-@login_required
 def links(request):
     """Look up how confirmed claims link up: a NMEC claim's chain from the original claim through every true-up, a project's claims
-    (the project key), or a SEM participant's claims across phases and years. Open to every signed-in user, as confirmed claims are."""
+    (the project key), or a SEM participant's claims across phases and years. Public, as confirmed claims are (BR-09.3)."""
     kind = request.GET.get("kind", "claim")
     kind = kind if kind in dict(LINK_KINDS) else "claim"
     q = request.GET.get("q", "").strip()

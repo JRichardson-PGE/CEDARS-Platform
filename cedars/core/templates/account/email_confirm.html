@@ -1,0 +1,24 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth account %}
+{% block head_title %}Confirm your email address{% endblock head_title %}
+{% block content %}
+<h1>Confirm your email address</h1>
+{% if confirmation %}
+  {% if can_confirm %}
+    <p>Confirm that <strong>{{ confirmation.email_address.email }}</strong> is your address. You can then sign in to CEDARS.</p>
+    {% url 'account_confirm_email' confirmation.key as action_url %}
+    {% element form method="post" action=action_url %}
+      {% slot actions %}
+        {% csrf_token %}
+        {{ redirect_field }}
+        {% element button type="submit" tags="prominent" %}Confirm{% endelement %}
+      {% endslot %}
+    {% endelement %}
+  {% else %}
+    <p>{{ confirmation.email_address.email }} is already confirmed on another account, so it cannot be confirmed here.</p>
+  {% endif %}
+{% else %}
+  {% url 'account_email' as email_url %}
+  <p>This confirmation link has expired or is not valid. <a href="{{ email_url }}">Ask for a new one</a> from your email settings.</p>
+{% endif %}
+{% endblock content %}

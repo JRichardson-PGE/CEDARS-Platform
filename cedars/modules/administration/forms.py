@@ -24,10 +24,15 @@ class ReasonForm(forms.Form):
 
 class RequestAccessForm(forms.Form):
     organisation = forms.ModelChoiceField(label="Organization", queryset=Organisation.objects.filter(active=True).exclude(kind="cpuc"))
+    # Read and submit for each module: what a new member normally needs (UAT F23). Confirm, approve, administrator and PII rights are
+    # given by the organization's administrators once the person is a member (the service still accepts any permission).
     permissions = forms.MultipleChoiceField(
         label="Permissions you need",
         widget=forms.CheckboxSelectMultiple,
-        choices=[(c, perms.label(c)) for c in perms.module_permissions() + [perms.ORG_ADMIN, perms.PII]],
+        choices=[(c, perms.label(c)) for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")],
+        help_text=(
+            "Confirming, approving, administering the organization and PII access are added by its administrators once you are a member."
+        ),
     )
     message = forms.CharField(
         label="Message to the organization's administrators", required=False, widget=forms.Textarea(attrs={"rows": 3})

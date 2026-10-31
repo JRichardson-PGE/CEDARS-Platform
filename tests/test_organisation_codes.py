@@ -153,7 +153,9 @@ def test_a_known_rename_finds_one_organisation_whichever_code_comes_first(cpuc_a
     assert (org.code, org.name, org.pa_type) == ("AVA", "Ava Community Energy", "CCA")
     assert access.organisation_for_filed_code("AVA") == org and access.organisation_for_filed_code("ebce") == org
     assert [(c.code, c.span) for c in access.code_history(org)] == [("EBCE", "until 2023-12-31"), ("AVA", "from 2024-01-01")]
-    assert access.organisation_for_filed_code("ZZZ").code == "ZZZ"  # any other code: a new PA under it
+    zzz = access.organisation_for_filed_code("ZZZ")
+    assert zzz.code == "ZZZ" and zzz.name == "ZZZ"  # any other code: a new PA under it, named by its code until someone names it
+    assert access.organisation_for_filed_code("SDGE").name == "San Diego Gas & Electric"  # a PA CEDARS lists gets its name
 
 
 def test_a_known_rename_applied_to_the_old_or_the_new_organisation(cpuc_admin):

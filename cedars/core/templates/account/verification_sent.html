@@ -1,0 +1,6 @@
+{% extends "account/base_entrance.html" %}
+{% block head_title %}Confirm your email address{% endblock head_title %}
+{% block content %}
+<h1>Check your email</h1>
+<p>CEDARS has sent a confirmation link to the address you gave. Open it to finish creating the account. If nothing arrives within a few minutes, look in your junk folder{% if support_email %}, then write to <a href="mailto:{{ support_email }}">{{ support_email }}</a>{% endif %}.</p>
+{% endblock content %}

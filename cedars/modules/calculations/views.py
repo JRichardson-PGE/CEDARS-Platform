@@ -262,6 +262,7 @@ def engines(request):
                     batch_job_definition=d["batch_job_definition"],
                     notes=d["notes"],
                     default=d["default"],
+                    reason=d["reason"],
                 )
                 messages.success(request, f"Added {r}.")
                 return redirect("calculations:engines")

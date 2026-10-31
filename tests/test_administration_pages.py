@@ -163,3 +163,59 @@ def test_add_organisation_page(signed_in, cpuc_admin):
     from cedars.services.accounts.models import Organisation
 
     assert Organisation.objects.get(code="BAYREN").pa_type == "REN"
+
+
+# --- the second-factor set-up flow and the sign-in pages' wording (UAT F11, F12)
+
+
+def _totp_code(secret):
+    from allauth.mfa.totp.internal.auth import format_hotp_value, hotp_value, yield_hotp_counters_from_time
+
+    return format_hotp_value(hotp_value(secret, next(yield_hotp_counters_from_time())))
+
+
+@pytest.mark.django_db(transaction=True)  # allauth records the activation on commit, inside the view: a real transaction shows it
+def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_user):
+    from allauth.account.models import EmailAddress
+
+    u = make_user("fresh@example.com")
+    EmailAddress.objects.create(user=u, email=u.email, verified=True, primary=True)
+    r = client.post("/accounts/login/", {"login": u.email, "password": "correct horse battery staple"})
+    assert r.status_code == 302
+    last = client.session["account_authentication_methods"][-1]
+    assert last["method"] == "password" and last["reauthenticated"] is True  # the fresh sign-in counts as recent for set-up
+    r = client.get("/accounts/2fa/totp/activate/")
+    assert r.status_code == 200, r["Location"] if r.status_code == 302 else ""  # not sent to type the password again
+    html = r.content.decode()
+    assert (
+        'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
+    )
+    assert 'data-copy="authenticator_secret"' in html
+    assert "Finish setting up your second factor" in html and 'id="main-nav"' not in html  # no module menu yet
+    r = client.post("/accounts/2fa/totp/activate/", {"code": _totp_code(client.session["mfa.totp.secret"])})
+    assert r.status_code == 302 and "reauthenticate" not in r["Location"]
+    assert {m["method"] for m in client.session["account_authentication_methods"]} >= {"password", "mfa"}
+    r = client.get("/account/")
+    assert r.status_code == 200 and 'id="main-nav"' in r.content.decode()  # the activation was the second factor
+
+
+def test_sign_in_pages_and_emails_speak_for_cedars(client, mailoutbox):
+    html = client.get("/accounts/login/").content.decode()
+    assert "Sign in to CEDARS" in html and "Email address" in html and "Keep me signed in" in html
+    assert "Remember Me" not in html and "please sign up" not in html
+    r = client.post(
+        "/accounts/signup/",
+        {"email": "newcomer@example.org", "password1": "a long and sturdy passphrase 7", "password2": "a long and sturdy passphrase 7"},
+    )
+    assert r.status_code == 302, r.content.decode()[:500]
+    (m,) = mailoutbox
+    assert m.subject == "[CEDARS] Confirm your email address"
+    assert "CEDARS account" in m.body and "Hello from" not in m.body and "127.0.0.1" not in m.body
+
+
+def test_access_requests_offer_what_a_new_member_needs():
+    from cedars.modules.administration import forms
+
+    offered = [c for c, _ in forms.RequestAccessForm().fields["permissions"].choices]
+    assert offered and all(c.endswith((".read", ".submit")) for c in offered)
+    assert perms.ORG_ADMIN not in offered and perms.PII not in offered and "claims.approve" not in offered

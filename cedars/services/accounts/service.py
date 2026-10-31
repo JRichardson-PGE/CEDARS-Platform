@@ -70,6 +70,38 @@ KNOWN_PA_TYPES = {
 }
 
 
+# The names CEDARS gives those PAs (its Programs list). A PA created from a filed code alone (legacy loads, importers) gets its name
+# from here instead of repeating the code; migration accounts/0006 named the ones already in the platform that way.
+KNOWN_PA_NAMES = {
+    "PGE": "Pacific Gas and Electric Company",
+    "SCE": "Southern California Edison",
+    "SCG": "Southern California Gas Company",
+    "SDGE": "San Diego Gas & Electric",
+    "BAY": "Bay Area Regional Energy Network (BayREN)",
+    "CCR": "Central California Rural Regional Energy Network",
+    "IREN": "Inland Regional Energy Network",
+    "RRN": "Rural Regional Energy Network",
+    "SCR": "Southern California Regional Energy Network (SoCalREN)",
+    "SDRN": "San Diego Regional Energy Network",
+    "TCR": "Tri-County Regional Energy Network (3C-REN)",
+    "AVA": "Ava Community Energy",
+    "CPSF": "CleanPowerSF",
+    "EBCE": "East Bay Community Energy",
+    "LCE": "Lancaster Choice Energy",
+    "MCE": "MCE",
+    "PCE": "Peninsula Clean Energy",
+    "RCEA": "Redwood Coast Energy Authority",
+    "SCP": "Sonoma Clean Power",
+    "SJCE": "San José Clean Energy",
+}
+
+
+def known_pa_name(code: str) -> str:
+    """The name CEDARS gives a PA code, or the code itself for one it does not list."""
+    c = (code or "").strip().upper()
+    return KNOWN_PA_NAMES.get(c, c)
+
+
 def known_pa_type(code: str) -> str:
     """The type of a PA code CEDARS uses ("IOU", "REN" or "CCA"), or "" for a code not in KNOWN_PA_TYPES."""
     return KNOWN_PA_TYPES.get((code or "").strip().upper(), "")
@@ -353,7 +385,7 @@ def organisation_for_filed_code(code: str, actor: User | None = None) -> Organis
         return org
     old = c if c in KNOWN_RENAMES else next((o for o, (n, *_) in KNOWN_RENAMES.items() if n == c), None)
     if old is None:
-        return create_organisation(actor, code=c, name=c, kind=Organisation.Kind.PA)
+        return create_organisation(actor, code=c, name=known_pa_name(c), kind=Organisation.Kind.PA)
     new, name, first_day, source = KNOWN_RENAMES[old]
     target = by_code(new) if c == old else by_code(old)
     if target is None:
@@ -606,7 +638,8 @@ def revoke(actor: User | None, g: Grant, reason: str) -> Grant:
 
 
 @transaction.atomic
-def approve_pii(steward: User, g: Grant) -> Grant:
+def approve_pii(steward: User, g: Grant, reason: str = "") -> Grant:
+    """A data steward's approval of PII access; the reason, if given, goes to the audit trail (every change audited)."""
     if not is_steward(steward):
         raise AccessDenied("Only a data steward can approve PII access.")
     g = Grant.objects.select_for_update().get(pk=g.pk)
@@ -617,7 +650,7 @@ def approve_pii(steward: User, g: Grant) -> Grant:
     ok, why = can_grant(None, g.user, g.organisation, g.permission)
     if not ok:
         raise AccessDenied(why)
-    return _change(steward, g, "grant.approved", status=Grant.Status.ACTIVE, approved_by=steward, approved_at=timezone.now())
+    return _change(steward, g, "grant.approved", reason, status=Grant.Status.ACTIVE, approved_by=steward, approved_at=timezone.now())
 
 
 @transaction.atomic

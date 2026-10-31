@@ -486,7 +486,7 @@ def pii_decision(request, pk):
     g = get_object_or_404(Grant, pk=pk)
     try:
         if request.POST.get("decision") == "approve":
-            service.approve_pii(request.user, g)
+            service.approve_pii(request.user, g, request.POST.get("reason", "").strip())
             msg = f"Approved PII access for {g.user.email} in {g.organisation.code}."
         else:
             service.decline_pii(request.user, g, request.POST.get("reason", "") or "declined by a data steward")

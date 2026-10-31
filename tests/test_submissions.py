@@ -177,3 +177,8 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     assert "double counted" in a.get("/filings/reopen-requests/").content.decode()
     a.post(f"/filings/reopen-requests/{req.pk}", {"decision": "approve"})
     assert v1.submission.versions.count() == 2
+
+
+def test_the_filing_calendar_is_public(client, deadline):
+    html = client.get("/filings/calendar/").content.decode()
+    assert deadline.kind in html and 'name="module"' not in html  # anyone reads it; only a CPUC system administrator sees the add form

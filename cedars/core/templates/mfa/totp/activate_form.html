@@ -1,0 +1,22 @@
+{% extends "mfa/totp/base.html" %}
+{% load allauth %}
+{# The second-factor set-up page (UAT F11, F12): the key is selectable text with a copy button, not a disabled input. #}
+{% block head_title %}Set up your authenticator app{% endblock head_title %}
+{% block content %}
+<h1>Set up your authenticator app</h1>
+<p>Every CEDARS account signs in with a second factor. Scan the code below with an authenticator app, or type the key into it, then enter the six-digit code the app shows.</p>
+{% url 'mfa_activate_totp' as action_url %}
+{% element form form=form method="post" action=action_url %}
+  {% slot body %}
+    {% element img src=totp_svg_data_uri alt="QR code holding the authenticator key below" tags="mfa,totp,qr" %}{% endelement %}
+    {% csrf_token %}
+    {% element field id="authenticator_secret" type="text" value=form.secret readonly=True %}
+      {% slot label %}Authenticator key{% endslot %}
+      {% slot help_text %}The key the QR code holds, to type into the app instead. Keep it somewhere safe: it sets the app up again on a new phone.{% endslot %}
+    {% endelement %}
+    <p><button type="button" data-copy="authenticator_secret" hidden>Copy the key</button></p>
+    {% element fields form=form %}{% endelement %}
+  {% endslot %}
+  {% slot actions %}{% element button type="submit" tags="prominent" %}Activate{% endelement %}{% endslot %}
+{% endelement %}
+{% endblock content %}

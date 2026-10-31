@@ -153,6 +153,11 @@ class EngineReleaseForm(forms.Form):
     batch_job_definition = forms.CharField(label="AWS Batch job definition (optional)", max_length=200, required=False)
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
     default = forms.BooleanField(label="Make it the default for new runs", required=False)
+    reason = forms.CharField(
+        label="Why it is added",
+        max_length=300,
+        help_text="Kept in the audit trail, e.g. the release's change or the decision that calls for it.",
+    )
 
     def clean_calculations(self):
         out = {}

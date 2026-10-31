@@ -73,7 +73,9 @@ def accs_for(release: EngineRelease, calculation: str) -> list[str]:
 
 
 @transaction.atomic
-def add_release(actor, *, release: str, calculations: list[str], accs: dict, image="", batch_job_definition="", notes="", default=False):
+def add_release(
+    actor, *, release: str, calculations: list[str], accs: dict, image="", batch_job_definition="", notes="", default=False, reason=""
+):
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator adds engine releases.")
     if RECET not in calculations:
@@ -97,7 +99,11 @@ def add_release(actor, *, release: str, calculations: list[str], accs: dict, ima
         added_by=actor,
     )
     audit.record(
-        "engine_release.added", obj=r, after=audit.snapshot(r, ["release", "calculations", "accs", "image", "default"]), actor=actor
+        "engine_release.added",
+        obj=r,
+        after=audit.snapshot(r, ["release", "calculations", "accs", "image", "default"]),
+        reason=reason,
+        actor=actor,
     )
     return r
 

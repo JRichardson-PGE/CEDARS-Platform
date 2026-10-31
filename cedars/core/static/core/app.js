@@ -39,6 +39,24 @@
     }).observe(header);
   }
 
+  // "Copy" buttons ([data-copy]: the id of the field whose value to copy) show only where the clipboard is available; the field itself
+  // stays selectable, so the value can always be copied by hand. The result is announced, not shown by colour.
+  if (navigator.clipboard && window.isSecureContext) {
+    document.querySelectorAll("button[data-copy]").forEach(function (b) {
+      var src = document.getElementById(b.getAttribute("data-copy"));
+      if (!src) return;
+      b.hidden = false;
+      b.addEventListener("click", function () {
+        var text = "value" in src ? src.value : src.textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          window.cedarsAnnounce("Copied");
+          b.textContent = "Copied";
+          window.setTimeout(function () { b.textContent = "Copy the key"; }, 2000);
+        }, function () { window.cedarsAnnounce("Could not copy; select the key and copy it by hand"); });
+      });
+    });
+  }
+
   // Narrow screens: a Menu button shows and hides the navigation. Without this script the button stays hidden and the list is simply shown.
   var btn = document.querySelector(".menu-btn");
   if (btn && nav) {

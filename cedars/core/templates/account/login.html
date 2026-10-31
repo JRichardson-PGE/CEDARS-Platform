@@ -1,0 +1,22 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth %}
+{# CEDARS' own wording over django-allauth's sign-in page (UAT F12). The form and its flow are allauth's. #}
+{% block head_title %}Sign in{% endblock head_title %}
+{% block content %}
+<h1>Sign in to CEDARS</h1>
+<p>Use the email address and password of your CEDARS account. Every account also uses a second factor: you set it up the first time you sign in.</p>
+{% url 'account_login' as login_url %}
+{% element form form=form method="post" action=login_url tags="entrance,login" %}
+  {% slot body %}
+    {% csrf_token %}
+    {% element fields form=form %}{% endelement %}
+    {{ redirect_field }}
+  {% endslot %}
+  {% slot actions %}
+    {% element button type="submit" tags="prominent,login" %}Sign in{% endelement %}
+  {% endslot %}
+{% endelement %}
+<p class="small">New to CEDARS? <a href="{{ signup_url }}">Create an account</a>: anyone can, and the public pages need none. To act for a program administrator, ask its administrators for access from your account page once you are signed in.
+{% url 'account_reset_password' as reset_url %}<br><a href="{{ reset_url }}">Forgotten your password?</a></p>
+{% if SOCIALACCOUNT_ENABLED %}{% include "socialaccount/snippets/login.html" with page_layout="entrance" %}{% endif %}
+{% endblock content %}

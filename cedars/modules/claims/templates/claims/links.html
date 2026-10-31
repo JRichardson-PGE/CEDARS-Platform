@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Linked claims{% if q %}: {{ q }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+{% if user.is_authenticated %}<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>{% endif %}
 <h1>Linked claims</h1>
 <p>How confirmed claims link up across quarters and years: a NMEC claim's chain from the original claim through every true-up, every
 claim of one project (its ProjectID, the project key), or a SEM participant's claims across the phases of its engagement.</p>
@@ -27,7 +27,7 @@ claim of one project (its ProjectID, the project key), or a SEM participant's cl
   </tr></thead>
   <tbody>
   {% for row in rows %}<tr>
-    <th scope="row"><a href="{% url 'claims:version' row.r.version.pk %}">{{ row.r.claim_id }}</a></th>
+    <th scope="row">{% if user.is_authenticated %}<a href="{% url 'claims:version' row.r.version.pk %}">{{ row.r.claim_id }}</a>{% else %}{{ row.r.claim_id }}{% endif %}</th>
     {% if chain %}<td>{% if row.depth == 0 %}Original claim{% else %}True-up {{ row.depth }}{% endif %}</td>{% endif %}
     <td>{{ row.r.version.submission.deadline.period.year }}</td>
     <td>{{ row.r.version.submission.organisation.code }}</td>
