@@ -21,7 +21,6 @@ Layouts without per-test benefit columns (the archived filings) get TRCBen, PACB
 program ratios come from summed benefits and costs like every other result."""
 
 import hashlib
-import io
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -31,10 +30,9 @@ from decimal import Decimal
 from django.db import transaction
 
 from cedars.core import storage
-from cedars.services.accounts import service as access
-from cedars.services.accounts.models import Organisation
 from cedars.services.dictionary import legacy as crosswalk
 from cedars.services.legacy import service as legacy
+from cedars.services.legacy import tables
 from cedars.services.registry import service as registry
 from cedars.services.submissions.models import Deadline
 
@@ -42,7 +40,6 @@ from . import service
 from .models import BudgetLine, BudgetResult, FilingSetup
 
 RUN = "legacy-cedars"
-IOUS = {"PGE", "SCE", "SCG", "SDGE"}
 LAYOUTS = ("filings", "filings_2024_2027", "filings_2026_2027_tual")
 COST_COLUMNS = [f"Wtd{f}" for f, _ in service.PROGRAM_COST_FIELDS]
 INCENTIVE_OUTPUTS = ["EndUserRebate", "IncentiveToOthers", "DILaborCost", "DIMaterialCost"]
@@ -131,97 +128,7 @@ class Outcome:
         return out
 
 
-# --- reading
-
-
-def _is_ratio(name: str) -> bool:
-    return name.endswith(("Ratio", "RatioNoAdmin")) or name.startswith("Lev")
-
-
-def _blank_to_null(col):
-    import pyarrow as pa
-    import pyarrow.compute as pc
-
-    col = pc.utf8_trim_whitespace(col)
-    return pc.if_else(pc.equal(col, ""), pa.scalar(None, pa.string()), col)
-
-
-def _read(source, member: str):
-    """One CSV of a staged zip as text columns under canonical names, with its layout."""
-    import pyarrow.csv as pacsv
-
-    layout = source.members[member]
-    if layout not in LAYOUTS:
-        raise legacy.LegacyError(f"{source.name}: {member} is a {layout} file, not a budget filing")
-    names = crosswalk.layouts()[layout]
-    with legacy.open_member(source, member, text=False) as f:
-        table = pacsv.read_csv(
-            f,
-            read_options=pacsv.ReadOptions(column_names=names, skip_rows=1, encoding="utf-8"),
-            convert_options=pacsv.ConvertOptions(column_types={n: "string" for n in names}, strings_can_be_null=False),
-        )
-    return table.rename_columns([crosswalk.rename(layout)[n] for n in names]), layout
-
-
-def _count_rows(source) -> int:
-    import csv
-
-    n = 0
-    for member in source.members:
-        with legacy.open_member(source, member) as f:
-            n += sum(1 for _ in csv.reader(f)) - 1
-    return n
-
-
-def _numbers(table, columns: list[str], errors: list[str]):
-    """{column: (float64 array, exact sum as a Decimal)} for each column present; a value that is not a number is a hard failure. The
-    exact sum adds the text's decimals (decimal256 when every value fits 38 decimal places, else Python's Decimal)."""
-    import pyarrow as pa
-    import pyarrow.compute as pc
-
-    out = {}
-    for c in columns:
-        if c not in table.column_names:
-            continue
-        col = _blank_to_null(table[c])
-        try:
-            as_float = pc.cast(col, pa.float64())
-        except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
-            bad = next((v for v in col.to_pylist() if v is not None and not _is_number(v)), "")
-            errors.append(f"{c} holds a value that is not a number ({bad[:40]!r})")
-            continue
-        try:
-            exact = Decimal(pc.sum(pc.cast(col, pa.decimal256(76, 38))).as_py() or 0)
-        except (pa.ArrowInvalid, pa.ArrowNotImplementedError):
-            exact = sum((Decimal(v) for v in col.to_pylist() if v is not None), Decimal(0))
-        out[c] = (as_float, exact)
-    return out
-
-
-def _is_number(text: str) -> bool:
-    try:
-        float(text)
-        return True
-    except ValueError:
-        return False
-
-
-def _dec(value) -> Decimal:
-    return Decimal(0) if value is None else Decimal(value)
-
-
-def _close(a: float, b: float, rel: float) -> bool:
-    return abs(a - b) <= rel * max(1.0, abs(a), abs(b))
-
-
 # --- loading
-
-
-def _organisation(code: str) -> Organisation:
-    org = Organisation.objects.filter(code=code).first()
-    if org is None:
-        org = access.create_organisation(None, code=code, name=code, kind="pa", pa_type="IOU" if code in IOUS else "")
-    return org
 
 
 def _deadline(filing: LegacyFiling) -> Deadline:
@@ -253,15 +160,6 @@ def _sources(filing: LegacyFiling) -> tuple[list, dict[str, list]]:
     return alls, per_pa
 
 
-def _parquet(table) -> tuple[bytes, str]:
-    import pyarrow.parquet as pq
-
-    buf = io.BytesIO()
-    pq.write_table(table, buf, compression="zstd")
-    data = buf.getvalue()
-    return data, hashlib.sha256(data).hexdigest()
-
-
 def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
     """Load one filing for every PA in its all-PA files (or one PA). A system job: the management command."""
     import pyarrow as pa
@@ -273,7 +171,7 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
     parts = []
     for s in alls:
         for member in s.members:
-            parts.append(_read(s, member))
+            parts.append(tables.read(s, member, LAYOUTS))
     layouts = sorted({lay for _, lay in parts})
     if len(layouts) > 1:
         raise legacy.LegacyError(f"{filing.key}: its files have different layouts ({', '.join(layouts)})")
@@ -287,18 +185,18 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
     for code in pas:
         if only and code != only:
             continue
-        org = _organisation(code)
+        org = tables.organisation(code)
         if legacy.already_imported(deadline, org, alls) is not None:
             outcome.unchanged.append(code)
             continue
         rows = table.filter(pc.equal(table["PA"], code))
         checks, errors = [], []
         if code in per_pa:
-            n = sum(_count_rows(s) for s in per_pa[code])
+            n = sum(tables.count_rows(s, LAYOUTS) for s in per_pa[code])
             checks.append({"name": "per-PA file rows", "kind": "hard", "ok": n == rows.num_rows, "expected": rows.num_rows, "got": n})
-        nums = _numbers(rows, output_cols, errors)
-        measure_nums = _numbers(rows, [c for c in measure_cols if c in numeric_measure], errors)
-        budget_nums = _numbers(rows, ["Legacy_Budget"], errors)
+        nums = tables.numbers(rows, output_cols, errors)
+        measure_nums = tables.numbers(rows, [c for c in measure_cols if c in numeric_measure], errors)
+        budget_nums = tables.numbers(rows, ["Legacy_Budget"], errors)
         checks.append({"name": "numbers readable", "kind": "hard", "ok": not errors, "detail": errors})
         if errors:
             outcome.refused.append((code, errors))
@@ -308,13 +206,13 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
         outputs = pa.table(
             {"CEInputID": rows["CEInputID"], "PrgID": rows["PrgID"], "Used_Year": rows["Used_Year"], **{c: v[0] for c, v in nums.items()}}
         )
-        programs = _programs(rows, program_cols)
+        programs = tables.programs(rows, program_cols)
         written = {}
         tag = hashlib.sha256("".join(sorted(s.sha256 for s in alls)).encode()).hexdigest()[:12]
         folder = f"{legacy.PREFIX}/loaded/budgets/{filing.key}/{code}/{tag}/"
         store = storage.store(legacy.AREA)
         for name, t in (("Measure.parquet", measure), ("Outputs.parquet", outputs), ("Programs.parquet", programs)):
-            data, sha = _parquet(t)
+            data, sha = tables.parquet(t)
             store.put_bytes(folder + name, data)
             written[name] = {"name": name, "key": folder + name, "sha256": sha, "bytes": len(data), "rows": t.num_rows}
         checks.append(
@@ -328,10 +226,10 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
         # every additive output: the exact sum of the file's text = the sum of what was written
         differ = []
         for c, (_as_float, exact_sum) in nums.items():
-            if _is_ratio(c):
+            if tables.is_ratio(c):
                 continue
             exact, got = float(exact_sum), float(pc.sum(outputs[c]).as_py() or 0)
-            if not _close(exact, got, HARD):
+            if not tables.close(exact, got, HARD):
                 differ.append({"column": c, "file": exact, "written": got})
         checks.append({"name": "additive outputs", "kind": "hard", "ok": not differ, "detail": differ})
         lines, results, more = _lines_and_results(rows, {**nums, **budget_nums}, code)
@@ -379,63 +277,8 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
     return outcome
 
 
-def _programs(rows, program_cols):
-    """One row per (PrgID, program year) with the program columns as filed (the first record's)."""
-    import pyarrow as pa
-
-    seen, out = set(), defaultdict(list)
-    cols = ["PrgID", "Used_Year", *program_cols]
-    for r in rows.select(cols).to_pylist():
-        k = (r["PrgID"], r["Used_Year"])
-        if k in seen:
-            continue
-        seen.add(k)
-        for c in cols:
-            out[c].append(r[c])
-    return pa.table({c: pa.array(out[c], pa.string()) for c in cols})
-
-
-TRUE = {"true", "1", "yes", "y", "t"}
-FLAGS = {
-    "Prg_Resource_Flag": "Resource_Flag",
-    "Prg_NonResource_Flag": "NonResource_Flag",
-    "Prg_Deemed_Flag": "Deemed_Flag",
-    "Prg_Custom_Flag": "Custom_Flag",
-    "Prg_Upstream_Flag": "Upstream_Flag",
-    "Prg_Midstream_Flag": "Midstream_Flag",
-    "Prg_Downstream_Flag": "Downstream_Flag",
-    "Prg_DirectInstall": "DirectInstall",
-    "Prg_Audit_Flag": "Audit_Flag",
-    "Prg_Financing": "Financing",
-}
-
-
-def _add_program_history(programs, org: Organisation, filing: LegacyFiling) -> int:
-    """The filing's program years the registry has no version for (its own history wins)."""
-    by_program: dict[str, dict[int, dict]] = defaultdict(dict)
-    for r in programs.to_pylist():
-        year = r["Used_Year"]
-        if not (r["PrgID"] or "").strip() or not str(year).strip().isdigit():
-            continue
-        by_program[r["PrgID"].strip()][int(year)] = {
-            "name": (r.get("Prg_ProgramName") or r["PrgID"]).strip(),
-            "status": (r.get("Prg_ProgramStatus") or "").strip(),
-            "segment": (r.get("Prg_ProgramSegment") or "").strip(),
-            "primary_sector": (r.get("Prg_PrimarySector") or "").strip(),
-            "implementer": (r.get("Prg_ProgramImplementer") or "").strip(),
-            "category": (r.get("Prg_ProgramCategory") or "").strip(),
-            "statewide_program": (r.get("Prg_StatewideProgram") or "").strip(),
-            "flags": {flag: (r.get(c) or "").strip() for c, flag in FLAGS.items() if (r.get(c) or "").strip()},
-            "exclude_from_budget": (r.get("Prg_Exclude_From_Budget") or "").strip().lower() in TRUE,
-            "exclude_from_ce": (r.get("Prg_Exclude_From_CE") or "").strip().lower() in TRUE,
-        }
-    added = 0
-    for prg_id, years in sorted(by_program.items()):
-        _, n = registry.add_history(
-            None, prg_id=prg_id, administrator=org, statewide=False, years=years, reason=f"legacy CEDARS {filing.label}"
-        )
-        added += n
-    return added
+def _add_program_history(programs, org, filing: LegacyFiling) -> int:
+    return tables.add_program_history(programs, org, f"legacy CEDARS {filing.label}")
 
 
 def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], list[dict]]:
@@ -444,12 +287,8 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
 
     prg, years = rows["PrgID"].to_pylist(), rows["Used_Year"].to_pylist()
     names = rows["Prg_ProgramName"].to_pylist() if "Prg_ProgramName" in rows.column_names else [""] * rows.num_rows
-    dec = {
-        c: [None if t is None or not t.strip() else t.strip() for t in rows[c].to_pylist()]
-        for c in nums
-        if c in COST_COLUMNS + INCENTIVE_OUTPUTS + ["WeightedProgramCost", "Legacy_Budget"]
-    }
-    flt = {c: v[0].to_pylist() for c, v in nums.items() if not _is_ratio(c) and not c.startswith("Legacy_")}
+    dec = {c: tables.texts(rows, c) for c in nums if c in COST_COLUMNS + INCENTIVE_OUTPUTS + ["WeightedProgramCost", "Legacy_Budget"]}
+    flt = {c: v[0].to_pylist() for c, v in nums.items() if not tables.is_ratio(c) and not c.startswith("Legacy_")}
     ratios = {c: nums[c][0].to_pylist() for c in ("TRCRatio", "PACRatio", "RIMRatio") if c in nums}
     lines: dict[tuple, dict] = {}
     results: dict[tuple, dict] = {}
@@ -473,10 +312,10 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
         )
         for c in COST_COLUMNS:
             if c in dec:
-                ln["costs"][c[3:]] += _dec(dec[c][i])
-        ln["rebates"] += sum((_dec(dec[c][i]) for c in INCENTIVE_OUTPUTS if c in dec), Decimal(0))
-        ln["wpc"] += _dec(dec["WeightedProgramCost"][i]) if "WeightedProgramCost" in dec else Decimal(0)
-        ln["budget"] += _dec(dec["Legacy_Budget"][i]) if "Legacy_Budget" in dec else Decimal(0)
+                ln["costs"][c[3:]] += tables.dec(dec[c][i])
+        ln["rebates"] += sum((tables.dec(dec[c][i]) for c in INCENTIVE_OUTPUTS if c in dec), Decimal(0))
+        ln["wpc"] += tables.dec(dec["WeightedProgramCost"][i]) if "WeightedProgramCost" in dec else Decimal(0)
+        ln["budget"] += tables.dec(dec["Legacy_Budget"][i]) if "Legacy_Budget" in dec else Decimal(0)
         ln["measures"] += 1
         res = results.setdefault(
             k, {"pa": code, "prg_id": k[0], "year": k[1], "program_name": "", "measures": 0, "values": defaultdict(float)}
@@ -500,7 +339,7 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
     differ = [
         {"prg_id": k[0], "year": k[1], "weighted": str(sum(ln["costs"].values(), Decimal(0))), "weighted_program_cost": str(ln["wpc"])}
         for k, ln in lines.items()
-        if "WeightedProgramCost" in dec and not _close(float(sum(ln["costs"].values(), Decimal(0))), float(ln["wpc"]), HARD)
+        if "WeightedProgramCost" in dec and not tables.close(float(sum(ln["costs"].values(), Decimal(0))), float(ln["wpc"]), HARD)
     ]
     checks.append({"name": "weighted costs = Weighted Program Cost", "kind": "hard", "ok": not differ, "detail": differ})
     for ben in NUMERATORS:
@@ -510,7 +349,7 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
                 {
                     "name": f"{ben} = ratio x cost",
                     "kind": "soft",
-                    "ok": _close(filed, rebuilt_from_ratio[ben], SOFT),
+                    "ok": tables.close(filed, rebuilt_from_ratio[ben], SOFT),
                     "file": filed,
                     "rebuilt": rebuilt_from_ratio[ben],
                 }
@@ -518,7 +357,9 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
     if "Legacy_Budget" in dec:
         filed = float(sum((ln["budget"] for ln in lines.values()), Decimal(0)))
         built = float(sum((sum(ln["costs"].values(), Decimal(0)) + ln["rebates"] for ln in lines.values()), Decimal(0)))
-        checks.append({"name": "budget lines = Budget", "kind": "soft", "ok": _close(filed, built, SOFT), "file": filed, "lines": built})
+        checks.append(
+            {"name": "budget lines = Budget", "kind": "soft", "ok": tables.close(filed, built, SOFT), "file": filed, "lines": built}
+        )
     checks.append({"name": "ratios without a cost", "kind": "info", "ok": True, "detail": dict(no_cost)})
     out_lines = [
         {

@@ -65,6 +65,34 @@ def claim_row(claim_id: str, pa: str, prg_id: str, year: int = 2023, **values) -
     }
 
 
+def legacy_claim(claim_id: str, pa: str, prg_id: str, year: int, *, admin: float = 30.0, rebate: float = 20.0, **values) -> dict:
+    """A made-up confirmed claim record for a claim-year load (layout labels): weighted costs, a rebate, savings and CET outputs that
+    reconcile, and the program columns. Total Expenditures is filled on the 2023-2026 layout, Budget on 2016-2022's (ignored where the
+    layout has no such column)."""
+    row = {
+        **claim_row(claim_id, pa, prg_id, year),
+        "Program Segment": "Resource Acquisition",
+        "Primary Sector": "Commercial",
+        "Resource Flag": "True",
+        "Measure Impact Type": "Deem-DEER",
+        "End User Rebate": f"{rebate}",
+        "Weighted Admin Costs Overhead and GA": f"{admin}",
+        "Weighted Program Cost": f"{admin}",
+        "Total Expenditures": f"{admin + rebate}",
+        "Budget": f"{admin + rebate}",
+        "First Year Gross kWh": "120.0",
+        "First Year Net kWh": "100.0",
+        "Lifecycle Net kWh": "1000.0",
+        "Gross Measure Cost": "60.0",
+        "TRC": "1.25",
+        "PAC": "2.5",
+        "PAC Cost": "20.0",
+        "PAC Benefits": "50.0",
+    }
+    row.update(values)
+    return row
+
+
 def filing_row(
     filing_id: str, pa: str, prg_id: str, year: int, *, units: float = 2.0, admin: float = 100.0, marketing: float = 50.0, **values
 ) -> dict:
