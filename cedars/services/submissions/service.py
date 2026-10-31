@@ -9,6 +9,10 @@ and snapshots superseded before the due date are not kept).
 Pricing (`register_pricer`, `price`): the Calculations module registers the function that prices a version's job, so a filing module
 asks this service to price its version and never imports the Calculations module (modules never import each other).
 
+Imported versions (`import_version`): legacy CEDARS' years load as published versions marked imported (origin "imported"), as CEDARS
+published them. They are read-only history: every path that would change, reprice, un-confirm, reopen or correct a submission that holds
+one refuses (`_refuse_imported`), and no publisher hook runs for them (the loading module writes its own derived lines).
+
 Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
 for a year by program, so another module (Monthly reports' 13th-month report, BR-14.2) reads them without importing Claims.
 """
@@ -26,7 +30,19 @@ from cedars.services.accounts.service import AccessDenied
 
 from .models import Deadline, Delegation, ReopenRequest, Submission, SubmissionVersion, WorkflowPolicy
 
-VERSION_FIELDS = ["number", "status", "reason", "files", "rule_set", "findings", "calculation", "late", "confirmed_by", "published_at"]
+VERSION_FIELDS = [
+    "number",
+    "status",
+    "origin",
+    "reason",
+    "files",
+    "rule_set",
+    "findings",
+    "calculation",
+    "late",
+    "confirmed_by",
+    "published_at",
+]
 _publishers: dict[str, tuple[Callable, Callable]] = {}
 _pricers: list[Callable] = []
 _claims_totals: list[Callable] = []
@@ -63,6 +79,18 @@ def _require(actor, submission: Submission, action: str) -> None:
         return
     if not access.has_permission(actor, submission.organisation, f"{submission.module}.{action}"):
         raise AccessDenied(f"You need {submission.module}.{action} in {submission.organisation.code} to do that.")
+
+
+IMPORTED_MESSAGE = "This filing was imported from legacy CEDARS. It is read-only: it cannot be changed, repriced, reopened or corrected."
+
+
+def is_imported(submission: Submission) -> bool:
+    return submission.versions.filter(origin=SubmissionVersion.Origin.IMPORTED).exists()
+
+
+def _refuse_imported(submission: Submission) -> None:
+    if is_imported(submission):
+        raise AccessDenied(IMPORTED_MESSAGE)
 
 
 def _change(actor, v: SubmissionVersion, action: str, reason: str = "", **fields) -> SubmissionVersion:
@@ -129,6 +157,7 @@ def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVe
     """Open a submission for the organisation (version 1, draft). Starting again returns the open draft."""
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
+    _refuse_imported(submission)
     if deadline.opens_at and timezone.now() < deadline.opens_at:
         raise AccessDenied(f"This filing opens on {deadline.opens_at:%Y-%m-%d}.")
     v = latest(submission)
@@ -147,6 +176,7 @@ def attach_files(actor, v: SubmissionVersion, files: list[dict]) -> SubmissionVe
     calculation is void."""
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
     _require(actor, v.submission, "submit")
+    _refuse_imported(v.submission)
     if v.locked:
         raise AccessDenied("A confirmed version cannot change; un-confirm it or ask to reopen.")
     return _change(actor, v, "submission.files_attached", files=files, status=SubmissionVersion.Status.DRAFT, findings={}, calculation={})
@@ -158,6 +188,7 @@ def record_validation(actor, v: SubmissionVersion, rule_set, summary: dict) -> S
     is validated; otherwise it stays a draft with its findings."""
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
     _require(actor, v.submission, "submit")
+    _refuse_imported(v.submission)
     if v.locked:
         raise AccessDenied("A confirmed version cannot be re-validated.")
     ok = summary.get("rejected", 0) == 0
@@ -178,6 +209,7 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
     calculation no longer matches the rows and is void."""
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
     _require(actor, v.submission, "submit")
+    _refuse_imported(v.submission)
     if v.locked:
         raise AccessDenied("A confirmed version cannot change; un-confirm it or ask to reopen.")
     status = v.status if still_valid else SubmissionVersion.Status.DRAFT
@@ -190,6 +222,7 @@ def price(actor, v: SubmissionVersion, job_zip, *, name: str, acc_version: str, 
     the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
     _require(actor, v.submission, "submit")
+    _refuse_imported(v.submission)
     if v.status != SubmissionVersion.Status.VALIDATED:
         raise AccessDenied("Only a validated version is priced for confirmation.")
     if not _pricers:
@@ -206,6 +239,7 @@ def record_calculation(
     """A calculation and statewide allocation run on the version's current rows has finished (the Calculations module calls this).
     `details` adds what the run was priced with and where its results are (job_sha256, release, acc, allocation_version, results)."""
     v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
+    _refuse_imported(v.submission)
     if v.status != SubmissionVersion.Status.VALIDATED:
         raise AccessDenied("Only a validated version is priced for confirmation.")
     return _change(
@@ -217,6 +251,56 @@ def record_calculation(
     )
 
 
+# --- imported (legacy CEDARS) versions
+
+
+@transaction.atomic
+def import_version(
+    actor,
+    *,
+    deadline: Deadline,
+    organisation: Organisation,
+    files: list[dict],
+    reason: str,
+    calculation: dict | None = None,
+    findings: dict | None = None,
+) -> SubmissionVersion:
+    """Load a filing as legacy CEDARS published it: a new version, published and marked imported, with no validation, pricing or
+    publisher hook (a system job, or a CPUC system administrator). The first import is version 1; a later download that differs is
+    the next version, with its reason. A submission already filed on this platform is never given an imported version."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator imports legacy CEDARS filings.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason (the source it was imported from).")
+    submission, _ = Submission.objects.select_for_update().get_or_create(deadline=deadline, organisation=organisation)
+    if submission.versions.filter(origin=SubmissionVersion.Origin.FILED).exists():
+        raise AccessDenied(f"{organisation.code} has filed {deadline} on this platform; legacy data is not imported over it.")
+    n = (submission.versions.aggregate(n=Max("number"))["n"] or 0) + 1
+    now = timezone.now()
+    v = SubmissionVersion.objects.create(
+        submission=submission,
+        number=n,
+        status=SubmissionVersion.Status.PUBLISHED,
+        origin=SubmissionVersion.Origin.IMPORTED,
+        reason=reason,
+        files=files,
+        findings=findings or {},
+        calculation=calculation or {},
+        created_by=actor,
+        confirmed_at=now,
+        published_at=now,
+    )
+    audit.record(
+        "submission.imported",
+        obj=v,
+        after=audit.snapshot(v, VERSION_FIELDS),
+        reason=reason,
+        actor=actor,
+        organisation=organisation if actor is None else None,
+    )
+    return v
+
+
 # --- confirm, un-confirm, reopen
 
 
@@ -226,6 +310,7 @@ def confirm(actor, v: SubmissionVersion, current_input_hash: str) -> SubmissionV
     confirming is the sign-off on exactly the results the PA reviewed; publication follows at once with no further calculation."""
     v = SubmissionVersion.objects.select_for_update().select_related("submission__deadline").get(pk=v.pk)
     _require(actor, v.submission, "confirm")
+    _refuse_imported(v.submission)
     if v.status != SubmissionVersion.Status.VALIDATED:
         raise AccessDenied("Only a validated version can be confirmed.")
     if not v.calculation or v.calculation.get("input_hash") != current_input_hash:
@@ -255,6 +340,7 @@ def unconfirm(actor, v: SubmissionVersion, reason: str = "") -> SubmissionVersio
     its publication is withdrawn, so nothing superseded before the due date is kept."""
     v = SubmissionVersion.objects.select_for_update().select_related("submission__deadline").get(pk=v.pk)
     _require(actor, v.submission, "confirm")
+    _refuse_imported(v.submission)
     if not v.locked:
         raise AccessDenied("That version is not confirmed.")
     if v.number > 1 or past_due(v.submission.deadline):
@@ -276,6 +362,7 @@ def unconfirm(actor, v: SubmissionVersion, reason: str = "") -> SubmissionVersio
 
 
 def _new_version(actor, submission: Submission, reason: str) -> SubmissionVersion:
+    _refuse_imported(submission)
     n = (submission.versions.aggregate(n=Max("number"))["n"] or 0) + 1
     prev = latest(submission)
     v = SubmissionVersion.objects.create(submission=submission, number=n, reason=reason, created_by=actor, files=prev.files if prev else [])
@@ -296,6 +383,7 @@ def request_reopen(actor, submission: Submission, reason: str) -> ReopenRequest 
     version is created at once (returned); under "approval" a request waits for an approver (returned); "closed" refuses."""
     submission = Submission.objects.select_related("deadline", "organisation").get(pk=submission.pk)
     _require(actor, submission, "submit")
+    _refuse_imported(submission)
     if not reason.strip():
         raise AccessDenied("Give the reason for the correction.")
     v = latest(submission)

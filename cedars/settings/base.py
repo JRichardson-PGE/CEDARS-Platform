@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     "cedars.services.notifications",
     "cedars.services.retention",
     "cedars.services.vault",
+    "cedars.services.legacy",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
     "cedars.modules.monthly",
