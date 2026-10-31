@@ -128,7 +128,8 @@ def test_pages(pge_admin, signed_in):
     service.notify(pge_admin, "Second")
     c = signed_in(pge_admin)
     page = c.get("/notifications/").content.decode()
-    assert "2 unread" in page and "Your run finished" in page and 'Notifications <span class="count">2</span><span class="sr-only"> unread</span>' in page
+    assert "2 unread" in page and "Your run finished" in page
+    assert 'Notifications <span class="count">2</span><span class="sr-only"> unread</span>' in page  # the header's unread count
     c.post("/notifications/")
     assert service.unread(pge_admin) == 0
     settings_page = c.get("/notifications/settings/").content.decode()
