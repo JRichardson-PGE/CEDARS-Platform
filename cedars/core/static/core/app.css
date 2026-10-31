@@ -205,7 +205,7 @@ input[type=file] { min-height: 24px; max-width: 100%; }   /* 2.5.8: targets at l
 input[type=checkbox], input[type=radio] { inline-size: 24px; block-size: 24px; margin: 0; accent-color: var(--primary); }   /* 2.5.8 */
 input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--bad); border-width: 2px; }
 select { max-width: 100%; }
-.field { display: flex; flex-direction: column; gap: .3rem; }
+.field { display: flex; flex-direction: column; gap: .3rem; min-width: 0; max-width: 100%; }   /* a flex or grid item shrinks below its select's width at 320 px (1.4.10) */
 .field .check { display: flex; gap: .5rem; align-items: center; font-weight: 400; color: var(--fg); }
 .field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); font-size: .9rem; }
 .helptext { font-size: .85rem; color: var(--fg-2); font-weight: 400; }
@@ -221,7 +221,7 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .row-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .6rem 1rem; }
 .row-fields label { overflow-wrap: anywhere; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .3rem 1rem; }
-.checks label, label.inline { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }
+.checks label, label.inline, label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }   /* a box and its words on one line */
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
 .column-group { margin: .3rem 0; }
@@ -257,6 +257,25 @@ ul.bars li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr max-c
 .bar { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
 .bar.negative { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, transparent 4px 8px); border: 1px solid var(--bad); }   /* and "(negative)" in text */
 @media (max-width: 480px) { ul.bars li { grid-template-columns: 1fr max-content; } .bar-track { grid-column: 1 / -1; grid-row: 2; } }
+
+/* ---------- Due-date cell, identifiers, collapsed sections, empty states ---------- */
+td.due { white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.due small { display: block; font-size: .78rem; color: var(--fg-2); }
+.id { font-family: var(--mono); font-size: .9em; }
+details.section { margin: 1.25rem 0 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+details.section > summary { display: flex; align-items: baseline; gap: .5rem 1rem; flex-wrap: wrap; padding: .7rem 1rem; cursor: pointer; list-style: none; min-height: 44px; }
+details.section > summary::-webkit-details-marker { display: none; }
+details.section > summary::before { content: ""; width: .5em; height: .5em; border: solid var(--fg-2); border-width: 0 2px 2px 0; transform: rotate(-45deg); align-self: center; flex: none; }
+details.section[open] > summary::before { transform: rotate(45deg); }
+details.section > summary h2 { margin: 0; font-size: 1.1rem; }
+details.section > summary .count { color: var(--fg-2); font-size: .9rem; }
+details.section > .section-body { padding: 0 1rem 1rem; }
+details.section > .section-body > .hscroll { margin-top: .25rem; }
+section.cycle { margin-bottom: .5rem; }
+.empty { text-align: center; padding: 2.25rem 1rem; color: var(--fg-2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); margin: 1rem 0; }
+.empty p { margin: .25rem auto; max-width: 48ch; }
+.empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
+.empty .button { margin-top: .75rem; }
 
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }

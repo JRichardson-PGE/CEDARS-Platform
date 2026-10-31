@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui %}
 {% block title %}Programs{% endblock %}
 {% block content %}
 <h1>Programs</h1>
@@ -20,10 +21,10 @@ that year. Changes to locked attributes go through <a href="{% url 'programs:req
   <tbody>
   {% for p, v, pa, status, segment in rows %}
   <tr>
-    <th scope="row"><a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></th>
+    <th scope="row"><a class="id" href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></th>
     <td>{{ v.name }}</td>
     <td>{{ pa }}</td>
-    <td>{{ status }}</td>
+    <td><span class="status {{ status|status_tone }}">{{ status }}</span></td>
     <td>{{ segment }}</td>
     <td class="nowrap">{% if v.start_year %}{{ v.start_year }}{% endif %}{% if v.start_year or v.end_year %} to {% endif %}{% if v.end_year %}{{ v.end_year }}{% elif v.start_year %}open{% endif %}</td>
   </tr>
