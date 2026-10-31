@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Reopen requests{% endblock %}
 {% block content %}
-<h1>Requests to correct filings</h1>
+<div class="page-title"><h1>Requests to correct filings</h1>{% page_help "submissions/reopen_requests" %}</div>
 <p>After its due date a confirmed filing is corrected as a new version, for that organization and period only. The version filed stays readable.</p>
 <h2>Waiting for you</h2>
 {% for r, approver in pending %}

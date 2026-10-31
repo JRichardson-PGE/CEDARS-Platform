@@ -2,7 +2,7 @@
 {% block title %}Document subscribers{% endblock %}
 {% block content %}
 {% include "documents/_subnav.html" with section="subscriptions" %}
-<h1>Document subscribers</h1>
+<div class="page-title"><h1>Document subscribers</h1>{% page_help "documents/subscribers" %}</div>
 <p>{{ users }} user{{ users|pluralize }} follow{{ users|pluralize:"s," }} {{ rows|length }} subscription{{ rows|length|pluralize }}. Only CPUC staff see this page.
 <a href="?format=csv">Download every subscription as CSV</a></p>
 {% if by_target %}

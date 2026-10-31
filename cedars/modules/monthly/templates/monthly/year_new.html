@@ -2,7 +2,7 @@
 {% block title %}Set up a program year's monthly reports{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a></p>
-<h1>Set up a program year's monthly reports</h1>
+<div class="page-title"><h1>Set up a program year's monthly reports</h1>{% page_help "monthly/year_new" %}</div>
 <p>This adds twelve reports to the filing calendar, one per month. Each opens when its month ends and is due on the day chosen here of
 the following month (a month's due date can then be moved on the filing calendar). The year-to-date BCA inputs are priced on the ACC
 chosen here for the estimates, with statewide programs allocated by the allocation version chosen (or the most recent confirmed one).</p>

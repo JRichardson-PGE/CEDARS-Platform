@@ -1,0 +1,241 @@
+# Help for each page (cedars/core/page_help.py): signing in, the second factor, About and Help.
+
+account/login:
+  title: Signing in
+  guide:
+    - Sign in with the email address and password of your CEDARS account. Every account also uses a second factor; you set it up the
+      first time you sign in, and after that CEDARS asks for a code from your authenticator app each time.
+    - The public pages (the portfolio dashboard, record downloads, documents, the data dictionary and the validation rules) need no
+      account. Signing in adds Filings, Calculations, notifications and your account.
+  how:
+    - Forgotten your password? Use the link under the form; CEDARS emails a link to choose a new one.
+    - No account yet? Create one; anyone can. To act for a program administrator, ask its administrators for access from your account
+      page once you are signed in.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your email address and password
+      text: Enter them and choose Sign in. The next page asks for the code from your authenticator app, or takes you to set one up.
+    - target: main p.small
+      title: New accounts and forgotten passwords
+      text: Create an account here, or ask for a link to reset your password.
+
+account/signup:
+  title: Creating an account
+  guide:
+    - Anyone can create a CEDARS account. With one you can run cost-effectiveness calculations, follow documents and studies, and ask a
+      program administrator for access to its filings.
+    - CEDARS emails a link to confirm your address. Once it is confirmed, sign in and set up the second factor every account uses.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your details
+      text: Your email address and a password of at least 12 characters that is not a common one.
+
+account/email_confirm:
+  title: Confirming your email address
+  guide:
+    - The link CEDARS emailed you opens this page. Confirm the address and you can sign in. A link that has expired can be sent again
+      from your email settings.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Confirm
+      text: Confirm that the address is yours, then sign in.
+      optional: true
+
+account/verification_sent:
+  title: Waiting for the confirmation email
+  guide:
+    - CEDARS has emailed a link to the address you gave. Open it to confirm the address and finish creating the account. If nothing
+      arrives within a few minutes, look in your junk folder, then write to support.
+  see: getting-started
+  tour:
+    - target: main .page-title + p
+      title: What happens next
+      text: Open the link in the email. It confirms the address, then you can sign in.
+
+account/password_reset:
+  title: Resetting your password
+  guide:
+    - Enter the email address of your CEDARS account. If an account uses it, CEDARS emails a link to choose a new password. For your
+      account's safety this page says the same whether or not the address has an account.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your email address
+      text: The address you sign in with. The reset link is good for a limited time.
+
+account/password_reset_done:
+  title: Waiting for the reset email
+  guide:
+    - If a CEDARS account uses that address, a link to choose a new password is on its way. If nothing arrives within a few minutes,
+      look in your junk folder, then write to support.
+  see: getting-started
+  tour:
+    - target: main .page-title + p
+      title: What happens next
+      text: Open the link in the email and choose a new password. Your second factor stays as it was.
+
+account/logout:
+  title: Signing out
+  guide:
+    - Sign out ends your session on this browser. Anything you uploaded or saved stays; drafts are kept for when you sign in again.
+  tour:
+    - target: main form
+      title: Sign out
+      text: Choose Sign out to end your session. The public pages stay open without an account.
+
+account/base_reauthenticate:
+  title: Confirming it is you
+  guide:
+    - Changing your account's security settings (your second factor, recovery codes or password) asks you to sign in again first, so
+      nobody who finds your browser unlocked can change them.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Confirm
+      text: Enter your password, or a code from your authenticator app, and choose Confirm. The change you asked for follows.
+
+mfa/authenticate:
+  title: The sign-in code
+  guide:
+    - Every CEDARS account signs in with a second factor. Open your authenticator app and enter the six-digit code it shows for CEDARS;
+      the code changes every 30 seconds.
+    - Lost your phone? A recovery code works in place of the app's code, once each. If you have none left, ask your organization's
+      administrator or support.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your code
+      text: The six-digit code from your authenticator app, or a recovery code. Cancel and sign out if you started by mistake.
+
+mfa/totp/activate_form:
+  title: Setting up your authenticator app
+  guide:
+    - Every CEDARS account signs in with a second factor, an authenticator app on your phone or computer. Any app that shows six-digit
+      time-based codes works.
+    - Scan the QR code with the app, or type the key under it into the app. Then enter the code the app shows to finish. Keep the key
+      somewhere safe; it sets the app up again on a new phone.
+  how:
+    - Copy the key copies it to the clipboard, for an app on the same computer.
+    - After this step CEDARS offers recovery codes. Print or save them; each signs you in once if you lose the app.
+  see: getting-started
+  tour:
+    - target: main form img
+      title: The QR code
+      text: Scan it with your authenticator app. The app then shows a new six-digit code for CEDARS every 30 seconds.
+    - target: "#authenticator_secret"
+      title: The key, in words
+      text: The same key the QR code holds, to type into an app that cannot scan.
+    - target: main form button[type=submit]
+      title: Activate
+      text: Enter the code the app shows and choose Activate. From now on you sign in with your password and a code.
+
+core/about:
+  title: About CEDARS
+  guide:
+    - What CEDARS is, who files in it, and what the platform holds. The table lists each part of CEDARS and the phase of the build it
+      arrives in.
+  tour:
+    - heading: What the platform will hold
+      title: The parts of CEDARS
+      text: Each module with what it does and the phase that delivers it.
+
+core/help/index:
+  title: Help
+  guide:
+    - The user guides cover each part of CEDARS, from signing in to filing claims and running cost-effectiveness calculations. Each page
+      also has its own help, under the question mark beside its heading; Help for each page lists them all.
+    - Support and feedback go to the addresses the site has set. The tour walks through the front page and where things are.
+  tour:
+    - heading: User guides
+      title: User guides
+      text: One guide for each part of CEDARS, with who it is for.
+    - target: "#support-title"
+      title: Feedback and support
+      text: Where to write for help, to report a barrier or to say what would make CEDARS better.
+    - target: "#tour-title-help"
+      title: The tour
+      text: A step-by-step tour of the front page and the main parts of CEDARS, or the same steps on one page.
+    - heading: More reference
+      title: More reference
+      text: Help for each page, About CEDARS, the data dictionary, the validation rules, the filing calendar and the API description.
+
+core/help/guide:
+  title: A user guide
+  guide:
+    - Each guide explains one part of CEDARS in more depth than a page's own help. The other guides are listed at the end.
+  tour:
+    - target: main .guide
+      title: The guide
+      text: Read it through, or jump to a section by its heading.
+    - heading: Other guides
+      title: Other guides
+      text: The rest of the user guides, and All of Help.
+
+core/help/contact:
+  title: Getting support
+  guide:
+    - How to get help with CEDARS, what to put in a message so support can answer it quickly, and how to report an accessibility barrier.
+  tour:
+    - heading: Before you write
+      title: Before you write
+      text: The page's own help, under the question mark beside its heading, and the user guides answer most questions.
+    - heading: What to include
+      title: What to include
+      text: The page's address, what you were doing and what happened. Never include passwords or personal information about customers.
+    - heading: Accessibility barriers
+      title: Accessibility barriers
+      text: If something does not work with your keyboard, screen reader or zoom, say so; it is fixed as a defect.
+
+core/help/tour:
+  title: The tour, written out
+  guide:
+    - The front page's tour on one page, for anyone who would rather read it or uses CEDARS without scripts. Signed in, it includes the
+      parts only signed-in users see.
+  tour:
+    - target: main .actions a
+      title: Start the tour
+      text: Opens the front page with the tour running, one step at a time.
+    - target: ol.tour-list
+      title: Every step
+      text: The same steps the tour shows, in order, each with a link to try that part of CEDARS.
+
+core/help/pages:
+  title: Help for each page
+  guide:
+    - Every page's own help, the same guide the question mark beside the page's heading opens, grouped by part of CEDARS. Open one to
+      read it; from a page itself you can also take its tour.
+  tour:
+    - target: main ul.links
+      title: The pages
+      text: Each link opens that page's guide and its tour written out.
+
+core/help/page:
+  title: One page's help
+  guide:
+    - The guide to one page and its tour, written out. It is what the question mark beside the page's heading opens. Take the tour on
+      the page goes back to it with the tour running.
+  tour:
+    - target: main .actions a
+      title: Take the tour on the page
+      text: Opens the page the help is for, with its tour running.
+      optional: true
+    - target: ol.tour-list
+      title: The steps
+      text: The tour's steps, in order. Some are for parts of the page only some people see.
+      optional: true
+
+account/security:
+  title: Your sign-in and security settings
+  guide:
+    - The pages for your account's security, your second factor (the authenticator app), recovery codes, security keys, email addresses and
+      password. Changing any of them asks you to confirm it is you first.
+    - Recovery codes sign you in once each if you lose your authenticator app. Keep them somewhere safe, and make new ones when they run low;
+      making new ones replaces the old.
+  see: getting-started
+  tour:
+    - target: main form, main ul, main section
+      title: The settings
+      text: What this page changes. Every change is recorded in the audit trail.

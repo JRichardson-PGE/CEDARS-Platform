@@ -1,13 +1,14 @@
-{% comment %}The guided tour (core/static/core/tour.js). The steps are listed here as the script reads them; without scripts this stays hidden
-and the tour links go to /help/tour/, which lists the same steps. The dialog is named by its heading (the step) and described by its text.{% endcomment %}
+{% comment %}The guided tour (core/tour.js). The steps are listed here as the script reads them: where each points (a CSS selector, or the start
+of a heading's text) and what it says. Without scripts this stays hidden and the tour links go to the tour written out (/help/tour/ for
+the front page, the page's own help page for the others). The dialog is named by its heading (the step) and described by its text.{% endcomment %}
 <ol id="tour-steps" hidden>
-  {% for step in tour %}<li data-target="{{ step.target }}"><span data-title>{{ step.title }}</span> <span data-text>{{ step.text }}</span>{% if step.link %} <a href="{{ step.link }}">{{ step.link_text }}</a>{% endif %}</li>
+  {% for step in tour %}<li data-target="{{ step.selector }}"{% if step.heading %} data-heading="{{ step.heading }}"{% endif %}{% if step.optional %} data-optional{% endif %}><span data-title>{{ step.title }}</span> <span data-text>{{ step.text }}</span>{% if step.link %} <a href="{{ step.link }}">{{ step.link_text }}</a>{% endif %}</li>
   {% endfor %}
 </ol>
 <dialog id="tour" class="tour" aria-labelledby="tour-title" aria-describedby="tour-text">
   <h2 id="tour-title" tabindex="-1">Tour</h2>
   <p id="tour-text"></p>
-  <p id="tour-link" hidden><a href="{% url 'core:help_tour' %}">The whole tour on one page</a></p>
+  <p id="tour-link" hidden><a href="{% url 'core:help' %}">Help</a></p>
   <div class="actions tour-actions">
     <button type="button" data-tour-back>Back</button>
     <button type="button" class="primary" data-tour-next>Next</button>

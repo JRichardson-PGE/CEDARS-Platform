@@ -3,7 +3,7 @@
 {% block content %}
 {% include "documents/_subnav.html" with section="library" %}
 <div class="head-row">
-  <h1>Documents</h1>
+  <div class="page-title"><h1>Documents</h1>{% page_help "documents/library" %}</div>
   {% if collections %}<a class="button" href="{% url 'documents:new' %}">File a document</a>{% endif %}
 </div>
 <p>PA documents, CPUC staff guidance, DEER resources, program files and EM&amp;V documents in one library. Published documents are open to

@@ -62,7 +62,6 @@ def front_page(request):
             "summary": summary,
             "guides": site_help.GUIDES,
             "support": site_help.support(),
-            "tour": site_help.tour_steps(site_help.visitor(request)),
         },
     )
 

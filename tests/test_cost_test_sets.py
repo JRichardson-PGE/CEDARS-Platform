@@ -18,7 +18,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import cost_tests
 from cedars.services.refdata import service as refdata
 
-from .conftest import sign_in
+from .conftest import page_only, sign_in
 from .test_budgets import filer, filing, group_sums, job, programs  # noqa: F401 - fixtures
 from .test_calculations import analyst, job_zip, release, request  # noqa: F401 - fixtures
 
@@ -179,7 +179,7 @@ def test_the_cost_test_sets_page_lists_and_registers_sets(cpuc_admin, pge_admin)
     c = Client()
     sign_in(c, pge_admin)
     page = c.get("/reference-data/cost-tests/").content.decode()
-    assert "EE-2026 2026-09-15" in page and "Register a set" not in page
+    assert "EE-2026 2026-09-15" in page and "Register a set" not in page_only(page)
     sign_in(c, cpuc_admin)
     r = c.post("/reference-data/cost-tests/", {"file": SimpleUploadedFile("definition.yaml", set_file(sid="EE-2028", years=(2028, None)))})
     p = refdata.PackVersion.objects.get(kind="cost_tests", label="EE-2028")

@@ -3,7 +3,7 @@
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="library" %}
 <div class="head-row">
-  <h1>Impact profile library</h1>
+  <div class="page-title"><h1>Impact profile library</h1>{% page_help "impact_profiles/library" %}</div>
   {% if can_add %}<a class="button" href="{% url 'impact_profiles:custom_new' %}">Add a custom profile</a>{% endif %}
 </div>
 <p>Every impact profile a measure can name: deemed profiles generated from eTRM load shapes, custom profiles uploaded by program

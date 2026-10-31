@@ -1,0 +1,63 @@
+# Help for each page (cedars/core/page_help.py): reference data packs and cost-test sets.
+
+refdata/index:
+  title: Reference data
+  guide:
+    - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
+      run and every filing records the packs it used. A draft can be used for analysis runs but not for filings; a published pack is never
+      changed, and a withdrawn one keeps the runs that used it.
+  see: calculations
+  tour:
+    - heading: In force today
+      title: In force today
+      text: The pack of each kind that filings use today.
+      optional: true
+    - heading: All packs
+      title: All packs
+      text: Every pack, newest first within each kind. Select one for its files and tie-outs.
+
+refdata/detail:
+  title: A data pack
+  guide:
+    - One data pack, its status, what it holds, its files with their SHA-256 checksums, and the tie-outs it must pass before it is
+      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests.
+    - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed tie-out for each check
+      the kind of pack requires.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The pack
+      text: Kind, status, ACC, source and notes.
+    - target: "#set-h"
+      title: The set
+      text: For a cost-test set, its tests and value streams.
+      optional: true
+    - target: "#perm-h"
+      title: Permutations
+      text: For an eTRM pack, look up one permutation's values.
+      optional: true
+    - heading: Tie-outs
+      title: Tie-outs
+      text: The checks this kind of pack must pass, with the latest result of each.
+    - heading: Files
+      title: Files
+      text: Every file with its checksum.
+    - target: "#act-h"
+      title: Publish, discard or withdraw
+      text: For the pack's managers.
+      optional: true
+
+refdata/cost_tests:
+  title: Cost-test sets
+  guide:
+    - A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned to
+      one. A filing is priced only on a published set, the one its filing setup names or the one in force for its first program year.
+  see: calculations
+  tour:
+    - heading: Every set
+      title: Every set
+      text: Each set with its program years, tests and status. Select one for its definition.
+    - target: "#reg-h"
+      title: Register a set
+      text: For CPUC system administrators. A set starts as a draft.
+      optional: true

@@ -1,0 +1,35 @@
+# Help for each page (cedars/core/page_help.py): the filing calendar and requests to correct filings.
+
+submissions/calendar:
+  title: The filing calendar
+  guide:
+    - Every filing's due date, soonest first, budgets, claims and monthly reports, with when each opens. Signed in, each row says where your
+      organization's filing stands.
+    - After a due date a confirmed filing is corrected as a new version, through a request to reopen that a CPUC approver decides.
+  see: getting-started
+  tour:
+    - target: main table.list
+      title: Deadlines
+      text: Each filing, when it opens and when it is due. Select one to open it.
+    - heading: Corrections after the due date
+      title: Corrections after the due date
+      text: How a confirmed filing is corrected once its due date has passed.
+      optional: true
+    - target: "#add-h"
+      title: Add a deadline
+      text: For CPUC system administrators.
+      optional: true
+
+submissions/reopen_requests:
+  title: Requests to correct filings
+  guide:
+    - After its due date a confirmed filing is corrected as a new version, for that organization and period only, and the version filed
+      stays readable. A PA asks to reopen with a reason; a CPUC approver approves or declines it.
+  tour:
+    - heading: Waiting for you
+      title: Waiting for you
+      text: Each request with its reason. Approve reopening, or decline with a reason.
+    - heading: Decided
+      title: Decided
+      text: Requests already decided, and by whom.
+      optional: true

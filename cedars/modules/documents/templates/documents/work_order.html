@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'documents:work_orders' %}">Work orders</a></p>
 <div class="head-row">
-  <h1>Work order {{ wo.number }}{% if wo.name %}: {{ wo.name }}{% endif %}</h1>
+  <div class="page-title"><h1>Work order {{ wo.number }}{% if wo.name %}: {{ wo.name }}{% endif %}</h1>{% page_help "documents/work_order" %}</div>
   <div class="actions">{% include "documents/_follow.html" with work_order=wo what=wo.number %}</div>
 </div>
 {% if following %}<p>You follow this work order: you hear when its documents are published.</p>{% endif %}

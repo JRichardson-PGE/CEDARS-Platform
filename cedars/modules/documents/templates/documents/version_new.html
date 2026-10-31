@@ -2,7 +2,7 @@
 {% block title %}Add a version of {{ doc.title }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
-<h1>Add version {{ number }}</h1>
+<div class="page-title"><h1>Add version {{ number }}</h1>{% page_help "documents/version_new" %}</div>
 <p>The new files become version {{ number }}. Every earlier version stays listed and downloadable from the document's page.</p>
 {% if doc.deliverable and current %}<p>The deliverable is at <strong>{{ current.stage_label }}</strong>. Choose the same stage for another draft or a revised final, or a later stage.</p>{% endif %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}

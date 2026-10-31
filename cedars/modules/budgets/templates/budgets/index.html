@@ -3,7 +3,7 @@
 {% block title %}Budgets{% endblock %}
 {% block content %}
 <div class="head-row">
-  <h1>Budgets</h1>
+  <div class="page-title"><h1>Budgets</h1>{% page_help "budgets/index" %}</div>
   <div class="actions">
     <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
     <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>

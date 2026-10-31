@@ -1,0 +1,26 @@
+# Help for each page (cedars/core/page_help.py): notifications.
+
+notifications/index:
+  title: Notifications
+  guide:
+    - What needs you, a filing to review, an access request, a due date coming up, a run or download that finished, a document published,
+      newest first. New ones are marked; the count in the header is how many are unread.
+    - The same notices go by email unless you turn that off in the settings.
+  tour:
+    - target: main .page-title + p
+      title: Unread and settings
+      text: How many are unread, and a link to choose what you are sent.
+    - target: main ul.notices
+      title: Your notifications
+      text: Each with its link, when it came and whether it was emailed. Mark all as read when you have seen them.
+      optional: true
+
+notifications/settings:
+  title: Notification settings
+  guide:
+    - Choose what you hear about, and for each whether it is emailed too. Everything you choose appears on your notifications page. Filing
+      events reach you only for organizations you belong to.
+  tour:
+    - target: main form
+      title: What you are sent
+      text: Tick each kind of notice, and Email for the ones to email. Save.

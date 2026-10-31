@@ -3,7 +3,7 @@
 {# CEDARS' wording over allauth's second-factor page; the forms are allauth's (UAT F12). #}
 {% block head_title %}Enter your sign-in code{% endblock head_title %}
 {% block content %}
-<h1>Enter your sign-in code</h1>
+<div class="page-title"><h1>Enter your sign-in code</h1>{% page_help "mfa/authenticate" %}</div>
 <p>Open your authenticator app and enter the six-digit code it shows for CEDARS. A recovery code works too.</p>
 {% url 'mfa_authenticate' as action_url %}
 {% element form form=form method="post" action=action_url %}

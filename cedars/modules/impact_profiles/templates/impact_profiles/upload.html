@@ -2,7 +2,7 @@
 {% block title %}Upload {{ u.file_name }}{% endblock %}
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="uploads" %}
-<h1>QC summary: {{ u.file_name }}</h1>
+<div class="page-title"><h1>QC summary: {{ u.file_name }}</h1>{% page_help "impact_profiles/upload" %}</div>
 <dl class="facts">
   <dt>Package</dt><dd><a href="{% url 'impact_profiles:package' u.package.measure_version_id %}">{{ u.package.measure_version_id }}</a>, checked against its eTRM version {{ u.package_version.number }}</dd>
   <dt>Uploaded</dt><dd>{{ u.uploaded_at|date:"Y-m-d H:i T" }} by {{ u.uploaded_by.email }} for {{ u.organisation.code }}</dd>

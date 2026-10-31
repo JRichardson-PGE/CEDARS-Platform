@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
 <div class="head-row">
-  <h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>
+  <div class="page-title"><h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>{% page_help "programs/program" %}</div>
   {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
 </div>
 {% for r in pending %}<p>A change from {{ r.effective|date:"Y-m-d" }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}

@@ -2,7 +2,7 @@
 {% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'claims:index' %}">Claims</a> › <a href="{% url 'claims:period' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
-<h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
+<div class="page-title"><h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "claims/version" %}</div>
 <dl class="facts">
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Goals of {{ s.decision }}{% endblock %}
 {% block content %}
-<h1>Goals of {{ s.decision }}</h1>
+<div class="page-title"><h1>Goals of {{ s.decision }}</h1>{% page_help "administration/goal_set" %}</div>
 <dl class="facts">
   <dt>Adopted</dt><dd>{{ s.adopted|date:"Y-m-d" }}{% if s.url %} (<a href="{{ s.url }}">the decision</a>){% endif %}</dd>
   <dt>Status</dt><dd>{{ s.get_status_display }}{% if s.confirmed_at %} {{ s.confirmed_at|date:"Y-m-d H:i T" }} by {{ s.confirmed_by.email|default:"the system" }}{% endif %}</dd>

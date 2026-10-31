@@ -20,7 +20,7 @@ from cedars.services.registry import service as registry
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, SubmissionVersion
 
-from .conftest import sign_in
+from .conftest import page_only, sign_in
 from .test_budgets import COSTS, MEASURE, finish_run, release  # noqa: F401 (release is a fixture)
 from .test_uploads import split
 
@@ -436,7 +436,7 @@ def test_a_pricing_run_that_ends_without_pricing_lets_the_report_be_priced_again
     sign_in(client, filer)
     url = reverse("monthly:report", args=[month(1).pk])
     html = client.get(url).content.decode()
-    assert "the run's page" in html and "Price the estimates" not in html
+    assert "the run's page" in html and "Price the estimates" not in page_only(html)
     calculations.finish(
         run, exit_code=2, error="recet worker: job refused: engine.release 0.1.80 was asked for; this worker is recet 0.1.83"
     )

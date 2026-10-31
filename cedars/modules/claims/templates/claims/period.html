@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
 <div class="head-row">
-  <h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>
+  <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "claims/period" %}</div>
   {% if sysadmin %}<a class="button" href="{% url 'claims:setup' cy.year %}">How {{ cy.year }} claims are priced</a>{% endif %}
 </div>
 <dl class="facts">

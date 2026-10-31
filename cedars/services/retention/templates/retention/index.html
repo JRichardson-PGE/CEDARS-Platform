@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Retention{% endblock %}
 {% block content %}
-<h1>Retention</h1>
+<div class="page-title"><h1>Retention</h1>{% page_help "retention/index" %}</div>
 <p>How long each class of record is kept. The retention job runs daily and deletes only classes with a period and a deletion step; nothing under a legal hold is deleted. Every change here needs a reason and is in the audit log.</p>
 
 <h2>Periods</h2>

@@ -118,7 +118,7 @@ def test_cpuc_assigns_a_first_admin_through_the_page(signed_in, make_user, cpuc_
     c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": perms.ORG_ADMIN})
     assert service.is_org_admin(u, pge)
     page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
-    assert "Assign the first administrator" not in page and "Grant a permission" not in page
+    assert "Assign the first administrator" not in page and 'id="grant-h"' not in page
 
 
 def test_recertification_through_the_page(signed_in, make_user, pge, pge_admin):

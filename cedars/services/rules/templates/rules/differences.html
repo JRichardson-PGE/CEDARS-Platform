@@ -2,7 +2,7 @@
 {% block title %}Compare rule sets{% endblock %}
 {% block content %}
 <p><a href="{% url 'rules:index' %}">Validation rules</a></p>
-<h1>Compare two rule sets</h1>
+<div class="page-title"><h1>Compare two rule sets</h1>{% page_help "rules/differences" %}</div>
 <form method="get" class="filters">
   <div class="field"><label for="a">First</label><select id="a" name="a">{% for s in sets %}<option value="{{ s.pk }}"{% if s == a %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
   <div class="field"><label for="b">Second</label><select id="b" name="b">{% for s in sets %}<option value="{{ s.pk }}"{% if s == b %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>

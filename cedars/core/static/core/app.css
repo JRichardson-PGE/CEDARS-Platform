@@ -54,7 +54,7 @@ h3 { font-size: 1.05rem; line-height: 1.3; font-weight: 600; margin: 1.4rem 0 .4
 h1, h2, h3 { overflow-wrap: anywhere; text-wrap: balance; }   /* long IDs with no spaces (SW_NC_NonRes_electric) wrap at 320 px (1.4.10) */
 h1 + p, h2 + p { margin-top: 0; }
 p { margin: .5rem 0 .9rem; }
-main h1 + p { max-width: 64ch; color: var(--fg-2); }   /* a page's description reads at a measure, in the secondary colour */
+main h1 + p, main .page-title + p { max-width: 64ch; color: var(--fg-2); margin-top: 0; }   /* a page's description reads at a measure, in the secondary colour */
 code, pre, kbd, .mono, input.key { font-family: var(--mono); }
 code { font-size: .88em; overflow-wrap: anywhere; background: var(--surface-2); padding: .05em .3em; border-radius: 3px; }
 pre { white-space: pre-wrap; word-break: break-word; font-size: .82rem; margin: .3rem 0; }
@@ -145,7 +145,7 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
 
 /* ---------- Page header, actions, buttons ---------- */
 .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; flex-wrap: wrap; margin-bottom: .5rem; }
-.head-row > h1, .head-row > h2 { margin-bottom: .25rem; }
+.head-row > h1, .head-row > h2, .head-row > .page-title > h1 { margin-bottom: .25rem; }
 .head-row > p { margin: .25rem 0; }
 .actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; margin: .4rem 0; }
 .actions form { margin: 0; }
@@ -390,7 +390,7 @@ dl.figures .detail { display: block; font-size: .85rem; font-weight: 400; color:
 .guide { max-width: 75ch; }
 .guide li { margin: .3rem 0; }
 ol.tour-list { padding-left: 1.4rem; max-width: 75ch; }
-ol.tour-list h2 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
+ol.tour-list h2, ol.tour-list h3 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
 
 /* ---------- The guided tour (core/tour.js): a modal dialog beside the part of the page a step describes ---------- */
 /* The step's part keeps the page's own colors with a focus-colored outline, and the rest of the page is dimmed behind it by a wide shadow.
@@ -410,3 +410,26 @@ dialog.tour p { margin: .3rem 0 .7rem; }
 .tour-target { position: relative; z-index: 5; outline: 3px solid var(--focus); outline-offset: 4px; border-radius: var(--r);
   box-shadow: 0 0 0 4px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
 @media (max-width: 480px) { dialog.tour, dialog.tour.tour-top { inset: auto .5rem .5rem .5rem; width: auto; } dialog.tour.tour-top { inset: .5rem .5rem auto .5rem; } }
+
+/* ---------- Page help (cedars/core/page_help.py): the (?) beside each page's heading and the guide it opens ---------- */
+.page-title { display: flex; align-items: baseline; gap: .55rem; min-width: 0; }
+.page-title > h1 { min-width: 0; }
+/* A 28 px circle (2.5.8), its border 3:1 on the page (--control) in both schemes; the "?" is the link color, named "Help with this page". */
+.page-help { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  border: 1px solid var(--control); background: var(--surface); color: var(--link); font-weight: 700; font-size: 1rem; line-height: 1;
+  text-decoration: none; position: relative; top: -.2rem; }
+.page-help:hover { background: var(--surface-2); text-decoration: none; }
+dialog.page-help-dialog { width: min(40rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; margin: auto;
+  background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1.1rem 1.3rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
+dialog.page-help-dialog::backdrop { background: rgba(15, 20, 24, .55); }
+dialog.page-help-dialog h2 { margin: 0 0 .6rem; font-size: 1.25rem; }
+dialog.page-help-dialog h2:focus { outline: none; }
+dialog.page-help-dialog h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+dialog.page-help-dialog h3 { font-size: 1rem; margin: 1rem 0 .3rem; }
+dialog.page-help-dialog .tour-count { display: block; font-size: .78rem; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .05em; }
+dialog.page-help-dialog p, dialog.page-help-dialog li { max-width: 70ch; }
+dialog.page-help-dialog ul.links { margin-bottom: 0; }
+.measure { max-width: 75ch; }
+ul.links.columns { columns: 18rem; column-gap: 2rem; }
+ul.links.columns li { break-inside: avoid; }

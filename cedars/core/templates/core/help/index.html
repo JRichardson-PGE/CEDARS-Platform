@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Help{% endblock %}
 {% block content %}
-<h1>Help</h1>
+<div class="page-title"><h1>Help</h1>{% page_help "core/help/index" %}</div>
 <p>Guides to each part of CEDARS, how to get support or send feedback, and a tour for new users.</p>
 <h2>User guides</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="User guides">
@@ -31,6 +31,7 @@
 </div>
 <h2>More reference</h2>
 <ul class="links">
+  <li><a href="{% url 'core:help_pages' %}">Help for each page</a>: the guide and tour each page opens from the question mark beside its heading.</li>
   <li><a href="{% url 'core:about' %}">About CEDARS</a>: what the platform holds and when each part arrives.</li>
   <li><a href="{% url 'dictionary:index' %}">Data dictionary</a>: every field's name, definition and unit, and the names CET used.</li>
   <li><a href="{% url 'rules:index' %}">Validation rules</a>: what each filing is checked against.</li>

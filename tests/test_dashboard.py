@@ -8,6 +8,7 @@ from cedars.modules.data import dashboard
 from cedars.services.registry.models import FilingCycle
 from cedars.services.submissions import service as submissions
 
+from .conftest import page_only
 from .test_data_query import RECORDS, publish
 from .test_snapshots import claims_deadline, filer  # noqa: F401 - filer is a fixture
 
@@ -270,7 +271,7 @@ def test_records_page_through(both, client, monkeypatch):
     first = client.get("/data/records/?metric=tsb&cs=exclude&pension=exclude").content.decode()
     assert "Records 1 to 1 of 3" in first and "page=2" in first and "Previous" not in first
     last = client.get("/data/records/?metric=tsb&cs=exclude&pension=exclude&page=3").content.decode()
-    assert "Records 3 to 3 of 3" in last and "Next" not in last
+    assert "Records 3 to 3 of 3" in last and "Next" not in page_only(last)
     assert "Records 1 to 1 of 5" in client.get("/data/records/?metric=tsb").content.decode()  # records leave nothing out unless asked
 
 

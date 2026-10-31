@@ -1,0 +1,239 @@
+# Help for each page (cedars/core/page_help.py): your account, organizations and the CPUC's administration pages.
+
+administration/account:
+  title: Your account
+  guide:
+    - Your email address and second factor, the organizations you belong to and your permissions in each, your access requests, and API
+      tokens for your own systems.
+    - To act for a program administrator, ask its administrators for access. A request for PII access also needs a CPUC data steward's
+      approval.
+  how:
+    - Make a token gives a key for the API, shown once; revoke a token you no longer use.
+    - Manage your second factor and recovery codes from the security link.
+  see: getting-started
+  tour:
+    - target: main dl.facts
+      title: You
+      text: Your email address and your second factor.
+    - heading: Your organizations and permissions
+      title: Organizations and permissions
+      text: Each organization you belong to and what you may do for it.
+    - target: "#tokens-h"
+      title: API tokens
+      text: Tokens your own systems use to file or read through the API.
+    - heading: Make a token
+      title: Make a token
+      text: Name it, choose how long it lasts and what it may do.
+    - heading: Your access requests
+      title: Access requests
+      text: What you asked for, and where each request stands.
+      optional: true
+
+administration/request_access:
+  title: Asking for access
+  guide:
+    - Ask an organization's administrators for the permissions you need to act for it, such as filing budgets or claims, running
+      calculations or uploading impact profiles. They decide; PII access also needs a CPUC data steward's approval.
+  see: getting-started
+  tour:
+    - target: main form
+      title: The request
+      text: The organization, the permissions and why. Send the request; you are told when it is decided.
+
+administration/token_created:
+  title: Your new API token
+  guide:
+    - Copy the key now. It is shown only on this page; CEDARS keeps only a fingerprint of it, so if you lose it, revoke the token and make a
+      new one. Send it in the Authorization header of each API request.
+  see: getting-started
+  tour:
+    - target: main p.alert
+      title: Copy the key
+      text: It is not shown again.
+
+administration/organisations:
+  title: Organizations
+  guide:
+    - Every organization in CEDARS, its administrators and where its recertification stands. Each organization's administrators manage its
+      members; the CPUC assigns only an organization's first administrator.
+  tour:
+    - target: main table.list
+      title: The organizations
+      text: Each code and name, its kind and PA type, its administrators and recertification. Select a code to open it.
+    - target: main .head-row .button
+      title: Add an organization
+      text: For CPUC system administrators.
+      optional: true
+
+administration/organisation_new:
+  title: Adding an organization
+  guide:
+    - For CPUC system administrators. Add a program administrator (IOU, REN or CCA) or another organization by its CEDARS code and name, then
+      assign its first administrator from its page.
+  tour:
+    - target: main form
+      title: The organization
+      text: Its code, name, kind and PA type. Add.
+
+administration/organisation:
+  title: An organization
+  guide:
+    - One organization's details, its codes (with the years each was in use), its members and their permissions, access requests waiting
+      for a decision, the yearly recertification and its API tokens.
+    - Its administrators grant and revoke permissions, approve or decline requests and certify each grant at recertification. CPUC system
+      administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an old code
+      can be merged in.
+  see: getting-started
+  tour:
+    - target: "#details-h"
+      title: Details
+      text: Kind and PA type, and changing them.
+    - target: "#codes-h"
+      title: Codes
+      text: The codes it has used, and when.
+      optional: true
+    - target: "#grant-h"
+      title: Grant a permission
+      text: Give a member, or someone new, a permission.
+      optional: true
+    - target: "#req-h"
+      title: Access requests
+      text: Requests waiting for a decision.
+      optional: true
+    - target: "#members-h"
+      title: Members
+      text: Each member and their permissions, to revoke or remove.
+      optional: true
+    - target: "#recert-h"
+      title: Recertification
+      text: Each grant to certify or remove, by the due date.
+      optional: true
+    - target: "#tokens-h"
+      title: API tokens
+      text: Its members' tokens, to revoke.
+      optional: true
+
+administration/stewardship:
+  title: Data stewardship
+  guide:
+    - For CPUC data stewards. PII access needs a data steward's approval, and changes to the PII rules take one steward to propose and a
+      second to confirm.
+  tour:
+    - target: "#pending-h"
+      title: Waiting for approval
+      text: Requests for PII access, to approve or decline with a reason.
+    - target: "#rules-h"
+      title: PII rules
+      text: The rules on who may read PII, and a change proposed by another steward to confirm or withdraw.
+    - target: "#stewards-h"
+      title: Data stewards
+      text: Who the stewards are.
+
+administration/settings:
+  title: Access settings
+  guide:
+    - For CPUC system administrators. How often grants are recertified, whether grants not certified by the due date are suspended, and
+      whether PII is only for federated organizations and sessions. PII rules themselves are changed by the data stewards. Every change is in the audit log.
+  tour:
+    - target: main form
+      title: The settings
+      text: Change and Save.
+
+administration/audit:
+  title: The audit log
+  guide:
+    - Every change made in CEDARS, newest first, who made it, for which organization, what changed, why, and the record before and after.
+      The log is append-only; nothing in it is changed or deleted.
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By what the action starts with, the actor's email and the record type, then Apply.
+    - target: main table.list
+      title: Events
+      text: Each event. Open Before and after to see what changed.
+    - target: main nav.pager
+      title: Pages
+      text: Older events.
+      optional: true
+
+administration/health:
+  title: Jobs and health
+  guide:
+    - For CPUC system administrators. Every health check, failing first, background jobs, eTRM syncs, the engine's workers, storage and the
+      rest. The checks run every 10 minutes; when one starts failing, every CPUC system administrator is told by notification and email.
+  tour:
+    - target: main table.list
+      title: The checks
+      text: Each check and its status. Select one for what it found.
+    - target: main h2[id^=check-]
+      title: What a check found
+      text: Each check's findings, with when each began.
+      optional: true
+
+administration/allocations:
+  title: Statewide allocation factors
+  guide:
+    - For CPUC system administrators. The share of each statewide program each funding PA carries, by year. Each version is a complete
+      table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run that names
+      none uses the most recently confirmed version with factors for its program year.
+  tour:
+    - target: main table.list
+      title: Versions
+      text: Each version, newest first, its purpose and status. Select one to check it.
+    - target: "#up-h"
+      title: Load a factor file
+      text: A new version starts as a draft until it is confirmed.
+
+administration/allocation:
+  title: An allocation version
+  guide:
+    - One version of the statewide allocation factors and its checks (each program's factors add up to 1 each year). A draft is confirmed
+      by an administrator, or discarded.
+  tour:
+    - target: main dl.facts
+      title: The version
+      text: What it is for and its cycle.
+    - heading: Checks
+      title: Checks
+      text: Whether every program's factors add up.
+    - target: main form.actions
+      title: Confirm or discard
+      text: For a draft.
+      optional: true
+
+administration/goal_sets:
+  title: Energy efficiency goals
+  guide:
+    - The CPUC adopts goals by decision about every two years. Each decision is loaded as a set of goals (cumulative goals for each cycle and
+      annual targets, for each IOU). The newest confirmed set replaces the earlier ones for every year it covers; earlier sets stay for the
+      years before. The dashboard's Goals page and the front page compare results with them.
+  tour:
+    - target: main table.list
+      title: Goal sets
+      text: Each decision's set, newest first, and its status.
+    - target: "#up-h"
+      title: Load a decision's goals
+      text: From the decision's tables. A set starts as a draft until a second administrator confirms it.
+
+administration/goal_set:
+  title: A goal set
+  guide:
+    - One decision's goals, the cumulative cycle goals and annual targets for each IOU, the counting rules that say which CCA and REN results
+      count toward a territory, and the checks. A draft is confirmed by a second administrator, or discarded.
+  tour:
+    - target: main dl.facts
+      title: The decision
+      text: When it was adopted, with a link to it.
+    - target: "#cycle-h"
+      title: Cycle goals
+      text: Cumulative goals for each cycle and IOU.
+    - target: "#annual-h"
+      title: Annual targets
+      text: Each year's target for each IOU.
+    - heading: Counting rules
+      title: Counting rules
+      text: What counts toward each territory's goals.
+    - target: main form.actions
+      title: Confirm or discard
+      text: For a draft.
+      optional: true

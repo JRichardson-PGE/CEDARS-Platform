@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
 <div class="head-row">
-  <h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>
+  <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "budgets/filing" %}</div>
   {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">How it is priced</a>{% endif %}
 </div>
 <dl class="facts">

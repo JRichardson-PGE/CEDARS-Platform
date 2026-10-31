@@ -1,0 +1,220 @@
+# Help for each page (cedars/core/page_help.py): the impact profile library, deemed load shapes from eTRM and custom profiles.
+
+impact_profiles/library:
+  title: The impact profile library
+  guide:
+    - Every impact profile a measure can name in its electric impact profile field. Deemed profiles are generated from eTRM load shapes,
+      custom profiles are uploaded by program administrators, and the DEER and TOU profiles are carried over from CEDARS. Each 8,760 (one
+      value per hour of the year) spreads one kWh of savings over the year, per climate zone.
+    - Profiles are versioned, and runs and claims record the version they used. Search by ID or sector and filter by kind and IOU
+      territory; a profile's page shows its versions and its 8,760s by climate zone.
+  see: calculations
+  tour:
+    - target: main form.filters
+      title: Search and filter
+      text: By profile ID or sector, kind and IOU territory, retired ones included if you ask, then Apply.
+    - target: main table.list
+      title: The profiles
+      text: Each profile with its kind, owner, current version and status. Select an ID to open it.
+      optional: true
+    - target: main .head-row .button
+      title: Add a custom profile
+      text: For program administrators with the Impact profiles submit permission.
+      optional: true
+
+impact_profiles/profile:
+  title: An impact profile
+  guide:
+    - One impact profile, its current version's 8,760 by climate zone (each zone's total, largest hour and share of the year), every
+      earlier version, and the profile IDs that point at it. Versions are never changed; a run or claim keeps the version it was priced
+      with.
+    - A custom profile's owner can replace it with a new version or retire it. A retired profile's versions are kept for the runs and claims
+      that named them; the next library file leaves it out.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The profile
+      text: Its kind, owner, end use, current version and status.
+    - heading: Current version by climate zone
+      title: By climate zone
+      text: Each zone's 8,760, summarized.
+    - heading: Versions
+      title: Versions
+      text: Every version, newest first, with where it came from.
+    - heading: Profile IDs that use this profile
+      title: Profile IDs that use it
+      text: Other IDs mapped to this profile.
+      optional: true
+    - target: "#replace-h"
+      title: Replace with a new version
+      text: For the profile's owner. Upload the file; it is checked before the new version is kept.
+      optional: true
+    - target: "#retire-h"
+      title: Retire it
+      text: For the profile's owner, with a reason.
+      optional: true
+
+impact_profiles/custom_new:
+  title: Adding a custom impact profile
+  guide:
+    - A custom profile belongs to the organization you act for and is visible to everyone signed in. The file holds one 8,760 per climate
+      zone (1 to 16, or System for a statewide profile), each adding up to 1, and is checked before the profile is added. The template (CSV)
+      is linked above the form.
+  see: calculations
+  tour:
+    - target: main form
+      title: The profile
+      text: Its profile ID (the value measures give as their impact profile), target sector, IOU territory, description and the file. Check and add checks it and adds it once it passes.
+
+impact_profiles/rejected:
+  title: A file not accepted
+  guide:
+    - The file uploaded to replace a profile's version did not pass its checks, so nothing changed. The findings say what to fix; fix the
+      file and upload it again from the profile's page.
+  see: calculations
+  tour:
+    - target: main p.alert
+      title: What was wrong
+      text: Each check the file failed.
+
+impact_profiles/packages:
+  title: Deemed load shapes
+  guide:
+    - The draft measure packages from eTRM starting in 2027 or later, synced nightly, each with the PA that leads it. The lead PA
+      uploads the package's load shapes; impact profiles are generated from them.
+  see: calculations
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By name or Measure Version ID, or only the packages your organization leads.
+    - target: main table.list
+      title: The packages
+      text: Each package with its lead PA and how far its shapes and profiles have got. Select one to open it.
+      optional: true
+
+impact_profiles/package:
+  title: A measure package's load shapes
+  guide:
+    - One eTRM measure package, its load shapes, the impact profiles generated from them, and its permutations as synced from eTRM.
+    - Members of the lead PA with the Impact profiles submit permission upload the shapes. Each series is checked in four stages (the file,
+      its headers, each 8,760, and its match with the package's permutations); then generate the profiles from the accepted upload's page.
+  how:
+    - When a permutation's own profile ID has no shapes (for example new construction reusing the existing-vintage modeling), map it to
+      another profile under Profile IDs pointing at another profile.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The package
+      text: Its lead PA, status and eTRM version.
+    - target: "#up-h"
+      title: Upload load shapes
+      text: For the lead PA's members.
+      optional: true
+    - heading: Load shapes
+      title: Load shapes
+      text: The package's shapes, each linked to its months and versions.
+    - heading: Impact profiles generated
+      title: Impact profiles generated
+      text: The profiles made from the shapes.
+    - heading: Profile IDs pointing at another profile
+      title: Mappings
+      text: Permutations whose profile ID uses another profile's shapes.
+    - heading: Uploads for this package
+      title: Uploads
+      text: Every upload, with its result.
+    - heading: Permutations
+      title: Permutations
+      text: The package's permutations as synced from eTRM, with their UECs.
+
+impact_profiles/load_shape:
+  title: A load shape
+  guide:
+    - One load shape of a measure package, the share of the year's energy in each month for its current version, and every version.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The load shape
+      text: Its package, end use and current version.
+    - heading: Share of the year by month
+      title: By month
+      text: Percent of the year's energy in each month.
+    - heading: Versions
+      title: Versions
+      text: Every version, newest first.
+
+impact_profiles/uploads:
+  title: Load shape upload history
+  guide:
+    - Load shape uploads made for the organizations you belong to, including other members', newest first, with each upload's result.
+  see: calculations
+  tour:
+    - target: main table.list
+      title: Uploads
+      text: Each upload's file, package, status and who made it. Select one for its QC summary.
+      optional: true
+
+impact_profiles/upload:
+  title: A load shape upload's QC summary
+  guide:
+    - The result of checking one load shape file, stage by stage, with every finding. An accepted file's shapes are saved; generate the
+      package's impact profiles from here.
+  how:
+    - Download the findings (CSV) for every finding, beyond the first 500 shown.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The upload
+      text: Its file, package, status and who made it.
+    - heading: Validation stages
+      title: Validation stages
+      text: The four stages (file, headers, each 8,760, match with eTRM) and their results.
+    - heading: Findings
+      title: Findings
+      text: What each stage found.
+      optional: true
+    - target: "#gen-h"
+      title: Generate impact profiles
+      text: Makes the package's profiles from its current shapes.
+      optional: true
+    - heading: Generation result
+      title: Generation result
+      text: Profiles made, new versions and unchanged ones.
+      optional: true
+
+impact_profiles/sync_history:
+  title: eTRM sync history
+  guide:
+    - Draft measure packages and their permutations are pulled from eTRM every night. A package with bad data is left out and listed here
+      with the reason, so the PA that leads it can fix it in eTRM. A failed sync is retried and raises an alarm if it keeps failing.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The last sync
+      text: When it ran and what it brought in.
+    - heading: Packages excluded in the last sync
+      title: Packages left out
+      text: Each package left out and why. Search them by package.
+    - heading: Recent syncs
+      title: Recent syncs
+      text: The last 20 syncs, newest first.
+    - target: main .head-row form
+      title: Sync now
+      text: For CPUC system administrators.
+      optional: true
+
+impact_profiles/exports:
+  title: Profile library files
+  guide:
+    - The catalog written in the engine's format (catalog.parquet and hourly.parquet), with every profile in use at its current version.
+      Each write is numbered, kept and registered as a draft data pack; runs name the pack they priced with, and filings use it once it is
+      published under Reference data.
+  see: calculations
+  tour:
+    - target: main table.list
+      title: Library writes
+      text: Each write, newest first, and its data pack.
+      optional: true
+    - target: main .head-row form
+      title: Write the library now
+      text: For CPUC system administrators. It is written nightly otherwise.
+      optional: true

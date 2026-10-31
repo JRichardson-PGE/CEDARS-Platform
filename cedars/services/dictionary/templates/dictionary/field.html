@@ -2,7 +2,7 @@
 {% block title %}{{ f.name }}{% endblock %}
 {% block content %}
 <p><a href="{% url 'dictionary:index' %}">Data dictionary</a></p>
-<h1>{{ f.name }}</h1>
+<div class="page-title"><h1>{{ f.name }}</h1>{% page_help "dictionary/field" %}</div>
 <p>{{ f.definition|default:"No definition yet." }}</p>
 <dl class="facts">
   <dt>Kind</dt><dd>{{ f.get_kind_display }}{% if f.group %}, {{ f.group }}{% endif %}</dd>

@@ -2,7 +2,7 @@
 {% block title %}Monthly reports{% endblock %}
 {% block content %}
 <div class="head-row">
-  <h1>Monthly reports</h1>
+  <div class="page-title"><h1>Monthly reports</h1>{% page_help "monthly/index" %}</div>
   {% if sysadmin %}<div class="actions"><a class="button" href="{% url 'monthly:year_new' %}">Set up a program year</a></div>{% endif %}
 </div>
 <p>Each month a program administrator reports its commitments and the year's BCA inputs so far. Spend is read from the BCA inputs

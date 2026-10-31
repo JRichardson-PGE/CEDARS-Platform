@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ v.label }}{% endblock %}
 {% block content %}
-<h1>{{ v.label }}</h1>
+<div class="page-title"><h1>{{ v.label }}</h1>{% page_help "administration/allocation" %}</div>
 <dl class="facts">
   <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle }}{% endif %}</dd>
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %} {{ v.confirmed_at|date:"Y-m-d H:i T" }} by {{ v.confirmed_by.email|default:"the system" }}{% endif %}</dd>

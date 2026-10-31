@@ -6,7 +6,7 @@
   {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
   <a href="{% url 'data:records' %}">Record downloads</a>
 </nav>
-<h1>{{ page.title }}</h1>
+<div class="page-title"><h1>{{ page.title }}</h1>{% page_help "data/dashboard" page.slug %}</div>
 <p>{{ page.description }} Confirmed data only; each series shows when its data last changed.</p>
 
 {% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:dashboard' page.slug %}">Start again</a></p>{% endif %}

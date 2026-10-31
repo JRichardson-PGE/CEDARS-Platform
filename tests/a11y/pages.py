@@ -15,6 +15,9 @@ PAGES = [
     ("help-contact", "/help/contact/", None),
     ("help-tour", "/help/tour/", None),
     ("help-tour-signed-in", "/help/tour/", "analyst"),
+    ("help-pages", "/help/pages/", None),
+    ("help-page", "/help/pages/budgets/filing/?from=/budgets/", None),
+    ("help-page-front", "/help/pages/data/front/", "analyst"),
     *[
         (f"help-{slug}", f"/help/{slug}/", None)
         for slug in (

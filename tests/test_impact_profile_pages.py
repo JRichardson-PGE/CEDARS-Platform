@@ -6,6 +6,7 @@ from cedars.modules.impact_profiles import etrm, generation, jobs
 from cedars.modules.impact_profiles.models import ImpactProfile, LoadShapeUpload, MeasurePackage, ProcessingJob
 from cedars.services.accounts import service as access
 
+from .conftest import page_only
 from .test_impact_profiles import FIXTURE, leds_series, load_shape_csv, profile_file, zipped
 
 pytestmark = pytest.mark.django_db
@@ -40,7 +41,7 @@ def test_everyone_signed_in_sees_the_libraries(signed_in, make_user, synced):
     ):
         assert c.get(path).status_code == 200, path
     page = c.get("/impact-profiles/etrm/").content.decode()
-    assert "UECkWhMeas is zero" in page and "Sync now" not in page
+    assert "UECkWhMeas is zero" in page and "Sync now" not in page_only(page)
     assert c.get("/impact-profiles/packages/SWLG999-01-draft/").status_code == 200
     assert c.get("/impact-profiles/custom/new/").status_code == 404  # no submit permission
     assert c.post("/impact-profiles/etrm/").status_code == 302 and not ProcessingJob.objects.exists()
@@ -76,7 +77,7 @@ def test_a_rejected_upload_lists_its_findings_and_offers_them_as_csv(signed_in, 
     jobs.run_pending()
     u = LoadShapeUpload.objects.get()
     page = c.get(f"/impact-profiles/uploads/{u.pk}/").content.decode()
-    assert "Rejected: nothing saved" in page and "LS-S04" in page and "Generate impact profiles" not in page
+    assert "Rejected: nothing saved" in page and "LS-S04" in page and "Generate impact profiles" not in page_only(page)
     rows = c.get(f"/impact-profiles/uploads/{u.pk}/findings.csv").content.decode().splitlines()
     assert rows[0].startswith("stage,rule_id") and rows[1].startswith("S,LS-S04,reject,2,")
 
@@ -90,7 +91,7 @@ def test_another_pas_member_cannot_upload_or_see_the_upload(signed_in, developer
     c.post("/impact-profiles/packages/SWLG999-01-draft/", {"file": SimpleUploadedFile("s.csv", load_shape_csv(leds_series()))})
     u = LoadShapeUpload.objects.get()
     c2 = signed_in(other)
-    assert "Upload load shapes" not in c2.get("/impact-profiles/packages/SWLG999-01-draft/").content.decode()
+    assert "Upload load shapes" not in page_only(c2.get("/impact-profiles/packages/SWLG999-01-draft/").content.decode())
     r = c2.post("/impact-profiles/packages/SWLG999-01-draft/", {"file": SimpleUploadedFile("s.csv", b"x")})
     assert r.status_code == 302 and LoadShapeUpload.objects.count() == 1
     assert c2.get(f"/impact-profiles/uploads/{u.pk}/").status_code == 404

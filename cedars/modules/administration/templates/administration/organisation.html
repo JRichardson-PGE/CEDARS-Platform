@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ org.code }}{% endblock %}
 {% block content %}
-<h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>
+<div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation" %}</div>
 {% if not is_admin %}<p class="muted">You are viewing this organization as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
 {% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date:"Y-m-d" }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
 

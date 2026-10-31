@@ -8,7 +8,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | Path | What |
 | --- | --- |
 | `cedars/settings/` | `base` (shared), `dev`, `test`, `sandbox`, `prod`; everything machine-specific from environment variables |
-| `cedars/core/` | Base templates, the page-wide announcer, security headers, health check, the About page, Help (`help.py`: user guides under `templates/core/help/`, support and feedback from `CEDARS_SUPPORT_EMAIL` / `CEDARS_FEEDBACK_URL`, the guided tour's steps and `static/core/tour.js`). `/` is the front page, `cedars.modules.data.front` |
+| `cedars/core/` | Base templates, the page-wide announcer, security headers, health check, the About page, Help (`help.py`: user guides under `templates/core/help/`, support and feedback from `CEDARS_SUPPORT_EMAIL` / `CEDARS_FEEDBACK_URL`, the guided tour's steps and `static/core/tour.js`), and help for each page (`page_help.py`, Jake 2026-10-31: a (?) beside every page's heading, `{% page_help %}`, opens a guide to the page and a tour of it; the content is data in each app's `page_help.yaml`, keyed by template; `/help/pages/` lists every page's help and `/help/pages/<key>/` is the same help written out, for use without scripts; tests check every heading has its help and every tour step not marked optional finds its part of each page). `/` is the front page, `cedars.modules.data.front` |
 | `cedars/services/` | One app per shared service |
 | `cedars/modules/` | One app per module |
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Engine releases{% endblock %}
 {% block content %}
-<h1>Engine releases</h1>
+<div class="page-title"><h1>Engine releases</h1>{% page_help "calculations/engines" %}</div>
 <p>The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the ACCs each has. A job asks for
 exactly one release, and the worker refuses any other, so a run's results always name the release that produced them.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">

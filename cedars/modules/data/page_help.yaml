@@ -1,0 +1,195 @@
+# Help for each page (cedars/core/page_help.py): the front page, the portfolio dashboard and record downloads.
+
+data/front:
+  title: The front page
+  guide:
+    - What CEDARS is, the current program cycle at a glance, and Help. The cards add up the published filings for one four-year program
+      cycle; each links to the dashboard page that breaks its numbers down and uses that page's exclusions, so the two agree.
+    - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
+  see: published-data
+  tour_from: front
+
+# The dashboard's pages share one tour; each has its own guide.
+data/dashboard: &dashboard
+  title: The portfolio dashboard
+  guide:
+    - Forecast and claimed results from the confirmed filings, side by side, for every PA. Each page of the dashboard looks at them one
+      way; the tabs at the top move between pages and keep your years and filters.
+    - Every number is summed from the published records, and every row links to the records behind it, so you can download exactly what
+      a row adds up.
+  how: &dashboard_how
+    - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
+      then Apply.
+    - Narrow to PAs, sectors, programs or measures under Filters. Applied filters show as chips; Remove takes one off.
+    - Select a row's name to drill down one level; Program page opens the program.
+    - Download these rows gives the rows you see as CSV, Excel or Parquet; Download the records behind these rows gives the measure-level
+      records they add up.
+  see: published-data
+  tour: &dashboard_tour
+    - target: main nav.subnav
+      title: The dashboard's pages
+      text: Each page looks at the same published data another way. Your years and filters go with you from page to page.
+    - target: form.dash-controls
+      title: What to show
+      text: The series, the filing a forecast comes from, the years, the metric and how to break the rows down. Choose, then Apply.
+    - heading: Filters
+      title: Filters
+      text: Narrow to PAs (or every PA of a type), sectors, programs or measures. The count says how many are applied.
+    - target: dl.tiles
+      title: The totals
+      text: The totals of the rows below for each series, and the share of the forecast claimed so far.
+      optional: true
+    - target: main .chart, main svg[role=img]
+      title: The chart
+      text: The same numbers as the table under it. The table is the full record; the chart is for the shape.
+      optional: true
+    - target: main table.data, main table.list
+      title: The rows
+      text: One row per group. Select a name to drill down, and use the column headings to sort. Zero and blank differ; blank means
+        nothing is filed.
+      optional: true
+    - heading: Download these rows
+      title: Download these rows
+      text: Exactly the rows you see, as CSV, Excel or Parquet, each file saying which release and filters it came from.
+      optional: true
+    - target: "#record-downloads"
+      title: The records behind them
+      text: The measure-level records these rows add up, with the same filters. A large set is made in the background and you are told
+        when it is ready.
+      optional: true
+
+data/dashboard/overview:
+  <<: *dashboard
+  title: "Dashboard: overview"
+  guide:
+    - Forecast and claimed results side by side by PA, segment, sector, implementer type or measure use category, with the share of the
+      forecast achieved. Start here and drill down from any row.
+    - The forecast is each PA's latest confirmed budget filing unless you choose one under Filing; claims are the confirmed claims to
+      date.
+
+data/dashboard/goals:
+  <<: *dashboard
+  title: "Dashboard: goals"
+  guide:
+    - Results against the CPUC's energy efficiency goals for each IOU territory, as annual targets or cumulative cycle goals. A CCA's or
+      REN's results count toward a territory only as the goal decision's counting rules say.
+    - Codes and standards, Energy Savings Assistance and pension and benefits are left out, as goals count them. The goals come from the
+      confirmed goal set in force; until one covers the years, the page says there is no goal to compare with.
+
+data/dashboard/total-system-benefit:
+  <<: *dashboard
+  title: "Dashboard: total system benefit"
+  guide:
+    - Total system benefit (TSB), the CPUC's measure of a portfolio's value to the grid, by sector and year, each PA's split across
+      sectors, and every program.
+
+data/dashboard/programs:
+  <<: *dashboard
+  title: "Dashboard: program detail"
+  guide:
+    - Programs ranked by the metric you choose. Each program links to its program page and drills down to its measures by use category.
+
+data/dashboard/measures:
+  <<: *dashboard
+  title: "Dashboard: measure detail"
+  guide:
+    - Results by measure use category and by measure. Each measure links to the claim or filing records behind it. Opened from a program,
+      the page is filtered to that program.
+
+data/dashboard/budget:
+  <<: *dashboard
+  title: "Dashboard: budget and spending"
+  guide:
+    - The operating budget (the approved filing with the fund shifts in effect) against the forecast budget, the spending the PAs report
+      monthly and the expenditure they claim, by year and by program, and the cost elements by sector.
+    - Monthly reports are the PAs' own figures and are not validated the way claims are; the page labels them so.
+
+data/dashboard/cost-effectiveness:
+  <<: *dashboard
+  title: "Dashboard: cost effectiveness"
+  guide:
+    - Cost-test ratios (TRC, PAC, RIM and the societal tests) by sector, year and program. Each ratio is summed benefits over summed costs,
+      never an average of ratios. Without admin leaves administration costs out of the cost.
+    - Programs flagged as excluded from cost effectiveness, codes and standards and pension and benefits are left out unless you include
+      them.
+
+data/dashboard/energy-savings:
+  <<: *dashboard
+  title: "Dashboard: energy savings"
+  guide:
+    - Electric energy (kWh), demand (kW) and gas (therms) savings by sector, year and program. Choose net or gross, and first year or
+      lifecycle; demand savings are first year only.
+
+data/dashboard/environmental-impact:
+  <<: *dashboard
+  title: "Dashboard: environmental impact"
+  guide:
+    - >-
+      Emissions avoided, in metric tons, by sector, year and program: greenhouse gases and the criteria pollutants, net or gross, first
+      year or lifecycle.
+
+data/records:
+  title: Record downloads
+  guide:
+    - The published measure-level records for every PA in one file. Choose which records (data set, filing, years, PAs, programs,
+      measures, exclusions) and which columns, look through them on the page, then download them as CSV, Excel or Parquet.
+    - Records hold every published program unless you leave some out. A set larger than can be made while you wait is made in the
+      background once you are signed in; you are told when it is ready and it waits under Your downloads.
+  how:
+    - Start from a column preset, then open a group to tick its columns. Every column is defined in the data dictionary.
+    - Each file records its release, when its data last changed, the filters, what was left out and the columns under their canonical
+      names.
+  see: published-data
+  tour:
+    - target: form.records-form
+      title: Which records
+      text: The data set, the forecast filing, the years, the PAs and any programs or measures. Choose, then Show these records.
+    - heading: More filters and exclusions
+      title: More filters and exclusions
+      text: Sectors, delivery and the programs left out (codes and standards, ESA, pension and benefits, programs excluded from cost
+        effectiveness).
+    - target: fieldset.column-picker
+      title: Columns
+      text: Start from a preset, then tick columns group by group. The count says how many you have chosen.
+      optional: true
+    - heading: Download
+      title: Download
+      text: How many records match, their totals, and the files. A large set is made in the background.
+      optional: true
+    - heading: The records
+      title: The records
+      text: The chosen columns, a page at a time, so you can check them before you download.
+      optional: true
+
+data/downloads:
+  title: Your downloads
+  guide:
+    - Record downloads too large to make while you wait. Each is made in the background; you are told on your notifications page and by
+      email when it is ready, and the file is kept here for a set number of days.
+  see: published-data
+  tour:
+    - target: main table.list
+      title: Your downloads
+      text: When you asked for each, how many records, the format and its status. Download the file once it is done; select the date for
+        its details.
+      optional: true
+
+data/download_job:
+  title: A background download
+  guide:
+    - >-
+      One record download made in the background: its status, how many records it holds, and once done its size and SHA-256 checksum, so
+      you can confirm the file arrived whole.
+    - A queued download says how many are ahead of it. You can leave the page; you are told when it is ready.
+  see: published-data
+  tour:
+    - target: main dl.facts
+      title: Status and details
+      text: Queued, running, done or failed, when you asked, the records, and once done the file's size and checksum.
+    - target: main a.button.primary
+      title: Download the file
+      text: Shown once the file is made.
+      optional: true
+    - target: main a[href*="/data/records/"]:not(nav a)
+      title: What it holds
+      text: Opens the records page with the same records and columns.

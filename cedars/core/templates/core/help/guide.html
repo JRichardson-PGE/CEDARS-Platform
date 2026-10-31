@@ -2,7 +2,7 @@
 {% block title %}{{ guide.title }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'core:help' %}">Help</a></p>
-<h1>{{ guide.title }}</h1>
+<div class="page-title"><h1>{{ guide.title }}</h1>{% page_help "core/help/guide" %}</div>
 <p>{{ guide.summary }}</p>
 <p class="small muted">Who it is for: {{ guide.audience }}.</p>
 <div class="guide">

@@ -1,0 +1,160 @@
+# Help for each page (cedars/core/page_help.py): claims.
+
+claims/index:
+  title: Claims
+  guide:
+    - Each claim year is confirmed five times, after each quarter and once more with the final annual claims. This page lists each year's
+      confirmations with their due dates and where your organization's stand. The newest year is open; earlier years are folded under
+      their headings.
+    - The claims template (Excel) lists every table and field. The change log lists every correction to confirmed claims, and Linked
+      claims follows NMEC chains, projects and SEM participants across quarters and years.
+  see: claims
+  tour:
+    - target: main .head-row .actions, main .head-row .button
+      title: Template, change log and linked claims
+      text: The claims template, every correction made so far, and claims that link across years. CPUC administrators set up claim years here.
+    - target: main section.cycle
+      title: The current claim year
+      text: Each confirmation with its due date and your organization's status. Select one to open it.
+    - target: main details.section
+      title: Earlier years
+      text: Open a year to see its confirmations.
+      optional: true
+
+claims/year_new:
+  title: Setting up a claim year
+  guide:
+    - For CPUC system administrators. A claim year has five confirmations (four quarters and the annual) due on the dates you set, and is
+      priced on the ACC and allocation version chosen on its pricing page.
+  see: claims
+  tour:
+    - target: main form
+      title: The claim year
+      text: The year and each confirmation's due date. Every PA sees it on Claims once it is set up.
+
+claims/setup:
+  title: How a claim year is priced
+  guide:
+    - The ACC and statewide allocation version the year's next pricing uses. Versions already priced keep the ones they were priced with;
+      their run records both.
+  see: claims
+  tour:
+    - target: main form
+      title: Pricing settings
+      text: Choose the ACC and allocation version and Save.
+
+claims/period:
+  title: A claims confirmation
+  guide:
+    - One PA's confirmation of one quarter (or the annual claims). Upload the records that are new or changed since the last confirmation;
+      CEDARS compiles them over the earlier confirmed quarters, where a record with the same key replaces the one confirmed earlier.
+    - Every record is checked against the claims rules, and deemed measures against eTRM. Fix what is rejected and upload again, then
+      Price the year to date, review it, and Confirm and publish. Quarters are confirmed in order. After the due date a correction is a new
+      version, published with a change letter.
+    - Contacts and sites never go in the claims file. They are uploaded separately under Personal information, need the PII permission a
+      data steward approves, and are kept apart in the PII vault.
+  how:
+    - To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload, with the reason.
+    - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
+  see: claims
+  tour:
+    - target: "#earlier-h"
+      title: Earlier confirmations
+      text: This year's confirmed quarters, which this upload is compiled over.
+      optional: true
+    - target: "#now-h"
+      title: The version in progress
+      text: Its status, the records by table, the findings by rule (rejects first), and the next step, which is check, price, confirm, un-confirm or ask to reopen.
+      optional: true
+    - heading: Year-to-date results
+      title: Year-to-date results
+      text: The priced totals that confirming signs off on.
+      optional: true
+    - target: "#upload-h"
+      title: Upload
+      text: The new and changed records as one file, or several chosen together. It replaces this version's earlier upload.
+      optional: true
+    - target: "#pii-h"
+      title: Personal information
+      text: The contacts and sites behind the claims, uploaded and read separately, with a reason recorded each time.
+      optional: true
+    - target: "#versions-h"
+      title: Versions
+      text: Every version of this confirmation, newest first.
+      optional: true
+
+claims/version:
+  title: A claims version
+  guide:
+    - One confirmed (or in-progress) version of a PA's claims, the year to date by program, with the priced results, the withdrawn claims and
+      the files. Confirmed claims are published.
+  how:
+    - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
+    - Column definitions explains each column.
+  see: claims
+  tour:
+    - target: main form.filters
+      title: What to show
+      text: The programs and years to show.
+      optional: true
+    - target: "#programs-h"
+      title: By program
+      text: Each program's year-to-date results, with downloads and the column definitions.
+    - target: "#withdrawn-h"
+      title: Withdrawn claims
+      text: Claims withdrawn this year, with the reason. Their records stay but are not counted.
+      optional: true
+    - target: "#files-h"
+      title: Files
+      text: The tables as filed.
+
+claims/changes:
+  title: The claims change log
+  guide:
+    - Every correction to confirmed claims, newest first. A correction is a new version made after the due date; the version it replaces
+      stays as it was confirmed. Each change letter gives the date, the reason and what changed.
+  see: claims
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By PA and year.
+      optional: true
+    - target: main table.list
+      title: Corrections
+      text: Each correction with its PA, period and reason. Select one to read its change letter.
+      optional: true
+
+claims/change_letter:
+  title: A change letter
+  guide:
+    - What one correction to confirmed claims changed, the claims added, changed and withdrawn, each program whose year to date changed
+      (before and after), and each table's records before and after. It is published with the correction.
+  see: claims
+  tour:
+    - target: main dl.facts
+      title: The correction
+      text: When it was published, the version it corrects, the correcting version and the reason.
+    - target: "#claims-h"
+      title: Claims
+      text: The claims the correction added, changed or withdrawn. Open a group to see them.
+    - target: "#programs-h"
+      title: Programs
+      text: Each program whose year to date changed, before and after.
+    - target: "#tables-h"
+      title: Records by table
+      text: Each table's year-to-date records before and after.
+
+claims/links:
+  title: Linked claims
+  guide:
+    - How confirmed claims link up across quarters and years. Look up a NMEC claim's chain from the original claim through every true-up,
+      every claim of one project (its ProjectID), or a SEM participant's claims across the phases of its engagement.
+  see: claims
+  tour:
+    - target: main form
+      title: Look up
+      text: Choose what to look up by and enter the ID.
+    - target: "#results-h"
+      title: The linked claims
+      text: Every confirmed claim found, in order, with its filed savings and, for a chain, each true-up's change from its parent.
+      optional: true

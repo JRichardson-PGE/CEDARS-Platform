@@ -3,7 +3,7 @@
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="exports" %}
 <div class="head-row">
-  <h1>Profile library files</h1>
+  <div class="page-title"><h1>Profile library files</h1>{% page_help "impact_profiles/exports" %}</div>
   {% if is_admin %}<form method="post">{% csrf_token %}<button type="submit">Write the library now</button></form>{% endif %}
 </div>
 <p>The catalog written in the engine's format (catalog.parquet and hourly.parquet), with every profile in use at its current version. Each

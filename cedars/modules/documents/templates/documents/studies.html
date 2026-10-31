@@ -3,7 +3,7 @@
 {% block content %}
 {% include "documents/_subnav.html" with section="studies" show_aging=show_aging %}
 <div class="head-row">
-  <h1>Evaluation studies</h1>
+  <div class="page-title"><h1>Evaluation studies</h1>{% page_help "documents/studies" %}</div>
   {% if can_create %}<a class="button" href="{% url 'documents:new_study' %}">Add a study</a>{% endif %}
 </div>
 <p>Every EM&amp;V study, led by CPUC Energy Division, an IOU or a REN, with its budget, status, the programs and years it evaluates and

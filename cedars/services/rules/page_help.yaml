@@ -1,0 +1,81 @@
+# Help for each page (cedars/core/page_help.py): validation rule sets and the file checker.
+
+rules/index:
+  title: Validation rules
+  guide:
+    - The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective
+      by then; every submission and run records the version it was checked against.
+    - Check a file before you file it runs the rules in force on your file without filing it. Compare two rule sets shows what changed
+      between versions.
+  see: published-data
+  tour:
+    - target: main p.actions
+      title: Check a file, or compare rule sets
+      text: Check your file against the rules in force, or see what changed between two sets.
+    - target: main table.list
+      title: Rule sets
+      text: Each set and version, its effective date and status. Select one to read its rules.
+    - target: "#imp-h"
+      title: Import CEDARS' rules
+      text: For CPUC system administrators. Imported rules start as a draft until published.
+      optional: true
+
+rules/detail:
+  title: A rule set
+  guide:
+    - One version of a rule set, every rule in it with its ID, severity (reject or warning), field and message. A rule's ID is a content
+      hash, the same wherever the same rule is used.
+  how:
+    - Filter by field or words, severity and table, and download the rules shown as CSV.
+  see: published-data
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By field or words, severity and table, then Apply, or download the rules shown as CSV.
+    - target: main table.list
+      title: The rules
+      text: Each rule. Select its ID for the rule as data.
+
+rules/rule:
+  title: A rule
+  guide:
+    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it, and the rule as data, exactly as the
+      checker runs it.
+  see: published-data
+  tour:
+    - heading: The rule as data
+      title: The rule as data
+      text: The rule's definition as the checker reads it.
+
+rules/differences:
+  title: Comparing two rule sets
+  guide:
+    - The rules only in the first set, only in the second, and those whose wording or severity changed. Use it to see what a new version of
+      the rules changes before it takes effect.
+  see: published-data
+  tour:
+    - target: main form.filters
+      title: The two sets
+      text: Choose the first and second set, then Compare.
+    - target: main h2
+      title: The differences
+      text: Each group of rules that differ.
+      optional: true
+
+rules/check:
+  title: Checking a file before you file it
+  guide:
+    - Runs the rules in force on your file, exactly as a filing will be checked, and lists every finding by rule, rejects first. Nothing you
+      upload here is kept.
+  how:
+    - Check and download every finding (CSV) gives each finding's line, record, field and how to fix it.
+  see: published-data
+  tour:
+    - target: main form
+      title: The file
+      text: Choose the kind of filing and the file, then Check.
+      optional: true
+    - target: "#res-h"
+      title: Results
+      text: How many records were rejected or warned, and the findings by rule.
+      optional: true

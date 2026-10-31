@@ -1,0 +1,14 @@
+{% extends "core/base.html" %}
+{% block title %}Help for each page{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'core:help' %}">Help</a></p>
+<div class="page-title"><h1>Help for each page</h1>{% page_help "core/help/pages" %}</div>
+<p>Every page has a question mark beside its heading that opens a guide to the page and a tour of it. Here are the same guides, by part of
+CEDARS.</p>
+{% for label, entries in areas %}
+<h2>{{ label }}</h2>
+<ul class="links columns">
+  {% for e in entries %}<li><a href="{% url 'core:help_page' e.key %}">{{ e.title }}</a></li>{% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}

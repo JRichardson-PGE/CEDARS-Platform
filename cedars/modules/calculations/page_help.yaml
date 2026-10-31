@@ -1,0 +1,246 @@
+# Help for each page (cedars/core/page_help.py): cost-effectiveness runs, results, comparisons, Edit inputs and output templates.
+
+calculations/runs:
+  title: Your runs
+  guide:
+    - >-
+      Your cost-effectiveness runs and your organization's, newest first, with their status. Any job can be priced on the ReCET engine:
+      upload it as one .zip of Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job.
+    - A run is yours alone or your organization's, as you choose when you start it. Runs a filing starts (budgets, claims, monthly
+      reports) are listed here too.
+  see: calculations
+  tour:
+    - target: main .head-row .actions
+      title: New run and output templates
+      text: Start a run, or choose the columns runs write with an output template.
+    - target: main table.list
+      title: The runs
+      text: Each run's name, who it is for, the engine and ACC, and its status. Select a name to open its page.
+
+calculations/new:
+  title: Starting a run
+  guide:
+    - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or run a draft you are editing in Edit inputs.
+      Choose the engine release and the ACC; the run is queued, the run page shows its progress, and its files and results when it ends.
+    - A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history only. It is never used
+      for a filing.
+  how:
+    - Check the inputs only runs the input check without pricing, to see the findings first.
+    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on.
+  see: calculations
+  tour:
+    - target: main form
+      title: The job
+      text: A name for the run, who it is for (only you, or your organization), and the job's .zip.
+    - heading: Pricing
+      title: Pricing
+      text: The engine release and the ACC. The page says when no worker is running a release.
+    - heading: Statewide programs
+      title: Statewide programs
+      text: Whether and how statewide programs are allocated to the funding PAs.
+      optional: true
+    - heading: Checks and outputs
+      title: Checks and outputs
+      text: The filing checks to run, the output format and the output template.
+      optional: true
+
+calculations/run:
+  title: A run
+  guide:
+    - One cost-effectiveness run, its status while it is queued and running, then its settings, portfolio totals, files, and the record of
+      what produced the results (the engine release, the ACC and every input's checksum), so anyone can reproduce them.
+    - A finished run opens its Results and can be compared with another run. A small job's inputs can be opened in Edit inputs to change
+      and run again.
+  see: calculations
+  tour:
+    - target: "#status-h"
+      title: Status
+      text: Queued, running (with its progress), finished or failed, and what to do about a failure.
+    - target: "#settings-h"
+      title: Settings
+      text: What the run was asked to do.
+    - target: main .head-row .actions
+      title: Results and compare
+      text: The results by portfolio, PA, program and measure, and a comparison with any other finished run.
+      optional: true
+    - target: "#totals-h"
+      title: Portfolio totals
+      text: The headline totals and every other total in the receipt.
+      optional: true
+    - target: "#files-h"
+      title: Files
+      text: Every file the run wrote, to download.
+      optional: true
+    - target: "#receipt-h"
+      title: What produced these results
+      text: The engine release, the ACC and the checksums of the inputs and reference data.
+      optional: true
+
+calculations/results:
+  title: A run's results
+  guide:
+    - A finished run's results at the level you choose (portfolio, PA, program, sector or measure), for the program years and PAs you pick.
+      The tiles are the headline totals, with what each number is under them, and the chart shows the largest groups.
+    - Choose the columns to show, sort by any column, filter the rows, and download the table as CSV.
+  see: calculations
+  tour:
+    - target: main .head-row .actions
+      title: The run and comparisons
+      text: The run's page with its files, and a comparison with another finished run.
+    - target: main form.filters
+      title: What to show
+      text: The PA and the program years. Choose, then Apply.
+      optional: true
+    - target: "#tiles-h + dl.tiles, main dl.tiles"
+      title: The headline totals
+      text: Benefits, costs and ratios of what is shown. What these numbers are explains each.
+      optional: true
+    - target: "#chart-h"
+      title: The chart
+      text: The largest groups at this level.
+      optional: true
+    - heading: Choose columns
+      title: Choose columns
+      text: Tick the columns to show, group by group.
+      optional: true
+    - target: main nav.subnav
+      title: Level
+      text: Portfolio, PA, program, sector or measure.
+      optional: true
+    - target: main table.data
+      title: The table
+      text: Sort by a column heading, filter the rows, and download the table as CSV.
+      optional: true
+
+calculations/compare:
+  title: Comparing two runs
+  guide:
+    - Two finished runs side by side (A and B) at the level you choose, with each value's difference. Use it to see what a change of ACC,
+      engine release or inputs did. Neither run changes.
+  see: calculations
+  tour:
+    - target: main dl.facts
+      title: The two runs
+      text: Run A and run B, with their engines and ACCs.
+    - target: main form.filters
+      title: What to compare
+      text: The other run, the PA and the program years.
+    - target: main nav.subnav
+      title: Level
+      text: Portfolio, PA, program or sector.
+      optional: true
+    - target: main table.data
+      title: Side by side
+      text: A, B and the difference for each column, with a CSV of the table.
+      optional: true
+
+calculations/engines:
+  title: Engine releases
+  guide:
+    - For CPUC system administrators. The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the
+      ACCs each has. A job asks for exactly one release and the worker refuses any other, so a run's results always name the release that
+      produced them. The default is what New run offers first; a retired release keeps its runs but takes no new ones.
+  see: calculations
+  tour:
+    - target: main table.list
+      title: The releases
+      text: Each release, the calculations and ACCs it has, and whether it is the default.
+    - target: "#add-h"
+      title: Add a release
+      text: Register a new release by its version number.
+
+calculations/drafts:
+  title: Edit inputs
+  guide:
+    - Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to a set number of measures (edit larger jobs
+      offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.
+  how:
+    - Start a draft from a job's .zip, or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
+  see: calculations
+  tour:
+    - target: main p.alert
+      title: The engine is not installed
+      text: Edit inputs checks each cell with the engine's input rules, so it needs the engine on the server. Ask support.
+      optional: true
+    - target: main table.list
+      title: Your drafts
+      text: Each draft, who it is for, how many measures and when it last changed. Select one to edit it.
+      optional: true
+    - target: "#new-h"
+      title: Start a draft
+      text: From a job's .zip, or empty.
+      optional: true
+
+calculations/draft:
+  title: A draft
+  guide:
+    - One job's tables being edited. The input check runs on every save and lists the cells to look at, errors first. Select a row to edit
+      it; add a measure or program cost row, rename or delete the draft.
+    - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip.
+  see: calculations
+  tour:
+    - target: main .head-row .actions
+      title: Run or download
+      text: Run these inputs, or download the job as a zip.
+    - target: "#check-h"
+      title: Input check
+      text: What the engine's input rules found. Cells to look at lists each one, with a link to its row.
+    - target: main nav.subnav
+      title: Tables
+      text: Measure and ProgramCost.
+    - target: "#table-h"
+      title: The rows
+      text: A page of rows. Select a row's number to edit it.
+    - target: "#change-h"
+      title: Change the draft
+      text: Add a row, rename the draft, or delete it.
+      optional: true
+
+calculations/draft_row:
+  title: Editing a row
+  guide:
+    - One row of a draft's table, its fields grouped as the input templates group them. Save the row and the input check runs again; the
+      row's own findings are listed above the form. Copy the row to start a similar one, or delete it.
+  see: calculations
+  tour:
+    - target: main nav.pager
+      title: Rows
+      text: The previous and next rows, and back to the table.
+    - target: "#row-check-h"
+      title: This row's input check
+      text: What the input rules found in this row.
+      optional: true
+    - target: main form.stack
+      title: The fields
+      text: Each field with its definition. Save the row, copy it or delete it.
+
+calculations/templates:
+  title: Output templates
+  guide:
+    - An output template chooses the columns a run writes to its measure-level file, in order. Everyone's shared templates come first, then
+      yours. The full table is still kept for the run's Results.
+  see: calculations
+  tour:
+    - target: main .head-row .button
+      title: New template
+      text: Start a template, or open one to change or copy it.
+    - target: main table.list
+      title: The templates
+      text: Each template, whose it is and how many columns.
+    - target: "#default-h"
+      title: Default for new runs
+      text: The template New run chooses for you.
+
+calculations/template:
+  title: An output template
+  guide:
+    - Name the template and list its columns in the order the file should have them, one per line, or tick them under Add columns. A
+      column a run does not produce is left out, with a note.
+  see: calculations
+  tour:
+    - target: main form .form-narrow
+      title: Name and columns
+      text: The template's name, who sees it, and its columns in order.
+    - heading: Add columns
+      title: Add columns
+      text: Every column a run can write, by group. Tick them to add them to the list.

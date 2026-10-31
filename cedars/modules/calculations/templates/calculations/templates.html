@@ -3,7 +3,7 @@
 {% block content %}
 <p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
 <div class="head-row">
-  <h1>Output templates</h1>
+  <div class="page-title"><h1>Output templates</h1>{% page_help "calculations/templates" %}</div>
   <a class="button primary" href="{% url 'calculations:template_new' %}">New template</a>
 </div>
 <p>An output template is a list of measure-level columns, in order. A run given one (New run, Checks and outputs) writes only those

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ pack.label }}{% endblock %}
 {% block content %}
-<h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>
+<div class="page-title"><h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>{% page_help "refdata/detail" %}</div>
 <dl class="facts">
   <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>
   <dt>Status</dt><dd>{{ pack.get_status_display }}{% if pack.published_at %}, published {{ pack.published_at|date:"Y-m-d H:i T" }} by {{ pack.published_by.email|default:"the system" }}{% endif %}</dd>

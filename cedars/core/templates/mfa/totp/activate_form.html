@@ -3,7 +3,7 @@
 {# The second-factor set-up page (UAT F11, F12): the key is selectable text with a copy button, not a disabled input. #}
 {% block head_title %}Set up your authenticator app{% endblock head_title %}
 {% block content %}
-<h1>Set up your authenticator app</h1>
+<div class="page-title"><h1>Set up your authenticator app</h1>{% page_help "mfa/totp/activate_form" %}</div>
 <p>Every CEDARS account signs in with a second factor. Scan the code below with an authenticator app, or type the key into it, then enter the six-digit code the app shows.</p>
 {% url 'mfa_activate_totp' as action_url %}
 {% element form form=form method="post" action=action_url %}

@@ -1,0 +1,36 @@
+# Help for each page (cedars/core/page_help.py): the data dictionary.
+
+dictionary/index:
+  title: The data dictionary
+  guide:
+    - Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by (CET's and the E3
+      calculators' among them, which uploads may still use). Each field has its definition, type, unit and where it is used.
+    - Download the whole catalog as CSV, or the upload templates for each kind of filing.
+  see: published-data
+  tour:
+    - target: main p.actions
+      title: Downloads
+      text: The catalog as CSV.
+    - heading: Upload templates
+      title: Upload templates
+      text: The templates for each filing's tables, with every column in order.
+    - target: main form.filters
+      title: Search
+      text: Search names and definitions, and narrow to inputs or outputs.
+    - target: main table.list
+      title: Fields
+      text: Each field by kind and group. Select a name for its full entry.
+
+dictionary/field:
+  title: A field
+  guide:
+    - One field's full entry, its definition, kind, type and unit, where its values come from, the cost tests it counts in, how it adds up,
+      the years it is in use, the other names an upload may give it, and every table it appears in.
+  see: published-data
+  tour:
+    - target: main .page-title + p
+      title: Definition
+      text: What the field holds.
+    - target: main dl.facts
+      title: The details
+      text: Type, unit, source, cost tests, aggregation, other names and where it is used.

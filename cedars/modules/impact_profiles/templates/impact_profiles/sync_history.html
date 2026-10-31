@@ -3,7 +3,7 @@
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="sync" %}
 <div class="head-row">
-  <h1>eTRM sync history</h1>
+  <div class="page-title"><h1>eTRM sync history</h1>{% page_help "impact_profiles/sync_history" %}</div>
   {% if is_admin %}<form method="post">{% csrf_token %}<button type="submit">Sync now</button></form>{% endif %}
 </div>
 <p>Draft measure packages and their permutations are pulled from eTRM every night. A package with bad data is left out and listed here
