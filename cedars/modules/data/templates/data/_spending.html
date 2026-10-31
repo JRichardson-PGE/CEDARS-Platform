@@ -1,0 +1,59 @@
+{% load data_tags %}
+<p class="small muted">PAs: {{ sp.organisations|join:", "|default:"none" }}. The budget lines follow the PA and program filters only.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by year">
+<table class="list">
+  <caption class="sr-only">Budget and spending by year, in nominal dollars</caption>
+  <thead><tr><th scope="col">Year</th><th scope="col" class="num">Operating budget</th>
+    {% for s in sp.results %}<th scope="col" class="num">{{ sp|series_label:s }} expenditure</th>{% endfor %}
+    <th scope="col" class="num">Monthly reported (unvalidated)</th>
+    {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th><th scope="col" class="num">Claimed, cumulative</th>{% endif %}
+    <th scope="col" class="num">Budget, cumulative</th></tr></thead>
+  <tbody>
+  {% for r in sp.by_year %}
+  <tr><th scope="row">{{ r.key }}</th><td class="num">{{ r.budget|money }}</td>
+    {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
+    <td class="num">{{ r.monthly|money }}{% if r.through %}<br><span class="small muted">through {{ r.through }}</span>{% endif %}</td>
+    {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td><td class="num">{{ r.cumulative_claims|money }}</td>{% endif %}
+    <td class="num">{{ r.cumulative_budget|money }}</td></tr>
+  {% empty %}<tr><td colspan="8">No years to show: choose a year range.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Cost elements by primary sector{% if sp.elements %}, {{ sp.elements.query.dataset|series_word }}{% endif %} ($ nominal)</h2>
+{% if sp.elements %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Cost elements by primary sector">
+<table class="list">
+  <caption class="sr-only">Cost elements by primary sector, in nominal dollars</caption>
+  <thead><tr><th scope="col">Primary sector</th>{% for m in elements %}<th scope="col" class="num">{{ m.label }}</th>{% endfor %}<th scope="col" class="num">Expenditure</th></tr></thead>
+  <tbody>
+  {% for r in sp.elements.rows %}
+  <tr><th scope="row">{{ r.sector|default_if_none:"(blank)" }}</th>{% for m in elements %}<td class="num">{{ r|get_item:m.code|money }}</td>{% endfor %}<td class="num">{{ r.expenditure|money }}</td></tr>
+  {% empty %}<tr><td colspan="9">Nothing matches these filters.</td></tr>
+  {% endfor %}
+  </tbody>
+  {% if sp.elements.rows %}<tfoot><tr><th scope="row">Total</th>{% for m in elements %}<td class="num">{{ sp.elements.totals|get_item:m.code|money }}</td>{% endfor %}<td class="num">{{ sp.elements.totals.expenditure|money }}</td></tr></tfoot>{% endif %}
+</table>
+</div>
+{% endif %}
+
+<h2>Budget and spending by program ($ nominal)</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by program">
+<table class="list">
+  <caption class="sr-only">Budget and spending by program, in nominal dollars</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col" class="num">Operating budget</th>
+    {% for s in sp.results %}<th scope="col" class="num">{{ s|series_word|capfirst }} expenditure</th>{% endfor %}
+    <th scope="col" class="num">Monthly reported (unvalidated)</th><th scope="col" class="num">Monthly % of budget</th>
+    {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in sp.by_program %}
+  <tr><th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% else %}(blank){% endif %}</th><td class="num">{{ r.budget|money }}</td>
+    {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
+    <td class="num">{{ r.monthly|money }}</td><td class="num">{{ r.monthly_share|percent }}</td>
+    {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td>{% endif %}</tr>
+  {% empty %}<tr><td colspan="7">No budget lines or spending for these choices.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

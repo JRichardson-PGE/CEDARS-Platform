@@ -84,7 +84,10 @@
 
 {% for b in blocks %}
 <h2>{{ b.caption|capfirst }}</h2>
-{% if b.kind == "goals" %}
+{% if b.kind == "budget" %}
+{% include "data/_chart.html" with chart=b.chart caption=b.caption %}
+{% include "data/_spending.html" with sp=b.s %}
+{% elif b.kind == "goals" %}
 {% include "data/_chart.html" with chart=b.chart caption=b.caption %}
 {% include "data/_goal_table.html" with c=b.comparison caption=b.caption %}
 {% elif b.kind == "matrix" %}

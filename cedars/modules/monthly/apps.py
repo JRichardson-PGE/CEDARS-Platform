@@ -17,3 +17,7 @@ class MonthlyConfig(AppConfig):
         from . import service
 
         register_publisher("monthly", service.on_publish, service.on_unpublish)
+
+        from cedars.services.registry.service import register_reported_spend
+
+        register_reported_spend(service.reported_spend)  # what the budget-and-spending dashboard shows (BR-07.3)

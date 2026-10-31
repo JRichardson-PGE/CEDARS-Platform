@@ -631,6 +631,23 @@ def operating_budget(organisation: Organisation, cycle: FilingCycle | None) -> l
     return _operating_budget_sources[0](organisation, cycle)
 
 
+_reported_spend_sources: list = []
+
+
+def register_reported_spend(source) -> None:
+    """The Monthly reports module's spending: source(organisation, year) returns one dict per program, {prg_id, ytd, through}
+    (year-to-date expenditure in Decimal dollars from the PA's latest published report of the year, and that report's month as
+    "YYYY-MM"). Dashboards read it through `reported_spend` (BR-07.3), so they never import Monthly reports."""
+    _reported_spend_sources[:] = [source]
+
+
+def reported_spend(organisation: Organisation, year: int) -> list[dict]:
+    """A PA's monthly-reported year-to-date spending by program; [] when Monthly reports is not installed or nothing is published."""
+    if not _reported_spend_sources:
+        return []
+    return _reported_spend_sources[0](organisation, year)
+
+
 _evaluation_sources: list = []
 
 

@@ -272,3 +272,55 @@ def test_records_page_through(both, client, monkeypatch):
     assert "Records 1 to 1 of 3" in first and "page=2" in first and "Previous" not in first
     last = client.get("/data/records/?metric=tsb&page=3").content.decode()
     assert "Records 3 to 3 of 3" in last and "Next" not in last
+
+
+def test_budget_and_spending(both, pge, monkeypatch, client):
+    from decimal import Decimal
+
+    from cedars.modules.data import budget_view
+    from cedars.services.registry import service as registry
+
+    def budget(org, cycle):
+        assert (cycle.first_year, cycle.last_year) == (2028, 2031)
+        return [
+            {"prg_id": "PGE_Res_HVAC", "year": 2028, "operating": Decimal(200)},
+            {"prg_id": "PGE_Com_Lt", "year": 2028, "operating": Decimal(50)},
+            {"prg_id": "PGE_Res_HVAC", "year": 2029, "operating": Decimal(250)},
+        ]
+
+    def spend(org, year):
+        return [{"prg_id": "PGE_Res_HVAC", "ytd": Decimal(60), "through": "2028-06"}] if year == 2028 else []
+
+    monkeypatch.setattr(registry, "_operating_budget_sources", [budget])
+    monkeypatch.setattr(registry, "_reported_spend_sources", [spend])
+    view = d_parse("budget", year_from="2028", year_to="2029", pa="PGE")
+    s = budget_view.compare(view)
+    assert s.organisations == ["PGE"]
+    y28, y29 = s.by_year
+    assert (y28.budget, y28.monthly, y28.values) == (250, 60, {"forecast": 220.0, "claims": 110.0})  # pension and C&S left out
+    assert y28.claimed_share == 44 and y28.through == "PGE 2028-06"
+    assert (y29.budget, y29.values["claims"], y29.cumulative_budget, y29.cumulative_claims) == (250, None, 500, 110)
+    hvac = next(r for r in s.by_program if r.key == "PGE_Res_HVAC")
+    assert (hvac.budget, hvac.monthly, hvac.values["claims"], hvac.monthly_share) == (450, 60, 100.0, 60 / 450 * 100)
+    by_sector = {r["sector"]: r for r in s.elements.rows}
+    assert by_sector["Residential"]["incentives"] == 50 and by_sector["Residential"]["expenditure"] == 100
+    g = budget_view.chart(s)
+    assert g["goal"] == "Operating budget" and g["groups"][0]["goal"] == 100.0
+    page = client.get("/data/budget/?year_from=2028&year_to=2029&pa=PGE").content.decode()
+    assert "Monthly reported (unvalidated)" in page and "through PGE 2028-06" in page and "Cost elements by primary sector, claimed" in page
+    assert "not yet validated" in page
+
+
+def test_budget_page_without_budgets(both, client):
+    page = client.get("/data/budget/?year_from=2040&year_to=2040").content.decode()
+    assert "No filing cycle covers these years" in page
+
+
+def d_parse(slug, **params):
+    return dashboard.parse(dashboard.PAGES[slug], _qd(params))
+
+
+def test_monthly_reports_give_their_spending_to_the_registry(pge):
+    from cedars.services.registry import service as registry
+
+    assert registry.reported_spend(pge, 2028) == []  # the Monthly reports module's source, with nothing published

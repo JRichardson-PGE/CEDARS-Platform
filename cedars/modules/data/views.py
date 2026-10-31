@@ -62,7 +62,7 @@ def dashboard_index(request):
 def dashboard_page(request, slug):
     from django.shortcuts import render
 
-    from . import goal_view
+    from . import budget_view, goal_view
 
     page = dashboard.PAGES.get(slug)
     if page is None:
@@ -76,7 +76,18 @@ def dashboard_page(request, slug):
     metric = view.metric
     unit = f" ({metric.unit})" if metric.unit else ""
     blocks, totals, goals = [], None, None
-    if page.kind == "goals":
+    spending = None
+    if page.kind == "budget":
+        spending = budget_view.compare(view)
+        blocks.append(
+            {
+                "kind": "budget",
+                "s": spending,
+                "chart": budget_view.chart(spending),
+                "caption": "Expenditure against the operating budget, by year ($ nominal)",
+            }
+        )
+    elif page.kind == "goals":
         period = "cycle" if request.GET.get("period") == "cycle" else "annual"
         goals = goal_view.compare(view, period)
         blocks.append({"kind": "goals", "comparison": goals, "chart": goal_view.chart(goals), "caption": _goal_caption(goals)})
@@ -102,7 +113,7 @@ def dashboard_page(request, slug):
                     "series_labels": [(sr, c.series_label(sr)) for sr in c.results],
                 }
             )
-    first = goals or totals
+    first = goals or spending or totals
     options = dashboard.filter_options()
     selected = view.query.filter_map
     context = {
@@ -125,6 +136,7 @@ def dashboard_page(request, slug):
         "gross": request.GET.get("gross") in ("1", "true", "on"),
         "lifecycle": request.GET.get("lifecycle") in ("1", "true", "on"),
         "basis_controls": page.kind == "compare",
+        "elements": budget_view.element_metrics() if spending else [],
         "exclusions": [(code, e.label, code in view.query.exclude) for code, e in query.EXCLUSIONS.items() if not (goals and code == "cs")],
         "applied": dashboard.applied_filters(view),
         "filter_fields": [

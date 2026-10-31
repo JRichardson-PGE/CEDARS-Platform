@@ -95,6 +95,14 @@ PAGES = {
             ),
         ),
         Page(
+            "budget",
+            "Budget and spending",
+            "The operating budget (the approved filing with fund shifts) against the forecast budget, monthly-reported spending and "
+            "claimed expenditure, by year and by program, and the cost elements by sector. Choose PAs under Filters.",
+            ("expenditure",),
+            kind="budget",
+        ),
+        Page(
             "cost-effectiveness",
             "Cost effectiveness",
             "Cost-test ratios by sector, by year and by program, each computed from summed benefits and costs (never an average of "

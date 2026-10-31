@@ -46,6 +46,8 @@ def results_file(records=RECORDS, scale=1.0, drop=()) -> bytes:
         "TRCBen": [scale * r[10] for r in records],
         "TRCCost": [scale * r[11] for r in records],
         "CreditedPA": ["PGE"] * len(records),
+        "TotalExpenditures": [scale * e for e in (80.0, 20.0, 10.0, 500.0, 5.0)][: len(records)],
+        "RebatesandIncents": [scale * e / 2 for e in (80.0, 20.0, 10.0, 500.0, 5.0)][: len(records)],
     }
     buf = io.BytesIO()
     pq.write_table(pa.table({k: v for k, v in cols.items() if k not in drop}), buf)
