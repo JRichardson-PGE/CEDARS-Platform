@@ -30,7 +30,7 @@ def status_tone(status) -> str:
 
 @register.filter
 def due_words(due_at, now=None) -> str:
-    """"Due in 12 days", "Due today", or "Passed 7 months ago" for a deadline's due_at (one unit, the largest)."""
+    """ "Due in 12 days", "Due today", or "Passed 7 months ago" for a deadline's due_at (one unit, the largest)."""
     if due_at is None:
         return ""
     now = now or timezone.now()

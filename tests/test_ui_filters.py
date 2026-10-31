@@ -1,10 +1,10 @@
 """The shared component filters (cedars.core.templatetags.ui): status tones and due-date words."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from cedars.core.templatetags.ui import due_words, status_tone
 
-NOW = datetime(2026, 10, 31, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 31, 12, 0, tzinfo=UTC)
 
 
 def test_status_tone_maps_submission_statuses():
