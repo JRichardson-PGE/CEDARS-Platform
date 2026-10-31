@@ -52,7 +52,12 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 | `.card`, `dl.tiles`, `dl.facts` | an object, summary numbers, key/value facts | cards are for objects, not for a page's main table |
 | `.messages`, `.alert`, `ul.notices` | page messages, an inline alert, a notice list | tinted by state |
 | `button`, `.button`, `.primary`, `button.link`, `.danger` | the button set | 36 px high, 24 px minimum for inline ones |
-| `.field`, `.helptext`, `.field-errors`, `fieldset` | form fields | label, hint, control, error, in that order |
+| `.field`, `.helptext`, `.field-errors`, `fieldset` | form fields | `as_field_group` renders every field as one `.field` block (`core/templates/django/forms/field.html`): label, hint, errors, control, so a field stays together when a filter bar wraps |
+| `td.due` with `<time>` and `<small>` | a due date with its urgency in words | `{{ due_at\|due_words }}`: "Due in 2 weeks", "Passed 7 months ago" |
+| `.status` + `{{ status\|status_tone }}` | a badge toned from a status word | `{% load ui %}` |
+| `details.section` with `h2` in `summary` and `.section-body` | an earlier cycle or year, collapsed with a count | the newest stays an open `section.cycle` |
+| `ui/empty.html` (`.empty`) | an empty state with its one action | `{% include "ui/empty.html" with title=... text=... action_url=... action=... %}` |
+| `.id` | an identifier (PA code, PrgID, field name) in the mono face | |
 
-Later additions planned (CEDARS-Research, UI review 2026-10-30): a due-date cell, sortable headers with `aria-sort`, pagination top and
-bottom, an empty-state block with its action, active-filter chips, and a `/ui/` gallery page that the axe suite visits.
+Later additions planned (CEDARS-Research, UI review 2026-10-30): sortable headers with `aria-sort`, pagination top and bottom,
+active-filter chips, and a `/ui/` gallery page that the axe suite visits.

@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui %}
 {% block title %}Claims{% endblock %}
 {% block content %}
 <div class="head-row">
@@ -7,7 +8,7 @@
     <a class="button" href="{% url 'claims:template' %}">Claims template (Excel)</a>
     <a class="button" href="{% url 'claims:changes' %}">Change log</a>
     <a class="button" href="{% url 'claims:links' %}">Linked claims</a>
-    {% if sysadmin %}<a class="button" href="{% url 'claims:year_new' %}">Set up a claim year</a>{% endif %}
+    {% if sysadmin %}<a class="button primary" href="{% url 'claims:year_new' %}">Set up a claim year</a>{% endif %}
   </div>
 </div>
 <p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims. A quarter's upload holds
@@ -15,11 +16,18 @@ the records that are new or changed since the last confirmation; it is compiled 
 for the year to date and confirmed. Confirmed claims, their inputs and results are open to every signed-in user. After a due date a
 correction is a new version, published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.</p>
 {% for y in years %}
-<section aria-labelledby="year-{{ y.cy.year }}">
+{# The newest year is open; earlier years are collapsed behind their heading, so the page is one screen for most visits. #}
+{% if forloop.first %}<section class="cycle" aria-labelledby="year-{{ y.cy.year }}">
 <div class="head-row">
   <h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
-  {% if sysadmin %}<a class="button" href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a>{% endif %}
+  {% if sysadmin %}<a class="small" href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a>{% endif %}
 </div>
+{% else %}<details class="section">
+<summary><h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
+  <span class="count">{{ y.periods|length }} confirmation{{ y.periods|length|pluralize }}{% if y.legacy %}, imported from legacy CEDARS{% elif y.cy.acc_version %}, {{ y.cy.acc_version }} ACC{% endif %}</span></summary>
+<div class="section-body">
+{% if sysadmin %}<p class="small"><a href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a></p>{% endif %}
+{% endif %}
 {% if y.legacy %}<p class="small muted">Imported from legacy CEDARS: each PA's year as CEDARS publishes it, read-only, on the annual (final) claim, with CEDARS' own CET results{% if y.cy.acc_version %} ({{ y.cy.acc_version }} ACC){% endif %}.</p>
 {% else %}<p class="small muted">Priced on the {{ y.cy.acc_version }} ACC; statewide programs allocated with {% if y.cy.allocation_version %}{{ y.cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ y.cy.year }}{% endif %}.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Confirmations of {{ y.cy.year }} claims">
@@ -30,15 +38,16 @@ correction is a new version, published with a change letter in the <a href="{% u
   {% for p in y.periods %}
   <tr>
     <th scope="row"><a href="{% url 'claims:period' p.deadline.pk %}">{{ p.deadline.kind }}</a></th>
-    <td class="nowrap">{{ p.deadline.due_at|date:"Y-m-d" }}{% if p.past_due %} <span class="small">(passed)</span>{% endif %}</td>
-    {% if org %}<td>{% if p.latest %}Version {{ p.latest.number }}: {{ p.latest.get_status_display|lower }}{% else %}Not started{% endif %}</td>{% endif %}
+    <td class="due"><time datetime="{{ p.deadline.due_at|date:'c' }}">{{ p.deadline.due_at|date:"Y-m-d" }}</time><small>{{ p.deadline.due_at|due_words }}</small></td>
+    {% if org %}<td>{% if p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
-</section>
+{% if forloop.first %}</section>{% else %}</div></details>{% endif %}
 {% empty %}
-<p>No claim year is set up yet.{% if sysadmin %} <a href="{% url 'claims:year_new' %}">Set up the first one</a>.{% endif %}</p>
+{% if sysadmin %}{% url 'claims:year_new' as new_url %}{% endif %}
+{% include "ui/empty.html" with title="No claim year is set up yet" text="Claim years appear here once the CPUC sets one up with its ACC and confirmation dates." action_url=new_url action="Set up the first claim year" action_primary=True %}
 {% endfor %}
 {% endblock %}
