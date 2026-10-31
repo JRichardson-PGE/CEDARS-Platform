@@ -264,13 +264,15 @@ resource "aws_wafv2_web_acl_association" "web" {
   web_acl_arn  = aws_wafv2_web_acl.web.arn
 }
 
-# --- daily jobs: the web image with a management command (EventBridge Scheduler, Pacific time)
+# --- scheduled jobs: the web image with a management command (EventBridge Scheduler, Pacific time). Record downloads too large to
+# make in a request are made every two minutes (each task makes what is queued and stops; tasks share the queue with SKIP LOCKED).
 
 locals {
   daily_jobs = {
     purge-expired          = { command = ["python", "manage.py", "purge_expired"], at = "cron(15 2 * * ? *)" }
     deadline-reminders     = { command = ["python", "manage.py", "send_deadline_reminders"], at = "cron(0 7 * * ? *)" }
     close-recertifications = { command = ["python", "manage.py", "close_recertifications"], at = "cron(30 2 * * ? *)" }
+    data-downloads         = { command = ["python", "manage.py", "run_data_downloads"], at = "rate(2 minutes)" }
   }
 }
 

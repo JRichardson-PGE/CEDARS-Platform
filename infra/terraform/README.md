@@ -10,7 +10,7 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
   - `network.tf`: VPC over two (or more) zones, public subnets for the load balancer only, private subnets for everything else, NAT, an S3 gateway endpoint, flow logs, and security groups. Only the web tasks reach the PII vault; calculation workers reach no database.
   - `data.tf`: PostgreSQL 16 on RDS (encrypted, TLS only, 35-day backups, Performance Insights). The PII vault is a separate instance with its own KMS key (decision G).
   - `storage.tf`: S3 buckets for uploads, results, data packs and snapshots (versioned, KMS, TLS only, never public), and ECR repositories with immutable tags.
-  - `web.tf`: ECS Fargate web service behind an HTTPS load balancer (TLS 1.2+) with AWS WAF managed rules, and the daily jobs (`purge_expired`, `send_deadline_reminders`, `close_recertifications`) on EventBridge Scheduler.
+  - `web.tf`: ECS Fargate web service behind an HTTPS load balancer (TLS 1.2+) with AWS WAF managed rules, and the scheduled jobs (`purge_expired`, `send_deadline_reminders`, `close_recertifications` daily; `run_data_downloads` every two minutes) on EventBridge Scheduler.
   - `workers.tf`: AWS Batch on Fargate for `recet worker run`, with a large-run queue and a small-run queue that has its own capacity.
   - `secrets.tf`: the application secret (one JSON value in Secrets Manager).
 - `environments/{sandbox,staging,production}/`: each calls the module with its own sizes. The sandbox has no PII vault and no deletion protection. Staging is reachable only from `allowed_cidrs`. Production runs NAT per zone and Multi-AZ databases.

@@ -225,7 +225,9 @@ CALCULATIONS_WORKERS = {"small": int(env("CALCULATIONS_WORKERS_SMALL", "1")), "l
 DATA_CACHE = env("DATA_CACHE", str(BASE_DIR / "var" / "cache" / "snapshots"))  # local copies of snapshots kept in S3
 DATA_QUERY_THREADS = int(env("DATA_QUERY_THREADS", "2"))  # DuckDB threads per query
 DATA_QUERY_MEMORY = env("DATA_QUERY_MEMORY", "512MB")  # DuckDB memory limit per query (it spills to disk beyond it)
-DATA_DOWNLOAD_MAX_ROWS = int(env("DATA_DOWNLOAD_MAX_ROWS", "200000"))  # rows or records a download holds; larger are refused for now
+DATA_DOWNLOAD_MAX_ROWS = int(env("DATA_DOWNLOAD_MAX_ROWS", "200000"))  # rows or records made while the person waits; more: a background job
+DATA_DOWNLOAD_JOBS_PER_USER = int(env("DATA_DOWNLOAD_JOBS_PER_USER", "3"))  # background downloads one person may have waiting at once
+DATA_DOWNLOAD_INLINE_JOBS = env_bool("DATA_DOWNLOAD_INLINE_JOBS", False)  # development: make a queued download once its request commits
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

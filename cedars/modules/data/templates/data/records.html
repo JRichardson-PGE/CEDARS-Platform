@@ -5,6 +5,7 @@
 <nav class="subnav" aria-label="Data pages">
   <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
   <a href="{% url 'data:records' %}" aria-current="page">Record downloads</a>
+  {% if user.is_authenticated %}<a href="{% url 'data:downloads' %}">Your downloads</a>{% endif %}
 </nav>
 <h1>{{ series }} records</h1>
 <p>The published measure-level records, for every PA in one file. Choose the records and the columns, then download them as CSV,
@@ -75,8 +76,24 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 <p>{{ page.count }} record{{ page.count|pluralize }} from {{ page.result.files|length }} published filing{{ page.result.files|length|pluralize }},
   with {{ page.columns|length }} column{{ page.columns|length|pluralize }}.
   {% for m in metric_list %}{{ m.label|capfirst }}{% if m.unit %} ({{ m.unit }}){% endif %}: {{ totals|get_item:m.code|metric_value:m }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>
-{% if too_many %}
-<p class="alert" role="alert">These are more records than the {{ max_rows }} a download holds for now. Narrow the filters (a PA, program, measure or years) to download them.</p>
+{% if too_many and page.columns %}
+<p>These are more records than the {{ max_rows }} made while you wait, so the file is made in the background. You are told when it is
+  ready, on your notifications page and by email, and it waits for you under <a href="{% url 'data:downloads' %}">your downloads</a>.</p>
+{% if user.is_authenticated %}
+<form method="post" action="{% url 'data:download_request' %}" class="filters">
+  {% csrf_token %}
+  <input type="hidden" name="query" value="{{ job_query }}">
+  <fieldset>
+    <legend>Format</legend>
+    <label class="check"><input type="radio" name="format" value="csv" checked> CSV</label>
+    <label class="check"><input type="radio" name="format" value="parquet"> Parquet</label>
+    {% if not xlsx_too_many %}<label class="check"><input type="radio" name="format" value="xlsx"> Excel (XLSX)</label>{% endif %}
+  </fieldset>
+  <button type="submit" class="primary">Make this download</button>
+</form>
+{% else %}
+<p><a href="{{ sign_in }}">Sign in</a> to have it made (anyone can register), or narrow the filters to a PA, program, measure or years.</p>
+{% endif %}
 {% elif page.columns %}
 <ul class="downloads">
   {% for fmt, label, href in downloads %}{% if fmt == "XLSX" and xlsx_too_many %}<li>Excel: more rows than a worksheet holds; use CSV or Parquet</li>{% else %}<li><a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ page.count }} records</span></a></li>{% endif %}{% endfor %}
