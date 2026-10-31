@@ -8,6 +8,8 @@ import zipfile
 from decimal import Decimal, InvalidOperation
 from pathlib import PurePosixPath
 
+from cedars.core import uploads
+
 TABLES = ("Measure", "ProgramCost")
 REQUIRED = {
     "Measure": ["CEInputID", "PrgID", "ClaimYearQuarter", "NumUnits"],
@@ -18,6 +20,19 @@ SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 class JobError(ValueError):
     """The upload is not a budget filing job; the message says why, in words for the person who uploaded it."""
+
+
+def table_of(name: str) -> str | None:
+    """The table a file or sheet name holds (case ignored)."""
+    return next((t for t in TABLES if name.strip().lower() == t.lower()), None)
+
+
+def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
+    """Several files chosen at once as the one upload read_upload takes (cedars.core.uploads, BR-06.3)."""
+    try:
+        return uploads.combine(files, table_of)
+    except uploads.CombineError as e:
+        raise JobError(str(e)) from None
 
 
 def _table_name(member: str) -> str | None:

@@ -256,12 +256,13 @@ def _latest(deadline, org) -> SubmissionVersion:
 def upload(request, pk):
     form = forms.UploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        messages.error(request, "Choose the filing's .zip or .xlsx file.")
+        messages.error(request, "Choose the filing's .zip or .xlsx file, or its files.")
         return redirect("budgets:filing", pk)
-    f = form.cleaned_data["file"]
+    files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def do(deadline, org):
-        v = service.upload(request.user, deadline, org, f.read(), f.name)
+        c = jobfile.combine(files)
+        v = service.upload(request.user, deadline, org, c.data, c.filename, sources=c.sources)
         s = v.findings or {}
         if v.status == SubmissionVersion.Status.VALIDATED:
             msg = f"Checked {s.get('records', 0):,} records: none rejected"
