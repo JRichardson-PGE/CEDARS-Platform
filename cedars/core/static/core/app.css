@@ -313,6 +313,9 @@ fieldset.pa-filter label.pa-all { font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
+ul.record-downloads li { margin-bottom: .5rem; }
+form.inline-download { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .25rem .5rem .25rem 0; }
+form.inline-download label { flex-direction: row; align-items: center; }
 table.list.records thead th { text-transform: none; letter-spacing: 0; }   /* canonical field names keep their case */
 table.records td { white-space: nowrap; }
 .column-picker details { margin: .2rem 0; }

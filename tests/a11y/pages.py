@@ -8,7 +8,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {legacy_filing}, {cost_set}."""
 
 PAGES = [
-    ("home", "/", None),
+    ("about", "/about/", None),
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("rules", "/rules/", None),
@@ -27,6 +27,7 @@ PAGES = [
     ("records-download", "/data/records/?dataset=forecast&columns=all&pa=PGE", None),
     ("records-default", "/data/records/", None),
     ("records-background", "/data/records/?dataset=forecast&columns=all", "community"),
+    ("dashboard-records-background", "/data/overview/?series=forecast&cs=include&pension=include", "community"),
     ("downloads", "/data/downloads/", "community"),
     ("download-ready", "/data/downloads/{ready_download}/", "community"),
     ("download-queued", "/data/downloads/{queued_download}/", "community"),
