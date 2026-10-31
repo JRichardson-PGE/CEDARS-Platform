@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     # shared services (cedars/services), then modules (cedars/modules); see docs/ARCHITECTURE.md
     "cedars.core",  # first, so its templates (allauth's layout and form elements) win
+    "django.forms",  # after cedars.core, whose django/forms/field.html overrides Django's (FORM_RENDERER below)
     "cedars.services.accounts",
     "cedars.services.audit",
     "cedars.services.registry",
@@ -185,6 +186,10 @@ USE_TZ = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # larger uploads spill to a temporary file
+
+# Form fields render through the project's own field template (cedars/core/templates/django/forms/field.html): one .field block per
+# field, so label, hint, errors and control stay together. TemplatesSetting looks in the apps' template directories first.
+FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
