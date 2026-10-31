@@ -63,3 +63,43 @@ def claim_row(claim_id: str, pa: str, prg_id: str, year: int = 2023, **values) -
         "TRC Cost": "40.0",
         **values,
     }
+
+
+def filing_row(
+    filing_id: str, pa: str, prg_id: str, year: int, *, units: float = 2.0, admin: float = 100.0, marketing: float = 50.0, **values
+) -> dict:
+    """A made-up budget filing record (layout labels): two weighted cost columns, a rebate, CET outputs and the program columns."""
+    wpc = admin + marketing
+    rebate = 10.0 * units
+    row = {
+        "Filing ID": filing_id,
+        "Year": str(year),
+        "PA": pa,
+        "Program ID": prg_id,
+        "Program Name": f"Example program {prg_id}",
+        "Program Segment": "Resource Acquisition",
+        "Program Status": "Active",
+        "Primary Sector": "Residential",
+        "Resource Flag": "True",
+        "Exclude From Budget Flag": "False",
+        "Exclude from CE Flag": "False",
+        "Filing Year Quarter": f"{year}Q1",
+        "Number of Units": f"{units:.15f}",
+        "Unit End User Rebate": "10.000000000000000",
+        "End User Rebate": f"{rebate}",
+        "Weighted Admin Costs Overhead and GA": f"{admin}",
+        "Weighted Marketing Outreach": f"{marketing}",
+        "Weighted Program Cost": f"{wpc}",
+        "Budget": f"{wpc + rebate}",
+        "Total System Benefit": "500.5",
+        "TRC Cost": "200.0",
+        "PAC Cost": "100.0",
+        "TRC": "2.5",
+        "PAC": "4.0",
+        "TRC Benefits": "500.0",
+        "PAC Benefits": "400.0",
+        "First Year Net kWh": "1000",
+        "Levelized TRC Cost": "0.12",
+    }
+    row.update(values)
+    return row

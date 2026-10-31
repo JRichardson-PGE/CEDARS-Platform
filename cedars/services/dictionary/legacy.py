@@ -36,6 +36,45 @@ DATA = Path(__file__).parent / "data"
 LAYOUTS = ("claims_a", "claims_b", "participants", "filings", "filings_2024_2027", "filings_2026_2027_tual")
 TABLES = ("Key", "Measure", "Claim", "Participant", "Program", "Output", "Legacy")
 SYSTEM = "legacy CEDARS downloads"
+# The Measure fields loaded as numbers (the rest stay text, as filed); every one is a number in the catalog (a test checks it).
+NUMERIC_MEASURE = frozenset(
+    {
+        "NumUnits",
+        "UnitkW1stBaseline",
+        "UnitkWh1stBaseline",
+        "UnitTherm1stBaseline",
+        "UnitkW2ndBaseline",
+        "UnitkWh2ndBaseline",
+        "UnitTherm2ndBaseline",
+        "UnitkWhIOUWater1stBaseline",
+        "UnitkWhIOUWater2ndBaseline",
+        "UnitMeaCost1stBaseline",
+        "UnitMeaCost2ndBaseline",
+        "UnitDirectInstallLab",
+        "UnitDirectInstallMat",
+        "UnitEndUserRebate",
+        "UnitIncentiveToOthers",
+        "NTGRkW",
+        "NTGRkWh",
+        "NTGRTherm",
+        "NTGRCost",
+        "EUL_Yrs",
+        "RUL_Yrs",
+        "RealizationRatekW",
+        "RealizationRatekWh",
+        "RealizationRateTherm",
+        "InstallationRatekW",
+        "InstallationRatekWh",
+        "InstallationRateTherm",
+        "UnitGasInfraBens",
+        "UnitRefrigCosts",
+        "UnitRefrigBens",
+        "UnitMiscCosts",
+        "UnitMiscBens",
+        "UnitTaxCredits",
+        "MeasInflation",
+    }
+)
 
 
 class LayoutError(ValueError):
