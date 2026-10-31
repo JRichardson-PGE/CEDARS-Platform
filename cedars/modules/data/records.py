@@ -237,6 +237,25 @@ def query_string(q: dq.Query, cat: Catalog | None = None, columns: list[str] | N
     return urlencode(p, doseq=True)
 
 
+def behind(result: dq.Result, label: str, *, max_rows: int) -> dict:
+    """The record-level download behind one dashboard series (BR-07.5): the records its rows add up, under the same query with every
+    exclusion stated (records leave nothing out unless asked, so the file matches the totals shown), with the key columns. Up to
+    `max_rows` records the files are made while the person waits; more are made in the background (`jobs.request`, from `query`)."""
+    q = result.query.but(by=())
+    qs = query_string(q)
+    count = result.totals.get("_rows", 0) if result.files else 0
+    files = [(f, FORMAT_LABELS[f], f"/data/records/download.{f}?{qs}") for f in FORMAT_LABELS if f != "xlsx" or count <= XLSX_MAX_ROWS]
+    return {
+        "series": label,
+        "count": count,
+        "query": qs,
+        "page": f"/data/records/?{qs}",
+        "background": count > max_rows,
+        "links": files if count <= max_rows else [],
+        "formats": [(f, FORMAT_LABELS[f]) for f, _, _ in files],
+    }
+
+
 def _sql(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> tuple[str, list]:
     """One SELECT over the release's files: the chosen columns under their own names, in their own types (the files are unioned by
     name, a column missing from a file reading as blank), the rows the query's WHERE terms keep, in CEInputID order."""
