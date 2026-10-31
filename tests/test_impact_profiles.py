@@ -552,6 +552,9 @@ def test_export_is_the_engine_library_format(leds, developer, pge, cpuc_admin):
     for gi in range(3):
         stats = pf.metadata.row_group(gi).column(0).statistics
         assert stats.min == stats.max  # one profile per row group, as the engine indexes them
+        encodings = {c.path_in_schema: set(c.encodings) for c in (pf.metadata.row_group(gi).column(i) for i in range(4))}
+        assert "DELTA_BINARY_PACKED" in encodings["impact_profile_id"] and "DELTA_BINARY_PACKED" in encodings["hour_of_year"]
+        assert not any(e.endswith("DICTIONARY") for e in encodings["impact"])  # as the scraped library: no dictionary of distinct doubles
     rows = pf.read_row_group(2).to_pylist()  # the custom profile: zones 12 and System
     for z in ("12", "System"):
         g = [r for r in rows if r["climate_zone"] == z]

@@ -44,6 +44,14 @@ from .models import HOURS, ImpactProfile, LibraryExport, ProfileMapping, Profile
 HOURLY_SCHEMA = pa.schema(
     [("impact_profile_id", pa.int32()), ("climate_zone", pa.string()), ("hour_of_year", pa.int16()), ("impact", pa.float64())]
 )
+# Written as the scraped library is (ReCET 0.1.88's consolidator copies a source's encodings): ids and hours
+# DELTA_BINARY_PACKED, impacts PLAIN, a dictionary only on the zone. pyarrow's default (a dictionary on every column) made the
+# real library 40% larger (9.51 -> 13.31 GB): 8,760 distinct doubles per zone gain nothing from one.
+HOURLY_WRITER_OPTIONS = {
+    "compression": "zstd",
+    "use_dictionary": ["climate_zone"],
+    "column_encoding": {"impact_profile_id": "DELTA_BINARY_PACKED", "hour_of_year": "DELTA_BINARY_PACKED", "impact": "PLAIN"},
+}
 SOURCE_TYPE = {"deemed": "load_shapes", "custom": "uploaded"}
 HOUR_INDEX = np.arange(1, HOURS + 1, dtype=np.int16)
 
@@ -82,7 +90,7 @@ def export(actor=None) -> LibraryExport:
         rows, families, profiles, zone_shapes = [], Counter(), 0, 0
         written: dict[int, dict] = {}
         stored: dict[str, int] = {}  # identical.content_key -> the stored profile's id (the first profile with it)
-        with pq.ParquetWriter(hourly_path, HOURLY_SCHEMA, compression="zstd") as w:
+        with pq.ParquetWriter(hourly_path, HOURLY_SCHEMA, **HOURLY_WRITER_OPTIONS) as w:
             for p in current_profiles().iterator(chunk_size=500):
                 version = p.current_versions[0] if p.current_versions else None
                 if version is None:
