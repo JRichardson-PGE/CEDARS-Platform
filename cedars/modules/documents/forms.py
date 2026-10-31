@@ -107,6 +107,12 @@ def _study(text):
     return found or Study(pk=0)
 
 
+def study_named(text) -> Study | None:
+    """The study a study ID or number names, or None."""
+    found = _study(text)
+    return found if found is not None and found.pk else None
+
+
 class DetailsForm(forms.Form):
     """A document's details for one collection: its type, the common metadata and the collection's attribute lists, one field per list
     (attr_<code>). Retired options are offered only where the document already carries them."""
@@ -533,6 +539,68 @@ DATA_FIELDS = [
 
 class ChangeStudyForm(StudyForm):
     reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
+
+
+NOT_A_DELIVERABLE = ""
+
+
+class StudyDocumentForm(FilesMixin):
+    """The study's first document, uploaded on the Add a study page (optional): an EM&V document filed under the new study. With no
+    main file the study is added on its own; the other fields are then ignored. Its other details (summary, programs, years, the
+    collection's lists) are changed later from the document's page."""
+
+    prefix = "doc"
+
+    document_type = forms.ModelChoiceField(label="Document type", queryset=AttributeOption.objects.none(), required=False)
+    title = forms.CharField(label="Document title", max_length=200, required=False, help_text="Left blank: the file's name")
+    stage = forms.ChoiceField(
+        label="Deliverable stage",
+        required=False,
+        widget=forms.RadioSelect,
+        help_text="A deliverable's later drafts, finals and the PAs' responses follow on this one record.",
+    )
+    publish = forms.BooleanField(label="Publish it now", required=False, help_text="Published documents are public and never change")
+
+    field_order = ["main_file", "attachments", "document_type", "title", "stage", "publish"]
+
+    def __init__(self, *args, can_publish=False, **kwargs):
+        from .deliverables import WORK_STAGES
+
+        super().__init__(*args, **kwargs)
+        self.fields["main_file"].required = False
+        self.fields["main_file"].help_text = "Optional. Leave it blank to add the study without a document."
+        self.fields["attachments"].widget.attrs["accept"] = ACCEPT
+        today = timezone.localdate()
+        types = service.type_list(Collection.EMV)
+        offered = [o.pk for o in types.options.all() if o.offered_on(today)] if types else []
+        self.fields["document_type"].queryset = AttributeOption.objects.filter(pk__in=offered)
+        self.fields["document_type"].label_from_instance = _option_label
+        self.fields["stage"].choices = [(NOT_A_DELIVERABLE, "Not a deliverable")] + [(s, Stage(s).label) for s in WORK_STAGES]
+        self.fields["stage"].initial = NOT_A_DELIVERABLE
+        if not can_publish:
+            del self.fields["publish"]
+        self.order_fields(self.field_order)
+
+    def has_file(self) -> bool:
+        return bool(self.is_bound and self.cleaned_data.get("main_file"))
+
+    def clean(self):
+        d = super().clean()
+        if d.get("main_file"):
+            if not d.get("document_type"):
+                self.add_error("document_type", "Choose the document's type.")
+        elif d.get("attachments"):
+            self.add_error("main_file", "Choose the main file as well as the attachments.")
+        return d
+
+    def details(self, study: Study) -> service.Details:
+        d = self.cleaned_data
+        title = (d.get("title") or "").strip() or service.clean_name(d["main_file"].name).rsplit(".", 1)[0]
+        return service.Details(document_type=d["document_type"], title=title, study=study)
+
+    def workflow(self) -> dict:
+        stage = self.cleaned_data.get("stage") or ""
+        return {"deliverable": bool(stage), "stage": stage, "publish": bool(self.cleaned_data.get("publish"))}
 
 
 class CoverageForm(forms.Form):

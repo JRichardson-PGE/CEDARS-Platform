@@ -245,7 +245,15 @@ def new(request):
         raise Http404
     org = _organisation(request)
     can_publish = service.is_admin(request.user) or service.access.has_permission(request.user, org, service.CONFIRM)
-    form = forms.NewDocumentForm(request.POST or None, request.FILES or None, collection=collection, can_publish=can_publish)
+    # Upload a document on a study's page comes here with the study named (?study=<study ID>), filled in and shown above the form.
+    study = forms.study_named(request.GET.get("study")) if collection in service.STUDY_COLLECTIONS else None
+    form = forms.NewDocumentForm(
+        request.POST or None,
+        request.FILES or None,
+        collection=collection,
+        can_publish=can_publish,
+        initial={"study": study.study_id} if study else None,
+    )
     if request.method == "POST" and form.is_valid():
         try:
             doc = service.create_document(
@@ -265,7 +273,7 @@ def new(request):
     return render(
         request,
         "documents/new.html",
-        {"form": form, "collection": collection, "collections": [(c, Collection(c).label) for c in allowed]},
+        {"form": form, "collection": collection, "collections": [(c, Collection(c).label) for c in allowed], "study": study},
     )
 
 
