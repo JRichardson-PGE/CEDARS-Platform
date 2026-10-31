@@ -27,6 +27,7 @@ dev = [
     "ruff>=0.8",
     "playwright>=1.49",          # the accessibility check drives Chromium with axe-core (tests/a11y)
     "moto[s3]>=5.0",             # S3 in memory for the storage tests
+    "pytest-xdist>=3.6",
 ]
 
 [build-system]

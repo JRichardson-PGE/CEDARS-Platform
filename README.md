@@ -42,8 +42,8 @@ Systems start runs through the job API (OpenAPI at `/api/v1/schema`) with a toke
 
 ## Checks
 
-    uv run pytest                # unit and page tests (PostgreSQL)
-    uv run pytest -m a11y        # axe-core WCAG 2.2 AA checks in Chromium (uv run playwright install chromium)
+    uv run pytest                  # unit and page tests (PostgreSQL)
+    uv run pytest -m a11y -n auto  # axe-core WCAG 2.2 AA checks in Chromium (uv run playwright install chromium)
     uv run ruff check . && uv run ruff format --check .
 
 CI runs all of them, checks that migrations match the models, runs Django's deployment checks on the production settings and builds the image.
