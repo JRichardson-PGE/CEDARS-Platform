@@ -232,9 +232,10 @@ def add_program_history(programs_table, org: Organisation | None, reason: str, *
 # the avoided costs; RIM's bill losses are a cost), as CEDARS' published RIM ratios show.
 NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
 BENEFIT_PARTS = {"TRCBen": ("ElecBen", "GasBen", "OtherBen"), "PACBen": ("ElecBen", "GasBen"), "RIMBen": ("ElecBen", "GasBen")}
-# Where the layout files PAC's benefits (claims from 2023: "PAC Benefits", which can exceed ElecBen + GasBen with that layout's further
-# benefit columns), CEDARS builds TRC's and RIM's on it: TRC = PAC Benefits + Other Benefits (2023 SCG's published TRC ratios exactly).
-PARTS_ON_PAC = {"TRCBen": ("PACBen", "OtherBen"), "RIMBen": ("PACBen",)}
+# Where the layout files PAC's benefits (claims from 2023: "PAC Benefits", which already holds Other Benefits and can exceed ElecBen +
+# GasBen with that layout's further benefit columns), CEDARS builds TRC's and RIM's on it alone: TRC = PAC Benefits (2023 SCG's and 2025
+# SDG&E's and SCE's published TRC ratios exactly; adding Other Benefits counts them twice).
+PARTS_ON_PAC = {"TRCBen": ("PACBen",), "RIMBen": ("PACBen",)}
 
 
 @dataclass
