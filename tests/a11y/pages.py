@@ -130,6 +130,8 @@ PAGES = [
     ("programs-other-filters-text", "/programs/?field=contractor&pick=1&contractor=ener", None),
     ("program-public", "/programs/PGE_Res_HVAC/", None),
     ("program", "/programs/PGE_Res_HVAC/", "pge_admin"),
+    ("program-year", "/programs/PGE_Res_HVAC/?year=2029", "pge_admin"),
+    ("program-year-public", "/programs/PGE_Res_HVAC/?year=2028", None),
     ("program-statewide", "/programs/{sw}/", "community"),
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
     ("program-change-requests", "/programs/requests/", "approver"),

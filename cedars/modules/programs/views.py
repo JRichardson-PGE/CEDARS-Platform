@@ -1,4 +1,5 @@
 import csv
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -12,7 +13,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.notifications import service as notifications
 from cedars.services.registry import service as registry
-from cedars.services.registry.models import AllocationEntry, Program, ProgramChangeRequest, ProgramVersion
+from cedars.services.registry.models import AllocationEntry, FilingCycle, Program, ProgramChangeRequest, ProgramVersion
 
 from . import filters, forms
 
@@ -173,10 +174,93 @@ def allocation_history(program: Program) -> list[dict]:
     return out
 
 
+def _year_choices(p: Program, chosen: int | None, evaluations: list[dict]) -> list[int]:
+    """The program years the page offers, newest first: the years its versions span (an open-ended program through the last filing
+    cycle on record, or four years ahead) and the years its evaluations cover."""
+    today = timezone.localdate().year
+    versions = list(p.versions.all())
+    starts = [v.start_year for v in versions if v.start_year] + [e["first_year"] for e in evaluations if e.get("first_year")]
+    first = min(starts) if starts else today - 10
+    if not versions or any(v.end_year is None for v in versions):
+        last_cycle = FilingCycle.objects.order_by("-last_year").values_list("last_year", flat=True).first()
+        last = max(today + 4, last_cycle or 0)
+    else:
+        last = max(v.end_year for v in versions)
+    last = max([last] + [e["last_year"] for e in evaluations if e.get("last_year")])
+    years = set(range(max(first, last - 40), last + 1)) | ({chosen} if chosen else set())
+    return sorted(years, reverse=True)
+
+
+def _chosen_year(request) -> int | None:
+    value = request.GET.get("year", "").strip()
+    return int(value) if value.isdigit() and 1990 <= int(value) <= 2100 else None
+
+
+def _covers(e: dict, year: int) -> bool:
+    first, last = e.get("first_year") or e.get("last_year"), e.get("last_year") or e.get("first_year")
+    return first is None or first <= year <= last
+
+
+def _money(x) -> str:
+    if x is None:
+        return ""
+    d = Decimal(str(x))
+    text = f"${abs(d):,.0f}"
+    return "-" + text if d < 0 else text
+
+
+def _number(x) -> str:
+    return "" if x is None else f"{x:,.0f}"
+
+
+def _ratio(x) -> str:
+    return "" if x is None else f"{x:.2f}"
+
+
+def _budget_groups(rows: list[dict]) -> list[dict]:
+    """The budget rows by filing cycle, newest first, each with its program years as columns."""
+    groups: dict[str, dict] = {}
+    for r in rows:
+        g = groups.setdefault(str(r["cycle"]), {"cycle": str(r["cycle"]), "rows": [], "years": set()})
+        g["rows"].append(r)
+        g["years"] |= set(r["years"])
+    out = []
+    for g in groups.values():
+        years = sorted(g["years"])
+        for r in g["rows"]:
+            r["cells"] = [_money(r["years"].get(y)) for y in years]
+            r["shown"] = {"total": _money(r["total"]), "tsb": _money(r["tsb"]), "trc": _ratio(r["trc"])}
+        out.append({"cycle": g["cycle"], "years": years, "rows": g["rows"]})
+    return out
+
+
+def _shown(records: dict) -> dict:
+    """Each section's figures as text, so the page needs no other module's template filters."""
+    for r in records.get("fund_shifts") or []:
+        r["shown"] = {"net": _money(r["net"]), "lines": [(ln["pa"], ln["year"], _money(ln["amount"])) for ln in r["lines"]]}
+    for r in records.get("claims") or []:
+        r["shown"] = {
+            "expenditures": _money(r["expenditures"]),
+            "net_kwh": _number(r["net_kwh"]),
+            "net_therm": _number(r["net_therm"]),
+            "tsb": _money(r["tsb"]),
+        }
+    for r in records.get("monthly") or []:
+        r["shown"] = {"ytd": _money(r["ytd"]), "committed": _money(r["committed"])}
+    return records
+
+
 def program(request, prg_id):
-    """A program's page. Public (BR-01.5): signed out, it leaves out who entered each version and any pending change request."""
+    """A program's page (BR-07.6): its definition, versions and allocation, and every record about it that the reader may see, from the
+    modules through the registry service: budget filing lines by version, fund shifts, claims by confirmation, monthly reports,
+    evaluations and documents, all narrowed to one program year when one is chosen. Public (BR-01.5): signed out, it leaves out who
+    entered each version, any pending change request, fund shifts, and filings not yet published."""
     p = _program_or_404(prg_id)
     signed_in = request.user.is_authenticated
+    year = _chosen_year(request)
+    records = registry.program_records(p, request.user, year)
+    all_evaluations = registry.evaluations(p)
+    evaluations = [e for e in all_evaluations if _covers(e, year)] if year else all_evaluations
     current = registry.current_version(p) or p.versions.order_by("-valid_from").first()
     history = list(reversed(registry.history(p)))
     allocation = allocation_history(p)
@@ -204,7 +288,12 @@ def program(request, prg_id):
             ]
             if signed_in
             else [],
-            "evaluations": registry.evaluations(p),
+            "evaluations": evaluations,
+            "year": year,
+            "years": _year_choices(p, year, all_evaluations),
+            "records": _shown(records),
+            "budget_groups": _budget_groups(records["budgets"] or []),
+            "query_year": f"?year={year}" if year else "",
             "following": notifications.follows_program(request.user, p),
         },
     )

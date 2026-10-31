@@ -21,3 +21,9 @@ class ClaimsConfig(AppConfig):
         from cedars.services.notifications.service import register_filing
 
         register_filing("claims", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
+
+        from cedars.services.registry.service import register_program_records
+
+        from . import program_page
+
+        register_program_records("claims", program_page.confirmations)  # each program's page lists its claims (BR-07.6)
