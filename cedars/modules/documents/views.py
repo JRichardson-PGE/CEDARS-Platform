@@ -1,4 +1,5 @@
 import csv
+import re
 from urllib.parse import quote
 
 from django.contrib import messages
@@ -439,3 +440,33 @@ def psr_project(request, number):
 def psr_other(request, rest=""):
     """Any other PSR address (the project status list, budget status): the study register."""
     return HttpResponsePermanentRedirect("/documents/studies/")
+
+
+# The old CEDARS site's document addresses, by prefix: the collection its other pages (lists, sections) lead to
+CEDARS_PREFIXES = {
+    "/deer-resources/": "deer",
+    "/documents/guidance-document/": "guidance",
+    "/documents/standalone/": "pa",
+    "/documents/history/": "program",
+    "/documents/download/": "program",
+}
+CEDARS_RECORD = re.compile(r"^/documents/(history|download|guidance-document/download)/|/(file|resource)/\d+/")
+
+
+def cedars_legacy(request, rest=""):
+    """An address of CEDARS' Reports & Documents, DEER Resources or program documents: the migrated document or file it names
+    (models.LegacyLink), else, for a list or a section, the library's collection; a record that was not migrated is not found."""
+    from .models import LegacyLink
+
+    path = request.path
+    link = LegacyLink.objects.filter(path__in={path, path.rstrip("/"), path.rstrip("/") + "/"}).select_related("document", "file").first()
+    if link is not None:
+        if not service.can_read(request.user, link.document):
+            raise Http404
+        if link.file is None:
+            return HttpResponsePermanentRedirect(link.document.get_absolute_url())
+        return HttpResponsePermanentRedirect(link.file.get_absolute_url() + ("?view=1" if service.opens_inline(link.file) else ""))
+    if CEDARS_RECORD.search(path):
+        raise Http404
+    collection = next(c for prefix, c in CEDARS_PREFIXES.items() if path.startswith(prefix) or path == prefix.rstrip("/"))
+    return HttpResponsePermanentRedirect(f"/documents/?collection={collection}")
