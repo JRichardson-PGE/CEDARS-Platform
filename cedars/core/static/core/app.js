@@ -30,6 +30,15 @@
     });
   }
 
+  // The header sticks to the top of a wide, tall enough window (app.css). Its height goes to --header-h, which keeps focused and linked
+  // content clear of it (2.4.11); without this script a fixed allowance is used.
+  var header = document.querySelector("body > header");
+  if (header && window.ResizeObserver) {
+    new ResizeObserver(function () {
+      document.documentElement.style.setProperty("--header-h", header.offsetHeight + "px");
+    }).observe(header);
+  }
+
   // Narrow screens: a Menu button shows and hides the navigation. Without this script the button stays hidden and the list is simply shown.
   var btn = document.querySelector(".menu-btn");
   if (btn && nav) {

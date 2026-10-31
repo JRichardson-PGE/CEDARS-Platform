@@ -78,6 +78,14 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .brand .logo-bg { fill: var(--primary); }
 .brand .logo-tree { fill: var(--primary-fg); }
 @media (forced-colors: active) { .brand .logo-bg { fill: CanvasText; } .brand .logo-tree { fill: Canvas; } }
+/* The header stays in view while the page scrolls (Jake, 2026-10-31), where there is room for it: at least 861 px wide (above the Menu-button
+   layout) and 480 px tall. Below that (phones, 400% zoom, a short window) it scrolls away with the page, so it never takes most of the screen
+   (reflow, 1.4.10). scroll-padding keeps whatever takes the focus or is linked to clear of it (focus not obscured, 2.4.11); app.js sets
+   --header-h to the header's real height, which grows when the navigation wraps. */
+@media (min-width: 861px) and (min-height: 480px) {
+  html { scroll-padding-top: calc(var(--header-h, 6rem) + .75rem); }
+  body > header { position: sticky; top: 0; z-index: 10; }
+}
 .menu-btn { display: none; margin-left: auto; }
 .top nav { display: flex; gap: .15rem; align-self: stretch; align-items: stretch; }
 .top nav > a, .top nav summary { display: flex; align-items: center; gap: .3rem; padding: 0 .75rem; color: var(--fg); text-decoration: none; font-weight: 500;
