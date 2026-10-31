@@ -6,7 +6,7 @@ import io
 
 from django.conf import settings
 from django.http import Http404, HttpResponse
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_http_methods
 
 from . import dashboard, downloads, metrics, query
 
@@ -166,39 +166,134 @@ def _goal_caption(c):
 
 
 RECORDS_PER_PAGE = 100
+FORM_SKIP = ("csrfmiddlewaretoken", "page")
+
+
+@require_http_methods(["GET", "POST"])
+def records_page(request):
+    """Record-level data (BR-07.5): filters, a column picker, the first records and their downloads. The form posts here and is sent
+    on to the short GET address of what it chose, so every choice has a link that reproduces it (and fits in a URL)."""
+    from django.shortcuts import redirect, render
+
+    from . import records
+
+    error, page, number = None, None, 1
+    try:
+        if request.method == "POST":
+            rq = records.from_params({k: request.POST.getlist(k) for k in request.POST if k not in FORM_SKIP})
+            cat = records.catalog(query.files_of(rq.query))
+            columns, _ = records.chosen(cat, rq.params)
+            return redirect(f"{request.path}?{records.query_string(rq.query, cat, columns)}")
+        rq = records.from_params(request.GET)
+        if request.GET.get("page", "").isdigit():
+            number = max(int(request.GET["page"]), 1)
+        page = records.page(rq, limit=RECORDS_PER_PAGE, offset=(number - 1) * RECORDS_PER_PAGE)
+    except query.QueryError as e:
+        error = f"Those records could not be shown: {e}."
+    return render(request, "data/records.html", _records_context(request, page, number, error))
+
+
+def _records_context(request, page, number, error) -> dict:
+    from django.utils.http import urlencode
+
+    from . import records
+
+    q = page.result.query if page else records.from_params({}).query
+    options = dashboard.filter_options()
+    selected = q.filter_map
+    context = {
+        "error": error,
+        "q": q,
+        "series": records.DATASETS.get(q.dataset, q.dataset.capitalize()),
+        "datasets": list(records.DATASETS.items()),
+        "filings": dashboard.filings(),
+        "exclusions": [(code, e.label, code in q.exclude) for code, e in query.EXCLUSIONS.items()],
+        "pas": [(pa, pa in selected.get("pa", ())) for pa in options["pa"]],
+        "text_filters": [
+            {"code": d, "label": query.DIMENSIONS[d].label, "value": ",".join(selected.get(d, ())), "help": DASHBOARD_HELP[d]}
+            for d in ("program", "measure")
+        ],
+        "more_filters": [
+            {"code": d, "label": query.DIMENSIONS[d].label, "options": options.get(d, []), "selected": selected.get(d, ())}
+            for d in ("sector", "segment", "implementer_type", "measure_type", "use_category")
+        ],
+        "hidden": [(d, v) for d, vs in q.filters if d not in records.FORM_FILTERS for v in vs]
+        + [("metric", m) for m in q.metrics]
+        + ([("release", str(q.release))] if q.release else []),
+        "applied": [{"label": query.DIMENSIONS[d].label, "value": v} for d, vs in q.filters for v in vs],
+        "max_rows": settings.DATA_DOWNLOAD_MAX_ROWS,
+        "xlsx_max_rows": records.XLSX_MAX_ROWS,
+    }
+    if page is None:
+        return context
+    chosen = set(page.columns)
+    base = records.query_string(q, page.catalog, page.columns)
+
+    def at(n):
+        return "?" + base + "&" + urlencode({"page": n})
+
+    context |= {
+        "page": page,
+        "as_of": page.result.as_of,
+        "notes": page.result.notes,
+        "metric_list": page.result.metric_list,
+        "totals": page.result.totals,
+        "groups": [
+            {
+                "label": g.label,
+                "slug": g.slug,
+                "count": len(g.columns),
+                "chosen": sum(c.name in chosen for c in g.columns),
+                "columns": [(c, c.name in chosen) for c in g.columns],
+            }
+            for g in page.catalog.groups
+        ],
+        "column_count": len(page.catalog.columns),
+        "presets": [
+            ("Key columns only", "?" + records.query_string(q, preset="key")),
+            ("Every column", "?" + records.query_string(q, preset="all")),
+            ("No columns", "?" + records.query_string(q, preset="none")),
+        ],
+        "first": page.offset + 1,
+        "last": page.offset + len(page.rows),
+        "previous": at(number - 1) if number > 1 else "",
+        "next": at(number + 1) if page.offset + len(page.rows) < page.count else "",
+        "downloads": [(fmt.upper(), label, f"/data/records/download.{fmt}?{base}") for fmt, label in records.FORMAT_LABELS.items()],
+        "too_many": page.count > settings.DATA_DOWNLOAD_MAX_ROWS,
+        "xlsx_too_many": page.count > records.XLSX_MAX_ROWS,
+    }
+    return context
 
 
 @require_GET
-def records_page(request):
-    from django.shortcuts import render
-    from django.utils.http import urlencode
+def records_download(request, fmt):
+    """Every record the query keeps, with the chosen columns, as one file (BR-07.5)."""
+    import tempfile
 
-    error, recs, q = None, None, None
+    from django.http import FileResponse
+
+    from . import records
+
+    if fmt not in records.FORMATS:
+        raise Http404
     try:
-        q = query.from_params(request.GET)
-        page = max(int(request.GET.get("page", "1")) if request.GET.get("page", "1").isdigit() else 1, 1)
-        recs = query.records(q, limit=RECORDS_PER_PAGE, offset=(page - 1) * RECORDS_PER_PAGE)
+        page = records.page(records.from_params(request.GET), limit=0)
     except query.QueryError as e:
-        error = f"Those records could not be shown: {e}."
-    context = {"error": error, "series": "Claimed" if not q or q.dataset == "claims" else q.dataset.capitalize()}
-    if recs is not None:
-        for r in recs.rows:
-            r["filed_by"] = f"{r['_organisation']} {r['_filing']}"
-        base = {k: request.GET.getlist(k) for k in request.GET if k != "page"}
-
-        def at(n):
-            return "?" + urlencode(base | {"page": [str(n)]}, doseq=True)
-
-        context |= {
-            "recs": recs,
-            "metric_list": recs.result.metric_list,
-            "as_of": recs.result.as_of,
-            "notes": recs.result.notes,
-            "applied": [{"label": query.DIMENSIONS[d].label, "value": v} for d, vs in q.filters for v in vs],
-            "first": recs.offset + 1,
-            "last": recs.offset + len(recs.rows),
-            "previous": at(page - 1) if page > 1 else "",
-            "next": at(page + 1) if recs.offset + len(recs.rows) < recs.count else "",
-            "download": q.query_string(),
-        }
-    return render(request, "data/records.html", context)
+        return HttpResponse(f"That download could not be made: {e}", status=400, content_type="text/plain; charset=utf-8")
+    if page.count > settings.DATA_DOWNLOAD_MAX_ROWS:
+        return HttpResponse(
+            f"That download has {page.count:,} records, more than the {settings.DATA_DOWNLOAD_MAX_ROWS:,} a download holds for now. "
+            "Narrow the filters (a PA, program, measure or years) and download again.",
+            status=413,
+            content_type="text/plain; charset=utf-8",
+        )
+    if fmt == "xlsx" and page.count > records.XLSX_MAX_ROWS:
+        return HttpResponse(
+            f"That download has {page.count:,} records, more than an Excel worksheet holds. Download it as CSV or Parquet.",
+            status=413,
+            content_type="text/plain; charset=utf-8",
+        )
+    out = tempfile.TemporaryFile()  # noqa: SIM115 - the response streams it and closes it
+    records.write(page, fmt, out)
+    out.seek(0)
+    return FileResponse(out, as_attachment=True, filename=records.filename(page, fmt), content_type=records.FORMATS[fmt])

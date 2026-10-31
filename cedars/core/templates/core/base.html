@@ -45,7 +45,8 @@
     <details{% if here|slice:":11" == '/documents/' or here|slice:":6" == '/data/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here %} class="current"{% endif %}>
       <summary>Reference</summary>
       <ul>
-        <li><a href="{% url 'data:dashboards' %}"{% if here|slice:":6" == '/data/' %} aria-current="page"{% endif %}>Portfolio dashboard</a></li>
+        <li><a href="{% url 'data:dashboards' %}"{% if here|slice:":6" == '/data/' and here|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a></li>
+        <li><a href="{% url 'data:records' %}"{% if here|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a></li>
         <li><a href="{% url 'documents:library' %}"{% if here|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a></li>
         <li><a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a></li>
         <li><a href="{% url 'rules:index' %}"{% if '/rules/' in here %} aria-current="page"{% endif %}>Validation rules</a></li>
@@ -82,7 +83,8 @@
   </div>
   {% else %}
   <nav aria-label="Main" id="main-nav">
-    <a href="{% url 'data:dashboards' %}"{% if request.path|slice:":6" == '/data/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
+    <a href="{% url 'data:dashboards' %}"{% if request.path|slice:":6" == '/data/' and request.path|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
+    <a href="{% url 'data:records' %}"{% if request.path|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a>
     <a href="{% url 'documents:library' %}"{% if request.path|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a>
     <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in request.path %} aria-current="page"{% endif %}>Data dictionary</a>
     <a href="{% url 'rules:index' %}"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>Validation rules</a>
@@ -105,6 +107,7 @@
     <li><a href="{% url 'rules:index' %}">Validation rules</a></li>
     <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li>
     <li><a href="{% url 'data:dashboards' %}">Portfolio dashboard</a></li>
+    <li><a href="{% url 'data:records' %}">Record downloads</a></li>
   </ul>
   <span>CEDARS platform {{ version }}</span>
 </footer>
