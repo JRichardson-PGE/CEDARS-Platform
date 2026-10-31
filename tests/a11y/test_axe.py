@@ -493,6 +493,21 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
     }
 
 
+def _dashboard_data(version, pge):
+    """The portfolio dashboard's forecast: a snapshot of the confirmed TUAL with measure-level results, released."""
+    from cedars.services.snapshots import service as snapshots
+    from cedars.services.snapshots.models import Snapshot
+
+    from ..test_data_query import results_file
+
+    data = results_file()
+    snap = Snapshot(dataset="forecast", version=version, organisation=pge, rows=5, bytes=len(data), sha256="ab" * 32)
+    snap.key = f"forecast/{snap.id}/results.parquet"
+    storage.store("snapshots").put_bytes(snap.key, data)
+    snap.save()
+    snapshots.rebuild("forecast", "scene")
+
+
 def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     """A TUAL priced, confirmed and published, and an MCAL whose upload has rejected records. The scene's impact-profile pack is a
     draft, which a filing's run refuses, so the TUAL's run is recorded as the Calculations module records a finished one."""
@@ -515,6 +530,7 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     details = {"job_sha256": budgets.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
     v = submissions.record_calculation(None, v, run="scene", input_hash="h", details=details)
     v = budgets.confirm(analyst, v)
+    _dashboard_data(v, pge)
     bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
     draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
     return {
@@ -737,8 +753,18 @@ def _open(browser, site, scene, path, who, **context_args):
 
 def _violations(page, axe_source):
     page.add_script_tag(content=axe_source)
-    page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")  # check what is folded away too
-    result = page.evaluate("async (tags) => await axe.run(document, {runOnly: {type: 'tag', values: tags}})", TAGS)
+    # Check what is folded away too: every disclosure on the page is opened, except the header's menus, which are dropdowns. An open
+    # dropdown covers whatever is under it, as it should, so each menu is opened on its own and only the header is checked in that state.
+    page.evaluate("document.querySelectorAll('details:not(.top nav details)').forEach(d => d.open = true)")
+    found = _run_axe(page)
+    for i in range(page.evaluate("document.querySelectorAll('.top nav details').length")):
+        page.evaluate("(i) => document.querySelectorAll('.top nav details').forEach((d, j) => { d.open = j === i })", i)
+        found += [v for v in _run_axe(page, within=".top") if v not in found]
+    return found
+
+
+def _run_axe(page, within="html"):
+    result = page.evaluate("async ([tags, within]) => await axe.run(within, {runOnly: {type: 'tag', values: tags}})", [TAGS, within])
     return [
         {"id": v["id"], "impact": v["impact"], "help": v["help"], "targets": [n["target"] for n in v["nodes"]][:5]}
         for v in result["violations"]
