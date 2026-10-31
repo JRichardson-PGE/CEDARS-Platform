@@ -892,6 +892,75 @@ def test_reflows_at_320px(browser, site, scene, name, path, who):
     assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
 
 
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
+def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
+    """The front page's guided tour (core/tour.js): opened from the keyboard, each step's heading takes the focus and names the dialog,
+    Back on the first step keeps the focus (aria-disabled), Next and the arrow keys move, the step's part of the page is outlined, axe
+    finds nothing with the dialog open, and Escape closes it with the focus back on the link that opened it."""
+    from cedars.core import help as site_help
+    from cedars.services.accounts import service as access
+
+    user = scene[who] if who else None
+    orgs = list(access.organisations_of(user)) if user else []
+    steps = site_help.tour_steps(
+        site_help.Visitor(
+            signed_in=bool(user),
+            acting_for=bool(orgs),
+            sysadmin=bool(user) and access.is_system_admin(user),
+            org_admin=any(access.is_org_admin(user, o) for o in orgs),
+            steward=bool(user) and access.is_steward(user),
+        )
+    )
+    context, page = _open(browser, site, scene, "/", who, color_scheme=scheme, bypass_csp=True)
+    page.add_script_tag(content=axe_source)
+    start = page.locator("[data-tour-offer] [data-tour-start]")
+    start.focus()
+    page.keyboard.press("Enter")
+    assert page.locator("#tour").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.id") == "tour-title"
+    assert page.locator("#tour-title").text_content() == f"Step 1 of {len(steps)}: {steps[0].title}"
+    assert page.evaluate("document.querySelector('.tour-target').getAttribute('data-tour')") == "intro"
+    page.locator("[data-tour-back]").focus()
+    page.keyboard.press("Enter")  # nothing before the first step; the button keeps the focus
+    assert page.evaluate("document.activeElement.hasAttribute('data-tour-back')")
+    assert page.locator("[data-tour-back]").get_attribute("aria-disabled") == "true"
+    page.locator("[data-tour-next]").focus()
+    page.keyboard.press("Enter")
+    assert steps[1].title in page.locator("#tour-title").text_content()
+    assert page.evaluate("document.querySelector('.tour-target').getAttribute('data-tour')") == steps[1].target
+    found = _run_axe(page)
+    assert not found, f"tour ({scheme}): " + json.dumps(found, indent=1)
+    page.keyboard.press("ArrowRight")
+    assert steps[2].title in page.locator("#tour-title").text_content()
+    page.keyboard.press("Tab")  # the focus stays inside the modal dialog
+    assert page.evaluate("!!document.activeElement.closest('#tour')")
+    if who:  # a header menu is opened for its step and closed after it
+        i = next(k for k, step in enumerate(steps) if step.target == "nav-filings")
+        page.evaluate("(n) => { for (let k = 0; k < n; k++) document.querySelector('[data-tour-next]').click(); }", i - 2)
+        assert page.evaluate("document.querySelector('[data-tour=nav-filings]').open")
+        found = _run_axe(page)
+        assert not found, f"tour, menu open ({scheme}): " + json.dumps(found, indent=1)
+        page.evaluate("(n) => { for (let k = 0; k < n; k++) document.querySelector('[data-tour-next]').click(); }", 3)
+        assert not page.evaluate("document.querySelector('[data-tour=nav-filings]').open")
+    page.keyboard.press("Escape")
+    assert not page.locator("#tour").evaluate("d => d.open")
+    assert page.evaluate("document.activeElement.hasAttribute('data-tour-start')")
+    assert page.locator(".tour-target").count() == 0
+    context.close()
+
+
+def test_the_tour_without_scripts(browser, site, scene):
+    """Without scripts the tour link opens the written tour, which lists every step."""
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    page.goto(f"{site.url}/")
+    assert page.locator("#tour").evaluate("d => d.open") is False
+    page.locator("[data-tour-offer] [data-tour-start]").click()
+    assert page.url == f"{site.url}/help/tour/" and page.locator("ol.tour-list > li").count() >= 6
+    context.close()
+
+
 def test_other_filters_by_keyboard(browser, site, scene):
     """The Programs catalog's Other filters panel, with the script: opened, a field chosen and a value ticked from the keyboard, applied
     with Enter; the link carries only that filter. Without the script, "Show its options" shows the field's inputs."""

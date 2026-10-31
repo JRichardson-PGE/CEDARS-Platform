@@ -1,0 +1,34 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>The portfolio dashboard</h2>
+<p>The <a href="{% url 'data:dashboards' %}">portfolio dashboard</a> shows what the PAs forecast in their budget filings beside what they
+claimed, from confirmed filings only. Its pages are Overview, Goals, Total system benefit, Program detail, Measure detail, Budget and
+spending, Cost effectiveness, Energy savings and Environmental impact.</p>
+<ul>
+  <li><strong>Choose the view</strong> with the controls at the top: the years, the metric, view by (PA, PA type, segment, sector,
+  implementer type or measure use category), gross or net, first year or lifecycle, and which series to show. Then choose
+  <strong>Apply</strong>. The page's address holds the whole view, so a copied link shows the same numbers.</li>
+  <li><strong>Filters</strong> narrow the rows (a PA, all RENs, a sector, a program). Each applied filter is listed with a link that takes it
+  off again.</li>
+  <li><strong>Drill down</strong> from any row: a PA's row opens its sectors, a sector's its programs, a program's its measures.</li>
+  <li><strong>What is left out</strong> is always stated on the page: by default pension and benefits programs and codes and standards
+  (and, on the Goals page, Energy Savings Assistance). You can include them.</li>
+  <li><strong>Download</strong> the rows you see as CSV, Excel or Parquet, one file per series. A download is the page's own query, so its
+  totals match the page.</li>
+</ul>
+<p>Every ratio is summed benefits divided by summed costs, never an average of ratios. Each number's definition is in the
+<a href="{% url 'data:metrics_csv' %}">metric catalog</a> (CSV).</p>
+<h2>Record downloads</h2>
+<p><a href="{% url 'data:records' %}">Record downloads</a> gives the published measure-level records for every PA in one file. Choose
+claims or a filing, the years and filters, then the columns (each defined in the data dictionary), and download. A large download is
+made in the background: sign in and CEDARS tells you when it is ready.</p>
+<h2>Documents</h2>
+<p>The <a href="{% url 'documents:library' %}">document library</a> holds PA documents, CPUC staff guidance, DEER resources, program
+files and EM&amp;V studies, with their earlier versions. Search by words, or filter by collection, type, PA, program and year. Each
+document has a permanent link. Signed in, you can follow a document or a study to be told when it changes, and comment when a draft
+is open for comment.</p>
+<h2>The data dictionary and the rules</h2>
+<p>The <a href="{% url 'dictionary:index' %}">data dictionary</a> defines every field CEDARS takes or produces, with its unit and the
+name CET used for it (both names are accepted on upload). The <a href="{% url 'rules:index' %}">validation rules</a> list what each
+filing is checked against, rule by rule, with the versions in force; you can compare two versions of a rule set.</p>
+{% endblock %}

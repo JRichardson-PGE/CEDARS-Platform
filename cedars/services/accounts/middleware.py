@@ -32,7 +32,7 @@ class RequireMFAMiddleware:
     """MFA for every account (decision F's baseline): a session signed in with a password alone reaches only the sign-in and
     second-factor pages until the user sets up a second factor, or proves the one they have."""
 
-    OPEN_PREFIXES = ("/accounts/", "/static/", "/healthz")
+    OPEN_PREFIXES = ("/accounts/", "/static/", "/healthz", "/help/")
 
     def __init__(self, get_response):
         self.get_response = get_response
