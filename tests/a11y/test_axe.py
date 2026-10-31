@@ -143,6 +143,17 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         None, json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.80.json").read_text())
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
+    from cedars.services.registry import goals
+
+    goal_set = goals.import_goals(  # a draft with one problem to show
+        cpuc_admin,
+        b"Utility,Kind,FirstYear,LastYear,ProgramTSB,ProgramGWh,ProgramMW,ProgramMMTherms,CSGWh,CSMW,CSMMTherms\n"
+        b"PGE,cycle,2028,2031,1000,500,90,10,300,50,5\nPGE,annual,2028,2028,250,120,22,-,80,12,1\nXYZ,annual,2028,2028,1,1,1,1,1,1,1\n",
+        decision="D.00-00-000",
+        adopted=date(2026, 1, 1),
+        rules=b"PA,Territory,Share,AppliesTo,Source\nMCE,PGE,1,programs,example\n",
+        source_name="goals.csv",
+    )
     rules = RuleSet.objects.create(
         code="claims", label="Quarterly claims", effective_from=date(2026, 3, 12), status="published", source="test"
     )
@@ -318,6 +329,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pge": pge,
         "cpuc": cpuc,
         "allocation": allocation,
+        "goal_set": goal_set,
         **impact_profiles,
         "sw": sw_id,
     }

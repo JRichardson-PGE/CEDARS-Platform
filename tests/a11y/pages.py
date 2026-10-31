@@ -37,6 +37,8 @@ PAGES = [
     ("audit", "/admin/audit/", "cpuc_admin"),
     ("allocations", "/admin/allocations/", "cpuc_admin"),
     ("allocation", "/admin/allocations/{allocation}/", "cpuc_admin"),
+    ("goal-sets", "/admin/goals/", "cpuc_admin"),
+    ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),

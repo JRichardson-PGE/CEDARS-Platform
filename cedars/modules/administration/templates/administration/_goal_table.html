@@ -1,0 +1,19 @@
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}">
+<table class="list">
+  <thead>
+    <tr><td></td><td></td><th scope="colgroup" colspan="4">Incentive programs</th><th scope="colgroup" colspan="3">Codes and standards</th></tr>
+    <tr><th scope="col">IOU</th><th scope="col">{{ period }}</th><th scope="col">TSB ($)</th><th scope="col">GWh</th><th scope="col">MW</th><th scope="col">MMTherms</th>
+      <th scope="col">GWh</th><th scope="col">MW</th><th scope="col">MMTherms</th></tr>
+  </thead>
+  <tbody>
+  {% for g in rows %}
+  <tr><th scope="row">{{ g.utility }}</th><td>{% if g.first_year == g.last_year %}{{ g.first_year }}{% else %}{{ g.first_year }}-{{ g.last_year }}{% endif %}</td>
+    <td class="num">{{ g.program_tsb|default_if_none:"–" }}</td><td class="num">{{ g.program_gwh|default_if_none:"–" }}</td><td class="num">{{ g.program_mw|default_if_none:"–" }}</td>
+    <td class="num">{{ g.program_mmtherms|default_if_none:"–" }}</td><td class="num">{{ g.cs_gwh|default_if_none:"–" }}</td><td class="num">{{ g.cs_mw|default_if_none:"–" }}</td>
+    <td class="num">{{ g.cs_mmtherms|default_if_none:"–" }}</td></tr>
+  {% empty %}<tr><td colspan="9">None in this set.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small muted">A dash is a value the decision does not set.</p>

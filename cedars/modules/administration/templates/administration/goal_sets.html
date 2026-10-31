@@ -1,0 +1,33 @@
+{% extends "core/base.html" %}
+{% block title %}Energy efficiency goals{% endblock %}
+{% block content %}
+<h1>Energy efficiency goals</h1>
+<p>The CPUC adopts goals by decision about every two years. Each decision is loaded as a set of goals: cumulative goals for each cycle and
+annual targets, for each IOU. The newest confirmed set replaces the earlier ones for every year it covers; earlier sets stay here for the
+record. The portfolio dashboard compares forecasts and claims with the goals in force.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Goal sets">
+<table class="list">
+  <caption class="sr-only">Goal sets, newest first</caption>
+  <thead><tr><th scope="col">Decision</th><th scope="col">Adopted</th><th scope="col">Status</th><th scope="col">In force for</th><th scope="col">Source file</th></tr></thead>
+  <tbody>
+  {% for s, years in sets %}
+  <tr><th scope="row"><a href="{% url 'administration:goal_set' s.pk %}">{{ s.decision }}</a></th><td>{{ s.adopted|date:"Y-m-d" }}</td>
+    <td>{{ s.get_status_display }}{% if s.confirmed_at %} {{ s.confirmed_at|date:"Y-m-d" }}{% endif %}</td>
+    <td>{% if s.status == "confirmed" %}{% if years.annual %}targets {{ years.annual|first }}-{{ years.annual|last }}{% endif %}{% if years.annual and years.cycle %}; {% endif %}{% if years.cycle %}cycles {{ years.cycle|first }}-{{ years.cycle|last }}{% endif %}{% if not years.annual and not years.cycle %}Replaced by newer goals{% endif %}{% else %}Not yet{% endif %}</td>
+    <td class="small">{{ s.source_name }}</td></tr>
+  {% empty %}<tr><td colspan="5">No goals loaded yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="up-h">
+  <h2 id="up-h">Load a decision's goals</h2>
+  <p class="small">Goal file columns: Utility (PGE, SCE, SDGE, SCG), Kind (cycle or annual), FirstYear, LastYear, ProgramTSB, ProgramGWh,
+  ProgramMW, ProgramMMTherms, CSGWh, CSMW, CSMMTherms. Leave a cell blank (or "-") where the decision sets no value. Counting rule file
+  columns: PA, Territory, Share (0 to 1), AppliesTo (all, programs or cs), Source.</p>
+  <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>
+  </form>
+</section>
+{% endblock %}
