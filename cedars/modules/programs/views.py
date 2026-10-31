@@ -13,16 +13,10 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationEntry, Program, ProgramChangeRequest, ProgramVersion
 
-from . import forms
+from . import filters, forms
 
 PER_PAGE = 50
-STATUS_LABELS = {
-    "new": "New",
-    "active": "Active",
-    "closed_to_new_commitments": "Closed to new commitments",
-    "closure_pending": "Closure pending",
-    "closed": "Closed",
-}
+STATUS_LABELS = filters.STATUS_LABELS
 SEGMENT_LABELS = {
     "resource_acquisition": "Resource acquisition",
     "market_support": "Market support",
@@ -62,12 +56,14 @@ def pa_code(program: Program) -> str:
     return "SW" if program.statewide or program.administrator is None else program.administrator.code
 
 
-def _filtered(form: forms.CatalogFilter):
-    """The catalog rows (program, version) the filter keeps, in PrgID order."""
+def _filtered(form: forms.CatalogFilter, query) -> tuple[list, list, dict, list[str]]:
+    """The catalog rows (program, version) the filter keeps, in PrgID order; the rows the main filters alone keep (the Other filters
+    panel offers their values); the other filters applied; and a note for each value that could not be read."""
     f = form.cleaned_data if form.is_valid() else {}
     q = (f.get("q") or "").strip().lower()
     pa, state, segment = f.get("pa") or "", f.get("state") or "", f.get("segment") or ""
-    rows = []
+    other, notes = filters.parse(query)
+    base = []
     for p, v in registry.catalog(f.get("year")):
         if v is None:
             continue
@@ -79,18 +75,33 @@ def _filtered(form: forms.CatalogFilter):
             continue
         if segment and v.segment != segment:
             continue
-        rows.append((p, v))
-    return rows
+        base.append((p, v))
+    rows = [(p, v) for p, v in base if filters.matches(other, p, v)] if other else base
+    return rows, base, other, notes
+
+
+def _main_chips(form: forms.CatalogFilter) -> list[tuple[str, str, str]]:
+    """(parameter, label, value shown) for each main filter applied."""
+    if not form.is_valid():
+        return []
+    out = []
+    for name, field in form.fields.items():
+        value = form.cleaned_data.get(name)
+        if value in (None, ""):
+            continue
+        shown = dict(field.choices).get(value, value) if hasattr(field, "choices") else value
+        out.append((name, field.label, str(shown)))
+    return out
 
 
 def catalog(request):
     """Every program, searchable by name or PrgID, closed programs included (BR-13.5); the version shown is the one for the chosen program
-    year, or the one in force today. Public (BR-01.5, BR-07.7): the registry holds published program definitions only."""
+    year, or the one in force today. Any other program attribute can be filtered on too (filters.py), and every filter is in the link.
+    Public (BR-01.5, BR-07.7): the registry holds published program definitions only."""
     form = forms.CatalogFilter(request.GET or None)
-    rows = _filtered(form)
+    rows, base, other, notes = _filtered(form, request.GET)
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
-    query = request.GET.copy()
-    query.pop("page", None)
+    query = filters.clean_query(request.GET)
     return render(
         request,
         "programs/catalog.html",
@@ -100,13 +111,16 @@ def catalog(request):
             "rows": [(p, v, pa_code(p), status_label(v.status), segment_label(v.segment)) for p, v in page.object_list],
             "total": len(rows),
             "query": query.urlencode(),
+            "applied": filters.chips(request.GET, _main_chips(form), other),
+            "other": filters.panel(request.GET, other, base),
+            "notes": notes,
         },
     )
 
 
 def catalog_csv(request):
     """The filtered catalog as a file, from the same filter (decision H), in CEDARS' Programs list column names."""
-    rows = _filtered(forms.CatalogFilter(request.GET or None))
+    rows = _filtered(forms.CatalogFilter(request.GET or None), request.GET)[0]
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="programs.csv"'
     w = csv.writer(response, lineterminator="\n")

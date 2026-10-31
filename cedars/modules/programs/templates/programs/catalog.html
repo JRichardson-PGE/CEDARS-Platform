@@ -1,15 +1,79 @@
 {% extends "core/base.html" %}
-{% load ui %}
+{% load static ui %}
 {% block title %}Programs{% endblock %}
 {% block content %}
 <h1>Programs</h1>
 <p>Every program in the registry, closed programs included. Search by name or PrgID; pick a program year to see the attributes that applied
 that year.{% if user.is_authenticated %} Changes to locked attributes go through <a href="{% url 'programs:requests' %}">change requests</a>
 (<a href="{% url 'programs:locked' %}">which attributes are locked</a>).{% endif %}</p>
-<form method="get" class="filters" aria-label="Filter the programs">
+<form method="get" class="filters catalog-filters" aria-label="Filter the programs" data-clean-get>
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
+  <details class="other-filters"{% if other.open %} open{% endif %}>
+    <summary>Other filters{% if other.applied %} <span class="count">({{ other.applied }} applied)</span>{% endif %}</summary>
+    <div class="other-body">
+      <p class="helptext" id="other-help">Filter on any other program attribute: choose a field, set what to keep, then apply. Filters on
+        different fields all apply; several values ticked for one field keep programs with any of them.</p>
+      <div class="other-pick">
+        <label>Field
+          <select name="field" id="other-field" aria-describedby="other-help" aria-controls="other-fields">
+            <option value="">Choose a field</option>
+            {% for group, fields in other.groups %}<optgroup label="{{ group }}">
+              {% for f in fields %}<option value="{{ f.code }}"{% if f.code == other.chosen %} selected{% endif %}>{{ f.label }}{% if f.active %} (applied){% endif %}</option>{% endfor %}
+            </optgroup>{% endfor %}
+          </select>
+        </label>
+        <button type="submit" name="pick" value="1" class="nojs">Show its options</button>
+      </div>
+      <div id="other-fields">
+      {% for f in other.fields %}
+      <div class="other-field" data-field="{{ f.code }}"{% if f.code != other.chosen %} hidden{% endif %}>
+        {% if f.kind == "choice" %}
+        <fieldset{% if f.help %} aria-describedby="help-{{ f.code }}"{% endif %}>
+          <legend>{{ f.label }} <span class="muted small">(none ticked: any)</span></legend>
+          {% if f.options %}<div class="checks">{% for value, label, checked in f.options %}<label><input type="checkbox" name="{{ f.code }}" value="{{ value }}"{% if checked %} checked{% endif %}> {{ label }}</label>{% endfor %}</div>
+          {% else %}<p class="small muted">No program here has a {{ f.label|lower }}.</p>{% endif %}
+        </fieldset>
+        {% elif f.kind == "yesno" %}
+        <label>{{ f.label }}
+          <select name="{{ f.code }}"{% if f.help %} aria-describedby="help-{{ f.code }}"{% endif %}>
+            <option value="">Either</option>
+            <option value="yes"{% if f.value == "yes" %} selected{% endif %}>Yes</option>
+            <option value="no"{% if f.value == "no" %} selected{% endif %}>No</option>
+          </select>
+        </label>
+        {% elif f.kind == "years" %}
+        <fieldset{% if f.help %} aria-describedby="help-{{ f.code }}"{% endif %}>
+          <legend>{{ f.label }} <span class="muted small">(either may be blank)</span></legend>
+          <div class="row-form">
+            <label>From <input type="number" name="{{ f.code }}_from" min="{{ other.year_min }}" max="{{ other.year_max }}" inputmode="numeric" value="{{ f.from|default_if_none:'' }}"></label>
+            <label>To <input type="number" name="{{ f.code }}_to" min="{{ other.year_min }}" max="{{ other.year_max }}" inputmode="numeric" value="{{ f.to|default_if_none:'' }}"></label>
+          </div>
+        </fieldset>
+        {% else %}
+        <label>{{ f.label }}
+          <input type="text" name="{{ f.code }}" value="{{ f.value }}" maxlength="200" autocomplete="off"{% if f.suggestions %} list="suggest-{{ f.code }}"{% endif %}{% if f.help %} aria-describedby="help-{{ f.code }}"{% endif %}>
+        </label>
+        {% if f.suggestions %}<datalist id="suggest-{{ f.code }}">{% for s in f.suggestions %}<option value="{{ s }}"></option>{% endfor %}</datalist>{% endif %}
+        {% endif %}
+        {% if f.help %}<p class="helptext" id="help-{{ f.code }}">{{ f.help }}</p>{% endif %}
+      </div>
+      {% endfor %}
+      </div>
+      <button type="submit" class="primary">Apply filters</button>
+    </div>
+  </details>
 </form>
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if applied %}
+<section aria-labelledby="applied-heading" class="applied">
+  <h2 id="applied-heading" class="sr-only">Applied filters</h2>
+  <ul class="chips">
+    {% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong> <a href="{{ a.remove }}">Remove<span class="sr-only"> the {{ a.label }} filter {{ a.value }}</span></a></li>{% endfor %}
+    <li><a href="{% url 'programs:catalog' %}">Clear all filters</a></li>
+  </ul>
+</section>
+{% endif %}
 <div class="head-row">
   <p>{{ total }} program{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
   <p><a href="{% url 'programs:catalog_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
@@ -41,3 +105,4 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
 </nav>
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'programs/catalog.js' %}" defer></script>{% endblock %}
