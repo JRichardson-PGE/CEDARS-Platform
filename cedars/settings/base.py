@@ -138,6 +138,10 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
+
+# One cache that every web process shares, so rate limits (the API's and allauth's sign-in limits) count across all of them: a table
+# in the core database (created by migration core 0001; `manage.py createcachetable` makes it again).
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "cedars_cache"}}
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes", "webauthn"]
 MFA_TOTP_ISSUER = "CEDARS"
 MFA_PASSKEY_LOGIN_ENABLED = False
@@ -164,10 +168,19 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
+    # Rate limits per user (every token and session of one person counts together) and per address for calls without one; over
+    # the limit a call gets 429 with Retry-After. Counted in the shared cache below, so every web process sees the same count.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle", "rest_framework.throttling.UserRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"user": env("CEDARS_API_RATE_USER", "120/minute"), "anon": env("CEDARS_API_RATE_ANON", "30/minute")},
+    "NUM_PROXIES": int(env("CEDARS_NUM_PROXIES", "0")),  # proxies in front (prod: 1, the load balancer); 0 = the socket address
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "CEDARS API",
-    "DESCRIPTION": "The CEDARS platform's API. Authenticate with an API token from your account page: Authorization: Bearer <token>.",
+    "DESCRIPTION": (
+        "The CEDARS platform's API. Authenticate with an API token from your account page: Authorization: Bearer <token>. "
+        "Calls are rate limited per user (all of a user's tokens together) and per address without a token; over the limit a call "
+        "gets 429 Too Many Requests with a Retry-After header in seconds."
+    ),
     "VERSION": "1",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",

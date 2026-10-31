@@ -220,6 +220,25 @@ resource "aws_wafv2_web_acl" "web" {
   default_action {
     allow {}
   }
+  # Any one address over waf_requests_per_5min is blocked until it slows down (the API also limits each user, in the app)
+  rule {
+    name     = "rate-per-address"
+    priority = 0
+    action {
+      block {}
+    }
+    statement {
+      rate_based_statement {
+        limit              = var.waf_requests_per_5min
+        aggregate_key_type = "IP"
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "rate-per-address"
+      sampled_requests_enabled   = true
+    }
+  }
   dynamic "rule" {
     for_each = { AWSManagedRulesCommonRuleSet = 1, AWSManagedRulesKnownBadInputsRuleSet = 2, AWSManagedRulesSQLiRuleSet = 3 }
     content {

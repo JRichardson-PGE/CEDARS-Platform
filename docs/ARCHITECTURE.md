@@ -66,7 +66,10 @@ how far it is built. Update the Status column in the PR that changes it.
   The eTRM database layout is `cedars/modules/impact_profiles/etrm_fixture_schema.sql`: only `etrm.PACKAGES_SQL` and `PERMUTATIONS_SQL`
   change when the real schema is known.
 
-- The API is Django REST Framework under `/api/v1` (JSON only), described by drf-spectacular at `/api/v1/schema`. A call authenticates
+- The API is Django REST Framework under `/api/v1` (JSON only), described by drf-spectacular at `/api/v1/schema`. Calls are rate limited
+  (`CEDARS_API_RATE_USER`, default 120 a minute per user across their tokens and sessions; `CEDARS_API_RATE_ANON`, 30 a minute per
+  address without one; 429 with Retry-After), counted in the shared database cache (`cedars_cache`, migration core 0001) so every web
+  process sees one count; the WAF also blocks any address over `waf_requests_per_5min`. A call authenticates
   with an API token (`Authorization: Bearer cedars_...`; only its SHA-256 is stored) or the session. A token acts for one organisation and
   reaches only its scopes (modules), never more than its user's grants there, and never PII or admin permissions; API views check
   `cedars.core.api.allowed(request, "<module>.<action>")` or use `ModulePermission.of(...)`. `CEDARS_API_TOKEN_MAX_DAYS` (365) caps a
