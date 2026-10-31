@@ -1,0 +1,396 @@
+"""The query layer: one query, over one release of one dataset, gives every number a page, its chart, its table and its download show,
+so their totals cannot disagree (spec "Foundations"). DuckDB reads the release's Parquet snapshots (decision I); each query opens its
+own in-memory connection, so requests never share state.
+
+A query sums the metric catalog's fields by the dimensions asked for, over the rows its filters and exclusions keep. Its state is
+plain GET parameters (`from_params` / `Query.params`), so a link reproduces the view.
+
+Datasets: claims (each PA's latest year-to-date claim per year), forecast (budget filings; the filing selector picks one kind, or by
+default each PA's latest filing in each cycle) and monthly (each PA's latest year-to-date report per year)."""
+
+import json
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+from urllib.parse import urlencode, urlparse
+from urllib.request import url2pathname
+
+from django.conf import settings
+
+from cedars.core import storage
+from cedars.services.snapshots import service as snapshots
+from cedars.services.snapshots.models import Dataset, Release
+
+from . import metrics as catalog
+
+
+@dataclass(frozen=True)
+class Dimension:
+    code: str
+    label: str
+    column: str  # the canonical field it reads ("" for one built from the release itself)
+    expression: str = ""  # SQL over the unioned rows; default the column as text
+
+
+DIMENSIONS = {
+    d.code: d
+    for d in [
+        Dimension("pa", "PA", "CreditedPA", "coalesce(nullif(trim(CreditedPA), ''), _organisation)"),
+        Dimension("segment", "Segment", "Prg_ProgramSegment"),
+        Dimension("sector", "Primary sector", "Prg_PrimarySector"),
+        Dimension("implementer_type", "Implementer type", "Prg_ProgramImplementer"),
+        Dimension("use_category", "Measure use category", "UseCategory"),
+        Dimension("year", "Year", "Used_Year", "try_cast(Used_Year AS INTEGER)"),
+        Dimension("program", "Program", "PrgID"),
+        Dimension("program_name", "Program name", "Prg_ProgramName"),
+        Dimension("category", "Program category", "Prg_ProgramCategory"),
+        Dimension("measure", "Measure", "MeasureID"),
+        Dimension(
+            "measure_type",
+            "Measure type",
+            "Fuel_Sub_Flag",
+            "CASE WHEN lower(trim(Fuel_Sub_Flag)) IN ('true', '1', 'yes', 'y') THEN 'Fuel substitution' ELSE 'Energy efficiency' END",
+        ),
+        Dimension("organisation", "Filed by", "", "_organisation"),
+        Dimension("filing", "Filing", "", "_filing"),
+    ]
+}
+# The view-by choices the pages offer (Jake, 2026-10-31); the rest are for drill-down, filters and downloads.
+VIEW_BY = ("pa", "segment", "sector", "implementer_type", "use_category")
+
+
+@dataclass(frozen=True)
+class Exclusion:
+    code: str
+    label: str
+    column: str
+    values: tuple[str, ...]  # compared trimmed and case-insensitively
+
+
+EXCLUSIONS = {
+    e.code: e
+    for e in [
+        Exclusion("pension", "Pension and Benefits programs", "Prg_ProgramCategory", ("Pension and Benefits",)),
+        Exclusion("esa", "Energy Savings Assistance programs", "Prg_ProgramCategory", ("Energy Savings Assistance",)),
+        Exclusion("cs", "Codes and standards", "Prg_ProgramSegment", ("codes_and_standards", "Codes and Standards")),
+    ]
+}
+# As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages, ESA out on
+# the goals page only. A page passes its own defaults to from_params; the page and the download say what was left out.
+DEFAULT_EXCLUDE = ("pension", "cs")
+
+
+class QueryError(ValueError):
+    """A query that cannot run as asked (unknown metric or dimension, bad years). Its message is safe to show."""
+
+
+@dataclass(frozen=True)
+class Query:
+    dataset: str
+    metrics: tuple[str, ...]
+    by: tuple[str, ...] = ()
+    year_from: int | None = None
+    year_to: int | None = None
+    filters: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (dimension, values), each kept as given
+    exclude: tuple[str, ...] = DEFAULT_EXCLUDE
+    filing: str = ""  # forecast: a filing kind ("TUAL") or "<cycle>|<kind>" ("2028-2031|TUAL"); blank = each PA's latest
+    release: int | None = None  # an earlier release's number; None = the current one
+
+    def __post_init__(self):
+        if self.dataset not in Dataset.values:
+            raise QueryError(f"unknown dataset {self.dataset!r}")
+        if not self.metrics:
+            raise QueryError("no metric asked for")
+        for m in self.metrics:
+            catalog.get(m)
+        for d in self.by + tuple(d for d, _ in self.filters):
+            if d not in DIMENSIONS:
+                raise QueryError(f"unknown dimension {d!r}")
+        for e in self.exclude:
+            if e not in EXCLUSIONS:
+                raise QueryError(f"unknown exclusion {e!r}")
+        if self.year_from and self.year_to and self.year_from > self.year_to:
+            raise QueryError("the first year is after the last")
+
+    @property
+    def filter_map(self) -> dict[str, tuple[str, ...]]:
+        return dict(self.filters)
+
+    def params(self, defaults_exclude=DEFAULT_EXCLUDE) -> dict[str, list[str]]:
+        """The GET parameters that reproduce this query (from_params' inverse)."""
+        p: dict[str, list[str]] = {"dataset": [self.dataset], "metric": list(self.metrics)}
+        if self.by:
+            p["by"] = list(self.by)
+        if self.year_from:
+            p["year_from"] = [str(self.year_from)]
+        if self.year_to:
+            p["year_to"] = [str(self.year_to)]
+        for d, values in self.filters:
+            p[d] = list(values)
+        for code in EXCLUSIONS:
+            if (code in self.exclude) != (code in defaults_exclude):
+                p[code] = ["exclude" if code in self.exclude else "include"]
+        if self.filing:
+            p["filing"] = [self.filing]
+        if self.release:
+            p["release"] = [str(self.release)]
+        return p
+
+    def query_string(self, defaults_exclude=DEFAULT_EXCLUDE) -> str:
+        return urlencode(self.params(defaults_exclude), doseq=True)
+
+    def but(self, **changes) -> "Query":
+        return replace(self, **changes)
+
+
+def _year(value: str | None, name: str) -> int | None:
+    if not value:
+        return None
+    try:
+        year = int(value)
+    except ValueError as e:
+        raise QueryError(f"{name} must be a year") from e
+    if not 1990 <= year <= 2100:
+        raise QueryError(f"{name} must be a year")
+    return year
+
+
+def from_params(params, *, dataset: str | None = None, metrics: tuple[str, ...] = ("tsb",), exclude=DEFAULT_EXCLUDE) -> Query:
+    """A query from GET parameters (a QueryDict or a dict of lists). `metric` names catalog codes or view-control bases ("kwh") that
+    `gross=1` and `lifecycle=1` resolve; each exclusion is a parameter set to include or exclude, defaulting to `exclude`."""
+
+    def many(key):
+        if hasattr(params, "getlist"):
+            values = params.getlist(key)
+        else:
+            values = params.get(key) or []
+            values = [values] if isinstance(values, str) else list(values)
+        return [v.strip() for v in values if v and v.strip()]
+
+    def one(key):
+        values = many(key)
+        return values[-1] if values else ""
+
+    gross, lifecycle = one("gross") in ("1", "true", "on"), one("lifecycle") in ("1", "true", "on")
+    codes = []
+    for m in many("metric") or list(metrics):
+        try:
+            codes.append(catalog.resolve(m, gross=gross, lifecycle=lifecycle).code)
+        except ValueError as e:
+            raise QueryError(str(e)) from e
+    excluded = set(exclude)
+    for code in EXCLUSIONS:
+        choice = one(code)
+        if choice == "include":
+            excluded.discard(code)
+        elif choice == "exclude":
+            excluded.add(code)
+    release = one("release")
+    return Query(
+        dataset=dataset or one("dataset") or "claims",
+        metrics=tuple(dict.fromkeys(codes)),
+        by=tuple(dict.fromkeys(many("by"))),
+        year_from=_year(one("year_from"), "year_from"),
+        year_to=_year(one("year_to"), "year_to"),
+        filters=tuple((d, tuple(dict.fromkeys(many(d)))) for d in DIMENSIONS if many(d)),
+        exclude=tuple(c for c in EXCLUSIONS if c in excluded),
+        filing=one("filing"),
+        release=int(release) if release.isdigit() else None,
+    )
+
+
+# --- results
+
+
+@dataclass
+class Result:
+    query: Query
+    release: Release | None
+    files: list[dict]  # the snapshots read (snapshots.release_files entries)
+    rows: list[dict]  # the dimensions by code, each metric by code, and "_sums" (each field's sum) and "_rows"
+    totals: dict  # each metric over every row kept, and "_sums" and "_rows"
+    notes: list[str] = field(default_factory=list)
+
+    @property
+    def as_of(self):
+        return self.release.created_at if self.release else None
+
+    @property
+    def metric_list(self) -> list[catalog.Metric]:
+        return [catalog.get(m) for m in self.query.metrics]
+
+    @property
+    def dimension_list(self) -> list[Dimension]:
+        return [DIMENSIONS[d] for d in self.query.by]
+
+    @property
+    def fields(self) -> list[str]:
+        return list(dict.fromkeys(f for m in self.metric_list for f in m.fields))
+
+    def stamp(self) -> dict:
+        """What a download records about where its rows came from (BR-07.2)."""
+        q = self.query
+        return {
+            "dataset": q.dataset,
+            "release": self.release.number if self.release else None,
+            "as_of": self.as_of.isoformat() if self.as_of else None,
+            "snapshots": [f["snapshot"] for f in self.files],
+            "filings": sorted({f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}" for f in self.files}),
+            "metrics": {
+                m.code: {"label": m.label, "unit": m.unit, "numerator": m.numerator, "denominator": m.denominator} for m in self.metric_list
+            },
+            "by": list(q.by),
+            "years": [q.year_from, q.year_to],
+            "filters": {d: list(v) for d, v in q.filters},
+            "excluded": [EXCLUSIONS[e].label for e in q.exclude],
+            "filing": q.filing,
+            "query": q.query_string(),
+        }
+
+    def stamp_json(self) -> str:
+        return json.dumps(self.stamp(), default=str)
+
+
+def _release(q: Query) -> Release | None:
+    if q.release:
+        return Release.objects.filter(dataset=q.dataset, number=q.release).first()
+    return snapshots.current_release(q.dataset)
+
+
+def pick_files(q: Query, files: list[dict]) -> list[dict]:
+    """The release's snapshots a query reads. Claims and monthly: all of them (one per PA and year already). Forecast: the filing
+    asked for, else each PA's latest filing (by its due date) in each cycle."""
+    if q.dataset != Dataset.FORECAST:
+        return files
+    if q.filing:
+        cycle, _, kind = q.filing.rpartition("|")
+        return [f for f in files if f["kind"].lower() == kind.lower() and (not cycle or f["cycle"] == cycle)]
+    latest: dict[tuple, dict] = {}
+    for f in files:
+        slot = (f["organisation"], f["cycle"])
+        if slot not in latest or (f["due_at"], f["version"]) > (latest[slot]["due_at"], latest[slot]["version"]):
+            latest[slot] = f
+    return sorted(latest.values(), key=lambda f: (f["organisation"], f["cycle"]))
+
+
+def local_path(f: dict) -> Path:
+    """A snapshot's file on this machine: local storage's own file, else a copy in DATA_CACHE named by its SHA-256 (a snapshot never
+    changes, so a copy is good for as long as it exists)."""
+    uri = f["uri"]
+    if uri.startswith("file://"):
+        return Path(url2pathname(urlparse(uri).path))
+    cache = Path(settings.DATA_CACHE)
+    path = cache / f"{f['sha256']}.parquet"
+    if not path.exists():
+        cache.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(".part")
+        with storage.store(snapshots.AREA).open(f["key"]) as src, open(tmp, "wb") as dst:
+            while block := src.read(1 << 22):
+                dst.write(block)
+        tmp.replace(path)
+    return path
+
+
+def _ident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def _literal(text: str) -> str:
+    return "'" + str(text).replace("'", "''") + "'"
+
+
+def run(q: Query) -> Result:
+    import duckdb
+    import pyarrow.parquet as pq
+
+    release = _release(q)
+    if release is None:
+        result = Result(q, None, [], [], {}, ["Nothing has been published in this dataset yet."])
+        _finish(result)
+        return result
+    files = pick_files(q, snapshots.release_files(release))
+    result = Result(q, release, files, [], {"_sums": {}, "_rows": 0})
+    result.notes += [f"Left out: {EXCLUSIONS[e].label}." for e in q.exclude]
+    if not files:
+        result.notes.append("No published filing matches this choice." if q.filing else "Nothing in force in this release.")
+        _finish(result)
+        return result
+
+    numbers = result.fields
+    texts = list(
+        dict.fromkeys(
+            [DIMENSIONS[d].column for d in q.by + tuple(d for d, _ in q.filters) if DIMENSIONS[d].column]
+            + [EXCLUSIONS[e].column for e in q.exclude]
+            + ["Used_Year", "CreditedPA"]
+        )
+    )
+    selects = []
+    for f in files:
+        names = set(pq.read_schema(local_path(f)).names)
+        cols = [
+            f"try_cast({_ident(c)} AS DOUBLE) AS {_ident(c)}" if c in names else f"CAST(NULL AS DOUBLE) AS {_ident(c)}" for c in numbers
+        ]
+        cols += [f"CAST({_ident(c)} AS VARCHAR) AS {_ident(c)}" if c in names else f"CAST(NULL AS VARCHAR) AS {_ident(c)}" for c in texts]
+        filing = f"{f['cycle']} {f['kind']}".strip() if f["cycle"] else f["kind"]
+        cols += [f"{_literal(f['organisation'])} AS _organisation", f"{_literal(filing)} AS _filing"]
+        selects.append(f"SELECT {', '.join(cols)} FROM read_parquet({_literal(str(local_path(f)))})")
+
+    where, args = [], []
+    year = DIMENSIONS["year"].expression
+    if q.year_from:
+        where.append(f"{year} >= ?")
+        args.append(q.year_from)
+    if q.year_to:
+        where.append(f"{year} <= ?")
+        args.append(q.year_to)
+    for d, values in q.filters:
+        expr = _expression(DIMENSIONS[d])
+        if d == "year":
+            where.append(f"{expr} IN ({', '.join('?' for _ in values)})")
+            args += [int(v) for v in values if v.lstrip("-").isdigit()] or [None]
+        else:
+            where.append(f"lower(trim({expr})) IN ({', '.join('?' for _ in values)})")
+            args += [v.strip().lower() for v in values]
+    for e in q.exclude:
+        ex = EXCLUSIONS[e]
+        where.append(f"coalesce(lower(trim({_ident(ex.column)})), '') NOT IN ({', '.join('?' for _ in ex.values)})")
+        args += [v.lower() for v in ex.values]
+
+    dims = [f"{_expression(DIMENSIONS[d])} AS {_ident(d)}" for d in q.by]
+    sums = [f"sum({_ident(c)}) AS {_ident(c)}" for c in numbers]
+    sql = (
+        f"WITH data AS ({' UNION ALL '.join(selects)}) "
+        f"SELECT {', '.join(dims + sums + ['count(*) AS _rows'])} FROM data"
+        + (f" WHERE {' AND '.join(where)}" if where else "")
+        + (f" GROUP BY {', '.join(_ident(d) for d in q.by)} ORDER BY {', '.join(f'{_ident(d)} NULLS LAST' for d in q.by)}" if q.by else "")
+    )
+    con = duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
+    try:
+        cursor = con.execute(sql, args)
+        names = [c[0] for c in cursor.description]
+        raw = cursor.fetchall()
+    finally:
+        con.close()
+    for values in raw:
+        record = dict(zip(names, values, strict=True))
+        if not q.by and not record["_rows"]:
+            continue
+        row = {d: record[d] for d in q.by}
+        row["_sums"] = {c: record[c] or 0 for c in numbers}
+        row["_rows"] = record["_rows"]
+        result.rows.append(row)
+    _finish(result)
+    return result
+
+
+def _expression(d: Dimension) -> str:
+    return d.expression or _ident(d.column)
+
+
+def _finish(result: Result) -> None:
+    numbers = result.fields
+    totals = {c: sum(r["_sums"][c] for r in result.rows) for c in numbers}
+    result.totals = {"_sums": totals, "_rows": sum(r["_rows"] for r in result.rows)}
+    for m in result.metric_list:
+        result.totals[m.code] = m.value(totals) if result.rows else None
+        for r in result.rows:
+            r[m.code] = m.value(r["_sums"])

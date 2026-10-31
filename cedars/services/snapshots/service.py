@@ -212,9 +212,12 @@ def release_files(release: Release) -> list[dict]:
                 "year": s.year,
                 "cycle": str(d.cycle) if d.cycle_id else "",
                 "kind": d.kind,
+                "due_at": d.due_at,
                 "version": s.version_id,
                 "version_number": s.version.number,
                 "rows": s.rows,
+                "sha256": s.sha256,
+                "created_at": s.created_at,
             }
         )
     return sorted(out, key=lambda f: (f["organisation"], f["year"] or 0, f["kind"], f["version"]))

@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     "cedars.modules.budgets",
     "cedars.modules.claims",
     "cedars.modules.documents",
+    "cedars.modules.data",
     "allauth",
     "allauth.account",
     "allauth.mfa",
@@ -214,6 +215,12 @@ CALCULATIONS_RESULTS_CACHE = env(
     "CALCULATIONS_RESULTS_CACHE", str(BASE_DIR / "var" / "cache" / "results")
 )  # local copies of runs' results files
 CALCULATIONS_WORKERS = {"small": int(env("CALCULATIONS_WORKERS_SMALL", "1")), "large": int(env("CALCULATIONS_WORKERS_LARGE", "1"))}
+
+# Data, dashboards and downloads (cedars/modules/data): queries over the publication snapshots.
+DATA_CACHE = env("DATA_CACHE", str(BASE_DIR / "var" / "cache" / "snapshots"))  # local copies of snapshots kept in S3
+DATA_QUERY_THREADS = int(env("DATA_QUERY_THREADS", "2"))  # DuckDB threads per query
+DATA_QUERY_MEMORY = env("DATA_QUERY_MEMORY", "512MB")  # DuckDB memory limit per query (it spills to disk beyond it)
+DATA_DOWNLOAD_MAX_ROWS = int(env("DATA_DOWNLOAD_MAX_ROWS", "200000"))  # larger downloads are refused until background jobs exist
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

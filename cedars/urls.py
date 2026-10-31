@@ -17,6 +17,7 @@ urlpatterns = [
     path("impact-profiles/", include("cedars.modules.impact_profiles.urls")),
     path("monthly/", include("cedars.modules.monthly.urls")),
     path("documents/", include("cedars.modules.documents.urls")),
+    path("data/", include("cedars.modules.data.urls")),
     path("deer-resources/", include("cedars.modules.documents.legacy_urls")),
     path("api/v1/calculations/", include("cedars.modules.calculations.api_urls")),
     path("api/v1/claims/", include("cedars.modules.claims.api_urls")),
