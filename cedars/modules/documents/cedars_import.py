@@ -1,12 +1,18 @@
 """The migration of CEDARS' own documents (BR-15.10): Reports & Documents (the PAs' report uploads and the CPUC staff guidance), DEER
 Resources, and the program documents (implementation plans and their redlines and change summaries), each with every version and
-file, their original dates, and their old addresses, which then lead to the migrated record (views.cedars_legacy).
+file, their original dates, and their old addresses, which then lead to the migrated record (views.cedars_legacy). The same manifest
+takes the files of the 2006-2013 EM&V site (www.energydataweb.com/cpuc, the PDA's predecessor) that never reached the PDA: the 18
+files its home page linked (quarterly meeting materials, project status spreadsheets, program information) under /cpucFiles/
+pdaHomeDocs/<section>/<file>. Their records are in the EM&V collection with keys starting "edw/" ("edw/pdaHomeDocs/2/EMV 9-9-14.zip"),
+and their links are kept under ARCHIVE_PREFIX (views.edw_archive). The site's other documents are the PDA's, by the same ids, so the
+PDA migration covers them.
 
 CEDARS' pages are not an API, and its PA document lists are behind its login, so the records come from a manifest: a CSV with one row
 per file of a version, written by whoever exports them (CEDARS' own database at cutover, or a crawl of its public pages), and a folder
 of the files. Columns (MANIFEST; the rest optional):
-  collection      pa | guidance | deer | program
-  key             the record's id in CEDARS, unique within the collection ("dispositions/184", "guidance/29", "history/1203")
+  collection      pa | guidance | deer | program | emv (the EM&V site's files only)
+  key             the record's id in CEDARS, unique within the collection ("dispositions/184", "guidance/29", "history/1203"); for
+                  the EM&V site's files, "edw/" and its path ("edw/pdaHomeDocs/2/EMV 9-9-14.zip")
   document_type   a label of the collection's type list ("Disposition", "Template", "Implementation plan"); CPUC ED keeps the lists
   title, summary  the record's title and notes
   pas, programs   organisation codes and PrgIDs, separated by ";"
@@ -18,7 +24,8 @@ of the files. Columns (MANIFEST; the rest optional):
   published       yes (default) or no
   file            the file's path under the files folder; file_name the name to give it (default: the file's own)
   role            main (default for the first file of a version) | redline | change_summary | attachment
-  file_links      old addresses of this file's download ("/deer-resources/tools/energy-plus/file/3195/download/"), separated by ";"
+  file_links      old addresses of this file's download ("/deer-resources/tools/energy-plus/file/3195/download/"), separated by ";";
+                  for the EM&V site's files, theirs ("/cpucFiles/pdaHomeDocs/2/EMV 9-9-14.zip", with or without the host)
   page_links      old addresses of the record's page or history ("/deer-resources/tools/energy-plus/resource/29/history/")
 A record already imported is skipped, so the import can be run again; --dry-run reads and checks everything and stores nothing.
 
@@ -51,17 +58,31 @@ from .pda_import import _upload, _when
 from .service import DocumentError, _check_uploads, _store_files, type_list
 
 MANIFEST = ["collection", "key", "document_type", "title", "version", "posted", "file"]
-COLLECTIONS = {Collection.PA, Collection.GUIDANCE, Collection.DEER, Collection.PROGRAM}
+COLLECTIONS = {Collection.PA, Collection.GUIDANCE, Collection.DEER, Collection.PROGRAM, Collection.EMV}
 ROLES = ["main", "attachment", "redline", "change_summary"]  # the order of a version's files
-REASON = "Migrated from CEDARS"
-LABEL = "CEDARS migration"
 YES = {"", "yes", "y", "true", "1"}
+ARCHIVE_KEY = "edw/"  # a record of the 2006-2013 EM&V site
+ARCHIVE_HOST = "energydataweb.com"
+ARCHIVE_PREFIX = "/edw"  # its addresses are kept under this, apart from CEDARS' own
+ORIGINS = {  # (reason, audit label) by where a record comes from
+    "cedars": ("Migrated from CEDARS", "CEDARS migration"),
+    "archive": ("Migrated from the 2006-2013 EM&V site", "EM&V archive migration"),
+}
 
 
-def legacy_path(link: str) -> str:
-    """An old address as it is kept: no scheme or host, decoded, one leading slash."""
+def origin(key: str) -> str:
+    return "archive" if key.startswith(ARCHIVE_KEY) else "cedars"
+
+
+def legacy_path(link: str, *, archive: bool = False) -> str:
+    """An old address as it is kept: no scheme or host, decoded, one leading slash; the EM&V site's (an archive record's, or any on
+    its host) under ARCHIVE_PREFIX."""
     parts = urllib.parse.urlsplit(link.strip())
-    return "/" + urllib.parse.unquote(parts.path).lstrip("/")
+    path = "/" + urllib.parse.unquote(parts.path).lstrip("/")
+    host = (parts.hostname or "").lower()
+    if (archive or host == ARCHIVE_HOST or host.endswith("." + ARCHIVE_HOST)) and not path.startswith(ARCHIVE_PREFIX + "/"):
+        path = ARCHIVE_PREFIX + path
+    return path
 
 
 def _split(value: str) -> list[str]:
@@ -127,6 +148,11 @@ def _records(rows: list[dict], report: Report) -> list[tuple[str, str, list[dict
         if collection not in COLLECTIONS or not key:
             report.failed.append(f"line {n}: collection {row['collection']!r}, key {key!r}")
             continue
+        if (collection == Collection.EMV) != (origin(key) == "archive"):
+            report.failed.append(
+                f"line {n}: key {key!r}: the EM&V site's files, and only they, are EM&V records with keys starting {ARCHIVE_KEY!r}"
+            )
+            continue
         grouped.setdefault((collection, key), []).append(row)
     return [(c, k, r) for (c, k), r in grouped.items()]
 
@@ -146,8 +172,9 @@ def _versions(rows: list[dict]) -> list[tuple[int, list[dict]]]:
     return out
 
 
-def _reason(number: int, first: dict) -> str:
-    parts = [REASON if number == 1 else f"{REASON}: version {number}"]
+def _reason(number: int, first: dict, source: str = "cedars") -> str:
+    reason = ORIGINS[source][0]
+    parts = [reason if number == 1 else f"{reason}: version {number}"]
     start, end = first.get("in_effect_from", ""), first.get("in_effect_to", "")
     if start or end:
         parts.append(f"In effect {'from ' + start if start else ''}{' ' if start and end else ''}{'to ' + end if end else ''}")
@@ -240,6 +267,7 @@ def _posted(row: dict) -> datetime | None:
 
 
 def _create(collection, cedars_key, first, doc_type, owner, pas, programs, years, found, report) -> Document:
+    source = origin(cedars_key.split(":", 1)[1])
     dates = [_posted(paths[0][0]) or timezone.now() for _, paths in found]
     published = [d for d, (_, paths) in zip(dates, found, strict=True) if paths[0][0].get("published", "").lower() in YES]
     doc = Document.objects.create(
@@ -263,7 +291,7 @@ def _create(collection, cedars_key, first, doc_type, owner, pas, programs, years
         version = DocumentVersion.objects.create(
             document=doc,
             number=number,
-            reason=_reason(number, row),
+            reason=_reason(number, row, source),
             organisation=owner,
             created_at=posted,
             published_at=posted if is_published else None,
@@ -286,7 +314,7 @@ def _create(collection, cedars_key, first, doc_type, owner, pas, programs, years
             links += [(link, f) for link in _split(r.get("file_links", ""))]
             links += [(link, None) for link in _split(r.get("page_links", ""))]
     for link, f in links:
-        path = legacy_path(link)
+        path = legacy_path(link, archive=source == "archive")
         if LegacyLink.objects.filter(path=path).exists():
             if not LegacyLink.objects.filter(path=path, document=doc).exists():
                 report.link_taken.append(path)
@@ -297,8 +325,8 @@ def _create(collection, cedars_key, first, doc_type, owner, pas, programs, years
         "documents.imported",
         obj=doc,
         after={"cedars_key": cedars_key, "versions": len(found), "published_at": doc.published_at and doc.published_at.isoformat()},
-        reason=REASON,
-        actor_label=LABEL,
+        reason=ORIGINS[source][0],
+        actor_label=ORIGINS[source][1],
     )
     report.documents += 1
     report.by_collection[collection] += 1

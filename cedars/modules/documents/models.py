@@ -124,7 +124,7 @@ class Document(models.Model):
         null=True,
         blank=True,
         unique=True,
-        help_text="<collection>:<key> of the CEDARS Reports & Documents, DEER Resources or program document it was migrated from",
+        help_text="<collection>:<key> of the CEDARS document (or the 2006-2013 EM&V site's file, emv:edw/...) it was migrated from",
     )
 
     class Meta:
@@ -141,6 +141,13 @@ class Document(models.Model):
 
     def get_absolute_url(self):
         return f"/documents/{self.pk}/"
+
+    @property
+    def migrated_from(self) -> str:
+        """Where a document from cedars_import came from: CEDARS, or the 2006-2013 EM&V site (keys emv:edw/...)."""
+        if not self.cedars_key:
+            return ""
+        return "The 2006-2013 EM&V site" if self.cedars_key.startswith("emv:edw/") else "CEDARS"
 
     @property
     def years(self) -> str:
@@ -370,8 +377,9 @@ class WorkOrder(models.Model):
 
 
 class LegacyLink(models.Model):
-    """An address of the old CEDARS site (its Reports & Documents, DEER Resources and program document links) and the migrated
-    document or file it now leads to (BR-15.10). The path is kept decoded, as the old site's links resolve, with no host."""
+    """An address of the old CEDARS site (its Reports & Documents, DEER Resources and program document links) or of the 2006-2013 EM&V
+    site (kept under /edw) and the migrated document or file it now leads to (BR-15.10). The path is kept decoded, as the old sites'
+    links resolve, with no host."""
 
     path = models.CharField(max_length=500, unique=True)
     document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="legacy_links")
