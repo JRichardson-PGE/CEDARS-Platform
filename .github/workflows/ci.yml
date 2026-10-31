@@ -70,7 +70,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run playwright install --with-deps chromium
       - name: axe-core (WCAG 2.2 AA) on every page, both colour schemes, and reflow at 320 px
-        run: uv run pytest -q -m a11y
+        run: uv run pytest -q -m a11y -n auto
 
   docker:
     runs-on: ubuntu-latest

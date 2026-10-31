@@ -24,3 +24,22 @@ def browser():
 @pytest.fixture(scope="session")
 def axe_source():
     return AXE.read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker, django_db_keepdb):
+    """The checks carry no django_db mark and use no live_server (either would wrap each check in a transaction or flush the scene after
+    it), so pytest-django sets up no test database for them; this sets up both, unless something else in the session already has."""
+    from django.db import connections
+
+    created = []
+    with django_db_blocker.unblock():
+        for alias in ("default", "vault"):
+            conn = connections[alias]
+            if conn.settings_dict["NAME"] != conn.creation._get_test_db_name():
+                created.append((conn, conn.settings_dict["NAME"]))
+                conn.creation.create_test_db(verbosity=0, autoclobber=True, keepdb=django_db_keepdb)
+    yield
+    with django_db_blocker.unblock():
+        for conn, old_name in created if not django_db_keepdb else []:
+            conn.creation.destroy_test_db(old_name, verbosity=0)

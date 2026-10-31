@@ -14,7 +14,10 @@ import pytest
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
 from django.contrib.sessions.backends.db import SessionStore
+from django.core.management import call_command
+from django.test import override_settings
 from django.utils import timezone
+from pytest_django.live_server_helper import LiveServer
 
 from cedars.core import storage
 from cedars.modules.calculations import drafts
@@ -30,16 +33,16 @@ from cedars.services.registry.models import ProgramChangePolicy
 from cedars.services.rules.models import Rule, RuleSet
 from cedars.services.submissions import service as submissions
 
+from ..conftest import create_cpuc_admin, create_pge, create_pge_admin, create_user
 from ..fake_recet_worker import write_results
 from .pages import PAGES
 
-pytestmark = [pytest.mark.a11y, pytest.mark.django_db(transaction=True, databases=["default", "vault"])]
+pytestmark = pytest.mark.a11y
 
 TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]
 
 
-@pytest.fixture
-def impact_profiles(cpuc_admin, pge, pge_admin, make_user, settings, tmp_path):
+def _impact_profiles(cpuc_admin, pge, pge_admin, make_user):
     """The Impact profiles pages' content: a synced package, an accepted and a rejected upload, generated and custom profiles, a mapping
     and a library write."""
     import numpy as np
@@ -50,8 +53,6 @@ def impact_profiles(cpuc_admin, pge, pge_admin, make_user, settings, tmp_path):
 
     from ..test_impact_profiles import FIXTURE, leds_series, load_shape_csv, profile_file
 
-    settings.MEDIA_ROOT = str(tmp_path / "media")
-    settings.IMPACT_PROFILES_INLINE_JOBS = False
     dev = make_user("developer@pge.com", "Dee Veloper")
     service.grant(pge_admin, dev, pge, "impact_profiles.submit")
     etrm.sync(cpuc_admin, etrm.FileSource(FIXTURE))
@@ -79,8 +80,50 @@ def impact_profiles(cpuc_admin, pge, pge_admin, make_user, settings, tmp_path):
     }
 
 
-@pytest.fixture
-def scene(cpuc_admin, cpuc, pge, pge_admin, make_user, impact_profiles):
+@pytest.fixture(scope="module")
+def scene(django_db_setup, django_db_blocker, tmp_path_factory):
+    """Built once for every check: the pages only read it, and rebuilding it per check (with a database flush after each) was nine
+    tenths of the job's time. The live server thread and the session cookies need the database, so every check unblocks it too."""
+    root = tmp_path_factory.mktemp("a11y")
+    files = override_settings(
+        CEDARS_STORAGE={"backend": "local", "root": str(root / "storage"), "buckets": {}},
+        CALCULATIONS_RESULTS_CACHE=str(root / "results_cache"),
+        MEDIA_ROOT=str(root / "media"),
+        IMPACT_PROFILES_INLINE_JOBS=False,
+    )
+    with django_db_blocker.unblock(), files:
+        storage.reset()
+        try:
+            cpuc_admin = create_cpuc_admin()
+            pge = create_pge(cpuc_admin)
+            pge_admin = create_pge_admin(cpuc_admin, pge)
+            yield _scene(cpuc_admin, service.cpuc(), pge, pge_admin, create_user)
+        finally:
+            for alias in ("default", "vault"):
+                call_command("flush", database=alias, interactive=False, verbosity=0)
+            storage.reset()
+
+
+@pytest.fixture(scope="module")
+def site(scene):
+    """The site, served from a thread for the whole module. pytest-django's live_server fixture would flush the database after every
+    check (it asks for transactional_db), taking the scene with it."""
+    server = LiveServer("localhost")
+    server._live_server_modified_settings.enable()
+    yield server
+    server._live_server_modified_settings.disable()
+    server.stop()
+
+
+@pytest.fixture(autouse=True)
+def local_storage(django_db_blocker):
+    """Replaces the per-test storage folder of tests/conftest.py: the scene's files stay where it wrote them."""
+    with django_db_blocker.unblock():
+        yield
+
+
+def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
+    impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     analyst = make_user("analyst@pge.com", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
@@ -613,7 +656,7 @@ def _zip(files: dict[str, str]) -> bytes:
     return out.getvalue()
 
 
-def _session_cookie(user, method, live_server):
+def _session_cookie(user, method, site):
     s = SessionStore()
     s[SESSION_KEY] = str(user.pk)
     s[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
@@ -622,19 +665,21 @@ def _session_cookie(user, method, live_server):
     s["account_authentication_methods"] = records
     s["account_authentication_methods_user"] = str(user.pk)
     s.create()
-    return {"name": settings.SESSION_COOKIE_NAME, "value": s.session_key, "url": live_server.url}
+    return {"name": settings.SESSION_COOKIE_NAME, "value": s.session_key, "url": site.url}
 
 
-def _open(browser, live_server, scene, path, who, **context_args):
+def _open(browser, site, scene, path, who, **context_args):
     context = browser.new_context(**context_args)
     if who is not None:
-        context.add_cookies([_session_cookie(scene[who], "password" if who == "password" else "mfa", live_server)])
+        context.add_cookies([_session_cookie(scene[who], "password" if who == "password" else "mfa", site)])
     page = context.new_page()
     from cedars.services.accounts.models import Organisation
 
     ids = {k: (v.code if isinstance(v, Organisation) else getattr(v, "pk", v)) for k, v in scene.items()}
-    response = page.goto(live_server.url + path.format(**ids))
+    response = page.goto(site.url + path.format(**ids))
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
+    if who is not None:  # a check that reached the sign-in page instead would pass without having seen the page
+        assert "/accounts/login/" not in page.url, f"{path} sent {who} to {page.url}"
     return context, page
 
 
@@ -650,17 +695,17 @@ def _violations(page, axe_source):
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 @pytest.mark.parametrize("name,path,who", PAGES, ids=[p[0] for p in PAGES])
-def test_axe_clean(browser, axe_source, live_server, scene, name, path, who, scheme):
+def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
     # axe is injected inline, so this context bypasses the page's CSP; nothing else does
-    context, page = _open(browser, live_server, scene, path, who, color_scheme=scheme, bypass_csp=True)
+    context, page = _open(browser, site, scene, path, who, color_scheme=scheme, bypass_csp=True)
     found = _violations(page, axe_source)
     context.close()
     assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
 
 
 @pytest.mark.parametrize("name,path,who", PAGES, ids=[p[0] for p in PAGES])
-def test_reflows_at_320px(browser, live_server, scene, name, path, who):
-    context, page = _open(browser, live_server, scene, path, who, viewport={"width": 320, "height": 640})
+def test_reflows_at_320px(browser, site, scene, name, path, who):
+    context, page = _open(browser, site, scene, path, who, viewport={"width": 320, "height": 640})
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     context.close()
     assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
