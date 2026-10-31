@@ -78,9 +78,19 @@ class SubmissionVersion(models.Model):
         CONFIRMED = "confirmed", "Confirmed"
         PUBLISHED = "published", "Published"
 
+    class Origin(models.TextChoices):
+        FILED = "filed", "Filed on this platform"
+        IMPORTED = "imported", "Imported from legacy CEDARS"
+
     submission = models.ForeignKey(Submission, on_delete=models.PROTECT, related_name="versions")
     number = models.PositiveIntegerField()
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    origin = models.CharField(
+        max_length=10,
+        choices=Origin.choices,
+        default=Origin.FILED,
+        help_text="Imported versions are legacy CEDARS' years as it published them: read-only, never reopened or corrected",
+    )
     reason = models.TextField(blank=True, help_text="Why this version exists (every version after the first has one)")
     files = models.JSONField(default=list, blank=True, help_text="[{name, key, sha256, bytes}] in object storage")
     rule_set = models.ForeignKey("rules.RuleSet", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
@@ -97,7 +107,10 @@ class SubmissionVersion(models.Model):
 
     class Meta:
         ordering = ["submission", "number"]
-        constraints = [models.UniqueConstraint(fields=["submission", "number"], name="submissions_one_number")]
+        constraints = [
+            models.UniqueConstraint(fields=["submission", "number"], name="submissions_one_number"),
+            models.CheckConstraint(condition=Q(origin="filed") | Q(status="published"), name="submissions_imported_is_published"),
+        ]
 
     def __str__(self):
         return f"{self.submission} v{self.number}"
@@ -105,6 +118,10 @@ class SubmissionVersion(models.Model):
     @property
     def locked(self) -> bool:
         return self.status in (self.Status.CONFIRMED, self.Status.PUBLISHED)
+
+    @property
+    def imported(self) -> bool:
+        return self.origin == self.Origin.IMPORTED
 
 
 class ReopenRequest(models.Model):

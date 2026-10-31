@@ -200,11 +200,14 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
 
 
 def crosswalk_csv(version: CatalogVersion | None = None) -> str:
-    """Every other name and the canonical name it maps to."""
+    """Every other name and the canonical name it maps to: the catalog's aliases, then legacy CEDARS' download labels."""
+    from . import legacy
+
     version = version or current()
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\n")
     w.writerow(["other_name", "used_in", "canonical_name"])
     for a in Alias.objects.filter(field__version=version).select_related("field").order_by("name"):
         w.writerow([a.name, a.system, a.field.name])
+    w.writerows(legacy.crosswalk_rows())
     return out.getvalue()
