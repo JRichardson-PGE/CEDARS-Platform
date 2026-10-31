@@ -147,3 +147,6 @@ how far it is built. Update the Status column in the PR that changes it.
   chosen template's columns in its settings (`output_template`, `output_template_name`), so a later change never alters what it asked for.
 - The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
   subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it.
+- CI (`.github/workflows/ci.yml`) on every pull request, on main and weekly on Mondays: ruff, the tests on PostgreSQL, axe on every page,
+  the Docker image (built with the pinned engine, then scanned by grype for High or Critical vulnerabilities that have a fix), pip-audit
+  over every package in `uv.lock`, gitleaks over the whole history with the noreply check, and Terraform fmt and validate.
