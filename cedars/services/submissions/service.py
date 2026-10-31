@@ -4,7 +4,8 @@ event, and runs the module's hooks.
 
 Hooks (`register_publisher`): when a version is confirmed it is published at once with no further calculation; a module or the
 publication service registers a function that writes the snapshot, and an un-confirm before the due date removes it again (versions
-and snapshots superseded before the due date are not kept).
+and snapshots superseded before the due date are not kept). Listeners (`register_listener`) hear every module's publications and
+un-confirmations after the module's own hook: the publication snapshots service is one.
 
 Pricing (`register_pricer`, `price`): the Calculations module registers the function that prices a version's job, so a filing module
 asks this service to price its version and never imports the Calculations module (modules never import each other).
@@ -44,12 +45,19 @@ VERSION_FIELDS = [
     "published_at",
 ]
 _publishers: dict[str, tuple[Callable, Callable]] = {}
+_listeners: list[tuple[Callable, Callable]] = []
 _pricers: list[Callable] = []
 _claims_totals: list[Callable] = []
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
     _publishers[module] = (publish, unpublish)
+
+
+def register_listener(published: Callable[[SubmissionVersion], None], unpublished: Callable[[SubmissionVersion], None]) -> None:
+    """Called for every module's version once it is published, and when one is un-confirmed (before it goes back to validated)."""
+    if (published, unpublished) not in _listeners:
+        _listeners.append((published, unpublished))
 
 
 def register_pricer(price: Callable) -> None:
@@ -331,7 +339,10 @@ def confirm(actor, v: SubmissionVersion, current_input_hash: str) -> SubmissionV
     publisher = _publishers.get(v.submission.module)
     if publisher:
         publisher[0](v)
-    return _change(actor, v, "submission.published", status=SubmissionVersion.Status.PUBLISHED, published_at=timezone.now())
+    v = _change(actor, v, "submission.published", status=SubmissionVersion.Status.PUBLISHED, published_at=timezone.now())
+    for published, _ in _listeners:
+        published(v)
+    return v
 
 
 @transaction.atomic
@@ -348,6 +359,9 @@ def unconfirm(actor, v: SubmissionVersion, reason: str = "") -> SubmissionVersio
     publisher = _publishers.get(v.submission.module)
     if publisher and v.status == SubmissionVersion.Status.PUBLISHED:
         publisher[1](v)
+    if v.status == SubmissionVersion.Status.PUBLISHED:
+        for _, unpublished in _listeners:
+            unpublished(v)
     return _change(
         actor,
         v,
