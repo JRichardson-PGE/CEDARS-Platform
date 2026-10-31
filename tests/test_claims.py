@@ -19,7 +19,10 @@ from cedars.modules.claims.models import ChangeLetter, ClaimProgramLine, ClaimYe
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
+from cedars.services.notifications import service as notifications
+from cedars.services.notifications.models import Notification
 from cedars.services.registry import service as registry
+from cedars.services.registry.models import Program
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
@@ -509,8 +512,15 @@ def test_a_correction_publishes_a_change_letter(
     assert not ChangeLetter.objects.exists()
     finish_run(Run.objects.get(pk=service.price(filer, v2)), scale=2.0)
     v2.refresh_from_db()
-    v2 = service.confirm(filer, v2)
+    implementer = make_user("implementer@example.org")  # follows one of the programs only: hears of the refile (BR-09.2, 09.3)
+    notifications.set_follows(implementer, pa_scope="none")
+    notifications.follow_program(implementer, Program.objects.get(prg_id="PGE_Res"))
+    with django_capture_on_commit_callbacks(execute=True):
+        v2 = service.confirm(filer, v2)
     letter = ChangeLetter.objects.get()
+    n = Notification.objects.get(user=implementer)
+    assert n.title == "Corrected claims: PGE 2028 Q1 claim, version 2" and n.link == f"/claims/changes/{letter.pk}/"
+    assert "Claims added 1, changed 1, removed 0, withdrawn 1, reinstated 0." in n.body and "PGE_Res: claims 1 to 2" in n.body
     assert letter.version == v2 and letter.previous == v1 and letter.reason.startswith("PGE-2028-002 was canceled")
     c = letter.changes
     assert c["previous_label"] == "2028 Q1 claim, version 1"

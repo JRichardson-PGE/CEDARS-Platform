@@ -30,11 +30,12 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.utils import timezone
 
-from cedars.core import storage
+from cedars.core import letters, storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
+from cedars.services.notifications.service import Concern
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
@@ -1492,6 +1493,38 @@ def change_letters(*, organisation=None, year: int | None = None):
     if year is not None:
         out = out.filter(version__submission__deadline__period__year=year)
     return out
+
+
+def notice(v: SubmissionVersion, event) -> Concern:
+    """What a notification about one of the module's versions says (registered with the notification service): the programs it
+    claims, or for a published correction the programs it changed, a summary and the page to open."""
+    what = f"{v.submission.organisation.code} {label(v.submission.deadline)}"
+    link = f"/claims/versions/{v.pk}/"
+    lines = list(v.claim_lines.all())
+    programs = {ln.prg_id for ln in lines}
+    if event.action == "submission.published":
+        letter = ChangeLetter.objects.filter(version=v).first()
+        if letter is not None:
+            c = letter.changes or {}
+            counts = c.get("claims", {})
+            claims = ", ".join(
+                f"{k} {counts.get(k, {}).get('count', 0):,}" for k in ("added", "changed", "removed", "withdrawn", "reinstated")
+            )
+            parts = [f"Reason: {letter.reason}" if letter.reason else "", f"Claims {claims}.", letters.summary(c, LETTER_FIGURES)]
+            return Concern(
+                programs={p["prg_id"] for p in c.get("programs", [])},
+                link=f"/claims/changes/{letter.pk}/",
+                title=f"Corrected claims: {what}, version {v.number}",
+                body="\n".join(x for x in parts if x) + "\nThe change letter has every change.",
+            )
+        n = sum(ln.claims for ln in lines)
+        return Concern(
+            programs=programs,
+            link=link,
+            title=f"Claims published: {what}",
+            body=f"{len(programs)} program{'s' if len(programs) != 1 else ''}, {n:,} claim{'s' if n != 1 else ''} year to date.",
+        )
+    return Concern(programs=programs, link=link)
 
 
 # --- links between claims: NMEC chains, SEM participants, projects (BR-05.3, 05.5, 05.7, 05.11)

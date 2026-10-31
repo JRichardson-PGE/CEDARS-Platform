@@ -4,8 +4,19 @@
 <p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
 <div class="head-row">
   <h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>
-  {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
+  <div class="actions">
+    {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
+    {% if signed_in %}
+    <form method="post" action="{% url 'notifications:follow_program' %}" class="inline-form">{% csrf_token %}
+      <input type="hidden" name="prg_id" value="{{ p.prg_id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      {% if following %}<input type="hidden" name="action" value="unfollow"><button type="submit">Stop following<span class="sr-only"> {{ p.prg_id }}</span></button>
+      {% else %}<input type="hidden" name="action" value="follow"><button type="submit">Follow this program</button>{% endif %}
+    </form>
+    {% else %}<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in to follow this program</a>{% endif %}
+  </div>
 </div>
+{% if following %}<p>You follow this program: you hear when a filing that includes it is published or corrected, when a fund shift moves its funds, when its details change and when a document about it is published, as you chose on your <a href="{% url 'notifications:settings' %}">notification settings</a>.</p>{% endif %}
 {% for r in pending %}<p>A change from {{ r.effective|date:"Y-m-d" }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
 
 <section aria-labelledby="def-h">

@@ -21,3 +21,7 @@ class MonthlyConfig(AppConfig):
         from cedars.services.registry.service import register_reported_spend
 
         register_reported_spend(service.reported_spend)  # what the budget-and-spending dashboard shows (BR-07.3)
+
+        from cedars.services.notifications.service import register_filing
+
+        register_filing("monthly", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)

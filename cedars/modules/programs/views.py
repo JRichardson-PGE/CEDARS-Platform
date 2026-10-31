@@ -10,6 +10,7 @@ from django.utils import timezone
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.notifications import service as notifications
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationEntry, Program, ProgramChangeRequest, ProgramVersion
 
@@ -204,6 +205,7 @@ def program(request, prg_id):
             if signed_in
             else [],
             "evaluations": registry.evaluations(p),
+            "following": notifications.follows_program(request.user, p),
         },
     )
 
