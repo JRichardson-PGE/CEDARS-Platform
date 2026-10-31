@@ -1,0 +1,45 @@
+{% extends "core/base.html" %}
+{% block title %}Jobs and health{% endblock %}
+{% block content %}
+<h1>Jobs and health</h1>
+<p>Checked {{ checked_at|date:"Y-m-d H:i:s" }}: <strong>{{ failing }} failing</strong>, {{ attention }} needing attention, {{ ok }} OK.
+The same checks run every 10 minutes; when one starts failing, every CPUC system administrator is told by notification and email, once
+for each set of things failing, and the hosting team's CloudWatch alarms see it. <a href="{% url 'administration:health' %}">Check again</a>.</p>
+
+<div class="hscroll" tabindex="0" role="region" aria-label="Health checks">
+<table class="list">
+  <caption class="sr-only">Every health check, failing first</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">What it found</th></tr></thead>
+  <tbody>
+  {% for r, cls in results %}
+  <tr>
+    <th scope="row">{% if r.items %}<a href="#check-{{ forloop.counter }}">{{ r.title }}</a>{% elif r.link %}<a href="{{ r.link }}">{{ r.title }}</a>{% else %}{{ r.title }}{% endif %}</th>
+    <td>{{ r.area }}</td>
+    <td><span class="status {{ cls }}">{{ r.label }}</span></td>
+    <td>{{ r.summary }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4">No checks are registered.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% for r, cls in results %}{% if r.items %}
+<section aria-labelledby="check-{{ forloop.counter }}">
+  <h2 id="check-{{ forloop.counter }}">{{ r.area }}: {{ r.title }} <span class="status {{ cls }}">{{ r.label }}</span></h2>
+  <p>{{ r.summary }}{% if r.link %} <a href="{{ r.link }}">Go to {{ r.area }}</a>.{% endif %}</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ r.title }}">
+  <table class="list">
+    <caption class="sr-only">What the check "{{ r.title }}" found</caption>
+    <thead><tr><th scope="col">What</th><th scope="col">Since</th><th scope="col">Detail</th></tr></thead>
+    <tbody>
+    {% for i in r.items %}
+    <tr><th scope="row">{% if i.link %}<a href="{{ i.link }}">{{ i.label }}</a>{% else %}{{ i.label }}{% endif %}</th>
+      <td class="nowrap">{{ i.since|date:"Y-m-d H:i"|default:"" }}</td><td>{{ i.detail }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}{% endfor %}
+{% endblock %}

@@ -24,3 +24,7 @@ class CalculationsConfig(AppConfig):
         from cedars.services.submissions.service import register_pricer
 
         register_pricer(service.price_submission)  # filing modules price their versions through the submissions service
+
+        from . import health
+
+        health.register()  # stalled and failed runs on the administrators' health page (BR-12.2)

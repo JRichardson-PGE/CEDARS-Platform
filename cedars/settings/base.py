@@ -138,6 +138,10 @@ ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
+
+# One cache that every web process shares, so rate limits (the API's and allauth's sign-in limits) count across all of them: a table
+# in the core database (created by migration core 0001; `manage.py createcachetable` makes it again).
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "cedars_cache"}}
 MFA_SUPPORTED_TYPES = ["totp", "recovery_codes", "webauthn"]
 MFA_TOTP_ISSUER = "CEDARS"
 MFA_PASSKEY_LOGIN_ENABLED = False
@@ -164,10 +168,19 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
+    # Rate limits per user (every token and session of one person counts together) and per address for calls without one; over
+    # the limit a call gets 429 with Retry-After. Counted in the shared cache below, so every web process sees the same count.
+    "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.AnonRateThrottle", "rest_framework.throttling.UserRateThrottle"],
+    "DEFAULT_THROTTLE_RATES": {"user": env("CEDARS_API_RATE_USER", "120/minute"), "anon": env("CEDARS_API_RATE_ANON", "30/minute")},
+    "NUM_PROXIES": int(env("CEDARS_NUM_PROXIES", "0")),  # proxies in front (prod: 1, the load balancer); 0 = the socket address
 }
 SPECTACULAR_SETTINGS = {
     "TITLE": "CEDARS API",
-    "DESCRIPTION": "The CEDARS platform's API. Authenticate with an API token from your account page: Authorization: Bearer <token>.",
+    "DESCRIPTION": (
+        "The CEDARS platform's API. Authenticate with an API token from your account page: Authorization: Bearer <token>. "
+        "Calls are rate limited per user (all of a user's tokens together) and per address without a token; over the limit a call "
+        "gets 429 Too Many Requests with a Retry-After header in seconds."
+    ),
     "VERSION": "1",
     "SERVE_INCLUDE_SCHEMA": False,
     "SCHEMA_PATH_PREFIX": "/api/v1",
@@ -246,11 +259,24 @@ CONTENT_SECURITY_POLICY = (
 ETRM_DATABASE_URL = env("ETRM_DATABASE_URL", "")
 ETRM_SCHEMA = env("ETRM_SCHEMA", "etrm")
 ETRM_FIXTURE = env("ETRM_FIXTURE", "")
+# BR-11.3: a nightly sync that fails is tried again after each of these waits (minutes); when the last attempt fails too, the CPUC's
+# administrators are alerted. Empty = one attempt.
+ETRM_SYNC_RETRY_MINUTES = [float(m) for m in env_list("ETRM_SYNC_RETRY_MINUTES", "10,30")]
 LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")  # earlier measure versions keep DEER impact profile IDs
 LOAD_SHAPE_MAX_UPLOAD_MB = int(env("LOAD_SHAPE_MAX_UPLOAD_MB", "50"))
 LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
 IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # a profile with no territory is written for each
 IMPACT_PROFILES_INLINE_JOBS = env_bool("IMPACT_PROFILES_INLINE_JOBS", False)  # development: run queued jobs in the request
+
+# Job and system health (BR-12.2; cedars/core/health.py, /admin/health/, `manage.py check_health`): minutes before a job counts as
+# stalled, and how far back failures are listed.
+HEALTH = {
+    "queued": int(env("HEALTH_QUEUED_MINUTES", "30")),  # a calculation run or Impact profiles job still waiting to start
+    "run_running": int(env("HEALTH_RUN_MINUTES", "120")),  # a calculation run still running (Batch stops a job at 60)
+    "job_running": int(env("HEALTH_PROFILE_JOB_MINUTES", "240")),  # an Impact profiles job still running (library writes are long)
+    "etrm": int(env("HEALTH_ETRM_MINUTES", str(36 * 60))),  # since the last successful eTRM sync (it runs nightly)
+    "failures": int(env("HEALTH_FAILURES_MINUTES", str(24 * 60))),  # failed runs, jobs and emails listed this far back
+}
 
 # Documents & EM&V module: the largest file a document version may carry (the PDA's largest main files are tens of MB)
 DOCUMENTS_MAX_FILE_MB = int(env("DOCUMENTS_MAX_FILE_MB", "200"))

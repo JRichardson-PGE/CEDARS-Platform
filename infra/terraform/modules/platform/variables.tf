@@ -39,6 +39,12 @@ variable "allowed_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "waf_requests_per_5min" {
+  description = "Requests one address may make in 5 minutes before the WAF blocks it (an agency network behind one address counts as one)"
+  type        = number
+  default     = 3000
+}
+
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.medium"
@@ -85,6 +91,30 @@ variable "web_count" {
   default = 2
 }
 
+variable "profile_jobs_cpu" {
+  description = "CPU units for the always-on Impact profiles job worker"
+  type        = number
+  default     = 1024
+}
+
+variable "profile_jobs_memory" {
+  description = "MiB for the Impact profiles job worker (profile generation and the library export)"
+  type        = number
+  default     = 4096
+}
+
+variable "profile_jobs_disk_gb" {
+  description = "Scratch disk for the Impact profiles job worker: the library export writes about 10 GB before uploading it"
+  type        = number
+  default     = 40
+}
+
+variable "etrm_database" {
+  description = "eTRM's read-only database URL is in the app secret (ETRM_DATABASE_URL): pass it to the jobs and sync nightly (BR-11.3)"
+  type        = bool
+  default     = false
+}
+
 variable "worker_vcpu" {
   description = "vCPU per calculation job (Fargate)"
   type        = number
@@ -107,6 +137,18 @@ variable "small_run_max_vcpus" {
   description = "vCPUs reserved for the small-run queue, so small runs finish within a minute during a maximum job"
   type        = number
   default     = 8
+}
+
+variable "alarm_emails" {
+  description = "Who the CloudWatch alarms email (the CPUC's hosting team; each address confirms its subscription). Empty: the SNS topic only"
+  type        = list(string)
+  default     = []
+}
+
+variable "alarm_5xx_per_5min" {
+  description = "Server errors in 5 minutes, two periods running, before the web 5xx alarm"
+  type        = number
+  default     = 10
 }
 
 variable "log_retention_days" {
