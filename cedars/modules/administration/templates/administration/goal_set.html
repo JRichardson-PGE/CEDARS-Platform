@@ -21,6 +21,7 @@
 {% if rules %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Counting rules">
 <table class="list">
+  <caption class="sr-only">Counting rules</caption>
   <thead><tr><th scope="col">PA</th><th scope="col">Counts toward</th><th scope="col">Share</th><th scope="col">Goals</th><th scope="col">Source</th></tr></thead>
   <tbody>{% for r in rules %}<tr><th scope="row">{{ r.pa }}</th><td>{{ r.territory }}</td><td>{{ r.share }}</td><td>{{ r.get_applies_to_display }}</td><td>{{ r.source }}</td></tr>{% endfor %}</tbody>
 </table>
@@ -31,6 +32,7 @@
 {% if issues %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Problems found">
 <table class="list">
+  <caption class="sr-only">Problems found in the goal set</caption>
   <thead><tr><th scope="col">Where</th><th scope="col">Finding</th><th scope="col">Stops confirmation</th></tr></thead>
   <tbody>{% for i in issues %}<tr><th scope="row">{{ i.where }}</th><td>{{ i.message }}</td><td>{% if i.blocking %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</tbody>
 </table>

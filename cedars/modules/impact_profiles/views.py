@@ -110,8 +110,8 @@ def profile(request, pk):
             "names": identical.other_names(p),
             "can_replace": can_change and p.family == ImpactProfile.Family.CUSTOM,
             "can_retire": can_change,
-            "replace_form": forms.ReplaceForm(),
-            "retire_form": forms.ReasonForm(),
+            "replace_form": forms.ReplaceForm(auto_id="replace_%s"),
+            "retire_form": forms.ReasonForm(auto_id="retire_%s"),
         },
     )
 

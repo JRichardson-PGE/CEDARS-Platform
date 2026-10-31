@@ -47,7 +47,7 @@
 <section aria-labelledby="ver-h">
 <h2 id="ver-h">Versions</h2>
 <p class="small muted">Each change starts a new version on its effective date; earlier versions are kept as they were.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Versions">
+<div class="hscroll" tabindex="0" role="region" aria-label="Versions table">
 <table class="list">
   <caption class="sr-only">Versions of {{ p.prg_id }}, newest first</caption>
   <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">{% if signed_in %}Entered by{% else %}Entered{% endif %}</th></tr></thead>
@@ -134,7 +134,7 @@
 {% elif not signed_in %}<p>Fund shifts are shown to the PAs involved and CPUC staff once signed in. The operating budget they lead to is on the dashboards.</p>
 {% elif records.fund_shifts %}
 <p class="small muted">Shifts that move money into this program (positive) or out of it (negative), by program year. A shift changes the operating budget once it is in effect; the filed budget never changes.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Fund shifts">
+<div class="hscroll" tabindex="0" role="region" aria-label="Fund shifts table">
 <table class="list">
   <caption class="sr-only">Fund shifts with lines on {{ p.prg_id }}, newest first</caption>
   <thead><tr><th scope="col">Shift</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col">Date</th><th scope="col">Lines on this program</th><th scope="col" class="num">Net</th></tr></thead>
@@ -160,7 +160,7 @@
 {% if records.claims is None %}<p>Claims are not part of this site.</p>
 {% elif records.claims %}
 <p class="small muted">Each confirmation is the year to date: the first quarter's claims, then each later quarter adds to them, and the annual claim is the final year. Expenditures are program costs plus rebates and incentives; savings and TSB are the priced first-year net values.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Claims">
+<div class="hscroll" tabindex="0" role="region" aria-label="Claims table">
 <table class="list">
   <caption class="sr-only">Claims confirmations that include {{ p.prg_id }}, newest year first</caption>
   <thead><tr><th scope="col">Confirmation</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Claims</th><th scope="col" class="num">Expenditures</th><th scope="col" class="num">First-year net kWh</th><th scope="col" class="num">First-year net therms</th><th scope="col" class="num">TSB</th></tr></thead>
@@ -188,7 +188,7 @@
 {% if records.monthly is None %}<p>Monthly reports are not part of this site.</p>
 {% elif records.monthly %}
 <p class="small muted">Year-to-date spend (program costs plus rebates and incentives) and funds committed, as each month's report gives them. Monthly figures are not validated; the claims are.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Monthly reports">
+<div class="hscroll" tabindex="0" role="region" aria-label="Monthly reports table">
 <table class="list">
   <caption class="sr-only">Monthly reports that include {{ p.prg_id }}, newest month first</caption>
   <thead><tr><th scope="col">Report</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Spend, year to date</th><th scope="col" class="num">Funds committed, year to date</th></tr></thead>
@@ -212,7 +212,7 @@
 <h3 id="eval-h">Evaluations</h3>
 {% if evaluations %}
 <p class="small muted">Evaluation studies that cover this program, in whole or in part, and the program years each covers.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Evaluations">
+<div class="hscroll" tabindex="0" role="region" aria-label="Evaluations table">
 <table class="list">
   <caption class="sr-only">Evaluation studies covering {{ p.prg_id }}, newest program years first</caption>
   <thead><tr><th scope="col">Study</th><th scope="col">Program years</th><th scope="col">Covers</th><th scope="col">Lead</th><th scope="col">Status</th><th scope="col">Latest deliverable</th></tr></thead>
@@ -238,7 +238,7 @@
 {% if records.documents is None %}<p>The document library is not part of this site.</p>
 {% elif records.documents %}
 <p class="small muted">Documents that name this program: implementation plans and other program files, PA documents and EM&amp;V documents.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Documents">
+<div class="hscroll" tabindex="0" role="region" aria-label="Documents table">
 <table class="list">
   <caption class="sr-only">Documents naming {{ p.prg_id }}, newest first</caption>
   <thead><tr><th scope="col">Document</th><th scope="col">Collection</th><th scope="col">Type</th><th scope="col">Program years</th><th scope="col">Filed by</th><th scope="col">Status</th></tr></thead>

@@ -13,6 +13,7 @@
 {% if rows %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Your organizations and permissions">
 <table class="list">
+  <caption class="sr-only">Your organizations and permissions</caption>
   <thead><tr><th scope="col">Organization</th><th scope="col">Member since</th><th scope="col">Permissions</th></tr></thead>
   <tbody>
   {% for m, grants in rows %}
@@ -58,6 +59,7 @@ and stops working when it expires, when you revoke it, or when you leave the org
 <h2>Your access requests</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Your access requests">
 <table class="list">
+  <caption class="sr-only">Your access requests</caption>
   <thead><tr><th scope="col">Organization</th><th scope="col">Asked</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for r in requests %}

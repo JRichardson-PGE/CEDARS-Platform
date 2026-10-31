@@ -227,23 +227,23 @@ def organisation(request, code):
             "org": org,
             "is_admin": is_admin,
             "members": members,
-            "grant_form": forms.GrantForm(codes=codes) if codes else None,
+            "grant_form": forms.GrantForm(codes=codes, auto_id="grant_%s") if codes else None,
             "requests": [
                 (r, [(c, perms.label(c)) for c in r.permissions])
                 for r in org.access_requests.filter(status="pending").select_related("user")
             ],
             "campaign": campaign,
             "items": items,
-            "recert_form": forms.RecertificationForm(),
-            "details_form": forms.OrganisationDetailsForm(org=org, initial={"name": org.name, "pa_type": org.pa_type})
+            "recert_form": forms.RecertificationForm(auto_id="recert_%s"),
+            "details_form": forms.OrganisationDetailsForm(org=org, initial={"name": org.name, "pa_type": org.pa_type}, auto_id="details_%s")
             if service.is_system_admin(request.user)
             else None,
             "history": service.code_history(org),
             "predecessors": service.party_members(org)[1:] if not org.successor_id else [],
             "code_forms": {
-                "rename": forms.RenameForm(),
-                "former": forms.FormerCodeForm(),
-                "merge": forms.MergeForm(org=org),
+                "rename": forms.RenameForm(auto_id="rename_%s"),
+                "former": forms.FormerCodeForm(auto_id="former_%s"),
+                "merge": forms.MergeForm(org=org, auto_id="merge_%s"),
             }
             if service.is_system_admin(request.user) and not org.successor_id
             else None,

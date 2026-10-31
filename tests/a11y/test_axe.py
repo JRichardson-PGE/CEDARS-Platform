@@ -945,12 +945,34 @@ def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
     assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
 
 
+# Markup checks axe does not make (UI review 2, 2026-10-31): an id used twice (a label's for and a hint's aria-describedby reach only the
+# first; Django gives every form the same id_<field> ids unless the view sets auto_id), a checkbox or radio squeezed below 24 px by a
+# flex row, a summary under 24 px tall (2.5.8) and a table without a caption.
+MARKUP = """() => {
+  const ids = {}; document.querySelectorAll('[id]').forEach(e => { ids[e.id] = (ids[e.id] || 0) + 1; });
+  const seen = e => e.getClientRects().length > 0;
+  const size = e => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; };
+  return {
+    duplicate_ids: Object.keys(ids).filter(k => ids[k] > 1),
+    small_boxes: [...document.querySelectorAll('input[type=checkbox], input[type=radio]')].filter(seen)
+      .filter(e => size(e)[0] < 24 || size(e)[1] < 24).map(e => e.outerHTML.slice(0, 80) + ' ' + size(e)),
+    short_summaries: [...document.querySelectorAll('main summary')].filter(seen).filter(e => size(e)[1] < 24)
+      .map(e => e.textContent.trim().slice(0, 60) + ' ' + size(e)),
+    tables_without_caption: [...document.querySelectorAll('table')].filter(t => !t.querySelector('caption'))
+      .map(t => (t.closest('[aria-label]') || t).getAttribute('aria-label') || t.outerHTML.slice(0, 80)),
+  }; }"""
+
+
 @pytest.mark.parametrize("name,path,who", PAGES, ids=[p[0] for p in PAGES])
-def test_reflows_at_320px(browser, site, scene, name, path, who):
+def test_reflows_at_320px_with_sound_markup(browser, site, scene, name, path, who):
     context, page = _open(browser, site, scene, path, who, viewport={"width": 320, "height": 640})
+    page.evaluate("document.querySelectorAll('main details').forEach(d => d.open = true)")  # what is folded away reflows too
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    markup = page.evaluate(MARKUP)
     context.close()
     assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
+    problems = {k: v for k, v in markup.items() if v}
+    assert not problems, f"{name}: " + json.dumps(problems, indent=1)
 
 
 @pytest.mark.parametrize("scheme", ["light", "dark"])
