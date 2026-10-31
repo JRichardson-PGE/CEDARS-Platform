@@ -88,10 +88,10 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",  # before RequireMFAMiddleware, whose redirect carries an error message
     "cedars.services.accounts.middleware.ActiveOrganisationMiddleware",
     "cedars.services.accounts.middleware.RequireMFAMiddleware",
     "cedars.services.audit.middleware.AuditContextMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 

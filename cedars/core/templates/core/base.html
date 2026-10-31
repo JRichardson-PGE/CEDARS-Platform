@@ -83,8 +83,7 @@
     <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
   </div>
   {% elif user.is_authenticated %}
-  {# Signed in with a password only while a second factor is required (mfa_pending): the modules wait until it is set up (RequireMFAMiddleware), so the header says so instead of offering them. #}
-  <p class="setting-up">Finish setting up your second factor to use CEDARS.</p>
+  {# Signed in with a password only while a second factor is required (mfa_pending): every page but the set-up sends them back to it (RequireMFAMiddleware), so the header offers only Sign out. #}
   <div class="who"><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form></div>
   {% else %}
   <nav aria-label="Main" id="main-nav">
@@ -99,7 +98,7 @@
 </div>
 </header>
 <main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
-{% if messages %}<ul class="messages" role="status">{% for message in messages %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
+{% if messages %}{# Errors (e.g. "Set up your second factor first.") are alerts, the rest status messages. #}{% for message in messages %}{% if message.level_tag == "error" %}<p class="alert" role="alert">{{ message }}</p>{% endif %}{% endfor %}<ul class="messages" role="status">{% for message in messages %}{% if message.level_tag != "error" %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endif %}{% endfor %}</ul>{% endif %}
 {% block content %}{% endblock %}
 </main>
 {# One page-wide live region: scripts announce through window.cedarsAnnounce, never a new live region (ReCET 0.1.70: NVDA missed role=status beside a control). #}
