@@ -24,6 +24,7 @@ from cedars.services.vault.service import PIIError
 from . import forms, service, spec
 from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
+from .upload import combine as combine_upload
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
 
@@ -292,10 +293,15 @@ def _checked_message(request, v: SubmissionVersion) -> None:
 def upload(request, pk):
     form = forms.UploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        messages.error(request, "Choose the claims .zip or .xlsx file.")
+        messages.error(request, "Choose the claims .zip or .xlsx file, or its files.")
         return redirect("claims:period", pk)
-    f = form.cleaned_data["file"]
-    return _action(request, pk, lambda d, o: _checked_message(request, service.upload_claims(request.user, d, o, f.read(), f.name)), "")
+    files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
+
+    def do(d, o):
+        c = combine_upload(files)
+        _checked_message(request, service.upload_claims(request.user, d, o, c.data, c.filename, sources=c.sources))
+
+    return _action(request, pk, do, "")
 
 
 @login_required

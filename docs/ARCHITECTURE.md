@@ -125,6 +125,12 @@ how far it is built. Update the Status column in the PR that changes it.
 - Parallel runs (the engine beside CET, phase 2): New run and the job API take a CET run's outputs CSV for the same job
   (`cet_outputs`, ReCET's own calculation only); it is an input of the run, so the worker compares each measure on CET_ID and writes
   `cet_comparison_measures_*` and `cet_comparison_summary_*`, and the run page shows the summary's totals and ratios.
+- Several files per filing upload (BR-06.3; Jake, 2026-10-31: the engine keeps its one job .zip, the filing modules consolidate):
+  Budgets, Claims and Monthly reports take up to 20 files at once on their upload pages (and Claims through its API, the `file` field
+  repeated). `cedars.core.uploads.combine` joins them into the one .zip each module's reader takes, before any check or pricing: each
+  file a .zip, a workbook or one table's CSV, a table in parts named after it (`Measure_1.csv`, `Measure (2).csv`) with the same
+  columns, rows joined in the order chosen; the module names its tables and may refuse a name (Claims' PII tables, BR-10.1). One .zip
+  or workbook alone is kept exactly as sent; a combined upload's file entry lists its source files with their SHA-256 (`sources`).
 - Object storage is `cedars.core.storage`: four areas (uploads, results, refdata, snapshots), one bucket each in AWS, folders under
   `CEDARS_STORAGE_ROOT` locally. Downloads from S3 are pre-signed URLs; nothing large passes through a page.
 - A run's Results and Compare pages (`calculations/results.py`) call the pinned engine's `recet.results_view` unchanged (Jake, 2026-10-30:

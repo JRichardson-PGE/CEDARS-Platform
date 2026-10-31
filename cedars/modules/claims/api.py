@@ -23,7 +23,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from cedars.core import api, storage
+from cedars.core import api, storage, uploads
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -33,6 +33,7 @@ from cedars.services.submissions.models import Deadline, Submission, SubmissionV
 from . import service, spec
 from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
+from .upload import combine as combine_upload
 
 MODULE = "claims"
 PER_PAGE = 500
@@ -488,10 +489,14 @@ Version = inline_serializer("ClaimsVersionAfterStep", {})
 
 
 class UploadClaims(serializers.Serializer):
-    file = serializers.FileField(
+    file = serializers.ListField(
+        child=serializers.FileField(),
+        min_length=1,
+        max_length=uploads.MAX_FILES,
         help_text=f"A .zip of the claims tables as CSV files named after them ({', '.join(t + '.csv' for t in spec.TABLES)}; comma- or "
         "pipe-delimited), or a workbook (.xlsx) with a sheet per table: the records new or changed since the last confirmed quarter. "
-        "No PII tables."
+        "No PII tables. Repeat the field to send several files (.zip, .xlsx, or one table's .csv each; a table in parts named after "
+        "it, Measure_1.csv, Measure_2.csv, with the same columns): they are joined into one upload.",
     )
 
 
@@ -511,9 +516,10 @@ def upload(request, pk):
     _acting(request, org, "submit")
     form = UploadClaims(data=request.data)
     form.is_valid(raise_exception=True)
-    f = form.validated_data["file"]
+    files = [(f.name, f.read()) for f in form.validated_data["file"]]
     try:
-        v = service.upload_claims(request.user, d, org, f.read(), f.name)
+        c = combine_upload(files)
+        v = service.upload_claims(request.user, d, org, c.data, c.filename, sources=c.sources)
     except (AccessDenied, UploadError) as e:
         return _refused(e)
     return _done(request, v, status.HTTP_201_CREATED)

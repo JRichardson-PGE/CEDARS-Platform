@@ -7,6 +7,7 @@ from decimal import Decimal
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
 
@@ -24,6 +25,7 @@ from cedars.services.submissions.models import SubmissionVersion
 
 from .conftest import sign_in
 from .test_budgets import release  # noqa: F401 - the engine release fixture
+from .test_uploads import split
 
 pytestmark = pytest.mark.django_db
 DEFAULTS = {"text": "x", "text6": "x", "text255": "x", "number": "0", "integer": "2028", "bit": "0", "date": "2028-02-01"}
@@ -710,3 +712,16 @@ def test_uploading_through_the_page(client, filer, year, pge, programs):
     assert b"Checked 8 records: none rejected" in r.content
     r = client.post(reverse("claims:upload", args=[deadline().pk]), {"file": SimpleUploadedFile("q1.zip", b"nope")}, follow=True)
     assert b"not a valid .zip" in r.content
+
+
+def test_claims_in_several_files_and_a_pii_table_among_them(client, filer, year, pge, programs):
+    sign_in(client, filer)
+    url = reverse("claims:upload", args=[deadline().pk])
+    files = split(q1())
+    r = client.post(url, {"file": files}, follow=True)
+    assert b"Checked 8 records: none rejected" in r.content
+    v = SubmissionVersion.objects.get()
+    assert [s["name"] for s in v.files[0]["sources"]] == [f.name for f in files]
+    pii = SimpleUploadedFile("PII_Contact_2.csv", b"ContactID\nPGE-C1\n")
+    r = client.post(url, {"file": [*split(q1()), pii]}, follow=True)
+    assert b"holds personal information" in r.content
