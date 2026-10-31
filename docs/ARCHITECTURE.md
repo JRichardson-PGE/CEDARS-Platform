@@ -62,7 +62,8 @@ how far it is built. Update the Status column in the PR that changes it.
   `mfa`; `ACCOUNT_FORMS` for the field labels, `CEDARS_SUPPORT_EMAIL` for the help address). Setting up the second factor takes one
   password: `accounts/signals.py` marks a fresh password sign-in as a recent reauthentication (allauth asks for one before an
   authenticator is added) and records an activated authenticator as the session's second factor; a password-only session sees no
-  module navigation until then.
+  module navigation until then. The middleware and the header ask the same question (`accounts.middleware.mfa_pending`), so a laptop
+  demo that turns the requirement off (`CEDARS_REQUIRE_MFA=0`, dev settings only) gets the whole header.
 - Run `manage.py bootstrap_cpuc EMAIL --steward` once per environment, and `manage.py close_recertifications` daily.
 - Impact profiles: `manage.py sync_etrm` nightly (scheduled in Terraform once `etrm_database` is set) and `manage.py run_impact_profile_jobs
   --loop` as an always-on service (upload checks, generation, syncs

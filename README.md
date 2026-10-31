@@ -22,6 +22,10 @@ Without Docker (Python 3.12, [uv](https://docs.astral.sh/uv/), PostgreSQL 16 wit
     uv run python manage.py migrate
     uv run python manage.py runserver
 
+Every account signs in with a second factor. For a demo on your own machine you can turn that off with the environment variable
+`CEDARS_REQUIRE_MFA=0` (read by the dev settings only; every other environment always requires it). With Docker, set it in the shell
+before `docker compose up`.
+
 ## Calculations locally
 
 Runs are priced by the ReCET worker (`recet worker run`), which the platform starts and never imports. With the engine installed
