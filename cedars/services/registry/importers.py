@@ -61,10 +61,11 @@ def import_cedars_programs(content: bytes, actor=None) -> dict[str, int]:
         org = None
         if not statewide:
             org = orgs.get(pa)
-            if org is None:
-                org = access.create_organisation(actor, code=pa, name=pa, kind="pa", pa_type=access.known_pa_type(pa))
+            if org is None:  # a former code (EBCE) finds the PA under its current one; a code no one has had adds a PA
+                before = Organisation.objects.count()
+                org = access.organisation_for_filed_code(pa, actor=actor)
                 orgs[pa] = org
-                new_orgs += 1
+                new_orgs += Organisation.objects.count() - before
         start = _year(r.get("StartYear", ""))
         service.create_program(
             actor,

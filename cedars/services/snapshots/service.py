@@ -20,6 +20,7 @@ from django.db import transaction
 
 from cedars.core import storage
 from cedars.services import audit
+from cedars.services.accounts import service as access
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
@@ -202,8 +203,10 @@ def as_of(dataset: str):
 
 def release_files(release: Release) -> list[dict]:
     """One entry per snapshot in a release, with what a query needs to label its rows: the file's address (file:// or s3://), the
-    submitting organization, the year, the filing or claim kind and the version."""
+    submitting organization (under its party's current code: a renamed or merged PA's filings count as the one PA), the year, the
+    filing or claim kind and the version."""
     out = []
+    mapping = access.code_map()
     for s in release.snapshots.select_related(
         "organisation", "version__submission__deadline__period", "version__submission__deadline__cycle"
     ):
@@ -213,7 +216,7 @@ def release_files(release: Release) -> list[dict]:
                 "snapshot": str(s.pk),
                 "uri": storage.store(AREA).uri(s.key),
                 "key": s.key,
-                "organisation": s.organisation.code,
+                "organisation": mapping.get(s.organisation.code, s.organisation.code),
                 "year": s.year,
                 "cycle": str(d.cycle) if d.cycle_id else "",
                 "kind": d.kind,

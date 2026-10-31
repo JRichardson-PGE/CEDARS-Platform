@@ -1,6 +1,9 @@
 from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateRangeField, RangeOperators
 from django.db import models
-from django.db.models.functions import Lower
+from django.db.models import F, Func, Q
+from django.db.models.functions import Lower, Upper
 
 
 class PlatformUserManager(UserManager):
@@ -68,6 +71,15 @@ class Organisation(models.Model):
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    successor = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="predecessors",
+        help_text="Set when it was merged into another organization as the same party; its data stays its own and counts under it",
+    )
+    merged_on = models.DateField(null=True, blank=True, help_text="When the successor took over")
 
     class Meta:
         verbose_name = "organization"
@@ -77,6 +89,66 @@ class Organisation(models.Model):
 
     def __str__(self):
         return f"{self.code} ({self.name})"
+
+
+class CodeRange(Func):
+    """daterange(valid_from, valid_to): when a code was in use, from valid_from (NULL: from the start) up to but not including
+    valid_to (NULL: still in use)."""
+
+    function = "daterange"
+    output_field = DateRangeField()
+
+
+class OrganisationCode(models.Model):
+    """Every code an organization has had and when (e.g. EBCE until 2023, AVA from 2024). The organization keeps its identity (its
+    primary key) through a rename, so everything it filed stays its own; the current code is also `Organisation.code`. A code belongs to
+    one organization for good: a former code is never given to another one, so a record filed under it always leads back to the same
+    party. Rows change only through accounts.service (rename, merge), each change audited."""
+
+    organisation = models.ForeignKey(Organisation, on_delete=models.PROTECT, related_name="codes")
+    code = models.CharField(max_length=20)
+    valid_from = models.DateField(null=True, blank=True, help_text="First day in use; blank: from the start")
+    valid_to = models.DateField(null=True, blank=True, help_text="First day no longer in use; blank: the current code")
+    reason = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["organisation__code", F("valid_from").asc(nulls_first=True)]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(valid_from__isnull=True) | Q(valid_to__isnull=True) | Q(valid_from__lt=F("valid_to")),
+                name="accounts_code_range_not_empty",
+            ),
+            models.CheckConstraint(condition=Q(code=Upper("code")), name="accounts_code_upper_case"),
+            models.UniqueConstraint(fields=["organisation"], condition=Q(valid_to__isnull=True), name="accounts_one_current_code"),
+            # A code is one organization's for good (btree_gist: = on the code, <> on the organization).
+            ExclusionConstraint(
+                name="accounts_code_one_organisation",
+                expressions=[("code", RangeOperators.EQUAL), ("organisation", RangeOperators.NOT_EQUAL)],
+            ),
+            # An organization has one code on any day.
+            ExclusionConstraint(
+                name="accounts_codes_do_not_overlap",
+                expressions=[("organisation", RangeOperators.EQUAL), (CodeRange("valid_from", "valid_to"), RangeOperators.OVERLAPS)],
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.code} ({self.span})"
+
+    @property
+    def current(self) -> bool:
+        return self.valid_to is None
+
+    @property
+    def span(self) -> str:
+        """When it was in use, in words ("until 2023-12-31", "from 2024-01-01", "always")."""
+        from datetime import timedelta
+
+        start = f"from {self.valid_from:%Y-%m-%d}" if self.valid_from else ""
+        end = f"until {self.valid_to - timedelta(days=1):%Y-%m-%d}" if self.valid_to else ""
+        return " ".join(p for p in (start, end) if p) or "always"
 
 
 class Membership(models.Model):

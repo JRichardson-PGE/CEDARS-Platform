@@ -10,6 +10,9 @@ Who may grant what:
 `actor=None` is the system itself (the bootstrap command and scheduled jobs).
 """
 
+import re
+from datetime import date
+
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.utils import timezone
@@ -23,6 +26,7 @@ from .models import (
     Grant,
     Membership,
     Organisation,
+    OrganisationCode,
     PolicyChange,
     RecertificationCampaign,
     RecertificationItem,
@@ -74,6 +78,292 @@ def known_pa_type(code: str) -> str:
 def pa_types() -> dict[str, str]:
     """Every typed PA's code and its type, for grouping data by PA type (the dashboards' PA type filter and view)."""
     return dict(Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(pa_type="").values_list("code", "pa_type"))
+
+
+# --- organization codes and their history
+#
+# An organization keeps its identity (its primary key) whatever its code: a rename closes the old code and opens the new one on a date
+# (OrganisationCode), and everything filed under either stays the organization's. A code is one organization's for good. Where the same
+# party was recorded twice (an old code's data loaded before the rename was known), the old organization is merged into the new: it
+# keeps its own data and codes, points at its successor, and is counted under it. Data keeps the code as filed (versions, not edits);
+# `code_map` / `current_code` read any code as its party's current one, which is what the dashboards group and filter by.
+
+# Renames CEDARS has made: former code -> (new code, new name, first day of the new code, where it is recorded). A legacy load or a PA
+# added under either code finds the one organization; migration accounts/0004 applied them to the organizations already in the platform.
+KNOWN_RENAMES = {
+    "EBCE": (
+        "AVA",
+        "Ava Community Energy",
+        date(2024, 1, 1),
+        "As of 2024, East Bay Community Energy (EBCE) changed its name to Ava Community Energy (AVA): budget filings, claims and monthly "
+        "reports before 2024 are under EBCE, from 2024 under AVA (CEDARS changelog, 2025-02-27)",
+    ),
+}
+CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9_-]{0,19}$")
+
+
+def _norm(code) -> str:
+    return (code or "").strip().upper()
+
+
+def party(org: Organisation | None) -> Organisation | None:
+    """The organization a merged one now counts under (its successor's successor, and so on); the organization itself otherwise."""
+    seen = set()
+    while org is not None and org.successor_id and org.pk not in seen:
+        seen.add(org.pk)
+        org = org.successor
+    return org
+
+
+def by_code(code: str, *, follow: bool = True) -> Organisation | None:
+    """The organization a code names, current or former (e.g. EBCE finds Ava Community Energy). follow=True (the default) goes on to
+    the party a merged organization counts under; follow=False stops at the organization that holds the code."""
+    c = _norm(code)
+    if not c:
+        return None
+    org = Organisation.objects.filter(code=c).first()
+    if org is None:
+        row = OrganisationCode.objects.filter(code=c).select_related("organisation").first()
+        org = row.organisation if row else None
+    return party(org) if follow else org
+
+
+def by_code_or_404(code: str, *, follow: bool = False) -> Organisation:
+    """by_code for a page's URL (by default the organization holding the code, so a merged one's own page still opens)."""
+    from django.http import Http404
+
+    org = by_code(code, follow=follow)
+    if org is None:
+        raise Http404
+    return org
+
+
+def party_members(org: Organisation) -> list[Organisation]:
+    """The organization and every organization merged into it, directly or through another: one party."""
+    org = party(org)
+    successors = dict(Organisation.objects.filter(successor__isnull=False).values_list("pk", "successor_id"))
+    members = {org.pk}
+    changed = True
+    while changed:
+        changed = False
+        for pk, succ in successors.items():
+            if succ in members and pk not in members:
+                members.add(pk)
+                changed = True
+    return [org, *Organisation.objects.filter(pk__in=members - {org.pk}).order_by("code")]
+
+
+def party_codes(org: Organisation) -> list[str]:
+    """Every code the party has used: its current code first, then the rest by when they were last in use (newest first)."""
+    members = party_members(org)
+    rows = OrganisationCode.objects.filter(organisation__in=members).order_by("-valid_to")
+    codes = [members[0].code, *(m.code for m in members[1:]), *(r.code for r in rows)]
+    return list(dict.fromkeys(codes))
+
+
+def code_map() -> dict[str, str]:
+    """Every code that is not its party's current code -> the party's current code (former codes and merged organizations' codes),
+    e.g. {"EBCE": "AVA"}. Empty when nothing was ever renamed or merged."""
+    orgs = {pk: (code, succ) for pk, code, succ in Organisation.objects.values_list("pk", "code", "successor_id")}
+
+    def current(pk):
+        seen = set()
+        while orgs[pk][1] and pk not in seen:
+            seen.add(pk)
+            pk = orgs[pk][1]
+        return orgs[pk][0]
+
+    out = {code: current(pk) for pk, (code, _) in orgs.items()}
+    out |= {code: current(pk) for code, pk in OrganisationCode.objects.values_list("code", "organisation_id")}
+    return {k: v for k, v in out.items() if k != v}
+
+
+def current_code(code: str, mapping: dict[str, str] | None = None) -> str:
+    """A code as its party's current code (EBCE -> AVA); any other code as given (stripped)."""
+    mapping = code_map() if mapping is None else mapping
+    return mapping.get(_norm(code), (code or "").strip())
+
+
+def code_history(org: Organisation) -> list[OrganisationCode]:
+    """The party's codes in order of use, merged organizations' included (an organization added before code history was kept shows its
+    one code as an unsaved row)."""
+    members = party_members(org)
+    rows = list(OrganisationCode.objects.filter(organisation__in=members).select_related("organisation", "recorded_by"))
+    held = {r.organisation_id for r in rows if r.valid_to is None}
+    rows += [OrganisationCode(organisation=m, code=m.code) for m in members if m.pk not in held and not m.successor_id]
+    return sorted(rows, key=lambda r: (r.valid_from or date.min, r.valid_to or date.max))
+
+
+def code_on(org: Organisation, day: date) -> str:
+    """The party's code in effect on a day (EBCE for 2023, AVA for 2024); its current code when the history does not say."""
+    for r in code_history(org):
+        if (r.valid_from is None or r.valid_from <= day) and (r.valid_to is None or day < r.valid_to):
+            return r.code
+    return party(org).code
+
+
+def _current_row(org: Organisation) -> OrganisationCode:
+    row = org.codes.filter(valid_to__isnull=True).first()
+    if row is None:  # an organization added before code history was kept
+        row = OrganisationCode.objects.create(organisation=org, code=_norm(org.code))
+    return row
+
+
+def _check_new_code(code: str, org: Organisation | None) -> str:
+    c = _norm(code)
+    if not CODE_PATTERN.match(c):
+        raise AccessDenied("A code is 1 to 20 letters, digits, hyphens or underscores, starting with a letter or digit.")
+    holder = by_code(c, follow=False)
+    if holder is not None and (org is None or holder.pk != org.pk):
+        when = "its current code" if holder.code == c else "a former code of theirs"
+        raise AccessDenied(f"{c} is {when}: {holder.code} ({holder.name}). A code stays with one organization for good.")
+    return c
+
+
+def _require_system_admin(actor: User | None, what: str) -> None:
+    if actor is not None and not is_system_admin(actor):
+        raise AccessDenied(f"Only a CPUC system administrator can {what}.")
+
+
+def _effective_day(effective, after: date | None, what: str) -> date:
+    day = effective or timezone.localdate()
+    if day > timezone.localdate():
+        raise AccessDenied(f"Record {what} once it has taken effect: the date cannot be in the future.")
+    if after is not None and day <= after:
+        raise AccessDenied(f"The date must be after {after:%Y-%m-%d}, when the current code came into use.")
+    return day
+
+
+@transaction.atomic
+def rename_organisation(
+    actor: User | None, org: Organisation, *, code: str, reason: str, effective: date | None = None, name: str = ""
+) -> Organisation:
+    """Give an organization a new code from a date (default today), and optionally a new name (a CPUC system administrator, with a
+    reason). The old code is kept in its history and still finds it; nothing it filed changes."""
+    _require_system_admin(actor, "rename an organization")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the rename.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; rename {org.successor.code} instead.")
+    new = _check_new_code(code, org)
+    if new == org.code:
+        raise AccessDenied(f"{org.code} is already its code.")
+    current = _current_row(org)
+    day = _effective_day(effective, current.valid_from, "a rename")
+    before = audit.snapshot(org, ["code", "name"])
+    current.valid_to = day
+    current.save(update_fields=["valid_to"])
+    OrganisationCode.objects.create(organisation=org, code=new, valid_from=day, reason=reason.strip(), recorded_by=actor)
+    org.code = new
+    if name.strip():
+        org.name = name.strip()
+    org.save(update_fields=["code", "name"])
+    after = audit.snapshot(org, ["code", "name"]) | {"former_code": before["code"], "effective": day.isoformat()}
+    audit.record("organisation.renamed", obj=org, before=before, after=after, reason=reason, actor=actor)
+    return org
+
+
+@transaction.atomic
+def add_former_code(
+    actor: User | None, org: Organisation, *, code: str, until: date, reason: str, since: date | None = None
+) -> OrganisationCode:
+    """Record a code an organization used before, from `since` (blank: from the start) up to but not including `until`, so records
+    filed under it count as the organization's (a CPUC system administrator, with a reason). A current code with no start then starts
+    on `until`."""
+    _require_system_admin(actor, "change an organization's codes")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the former code.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; record it on {org.successor.code} instead.")
+    c = _check_new_code(code, org)
+    if c == org.code:
+        raise AccessDenied(f"{c} is its current code.")
+    if since is not None and since >= until:
+        raise AccessDenied("A former code's first day must be before its last.")
+    if until > timezone.localdate():
+        raise AccessDenied("A former code must have ended by today.")
+    current = _current_row(org)
+    if current.valid_from is not None and current.valid_from < until:
+        raise AccessDenied(f"{org.code} has been in use since {current.valid_from:%Y-%m-%d}; a former code must end by then.")
+    for r in org.codes.filter(valid_to__isnull=False):
+        if (r.valid_from is None or r.valid_from < until) and (since is None or r.valid_to > since):
+            raise AccessDenied(f"{r.code} was {org.code}'s code {r.span}; the two would overlap.")
+    before = {"codes": [str(r) for r in code_history(org)]}
+    if current.valid_from is None:
+        current.valid_from = until
+        current.save(update_fields=["valid_from"])
+    row = OrganisationCode.objects.create(
+        organisation=org, code=c, valid_from=since, valid_to=until, reason=reason.strip(), recorded_by=actor
+    )
+    after = {"codes": [str(r) for r in code_history(org)]}
+    audit.record("organisation.code_added", obj=org, before=before, after=after, reason=reason, actor=actor)
+    return row
+
+
+@transaction.atomic
+def merge_organisation(
+    actor: User | None, source: Organisation, *, into: Organisation, reason: str, effective: date | None = None
+) -> Organisation:
+    """Record that `source` and `into` are the same party under an old and a new code (a CPUC system administrator, with a reason):
+    `source`'s codes end on `effective` (default `into`'s first day under its code, else today), it becomes inactive and points at
+    `into`, and its data, which stays its own, is counted under `into`. Its members must be moved or removed first."""
+    _require_system_admin(actor, "merge organizations")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the merge.")
+    into = party(into)
+    if source.pk == into.pk:
+        raise AccessDenied("An organization cannot be merged into itself.")
+    if source.successor_id:
+        raise AccessDenied(f"{source.code} was already merged into {source.successor.code}.")
+    if source.kind != into.kind or source.kind == Organisation.Kind.CPUC:
+        raise AccessDenied("Only two organizations of the same kind can be merged, and never the CPUC.")
+    if source.memberships.filter(ended_at__isnull=True).exists():
+        raise AccessDenied(f"{source.code} still has members. Move them to {into.code} or remove them first.")
+    source_row, into_row = _current_row(source), _current_row(into)
+    day = effective or into_row.valid_from or timezone.localdate()
+    day = _effective_day(day, source_row.valid_from, "a merge")
+    if into_row.valid_from is not None and into_row.valid_from > day:
+        raise AccessDenied(f"{into.code} has been in use only since {into_row.valid_from:%Y-%m-%d}; the merge cannot take effect before.")
+    before = {"source": audit.snapshot(source, ["code", "active"]), "into_codes": [str(r) for r in code_history(into)]}
+    source_row.valid_to = day
+    source_row.save(update_fields=["valid_to"])
+    if into_row.valid_from is None:
+        into_row.valid_from = day
+        into_row.save(update_fields=["valid_from"])
+    source.successor, source.merged_on, source.active = into, day, False
+    source.save(update_fields=["successor", "merged_on", "active"])
+    after = {
+        "source": audit.snapshot(source, ["code", "active"]) | {"successor": into.code, "merged_on": day.isoformat()},
+        "into_codes": [str(r) for r in code_history(into)],
+    }
+    audit.record("organisation.merged", obj=source, before=before, after=after, reason=reason, actor=actor)
+    audit.record("organisation.merged", obj=into, before=before, after=after, reason=reason, actor=actor)
+    return source
+
+
+@transaction.atomic
+def organisation_for_filed_code(code: str, actor: User | None = None) -> Organisation:
+    """The program administrator a filed code names (legacy loads, importers): the party that has or had the code; for a code in
+    KNOWN_RENAMES, the one organization under its old or new code (renamed or given the former code as needed); otherwise a new PA
+    under the code (typed when CEDARS uses it). `actor` (a CPUC system administrator running an import, or None for the system) is
+    recorded on what it adds."""
+    c = _norm(code)
+    org = by_code(c)
+    if org is not None:
+        return org
+    old = c if c in KNOWN_RENAMES else next((o for o, (n, *_) in KNOWN_RENAMES.items() if n == c), None)
+    if old is None:
+        return create_organisation(actor, code=c, name=c, kind=Organisation.Kind.PA)
+    new, name, first_day, source = KNOWN_RENAMES[old]
+    target = by_code(new) if c == old else by_code(old)
+    if target is None:
+        target = create_organisation(actor, code=new, name=name, kind=Organisation.Kind.PA)
+        add_former_code(actor, target, code=old, until=first_day, reason=source)
+    elif c == old:  # the new organization is here; the old code was never recorded
+        add_former_code(actor, target, code=old, until=first_day, reason=source)
+    else:  # the old organization is here; the rename was never recorded
+        rename_organisation(actor, target, code=new, reason=source, effective=first_day, name=name if target.name == old else "")
+    return target
 
 
 # --- reading
@@ -193,10 +483,11 @@ def _guard_last_steward(grant: Grant, what: str) -> None:
 def create_organisation(actor: User | None, *, code: str, name: str, kind: str, pa_type: str = "", federated: bool = False) -> Organisation:
     if actor is not None and not is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator can add an organization.")
-    code = code.strip().upper()
+    code = _check_new_code(code, None)
     if kind == Organisation.Kind.PA and not pa_type:
         pa_type = known_pa_type(code)  # a CEDARS code is typed as CEDARS has it; any other is left for the CPUC to type
     org = Organisation.objects.create(code=code, name=name.strip(), kind=kind, pa_type=pa_type, federated=federated)
+    OrganisationCode.objects.create(organisation=org, code=code, recorded_by=actor)
     audit.record("organisation.created", obj=org, after=audit.snapshot(org), actor=actor)
     return org
 

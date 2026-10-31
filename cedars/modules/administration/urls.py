@@ -15,6 +15,9 @@ urlpatterns = [
     path("admin/organizations/new/", views.organisation_new, name="organisation_new"),
     path("admin/organizations/<str:code>/", views.organisation, name="organisation"),
     path("admin/organizations/<str:code>/details", views.organisation_details, name="organisation_details"),
+    path("admin/organizations/<str:code>/rename", views.organisation_rename, name="organisation_rename"),
+    path("admin/organizations/<str:code>/former-code", views.organisation_former_code, name="organisation_former_code"),
+    path("admin/organizations/<str:code>/merge", views.organisation_merge, name="organisation_merge"),
     path("admin/organizations/<str:code>/grant", views.grant, name="grant"),
     path("admin/organizations/<str:code>/recertification", views.open_recertification, name="open_recertification"),
     # The pages moved to US spelling (2026-10-31); old links still land

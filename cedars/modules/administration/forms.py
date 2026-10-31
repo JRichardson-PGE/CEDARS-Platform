@@ -65,6 +65,48 @@ class OrganisationDetailsForm(forms.Form):
             del self.fields["pa_type"]
 
 
+DATE = forms.DateInput(attrs={"type": "date"})
+
+
+class RenameForm(forms.Form):
+    """A CPUC system administrator gives an organization a new code from a date (audited, with a reason)."""
+
+    code = forms.CharField(label="New code", max_length=20, help_text="Letters, digits, hyphens or underscores, e.g. AVA")
+    name = forms.CharField(label="New name (optional)", max_length=200, required=False, help_text="Leave blank to keep the name")
+    effective = forms.DateField(
+        label="First day under the new code", widget=DATE, help_text="Records for earlier dates keep the old code as filed"
+    )
+    reason = forms.CharField(label="Reason for the rename", max_length=500)
+
+
+class FormerCodeForm(forms.Form):
+    """A code the organization used before its current one, and when."""
+
+    code = forms.CharField(label="Former code", max_length=20)
+    since = forms.DateField(label="First day it was used (optional)", widget=DATE, required=False, help_text="Leave blank: from the start")
+    until = forms.DateField(label="First day under the next code", widget=DATE)
+    reason = forms.CharField(label="Reason", max_length=500)
+
+
+class MergeForm(forms.Form):
+    """Another organization that is the same party, recorded under an old code, merged into this one."""
+
+    source = forms.ModelChoiceField(label="Organization recorded under the old code", queryset=Organisation.objects.none())
+    effective = forms.DateField(
+        label="First day under this organization's code (optional)",
+        widget=DATE,
+        required=False,
+        help_text="Leave blank: the day this code came into use, else today",
+    )
+    reason = forms.CharField(label="Reason for the merge", max_length=500)
+
+    def __init__(self, *args, org: Organisation, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["source"]
+        field.queryset = Organisation.objects.filter(kind=org.kind, successor__isnull=True).exclude(pk=org.pk).exclude(kind="cpuc")
+        field.label_from_instance = lambda o: f"{o.code} ({o.name})"
+
+
 class RecertificationForm(forms.Form):
     due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
 

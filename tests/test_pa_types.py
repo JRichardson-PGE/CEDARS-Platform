@@ -170,7 +170,7 @@ def test_dashboard_views_by_pa_type_and_drills_to_its_pas(mixed):
 
 def test_pa_filter_choices_are_grouped_by_type(mixed):
     groups = dashboard.pa_groups({"pa_type": ("REN",), "pa": ("MCE",)})
-    assert [(g["label"], g["type"], g["all"], g["pas"]) for g in groups] == [
+    assert [(g["label"], g["type"], g["all"], [(p["code"], p["checked"]) for p in g["pas"]]) for g in groups] == [
         ("IOUs", "IOU", False, [("PGE", False)]),
         ("RENs", "REN", True, [("BAY", False)]),
         ("CCAs", "CCA", False, [("MCE", True)]),

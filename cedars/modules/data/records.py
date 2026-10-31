@@ -22,10 +22,12 @@ from . import query as dq
 from .downloads import FORMATS  # noqa: F401 - the formats a records file comes in, as the dashboard downloads
 
 SOURCE = "Where the record came from"
-FILED_BY, FILING = "FiledBy", "Filing"
+FILED_BY, FILING, COUNTED_PA = "FiledBy", "Filing", "CountedPA"
 SOURCE_COLUMNS = {
-    FILED_BY: "The PA whose published filing or claim holds the record.",
+    FILED_BY: "The PA whose published filing or claim holds the record, under its current code.",
     FILING: "The filing or claim the record was published in (a budget filing's cycle and kind, or a claim's kind).",
+    COUNTED_PA: "The PA the dashboards count the record under: the credited PA, else the filer, under its current code. A record "
+    "filed under a former code (EBCE) is counted under the PA's current one (AVA); CreditedPA keeps the code as filed.",
 }
 # The default columns (ReCET's "Key results" output template, with the record's program, measure and year): the ones present are used.
 KEY_COLUMNS = (
@@ -39,6 +41,7 @@ KEY_COLUMNS = (
     "ClaimYearQuarter",
     "Used_Year",
     "CreditedPA",
+    COUNTED_PA,
     "UseCategory",
     "Used_ACCVersion",
     "TotalSystemBenefit",
@@ -268,10 +271,8 @@ def _sql(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> tu
     texts = dq.text_columns(q, ["CEInputID"])
     cols = [f"CAST({ident(c)} AS VARCHAR) AS {ident(c)}" if c in cat.present else f"CAST(NULL AS VARCHAR) AS {ident(c)}" for c in texts]
     cols += ["_organisation", "_filing"] + [f"{ident(c)} AS {ident('o:' + c)}" for c in columns if c not in SOURCE_COLUMNS]
-    out = [
-        f"_organisation AS {ident(c)}" if c == FILED_BY else f"_filing AS {ident(c)}" if c == FILING else f"{ident('o:' + c)} AS {ident(c)}"
-        for c in columns
-    ]
+    source = {FILED_BY: "_organisation", FILING: "_filing", COUNTED_PA: dq.pa_expression()}
+    out = [f"{source[c]} AS {ident(c)}" if c in source else f"{ident('o:' + c)} AS {ident(c)}" for c in columns]
     where, args = dq.where_terms(q)
     sql = (
         f"WITH raw AS ({raw}), data AS (SELECT {', '.join(cols)} FROM raw) SELECT {', '.join(out)} FROM data"

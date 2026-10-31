@@ -10,7 +10,7 @@
   <tbody>
   {% for r in rows %}
   <tr>
-    <th scope="row"><a class="id" href="{% url 'administration:organisation' r.org.code %}">{{ r.org.code }}</a> <span class="small muted">{{ r.org.name }}</span></th>
+    <th scope="row"><a class="id" href="{% url 'administration:organisation' r.org.code %}">{{ r.org.code }}</a> <span class="small muted">{{ r.org.name }}</span>{% if r.former %}<br><span class="small">formerly {{ r.former|join:", " }}</span>{% endif %}{% if r.org.successor %}<br><span class="status info">Merged into {{ r.org.successor.code }}</span>{% endif %}</th>
     <td>{{ r.org.get_kind_display }}{% if r.org.federated %}, federated{% endif %}</td>
     <td>{% if r.org.kind == "pa" %}{% if r.org.pa_type %}{{ r.org.pa_type }}{% else %}<span class="status warn">Not set</span>{% endif %}{% else %}<span aria-hidden="true">–</span><span class="sr-only">Not a program administrator</span>{% endif %}</td>
     <td class="num">{% if r.admins %}{{ r.admins }}{% else %}<span class="status warn">None: needs a first administrator</span>{% endif %}</td>

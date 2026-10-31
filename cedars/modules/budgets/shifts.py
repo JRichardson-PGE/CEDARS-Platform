@@ -366,7 +366,7 @@ def _submit(actor, shift: FundShift) -> FundShift:
     )
     if shift.status == FundShift.Status.WAITING:
         for code in shift.cofunders:
-            org = Organisation.objects.filter(code=code).first()
+            org = access.by_code(code)
             items = shift.shares[code]
             portion = sum((Decimal(v) for v in items.values()), Decimal(0))
             if org is not None:

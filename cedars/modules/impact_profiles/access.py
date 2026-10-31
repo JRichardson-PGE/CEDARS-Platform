@@ -33,9 +33,10 @@ def require_submit(user, organisation: Organisation | None, what: str) -> None:
 
 
 def require_package_lead(user, organisation: Organisation | None, package) -> None:
-    """Upload rule from the Load Shapes user guide: the package's PA lead must be the organization the user acts for."""
+    """Upload rule from the Load Shapes user guide: the package's PA lead must be the organization the user acts for (under its current
+    code or a former one: a package eTRM still lists under EBCE is Ava's)."""
     require_submit(user, organisation, "upload load shapes")
-    if user is not None and package.pa_lead != organisation.code:
+    if user is not None and access.by_code(package.pa_lead) != access.party(organisation):
         raise AccessDenied(
             f"{package.measure_version_id} is led by {package.pa_lead}. "
             f"Act for {package.pa_lead} (a membership there) to upload its load shapes."
@@ -51,4 +52,5 @@ def sees_organisation(user, organisation_code: str) -> bool:
     """Members of the PA (and CPUC administrators) see its upload history."""
     if is_admin(user):
         return True
-    return any(o.code == organisation_code for o in access.organisations_of(user))
+    org = access.by_code(organisation_code)
+    return org is not None and any(access.party(o) == org for o in access.organisations_of(user))

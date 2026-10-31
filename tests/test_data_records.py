@@ -128,7 +128,7 @@ def test_columns_follow_the_dictionary_and_never_offer_a_restricted_field(two_pa
     )
     cat = records.catalog(dq.files_of(dq.Query("claims", ("tsb",))))
     groups = {g.label: g.names for g in cat.groups}
-    assert list(groups)[0] == records.SOURCE and groups[records.SOURCE] == ["FiledBy", "Filing"]
+    assert list(groups)[0] == records.SOURCE and groups[records.SOURCE] == ["FiledBy", "Filing", "CountedPA"]
     assert groups["Measure inputs"] == ["CEInputID"] and groups["Total system benefit"] == ["TotalSystemBenefit"]
     assert "Prg_ProgramSegment" in groups["Program metadata"] and "TRCCost" not in cat.names
     assert cat.dictionary == "test"

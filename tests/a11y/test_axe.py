@@ -130,6 +130,10 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
+    ava = service.create_organisation(cpuc_admin, code="EBCE", name="East Bay Community Energy", kind="pa")
+    service.rename_organisation(cpuc_admin, ava, code="AVA", name="Ava Community Energy", effective=date(2024, 1, 1), reason="renamed")
+    twice = service.create_organisation(cpuc_admin, code="AVA2", name="Ava, loaded twice", kind="pa")
+    service.merge_organisation(cpuc_admin, twice, into=ava, effective=date(2025, 1, 1), reason="the same party")
     analyst = make_user("analyst@pge.com", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
     service.grant(pge_admin, analyst, pge, perms.PII, reason="files claims with contacts")
