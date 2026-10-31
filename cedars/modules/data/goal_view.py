@@ -8,6 +8,7 @@ programs' goal and leaves codes and standards out; the codes-and-standards metri
 from collections import defaultdict
 from dataclasses import dataclass, replace
 
+from cedars.services.accounts import service as access
 from cedars.services.registry import goals as goal_sets
 
 from . import query as dq
@@ -69,11 +70,18 @@ class GoalComparison:
 
 
 def shares(rules, applies_to: str) -> dict[str, list[tuple[str, float]]]:
-    """Which territories each PA's results count toward, and at what share."""
-    out: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    """Which territories each PA's results count toward, and at what share, by the PA's current code (the dashboards' PA): a rule
+    written for a former code (EBCE) counts for the PA (AVA), unless the PA has its own rule for that territory."""
+    mapping = access.code_map()
+    own: dict[str, dict[str, float]] = defaultdict(dict)
+    inherited: dict[str, dict[str, float]] = defaultdict(dict)
     for r in rules:
         if r.applies_to in ("all", applies_to):
-            out[r.pa].append((r.territory, float(r.share)))
+            code = access.current_code(r.pa, mapping)
+            (own if code == r.pa else inherited)[code][r.territory] = float(r.share)
+    out: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for code in sorted(set(own) | set(inherited)):
+        out[code] = list((inherited[code] | own[code]).items())
     for iou in goal_sets.UTILITIES:
         out.setdefault(iou, [(iou, 1.0)])
     return dict(out)

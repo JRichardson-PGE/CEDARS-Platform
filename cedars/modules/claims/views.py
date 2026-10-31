@@ -52,7 +52,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
     """The organisation whose claims the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
-        org = get_object_or_404(Organisation, code=code)
+        org = access.by_code_or_404(code)
         if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
             raise Http404
         return org
@@ -529,7 +529,7 @@ def published_file(request, pk, which):
 def changes(request):
     """Every published correction's change letter, newest first, by PA and claim year."""
     letters = service.change_letters()
-    org = Organisation.objects.filter(code=request.GET.get("org", "")).first() if request.GET.get("org") else None
+    org = access.by_code(request.GET.get("org", ""), follow=False)
     year = request.GET.get("year", "")
     if org is not None:
         letters = letters.filter(version__submission__organisation=org)

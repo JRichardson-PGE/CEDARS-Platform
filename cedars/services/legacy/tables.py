@@ -173,11 +173,9 @@ def parquet(table) -> tuple[bytes, str]:
 
 
 def organisation(code: str) -> Organisation:
-    """The PA a legacy file names, created under its CEDARS code when the platform does not have it yet."""
-    org = Organisation.objects.filter(code=code).first()
-    if org is None:
-        org = access.create_organisation(None, code=code, name=code, kind="pa", pa_type=access.known_pa_type(code))
-    return org
+    """The PA a legacy file names: the one that has or had the code (EBCE files load under Ava Community Energy), created under its
+    CEDARS code when the platform does not have it yet."""
+    return access.organisation_for_filed_code(code)
 
 
 def programs(rows, program_cols: list[str]):

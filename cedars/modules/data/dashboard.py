@@ -4,6 +4,7 @@ templates are shared.
 
 Every series is one `query.run` on its dataset with the same parameters, so the chart, the table and each series' download agree."""
 
+from collections import defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import date
 from urllib.parse import urlencode
@@ -407,12 +408,22 @@ PA_GROUP_LABELS = {
 
 def pa_groups(selected: dict) -> list[dict]:
     """The PA filter's choices grouped by PA type (Jake, 2026-10-31): each type's "all" choice (the pa_type filter) and its PAs (the pa
-    filter), then any PA with no type yet. `selected` is the query's filter map."""
+    filter), then any PA with no type yet. `selected` is the query's filter map. A PA is offered once, under its current code (with its
+    former codes in its label); an organization merged into another is not offered on its own."""
+    from cedars.services.accounts import service as access
     from cedars.services.accounts.models import Organisation
 
-    picked = {v.upper() for v in selected.get("pa", ())}
+    mapping = access.code_map()
+    former = defaultdict(list)
+    for old, new in sorted(mapping.items()):
+        former[new].append(old)
+    picked = {access.current_code(v, mapping).upper() for v in selected.get("pa", ())}
     picked_types = {v.upper() for v in selected.get("pa_type", ())}
-    orgs = list(Organisation.objects.filter(kind="pa").order_by("code"))
+    orgs = list(Organisation.objects.filter(kind="pa", successor__isnull=True).order_by("code"))
+
+    def choice(o):
+        return {"code": o.code, "checked": o.code in picked, "former": former.get(o.code, [])}
+
     groups = []
     for code in Organisation.PAType.values:
         members = [o for o in orgs if o.pa_type == code]
@@ -424,14 +435,12 @@ def pa_groups(selected: dict) -> list[dict]:
                     "label": label,
                     "description": description,
                     "all": code in picked_types,
-                    "pas": [(o.code, o.code in picked) for o in members],
+                    "pas": [choice(o) for o in members],
                 }
             )
     untyped = [o for o in orgs if o.pa_type not in Organisation.PAType.values]
     if untyped:
-        groups.append(
-            {"type": "", "label": "No PA type", "description": "", "all": False, "pas": [(o.code, o.code in picked) for o in untyped]}
-        )
+        groups.append({"type": "", "label": "No PA type", "description": "", "all": False, "pas": [choice(o) for o in untyped]})
     return groups
 
 

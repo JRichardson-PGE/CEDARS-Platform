@@ -27,7 +27,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from cedars.services import audit
-from cedars.services.accounts.models import Organisation
+from cedars.services.accounts import service as access
 
 from . import shapes
 from .loadshapes import zone
@@ -159,7 +159,7 @@ def generate(actor, package: MeasurePackage, upload: LoadShapeUpload | None = No
         upload.save(update_fields=["status"])
     outcome = pair(package)
     summary = {"created": 0, "new_version": 0, "unchanged": 0, "conflicts": [], "skipped": [], "notes": outcome.notes[:200], "profiles": []}
-    owner = Organisation.objects.filter(code=package.pa_lead).first()
+    owner = access.by_code(package.pa_lead)
     now = timezone.now()
     with transaction.atomic():
         for (key, sector), zones in sorted(outcome.profiles.items()):

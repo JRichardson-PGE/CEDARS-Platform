@@ -15,7 +15,6 @@ claims scope, and never the PII vault (PII files are uploaded on the period page
 import mimetypes
 
 from django.http import FileResponse, Http404, HttpResponseRedirect
-from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.decorators import api_view, parser_classes
@@ -25,7 +24,6 @@ from rest_framework.response import Response
 
 from cedars.core import api, storage, uploads
 from cedars.services.accounts import service as access
-from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
@@ -283,7 +281,7 @@ def period(request, pk):
     _require_scope(request)
     d = _deadline(pk)
     code = request.query_params.get("org")
-    org = get_object_or_404(Organisation, code=code) if code else api.organisation(request)
+    org = access.by_code_or_404(code) if code else api.organisation(request)
     versions = []
     standing = None
     if org is not None:
@@ -391,7 +389,7 @@ def file(request, pk, which):
 def changes(request):
     _require_scope(request)
     code, year = request.query_params.get("org"), request.query_params.get("year")
-    org = get_object_or_404(Organisation, code=code) if code else None
+    org = access.by_code_or_404(code) if code else None
     letters = service.change_letters(organisation=org, year=int(year) if year and year.isdigit() else None)
     return _page(request, [letter_json(request, c) for c in letters], "letters", 50)
 

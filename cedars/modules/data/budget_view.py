@@ -11,6 +11,7 @@ The budget lines are filtered by PA and program only: sector, segment and the ot
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 
+from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.registry import service as registry
 
@@ -70,9 +71,13 @@ ELEMENTS = ("incentives", "direct_implementation", "admin_overhead", "admin_othe
 
 
 def organisations(view: View) -> list[Organisation]:
+    """The PAs the view's PA selection keeps, with any organization merged into one of them (its budgets are the same party's)."""
     pas = Organisation.objects.filter(kind="pa").order_by("code")
     codes = dq.selected_pas(view.query, dict(pas.values_list("code", "pa_type")))
-    return list(pas if codes is None else pas.filter(code__in=codes))
+    if codes is None:
+        return list(pas)
+    mapping = access.code_map()
+    return [o for o in pas if access.current_code(o.code, mapping).upper() in codes]
 
 
 def compare(view: View) -> Spending:
