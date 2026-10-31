@@ -21,7 +21,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from django.db import transaction
+from django.db import connection, transaction
 
 from cedars.core import storage
 from cedars.services import audit
@@ -222,13 +222,17 @@ def record_import(
     calculation: dict | None = None,
 ) -> LegacyImport:
     """Publish a loaded year as an imported version. Refused while any hard check failed; the same sources loaded again return the
-    import already made."""
+    import already made, with `created` False (the caller then adds nothing to it). Two loads of the same PA's year at once (two
+    terminals) are serialised on a lock held to the end of the caller's transaction, so the second finds the first's import."""
     failed = hard_failures(reconciliation)
     if failed:
         raise LegacyError(f"{organisation.code} {period} is not published: the hard checks {', '.join(failed)} failed.")
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", [f"legacy-import:{deadline.pk}:{organisation.pk}"])
     shas = sorted(s.sha256 for s in sources)
     done = already_imported(deadline, organisation, sources)
     if done is not None:
+        done.created = False
         return done
     previous = LegacyImport.objects.filter(version__submission__deadline=deadline, version__submission__organisation=organisation).first()
     reason = "Imported from legacy CEDARS: " + ", ".join(s.url for s in sources)
@@ -253,6 +257,7 @@ def record_import(
         loaded_by=actor,
     )
     imp.sources.set(sources)
+    imp.created = True
     audit.record(
         "legacy.imported",
         obj=imp,

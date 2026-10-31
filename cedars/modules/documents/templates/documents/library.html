@@ -71,6 +71,7 @@ behind the filters are kept by CPUC Energy Division.</p>
   <p>{{ total }} document{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
   <p><a href="{% url 'documents:library_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
 </div>
+{% if rows %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Documents">
 <table class="list">
   <caption class="sr-only">Documents, newest publication first</caption>
@@ -86,11 +87,14 @@ behind the filters are kept by CPUC Energy Division.</p>
     <td class="nowrap">{% if doc.published_at %}{{ doc.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>{% endif %}</td>
     <td>{% if v %}{{ v.number }}{% endif %}{% if stage %}<br><span class="small">{{ stage }}</span>{% endif %}</td>
   </tr>
-  {% empty %}<tr><td colspan="6">No documents match.</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% else %}
+{% if request.GET %}{% url 'documents:library' as clear_url %}{% endif %}
+{% include "ui/empty.html" with title="No documents match" text="Published documents are open to everyone; change or clear the search to see more of the library." action_url=clear_url action="Clear the search" %}
+{% endif %}
 {% if page.paginator.num_pages > 1 %}
 <nav class="pager" aria-label="Result pages">
   {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
