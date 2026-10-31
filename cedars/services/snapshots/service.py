@@ -9,7 +9,8 @@ What is in force (`rebuild`): the snapshots of each submission's standing publis
   monthly   likewise, one per PA and report year: the latest month's year-to-date report
 A release is made only when that set changes.
 
-Imported (legacy) versions run no publisher hook; their loads can call `publish` once they write measure-level results."""
+Imported (legacy) versions run no publisher hook and record no run: their loads build a measure-level file from the tables they stored
+and call `publish` with its storage area and key (`legacy.publish_snapshot`), with `release=False`: a load of many PAs makes one release."""
 
 import logging
 import tempfile
@@ -71,21 +72,23 @@ def _safely(fn, pk) -> None:
 # --- writing
 
 
-def publish(version_id: int) -> Snapshot | None:
+def publish(version_id: int, *, area: str = "results", key: str = "", release: bool = True) -> Snapshot | None:
     """Freeze a published version's measure-level results and release them. Idempotent: a version that already has its snapshot only
-    has the release checked. None when the version is not published or has no measure-level results."""
+    has the release checked. None when the version is not published or has no measure-level results. `area` and `key` name the file
+    when the version records no run (an imported version); `release=False` leaves the release to the caller's `rebuild`."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=version_id)
-    dataset, key = dataset_of(v), source_key(v)
+    dataset, key = dataset_of(v), key or source_key(v)
     if v.status != SubmissionVersion.Status.PUBLISHED or not dataset or not key:
         return None
     snap = Snapshot.objects.filter(version=v).first()
     if snap is None:
-        snap = _write(v, dataset, key)
-    rebuild(dataset, f"{label(v)} published")
+        snap = _write(v, dataset, key, area)
+    if release:
+        rebuild(dataset, f"{label(v)} published")
     return snap
 
 
-def _write(v: SubmissionVersion, dataset: str, key: str) -> Snapshot:
+def _write(v: SubmissionVersion, dataset: str, key: str, area: str = "results") -> Snapshot:
     import pyarrow.parquet as pq
 
     snap = Snapshot(dataset=dataset, version=v, organisation=v.submission.organisation, run=str((v.calculation or {}).get("run", "")))
@@ -94,7 +97,7 @@ def _write(v: SubmissionVersion, dataset: str, key: str) -> Snapshot:
     snap.key = f"{dataset}/{snap.id}/results.parquet"
     with tempfile.TemporaryDirectory() as tmp:
         local = Path(tmp) / "results.parquet"
-        with storage.store("results").open(key) as src, open(local, "wb") as dst:
+        with storage.store(area).open(key) as src, open(local, "wb") as dst:
             while block := src.read(1 << 22):
                 dst.write(block)
         snap.rows = pq.ParquetFile(local).metadata.num_rows
@@ -110,8 +113,9 @@ def _write(v: SubmissionVersion, dataset: str, key: str) -> Snapshot:
     return snap
 
 
-def withdraw(version_id: int) -> None:
-    """A version un-confirmed before its due date: its snapshot and file go (decision M), and a release without it is made."""
+def withdraw(version_id: int, *, reason: str = "un-confirmed before the due date", release: bool = True) -> None:
+    """A version un-confirmed before its due date: its snapshot and file go (decision M), and a release without it is made. Also used
+    to replace an imported version's snapshot built wrongly (`reason` says why; `release=False` leaves the release to the caller)."""
     snap = Snapshot.objects.select_related("version__submission__deadline__period", "version__submission__organisation").filter(
         version_id=version_id
     )
@@ -129,10 +133,11 @@ def withdraw(version_id: int) -> None:
         object_type="snapshots.snapshot",
         object_id=before["key"],
         before=before,
-        reason="un-confirmed before the due date",
+        reason=reason,
         organisation=v.submission.organisation,
     )
-    rebuild(dataset, f"{label(v)} withdrawn", changed=was_released)
+    if release:
+        rebuild(dataset, f"{label(v)} withdrawn", changed=was_released)
 
 
 def in_force(dataset: str) -> list[Snapshot]:

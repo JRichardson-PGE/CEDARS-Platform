@@ -1,26 +1,30 @@
-{% load data_tags %}
+{% load data_tags %}{% with links=comparison.rows|has_links %}
 <div class="hscroll" tabindex="0" role="region" aria-label="{{ caption }}">
 <table class="list">
   <caption class="sr-only">{{ caption }}</caption>
   <thead><tr>
     <th scope="col">{{ by_label }}</th>
     {% for s, label in series_labels %}<th scope="col" class="num">{{ label }}</th>{% endfor %}
-    {% if comparison.both %}<th scope="col" class="num">Claimed less forecast</th><th scope="col" class="num">% of forecast</th>{% endif %}
+    {% if comparison.both %}<th scope="col" class="num">Claimed less forecast</th>{% if metric.adds_up %}<th scope="col" class="num">% of forecast</th>{% endif %}{% endif %}
+    {% if links %}<th scope="col">Go to</th>{% endif %}
   </tr></thead>
   <tbody>
   {% for r in comparison.rows %}
   <tr>
     <th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% else %}{{ r.key|default_if_none:"(blank)" }}{% endif %}</th>
     {% for s, label in series_labels %}<td class="num">{{ r.values|get_item:s|metric_value:metric }}</td>{% endfor %}
-    {% if comparison.both %}<td class="num">{{ r.difference|signed:metric }}</td><td class="num">{{ r.percent|percent }}</td>{% endif %}
+    {% if comparison.both %}<td class="num">{{ r.difference|signed:metric }}</td>{% if metric.adds_up %}<td class="num">{{ r.percent|percent }}</td>{% endif %}{% endif %}
+    {% if links %}<td>{% for text, href in r.links %}<a href="{{ href }}">{{ text }}<span class="sr-only">: {{ r.key }}</span></a>{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}
   </tr>
-  {% empty %}<tr><td colspan="{% if comparison.both %}5{% else %}2{% endif %}">Nothing matches these filters.</td></tr>
+  {% empty %}<tr><td colspan="6">Nothing matches these filters.</td></tr>
   {% endfor %}
   </tbody>
   {% if comparison.rows %}<tfoot><tr>
     <th scope="row">Total</th>
     {% for s, label in series_labels %}<td class="num">{{ comparison.totals.values|get_item:s|metric_value:metric }}</td>{% endfor %}
-    {% if comparison.both %}<td class="num">{{ comparison.totals.difference|signed:metric }}</td><td class="num">{{ comparison.totals.percent|percent }}</td>{% endif %}
+    {% if comparison.both %}<td class="num">{{ comparison.totals.difference|signed:metric }}</td>{% if metric.adds_up %}<td class="num">{{ comparison.totals.percent|percent }}</td>{% endif %}{% endif %}
+    {% if links %}<td></td>{% endif %}
   </tr></tfoot>{% endif %}
 </table>
 </div>
+{% endwith %}

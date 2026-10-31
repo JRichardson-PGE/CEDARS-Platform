@@ -116,6 +116,7 @@ def test_a_claim_year_loads_as_imported_annual_claims_with_the_statewide_claims_
         "rows written": True,
         "additive outputs": True,
         "weighted costs = Weighted Program Cost": True,
+        "TRCBen = ratio x cost": True,
         "PACBen = ratio x cost": True,
         "RIMBen = ratio x cost": True,
         "program lines = Total Expenditures": True,

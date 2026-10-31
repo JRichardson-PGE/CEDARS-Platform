@@ -174,5 +174,5 @@ def chart(c: GoalComparison) -> dict:
         "zero": round(zero, 3),
         "negative": low < 0,
         "height": 14 * len(series),
-        "goal": True,
+        "goal": "Goal",
     }

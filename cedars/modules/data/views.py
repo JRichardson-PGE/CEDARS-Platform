@@ -62,7 +62,7 @@ def dashboard_index(request):
 def dashboard_page(request, slug):
     from django.shortcuts import render
 
-    from . import goal_view
+    from . import budget_view, goal_view
 
     page = dashboard.PAGES.get(slug)
     if page is None:
@@ -76,7 +76,18 @@ def dashboard_page(request, slug):
     metric = view.metric
     unit = f" ({metric.unit})" if metric.unit else ""
     blocks, totals, goals = [], None, None
-    if page.kind == "goals":
+    spending = None
+    if page.kind == "budget":
+        spending = budget_view.compare(view)
+        blocks.append(
+            {
+                "kind": "budget",
+                "s": spending,
+                "chart": budget_view.chart(spending),
+                "caption": "Expenditure against the operating budget, by year ($ nominal)",
+            }
+        )
+    elif page.kind == "goals":
         period = "cycle" if request.GET.get("period") == "cycle" else "annual"
         goals = goal_view.compare(view, period)
         blocks.append({"kind": "goals", "comparison": goals, "chart": goal_view.chart(goals), "caption": _goal_caption(goals)})
@@ -90,19 +101,19 @@ def dashboard_page(request, slug):
                     {"kind": "matrix", "matrix": m, "caption": f"{caption}, {m.label.lower()}", "by_label": query.DIMENSIONS[sec.by].label}
                 )
                 continue
-            c = dashboard.compare(view, sec.by)
+            c = dashboard.compare(view, sec.by, sec.drill)
             totals = totals or c
             blocks.append(
                 {
                     "kind": "compare",
                     "comparison": c,
-                    "chart": dashboard.chart(c) if sec.chart else None,
+                    "chart": dashboard.chart(c, sec.limit) if sec.chart else None,
                     "caption": caption,
                     "by_label": query.DIMENSIONS[sec.by].label,
                     "series_labels": [(sr, c.series_label(sr)) for sr in c.results],
                 }
             )
-    first = goals or totals
+    first = goals or spending or totals
     options = dashboard.filter_options()
     selected = view.query.filter_map
     context = {
@@ -125,6 +136,7 @@ def dashboard_page(request, slug):
         "gross": request.GET.get("gross") in ("1", "true", "on"),
         "lifecycle": request.GET.get("lifecycle") in ("1", "true", "on"),
         "basis_controls": page.kind == "compare",
+        "elements": budget_view.element_metrics() if spending else [],
         "exclusions": [(code, e.label, code in view.query.exclude) for code, e in query.EXCLUSIONS.items() if not (goals and code == "cs")],
         "applied": dashboard.applied_filters(view),
         "filter_fields": [
@@ -151,3 +163,42 @@ def _metric_label(page, code):
 def _goal_caption(c):
     when = "by cycle" if c.period == "cycle" else "by year"
     return f"{c.metric.label} ({c.metric.unit}) against the goal, {when}"
+
+
+RECORDS_PER_PAGE = 100
+
+
+@require_GET
+def records_page(request):
+    from django.shortcuts import render
+    from django.utils.http import urlencode
+
+    error, recs, q = None, None, None
+    try:
+        q = query.from_params(request.GET)
+        page = max(int(request.GET.get("page", "1")) if request.GET.get("page", "1").isdigit() else 1, 1)
+        recs = query.records(q, limit=RECORDS_PER_PAGE, offset=(page - 1) * RECORDS_PER_PAGE)
+    except query.QueryError as e:
+        error = f"Those records could not be shown: {e}."
+    context = {"error": error, "series": "Claimed" if not q or q.dataset == "claims" else q.dataset.capitalize()}
+    if recs is not None:
+        for r in recs.rows:
+            r["filed_by"] = f"{r['_organisation']} {r['_filing']}"
+        base = {k: request.GET.getlist(k) for k in request.GET if k != "page"}
+
+        def at(n):
+            return "?" + urlencode(base | {"page": [str(n)]}, doseq=True)
+
+        context |= {
+            "recs": recs,
+            "metric_list": recs.result.metric_list,
+            "as_of": recs.result.as_of,
+            "notes": recs.result.notes,
+            "applied": [{"label": query.DIMENSIONS[d].label, "value": v} for d, vs in q.filters for v in vs],
+            "first": recs.offset + 1,
+            "last": recs.offset + len(recs.rows),
+            "previous": at(page - 1) if page > 1 else "",
+            "next": at(page + 1) if recs.offset + len(recs.rows) < recs.count else "",
+            "download": q.query_string(),
+        }
+    return render(request, "data/records.html", context)

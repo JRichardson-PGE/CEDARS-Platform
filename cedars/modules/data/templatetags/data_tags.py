@@ -51,3 +51,19 @@ def series_name(comparison, series):
     from ..dashboard import SERIES
 
     return SERIES[series][0]
+
+
+@register.filter
+def has_links(rows):
+    return any(r.links for r in rows)
+
+
+@register.filter
+def money(value):
+    return "–" if value is None else f"{value:,.0f}"
+
+
+@register.filter
+def series_word(dataset):
+    """ "claims" -> "claimed", "forecast" -> "forecast"."""
+    return "claimed" if dataset == "claims" else dataset

@@ -13,12 +13,14 @@ Reconciliation per PA (the plan's levels 1 and 2; level 3, the published dashboa
   hard  rows written = rows read
   hard  every additive output summed exactly (decimal) from the file = its sum in the Parquet written (1e-9 relative)
   hard  the ten Weighted cost columns = Weighted Program Cost, per program and year (1e-9 relative)
-  soft  rebuilt TRC / PAC / RIM benefits (ratio x cost) = the file's own benefit columns, where it has them (1e-6 relative)
+  soft  each test's benefits (filed or from the benefit columns) = ratio x cost (1e-6 relative)
   soft  budget lines (program costs + rebates and incentives) = the file's Budget column (1e-6 relative)
   info  records whose ratio has no cost to rebuild a numerator from
 
-Layouts without per-test benefit columns (the archived filings) get TRCBen, PACBen and RIMBen rebuilt per record as ratio x cost, so
-program ratios come from summed benefits and costs like every other result."""
+Layouts without per-test benefit columns (TRC in every layout; PAC and RIM in the archived filings) get them built per record as
+`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = RIMBen = ElecBen + GasBen, ratio x cost where a record has no
+benefit values. Program ratios come from summed benefits and costs like every other result. `rebuild_benefits` corrects the results of
+filings loaded before (when every missing benefit was ratio x cost)."""
 
 import hashlib
 import json
@@ -30,8 +32,10 @@ from decimal import Decimal
 from django.db import transaction
 
 from cedars.core import storage
+from cedars.services import audit
 from cedars.services.dictionary import legacy as crosswalk
 from cedars.services.legacy import service as legacy
+from cedars.services.legacy import snapshot as legacy_snapshot
 from cedars.services.legacy import tables
 from cedars.services.registry import service as registry
 from cedars.services.submissions.models import Deadline
@@ -43,7 +47,7 @@ RUN = "legacy-cedars"
 LAYOUTS = ("filings", "filings_2024_2027", "filings_2026_2027_tual")
 COST_COLUMNS = [f"Wtd{f}" for f, _ in service.PROGRAM_COST_FIELDS]
 INCENTIVE_OUTPUTS = ["EndUserRebate", "IncentiveToOthers", "DILaborCost", "DIMaterialCost"]
-NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
+NUMERATORS = tables.NUMERATORS
 HARD, SOFT = 1e-9, 1e-6
 NOTE = "Legacy CEDARS filing. The due date is nominal (it orders the filings); the downloads do not carry it."
 
@@ -118,13 +122,16 @@ class Outcome:
     unchanged: list[str] = field(default_factory=list)
     refused: list[tuple[str, list[str]]] = field(default_factory=list)
     programs_added: int = 0
+    snapshots: int = 0
+    notes: list[str] = field(default_factory=list)
 
     def lines(self) -> list[str]:
         out = [
             f"{self.filing}: published {len(self.published)} ({', '.join(self.published)}), unchanged {len(self.unchanged)}, "
-            f"refused {len(self.refused)}, program years added {self.programs_added}"
+            f"refused {len(self.refused)}, program years added {self.programs_added}, dashboard snapshots {self.snapshots}"
         ]
         out += [f"  {pa} not published: {'; '.join(why)}" for pa, why in self.refused]
+        out += [f"  {n}" for n in self.notes]
         return out
 
 
@@ -276,6 +283,14 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
                 BudgetResult.objects.bulk_create(BudgetResult(version=v, run=RUN, **r) for r in results)
         # another load of the same files may have published it while this one ran
         (outcome.published if imp.created else outcome.unchanged).append(code)
+        if imp.created:
+            try:  # the version's dashboard snapshot; a failure leaves it to manage.py snapshot_legacy
+                if legacy_snapshot.publish_snapshot(imp):
+                    outcome.snapshots += 1
+            except Exception as e:
+                outcome.notes.append(f"{code}: no dashboard snapshot ({e}); run manage.py snapshot_legacy")
+    if outcome.snapshots:
+        legacy_snapshot.rebuild(["forecast"])
     return outcome
 
 
@@ -292,6 +307,9 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
     dec = {c: tables.texts(rows, c) for c in nums if c in COST_COLUMNS + INCENTIVE_OUTPUTS + ["WeightedProgramCost", "Legacy_Budget"]}
     flt = {c: v[0].to_pylist() for c, v in nums.items() if not tables.is_ratio(c) and not c.startswith("Legacy_")}
     ratios = {c: nums[c][0].to_pylist() for c in ("TRCRatio", "PACRatio", "RIMRatio") if c in nums}
+    built = tables.benefits({c: v[0] for c, v in nums.items()})
+    built_values = {ben: b.values.to_pylist() for ben, b in built.items()}
+    from_ratio = {ben: b.from_ratio.to_pylist() for ben, b in built.items() if b.from_ratio is not None}
     lines: dict[tuple, dict] = {}
     results: dict[tuple, dict] = {}
     rebuilt_from_ratio = {k: 0.0 for k in NUMERATORS}
@@ -328,15 +346,13 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
             if vals[i] is not None:
                 res["values"][c] += vals[i]
         for ben, (ratio, cost) in NUMERATORS.items():
-            if ratio not in ratios or cost not in flt:
-                continue
-            r, cst = ratios[ratio][i], flt[cost][i]
-            if r and not cst:
-                no_cost[ben] += 1
-            value = (r or 0.0) * (cst or 0.0)
-            rebuilt_from_ratio[ben] += value
-            if ben not in flt:  # the layout has no benefit column for the test: rebuild it
-                res["values"][ben] += value
+            if ben in from_ratio:
+                r, cst = ratios[ratio][i], flt[cost][i]
+                if r and not cst:
+                    no_cost[ben] += 1
+                rebuilt_from_ratio[ben] += from_ratio[ben][i]
+            if ben in built_values and ben not in flt:  # no benefit column for the test: built from the benefit columns
+                res["values"][ben] += built_values[ben][i] or 0.0
     checks = []
     differ = [
         {"prg_id": k[0], "year": k[1], "weighted": str(sum(ln["costs"].values(), Decimal(0))), "weighted_program_cost": str(ln["wpc"])}
@@ -345,8 +361,8 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
     ]
     checks.append({"name": "weighted costs = Weighted Program Cost", "kind": "hard", "ok": not differ, "detail": differ})
     for ben in NUMERATORS:
-        if ben in flt:
-            filed = float(pc.sum(nums[ben][0]).as_py() or 0)
+        if ben in from_ratio and built[ben].source != "ratio x cost":
+            filed = float(pc.sum(built[ben].values).as_py() or 0)
             checks.append(
                 {
                     "name": f"{ben} = ratio x cost",
@@ -377,3 +393,42 @@ def _lines_and_results(rows, nums, code: str) -> tuple[list[dict], list[dict], l
     ]
     out_results = [{**r, "values": dict(r["values"])} for r in results.values()]
     return out_lines, out_results, checks
+
+
+def rebuild_benefits() -> list[str]:
+    """Correct the results of filings loaded when every benefit the layout lacks was ratio x cost (before 2026-10-31): TRCBen, PACBen
+    and RIMBen built again from the stored Outputs table as the load now builds them, per program and year. Audited per import; the
+    snapshots are replaced separately (`manage.py snapshot_legacy --replace`)."""
+    out, checked, corrected, filed = [], 0, 0, 0
+    for imp in legacy.LegacyImport.objects.filter(module=service.MODULE).select_related("version__submission__organisation"):
+        checked += 1
+        sums = legacy_snapshot.stored_benefits(imp, ("PrgID", "Used_Year"))
+        if not sums:
+            filed += 1
+            continue
+        by_key = {(prg, int(y) if str(y).strip().isdigit() else 0): v for (prg, y), v in sums.items()}
+        before, after = defaultdict(float), defaultdict(float)
+        changed = []
+        for res in BudgetResult.objects.filter(version=imp.version, run=RUN):
+            new = by_key.get((res.prg_id, res.year), {})
+            for b, v in new.items():
+                before[b] += res.values.get(b) or 0.0
+                after[b] += v
+            if any(res.values.get(b) != v for b, v in new.items()):
+                res.values = {**res.values, **new}
+                changed.append(res)
+        BudgetResult.objects.bulk_update(changed, ["values"])
+        code = imp.version.submission.organisation.code
+        if changed:
+            audit.record(
+                "legacy.benefits_rebuilt",
+                obj=imp,
+                before=dict(before),
+                after=dict(after),
+                reason="Benefits built from the benefit columns, not ratio x cost (CEDARS' published ratios use the columns)",
+                organisation=imp.version.submission.organisation,
+            )
+        corrected += bool(changed)
+        out.append(f"{imp.period} {code}: {len(changed)} program results corrected")
+    out.append(f"{checked} imports checked, {corrected} corrected, {filed} with every benefit filed (nothing to rebuild)")
+    return out

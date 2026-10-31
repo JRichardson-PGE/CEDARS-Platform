@@ -14,6 +14,8 @@ from cedars.services.snapshots import service as snapshots
 from . import metrics as catalog
 from . import query as dq
 
+CHART_LIMIT = 20  # bars in a ranked chart; the table lists every row
+
 
 @dataclass(frozen=True)
 class Section:
@@ -23,6 +25,8 @@ class Section:
     title: str
     chart: bool = True
     columns: str = ""  # a matrix: each row's metric split across this dimension's values, as shares of the row
+    limit: int = 0  # the chart shows only the first rows (the table keeps them all)
+    drill: tuple[str, str] = ("", "")  # (page slug, by) a row drills to, instead of the overview one level down
 
 
 @dataclass(frozen=True)
@@ -72,6 +76,54 @@ PAGES = {
                 Section("pa", "share of each PA's total by primary sector", chart=False, columns="sector"),
                 Section("program", "by program", chart=False),
             ),
+        ),
+        Page(
+            "programs",
+            "Program detail",
+            "Programs ranked by the metric, each linked to its program page and to its measures by use category.",
+            ("tsb", "kwh", "kw", "therms", "expenditure", "trc"),
+            sections=(Section("program", "by program", limit=CHART_LIMIT, drill=("measures", "use_category")),),
+        ),
+        Page(
+            "measures",
+            "Measure detail",
+            "Results by measure use category and by measure. Each measure links to the claim or filing records behind it.",
+            ("tsb", "kwh", "kw", "therms", "expenditure"),
+            sections=(
+                Section("use_category", "by measure use category", drill=("measures", "measure")),
+                Section("measure", "by measure", chart=False),
+            ),
+        ),
+        Page(
+            "budget",
+            "Budget and spending",
+            "The operating budget (the approved filing with fund shifts) against the forecast budget, monthly-reported spending and "
+            "claimed expenditure, by year and by program, and the cost elements by sector. Choose PAs under Filters.",
+            ("expenditure",),
+            kind="budget",
+        ),
+        Page(
+            "cost-effectiveness",
+            "Cost effectiveness",
+            "Cost-test ratios by sector, by year and by program, each computed from summed benefits and costs (never an average of "
+            "ratios). Without admin leaves administration costs out of the cost.",
+            tuple(f"{t}{v}" for t in catalog.TESTS for v in ("", "_no_admin")),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+        ),
+        Page(
+            "energy-savings",
+            "Energy savings",
+            "Electric energy, demand and gas savings by sector, by year and by program, gross or net, first year or lifecycle "
+            "(demand savings are first year only).",
+            ("kwh", "therms", "kw"),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+        ),
+        Page(
+            "environmental-impact",
+            "Environmental impact",
+            "Emissions avoided, in metric tons, by sector, by year and by program, gross or net, first year or lifecycle.",
+            tuple(catalog.EMISSIONS),
+            sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
         ),
     ]
 }
@@ -174,6 +226,7 @@ class Row:
     key: object  # the view-by value
     values: dict  # series -> metric value
     drill: str = ""  # the link one level down, or "" at the bottom
+    links: list = field(default_factory=list)  # (text, href): the program page, each series' records
 
     def value(self, series):
         return self.values.get(series)
@@ -225,8 +278,8 @@ class Comparison:
         return out
 
 
-def compare(view: View, by: str | None = None) -> Comparison:
-    """Each series grouped by the view-by dimension (or `by`, for a page's fixed section)."""
+def compare(view: View, by: str | None = None, drill: tuple[str, str] = ("", "")) -> Comparison:
+    """Each series grouped by the view-by dimension (or `by`, for a page's fixed section). `drill` sends rows to another page."""
     by = by or view.by
     results = {s: dq.run(replace(view.for_series(s), by=(by,))) for s in view.series}
     code = view.metric.code
@@ -235,12 +288,21 @@ def compare(view: View, by: str | None = None) -> Comparison:
         for row in r.rows:
             key = row[by]
             keyed.setdefault(key, Row(key, {})).values[s] = row[code]
-    next_by = DRILL.get(by)
-    overview = view.page.slug != "overview" and not view.page.view_by
+    target, next_by = drill if drill[0] else ("" if view.page.view_by else "overview", DRILL.get(by))
     for row in keyed.values():
         if next_by and row.key is not None and by != "year":
             changes = {by: str(row.key), "by": next_by}
-            row.drill = ("/data/overview/" if overview else "") + view.link(**changes)
+            if target != view.page.slug and target:
+                changes |= {"metric": view.metric_choice if view.metric_choice in PAGES[target].metrics else None}
+            row.drill = (f"/data/{target}/" if target and target != view.page.slug else "") + view.link(**changes)
+        if row.key is not None and by == "program":
+            row.links.append(("Program page", f"/programs/{row.key}/"))
+        if row.key is not None and by == "measure":
+            for s in results:
+                q = view.for_series(s)
+                filters = dict(q.filters) | {"measure": (str(row.key),)}
+                qs = replace(q, by=(), filters=tuple(filters.items())).query_string(view.page.exclude)
+                row.links.append((f"{SERIES[s][0]} records", f"/data/records/?{qs}"))
     first = view.series[-1]  # claims when shown, else forecast: the chart's and the table's order
     if by == "year":
         rows = sorted(keyed.values(), key=lambda r: (r.key is None, r.key or 0))
@@ -335,17 +397,20 @@ def filings() -> list[tuple[str, str]]:
 # --- chart geometry (server-rendered SVG, no script)
 
 
-def chart(comparison: Comparison) -> dict:
+def chart(comparison: Comparison, limit: int = 0) -> dict:
     """Horizontal bars, one group per row and one bar per series, as percentages of the plot width: a zero line where values change
     sign, each bar from zero to its value. The labels and values are HTML beside the bars (they reflow at 320 px); the table below
     is the text alternative."""
     series = list(comparison.results)
-    values = [r.values.get(s) for r in comparison.rows for s in series if r.values.get(s) is not None]
+    values = [
+        r.values.get(s) for r in (comparison.rows[:limit] if limit else comparison.rows) for s in series if r.values.get(s) is not None
+    ]
     low, high = min([0, *values]), max([0, *values])
     span = (high - low) or 1
     zero = 100 * (0 - low) / span
     groups = []
-    for r in comparison.rows:
+    shown = comparison.rows[:limit] if limit else comparison.rows
+    for r in shown:
         bars = []
         for i, s in enumerate(series):
             v = r.values.get(s)
@@ -361,4 +426,6 @@ def chart(comparison: Comparison) -> dict:
         "zero": round(zero, 3),
         "negative": low < 0,
         "height": 14 * len(series),
+        "limited": len(shown) < len(comparison.rows),
+        "shown": len(shown),
     }

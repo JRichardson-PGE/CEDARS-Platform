@@ -206,5 +206,121 @@ def test_the_total_system_benefit_page(both, client):
     page = client.get("/data/total-system-benefit/").content.decode()
     for caption in ("by primary sector", "by year", "share of each PA", "by program"):
         assert caption in page
-    assert 'href="/data/overview/?sector=Residential&amp;by=program"' in page
+    assert 'href="/data/overview/?sector=Residential&amp;by=program&amp;metric=tsb"' in page
     assert "View by" not in page
+
+
+def test_the_cost_effectiveness_page(both, client):
+    from cedars.modules.data import dashboard as d
+
+    page = d.PAGES["cost-effectiveness"]
+    assert page.metrics[:2] == ("trc", "trc_no_admin") and len(page.metrics) == 10
+    c = d.compare(d.parse(page, _qd({})), "sector")
+    assert {r.key: r.values["claims"] for r in c.rows} == {"Residential": 1.0, "Commercial": 2.0}
+    assert c.totals.values["claims"] == pytest.approx(240 / 220)  # from sums, not the mean of 1.0 and 2.0
+    html = client.get("/data/cost-effectiveness/?metric=pac").content.decode()
+    assert "PAC ratio" in html and "% of forecast" not in html and "Claimed less forecast" in html  # no % of a ratio
+    assert client.get("/data/cost-effectiveness/?metric=tsb").status_code == 200  # refused in words, not an error page
+
+
+def test_the_savings_and_environment_pages(both, client):
+    from cedars.modules.data import dashboard as d
+
+    view = d.parse(d.PAGES["energy-savings"], _qd({"metric": "kwh", "lifecycle": "1", "gross": "1"}))
+    assert view.metric.code == "kwh_lifecycle_gross"
+    assert d.parse(d.PAGES["energy-savings"], _qd({"metric": "kw", "lifecycle": "1"})).metric.code == "kw_first_year_net"
+    assert d.parse(d.PAGES["environmental-impact"], _qd({"metric": "nox"})).metric.code == "nox_first_year_net"
+    html = client.get("/data/energy-savings/?metric=therms").content.decode()
+    assert "Gas savings, first year net (MMTherms) by primary sector" in html
+    assert "(metric tons) by year" in client.get("/data/environmental-impact/").content.decode()
+
+
+def test_program_and_measure_pages_drill_to_the_records(both, client):
+    from cedars.modules.data import dashboard as d
+
+    programs = d.compare(d.parse(d.PAGES["programs"], _qd({})), "program", ("measures", "use_category"))
+    hvac = programs.rows[0]
+    assert hvac.key == "PGE_Res_HVAC" and hvac.drill == "/data/measures/?program=PGE_Res_HVAC&by=use_category&metric=tsb"
+    assert hvac.links == [("Program page", "/programs/PGE_Res_HVAC/")]
+    measures = d.compare(d.parse(d.PAGES["measures"], _qd({"program": "PGE_Res_HVAC"})), "measure")
+    assert [r.key for r in measures.rows] == [None]  # the test file has no MeasureID column
+    html = client.get("/data/programs/").content.decode()
+    assert "Program page" in html and 'href="/data/measures/?program=PGE_Res_HVAC&amp;by=use_category&amp;metric=tsb"' in html
+
+
+def test_records_sum_to_the_row_they_came_from(both, client):
+    from cedars.modules.data import query as dq
+
+    q = dq.Query("claims", ("tsb", "kwh_first_year_net"), filters=(("program", ("PGE_Res_HVAC",)),))
+    recs = dq.records(q, limit=1)
+    assert recs.count == 2 and len(recs.rows) == 1 and recs.rows[0]["CEInputID"] == "M0"
+    assert recs.result.totals["tsb"] == 150 == dq.run(q.but(by=("program",))).rows[0]["tsb"]
+    assert dq.records(q, limit=1, offset=1).rows[0]["tsb"] == 50
+    page = client.get("/data/records/?dataset=claims&metric=tsb&program=PGE_Res_HVAC").content.decode()
+    assert "Claimed records" in page and "M0" in page and "M1" in page and "Total of all 2" in page and "150" in page
+    forecast = client.get("/data/records/?dataset=forecast&metric=tsb&program=PGE_Res_HVAC").content.decode()
+    assert "Forecast records" in forecast and "300" in forecast
+    assert "could not be shown" in client.get("/data/records/?metric=nope").content.decode()
+    assert "No records match." in client.get("/data/records/?metric=tsb&program=NOPE").content.decode()
+
+
+def test_records_page_through(both, client, monkeypatch):
+    from cedars.modules.data import views
+
+    monkeypatch.setattr(views, "RECORDS_PER_PAGE", 1)
+    first = client.get("/data/records/?metric=tsb").content.decode()
+    assert "Records 1 to 1 of 3" in first and "page=2" in first and "Previous" not in first
+    last = client.get("/data/records/?metric=tsb&page=3").content.decode()
+    assert "Records 3 to 3 of 3" in last and "Next" not in last
+
+
+def test_budget_and_spending(both, pge, monkeypatch, client):
+    from decimal import Decimal
+
+    from cedars.modules.data import budget_view
+    from cedars.services.registry import service as registry
+
+    def budget(org, cycle):
+        assert (cycle.first_year, cycle.last_year) == (2028, 2031)
+        return [
+            {"prg_id": "PGE_Res_HVAC", "year": 2028, "operating": Decimal(200)},
+            {"prg_id": "PGE_Com_Lt", "year": 2028, "operating": Decimal(50)},
+            {"prg_id": "PGE_Res_HVAC", "year": 2029, "operating": Decimal(250)},
+        ]
+
+    def spend(org, year):
+        return [{"prg_id": "PGE_Res_HVAC", "ytd": Decimal(60), "through": "2028-06"}] if year == 2028 else []
+
+    monkeypatch.setattr(registry, "_operating_budget_sources", [budget])
+    monkeypatch.setattr(registry, "_reported_spend_sources", [spend])
+    view = d_parse("budget", year_from="2028", year_to="2029", pa="PGE")
+    s = budget_view.compare(view)
+    assert s.organisations == ["PGE"]
+    y28, y29 = s.by_year
+    assert (y28.budget, y28.monthly, y28.values) == (250, 60, {"forecast": 220.0, "claims": 110.0})  # pension and C&S left out
+    assert y28.claimed_share == 44 and y28.through == "PGE 2028-06"
+    assert (y29.budget, y29.values["claims"], y29.cumulative_budget, y29.cumulative_claims) == (250, None, 500, 110)
+    hvac = next(r for r in s.by_program if r.key == "PGE_Res_HVAC")
+    assert (hvac.budget, hvac.monthly, hvac.values["claims"], hvac.monthly_share) == (450, 60, 100.0, 60 / 450 * 100)
+    by_sector = {r["sector"]: r for r in s.elements.rows}
+    assert by_sector["Residential"]["incentives"] == 50 and by_sector["Residential"]["expenditure"] == 100
+    g = budget_view.chart(s)
+    assert g["goal"] == "Operating budget" and g["groups"][0]["goal"] == 100.0
+    page = client.get("/data/budget/?year_from=2028&year_to=2029&pa=PGE").content.decode()
+    assert "Monthly reported (unvalidated)" in page and "through PGE 2028-06" in page and "Cost elements by primary sector, claimed" in page
+    assert "not yet validated" in page
+
+
+def test_budget_page_without_budgets(both, client):
+    page = client.get("/data/budget/?year_from=2040&year_to=2040").content.decode()
+    assert "No filing cycle covers these years" in page
+
+
+def d_parse(slug, **params):
+    return dashboard.parse(dashboard.PAGES[slug], _qd(params))
+
+
+def test_monthly_reports_give_their_spending_to_the_registry(pge):
+    from cedars.services.registry import service as registry
+
+    assert registry.reported_spend(pge, 2028) == []  # the Monthly reports module's source, with nothing published

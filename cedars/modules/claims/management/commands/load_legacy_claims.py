@@ -12,9 +12,18 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--year", action="append", type=int, choices=list(legacy.YEARS), help="load only this year (repeatable)")
+        parser.add_argument(
+            "--rebuild-benefits",
+            action="store_true",
+            help="load nothing: correct the TRC / PAC / RIM benefits of the claim years already loaded (then snapshot_legacy --replace)",
+        )
         parser.add_argument("--pa", default="", help="load only this PA's claims (SW: the statewide unallocated claims)")
 
-    def handle(self, *args, year=None, pa="", **options):
+    def handle(self, *args, year=None, pa="", rebuild_benefits=False, **options):
+        if rebuild_benefits:
+            for line in legacy.rebuild_benefits():
+                self.stdout.write(line)
+            return
         refused = False
         for y in year or list(legacy.YEARS):
             try:

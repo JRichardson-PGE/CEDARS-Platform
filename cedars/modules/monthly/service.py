@@ -672,6 +672,26 @@ def on_unpublish(v: SubmissionVersion) -> None:
     """Un-confirmed before the due date: nothing is kept apart from the version, which goes back to validated."""
 
 
+def reported_spend(organisation, year: int) -> list[dict]:
+    """The PA's latest published report of the year: each program's year-to-date expenditure (registry.reported_spend)."""
+    versions = SubmissionVersion.objects.filter(
+        submission__organisation=organisation,
+        submission__deadline__module="monthly",
+        submission__deadline__period__year=year,
+        status=SubmissionVersion.Status.PUBLISHED,
+    ).select_related("submission__deadline__period")
+    standing = [v for v in versions if (c := submissions.current(v.submission)) is not None and c.pk == v.pk]
+    if not standing:
+        return []
+    latest = max(standing, key=lambda v: v.submission.deadline.period.ends)
+    period = latest.submission.deadline.period
+    through = f"{period.year}-{period.number:02d}"
+    return [
+        {"prg_id": ln.prg_id, "ytd": Decimal(ln.values.get("YTDExpenditures", "0")), "through": through}
+        for ln in latest.monthly_lines.filter(table=ReportLine.Table.SPEND)
+    ]
+
+
 # --- a report by program, against the operating budget
 
 

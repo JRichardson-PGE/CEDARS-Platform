@@ -11,9 +11,18 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--filing", action="append", choices=list(legacy.BY_KEY), help="load only this filing (repeatable)")
+        parser.add_argument(
+            "--rebuild-benefits",
+            action="store_true",
+            help="load nothing: correct the TRC / PAC / RIM benefits of the filings already loaded (then snapshot_legacy --replace)",
+        )
         parser.add_argument("--pa", default="", help="load only this PA's filings")
 
-    def handle(self, *args, filing=None, pa="", **options):
+    def handle(self, *args, filing=None, pa="", rebuild_benefits=False, **options):
+        if rebuild_benefits:
+            for line in legacy.rebuild_benefits():
+                self.stdout.write(line)
+            return
         refused = False
         for f in filing or [x.key for x in legacy.FILINGS]:
             try:
