@@ -14,7 +14,6 @@ from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.audit.models import AuditEvent
 from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -56,19 +55,6 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
             raise Http404
         return org
     return request.organisation
-
-
-def _pricing_run(v: SubmissionVersion) -> str | None:
-    """The run started for the version since its records last changed, while it has not finished."""
-    if v.calculation:
-        return None
-    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
-    last = (
-        events.filter(action__in=["submission.pricing_started", "submission.files_attached", "submission.validated"])
-        .order_by("-id")
-        .first()
-    )
-    return (last.after or {}).get("run") if last and last.action == "submission.pricing_started" else None
 
 
 def _money(x) -> str:
@@ -213,7 +199,7 @@ def period(request, pk):
         "tables": spec.TABLES,
     }
     if v is not None:
-        ctx["pricing_run"] = _pricing_run(v)
+        ctx["pricing_run"] = service.pricing_run(v)
         ctx["priced"] = service.priced(v)
         ctx["stale"] = service.stale(v)
         ctx["file"] = service.own_file(v)

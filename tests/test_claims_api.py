@@ -1,9 +1,11 @@
 from datetime import timedelta
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
 from django.utils import timezone
 
+from cedars.core import storage
 from cedars.modules.calculations.models import Run
 from cedars.modules.claims import service
 from cedars.modules.claims.models import ChangeLetter
@@ -41,6 +43,10 @@ def outsider(make_user, cpuc_admin, programs):  # noqa: F811
     access.grant(cpuc_admin, admin, sce, "org.admin", reason="first admin")
     access.grant(admin, u, sce, "claims.read")
     return tokens.create_token(u, sce, name="sce", scopes=["claims"], days=30)[1]
+
+
+def storage_bytes(key: str) -> bytes:
+    return storage.store("uploads").get_bytes(key)
 
 
 def q2() -> bytes:
@@ -153,7 +159,11 @@ def test_the_openapi_description_lists_the_claims_api(client):
     assert {
         "/api/v1/claims/years",
         "/api/v1/claims/periods/{id}",
+        "/api/v1/claims/periods/{id}/upload",
         "/api/v1/claims/versions/{id}",
+        "/api/v1/claims/versions/{id}/check",
+        "/api/v1/claims/versions/{id}/price",
+        "/api/v1/claims/versions/{id}/confirm",
         "/api/v1/claims/versions/{id}/findings",
         "/api/v1/claims/versions/{id}/results",
         "/api/v1/claims/versions/{id}/files/{which}",
@@ -161,3 +171,81 @@ def test_the_openapi_description_lists_the_claims_api(client):
         "/api/v1/claims/changes/{id}",
         "/api/v1/claims/claims/{claim_id}/chain",
     } <= set(schema["paths"])
+
+
+# --- writes
+
+
+def post(key, path, data=None, **kw):
+    return Client().post(path if path.startswith("http") else API + path, data or {}, **bearer(key), **kw)
+
+
+def upload_file(key, d, content: bytes, name="claims.zip"):
+    return post(key, f"/periods/{d.pk}/upload", {"file": SimpleUploadedFile(name, content)})
+
+
+def test_a_pa_uploads_checks_prices_and_confirms_through_the_api(key, outsider, filer, year, pge, release, make_user, pge_admin):  # noqa: F811
+    q1_deadline = deadline()
+    assert upload_file(key, q1_deadline, b"not a zip").status_code == 400
+
+    # upload: checked at once, the version's url in Location
+    up = upload_file(key, q1_deadline, q1())
+    assert up.status_code == 201, up.json()
+    v = up.json()
+    assert v["status"] == "validated" and v["number"] == 1 and up["Location"] == v["url"]
+    assert v["check"]["rejected"] == 0 and not v["priced"] and v["pricing_run"] is None and v["stale"] is False
+
+    # confirming needs a finished run; pricing starts one, once
+    refused = post(key, f"/versions/{v['id']}/confirm")
+    assert refused.status_code == 409 and "Price this version first" in refused.json()["detail"]
+    priced = post(key, f"/versions/{v['id']}/price")
+    assert priced.status_code == 202, priced.json()
+    run = priced.json()["pricing_run"]
+    assert run["url"].endswith(f"/api/v1/calculations/runs/{run['id']}")
+    assert post(key, f"/versions/{v['id']}/price").status_code == 409
+    again = post(key, f"/versions/{v['id']}/price", {"again": True}, content_type="application/json")
+    assert again.status_code == 202 and again.json()["pricing_run"]["id"] != run["id"]
+    finish_run(Run.objects.get(pk=again.json()["pricing_run"]["id"]))
+    assert get(key, f"/versions/{v['id']}").json()["priced"] is True
+    assert post(key, f"/versions/{v['id']}/price").status_code == 409
+
+    # who may: another organisation's token sees no unpublished version; a reader cannot confirm; a token needs the claims scope
+    assert post(outsider, f"/versions/{v['id']}/confirm").status_code == 404
+    assert upload_file(outsider, q1_deadline, q1()).status_code == 403
+    reader = make_user("reader@pge.com")
+    access.grant(pge_admin, reader, pge, "claims.read")
+    reader_key = tokens.create_token(reader, pge, name="r", scopes=["claims"], days=30)[1]
+    assert post(reader_key, f"/versions/{v['id']}/confirm").status_code == 403
+    assert post(reader_key, f"/versions/{v['id']}/price", {"again": True}, content_type="application/json").status_code == 403
+    calc_key = tokens.create_token(filer, pge, name="calcs", scopes=["calculations"], days=30)[1]
+    assert post(calc_key, f"/versions/{v['id']}/confirm").status_code == 403
+    assert upload_file(calc_key, q1_deadline, q1()).status_code == 403
+    assert Client().post(f"{API}/versions/{v['id']}/confirm").status_code in (401, 403)
+
+    # confirm: published; a confirmed version is neither checked again nor uploaded over, and its files are untouched
+    done = post(key, f"/versions/{v['id']}/confirm")
+    assert done.status_code == 200, done.json()
+    assert done.json()["status"] == "published" and done.json()["confirmed_by"] == filer.email
+    published = SubmissionVersion.objects.get(pk=v["id"])
+    findings_key = published.findings["compiled_key"]
+    before = storage_bytes(findings_key)
+    assert post(key, f"/versions/{v['id']}/check").status_code == 409
+    assert storage_bytes(findings_key) == before
+    assert upload_file(key, q1_deadline, q1()).status_code == 409
+
+    # the next quarter, checked again when asked
+    up2 = upload_file(key, deadline("Q2 claim"), q2())
+    assert up2.status_code == 201 and up2.json()["status"] == "validated", up2.json()
+    rechecked = post(key, f"/versions/{up2.json()['id']}/check")
+    assert rechecked.status_code == 200 and rechecked.json()["check"]["base_label"] == "2028 Q1 claim version 1"
+
+
+def test_a_step_acts_only_on_the_confirmations_latest_version(key, filer, year, pge, programs, release, cpuc_admin):  # noqa: F811
+    v1 = confirmed(filer, pge, q1())
+    submissions.move_deadline(cpuc_admin, deadline(), timezone.now() - timedelta(days=1), "test")
+    submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
+    v2 = service.request_reopen(filer, v1.submission, "a correction")
+    for step in ("check", "price", "confirm"):
+        r = post(key, f"/versions/{v1.pk}/{step}")
+        assert r.status_code == 409 and f"version {v2.number} is" in r.json()["detail"], step
+    assert post(key, f"/versions/{v2.pk}/check").status_code == 200

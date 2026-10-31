@@ -1,28 +1,38 @@
-"""The claims submissions API, read-only first (decision J: the submissions API with claims, read-only endpoints before writes): the
-claim years and their confirmations, a PA's versions with their check results, findings, results by program and published files, the
-change letters, and NMEC chains. A call acts for one organisation, the API token's (or the session's active one), and reads what the
-pages show it: its own organisation's versions with claims.read, .submit or .confirm there, every organisation's from the CPUC with
-claims.read or .approve, and every published version (public to signed-in users, BR-05.9). A token reaches claims only with the claims
-scope, and never the PII vault."""
+"""The claims submissions API (decision J: the submissions API with claims, read-only endpoints first, writes staged after them).
+
+Reads: the claim years and their confirmations, a PA's versions with their check results, findings, results by program and published
+files, the change letters, and NMEC chains. A call acts for one organisation, the API token's (or the session's active one), and reads
+what the pages show it: its own organisation's versions with claims.read, .submit or .confirm there, every organisation's from the CPUC
+with claims.read or .approve, and every published version (public to signed-in users, BR-05.9).
+
+Writes, the period page's steps for the organisation the call acts for: upload a confirmation's claims (checked at once), check the
+latest version again, price it, confirm it. Each runs the same service function as the page, so the same rules hold (quarters in
+order, a priced version on exactly its records, a stale version checked again); check, price and confirm name the version and act
+only on the confirmation's latest one, so a client confirms exactly what it reviewed. Upload, check and price need claims.submit,
+confirm claims.confirm. A refusal is 409 with the service's message; an unreadable file is 400. A token reaches claims only with the
+claims scope, and never the PII vault (PII files are uploaded on the period page)."""
 
 import mimetypes
 
 from django.http import FileResponse, Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
-from rest_framework import serializers
-from rest_framework.decorators import api_view
+from rest_framework import serializers, status
+from rest_framework.decorators import api_view, parser_classes
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from cedars.core import api, storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
+from cedars.services.accounts.service import AccessDenied
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
-from . import service
+from . import service, spec
 from .models import FILED_TOTALS, PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
+from .upload import UploadError
 
 MODULE = "claims"
 PER_PAGE = 500
@@ -142,6 +152,8 @@ def version_json(request, v: SubmissionVersion, detail: bool = True) -> dict:
                 )
             },
             "priced": t.priced,
+            "stale": service.stale(v),
+            "pricing_run": _run_json(request, service.pricing_run(v)),
             "calculation": {k: (v.calculation or {}).get(k) for k in ("run", "acc", "release")} if v.calculation else None,
             "totals": {
                 "claims": t.total.claims,
@@ -161,6 +173,16 @@ def version_json(request, v: SubmissionVersion, detail: bool = True) -> dict:
         }
     )
     return out
+
+
+def _run_json(request, run: str | None) -> dict | None:
+    if not run:
+        return None
+    return {
+        "id": run,
+        "url": request.build_absolute_uri(f"/api/v1/calculations/runs/{run}"),
+        "page": request.build_absolute_uri(f"/calculations/runs/{run}/"),
+    }
 
 
 def _row(r) -> dict:
@@ -421,3 +443,142 @@ def chain(request, claim_id):
             ],
         }
     )
+
+
+# --- writes: the period page's steps, for the organisation the call acts for
+
+
+class _Conflict(Exception):
+    """A step the version's state does not allow (409)."""
+
+
+def _acting(request, organisation, permission: str) -> None:
+    """The call acts for the organisation and may use the permission there (a token: the user holds it now and has the claims scope)."""
+    _require_scope(request)
+    acting = api.organisation(request)
+    if acting is None:
+        raise PermissionDenied("The call acts for no organisation.")
+    if acting != organisation or not api.allowed(request, f"{MODULE}.{permission}"):
+        raise PermissionDenied(f"This call needs {MODULE}.{permission} in {organisation.code}.")
+
+
+def _latest_version(request, pk, permission: str) -> SubmissionVersion:
+    """The version named, which must be its confirmation's latest: a step never acts on a version that a later one has replaced."""
+    v = _version(request, pk)
+    _acting(request, v.submission.organisation, permission)
+    latest = submissions.latest(v.submission)
+    if latest is not None and latest.pk != v.pk:
+        raise _Conflict(f"Version {v.number} is not this confirmation's latest; version {latest.number} is.")
+    return v
+
+
+def _refused(e: Exception) -> Response:
+    code = status.HTTP_400_BAD_REQUEST if isinstance(e, UploadError) else status.HTTP_409_CONFLICT
+    return Response({"detail": str(e)}, status=code)
+
+
+def _done(request, v: SubmissionVersion, code=status.HTTP_200_OK) -> Response:
+    v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation", "confirmed_by").get(pk=v.pk)
+    body = version_json(request, v)
+    return Response(body, status=code, headers={"Location": body["url"]} if code == status.HTTP_201_CREATED else None)
+
+
+Refusal = inline_serializer("ClaimsRefusal", {"detail": serializers.CharField()})
+Version = inline_serializer("ClaimsVersionAfterStep", {})
+
+
+class UploadClaims(serializers.Serializer):
+    file = serializers.FileField(
+        help_text=f"A .zip of the claims tables as CSV files named after them ({', '.join(t + '.csv' for t in spec.TABLES)}; comma- or "
+        "pipe-delimited), or a workbook (.xlsx) with a sheet per table: the records new or changed since the last confirmed quarter. "
+        "No PII tables."
+    )
+
+
+@extend_schema(
+    summary="Upload a confirmation's claims",
+    description="Starts the organisation's submission for the confirmation (or uses its open version), keeps the file as that version's "
+    "records and checks it at once against the year to date. 201 with the version: status validated when nothing is rejected, else "
+    "draft with its findings. The earlier confirmations must be confirmed first.",
+    request={"multipart/form-data": UploadClaims},
+    responses={201: Version, 400: Refusal, 403: Refusal, 409: Refusal},
+)
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser])
+def upload(request, pk):
+    d = _deadline(pk)
+    org = api.organisation(request)
+    _acting(request, org, "submit")
+    form = UploadClaims(data=request.data)
+    form.is_valid(raise_exception=True)
+    f = form.validated_data["file"]
+    try:
+        v = service.upload_claims(request.user, d, org, f.read(), f.name)
+    except (AccessDenied, UploadError) as e:
+        return _refused(e)
+    return _done(request, v, status.HTTP_201_CREATED)
+
+
+@extend_schema(
+    summary="Check the latest version again",
+    description="Compiles the version's records over the year to date as it stands now and runs the checks again: what to do when an "
+    "earlier confirmation has changed since (the version's `stale`).",
+    request=None,
+    responses={200: Version, 403: Refusal, 409: Refusal},
+)
+@api_view(["POST"])
+def check(request, pk):
+    try:
+        v = service.check(request.user, _latest_version(request, pk, "submit"))
+    except (AccessDenied, UploadError, _Conflict) as e:
+        return _refused(e)
+    return _done(request, v)
+
+
+class PriceClaims(serializers.Serializer):
+    again = serializers.BooleanField(
+        default=False, help_text="Start another run although one was started since the records last changed (e.g. it failed)"
+    )
+
+
+@extend_schema(
+    summary="Price the latest version's year to date",
+    description="Starts the calculation run on the year's ACC (and allocation version) for a validated version. 202 with the version; "
+    "its `pricing_run` is the run (readable in the calculations API with a calculations-scoped token, or on its page). When the run "
+    "finishes the version's `priced` is true and it can be confirmed. A version already priced on its records, or with a run started "
+    "since they changed, is refused unless `again` is set.",
+    request={"application/json": PriceClaims, "multipart/form-data": PriceClaims},
+    responses={202: Version, 403: Refusal, 409: Refusal},
+)
+@api_view(["POST"])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def price(request, pk):
+    form = PriceClaims(data=request.data)
+    form.is_valid(raise_exception=True)
+    try:
+        v = _latest_version(request, pk, "submit")
+        if service.priced(v):
+            raise _Conflict("This version is already priced on exactly these records; confirm it.")
+        run = service.pricing_run(v)
+        if run and not form.validated_data["again"]:
+            raise _Conflict(f"Run {run} was started for these records; follow it, or set again to start another.")
+        service.price(request.user, v)
+    except (AccessDenied, _Conflict) as e:
+        return _refused(e)
+    return _done(request, v, status.HTTP_202_ACCEPTED)
+
+
+@extend_schema(
+    summary="Confirm the latest version",
+    description="The sign-off on exactly the priced results: the version is confirmed and published at once (its compiled inputs, own "
+    "upload, job, spec and receipt; BR-05.9). Needs claims.confirm.",
+    request=None,
+    responses={200: Version, 403: Refusal, 409: Refusal},
+)
+@api_view(["POST"])
+def confirm(request, pk):
+    try:
+        v = service.confirm(request.user, _latest_version(request, pk, "confirm"))
+    except (AccessDenied, _Conflict) as e:
+        return _refused(e)
+    return _done(request, v)
