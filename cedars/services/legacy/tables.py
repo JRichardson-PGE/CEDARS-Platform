@@ -232,6 +232,9 @@ def add_program_history(programs_table, org: Organisation | None, reason: str, *
 # the avoided costs; RIM's bill losses are a cost), as CEDARS' published RIM ratios show.
 NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
 BENEFIT_PARTS = {"TRCBen": ("ElecBen", "GasBen", "OtherBen"), "PACBen": ("ElecBen", "GasBen"), "RIMBen": ("ElecBen", "GasBen")}
+# Where the layout files PAC's benefits (claims from 2023: "PAC Benefits", which can exceed ElecBen + GasBen with that layout's further
+# benefit columns), CEDARS builds TRC's and RIM's on it: TRC = PAC Benefits + Other Benefits (2023 SCG's published TRC ratios exactly).
+PARTS_ON_PAC = {"TRCBen": ("PACBen", "OtherBen"), "RIMBen": ("PACBen",)}
 
 
 @dataclass
@@ -254,7 +257,8 @@ def benefits(columns: dict) -> dict[str, Benefit]:
         if ben in columns:
             out[ben] = Benefit(columns[ben], from_ratio, "filed")
             continue
-        parts = [c for c in BENEFIT_PARTS[ben] if c in columns]
+        spec = PARTS_ON_PAC[ben] if "PACBen" in columns and ben in PARTS_ON_PAC else BENEFIT_PARTS[ben]
+        parts = [c for c in spec if c in columns]
         present = None
         for c in parts:
             present = pc.is_valid(columns[c]) if present is None else pc.or_(present, pc.is_valid(columns[c]))

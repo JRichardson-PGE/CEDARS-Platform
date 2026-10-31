@@ -136,6 +136,11 @@ def test_benefits_come_from_the_benefit_columns_and_fall_back_to_ratio_times_cos
     assert b["RIMBen"].values.to_pylist() == [7.0, 7.0, 7.0] and b["RIMBen"].source == "filed"
     rim = tables.benefits({k: cols[k] for k in ("ElecBen", "GasBen", "RIMRatio", "RIMCost")})["RIMBen"]  # PAC's parts
     assert rim.values.to_pylist() == [40.0, 4.0, 8.0]
+    on_pac = tables.benefits(
+        {**{k: cols[k] for k in ("ElecBen", "GasBen", "OtherBen", "TRCRatio", "TRCCost")}, "PACBen": pa.array([60.0, None, 9.0])}
+    )
+    assert on_pac["TRCBen"].values.to_pylist() == [65.0, 20.0, 9.0]  # PAC Benefits + Other Benefits, not ElecBen + GasBen + OtherBen
+    assert on_pac["RIMBen"].values.to_pylist() == [60.0, 0.0, 9.0]
     only_ratios = tables.benefits({k: v for k, v in cols.items() if k not in ("ElecBen", "GasBen", "OtherBen", "RIMBen")})
     assert only_ratios["TRCBen"].source == "ratio x cost" and only_ratios["RIMBen"].values.to_pylist() == [3.0, 4.0, 5.0]
 
