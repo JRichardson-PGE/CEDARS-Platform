@@ -1,7 +1,10 @@
 from django.db import connection
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
+
+from . import help as site_help
 
 # What the platform will hold, in the order the phases deliver it (architecture page, "Phasing toward program year 2028").
 MODULES = [
@@ -18,6 +21,34 @@ MODULES = [
 
 def about(request):
     return render(request, "core/about.html", {"modules": MODULES})
+
+
+@require_GET
+def help_index(request):
+    return render(request, "core/help/index.html", {"guides": site_help.GUIDES, "support": site_help.support()})
+
+
+@require_GET
+def help_guide(request, slug):
+    guide = site_help.BY_SLUG.get(slug)
+    if guide is None:
+        raise Http404
+    return render(
+        request,
+        f"core/help/{slug}.html",
+        {"guide": guide, "guides": site_help.GUIDES, "support": site_help.support()},
+    )
+
+
+@require_GET
+def help_contact(request):
+    return render(request, "core/help/contact.html", {"support": site_help.support()})
+
+
+@require_GET
+def help_tour(request):
+    """The tour as one page: every step, for anyone without scripts or who would rather read it."""
+    return render(request, "core/help/tour.html", {"tour": site_help.tour_steps(site_help.visitor(request))})
 
 
 @never_cache

@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Tour of CEDARS{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'core:help' %}">Help</a></p>
+<h1>Tour of CEDARS</h1>
+<p>The tour's steps on one page. On the front page the same steps are shown one at a time beside the part of the page each describes.</p>
+<div class="actions"><a class="button primary" href="{% url 'core:home' %}?tour=1">Start the tour on the front page</a></div>
+<ol class="tour-list">
+  {% for step in tour %}
+  <li>
+    <h2>{{ step.title }}</h2>
+    <p>{{ step.text }}</p>
+    {% if step.link %}<p><a href="{{ step.link }}">{{ step.link_text }}</a></p>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% endblock %}

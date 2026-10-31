@@ -6,6 +6,9 @@ def platform(request):
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
         from cedars.services.accounts import service
+        from cedars.services.accounts.middleware import mfa_pending
+
+        ctx["mfa_pending"] = mfa_pending(request)
 
         orgs = getattr(request, "user_organisations", [])
         ctx["nav"] = {

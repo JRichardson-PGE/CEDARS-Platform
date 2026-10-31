@@ -8,6 +8,26 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}."""
 
 PAGES = [
+    ("home", "/", None),
+    ("home-signed-in", "/", "pge_admin"),
+    ("home-earlier-cycle", "/?cycle=2024-2027", None),
+    ("help", "/help/", None),
+    ("help-contact", "/help/contact/", None),
+    ("help-tour", "/help/tour/", None),
+    ("help-tour-signed-in", "/help/tour/", "analyst"),
+    *[
+        (f"help-{slug}", f"/help/{slug}/", None)
+        for slug in (
+            "getting-started",
+            "published-data",
+            "programs",
+            "budgets",
+            "claims",
+            "monthly-reports",
+            "calculations",
+            "accessibility",
+        )
+    ],
     ("about", "/about/", None),
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
