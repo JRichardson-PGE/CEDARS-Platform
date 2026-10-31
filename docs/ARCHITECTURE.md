@@ -161,7 +161,8 @@ how far it is built. Update the Status column in the PR that changes it.
   queued or running too long, failed jobs, the eTRM sync: failed, or no success for 36 hours), Documents (files not yet searchable by
   their text), Notifications (emails that failed). Thresholds are `HEALTH_*` settings. `/admin/health/` (CPUC system administrators,
   "Jobs and health" in the menu) shows them failing first; `manage.py check_health`, every 10 minutes in Terraform, alerts every system
-  administrator once for each new set of things failing and prints the JSON line CloudWatch's alarms read (`monitoring.tf`).
+  administrator once for each new set of things failing and prints the JSON line CloudWatch's alarms read (`monitoring.tf`, which also alarms when
+  the profile-jobs or calculations-sync service has no task running).
 - Output templates (BR-06.10; `calculations/output_templates.py`, page `/calculations/templates/`) name fields of the published field
   catalog (Measure inputs and outputs; CET and older names saved as the canonical name). Templates with no owner are offered to everyone
   and kept by CPUC system administrators (ReCET's two shipped ones added by migration); the rest are their owner's. A run carries the
