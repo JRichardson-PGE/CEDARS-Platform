@@ -18,6 +18,10 @@ class ClaimsConfig(AppConfig):
         register_publisher("claims", service.on_publish, service.on_unpublish)
         register_claims_totals(service.year_totals)
 
+        from cedars.services.notifications.service import register_filing
+
+        register_filing("claims", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
+
         from cedars.services.registry.service import register_program_records
 
         from . import program_page

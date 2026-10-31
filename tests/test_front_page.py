@@ -150,4 +150,5 @@ def test_the_tour_for_each_visitor(client, signed_in, pge_admin):
 
 def test_help_is_open_to_a_password_only_session(signed_in, make_user):
     c = signed_in(make_user("new@example.com"), "password")
-    assert c.get("/").status_code == 200 and c.get("/help/").status_code == 200 and c.get("/help/getting-started/").status_code == 200
+    assert c.get("/help/").status_code == 200 and c.get("/help/getting-started/").status_code == 200
+    assert c.get("/").status_code == 302  # the front page waits for the second factor, as every other page does

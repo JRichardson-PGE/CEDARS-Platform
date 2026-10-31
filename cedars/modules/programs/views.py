@@ -11,6 +11,7 @@ from django.utils import timezone
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.notifications import service as notifications
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationEntry, FilingCycle, Program, ProgramChangeRequest, ProgramVersion
 
@@ -293,6 +294,7 @@ def program(request, prg_id):
             "records": _shown(records),
             "budget_groups": _budget_groups(records["budgets"] or []),
             "query_year": f"?year={year}" if year else "",
+            "following": notifications.follows_program(request.user, p),
         },
     )
 
