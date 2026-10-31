@@ -36,6 +36,46 @@ class AccessDenied(PermissionDenied):
     """A refused access change; str(e) is the plain-language reason."""
 
 
+# Each PA code in CEDARS' Programs list (2026-10-03) and its type. A PA added under one of these codes is typed on creation (importers,
+# legacy loads); any other code is left for a CPUC system administrator to type on its organisation page. Migration
+# accounts/0003_pa_types typed the PAs already in the platform from this table.
+KNOWN_PA_TYPES = {
+    # investor-owned utilities
+    "PGE": "IOU",
+    "SCE": "IOU",
+    "SCG": "IOU",
+    "SDGE": "IOU",
+    # regional energy networks
+    "BAY": "REN",  # Bay Area Regional Energy Network (BayREN)
+    "CCR": "REN",  # Central California Rural Regional Energy Network
+    "IREN": "REN",  # Inland Regional Energy Network
+    "RRN": "REN",  # Rural Regional Energy Network
+    "SCR": "REN",  # Southern California Regional Energy Network (SoCalREN)
+    "SDRN": "REN",  # San Diego Regional Energy Network
+    "TCR": "REN",  # Tri-County Regional Energy Network (3C-REN)
+    # community choice aggregators
+    "AVA": "CCA",  # Ava Community Energy
+    "CPSF": "CCA",  # CleanPowerSF
+    "EBCE": "CCA",  # East Bay Community Energy (now Ava Community Energy)
+    "LCE": "CCA",  # Lancaster Choice Energy
+    "MCE": "CCA",
+    "PCE": "CCA",  # Peninsula Clean Energy
+    "RCEA": "CCA",  # Redwood Coast Energy Authority
+    "SCP": "CCA",  # Sonoma Clean Power
+    "SJCE": "CCA",  # San José Clean Energy
+}
+
+
+def known_pa_type(code: str) -> str:
+    """The type of a PA code CEDARS uses ("IOU", "REN" or "CCA"), or "" for a code not in KNOWN_PA_TYPES."""
+    return KNOWN_PA_TYPES.get((code or "").strip().upper(), "")
+
+
+def pa_types() -> dict[str, str]:
+    """Every typed PA's code and its type, for grouping data by PA type (the dashboards' PA type filter and view)."""
+    return dict(Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(pa_type="").values_list("code", "pa_type"))
+
+
 # --- reading
 
 
@@ -153,8 +193,43 @@ def _guard_last_steward(grant: Grant, what: str) -> None:
 def create_organisation(actor: User | None, *, code: str, name: str, kind: str, pa_type: str = "", federated: bool = False) -> Organisation:
     if actor is not None and not is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator can add an organisation.")
-    org = Organisation.objects.create(code=code.strip().upper(), name=name.strip(), kind=kind, pa_type=pa_type, federated=federated)
+    code = code.strip().upper()
+    if kind == Organisation.Kind.PA and not pa_type:
+        pa_type = known_pa_type(code)  # a CEDARS code is typed as CEDARS has it; any other is left for the CPUC to type
+    org = Organisation.objects.create(code=code, name=name.strip(), kind=kind, pa_type=pa_type, federated=federated)
     audit.record("organisation.created", obj=org, after=audit.snapshot(org), actor=actor)
+    return org
+
+
+ORGANISATION_DETAILS = ["name", "pa_type"]
+
+
+@transaction.atomic
+def change_organisation(actor: User | None, org: Organisation, *, reason: str, **changes) -> Organisation:
+    """Change an organisation's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
+    administrator and refused for any other kind of organisation."""
+    if actor is not None and not is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator can change an organisation's details.")
+    unknown = set(changes) - set(ORGANISATION_DETAILS)
+    if unknown:
+        raise AccessDenied(f"{', '.join(sorted(unknown))} cannot be changed here.")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the change.")
+    pa_type = changes.get("pa_type", org.pa_type)
+    if org.kind == Organisation.Kind.PA and pa_type not in Organisation.PAType.values:
+        raise AccessDenied("A program administrator needs a PA type: IOU, REN or CCA.")
+    if org.kind != Organisation.Kind.PA and pa_type:
+        raise AccessDenied("Only a program administrator has a PA type.")
+    if "name" in changes and not changes["name"].strip():
+        raise AccessDenied("The organisation needs a name.")
+    before = audit.snapshot(org, ORGANISATION_DETAILS)
+    for k, v in changes.items():
+        setattr(org, k, v.strip() if isinstance(v, str) else v)
+    after = audit.snapshot(org, ORGANISATION_DETAILS)
+    if after == before:
+        return org
+    org.save(update_fields=list(changes))
+    audit.record("organisation.changed", obj=org, before=before, after=after, reason=reason, actor=actor)
     return org
 
 

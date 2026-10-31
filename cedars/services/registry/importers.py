@@ -12,7 +12,6 @@ from cedars.services.accounts.models import Organisation
 from . import service
 from .models import Program
 
-IOUS = {"PGE", "SCE", "SCG", "SDGE"}
 TRUE = {"true", "1", "yes", "y", "t"}
 FLAG_COLUMNS = [
     "Resource_Flag",
@@ -46,8 +45,9 @@ def _year(v: str) -> int | None:
 
 @transaction.atomic
 def import_cedars_programs(content: bytes, actor=None) -> dict[str, int]:
-    """Add every program not yet in the registry, as its first version. Organisations missing for a PA code are added (IOUs typed as
-    such; the rest left for the CPUC to type). Existing programs are left alone: changes go through service.change_program."""
+    """Add every program not yet in the registry, as its first version. Organisations missing for a PA code are added, typed IOU, REN
+    or CCA when CEDARS uses the code (accounts.KNOWN_PA_TYPES; the rest left for the CPUC to type). Existing programs are left alone:
+    changes go through service.change_program."""
     rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
     existing = set(Program.objects.values_list("prg_id", flat=True))
     orgs = {o.code: o for o in Organisation.objects.all()}
@@ -62,7 +62,7 @@ def import_cedars_programs(content: bytes, actor=None) -> dict[str, int]:
         if not statewide:
             org = orgs.get(pa)
             if org is None:
-                org = access.create_organisation(actor, code=pa, name=pa, kind="pa", pa_type="IOU" if pa in IOUS else "")
+                org = access.create_organisation(actor, code=pa, name=pa, kind="pa", pa_type=access.known_pa_type(pa))
                 orgs[pa] = org
                 new_orgs += 1
         start = _year(r.get("StartYear", ""))

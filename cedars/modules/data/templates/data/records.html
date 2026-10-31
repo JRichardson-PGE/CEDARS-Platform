@@ -28,10 +28,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
   </label>
   <label>From year <input type="number" name="year_from" min="1990" max="2100" inputmode="numeric" value="{{ q.year_from|default_if_none:'' }}"></label>
   <label>To year <input type="number" name="year_to" min="1990" max="2100" inputmode="numeric" value="{{ q.year_to|default_if_none:'' }}"></label>
-  {% if pas %}<fieldset>
-    <legend>PA <span class="muted small">(none ticked: every PA)</span></legend>
-    {% for pa, checked in pas %}<label class="check"><input type="checkbox" name="pa" value="{{ pa }}"{% if checked %} checked{% endif %}> {{ pa }}</label>{% endfor %}
-  </fieldset>{% endif %}
+  {% include "data/_pa_filter.html" %}
   {% for f in text_filters %}
   <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.value }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">{{ f.help }}</span></label>
   {% endfor %}

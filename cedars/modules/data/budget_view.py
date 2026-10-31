@@ -70,9 +70,9 @@ ELEMENTS = ("incentives", "direct_implementation", "admin_overhead", "admin_othe
 
 
 def organisations(view: View) -> list[Organisation]:
-    codes = view.query.filter_map.get("pa")
     pas = Organisation.objects.filter(kind="pa").order_by("code")
-    return list(pas.filter(code__in=[c.upper() for c in codes]) if codes else pas)
+    codes = dq.selected_pas(view.query, dict(pas.values_list("code", "pa_type")))
+    return list(pas if codes is None else pas.filter(code__in=codes))
 
 
 def compare(view: View) -> Spending:

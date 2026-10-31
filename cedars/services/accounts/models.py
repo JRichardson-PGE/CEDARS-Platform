@@ -57,7 +57,13 @@ class Organisation(models.Model):
     code = models.CharField(max_length=20, unique=True, help_text="Short code used in filings, e.g. PGE, BAYREN")
     name = models.CharField(max_length=200)
     kind = models.CharField(max_length=10, choices=Kind.choices)
-    pa_type = models.CharField("PA type", max_length=3, choices=PAType.choices, blank=True)
+    pa_type = models.CharField(
+        "PA type",
+        max_length=3,
+        choices=PAType.choices,
+        blank=True,
+        help_text="A program administrator's type, for grouping its data (e.g. all RENs); blank for other organisations",
+    )
     federated = models.BooleanField(default=False, help_text="Its members sign in through the organisation's own directory (decision F)")
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)

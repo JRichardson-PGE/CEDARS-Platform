@@ -38,6 +38,31 @@ class OrganisationForm(forms.ModelForm):
     class Meta:
         model = Organisation
         fields = ["code", "name", "kind", "pa_type", "federated", "federation_provider"]
+        help_texts = {"pa_type": "Required for a program administrator: IOU, REN or CCA. Leave blank for the CPUC or another organisation."}
+
+    def clean(self):
+        d = super().clean()
+        if d.get("kind") == Organisation.Kind.PA and not d.get("pa_type"):
+            self.add_error("pa_type", "Choose the program administrator's type: IOU, REN or CCA.")
+        if d.get("kind") and d.get("kind") != Organisation.Kind.PA and d.get("pa_type"):
+            self.add_error("pa_type", "Only a program administrator has a PA type. Leave it blank.")
+        return d
+
+
+class OrganisationDetailsForm(forms.Form):
+    """A CPUC system administrator's change to an organisation's name or PA type, with a reason (audited)."""
+
+    name = forms.CharField(label="Name", max_length=200)
+    pa_type = forms.ChoiceField(label="PA type", choices=Organisation.PAType.choices, required=False)
+    reason = forms.CharField(label="Reason for the change", max_length=500)
+
+    def __init__(self, *args, org: Organisation, **kwargs):
+        super().__init__(*args, **kwargs)
+        if org.kind == Organisation.Kind.PA:
+            self.fields["pa_type"].choices = [("", "Choose a type"), *Organisation.PAType.choices]
+            self.fields["pa_type"].required = True
+        else:
+            del self.fields["pa_type"]
 
 
 class RecertificationForm(forms.Form):

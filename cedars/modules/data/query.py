@@ -30,10 +30,18 @@ class Dimension:
     column: str  # the canonical field it reads ("" for one built from the release itself)
     expression: str = ""  # SQL over the unioned rows; default the column as text
 
+    @property
+    def in_sentence(self) -> str:
+        """The label inside a sentence ("by primary sector", "by PA type"): lower case, except an acronym that starts it."""
+        first, _, rest = self.label.partition(" ")
+        return f"{first if first.isupper() else first.lower()}{' ' if rest else ''}{rest.lower()}"
+
 
 DIMENSIONS = {
     d.code: d
     for d in [
+        # Built at query time from each PA's type in the platform (pa_type_expression); a PA with no type reads as blank.
+        Dimension("pa_type", "PA type", "CreditedPA"),
         Dimension("pa", "PA", "CreditedPA", "coalesce(nullif(trim(CreditedPA), ''), _organisation)"),
         Dimension("segment", "Segment", "Prg_ProgramSegment"),
         Dimension("sector", "Primary sector", "Prg_PrimarySector"),
@@ -54,8 +62,12 @@ DIMENSIONS = {
         Dimension("filing", "Filing", "", "_filing"),
     ]
 }
-# The view-by choices the pages offer (Jake, 2026-10-31); the rest are for drill-down, filters and downloads.
-VIEW_BY = ("pa", "segment", "sector", "implementer_type", "use_category")
+# The view-by choices the pages offer (Jake, 2026-10-31; PA type added with the PA types the same day); the rest are for drill-down,
+# filters and downloads.
+VIEW_BY = ("pa", "pa_type", "segment", "sector", "implementer_type", "use_category")
+# A PA filter and a PA type filter make one selection, either matching (Jake, 2026-10-31: "all RENs" and PG&E is the RENs and PG&E),
+# not two filters that must both match.
+PA_SELECTION = ("pa_type", "pa")
 
 
 @dataclass(frozen=True)
@@ -361,14 +373,20 @@ def where_terms(q: Query) -> tuple[list[str], list]:
     if q.year_to:
         where.append(f"{year} <= ?")
         args.append(q.year_to)
+    either = []  # the PA selection's terms, joined by OR
     for d, values in q.filters:
         expr = _expression(DIMENSIONS[d])
         if d == "year":
             where.append(f"{expr} IN ({', '.join('?' for _ in values)})")
             args += [int(v) for v in values if v.lstrip("-").isdigit()] or [None]
+        elif d in PA_SELECTION:
+            either.append((f"lower(trim({expr})) IN ({', '.join('?' for _ in values)})", [v.strip().lower() for v in values]))
         else:
             where.append(f"lower(trim({expr})) IN ({', '.join('?' for _ in values)})")
             args += [v.strip().lower() for v in values]
+    if either:
+        where.append("(" + " OR ".join(term for term, _ in either) + ")")
+        args += [a for _, values in either for a in values]
     for e in q.exclude:
         ex = EXCLUSIONS[e]
         where.append(f"coalesce(lower(trim({_ident(ex.column)})), '') NOT IN ({', '.join('?' for _ in ex.values)})")
@@ -426,7 +444,33 @@ def run(q: Query) -> Result:
 
 
 def _expression(d: Dimension) -> str:
+    if d.code == "pa_type":
+        return pa_type_expression()
     return d.expression or _ident(d.column)
+
+
+def pa_type_expression(types: dict[str, str] | None = None) -> str:
+    """The PA type of each row's PA (the pa dimension), from each PA's type in the platform: a CASE over the typed PA codes, read
+    when the query runs so a PA typed since reads as typed. A PA with no type (or no PA) is NULL."""
+    from cedars.services.accounts import service as access
+
+    types = access.pa_types() if types is None else types
+    if not types:
+        return "CAST(NULL AS VARCHAR)"
+    pa = f"upper(trim({DIMENSIONS['pa'].expression}))"
+    whens = " ".join(f"WHEN {_literal(code.upper())} THEN {_literal(t)}" for code, t in sorted(types.items()))
+    return f"CASE {pa} {whens} END"
+
+
+def selected_pas(q: Query, pas: dict[str, str]) -> set[str] | None:
+    """The PA codes a query's PA selection keeps (its PA filter's codes and every PA of its PA type filter's types), from `pas` (code
+    to type); None when it has no PA selection (every PA)."""
+    f = q.filter_map
+    if not any(d in f for d in PA_SELECTION):
+        return None
+    codes = {c.strip().upper() for c in f.get("pa", ())}
+    types = {t.strip().upper() for t in f.get("pa_type", ())}
+    return codes | {code for code, t in pas.items() if t.upper() in types}
 
 
 def _finish(result: Result) -> None:
