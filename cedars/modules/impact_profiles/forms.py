@@ -21,7 +21,7 @@ class LibraryFilterForm(forms.Form):
 
 class PackageFilterForm(forms.Form):
     q = forms.CharField(label="Name or Measure Version ID contains", required=False, widget=forms.TextInput(attrs={"type": "search"}))
-    mine = forms.BooleanField(label="Only packages my organisation leads", required=False)
+    mine = forms.BooleanField(label="Only packages my organization leads", required=False)
 
 
 class SyncFilterForm(forms.Form):
@@ -44,7 +44,7 @@ class MappingForm(forms.Form):
     alias_key = forms.CharField(label="Profile ID the permutation names", max_length=300, help_text="e.g. OfL*New*rDXGF*Msr*Std")
     target_sector = forms.CharField(label="Its target sector", max_length=60)
     target = forms.ModelChoiceField(label="Profile it uses", queryset=ImpactProfile.objects.none())
-    reason = forms.CharField(label="Reason", max_length=500, help_text="e.g. New construction reuses the existing-vintage modelling")
+    reason = forms.CharField(label="Reason", max_length=500, help_text="e.g. New construction reuses the existing-vintage modeling")
 
     def __init__(self, *args, package=None, **kwargs):
         super().__init__(*args, **kwargs)

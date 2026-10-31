@@ -280,7 +280,7 @@ def _rows(req: ProgramChangeRequest) -> list[tuple[str, str, str]]:
 
 @login_required
 def requests(request):
-    """Change requests to locked program attributes: every request for CPUC approvers, the organisation's own for its members."""
+    """Change requests to locked program attributes: every request for CPUC approvers, the organization's own for its members."""
     shown = request.GET.get("status", ProgramChangeRequest.Status.PENDING)
     if shown not in ProgramChangeRequest.Status.values and shown != "all":
         shown = ProgramChangeRequest.Status.PENDING

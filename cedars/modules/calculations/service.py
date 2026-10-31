@@ -1,9 +1,9 @@
 """Calculation runs: who may start and see them, how a job is put together for the ReCET worker, and what a run's record says as it
 moves from queued to finished. Pages and the API call these functions; every change is an audit event.
 
-Who sees what (BR-01, Jake 2026-10-29): a run made for an organisation belongs to it, and its members with calculations.read or
-calculations.submit see it, so it stays with the organisation when its owner leaves; a run with no organisation (a community account's
-own) is its owner's alone. Starting a run for an organisation takes calculations.submit there; stopping one takes being its owner (still
+Who sees what (BR-01, Jake 2026-10-29): a run made for an organization belongs to it, and its members with calculations.read or
+calculations.submit see it, so it stays with the organization when its owner leaves; a run with no organization (a community account's
+own) is its owner's alone. Starting a run for an organization takes calculations.submit there; stopping one takes being its owner (still
 a member) or calculations.admin / org.admin there."""
 
 from __future__ import annotations
@@ -145,7 +145,7 @@ def readable_organisations(user):
 
 
 def visible_runs(user, organisations=None):
-    """The runs a user sees: their own community runs and their organisations' runs (for one organisation when given)."""
+    """The runs a user sees: their own community runs and their organizations' runs (for one organization when given)."""
     orgs = readable_organisations(user)
     if organisations is not None:
         orgs = [o for o in orgs if o in organisations]
@@ -671,7 +671,7 @@ def cancel_run(actor, run: Run, reason: str = "") -> Run:
     from . import dispatch
 
     if not can_cancel(actor, run):
-        raise AccessDenied("Only the run's owner or the organisation's calculation admins can stop it.")
+        raise AccessDenied("Only the run's owner or the organization's calculation admins can stop it.")
     run = Run.objects.select_for_update().get(pk=run.pk)
     if run.ended:
         raise AccessDenied("That run has already ended.")

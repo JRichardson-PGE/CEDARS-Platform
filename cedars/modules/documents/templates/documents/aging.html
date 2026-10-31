@@ -23,7 +23,7 @@ Only CPUC staff see this page.</p>
 {% if rows %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Aging by study manager">
 <table class="list">
-  <caption class="sr-only">Items waiting, by the organisation that owes them, the longest wait first</caption>
+  <caption class="sr-only">Items waiting, by the organization that owes them, the longest wait first</caption>
   <thead><tr><th scope="col">Owes</th>{% for code, label in kinds %}<th scope="col">{{ label }}</th>{% endfor %}{% for b in buckets %}<th scope="col">{{ b }}</th>{% endfor %}<th scope="col">Longest wait (days)</th></tr></thead>
   <tbody>
   {% for r in rows %}

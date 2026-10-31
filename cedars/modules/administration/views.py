@@ -98,7 +98,7 @@ def token_create(request):
 def token_revoke(request, pk):
     token = get_object_or_404(ApiToken, pk=pk)
     from_org = request.POST.get("from") == "organisation" and token.organisation is not None
-    back = f"/admin/organisations/{token.organisation.code}/" if from_org else "administration:account"
+    back = f"/admin/organizations/{token.organisation.code}/" if from_org else "administration:account"
     if not tokens.can_revoke(request.user, token):
         raise Http404
     try:
@@ -114,7 +114,7 @@ def switch_organisation(request):
     code = request.POST.get("organisation", "")
     org = next((o for o in request.user_organisations if o.code == code), None)
     if org is None:
-        messages.error(request, "You are not a member of that organisation.")
+        messages.error(request, "You are not a member of that organization.")
     else:
         request.session[ORG_SESSION_KEY] = org.pk
         messages.success(request, f"You are now acting for {org.code}.")
@@ -132,7 +132,7 @@ def request_access(request):
             )
         except AccessDenied as e:
             return _refused(request, e, "administration:request_access")
-        return _done(request, "Your request was sent to the organisation's administrators.", "administration:account")
+        return _done(request, "Your request was sent to the organization's administrators.", "administration:account")
     return render(request, "administration/request_access.html", {"form": form})
 
 
@@ -147,7 +147,7 @@ def withdraw_request(request, pk):
     return _done(request, "Request withdrawn.", "administration:account")
 
 
-# --- organisations (PA admins and CPUC system administrators)
+# --- organizations (PA admins and CPUC system administrators)
 
 
 @login_required
@@ -186,7 +186,7 @@ def organisation_new(request):
             )
         except AccessDenied as e:
             return _refused(request, e, "administration:organisations")
-        return _done(request, f"{org.code} added. Assign its first administrator below.", f"/admin/organisations/{org.code}/")
+        return _done(request, f"{org.code} added. Assign its first administrator below.", f"/admin/organizations/{org.code}/")
     return render(request, "administration/organisation_new.html", {"form": form})
 
 
@@ -248,11 +248,11 @@ def organisation(request, code):
 @login_required
 @require_POST
 def organisation_details(request, code):
-    """A CPUC system administrator changes an organisation's name or PA type (with a reason)."""
+    """A CPUC system administrator changes an organization's name or PA type (with a reason)."""
     org = get_object_or_404(Organisation, code=code)
     if not service.is_system_admin(request.user):
         raise Http404
-    back = f"/admin/organisations/{org.code}/"
+    back = f"/admin/organizations/{org.code}/"
     form = forms.OrganisationDetailsForm(request.POST, org=org)
     if not form.is_valid():
         problems = "; ".join(f"{form.fields[k].label if k in form.fields else k}: {' '.join(v)}" for k, v in form.errors.items())
@@ -271,7 +271,7 @@ def organisation_details(request, code):
 @require_POST
 def grant(request, code):
     org = _org_or_404(request, code)
-    back = f"/admin/organisations/{org.code}/"
+    back = f"/admin/organizations/{org.code}/"
     form = forms.GrantForm(request.POST, codes=_grantable_codes(request.user, org))
     if not form.is_valid():
         messages.error(request, "Check the grant form: " + "; ".join(f"{k}: {' '.join(v)}" for k, v in form.errors.items()))
@@ -294,7 +294,7 @@ def grant(request, code):
 @require_POST
 def revoke(request, pk):
     g = get_object_or_404(Grant.objects.select_related("membership__organisation", "membership__user"), pk=pk)
-    back = request.POST.get("next") or f"/admin/organisations/{g.organisation.code}/"
+    back = request.POST.get("next") or f"/admin/organizations/{g.organisation.code}/"
     form = forms.ReasonForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Give a reason for revoking the permission.")
@@ -310,7 +310,7 @@ def revoke(request, pk):
 @require_POST
 def reinstate(request, pk):
     g = get_object_or_404(Grant, pk=pk)
-    back = f"/admin/organisations/{g.organisation.code}/"
+    back = f"/admin/organizations/{g.organisation.code}/"
     try:
         service.reinstate(request.user, g, request.POST.get("reason", "certified late"))
     except AccessDenied as e:
@@ -322,7 +322,7 @@ def reinstate(request, pk):
 @require_POST
 def end_membership(request, pk):
     m = get_object_or_404(Membership.objects.select_related("organisation", "user"), pk=pk)
-    back = f"/admin/organisations/{m.organisation.code}/"
+    back = f"/admin/organizations/{m.organisation.code}/"
     form = forms.ReasonForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Give a reason for removing the member.")
@@ -338,7 +338,7 @@ def end_membership(request, pk):
 @require_POST
 def decide_request(request, pk):
     req = get_object_or_404(AccessRequest.objects.select_related("organisation", "user"), pk=pk)
-    back = f"/admin/organisations/{req.organisation.code}/"
+    back = f"/admin/organizations/{req.organisation.code}/"
     approve = request.POST.get("decision") == "approve"
     chosen = request.POST.getlist("permissions") if approve else None
     try:
@@ -352,7 +352,7 @@ def decide_request(request, pk):
 @require_POST
 def open_recertification(request, code):
     org = _org_or_404(request, code)
-    back = f"/admin/organisations/{org.code}/"
+    back = f"/admin/organizations/{org.code}/"
     form = forms.RecertificationForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Choose a due date.")
@@ -368,7 +368,7 @@ def open_recertification(request, code):
 @require_POST
 def recertify(request, pk):
     item = get_object_or_404(RecertificationItem.objects.select_related("campaign__organisation", "grant__membership__user"), pk=pk)
-    back = f"/admin/organisations/{item.campaign.organisation.code}/#recertification"
+    back = f"/admin/organizations/{item.campaign.organisation.code}/#recertification"
     try:
         if request.POST.get("decision") == "remove":
             form = forms.ReasonForm(request.POST)
@@ -487,7 +487,7 @@ def audit_log(request):
         raise Http404
     qs = AuditEvent.objects.select_related("organisation")
     if not sysadmin:
-        # an organisation's admins see what happened to its members and grants, and what its people did
+        # an organization's admins see what happened to its members and grants, and what its people did
         member_ids = Membership.objects.filter(organisation__in=admin_orgs).values("pk")
         grant_ids = Grant.objects.filter(membership__organisation__in=admin_orgs).values("pk")
         qs = (

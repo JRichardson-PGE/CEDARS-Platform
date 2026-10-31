@@ -49,7 +49,7 @@ def _deadline(pk) -> Deadline:
 
 
 def _organisation(request, deadline: Deadline) -> Organisation | None:
-    """The organisation whose claims the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
+    """The organization whose claims the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
         org = get_object_or_404(Organisation, code=code)
@@ -81,7 +81,7 @@ def _fmt(kind: str, x) -> str:
 
 @login_required
 def index(request):
-    """Claim years, newest first: each confirmation's due date and the acting organisation's status."""
+    """Claim years, newest first: each confirmation's due date and the acting organization's status."""
     org = request.organisation
     years = []
     cys = list(ClaimYear.objects.select_related("allocation_version"))
@@ -168,7 +168,7 @@ def setup(request, year):
 
 @login_required
 def period(request, pk):
-    """One confirmation for one organisation: its versions, what its upload changes in the year to date, and the next step (upload,
+    """One confirmation for one organization: its versions, what its upload changes in the year to date, and the next step (upload,
     fix, price, confirm, un-confirm, ask to reopen); the earlier confirmations' compiled inputs (BR-02.5)."""
     deadline = _deadline(pk)
     org = _organisation(request, deadline)

@@ -13,7 +13,7 @@ files, so every column of every layout is either mapped to a canonical field or 
 
 `data/legacy_crosswalk.csv` maps each label: legacy_label, layouts (space-separated), table, canonical. Tables:
 
-  Key          identifies the record or its submission: ClaimID (claims) or CEInputID (filings), PA (the submission's organisation),
+  Key          identifies the record or its submission: ClaimID (claims) or CEInputID (filings), PA (the submission's organization),
                Used_Year (the program year)
   Measure      the Measure table's fields (CET's Measure inputs, canonical names)
   Claim        the Claim table's fields (the 2026 Claims specification): link IDs, dates, flags (layout B only)

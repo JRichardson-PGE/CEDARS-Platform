@@ -1,7 +1,7 @@
-"""WCAG 2.2 AA on every page, in both colour schemes, at full width and at 320 px (reflow, 1.4.10).
+"""WCAG 2.2 AA on every page, in both color schemes, at full width and at 320 px (reflow, 1.4.10).
 
 Run with `pytest -m a11y` (CI does). axe finds what can be found automatically; keyboard and screen-reader checks are by hand
-(docs/ACCESSIBILITY.md). Each page is checked with realistic content: SCENE builds organisations, members, an access request, a pending
+(docs/ACCESSIBILITY.md). Each page is checked with realistic content: SCENE builds organizations, members, an access request, a pending
 PII grant and an open recertification, so the tables and forms are not empty."""
 
 import io
@@ -664,7 +664,7 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     submissions.move_deadline(cpuc_admin, q1, timezone.now() - timedelta(days=1), "the scene's correction")
     reopen = submissions.policy("claims").reopen_after_due
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
-    v2 = claims.request_reopen(analyst, v.submission, "PGE-2028-002 was cancelled; PGE-2028-001 had 12 units")
+    v2 = claims.request_reopen(analyst, v.submission, "PGE-2028-002 was canceled; PGE-2028-001 had 12 units")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due=reopen)
     kept = claim("PGE-2028-001", prg="PGE_Res_HVAC", NumUnits="12")
     kept["Claim"][0]["ProjectID"] = "PGE-P1"
@@ -673,7 +673,7 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         ProgramCost=first["ProgramCost"],
         Site=first["Site"],
         ContactClaim=first["ContactClaim"],
-        Withdrawal=[row("Withdrawal", ClaimID="PGE-2028-002", WithdrawalReason="The customer cancelled the project")],
+        Withdrawal=[row("Withdrawal", ClaimID="PGE-2028-002", WithdrawalReason="The customer canceled the project")],
     )
     with no_rules:
         v2 = claims.upload_claims(analyst, q1, pge, claims_zip(fixed, full=True), "q1_correction.zip")
@@ -821,7 +821,7 @@ SEEN = """(e) => { const r = e.getBoundingClientRect(), x = Math.min(Math.max(r.
     const hit = document.elementFromPoint(x, y); return hit && (e === hit || e.contains(hit)); }) }"""
 FOCUS_SEEN = f"""(() => {{ const e = document.activeElement;
   return e === document.body || !!e.closest('body > header') || ({SEEN})(e); }})()"""
-# Chromium centres what it scrolls to on focus; other browsers scroll it just into view, which is where a sticky header covers it. This
+# Chromium centers what it scrolls to on focus; other browsers scroll it just into view, which is where a sticky header covers it. This
 # does that from the bottom of the page for every visible link and field in the content, and lists the ones left out of sight.
 NEAREST_HIDDEN = f"""(() => {{ const seen = {SEEN}, out = [];
   for (const e of document.querySelectorAll('main a[href], main button, main input, main select, main summary, main [tabindex]')) {{

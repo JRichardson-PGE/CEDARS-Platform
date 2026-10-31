@@ -247,7 +247,7 @@ def package(request, mvid):
                 )
             except AccessDenied as e:
                 return _refused(request, e, f"/impact-profiles/packages/{pkg.measure_version_id}/")
-            messages.success(request, "File received. It is checked on your organisation's queue; this page shows the result.")
+            messages.success(request, "File received. It is checked on your organization's queue; this page shows the result.")
             return redirect(f"/impact-profiles/uploads/{u.pk}/")
     perms = pkg.current.permutations.all() if pkg.current else []
     perm_page = Paginator(perms, 100).get_page(request.GET.get("page")) if pkg.current else None
@@ -390,7 +390,7 @@ def upload_generate(request, pk):
     except AccessDenied as e:
         return _refused(request, e, back)
     jobs.enqueue(ProcessingJob.Kind.GENERATE, request.organisation.code, actor=request.user, upload=u, params={"package": u.package_id})
-    messages.success(request, "Generation queued on your organisation's queue. This page shows the result when it is done.")
+    messages.success(request, "Generation queued on your organization's queue. This page shows the result when it is done.")
     return redirect(back)
 
 

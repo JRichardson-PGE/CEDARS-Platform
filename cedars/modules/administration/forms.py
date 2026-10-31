@@ -23,14 +23,14 @@ class ReasonForm(forms.Form):
 
 
 class RequestAccessForm(forms.Form):
-    organisation = forms.ModelChoiceField(label="Organisation", queryset=Organisation.objects.filter(active=True).exclude(kind="cpuc"))
+    organisation = forms.ModelChoiceField(label="Organization", queryset=Organisation.objects.filter(active=True).exclude(kind="cpuc"))
     permissions = forms.MultipleChoiceField(
         label="Permissions you need",
         widget=forms.CheckboxSelectMultiple,
         choices=[(c, perms.label(c)) for c in perms.module_permissions() + [perms.ORG_ADMIN, perms.PII]],
     )
     message = forms.CharField(
-        label="Message to the organisation's administrators", required=False, widget=forms.Textarea(attrs={"rows": 3})
+        label="Message to the organization's administrators", required=False, widget=forms.Textarea(attrs={"rows": 3})
     )
 
 
@@ -38,7 +38,7 @@ class OrganisationForm(forms.ModelForm):
     class Meta:
         model = Organisation
         fields = ["code", "name", "kind", "pa_type", "federated", "federation_provider"]
-        help_texts = {"pa_type": "Required for a program administrator: IOU, REN or CCA. Leave blank for the CPUC or another organisation."}
+        help_texts = {"pa_type": "Required for a program administrator: IOU, REN or CCA. Leave blank for the CPUC or another organization."}
 
     def clean(self):
         d = super().clean()
@@ -50,7 +50,7 @@ class OrganisationForm(forms.ModelForm):
 
 
 class OrganisationDetailsForm(forms.Form):
-    """A CPUC system administrator's change to an organisation's name or PA type, with a reason (audited)."""
+    """A CPUC system administrator's change to an organization's name or PA type, with a reason (audited)."""
 
     name = forms.CharField(label="Name", max_length=200)
     pa_type = forms.ChoiceField(label="PA type", choices=Organisation.PAType.choices, required=False)
@@ -77,7 +77,7 @@ class PolicyForm(forms.Form):
 
 class PolicyChangeForm(forms.Form):
     value = forms.TypedChoiceField(
-        label="PII only for federated organisations and sessions",
+        label="PII only for federated organizations and sessions",
         choices=[("true", "Required"), ("false", "Not required")],
         coerce=lambda v: v == "true",
     )
@@ -119,5 +119,5 @@ class ApiTokenForm(forms.Form):
 
     def __init__(self, *args, organisations=(), max_days=365, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organisation: my own calculations")]
+        self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organization: my own calculations")]
         self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]

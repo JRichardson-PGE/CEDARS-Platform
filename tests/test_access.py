@@ -20,7 +20,7 @@ def test_permission_catalogue():
     assert not perms.is_valid("claims.fly")
 
 
-# --- D6: the CPUC assigns only an organisation's first admin
+# --- D6: the CPUC assigns only an organization's first admin
 
 
 def test_cpuc_grants_the_first_admin_and_then_cannot(cpuc_admin, pge, make_user):
@@ -74,7 +74,7 @@ def test_a_grant_is_scoped_to_its_organisation(cpuc_admin, pge, pge_admin, make_
 
 def test_cpuc_only_permissions(cpuc_admin, cpuc, pge, pge_admin, make_user):
     u = make_user("u@pge.com")
-    with pytest.raises(AccessDenied, match="only in the CPUC organisation"):
+    with pytest.raises(AccessDenied, match="only in the CPUC organization"):
         service.grant(cpuc_admin, u, pge, perms.SYSTEM_ADMIN)
     staff = make_user("staff@cpuc.ca.gov")
     service.grant(cpuc_admin, staff, cpuc, perms.STEWARD)

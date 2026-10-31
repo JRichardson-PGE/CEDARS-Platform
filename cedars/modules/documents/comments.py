@@ -1,6 +1,6 @@
 """Public comment (BR-15.4), replacing the PDA's comments, questions and Comment and Resolution Report: a registered user comments on or
 asks about a published version while its comment period is open; CPUC ED, the PAs on the document and the study's evaluator respond;
-everything is public, dated and attributed to its author and organisation (never an email address). The author may withdraw a comment
+everything is public, dated and attributed to its author and organization (never an email address). The author may withdraw a comment
 until it is answered. Comments and responses are never edited (the database refuses: migration 0007)."""
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def _name(user) -> str:
 
 
 def _author_organisation(user, organisation: Organisation | None) -> Organisation | None:
-    """The organisation a comment is posted for: the acting one, if the user belongs to it."""
+    """The organization a comment is posted for: the acting one, if the user belongs to it."""
     if organisation is None:
         return None
     return organisation if organisation in access.organisations_of(user) else None
@@ -166,7 +166,7 @@ def withdraw(actor, comment: Comment) -> None:
 
 
 def responder_organisations(user, doc: Document) -> list[Organisation]:
-    """The organisations the user may respond for: the CPUC (ED staff with documents.submit or .admin), and the document's PAs, owner and
+    """The organizations the user may respond for: the CPUC (ED staff with documents.submit or .admin), and the document's PAs, owner and
     study manager where the user holds documents.submit."""
     if user is None or not user.is_authenticated:
         return []

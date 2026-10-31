@@ -84,7 +84,7 @@ def post_comment(request, pk):
         except (service.DocumentError, AccessDenied) as e:
             form.add_error(None, str(e))
         else:
-            messages.success(request, "Your comment is posted. It is public, with your name and organisation.")
+            messages.success(request, "Your comment is posted. It is public, with your name and organization.")
             return redirect("documents:comments", pk=doc.pk)
     return _comment_page(request, doc, form)
 

@@ -195,7 +195,7 @@ def hard_failures(reconciliation: dict) -> list[str]:
 
 
 def already_imported(deadline, organisation, sources: list[LegacySource]) -> LegacyImport | None:
-    """The import of this organisation's filing made from exactly these sources, if there is one (any version, not only the latest:
+    """The import of this organization's filing made from exactly these sources, if there is one (any version, not only the latest:
     an earlier snapshot loaded again is not a new version)."""
     shas = sorted(s.sha256 for s in sources)
     for imp in LegacyImport.objects.filter(
@@ -223,7 +223,7 @@ def record_import(
 ) -> LegacyImport:
     """Publish a loaded year as an imported version. Refused while any hard check failed; the same sources loaded again return the
     import already made, with `created` False (the caller then adds nothing to it). Two loads of the same PA's year at once (two
-    terminals) are serialised on a lock held to the end of the caller's transaction, so the second finds the first's import."""
+    terminals) are serialized on a lock held to the end of the caller's transaction, so the second finds the first's import."""
     failed = hard_failures(reconciliation)
     if failed:
         raise LegacyError(f"{organisation.code} {period} is not published: the hard checks {', '.join(failed)} failed.")

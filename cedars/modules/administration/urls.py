@@ -1,21 +1,24 @@
-from django.urls import path
+from django.urls import path, re_path
+from django.views.generic import RedirectView
 
 from . import views
 
 app_name = "administration"
 urlpatterns = [
     path("account/", views.account, name="account"),
-    path("account/organisation", views.switch_organisation, name="switch_organisation"),
+    path("account/organization", views.switch_organisation, name="switch_organisation"),
     path("account/request-access/", views.request_access, name="request_access"),
     path("account/requests/<int:pk>/withdraw", views.withdraw_request, name="withdraw_request"),
     path("account/tokens", views.token_create, name="token_create"),
     path("account/tokens/<int:pk>/revoke", views.token_revoke, name="token_revoke"),
-    path("admin/organisations/", views.organisations, name="organisations"),
-    path("admin/organisations/new/", views.organisation_new, name="organisation_new"),
-    path("admin/organisations/<str:code>/", views.organisation, name="organisation"),
-    path("admin/organisations/<str:code>/details", views.organisation_details, name="organisation_details"),
-    path("admin/organisations/<str:code>/grant", views.grant, name="grant"),
-    path("admin/organisations/<str:code>/recertification", views.open_recertification, name="open_recertification"),
+    path("admin/organizations/", views.organisations, name="organisations"),
+    path("admin/organizations/new/", views.organisation_new, name="organisation_new"),
+    path("admin/organizations/<str:code>/", views.organisation, name="organisation"),
+    path("admin/organizations/<str:code>/details", views.organisation_details, name="organisation_details"),
+    path("admin/organizations/<str:code>/grant", views.grant, name="grant"),
+    path("admin/organizations/<str:code>/recertification", views.open_recertification, name="open_recertification"),
+    # The pages moved to US spelling (2026-10-31); old links still land
+    re_path(r"^admin/organisations/(?P<rest>.*)$", RedirectView.as_view(url="/admin/organizations/%(rest)s", query_string=True)),
     path("admin/grants/<int:pk>/revoke", views.revoke, name="revoke"),
     path("admin/grants/<int:pk>/reinstate", views.reinstate, name="reinstate"),
     path("admin/memberships/<int:pk>/end", views.end_membership, name="end_membership"),

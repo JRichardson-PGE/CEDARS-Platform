@@ -23,7 +23,7 @@ def test_mfa_and_federated_sessions_get_in(signed_in, make_user):
     r = signed_in(u, "mfa").get("/account/")
     assert r.status_code == 200 and "password and a second factor" in r.content.decode()
     r = signed_in(u, "socialaccount").get("/account/")
-    assert "your organisation's own sign-in" in r.content.decode()
+    assert "your organization's own sign-in" in r.content.decode()
 
 
 def test_signed_out_users_go_to_sign_in(client):
@@ -48,7 +48,7 @@ def test_community_account_requests_access(signed_in, make_user, pge, pge_admin)
     req = AccessRequest.objects.get(user=u)
     assert req.permissions == ["claims.read"]
     admin = signed_in(pge_admin)
-    page = admin.get(f"/admin/organisations/{pge.code}/").content.decode()
+    page = admin.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert "community@example.com" in page
     admin.post(f"/admin/requests/{req.pk}/decide", {"decision": "approve", "permissions": ["claims.read"]})
     assert service.effective_permissions(u, pge) == {"claims.read"}
@@ -63,19 +63,19 @@ def test_switching_organisation(signed_in, make_user, cpuc_admin, pge, pge_admin
     service.grant(sce_admin, u, sce, "claims.read")
     c = signed_in(u)
     assert 'id="org-switch"' in c.get("/account/").content.decode()
-    c.post("/account/organisation", {"organisation": "SCE", "next": "/account/"})
+    c.post("/account/organization", {"organisation": "SCE", "next": "/account/"})
     assert "Acting for</dt><dd>SCE" in c.get("/account/").content.decode()
-    c.post("/account/organisation", {"organisation": "CPUC", "next": "/account/"})  # not a member: refused
+    c.post("/account/organization", {"organisation": "CPUC", "next": "/account/"})  # not a member: refused
     assert "Acting for</dt><dd>SCE" in c.get("/account/").content.decode()
 
 
-# --- organisation admins
+# --- organization admins
 
 
 def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pge_admin):
     u = make_user("analyst@pge.com")
     c = signed_in(pge_admin)
-    c.post(f"/admin/organisations/{pge.code}/grant", {"email": u.email, "permission": "claims.submit", "reason": "new analyst"})
+    c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": "claims.submit", "reason": "new analyst"})
     g = Grant.objects.get(membership__user=u, permission="claims.submit")
     assert g.status == "active" and g.grant_reason == "new analyst"
     r = c.post(f"/admin/grants/{g.pk}/revoke", {"reason": "moved teams"}, follow=True)
@@ -86,25 +86,25 @@ def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pg
 
 def test_grant_for_an_unknown_email_explains(signed_in, pge, pge_admin):
     r = signed_in(pge_admin).post(
-        f"/admin/organisations/{pge.code}/grant", {"email": "nobody@pge.com", "permission": "claims.read"}, follow=True
+        f"/admin/organizations/{pge.code}/grant", {"email": "nobody@pge.com", "permission": "claims.read"}, follow=True
     )
     assert "There is no account for nobody@pge.com" in r.content.decode()
 
 
 def test_other_organisations_are_hidden(signed_in, make_user, cpuc_admin, pge, pge_admin):
     sce = service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa")
-    assert signed_in(pge_admin).get(f"/admin/organisations/{sce.code}/").status_code == 404
-    assert signed_in(make_user("nobody@example.com")).get("/admin/organisations/").status_code == 404
+    assert signed_in(pge_admin).get(f"/admin/organizations/{sce.code}/").status_code == 404
+    assert signed_in(make_user("nobody@example.com")).get("/admin/organizations/").status_code == 404
 
 
 def test_cpuc_assigns_a_first_admin_through_the_page(signed_in, make_user, cpuc_admin, pge):
     u = make_user("first@pge.com")
     c = signed_in(cpuc_admin)
-    page = c.get(f"/admin/organisations/{pge.code}/").content.decode()
+    page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert "Assign the first administrator" in page
-    c.post(f"/admin/organisations/{pge.code}/grant", {"email": u.email, "permission": perms.ORG_ADMIN})
+    c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": perms.ORG_ADMIN})
     assert service.is_org_admin(u, pge)
-    page = c.get(f"/admin/organisations/{pge.code}/").content.decode()
+    page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert "Assign the first administrator" not in page and "Grant a permission" not in page
 
 
@@ -112,7 +112,7 @@ def test_recertification_through_the_page(signed_in, make_user, pge, pge_admin):
     u = make_user("a@pge.com")
     g = service.grant(pge_admin, u, pge, "claims.read")
     c = signed_in(pge_admin)
-    c.post(f"/admin/organisations/{pge.code}/recertification", {"due": "2099-01-31"})
+    c.post(f"/admin/organizations/{pge.code}/recertification", {"due": "2099-01-31"})
     item = g.recertification_items.get()
     c.post(f"/admin/recertification/{item.pk}", {"decision": "certify"})
     g.refresh_from_db()
@@ -157,7 +157,7 @@ def test_settings_and_audit_pages(signed_in, cpuc_admin, pge, pge_admin):
 
 def test_add_organisation_page(signed_in, cpuc_admin):
     c = signed_in(cpuc_admin)
-    r = c.post("/admin/organisations/new/", {"code": "bayren", "name": "Bay Area Regional Energy Network", "kind": "pa", "pa_type": "REN"})
+    r = c.post("/admin/organizations/new/", {"code": "bayren", "name": "Bay Area Regional Energy Network", "kind": "pa", "pa_type": "REN"})
     assert r.status_code == 302
     assert service.cpuc() is not None
     from cedars.services.accounts.models import Organisation

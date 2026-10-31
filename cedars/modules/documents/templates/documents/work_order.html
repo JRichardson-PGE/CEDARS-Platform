@@ -10,7 +10,7 @@
 <dl class="facts">
   <dt>Contractor</dt><dd>{% if wo.firm %}{{ wo.firm.name }} ({{ wo.firm.code }}){% else %}{{ wo.firm_name|default:"Not given" }}{% endif %}</dd>
   {% if wo.cpuc_contract_id %}<dt>CPUC contract id</dt><dd>{{ wo.cpuc_contract_id }}</dd>{% endif %}
-  <dt>Status</dt><dd>{% if wo.cancelled %}Cancelled{% else %}Open{% endif %}</dd>
+  <dt>Status</dt><dd>{% if wo.cancelled %}Canceled{% else %}Open{% endif %}</dd>
 </dl>
 <p><a href="{% url 'documents:library' %}?work_order={{ wo.number|urlencode }}">Search the library for this work order's documents</a>. <a href="{% url 'documents:work_order_comments_csv' wo.pk %}">Comment-and-response report (CSV)</a></p>
 <section aria-labelledby="tasks-h">
@@ -23,7 +23,7 @@
 </form>
 <form method="post" action="{% url 'documents:work_order_change' wo.pk wo.cancelled|yesno:'reinstate,cancel' %}" class="row-form">{% csrf_token %}
   <label>Reason <input type="text" name="reason" required></label>
-  <button type="submit">{% if wo.cancelled %}Reinstate the work order{% else %}Mark the work order cancelled{% endif %}</button>
+  <button type="submit">{% if wo.cancelled %}Reinstate the work order{% else %}Mark the work order canceled{% endif %}</button>
 </form>
 {% endif %}
 </section>

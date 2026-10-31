@@ -9,7 +9,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Actor:
     user: object = None  # a User, or None for the system
-    organisation: object = None  # the active Organisation, if any
+    organisation: object = None  # the active Organization, if any
     assurance: str = ""  # password, mfa or federated
     request_id: str = ""
 

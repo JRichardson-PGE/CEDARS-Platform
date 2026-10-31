@@ -39,7 +39,7 @@ def record(
     object_repr: str = "",
     actor_label: str = "",
 ) -> AuditEvent:
-    """Write one audit event. The actor, organisation and assurance default to the current request's (audit.context). actor_label names
+    """Write one audit event. The actor, organization and assurance default to the current request's (audit.context). actor_label names
     an actor with no account (e.g. "public" for a signed-out reader) where the default would say "system"."""
     ctx = current()
     actor = actor if actor is not None else ctx.user

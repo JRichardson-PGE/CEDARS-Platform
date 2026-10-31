@@ -154,7 +154,7 @@ class FundShiftLine(models.Model):
 
 
 class FundShiftAcknowledgement(models.Model):
-    """A co-funder's acknowledgement of a shift that moves its share of a statewide program."""
+    """A co-funder's acknowledgment of a shift that moves its share of a statewide program."""
 
     shift = models.ForeignKey(FundShift, on_delete=models.CASCADE, related_name="acknowledgements")
     organisation = models.ForeignKey("accounts.Organisation", on_delete=models.PROTECT, related_name="+")

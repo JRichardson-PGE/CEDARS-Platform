@@ -64,7 +64,7 @@ def test_published_versions_are_open_the_rest_to_readers(key, outsider, filer, y
     confirmations = body["years"][0]["confirmations"]
     assert [c["kind"] for c in confirmations] == [k for k, _ in service.PERIODS] and confirmations[0]["label"] == "2028 Q1 claim"
 
-    # the confirmation: the organisation sees every version, others only the published ones
+    # the confirmation: the organization sees every version, others only the published ones
     q1_period = get(key, f"/periods/{deadline().pk}").json()
     assert q1_period["organisation"] == "PGE" and q1_period["standing"] == v1.pk
     assert [(v["number"], v["status"]) for v in q1_period["versions"]] == [(1, "published")]
@@ -74,7 +74,7 @@ def test_published_versions_are_open_the_rest_to_readers(key, outsider, filer, y
     assert get(outsider, f"/periods/{deadline().pk}", org="PGE").json()["versions"][0]["id"] == v1.pk
     assert get(key, "/periods/999999").status_code == 404
 
-    # a version: check, priced totals, files; findings only for the organisation and CPUC readers
+    # a version: check, priced totals, files; findings only for the organization and CPUC readers
     mine = get(key, f"/versions/{v1.pk}").json()
     assert mine["organisation"] == "PGE" and mine["status"] == "published" and mine["priced"] and mine["late"] is False
     assert mine["check"]["records"] and mine["check"]["rejected"] == 0 and mine["calculation"]["acc"] == "2026"
@@ -100,7 +100,7 @@ def test_published_versions_are_open_the_rest_to_readers(key, outsider, filer, y
     assert got.status_code == 200 and b"".join(got.streaming_content)
     assert get(outsider, f"/versions/{v1.pk}/files/99").status_code == 404
 
-    # CPUC staff with claims.read read every organisation's versions and findings; a token without the claims scope reaches nothing
+    # CPUC staff with claims.read read every organization's versions and findings; a token without the claims scope reaches nothing
     staff = make_user("analyst@cpuc.ca.gov")
     cpuc = access.cpuc()
     access.grant(cpuc_admin, staff, cpuc, "claims.read")
@@ -121,7 +121,7 @@ def test_change_letters_and_nmec_chains(key, outsider, filer, year, pge, program
     assert get(outsider, "/changes").json() == {"count": 0, "next": None, "letters": []}
     submissions.move_deadline(cpuc_admin, deadline(), timezone.now() - timedelta(days=1), "test")
     submissions.set_policy(cpuc_admin, "claims", reopen_after_due="open")
-    v3 = service.request_reopen(filer, v1.submission, "PGE-2028-002 was cancelled")
+    v3 = service.request_reopen(filer, v1.submission, "PGE-2028-002 was canceled")
     v3 = service.upload_claims(
         filer, deadline(), pge, claims_zip(tables(linked("PGE-2028-001"), withdraw("PGE-2028-002"), cost)), "correction.zip"
     )
@@ -135,7 +135,7 @@ def test_change_letters_and_nmec_chains(key, outsider, filer, year, pge, program
     assert listed["letters"][0]["version"] == v3.number and listed["letters"][0]["replaces"] == v1.number
     assert get(outsider, "/changes", year=2027).json()["count"] == 0
     one = get(outsider, listed["letters"][0]["url"]).json()
-    assert one["reason"] == "PGE-2028-002 was cancelled" and one["changes"]["claims"]["withdrawn"]["count"] == 1
+    assert one["reason"] == "PGE-2028-002 was canceled" and one["changes"]["claims"]["withdrawn"]["count"] == 1
     assert get(key, f"/versions/{v3.pk}").json()["change_letter"] == listed["letters"][0]["url"]
     assert get(key, f"/versions/{v3.pk}").json()["withdrawals"][0]["claim"] == "PGE-2028-002"
     assert get(outsider, "/changes/999999").status_code == 404
@@ -210,7 +210,7 @@ def test_a_pa_uploads_checks_prices_and_confirms_through_the_api(key, outsider, 
     assert get(key, f"/versions/{v['id']}").json()["priced"] is True
     assert post(key, f"/versions/{v['id']}/price").status_code == 409
 
-    # who may: another organisation's token sees no unpublished version; a reader cannot confirm; a token needs the claims scope
+    # who may: another organization's token sees no unpublished version; a reader cannot confirm; a token needs the claims scope
     assert post(outsider, f"/versions/{v['id']}/confirm").status_code == 404
     assert upload_file(outsider, q1_deadline, q1()).status_code == 403
     reader = make_user("reader@pge.com")

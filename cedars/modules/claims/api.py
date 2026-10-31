@@ -1,11 +1,11 @@
 """The claims submissions API (decision J: the submissions API with claims, read-only endpoints first, writes staged after them).
 
 Reads: the claim years and their confirmations, a PA's versions with their check results, findings, results by program and published
-files, the change letters, and NMEC chains. A call acts for one organisation, the API token's (or the session's active one), and reads
-what the pages show it: its own organisation's versions with claims.read, .submit or .confirm there, every organisation's from the CPUC
+files, the change letters, and NMEC chains. A call acts for one organization, the API token's (or the session's active one), and reads
+what the pages show it: its own organization's versions with claims.read, .submit or .confirm there, every organization's from the CPUC
 with claims.read or .approve, and every published version (public to signed-in users, BR-05.9).
 
-Writes, the period page's steps for the organisation the call acts for: upload a confirmation's claims (checked at once), check the
+Writes, the period page's steps for the organization the call acts for: upload a confirmation's claims (checked at once), check the
 latest version again, price it, confirm it. Each runs the same service function as the page, so the same rules hold (quarters in
 order, a priced version on exactly its records, a stale version checked again); check, price and confirm name the version and act
 only on the confirmation's latest one, so a client confirms exactly what it reviewed. Upload, check and price need claims.submit,
@@ -49,7 +49,7 @@ def _scoped(request) -> bool:
 
 
 def _reads(request, organisation) -> bool:
-    """Whether the call may read an organisation's unpublished versions and findings."""
+    """Whether the call may read an organization's unpublished versions and findings."""
     acting = api.organisation(request)
     if acting is None or not _scoped(request):
         return False
@@ -265,9 +265,9 @@ def years(request):
 
 
 @extend_schema(
-    summary="One confirmation for one organisation: its versions",
-    description="The acting organisation's versions, or ?org=CODE's for a CPUC reader. Others see only published versions.",
-    parameters=[OpenApiParameter("org", str, description="An organisation code (CPUC readers; others see its published versions)")],
+    summary="One confirmation for one organization: its versions",
+    description="The acting organization's versions, or ?org=CODE's for a CPUC reader. Others see only published versions.",
+    parameters=[OpenApiParameter("org", str, description="An organization code (CPUC readers; others see its published versions)")],
     responses=inline_serializer(
         "ClaimsPeriod",
         {
@@ -312,7 +312,7 @@ def version(request, pk):
 
 @extend_schema(
     summary="A version's findings",
-    description=f"Every finding of the module's checks and the claims rule set, {PER_PAGE} a page, in file order. The organisation "
+    description=f"Every finding of the module's checks and the claims rule set, {PER_PAGE} a page, in file order. The organization "
     "and CPUC readers only.",
     parameters=[OpenApiParameter("page", int)],
     responses=inline_serializer(
@@ -353,7 +353,7 @@ def results(request, pk):
     return Response({"priced": t.priced, "programs": [_row(r) for r in t.rows], "total": _row(t.total)})
 
 
-@extend_schema(summary="A file a version publishes (or, for its organisation, keeps)", responses={(200, "application/octet-stream"): bytes})
+@extend_schema(summary="A file a version publishes (or, for its organization, keeps)", responses={(200, "application/octet-stream"): bytes})
 @api_view(["GET"])
 def file(request, pk, which):
     v = _version(request, pk)
@@ -446,7 +446,7 @@ def chain(request, claim_id):
     )
 
 
-# --- writes: the period page's steps, for the organisation the call acts for
+# --- writes: the period page's steps, for the organization the call acts for
 
 
 class _Conflict(Exception):
@@ -454,11 +454,11 @@ class _Conflict(Exception):
 
 
 def _acting(request, organisation, permission: str) -> None:
-    """The call acts for the organisation and may use the permission there (a token: the user holds it now and has the claims scope)."""
+    """The call acts for the organization and may use the permission there (a token: the user holds it now and has the claims scope)."""
     _require_scope(request)
     acting = api.organisation(request)
     if acting is None:
-        raise PermissionDenied("The call acts for no organisation.")
+        raise PermissionDenied("The call acts for no organization.")
     if acting != organisation or not api.allowed(request, f"{MODULE}.{permission}"):
         raise PermissionDenied(f"This call needs {MODULE}.{permission} in {organisation.code}.")
 
@@ -502,7 +502,7 @@ class UploadClaims(serializers.Serializer):
 
 @extend_schema(
     summary="Upload a confirmation's claims",
-    description="Starts the organisation's submission for the confirmation (or uses its open version), keeps the file as that version's "
+    description="Starts the organization's submission for the confirmation (or uses its open version), keeps the file as that version's "
     "records and checks it at once against the year to date. 201 with the version: status validated when nothing is rejected, else "
     "draft with its findings. The earlier confirmations must be confirmed first.",
     request={"multipart/form-data": UploadClaims},

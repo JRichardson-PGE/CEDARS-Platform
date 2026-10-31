@@ -56,7 +56,7 @@
     <details{% if '/admin/' in here %} class="current"{% endif %}>
       <summary>Administration</summary>
       <ul>
-        {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:organisations' %}"{% if '/admin/organisations/' in here %} aria-current="page"{% endif %}>Organisations</a></li>{% endif %}
+        {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:organisations' %}"{% if '/admin/organizations/' in here %} aria-current="page"{% endif %}>Organizations</a></li>{% endif %}
         {% if nav.steward %}<li><a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a></li>{% endif %}

@@ -8,7 +8,7 @@ from cedars.services.accounts.models import User
 
 class Command(BaseCommand):
     help = (
-        "First run only: create the CPUC organisation and its first system administrator, organisation administrator and data steward "
+        "First run only: create the CPUC organization and its first system administrator, organization administrator and data steward "
         "(the platform refuses to run without a steward, so the first one comes from here). Audited as the system."
     )
 
@@ -20,7 +20,7 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, email, name, steward, **opts):
         if service.cpuc() is not None and service.org_admins(service.cpuc()).exists():
-            raise CommandError("The CPUC organisation already has an administrator; grant further ones in the platform.")
+            raise CommandError("The CPUC organization already has an administrator; grant further ones in the platform.")
         org = service.cpuc() or service.create_organisation(None, code="CPUC", name="California Public Utilities Commission", kind="cpuc")
         user = User.objects.filter(email__iexact=email).first()
         if user is None:

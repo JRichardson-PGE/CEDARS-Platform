@@ -123,7 +123,7 @@ def test_the_whole_revision_workflow_on_one_record(people, pge, deliverable, cli
         comment_period=(days(-1), days(13)),
     )
     assert deliverables.stage_label(deliverable, draft_results).startswith("Study-result comments")
-    comments.post(public, None, draft_results, note(subject="Weather normalisation", kind="question"))
+    comments.post(public, None, draft_results, note(subject="Weather normalization", kind="question"))
     close(ev, draft_results)
     service.add_version(ev, None, deliverable, [upload("results_final.pdf")], reason="Final", publish=True, stage=Stage.FINAL_RESULTS)
     with pytest.raises(service.DocumentError):
@@ -156,7 +156,7 @@ def test_the_whole_revision_workflow_on_one_record(people, pge, deliverable, cli
     library = client.get("/documents/", {"study": deliverable.study.study_id}).content.decode()
     assert library.count(deliverable.get_absolute_url()) == 1 and "PA responses" in library
     shown = client.get(f"/documents/{deliverable.pk}/comments/").content.decode()
-    assert shown.index("Sample frame") < shown.index("Thanks") < shown.index("Weather normalisation")
+    assert shown.index("Sample frame") < shown.index("Thanks") < shown.index("Weather normalization")
     # The study page and every program it covers show the deliverable at its stage.
     assert "PA responses" in client.get(deliverable.study.get_absolute_url()).content.decode()
     # The ED reply closes it.
@@ -203,7 +203,7 @@ def test_pa_responses_are_requested_by_ed_and_filed_by_the_pa(people, pge, deliv
 
 def test_comment_periods_gate_comments(people, deliverable, client):
     """BR-15.4's acceptance test: a public user comments inside the period, the evaluator responds, both show in order; once the period
-    closes the form is gone; the report lists the comment, the author's organisation, the section and the response."""
+    closes the form is gone; the report lists the comment, the author's organization, the section and the response."""
     ev, public = people["evaluator"], people["public"]
     v = deliverable.versions.get()
     assert not comments.can_comment(None, v)

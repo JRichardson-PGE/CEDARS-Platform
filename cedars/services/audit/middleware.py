@@ -4,7 +4,7 @@ from .context import acting_as
 
 
 class AuditContextMiddleware:
-    """Sets the audit actor for the request: the signed-in user, their active organisation and their session's assurance.
+    """Sets the audit actor for the request: the signed-in user, their active organization and their session's assurance.
     Runs after authentication and after accounts.middleware.ActiveOrganisationMiddleware."""
 
     def __init__(self, get_response):

@@ -63,7 +63,7 @@ def _deadline(pk) -> Deadline:
 
 
 def _organisation(request, deadline: Deadline) -> Organisation | None:
-    """Whose report the page shows: ?org=CODE for those who may read it (CPUC staff), else the organisation the user acts for."""
+    """Whose report the page shows: ?org=CODE for those who may read it (CPUC staff), else the organization the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
         org = get_object_or_404(Organisation, code=code)
@@ -93,7 +93,7 @@ def _status(v: SubmissionVersion | None) -> str:
 
 @login_required
 def index(request):
-    """Each program year's twelve reports with their due dates and the acting organisation's status."""
+    """Each program year's twelve reports with their due dates and the acting organization's status."""
     org = request.organisation
     years = []
     for setup in service.years():
@@ -159,7 +159,7 @@ def setup(request, year):
 
 @login_required
 def report(request, pk):
-    """One month's report for one organisation: its versions and the next step (upload, fix, price, confirm, un-confirm, ask to
+    """One month's report for one organization: its versions and the next step (upload, fix, price, confirm, un-confirm, ask to
     reopen)."""
     deadline = _deadline(pk)
     org = _organisation(request, deadline)
@@ -347,7 +347,7 @@ def _cell(r, key):
 
 @login_required
 def version(request, pk):
-    """A report by program: spend and commitments against the operating budget, and the estimates (labelled unvalidated)."""
+    """A report by program: spend and commitments against the operating budget, and the estimates (labeled unvalidated)."""
     v = _version(request, pk)
     r = service.report(v)
     rows = []
@@ -443,7 +443,7 @@ def published_file(request, pk, which):
 
 
 def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
-    """The PA whose year is shown (?org=CODE, else the acting organisation), whether only its published reports may be shown, and the
+    """The PA whose year is shown (?org=CODE, else the acting organization), whether only its published reports may be shown, and the
     PAs with monthly reports to choose from."""
     choices = list(Organisation.objects.filter(submissions__deadline__module=service.MODULE).distinct().order_by("code"))
     code = request.GET.get("org")

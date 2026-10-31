@@ -2,10 +2,10 @@
 action raises AccessDenied with a sentence the page can show as it is.
 
 Who may grant what:
-  - an organisation's admins grant its module permissions and org.admin, never to themselves;
-  - while an organisation has no admin, only a CPUC system administrator can grant its first one (D6), and only then;
-  - claims.pii granted by an organisation's admin waits for any data steward's approval;
-  - system.admin and pii.steward exist only in the CPUC organisation and are granted by a system administrator;
+  - an organization's admins grant its module permissions and org.admin, never to themselves;
+  - while an organization has no admin, only a CPUC system administrator can grant its first one (D6), and only then;
+  - claims.pii granted by an organization's admin waits for any data steward's approval;
+  - system.admin and pii.steward exist only in the CPUC organization and are granted by a system administrator;
   - the last active data steward cannot be revoked, suspended or removed.
 `actor=None` is the system itself (the bootstrap command and scheduled jobs).
 """
@@ -37,7 +37,7 @@ class AccessDenied(PermissionDenied):
 
 
 # Each PA code in CEDARS' Programs list (2026-10-03) and its type. A PA added under one of these codes is typed on creation (importers,
-# legacy loads); any other code is left for a CPUC system administrator to type on its organisation page. Migration
+# legacy loads); any other code is left for a CPUC system administrator to type on its organization page. Migration
 # accounts/0003_pa_types typed the PAs already in the platform from this table.
 KNOWN_PA_TYPES = {
     # investor-owned utilities
@@ -96,7 +96,7 @@ def effective_permissions(user: User, organisation: Organisation) -> set[str]:
 
 
 def has_permission(user: User, organisation: Organisation, permission: str, assurance: str | None = None) -> bool:
-    """Whether the user holds the permission in the organisation now. claims.pii also checks the session's assurance when the CPUC
+    """Whether the user holds the permission in the organization now. claims.pii also checks the session's assurance when the CPUC
     requires federated sessions for PII (pass the session's assurance; None means "not in a session" and fails that check)."""
     if permission not in effective_permissions(user, organisation):
         return False
@@ -120,7 +120,7 @@ def is_org_admin(user: User, organisation: Organisation) -> bool:
 
 
 def holders(organisation: Organisation, permission: str):
-    """The users who hold the permission in the organisation now."""
+    """The users who hold the permission in the organization now."""
     return User.objects.filter(
         pk__in=_effective(Grant.objects.filter(membership__organisation=organisation, permission=permission)).values("membership__user"),
         is_active=True,
@@ -132,7 +132,7 @@ def org_admins(organisation: Organisation):
 
 
 def organisations_of(user: User):
-    """The organisations the user is an active member of (the ones they can switch to)."""
+    """The organizations the user is an active member of (the ones they can switch to)."""
     return Organisation.objects.filter(memberships__user=user, memberships__ended_at__isnull=True, active=True).distinct()
 
 
@@ -147,7 +147,7 @@ def active_stewards():
 
 
 def can_grant(actor: User | None, user: User, organisation: Organisation, permission: str) -> tuple[bool, str]:
-    """(allowed, reason refused) for actor granting permission to user in organisation."""
+    """(allowed, reason refused) for actor granting permission to user in organization."""
     if not perms.is_valid(permission):
         return False, f"{permission} is not a permission."
     if not organisation.active:
@@ -155,9 +155,9 @@ def can_grant(actor: User | None, user: User, organisation: Organisation, permis
     if not user.is_active:
         return False, f"{user.email}'s account is deactivated."
     if permission in perms.CPUC_ONLY and organisation.kind != Organisation.Kind.CPUC:
-        return False, f"{perms.label(permission)} exists only in the CPUC organisation."
+        return False, f"{perms.label(permission)} exists only in the CPUC organization."
     if permission == perms.PII and AccessPolicy.current().pii_requires_federated and not organisation.federated:
-        return False, f"PII access needs a federated organisation, and {organisation.code} does not federate."
+        return False, f"PII access needs a federated organization, and {organisation.code} does not federate."
     if actor is None:
         return True, ""
     if actor.pk == user.pk:
@@ -186,13 +186,13 @@ def _guard_last_steward(grant: Grant, what: str) -> None:
         raise AccessDenied(f"You cannot {what} the last data steward. Grant another steward first.")
 
 
-# --- organisations and memberships
+# --- organizations and memberships
 
 
 @transaction.atomic
 def create_organisation(actor: User | None, *, code: str, name: str, kind: str, pa_type: str = "", federated: bool = False) -> Organisation:
     if actor is not None and not is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator can add an organisation.")
+        raise AccessDenied("Only a CPUC system administrator can add an organization.")
     code = code.strip().upper()
     if kind == Organisation.Kind.PA and not pa_type:
         pa_type = known_pa_type(code)  # a CEDARS code is typed as CEDARS has it; any other is left for the CPUC to type
@@ -206,10 +206,10 @@ ORGANISATION_DETAILS = ["name", "pa_type"]
 
 @transaction.atomic
 def change_organisation(actor: User | None, org: Organisation, *, reason: str, **changes) -> Organisation:
-    """Change an organisation's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
-    administrator and refused for any other kind of organisation."""
+    """Change an organization's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
+    administrator and refused for any other kind of organization."""
     if actor is not None and not is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator can change an organisation's details.")
+        raise AccessDenied("Only a CPUC system administrator can change an organization's details.")
     unknown = set(changes) - set(ORGANISATION_DETAILS)
     if unknown:
         raise AccessDenied(f"{', '.join(sorted(unknown))} cannot be changed here.")
@@ -221,7 +221,7 @@ def change_organisation(actor: User | None, org: Organisation, *, reason: str, *
     if org.kind != Organisation.Kind.PA and pa_type:
         raise AccessDenied("Only a program administrator has a PA type.")
     if "name" in changes and not changes["name"].strip():
-        raise AccessDenied("The organisation needs a name.")
+        raise AccessDenied("The organization needs a name.")
     before = audit.snapshot(org, ORGANISATION_DETAILS)
     for k, v in changes.items():
         setattr(org, k, v.strip() if isinstance(v, str) else v)
@@ -366,7 +366,7 @@ def request_access(user: User, organisation: Organisation, permission_codes: lis
 def decide_request(
     actor: User, req: AccessRequest, approve: bool, note: str = "", permission_codes: list[str] | None = None
 ) -> AccessRequest:
-    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organisation's
+    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organization's
     admins decide; the CPUC is not in the path (D6)."""
     _require_org_admin(actor, req.organisation, "decide its access requests")
     if req.status != AccessRequest.Status.PENDING:
