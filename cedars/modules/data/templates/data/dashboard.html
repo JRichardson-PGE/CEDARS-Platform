@@ -106,5 +106,31 @@
 </ul>
 <p class="small muted">Each file records its release, when its data last changed, the snapshots it was read from, the filters and the
 canonical field names. <a href="{% url 'data:metrics_csv' %}">How each metric is defined</a>.</p>
+
+<h2 id="record-downloads">Download the records behind these rows</h2>
+<p>The measure-level records these rows add up, with the same years, filters and exclusions, and the key columns. To choose other
+columns, or to look through the records first, open them on the records page.</p>
+<ul class="downloads record-downloads">
+  {% for d in record_downloads %}<li>
+    {% if not d.count %}{{ d.series }}: no records.
+    {% elif d.background %}{{ d.series }}, {{ d.count }} record{{ d.count|pluralize }}: more than the {{ max_rows }} made while you
+    wait, so the file is made in the background and you are told when it is ready.
+    {% if user.is_authenticated %}
+    <form method="post" action="{% url 'data:download_request' %}" class="inline-download">
+      {% csrf_token %}
+      <input type="hidden" name="query" value="{{ d.query }}">
+      <label>Format <span class="sr-only">of the {{ d.series|lower }} records</span>
+        <select name="format">{% for fmt, label in d.formats %}<option value="{{ fmt }}">{{ label }}</option>{% endfor %}</select>
+      </label>
+      <button type="submit">Make this download<span class="sr-only"> of the {{ d.count }} {{ d.series|lower }} records</span></button>
+    </form>
+    {% else %}<a href="{{ sign_in }}">Sign in to have it made<span class="sr-only"> ({{ d.series|lower }} records)</span></a> (anyone can register).{% endif %}
+    <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
+    {% else %}{{ d.series }}, {{ d.count }} record{{ d.count|pluralize }}:
+    {% for fmt, label, href in d.links %}<a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ d.series|lower }} records</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}
+    · <a href="{{ d.page }}">Choose columns<span class="sr-only"> for the {{ d.series|lower }} records</span></a>
+    {% endif %}
+  </li>{% endfor %}
+</ul>
 {% endif %}
 {% endblock %}

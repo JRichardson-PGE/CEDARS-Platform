@@ -179,3 +179,70 @@ def test_catalog_versions_match_the_registry_rules(programs):
     assert rows["PGE_Res_HVAC"] is None  # not started yet in 2020
     rows = {p.prg_id: v for p, v in registry.catalog()}
     assert rows["PGE21001"] == registry.current_version(programs["old"])
+
+
+def test_other_filters_keep_programs_on_any_attribute(signed_in, make_user, cpuc_admin):
+    """The Other filters panel: choices (any of the values ticked), contains-text, year ranges and yes/no flags, all applied together,
+    the same in the CSV download."""
+    import_cedars_programs((DATA / "cedars_programs_20261003.csv").read_bytes(), actor=None)
+    c = signed_in(make_user("someone@example.com"))
+    every = {p.prg_id: v for p, v in registry.catalog() if v is not None}
+
+    def kept(query):
+        r = c.get(f"/programs/programs.csv?{query}")
+        return {row["PrgID"] for row in csv.DictReader(io.StringIO(r.content.decode()))}
+
+    assert kept("implementer=REN/CCA") == {k for k, v in every.items() if v.implementer == "REN/CCA"}
+    both = kept("implementer=REN/CCA&implementer=Non-Program")
+    assert both == {k for k, v in every.items() if v.implementer in ("REN/CCA", "Non-Program")}
+    assert kept("primary_sector=Industrial&upstream=yes") == {
+        k for k, v in every.items() if v.primary_sector == "Industrial" and v.flags.get("Upstream_Flag") == "True"
+    }
+    assert kept("deemed=no&pa=PGE") == {k for k in kept("pa=PGE") if every[k].flags.get("Deemed_Flag") != "True"}
+    assert kept("start_year_from=2024&start_year_to=2025") == {k for k, v in every.items() if v.start_year in (2024, 2025)}
+    assert kept("start_year_from=2025&start_year_to=2024") == kept("start_year_from=2024&start_year_to=2025")  # ends swapped
+    open_ended = kept("end_year_from=2030")
+    assert open_ended == {k for k, v in every.items() if v.end_year is None or v.end_year >= 2030}
+    assert kept("end_year_to=2020") == {k for k, v in every.items() if v.end_year is not None and v.end_year <= 2020}
+    assert kept("parent_program=third party") == {k for k, v in every.items() if "third party" in v.parent_program.lower()}
+    assert kept("bp_sector=Industrial") == {k for k, v in every.items() if "Industrial" in v.sectors}
+    assert kept("exclude_budget=yes") == {k for k, v in every.items() if v.exclude_from_budget}
+    assert kept("financing=OBF&status=closed") == {
+        k for k, v in every.items() if v.flags.get("Financing") == "OBF" and v.status == "closed"
+    }
+    assert kept("start_year_from=20x6") == set(every)  # unreadable: left out, with a note on the page
+    assert "is not a year" in c.get("/programs/?start_year_from=20x6").content.decode()
+
+
+def test_other_filters_panel_chips_and_links(client, programs):
+    """Every filter is in the link; applied ones show as chips, each with a link that removes it; the panel opens on its field without
+    a script ("Show its options"), and its options are the values the main filters keep."""
+    html = client.get("/programs/?pa=PGE&status=active&status=closed&start_year_from=2024&field=status&pick=1").content.decode()
+    assert '<details class="other-filters" open>' in html and "(2 applied)" in html
+    assert '<div class="other-field" data-field="status">' in html  # the chosen field is shown
+    assert '<div class="other-field" data-field="bp_sector" hidden>' in html
+    assert 'name="status" value="active" checked' in html and 'name="status" value="closed" checked' in html
+    assert 'name="bp_sector" value="Residential"' in html  # PG&E's HVAC program
+    assert "PA: <strong>PGE</strong>" in html and "Status: <strong>Closed</strong>" in html
+    assert "Start year: <strong>2024 or later</strong>" in html
+    # Removing one value of a choice keeps the other; the page's own parameters (field, pick, page) never reach a link.
+    assert 'href="?pa=PGE&amp;status=active&amp;start_year_from=2024"' in html
+    assert 'href="?status=active&amp;status=closed&amp;start_year_from=2024"' in html
+    assert "programs.csv?pa=PGE&amp;status=active&amp;status=closed&amp;start_year_from=2024" in html
+    assert "1 program." in html and "PGE_Res_HVAC" in html  # Old Lighting is closed but started before 2024
+    plain = client.get("/programs/").content.decode()
+    assert '<details class="other-filters">' in plain and "applied)" not in plain and "Clear all filters" not in plain
+
+
+def test_other_filter_parsing():
+    from django.http import QueryDict
+
+    from cedars.modules.programs import filters
+
+    active, notes = filters.parse(
+        QueryDict("status=active&status=&status=active&resource=YES&end_year_to=2031&commercial_name=+ x +&deemed=maybe")
+    )
+    assert active == {"status": ["active"], "commercial_name": "x", "end_year": (None, 2031), "resource": True}
+    assert notes == ["Deemed: “maybe” is not yes or no, so that filter was left out."]
+    assert filters.clean_query(QueryDict("q=&pa=PGE&page=2&field=status&pick=1&status=new")).urlencode() == "pa=PGE&status=new"
+    assert {f.code for f in filters.FIELDS}.isdisjoint({"q", "pa", "state", "segment", "year", *filters.PAGE_PARAMS})

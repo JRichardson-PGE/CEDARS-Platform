@@ -127,6 +127,9 @@ def dashboard_page(request, slug):
         "first": first,
         "notes": first.notes if first else [],
         "downloads": first.downloads() if first else [],
+        "record_downloads": _record_downloads(first),
+        "sign_in": _sign_in(request),
+        "max_rows": settings.DATA_DOWNLOAD_MAX_ROWS,
         "metric": metric,
         "series_labels": [(sr, first.series_label(sr)) for sr in first.results] if first else [],
         "series_choices": [(code, label) for code, (label, _) in dashboard.SERIES.items()],
@@ -154,6 +157,22 @@ def dashboard_page(request, slug):
         "pa_groups": dashboard.pa_groups(selected),
     }
     return render(request, "data/dashboard.html", context)
+
+
+def _record_downloads(first) -> list[dict]:
+    """Each series' record-level download, beside the download of its rows: the same query, one record per row."""
+    from . import records
+
+    if not first:
+        return []
+    return [records.behind(r, dashboard.SERIES[s][0], max_rows=settings.DATA_DOWNLOAD_MAX_ROWS) for s, r in first.results.items()]
+
+
+def _sign_in(request) -> str:
+    from django.urls import reverse
+    from django.utils.http import urlencode
+
+    return reverse("account_login") + "?" + urlencode({"next": request.get_full_path()})
 
 
 def _metric_label(page, code):

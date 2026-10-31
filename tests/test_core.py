@@ -8,8 +8,14 @@ from django.core.exceptions import ImproperlyConfigured
 pytestmark = pytest.mark.django_db
 
 
-def test_home_lists_the_modules(client):
-    r = client.get("/")
+def test_the_site_opens_on_the_portfolio_dashboard(client):
+    r = client.get("/", follow=True)
+    assert r.redirect_chain[-1][0] == "/data/overview/"
+    assert r.status_code == 200
+
+
+def test_about_lists_the_modules(client):
+    r = client.get("/about/")
     assert r.status_code == 200
     html = r.content.decode()
     assert '<a class="skip" href="#main">' in html
@@ -41,11 +47,11 @@ def test_security_headers(client):
 
 
 def test_sandbox_banner(client, sandbox):
-    assert "Sandbox: test data only" in client.get("/").content.decode()
+    assert "Sandbox: test data only" in client.get("/about/").content.decode()
 
 
 def test_no_banner_outside_the_sandbox(client):
-    assert "Sandbox" not in client.get("/").content.decode()
+    assert "Sandbox" not in client.get("/about/").content.decode()
 
 
 def test_prod_settings_need_a_secret_key():

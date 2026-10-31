@@ -228,6 +228,21 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .filters > label, .filters > fieldset { min-width: 0; max-width: 100%; }
 .filters > fieldset { margin: 0; background: none; }
 .filters .helptext { max-width: 18rem; }
+/* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
+.other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
+.other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }
+.other-filters > summary .count { color: var(--fg-2); font-weight: 400; }
+.other-body { display: flex; flex-direction: column; gap: .75rem; align-items: stretch; padding: .6rem 0 .2rem; }
+.other-body > .helptext { max-width: 60ch; margin: 0; }
+.other-pick { display: flex; gap: .6rem 1rem; align-items: flex-end; flex-wrap: wrap; }
+.other-pick > label { flex: 0 1 22rem; min-width: 0; }
+.other-pick select { width: 100%; }   /* a select is as wide as its longest option unless told otherwise (1.4.10 at 320 px) */
+.other-body > button { align-self: flex-start; }
+.other-field { display: flex; flex-direction: column; gap: .3rem; max-width: 100%; }
+.other-field fieldset { margin: 0; background: none; }
+.other-field .checks { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.other-field .row-form label { width: 9rem; max-width: 100%; }
+.other-field .helptext { margin: 0; max-width: 60ch; }
 .row-form { display: flex; gap: .8rem; align-items: flex-end; flex-wrap: wrap; }
 .row-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .6rem 1rem; }
 .row-fields label { overflow-wrap: anywhere; }
@@ -306,6 +321,9 @@ fieldset.pa-filter label.pa-all { font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
+ul.record-downloads li { margin-bottom: .5rem; }
+form.inline-download { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .25rem .5rem .25rem 0; }
+form.inline-download label { flex-direction: row; align-items: center; }
 table.list.records thead th { text-transform: none; letter-spacing: 0; }   /* canonical field names keep their case */
 table.records td { white-space: nowrap; }
 .column-picker details { margin: .2rem 0; }
