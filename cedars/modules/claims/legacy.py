@@ -46,6 +46,7 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.dictionary import legacy as crosswalk
 from cedars.services.legacy import service as legacy
+from cedars.services.legacy import snapshot as legacy_snapshot
 from cedars.services.legacy import tables
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program, ReportingPeriod
@@ -94,12 +95,13 @@ class Outcome:
     unchanged: list[str] = field(default_factory=list)
     refused: list[tuple[str, list[str]]] = field(default_factory=list)
     programs_added: int = 0
+    snapshots: int = 0
     notes: list[str] = field(default_factory=list)
 
     def lines(self) -> list[str]:
         out = [
             f"{self.year}: published {len(self.published)} ({', '.join(self.published)}), unchanged {len(self.unchanged)}, "
-            f"refused {len(self.refused)}, program years added {self.programs_added}"
+            f"refused {len(self.refused)}, program years added {self.programs_added}, dashboard snapshots {self.snapshots}"
         ]
         out += [f"  {pa} not published: {'; '.join(why)}" for pa, why in self.refused]
         out += [f"  {n}" for n in self.notes]
@@ -191,6 +193,8 @@ def load(year: int, *, only: str = "") -> Outcome:
                 outcome.unchanged.append(code)
                 continue
             _load_pa(outcome, year, acc, deadline, org, paths, layout, src, per_pa.get(code, []), by_pa_participants.get(code))
+    if outcome.snapshots:
+        legacy_snapshot.rebuild(["claims"])
     return outcome
 
 
@@ -360,6 +364,16 @@ def _load_pa(outcome: Outcome, year, acc, deadline, org, paths, layout, src, per
         ClaimProgramLine.objects.bulk_create(ClaimProgramLine(version=v, **ln) for ln in lines)
         ClaimResult.objects.bulk_create(ClaimResult(version=v, run=RUN, **r) for r in results)
     outcome.published.append(code)
+    _snapshot(outcome, imp)
+
+
+def _snapshot(outcome: Outcome, imp) -> None:
+    """The version's dashboard snapshot (statewide unallocated claims get none); a failure leaves it to `manage.py snapshot_legacy`."""
+    try:
+        if legacy_snapshot.publish_snapshot(imp):
+            outcome.snapshots += 1
+    except Exception as e:
+        outcome.notes.append(f"{imp.version.submission.organisation.code}: no dashboard snapshot ({e}); run manage.py snapshot_legacy")
 
 
 def _first_program_rows(firsts: dict, rows, program_cols: list[str]) -> None:
