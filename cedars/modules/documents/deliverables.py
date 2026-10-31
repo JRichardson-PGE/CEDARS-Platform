@@ -140,7 +140,7 @@ def status(req: ResponseRequest, day: date | None = None) -> str:
     filed = responses(req)
     published = [v for v in filed if v.published]
     if published:
-        first = published[0].published_at.date()
+        first = timezone.localdate(published[0].published_at)
         return "Responded" if first <= req.due else f"Responded late ({(first - req.due).days} days)"
     if filed:
         return "Filed, not yet published"

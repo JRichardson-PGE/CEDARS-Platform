@@ -59,7 +59,9 @@ def items(day: date | None = None, stale_days: int = STALE_DAYS) -> list[Item]:
     for v in drafts:
         doc = v.document
         label = v.stage_label or f"version {v.number}"
-        out.append(Item("draft", doc.study.manager, doc.study, f"{doc.title}: {label}", doc.get_absolute_url(), v.created_at.date()))
+        out.append(
+            Item("draft", doc.study.manager, doc.study, f"{doc.title}: {label}", doc.get_absolute_url(), timezone.localdate(v.created_at))
+        )
     for s in _active(Study.objects.filter(next_activity_due__lt=day)).select_related("manager"):
         out.append(Item("activity", s.manager, s, s.next_activity or "Next activity", s.get_absolute_url(), s.next_activity_due))
     questions = (
@@ -84,7 +86,16 @@ def items(day: date | None = None, stale_days: int = STALE_DAYS) -> list[Item]:
         )
     cutoff = timezone.now() - timedelta(days=stale_days)
     for s in _active(Study.objects.filter(updated_at__lt=cutoff)).select_related("manager"):
-        out.append(Item("stale", s.manager, s, f"Last updated {s.updated_at:%Y-%m-%d}", s.get_absolute_url(), s.updated_at.date()))
+        out.append(
+            Item(
+                "stale",
+                s.manager,
+                s,
+                f"Last updated {timezone.localdate(s.updated_at):%Y-%m-%d}",
+                s.get_absolute_url(),
+                timezone.localdate(s.updated_at),
+            )
+        )
     for r in ResponseRequest.objects.filter(due__lt=day).select_related("pa", "document__study"):
         published = r.document.versions.filter(stage=Stage.PA_RESPONSE, responding_pa=r.pa, published_at__isnull=False).exists()
         if not published:
