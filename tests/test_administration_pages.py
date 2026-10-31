@@ -18,6 +18,19 @@ def test_password_only_sessions_are_sent_to_set_up_a_second_factor(signed_in, ma
     assert c.get("/accounts/2fa/").status_code == 200
 
 
+def test_a_password_session_gets_the_whole_header_when_mfa_is_not_required(signed_in, make_user, settings):
+    # A laptop demo turns the requirement off (CEDARS_REQUIRE_MFA=0 in dev): the header must follow the middleware and offer the
+    # modules, not "Finish setting up your second factor" with nothing to set up.
+    c = signed_in(make_user("demo@example.com"), "password")
+    html = c.get("/about/").content.decode()
+    assert "Finish setting up your second factor" in html and 'id="main-nav"' not in html
+    settings.CEDARS_REQUIRE_MFA = False
+    r = c.get("/account/")
+    assert r.status_code == 200
+    html = r.content.decode()
+    assert 'id="main-nav"' in html and "Finish setting up your second factor" not in html and "Sign out" in html
+
+
 def test_mfa_and_federated_sessions_get_in(signed_in, make_user):
     u = make_user("u@example.com")
     r = signed_in(u, "mfa").get("/account/")
