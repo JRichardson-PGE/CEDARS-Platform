@@ -25,7 +25,7 @@ from .test_calculations import analyst, job_zip, release, request  # noqa: F401 
 pytestmark = pytest.mark.django_db
 
 
-def set_file(sid="EE-2026", version="2026-10-31", years=(None, None), draft=False, tests=("TRC", "PAC")) -> bytes:
+def set_file(sid="EE-2026", version="2026-09-15", years=(None, None), draft=False, tests=("TRC", "PAC")) -> bytes:
     """A cost-test set as ReCET writes one (the header and tests; the platform reads no more of it)."""
     d = {
         "schema_version": 1,
@@ -51,7 +51,7 @@ def registered(admin, publish=True, **kw):
 def test_a_set_file_is_a_draft_pack_of_that_one_file(cpuc_admin):
     data = set_file(years=(2028, None), sid="EE-2028")
     p = cost_tests.register_set(cpuc_admin, data)
-    assert (p.kind, p.label, p.version, p.status, p.valid_from) == ("cost_tests", "EE-2028", "2026-10-31", "draft", date(2028, 1, 1))
+    assert (p.kind, p.label, p.version, p.status, p.valid_from) == ("cost_tests", "EE-2028", "2026-09-15", "draft", date(2028, 1, 1))
     assert cost_tests.sha256(p) == hashlib.sha256(data).hexdigest() and list(p.manifest) == ["definition.yaml"]
     assert cost_tests.header(p)["tests"] == {"TRC": "TRC test", "PAC": "PAC test"} and cost_tests.header(p)["headline"] == ["TRC"]
     assert cost_tests.file_bytes(p) == data and cost_tests.years_text(p) == "2028 on (until a later set starts)"
@@ -94,7 +94,7 @@ def test_a_run_is_priced_on_the_published_set_in_force_by_its_id(analyst, pge, r
     assert "cost_tests" not in run.inputs and "cost_tests" not in run.spec["inputs"]
     assert run.cost_tests == {
         "id": "EE-2026",
-        "version": "2026-10-31",
+        "version": "2026-09-15",
         "status": "published",
         "sha256": cost_tests.sha256(ee),
         "pack": ee.pk,
@@ -108,7 +108,7 @@ def test_a_run_is_priced_on_the_published_set_in_force_by_its_id(analyst, pge, r
         assert jobspec.validate(run.spec) == []
     c = Client()
     sign_in(c, analyst)
-    assert "EE-2026 2026-10-31" in c.get(f"/calculations/runs/{run.pk}/").content.decode()
+    assert "EE-2026 2026-09-15" in c.get(f"/calculations/runs/{run.pk}/").content.decode()
 
 
 def test_a_draft_set_goes_as_its_file_and_only_for_analysis(analyst, pge, release, cpuc_admin, tmp_path):  # noqa: F811
@@ -179,7 +179,7 @@ def test_the_cost_test_sets_page_lists_and_registers_sets(cpuc_admin, pge_admin)
     c = Client()
     sign_in(c, pge_admin)
     page = c.get("/reference-data/cost-tests/").content.decode()
-    assert "EE-2026 2026-10-31" in page and "Register a set" not in page
+    assert "EE-2026 2026-09-15" in page and "Register a set" not in page
     sign_in(c, cpuc_admin)
     r = c.post("/reference-data/cost-tests/", {"file": SimpleUploadedFile("definition.yaml", set_file(sid="EE-2028", years=(2028, None)))})
     p = refdata.PackVersion.objects.get(kind="cost_tests", label="EE-2028")

@@ -230,7 +230,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     for check in ("source_workbook", "reference_measures"):
         refdata.record_tie_out(cpuc_admin, published, check=check, passed=True, precision=1e-9, largest_difference=0)
     refdata.publish_pack(cpuc_admin, published)
-    cost_set = cost_tests.register_set(cpuc_admin, set_file(), source="ReCET 0.1.85")
+    cost_set = cost_tests.register_set(cpuc_admin, cost_tests.engine_copy("EE-2026", "2026-10-31") or set_file(), source="ReCET 0.1.85")
     refdata.record_tie_out(cpuc_admin, cost_set, check="engine_check", passed=True, engine_release="0.1.85")
     refdata.publish_pack(cpuc_admin, cost_set)
     notifications.subscribe(pge_admin, "pack.published")

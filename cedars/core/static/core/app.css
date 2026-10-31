@@ -279,9 +279,9 @@ ul.links li { margin: .3rem 0; }   /* a list of links, one per line: 24 px apart
 ul.bars { list-style: none; padding: 0; margin: 0; display: grid; gap: .4rem; }
 ul.bars li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr max-content; gap: .6rem; align-items: center; }
 .bar-name { overflow-wrap: anywhere; }
-.bar-track { background: var(--surface-2); border-radius: 3px; height: .9rem; }
-.bar { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
-.bar.negative { background: repeating-linear-gradient(45deg, var(--bad) 0 4px, transparent 4px 8px); border: 1px solid var(--bad); }   /* and "(negative)" in text */
+.bar-track { display: block; width: 100%; background: var(--surface-2); border-radius: 3px; height: .9rem; }   /* an SVG: its bar's width is an attribute, never an inline style (the CSP forbids those) */
+.bar { fill: var(--primary); }
+.bar.negative { fill: var(--bad); fill-opacity: .55; }   /* and "(negative)" in text */
 @media (max-width: 480px) { ul.bars li { grid-template-columns: 1fr max-content; } .bar-track { grid-column: 1 / -1; grid-row: 2; } }
 
 /* ---------- Due-date cell, identifiers, collapsed sections, empty states ---------- */
@@ -313,6 +313,7 @@ section.cycle { margin-bottom: .5rem; }
 .dash-controls legend { font-weight: 600; font-size: .9rem; padding: 0 .25rem; }
 .dash-controls label.check, .dash-filters label.check { display: inline-flex; flex-direction: row; gap: .4rem; align-items: center; font-weight: 400; min-height: 24px; }
 .dash-filters { flex-basis: 100%; }
+.filters-more { flex-basis: 100%; }
 .dash-filters summary { cursor: pointer; font-weight: 600; min-height: 24px; }
 .dash-filters fieldset { margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
 /* The PA filter: one group per PA type, each on its own line, its "All" box first and in bold. */

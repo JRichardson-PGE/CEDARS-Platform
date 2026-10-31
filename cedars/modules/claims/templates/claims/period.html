@@ -69,12 +69,15 @@
   {% if v.status == "validated" and not stale %}
     {% if priced %}
       <p>Priced: the results below are what confirming signs off on.</p>
-    {% elif pricing_run %}
-      <p>Pricing: <a href="{% url 'calculations:run' pricing_run %}">the run's page</a> shows its progress. Reload this page when it has finished.</p>
+    {% elif pricing_run and not pricing_run.ended %}
+      <p>Pricing: <a href="{% url 'calculations:run' pricing_run.id %}">the run's page</a> shows its progress. Reload this page when it has finished.</p>
     {% elif not s.job_key %}<p>There are no measures in the year to date yet, so there is nothing to price.</p>
-    {% elif can_submit %}
+    {% else %}
+      {% if pricing_run %}<div class="alert" role="alert"><p>The pricing run <a href="{% url 'calculations:run' pricing_run.id %}">{{ pricing_run.label|lower }}</a>{% if pricing_run.error %}: {{ pricing_run.error }}{% endif %} It did not price this version{% if can_submit %}; price it again once what it says is put right{% endif %}.</p></div>{% endif %}
+      {% if can_submit %}
       <form method="post" action="{% url 'claims:price' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Price the year to date</button> <span class="small muted">Runs the calculation and statewide allocation on every measure of the year so far; confirming needs it.</span></form>
-    {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+      {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+    {% endif %}
   {% endif %}
 
   {% if tiles %}

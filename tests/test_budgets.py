@@ -379,12 +379,17 @@ def test_the_budget_filing_rules_run_year_by_year(filer, filing, pge, programs, 
 
     rs = rules.import_from_engine(cpuc_admin, "budget_filing")
     rules.publish(cpuc_admin, rs)
-    v = service.upload(filer, filing, pge, job(), "tual.zip")  # a file without the specification's columns
-    assert {f["rule_id"] for f in service.findings(v)} == {"BUD-COL"} and v.status == "draft"
-    assert any("were not run" in n for n in v.findings["notes"])
+    v = service.upload(filer, filing, pge, job(), "tual.zip")  # a Measure table without the specification's columns
+    found = service.findings(v)
+    assert {f["table"] for f in found if f["rule_id"] == "BUD-COL"} == {"Measure"} and v.status == "draft"
+    assert [n for n in v.findings["notes"] if "Measure rules were not run" in n]
+    # the ProgramCost table has every column (its key rule "PrgID + PrgYear" names two of them), so its rules ran
+    assert not [n for n in v.findings["notes"] if "ProgramCost rules were not run" in n]
+    assert [f for f in found if f["table"] == "ProgramCost" and f["rule_id"] != "BUD-COL"]
     tables = {}
     for table, rows in (("ProgramCost", job_rows(COSTS)), ("Measure", job_rows(MEASURE))):
-        spec = sorted(set(rs.rules.filter(table=table, kind="spec").values_list("field", flat=True)))
+        spec = rules.spec_columns(rs, table)  # the key rule "PrgID + PrgYear" names two columns, not one
+        assert not [c for c in spec if "+" in c] and {"PrgID", "PrgYear"} <= set(spec) or table == "Measure"
         cols = list(dict.fromkeys(list(rows[0]) + spec))
         tables[table] = "\n".join(["|".join(cols)] + ["|".join(r.get(c, "") for c in cols) for r in rows]) + "\n"
     out = io.BytesIO()

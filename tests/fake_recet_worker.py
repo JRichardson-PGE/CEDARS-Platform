@@ -76,6 +76,9 @@ def write_results(out, scale):
 
 
 def main(argv):
+    if argv[0] == "--version":
+        print("recet 0.1.78")
+        return 0
     assert argv[0] == "run", argv
     spec = json.loads(path(argv[1]).read_text())
     code = int(os.environ.get("FAKE_RECET_EXIT", "0"))

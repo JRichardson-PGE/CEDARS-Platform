@@ -22,6 +22,7 @@ the run page shows its progress, and its files when it ends.</p>
   <fieldset><legend>Pricing</legend>
     <div class="stack">
     {{ form.engine.as_field_group }}
+    {% if unserved %}<p class="small" role="note" id="unserved-note">No worker is running {% for r in unserved %}ReCET {{ r.release }}{% if not forloop.last %}, {% endif %}{% endfor %} right now (none has polled in the last {{ worker_minutes }} minute{{ worker_minutes|pluralize }}). A run on {% if unserved|length == 1 %}it{% else %}one of them{% endif %} waits in the queue until one starts.</p>{% endif %}
     {{ form.acc_version.as_field_group }}
     <details>
       <summary>Which ACCs each engine has</summary>

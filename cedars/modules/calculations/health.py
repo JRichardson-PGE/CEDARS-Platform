@@ -1,6 +1,6 @@
 """The Calculations module's health checks (cedars/core/health.py): runs that wait or run too long, and runs that failed."""
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from cedars.core import health
@@ -68,6 +68,47 @@ def failed() -> health.Result:
     return result
 
 
+def workers() -> health.Result:
+    """Local backend: the default release and every release runs are queued on each need a worker running it that has polled lately
+    (otherwise those runs wait for good). On AWS Batch a worker of the release's image starts per run, so nothing is checked."""
+    from . import dispatch, service
+
+    result = health.Result("calculations.workers", "Calculations", "Workers for each engine release", link="/calculations/engines/")
+    if dispatch.default_backend_name() != "local":
+        result.summary = "Runs go to AWS Batch, which starts a worker of the release's image for each run."
+        return result
+    minutes = settings_minutes("worker_seen")
+    live = list(dispatch.live_workers())
+    needed: dict[str, str] = {}
+    default = service.default_release()
+    if default is not None:
+        needed[default.release] = "the default for new runs"
+    queued = Run.objects.filter(status=Run.Status.QUEUED, backend="local").values("engine_release").annotate(n=Count("id"))
+    for row in queued:
+        needed[row["engine_release"]] = f"{row['n']} run{'s' if row['n'] != 1 else ''} queued"
+    items = [
+        health.Item(f"release:{rel}", f"ReCET {rel}", None, f"{why}; no worker running it has polled in the last {minutes} minutes")
+        for rel, why in sorted(needed.items())
+        if not any(w.release in (rel, "") for w in live)
+    ]
+    result.items = items
+    if items:
+        result.status = health.FAILING
+        result.summary = (
+            f"{len(items)} release{'s' if len(items) != 1 else ''} with no worker polling in the last {minutes} minutes. Runs on "
+            "them wait until a worker of that release starts (manage.py calculations_worker)."
+        )
+    elif not live:
+        result.status = health.ATTENTION
+        result.summary = f"No worker has polled the queue in the last {minutes} minutes, and nothing is queued."
+    else:
+        releases = sorted({w.release or "unknown release" for w in live})
+        result.summary = (
+            f"{len(live)} worker{'s' if len(live) != 1 else ''} polled in the last {minutes} minutes: ReCET {', '.join(releases)}."
+        )
+    return result
+
+
 def settings_minutes(name: str) -> int:
     return int(health.limit(name).total_seconds() // 60)
 
@@ -75,3 +116,4 @@ def settings_minutes(name: str) -> int:
 def register() -> None:
     health.register("calculations.stalled", stalled)
     health.register("calculations.failed", failed)
+    health.register("calculations.workers", workers)

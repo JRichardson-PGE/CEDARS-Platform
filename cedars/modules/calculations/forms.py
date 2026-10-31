@@ -70,6 +70,7 @@ class NewRunForm(forms.Form):
             self.fields["output_template"].initial = output_templates.default_for(user)
         self.organisations = {o.code: o for o in organisations}
         self.fields["run_for"].choices = [(o.code, o.code) for o in organisations] + [("", "Only me")]
+        self.fields["run_for"].required = False  # "Only me" is the blank value
         engines, accs = [], set()
         for r in releases:
             for calc in r.calculations:
