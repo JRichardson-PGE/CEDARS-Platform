@@ -163,6 +163,8 @@ def publish_pack(actor, pack: PackVersion) -> PackVersion:
     _require(actor, pack.kind)
     if pack.status != Status.DRAFT:
         raise AccessDenied("Only a draft is published.")
+    if pack.kind == Kind.COST_TESTS and (pack.manifest.get("definition.yaml") or {}).get("set", {}).get("draft"):
+        raise AccessDenied("The set's own file says draft: true. A published set is a final one: register the final file as a new version.")
     missing = outstanding(pack)
     if missing:
         raise AccessDenied("Publishing needs a passed tie-out for: " + ", ".join(r.name for r in missing) + ".")

@@ -19,6 +19,7 @@ dependencies = [
     "boto3>=1.35",               # S3 storage and AWS Batch dispatch (imported only when used)
     "pypdf>=5.1",                # the text of PDF documents, for search (BR-15.2)
     "duckdb>=1.1",               # dashboard queries over the publication snapshots (decision I)
+    "pyyaml>=6.0",               # cost-test definition sets (ReCET's YAML), read for their header
 ]
 
 [dependency-groups]

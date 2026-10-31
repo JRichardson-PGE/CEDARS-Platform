@@ -139,6 +139,7 @@ def filing_new(request):
                 opens_at=service.due_at(d["opens"]) if d["opens"] else None,
                 acc_version=d["acc_version"],
                 allocation_version=d["allocation_version"],
+                cost_test_set=d["cost_test_set"],
                 notes=d["notes"],
             )
         except AccessDenied as e:
@@ -156,13 +157,20 @@ def setup(request, pk):
         raise Http404
     s = deadline.budget_setup
     form = forms.SetupForm(
-        request.POST or None, accs=accs(), initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version}
+        request.POST or None,
+        accs=accs(),
+        initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version, "cost_test_set": s.cost_test_set},
     )
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
-                request.user, s, acc_version=d["acc_version"], allocation_version=d["allocation_version"], reason=d["reason"]
+                request.user,
+                s,
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                reason=d["reason"],
+                cost_test_set=d["cost_test_set"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))

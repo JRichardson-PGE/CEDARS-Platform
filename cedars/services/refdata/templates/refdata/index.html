@@ -2,7 +2,7 @@
 {% block title %}Reference data{% endblock %}
 {% block content %}
 <h1>Reference data</h1>
-<p>The data packs the engine and the modules read. Every run and every filing records the packs it used. A draft can be used for analysis runs but not for filings, and a pack is published only once its tie-outs pass.</p>
+<p>The data packs the engine and the modules read. The cost tests runs price are on <a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>. Every run and every filing records the packs it used. A draft can be used for analysis runs but not for filings, and a pack is published only once its tie-outs pass.</p>
 {% if in_force %}
 <h2>In force today</h2>
 <dl class="facts">{% for label, p in in_force %}<dt>{{ label }}</dt><dd><a href="{% url 'refdata:detail' p.pk %}">{{ p }}</a></dd>{% endfor %}</dl>
