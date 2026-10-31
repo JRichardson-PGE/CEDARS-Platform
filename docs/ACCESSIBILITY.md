@@ -10,8 +10,9 @@ Target: WCAG 2.2 Level AA on every page and published document (decision K; BRD 
 - Markup axe does not check (UI review 2, 2026-10-31), on the same page load: no id used twice (several Django forms on one page each get
   their own `auto_id`, e.g. `RenameForm(auto_id="rename_%s")`, or a label's `for` and a hint's `aria-describedby` reach only the first
   form's field); every checkbox and radio at least 24 x 24 px (they are `flex: none`, so a long label in a flex row cannot squeeze them);
-  every `summary` at least 24 px tall (2.5.8); every table with a caption (visible or `.sr-only`). A scroll box (`.hscroll`,
-  `role="region"`) inside a section of the same name is named after its table ("Versions table"), so the two landmarks differ.
+  every `summary` at least 24 px tall (2.5.8); every table with a caption (visible or `.sr-only`); no label or legend ending in a
+  colon (the field template writes none, DESIGN.md). A scroll box (`.hscroll`, `role="region"`) inside a section of the same name is
+  named after its table ("Versions table"), so the two landmarks differ.
 - The sticky header (it stays at the top of windows at least 861 px wide and 480 px tall, and scrolls away on smaller ones): backing up a
   long page with Shift+Tab, and scrolling each link and field in the content just into view from below, never leaves one hidden under
   it (2.4.11 focus not obscured); it scrolls away at 320 x 640 and 1280 x 400.

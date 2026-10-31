@@ -52,7 +52,7 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 | `.card`, `dl.tiles`, `dl.facts` | an object, summary numbers, key/value facts | cards are for objects, not for a page's main table |
 | `.messages`, `.alert`, `ul.notices` | page messages, an inline alert, a notice list | tinted by state |
 | `button`, `.button`, `.primary`, `button.link`, `.danger` | the button set | 36 px high, 24 px minimum for inline ones |
-| `.field`, `.helptext`, `.field-errors`, `fieldset` | form fields | `as_field_group` renders every field as one `.field` block (`core/templates/django/forms/field.html`): label, hint, errors, control, so a field stays together when a filter bar wraps |
+| `.field`, `.helptext`, `.field-errors`, `fieldset` | form fields | `as_field_group` renders every field as one `.field` block (`core/templates/django/forms/field.html`) in the order label, control, errors, hint, so a field stays together when a filter bar wraps. No colon after a label or legend; a checkbox is one line with its box inside the label (`label.check`). A hand-written field follows the same shape: `<div class="field"><label for>…</label><input aria-describedby="…-help"><span class="helptext" id="…-help">…</span></div>`. Inside a `form.stack`, only a `<p>` holding a label or control stacks as a field; a prose `<p>` stays prose (links inline) |
 | `td.due` with `<time>` and `<small>` | a due date with its urgency in words | `{{ due_at\|due_words }}`: "Due in 2 weeks", "Passed 7 months ago" |
 | `.status` + `{{ status\|status_tone }}` | a badge toned from a status word | `{% load ui %}` |
 | `details.section` with `h2` in `summary` and `.section-body` | an earlier cycle or year, collapsed with a count | the newest stays an open `section.cycle` |

@@ -238,7 +238,6 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .filters > label, .filters > fieldset { min-width: 0; max-width: 100%; }
 .filters > fieldset { margin: 0; background: none; }
-.filters .helptext { max-width: 18rem; }
 /* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
 .other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
 .other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }
@@ -258,6 +257,7 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .row-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: .6rem 1rem; }
 .row-fields label { overflow-wrap: anywhere; }
 .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: .3rem 1rem; }
+fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of boxes in the same group (Notification settings) */
 .checks label, label.inline, label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }   /* a box and its words on one line */
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
@@ -265,9 +265,10 @@ label.inline { display: inline-flex; margin-right: .8rem; }
 details.inline { display: inline-block; }
 details.inline > summary { font-weight: normal; color: var(--link); min-height: 24px; line-height: 24px; cursor: pointer; }   /* 2.5.8: two side by side in a cell */
 details.inline form { display: flex; gap: .4rem; align-items: end; flex-wrap: wrap; margin-top: .3rem; }
-/* Django's own form rendering (<p> per field, as on the sign-in page): label, field and help text stacked, so a link in the help text
-   never sits beside the field it describes (2.5.8 found it crowding the password box). */
-form.stack > p { display: flex; flex-direction: column; gap: .3rem; margin: 0; }
+/* A <p> per field (Django's own rendering, the sign-in page, a few hand-written forms): label, field and help text stacked, so a link in the
+   help text never sits beside the field it describes (2.5.8 found it crowding the password box). Only a paragraph that holds a label or a
+   control is a field; a prose paragraph inside the form stays prose (UI review 2 found "Programs catalog" links on a line of their own). */
+form.stack > p:has(> label, > input, > select, > textarea) { display: flex; flex-direction: column; gap: .3rem; margin: 0; }
 form.stack > p > label { color: var(--fg-2); }
 form.stack > p:has(> input[type=checkbox]) { flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: .5rem; }
 input.key { width: 100%; }
