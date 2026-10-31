@@ -3,6 +3,7 @@
 # - the app's checks failing (stalled or failed runs and Impact profiles jobs, the eTRM sync), from its JSON line in the app log;
 # - the checks not reporting at all (the scheduler, the task or the database is down);
 # - the web service: unhealthy targets, 5xx answers, too few tasks, memory;
+# - each always-on background job service in jobs.tf: no task running;
 # - the databases: CPU, free storage.
 # Nothing in an alarm message is personal information.
 
@@ -184,6 +185,25 @@ resource "aws_cloudwatch_metric_alarm" "web_tasks" {
   evaluation_periods  = 2
   comparison_operator = "LessThanThreshold"
   threshold           = var.web_count
+  treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
+  tags                = local.tags
+}
+
+# --- the background job services (jobs.tf): each runs one task all the time; a task that keeps crashing leaves none running
+resource "aws_cloudwatch_metric_alarm" "job_tasks" {
+  for_each            = aws_ecs_service.jobs
+  alarm_name          = "${local.name}-${each.key}-tasks"
+  alarm_description   = "The ${each.key} service has no task running for 10 minutes (it keeps stopping or cannot start)."
+  namespace           = "ECS/ContainerInsights"
+  metric_name         = "RunningTaskCount"
+  dimensions          = { ClusterName = aws_ecs_cluster.main.name, ServiceName = each.value.name }
+  statistic           = "Minimum"
+  period              = 300
+  evaluation_periods  = 2
+  comparison_operator = "LessThanThreshold"
+  threshold           = each.value.desired_count
   treat_missing_data  = "breaching"
   alarm_actions       = [aws_sns_topic.alarms.arn]
   ok_actions          = [aws_sns_topic.alarms.arn]
