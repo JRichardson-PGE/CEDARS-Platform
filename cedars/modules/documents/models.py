@@ -415,8 +415,14 @@ class Study(models.Model):
     contacts = models.TextField(
         blank=True, help_text="ED consultants, PA contacts, the PCG and its coordinators; CPUC staff and the study manager see them"
     )
+    psr = models.JSONField(
+        "kept from the PSR",
+        default=dict,
+        blank=True,
+        help_text="A migrated study's PSR values that the register's lists did not take as they were; seen with the contacts",
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

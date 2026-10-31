@@ -50,5 +50,7 @@ in the browser. Replace each site with two things.
    <body><p>The Public Document Area is now part of CEDARS: <a href="https://NEW-HOST/documents/">the document library</a>.</p></body></html>
    ```
 
-Run the migration first (`manage.py documents_import_pda`), then switch the domains, then try the links cited in D.23-04-035 against the
-new host.
+Run the migrations first (`manage.py documents_import_pda`, then `manage.py documents_import_psr`, so a project's work order number
+finds the PDA's work order), then switch the domains, then try the links cited in D.23-04-035 against the new host. A PSR project keeps
+its number, so `#!/project-status-view-edit/<id>` leads to it; import the PSR before anyone adds a study here, or a new study may take a
+project's number (the import names any it leaves out).

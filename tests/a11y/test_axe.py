@@ -363,6 +363,12 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
             contacts="Evaluation contractor's project manager",
         ),
     )
+    study.psr = {
+        "project": study.number,
+        "study_id": study.study_id,
+        "fields": {"Study manager": "DNV GL", "Group": "Cross-Cutting (Group B)"},
+    }
+    study.save(update_fields=["psr"])
     studies.change_study(
         cpuc_admin,
         study,

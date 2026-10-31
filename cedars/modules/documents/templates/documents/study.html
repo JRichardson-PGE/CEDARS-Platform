@@ -27,6 +27,7 @@
   <dt>Completion date</dt><dd>{{ s.completion_date|date:"Y-m-d"|default:"Not given" }}</dd>
   {% if s.calmac_id %}<dt>CALMAC ID</dt><dd>{{ s.calmac_id }}</dd>{% endif %}
   <dt>Last updated</dt><dd>{{ s.updated_at|date:"Y-m-d" }}</dd>
+  {% if s.psr %}<dt>Migrated from</dt><dd>The PSR, project {{ s.psr.project }}: its old link leads here</dd>{% endif %}
 </dl>
 {% if s.description %}<h3>Description</h3><p>{{ s.description|linebreaksbr }}</p>{% endif %}
 {% if s.objective %}<h3>Objective</h3><p>{{ s.objective|linebreaksbr }}</p>{% endif %}
@@ -39,6 +40,13 @@
   <dt>ED program manager</dt><dd>{% if s.ed_program_manager %}{{ s.ed_program_manager.name|default:s.ed_program_manager.email }}{% else %}Not given{% endif %}</dd>
   <dt>Other contacts</dt><dd>{{ s.contacts|linebreaksbr|default:"None recorded" }}</dd>
 </dl>
+{% if s.psr.fields %}
+<h3>As the PSR had it <span class="small muted">(not public)</span></h3>
+<p class="small muted">The PSR's own values where the register's lists did not take them, or as it spelled them. Update the study to set the register's values.</p>
+<dl class="facts">
+  {% for name, value in s.psr.fields.items %}<dt>{{ name }}</dt><dd>{{ value|linebreaksbr }}</dd>{% endfor %}
+</dl>
+{% endif %}
 {% endif %}
 </section>
 
