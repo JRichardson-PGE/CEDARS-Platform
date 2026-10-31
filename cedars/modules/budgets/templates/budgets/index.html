@@ -23,7 +23,7 @@ Each filing is uploaded, checked, priced and confirmed; every confirmed version 
   <tr>
     <th scope="row"><a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a></th>
     <td class="nowrap">{{ f.deadline.due_at|date:"Y-m-d" }}{% if f.past_due %} <span class="small">(passed)</span>{% endif %}</td>
-    <td>{{ f.deadline.budget_setup.acc_version }} ACC</td>
+    <td>{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}{% if f.legacy %}<br><span class="small">Imported from legacy CEDARS</span>{% endif %}</td>
     {% if org %}<td>{% if f.latest %}Version {{ f.latest.number }}: {{ f.latest.get_status_display|lower }}{% else %}Not started{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}
@@ -33,7 +33,7 @@ Each filing is uploaded, checked, priced and confirmed; every confirmed version 
 {% if c.standing %}
 <h3>Budgets that stand</h3>
 <p class="small muted">Each PA's most recent confirmed filing in the cycle. Confirmed filings, their inputs and results are open to every signed-in user.</p>
-<ul>{% for v in c.standing %}<li><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.organisation.code }}: {{ v.submission.deadline.kind }}, version {{ v.number }}</a>, confirmed {{ v.confirmed_at|date:"Y-m-d" }}</li>{% endfor %}</ul>
+<ul>{% for v in c.standing %}<li><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.organisation.code }}: {{ v.submission.deadline.kind }}, version {{ v.number }}</a>, {% if v.imported %}imported from legacy CEDARS {{ v.confirmed_at|date:"Y-m-d" }}{% else %}confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}</li>{% endfor %}</ul>
 {% endif %}
 </section>
 {% empty %}

@@ -261,3 +261,102 @@ def record_import(
         organisation=organisation if actor is None else None,
     )
     return imp
+
+
+# --- what the pages show
+
+
+@dataclass
+class CheckRow:
+    name: str
+    kind: str  # hard, soft or info
+    outcome: str  # Passed, Agrees, Differs, Note
+    detail: str
+
+
+@dataclass
+class Imported:
+    """A legacy import as the Budgets and Claims pages show it."""
+
+    period: str
+    records: int
+    outside_totals: int
+    loaded_at: object
+    sources: list[dict]  # {name, url}
+    checks: list[CheckRow]
+    quarters: list[str]
+
+    @property
+    def differences(self) -> int:
+        return sum(1 for c in self.checks if c.outcome == "Differs")
+
+
+def _number(x) -> str:
+    return f"{x:,.2f}" if isinstance(x, int | float) else str(x)
+
+
+def _check_row(c: dict) -> CheckRow:
+    kind, ok = c.get("kind", "info"), c.get("ok", True)
+    if kind == "hard":
+        outcome = "Passed" if ok else "Failed"
+    elif kind == "soft":
+        outcome = "Agrees" if ok else "Differs"
+    else:
+        outcome = "Note"
+    parts = []
+    if "expected" in c:
+        parts.append(f"expected {_number(c['expected'])}" + (f", found {_number(c['got'])}" if c.get("got") is not None else ""))
+    if "file" in c:
+        other = next((k for k in ("rebuilt", "lines") if k in c), None)
+        parts.append(f"file {_number(c['file'])}" + (f", {other} {_number(c[other])}" if other else ""))
+    if "count" in c:
+        parts.append(f"{c['count']:,}" + (f" (for example {', '.join(c.get('examples', [])[:3])})" if c.get("examples") else ""))
+    detail = c.get("detail")
+    if isinstance(detail, dict):
+        parts.append(", ".join(f"{k}: {v:,}" if isinstance(v, int) else f"{k}: {v}" for k, v in detail.items()) or "none")
+    elif isinstance(detail, list):
+        parts.append(f"{len(detail):,} listed in the report" if detail else "none")
+    return CheckRow(c.get("name", ""), kind, outcome, "; ".join(parts))
+
+
+def imported(version) -> Imported | None:
+    """The legacy import a version came from, for its page; None for a version filed on the platform."""
+    imp = LegacyImport.objects.filter(version=version).prefetch_related("sources").first()
+    if imp is None:
+        return None
+    rec = imp.reconciliation or {}
+    return Imported(
+        period=imp.period,
+        records=imp.records,
+        outside_totals=imp.outside_totals,
+        loaded_at=imp.loaded_at,
+        sources=[{"name": s.name, "url": s.url} for s in imp.sources.all()],
+        checks=[_check_row(c) for c in rec.get("checks", [])],
+        quarters=rec.get("quarters", []),
+    )
+
+
+def imported_deadlines(deadlines) -> set[int]:
+    """The deadlines (by pk) that hold legacy imports."""
+    return set(
+        LegacyImport.objects.filter(version__submission__deadline__in=list(deadlines)).values_list(
+            "version__submission__deadline", flat=True
+        )
+    )
+
+
+# The files a loaded version keeps, in the order the pages list them (the source download is linked at CEDARS, not served again).
+FILE_LABELS = {
+    "Measure.parquet": "Measure inputs as filed (Parquet)",
+    "Claim.parquet": "Claim fields as filed (Parquet)",
+    "Outputs.parquet": "CEDARS' CET outputs as filed (Parquet)",
+    "Programs.parquet": "Program columns as filed (Parquet)",
+    "Participant.parquet": "Participant data (Parquet)",
+    "reconciliation.json": "Reconciliation report (JSON)",
+}
+
+
+def published_files(version) -> list[tuple[str, str, str]]:
+    """(label, area, key) of an imported version's loaded files."""
+    by_name = {f["name"]: f for f in version.files or [] if not f.get("source_url")}
+    return [(label, AREA, by_name[name]["key"]) for name, label in FILE_LABELS.items() if name in by_name]

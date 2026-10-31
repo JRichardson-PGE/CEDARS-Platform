@@ -5,12 +5,14 @@
 <h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
 <dl class="facts">
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
-  <dt>Year to date</dt><dd>{% if s.base_label %}This version's records over {{ s.base_label }}{% else %}This version's records (the year's first confirmation){% endif %}</dd>
+  {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
+  {% else %}<dt>Year to date</dt><dd>{% if s.base_label %}This version's records over {{ s.base_label }}{% else %}This version's records (the year's first confirmation){% endif %}</dd>
   {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
-  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
+  <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}{% endif %}
   {% if s.rule_set %}<dt>Rule set</dt><dd>{{ s.rule_set }}</dd>{% endif %}
   {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'claims:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
 </dl>
+{% if legacy %}{% include "legacy/_imported.html" %}{% endif %}
 {% if not t.priced %}<p>Not priced yet: the table shows what was filed only.</p>{% endif %}
 
 {% if t.pas|length > 1 %}
@@ -65,7 +67,8 @@
 
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>
-{% if public %}<p>This version is confirmed: its non-PII inputs and run settings are published so anyone can reproduce its results.</p>{% endif %}
+{% if legacy %}<p>The tables this version was loaded as, and its full reconciliation report.</p>
+{% elif public %}<p>This version is confirmed: its non-PII inputs and run settings are published so anyone can reproduce its results.</p>{% endif %}
 <ul class="links">{% for name, i in files %}<li><a href="{% url 'claims:file' v.pk i %}">{{ name }}</a></li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
 </section>
 {% endblock %}

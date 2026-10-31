@@ -1,0 +1,17 @@
+<section aria-labelledby="legacy-h">
+<h2 id="legacy-h">Imported from legacy CEDARS</h2>
+<p>This version is legacy CEDARS' record-level download as published, loaded on {{ legacy.loaded_at|date:"Y-m-d" }}. It is read-only: it cannot be
+reopened, corrected, withdrawn or priced again. Its results are CEDARS' own CET outputs as filed (the CET release is not published); the
+download carries no version history{% if legacy.quarters %} and no quarterly confirmations (its records' claim quarters: {{ legacy.quarters|join:", " }}){% endif %}.</p>
+{% if legacy.outside_totals %}<p><strong>Outside every total:</strong> these {{ legacy.outside_totals|floatformat:"0g" }} statewide claims are published by CEDARS
+unallocated. The same claims are in the program administrators' own versions, allocated to their funding PAs, and those are what the totals count.</p>{% endif %}
+<p>Source:{% for s in legacy.sources %} <a href="{{ s.url }}">{{ s.name }}</a> (CEDARS){% if not forloop.last %},{% endif %}{% endfor %}.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="legacy-caption">
+<table class="list">
+  <caption id="legacy-caption">Reconciliation: {{ legacy.checks|length }} check{{ legacy.checks|length|pluralize }}{% if legacy.differences %}, {{ legacy.differences }} with a difference (shown, not blocking){% endif %}</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">Kind</th><th scope="col">Result</th><th scope="col">Detail</th></tr></thead>
+  <tbody>{% for c in legacy.checks %}<tr><th scope="row">{{ c.name }}</th><td>{% if c.kind == "hard" %}Must pass{% elif c.kind == "soft" %}Compared{% else %}Noted{% endif %}</td><td>{{ c.outcome }}</td><td>{{ c.detail }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+<p class="small muted">Must-pass checks stop a year from loading when they fail. Compared figures differ only by CEDARS' rounding unless the detail says otherwise; the full report is in the files below.</p>
+</section>

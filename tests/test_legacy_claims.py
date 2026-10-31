@@ -169,3 +169,26 @@ def test_participant_data_goes_to_the_pa_whose_claims_name_the_program(tmp_path)
     for code, rows in (("PGE", 1), ("SCE", 1), ("SW", 1)):
         f = next(f for f in _version(code, 2026).files if f["name"] == "Participant.parquet")
         assert f["rows"] == rows
+
+
+def test_the_pages_show_a_legacy_year_as_imported_and_read_only(tmp_path, signed_in, pge_admin, cpuc_admin):
+    _year(tmp_path)
+    legacy.load(2023)
+    v, sw = _version("PGE"), _version("SW")
+    client = signed_in(pge_admin)
+
+    page = client.get(f"/claims/versions/{v.pk}/").content.decode()
+    assert "Imported from legacy CEDARS" in page and "CEDARS' own CET outputs, as filed" in page
+    assert "https://cedars.example.org/reports/download-record-level-report/all/2023/claims/" in page
+    assert "weighted costs = Weighted Program Cost" in page and "Passed" in page
+    assert "Reconciliation report (JSON)" in page and "Run receipt" not in page
+    assert "Outside every total" not in page
+    report = client.get(f"/claims/versions/{v.pk}/files/{len(claims.published_files(v)) - 1}")
+    assert report.status_code == 200 and b"weighted costs" in b"".join(report.streaming_content)
+
+    assert "Outside every total" in client.get(f"/claims/versions/{sw.pk}/").content.decode()
+
+    period = signed_in(cpuc_admin).get(f"/claims/periods/{v.submission.deadline.pk}/?org=PGE").content.decode()
+    assert "Imported from legacy CEDARS, 2 records" in period
+    assert "Ask to reopen" not in period and "Un-confirm" not in period and "records checked" not in period
+    assert "Imported from legacy CEDARS: each PA's year" in client.get("/claims/").content.decode()

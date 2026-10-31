@@ -14,6 +14,7 @@ from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -82,7 +83,9 @@ def index(request):
     """Claim years, newest first: each confirmation's due date and the acting organisation's status."""
     org = request.organisation
     years = []
-    for cy in ClaimYear.objects.select_related("allocation_version"):
+    cys = list(ClaimYear.objects.select_related("allocation_version"))
+    imported = legacy.imported_deadlines(Deadline.objects.filter(module=service.MODULE, period__year__in=[cy.year for cy in cys]))
+    for cy in cys:
         rows = []
         for d in service.periods(cy.year):
             latest = None
@@ -90,7 +93,7 @@ def index(request):
                 sub = Submission.objects.filter(deadline=d, organisation=org).first()
                 latest = submissions.latest(sub) if sub else None
             rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d)})
-        years.append({"cy": cy, "periods": rows})
+        years.append({"cy": cy, "periods": rows, "legacy": any(r["deadline"].pk in imported for r in rows)})
     return render(request, "claims/index.html", {"years": years, "org": org, "sysadmin": access.is_system_admin(request.user)})
 
 
@@ -197,6 +200,7 @@ def period(request, pk):
         "last_quarter": service.last_quarter(deadline),
         "later_locked": service.later_locked(org, deadline) if org else None,
         "tables": spec.TABLES,
+        "legacy": legacy.imported(v) if v is not None and v.imported else None,
     }
     if v is not None:
         ctx["pricing_run"] = service.pricing_run(v)
@@ -441,6 +445,7 @@ def version(request, pk):
             "calc": v.calculation or {},
             "s": v.findings or {},
             "csv_query": f"?pa={pa}" if pa else "",
+            "legacy": legacy.imported(v) if v.imported else None,
         },
     )
 

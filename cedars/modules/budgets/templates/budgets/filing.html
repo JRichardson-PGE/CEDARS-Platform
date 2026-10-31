@@ -9,7 +9,8 @@
 <dl class="facts">
   <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
-  <dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}</dd>
+  {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if setup.acc_version %} ({{ setup.acc_version }} ACC){% endif %}</dd>
+  {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}</dd>{% endif %}
 </dl>
 {% if not org %}<p>You are not acting for a program administrator. Confirmed filings are listed on <a href="{% url 'budgets:index' %}">Budgets</a>.</p>{% endif %}
 
@@ -17,7 +18,8 @@
 <section class="card" aria-labelledby="now-h">
   <h2 id="now-h">Version {{ v.number }}: {{ v.get_status_display }}</h2>
   {% if file %}<p>File: {{ file.uploaded_as|default:file.name }} <span class="small muted">SHA-256 {{ file.sha256|truncatechars:20 }}</span>{% if v.reason %}. Reason for this version: {{ v.reason }}{% endif %}</p>{% endif %}
-  {% if v.findings %}
+  {% if legacy %}<p>Imported from legacy CEDARS, {{ legacy.records|floatformat:"0g" }} records. It is read-only: <a href="{% url 'budgets:version' v.pk %}">its page</a> shows what it holds, its source and its reconciliation.</p>
+  {% elif v.findings %}
   <p>{{ v.findings.records|floatformat:"0g" }} records checked{% if v.findings.rule_set %} against {{ v.findings.rule_set }}{% endif %}: <strong>{{ v.findings.rejected|floatformat:"0g" }} rejected</strong>, {{ v.findings.warnings|floatformat:"0g" }} with warnings only.</p>
   {% for n in v.findings.notes %}<p class="small">{{ n }}</p>{% endfor %}
   {% if v.findings.by_rule %}
@@ -52,13 +54,13 @@
   {% if v.status == "validated" and priced and can_confirm %}
   <form method="post" action="{% url 'budgets:confirm' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">Signs off on exactly these results; the inputs, run settings and results become public.</span></form>
   {% endif %}
-  {% if v.locked and can_confirm and not past_due and v.number == 1 %}
+  {% if v.locked and can_confirm and not past_due and v.number == 1 and not legacy %}
   <form method="post" action="{% url 'budgets:unconfirm' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
     <div class="field"><label for="unconfirm-reason">Reason for un-confirming</label><textarea id="unconfirm-reason" name="reason" rows="2"></textarea></div>
     <div class="actions"><button type="submit">Un-confirm</button> <span class="small muted">Before the due date: the version returns to validated and is no longer published.</span></div>
   </form>
   {% endif %}
-  {% if v.locked and past_due and can_submit %}
+  {% if v.locked and past_due and can_submit and not legacy %}
     {% if pending_reopen %}<p>A request to reopen this filing, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
     {% else %}
     <form method="post" action="{% url 'budgets:reopen' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
@@ -103,7 +105,7 @@
   <tbody>{% for ver in versions %}<tr>
     <th scope="row"><a href="{% url 'budgets:version' ver.pk %}">Version {{ ver.number }}</a></th>
     <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
-    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }} by {{ ver.confirmed_by.email }}{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by.email }}{% endif %}{% endif %}</td>
     <td>{{ ver.reason }}</td>
   </tr>{% endfor %}</tbody>
 </table>

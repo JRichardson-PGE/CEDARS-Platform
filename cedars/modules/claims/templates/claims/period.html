@@ -10,7 +10,8 @@
   <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i" }}{% if past_due %} (passed){% endif %}</dd>
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
   <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
-  <dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}</dd>
+  {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
+  {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}</dd>{% endif %}
 </dl>
 {% if not org %}<p>You are not acting for a program administrator. Confirmed claims are listed on each confirmation's page with ?org= for CPUC staff.</p>{% endif %}
 
@@ -27,6 +28,7 @@
 {% if v %}
 <section class="card" aria-labelledby="now-h">
   <h2 id="now-h">Version {{ v.number }}: {{ v.get_status_display }}</h2>
+  {% if legacy %}<p>Imported from legacy CEDARS, {{ legacy.records|default:legacy.outside_totals|floatformat:"0g" }} records{% if legacy.outside_totals %} kept outside every total{% endif %}. It is read-only: <a href="{% url 'claims:version' v.pk %}">its page</a> shows what it holds, its source and its reconciliation.</p>{% endif %}
   {% if file %}<p>File: {{ file.uploaded_as|default:file.name }} <span class="small muted">SHA-256 {{ file.sha256|truncatechars:20 }}</span>{% if v.reason %}. Reason for this version: {{ v.reason }}{% endif %}</p>
   {% if file.ignored_columns %}<p class="small">Columns the template does not have were ignored: {% for t, cols in file.ignored_columns.items %}{{ t }}: {{ cols|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
   {% endif %}
@@ -43,7 +45,7 @@
     <p>{{ s.changed_claims|join:", " }}{% if s.changed_claims_count > s.changed_claims|length %} and {{ s.changed_claims_count|add:"-200"|floatformat:"0g" }} more{% endif %}</p></details>{% endif %}
   {% endif %}
 
-  {% if v.findings.records is not None %}
+  {% if v.findings.records is not None and not legacy %}
   <p>{{ s.records|floatformat:"0g" }} records checked{% if s.rule_set %} against {{ s.rule_set }} and the module's checks{% endif %}: <strong>{{ s.rejected|floatformat:"0g" }} rejected</strong>, {{ s.warnings|floatformat:"0g" }} with warnings only.</p>
   {% for n in s.notes %}<p class="small">{{ n }}</p>{% endfor %}
   {% if s.by_rule %}
@@ -84,13 +86,13 @@
   {% if v.status == "validated" and priced and can_confirm and not stale %}
   <form method="post" action="{% url 'claims:confirm' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">Signs off on exactly these results; the year-to-date inputs, run settings and results become public.</span></form>
   {% endif %}
-  {% if v.locked and can_confirm and not past_due and v.number == 1 and not later_locked %}
+  {% if v.locked and can_confirm and not past_due and v.number == 1 and not later_locked and not legacy %}
   <form method="post" action="{% url 'claims:unconfirm' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
     <div class="field"><label for="unconfirm-reason">Reason for un-confirming</label><textarea id="unconfirm-reason" name="reason" rows="2"></textarea></div>
     <div class="actions"><button type="submit">Un-confirm</button> <span class="small muted">Before the due date: the version returns to validated and is no longer published.</span></div>
   </form>
   {% endif %}
-  {% if v.locked and past_due and can_submit %}
+  {% if v.locked and past_due and can_submit and not legacy %}
     {% if later_locked %}<p>{{ later_locked.kind }} is confirmed on top of this one, so corrections to these records go in the latest confirmation.</p>
     {% elif pending_reopen %}<p>A request to reopen these claims, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
     {% else %}
@@ -171,7 +173,7 @@ SiteID. Reading them needs the PII grant, which a data steward approves; every u
   <tbody>{% for ver in versions %}<tr>
     <th scope="row"><a href="{% url 'claims:version' ver.pk %}">Version {{ ver.number }}</a></th>
     <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
-    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }} by {{ ver.confirmed_by.email }}{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by.email }}{% endif %}{% endif %}</td>
     <td>{{ ver.reason }}{% if ver.letter %} (<a href="{% url 'claims:change_letter' ver.letter.pk %}">change letter</a>){% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>

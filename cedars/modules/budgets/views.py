@@ -14,6 +14,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
+from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import FilingCycle
 from cedars.services.submissions import service as submissions
@@ -111,6 +112,9 @@ def index(request):
             v = service.standing(o, cycle)
             if v is not None:
                 standing.append(v)
+        imported = legacy.imported_deadlines(r["deadline"] for r in rows)
+        for r in rows:
+            r["legacy"] = r["deadline"].pk in imported
         cycles.append({"cycle": cycle, "filings": rows, "standing": standing})
     return render(
         request,
@@ -201,6 +205,7 @@ def filing(request, pk):
         "reason_form": forms.ReasonForm(),
         "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
         "sysadmin": access.is_system_admin(request.user),
+        "legacy": legacy.imported(v) if v is not None and v.imported else None,
     }
     if acting and (v is None or not v.locked):
         ctx["shifts_in_effect"] = shifts.operating_budget(org, deadline.cycle).shifts
@@ -391,6 +396,7 @@ def version(request, pk):
             "csv_query": f"?{query}" if query else "",
             "calc": v.calculation or {},
             "cost_fields": PROGRAM_COST_FIELDS,
+            "legacy": legacy.imported(v) if v.imported else None,
         },
     )
 
