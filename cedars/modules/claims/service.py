@@ -36,6 +36,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.legacy import service as legacy
+from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
@@ -83,11 +84,23 @@ def _check_allocation(version: AllocationVersion | None) -> None:
 
 
 def _setup_fields(cy: ClaimYear) -> dict:
-    return {"year": cy.year, "acc": cy.acc_version, "allocation_version": str(cy.allocation_version or "most recent")}
+    return {
+        "year": cy.year,
+        "acc": cy.acc_version,
+        "allocation_version": str(cy.allocation_version or "most recent"),
+        "cost_test_set": str(cy.cost_test_set or "in force"),
+    }
+
+
+def _check_cost_tests(pack) -> None:
+    if pack is not None and (pack.kind != PackVersion.Kind.COST_TESTS or pack.status != PackVersion.Status.PUBLISHED):
+        raise AccessDenied(f"{pack} is not a published cost-test set; a filing is priced only on a published one.")
 
 
 @transaction.atomic
-def add_year(actor, *, year: int, acc_version: str, due: dict, opens: dict | None = None, allocation_version=None, notes="") -> ClaimYear:
+def add_year(
+    actor, *, year: int, acc_version: str, due: dict, opens: dict | None = None, allocation_version=None, notes="", cost_test_set=None
+) -> ClaimYear:
     """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same), priced
     on an ACC and an allocation version (or the most recent)."""
     if actor is not None and not access.is_system_admin(actor):
@@ -97,11 +110,14 @@ def add_year(actor, *, year: int, acc_version: str, due: dict, opens: dict | Non
     if not acc_version:
         raise AccessDenied("Choose the ACC the year's claims are priced on.")
     _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
     missing = [k for k, _ in PERIODS if not due.get(k)]
     if missing:
         raise AccessDenied(f"Give a due date for each confirmation: {', '.join(missing)}.")
     registry.ensure_periods(year)
-    cy = ClaimYear.objects.create(year=year, acc_version=acc_version, allocation_version=allocation_version, notes=notes)
+    cy = ClaimYear.objects.create(
+        year=year, acc_version=acc_version, allocation_version=allocation_version, notes=notes, cost_test_set=cost_test_set
+    )
     for kind, n in PERIODS:
         period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
         submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=due[kind], opens_at=(opens or {}).get(kind))
@@ -110,7 +126,7 @@ def add_year(actor, *, year: int, acc_version: str, due: dict, opens: dict | Non
 
 
 @transaction.atomic
-def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str) -> ClaimYear:
+def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None) -> ClaimYear:
     """Change how a year's claims are priced. Versions already priced keep what they were priced with; the next pricing uses the new
     setting."""
     if actor is not None and not access.is_system_admin(actor):
@@ -118,8 +134,9 @@ def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=N
     if not reason.strip():
         raise AccessDenied("Give the reason for the change.")
     _check_allocation(allocation_version)
+    _check_cost_tests(cost_test_set)
     before = _setup_fields(cy)
-    cy.acc_version, cy.allocation_version = acc_version, allocation_version
+    cy.acc_version, cy.allocation_version, cy.cost_test_set = acc_version, allocation_version, cost_test_set
     cy.save()
     audit.record("claim_year.setup_changed", obj=cy, before=before, after=_setup_fields(cy), reason=reason, actor=actor)
     return cy
@@ -1172,6 +1189,7 @@ def price(actor, v: SubmissionVersion) -> str:
             acc_version=cy.acc_version,
             allocation_version=cy.allocation_version,
             settings={"allocate_statewide": statewide, "acc_purpose": "claims"},
+            cost_test_set=cy.cost_test_set,
         )
 
 

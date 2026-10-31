@@ -61,8 +61,9 @@ def register_listener(published: Callable[[SubmissionVersion], None], unpublishe
 
 
 def register_pricer(price: Callable) -> None:
-    """The Calculations module's pricing function: price(actor, version, job_zip, *, name, acc_version, allocation_version, settings)
-    starts a run on the job (a local file) for the version and returns the run's id; the run's end calls record_calculation."""
+    """The Calculations module's pricing function: price(actor, version, job_zip, *, name, acc_version, allocation_version, settings,
+    cost_test_set) starts a run on the job (a local file) for the version and returns the run's id; the run's end calls
+    record_calculation. cost_test_set is the published cost-test set (a refdata pack) the filing's setup requires, or None."""
     _pricers[:] = [price]
 
 
@@ -225,7 +226,17 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
 
 
 @transaction.atomic
-def price(actor, v: SubmissionVersion, job_zip, *, name: str, acc_version: str, allocation_version=None, settings: dict | None = None):
+def price(
+    actor,
+    v: SubmissionVersion,
+    job_zip,
+    *,
+    name: str,
+    acc_version: str,
+    allocation_version=None,
+    settings: dict | None = None,
+    cost_test_set=None,
+):
     """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
     the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
@@ -235,7 +246,16 @@ def price(actor, v: SubmissionVersion, job_zip, *, name: str, acc_version: str, 
         raise AccessDenied("Only a validated version is priced for confirmation.")
     if not _pricers:
         raise AccessDenied("The calculation service is not installed here, so filings cannot be priced.")
-    run = _pricers[0](actor, v, job_zip, name=name, acc_version=acc_version, allocation_version=allocation_version, settings=settings or {})
+    run = _pricers[0](
+        actor,
+        v,
+        job_zip,
+        name=name,
+        acc_version=acc_version,
+        allocation_version=allocation_version,
+        settings=settings or {},
+        cost_test_set=cost_test_set,
+    )
     audit.record("submission.pricing_started", obj=v, after={"run": str(run), "acc": acc_version}, actor=actor)
     return str(run)
 

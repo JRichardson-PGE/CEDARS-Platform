@@ -5,8 +5,9 @@ from django.db.models import Q
 
 class PackVersion(models.Model):
     """One version of a data pack the engine or a module reads: an ACC release, the impact-profile library, an eTRM snapshot, DEER
-    package, value lists, run parameters or an engine release. The files live in object storage under storage_uri; the manifest lists
-    each with its SHA-256, and the fingerprint is the SHA-256 of the manifest, so a run that records it names its inputs exactly.
+    package, value lists, run parameters, an engine release or a cost-test definition set. The files live in object storage under
+    storage_uri; the manifest lists each with its SHA-256, and the fingerprint is the SHA-256 of the manifest, so a run that records it
+    names its inputs exactly.
 
     A draft is usable for analysis runs and refused for filings (BR-11.8). Publishing needs the tie-outs its kind requires (BR-06.21).
     Once published, nothing that identifies the data changes (a database trigger refuses it); a pack is withdrawn, never deleted."""
@@ -21,6 +22,7 @@ class PackVersion(models.Model):
         VALUE_LISTS = "value_lists", "Value lists"
         RUN_PARAMETERS = "run_parameters", "Run parameters"
         ENGINE_RELEASE = "engine_release", "Engine release"
+        COST_TESTS = "cost_tests", "Cost-test definition set"
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft (analysis only)"
