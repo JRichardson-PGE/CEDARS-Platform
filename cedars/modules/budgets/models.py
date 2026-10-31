@@ -167,3 +167,22 @@ class FundShiftAcknowledgement(models.Model):
 
     def __str__(self):
         return f"{self.organisation.code} acknowledged {self.shift_id}"
+
+
+class ChangeLetter(models.Model):
+    """The public change letter of a budget filing's correction (BR-09.3): written when a corrected version (version 2 or later) is
+    published, dated, with the correction's reason and each program whose budget or priced results changed against the version it
+    replaces, before and after, with the totals (service.LETTER_FIGURES). Readable by anyone, like Claims' change letters. Append-only:
+    never updated or deleted (a database trigger)."""
+
+    version = models.OneToOneField("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="budget_change_letter")
+    previous = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField(help_text="The correction's reason, as given when it was reopened")
+    published_at = models.DateTimeField()
+    changes = models.JSONField(default=dict, help_text="programs and totals, as service.correction_changes writes them")
+
+    class Meta:
+        ordering = ["-published_at", "-pk"]
+
+    def __str__(self):
+        return f"Change letter for version {self.version.number} of {self.version.submission}"

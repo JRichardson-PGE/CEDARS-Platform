@@ -12,23 +12,36 @@ pytestmark = pytest.mark.django_db
 
 def test_password_only_sessions_are_sent_to_set_up_a_second_factor(signed_in, make_user):
     c = signed_in(make_user("new@example.com"), "password")
-    r = c.get("/account/")
-    assert r.status_code == 302 and r["Location"].startswith("/accounts/2fa/totp/activate")
-    assert c.get("/about/").status_code == 200  # public pages stay open
+    for page in ("/account/", "/about/", "/"):  # every page, public ones too, until the second factor is set up
+        r = c.get(page)
+        assert r.status_code == 302 and r["Location"].startswith("/accounts/2fa/totp/activate"), page
+    html = c.get(r["Location"], follow=True).content.decode()  # (this fixture's sign-in is not recent, so allauth asks for the password)
+    assert html.count('<p class="alert" role="alert">Set up your second factor first.') == 3
     assert c.get("/accounts/2fa/").status_code == 200
 
 
-def test_a_password_session_gets_the_whole_header_when_mfa_is_not_required(signed_in, make_user, settings):
-    # A laptop demo turns the requirement off (CEDARS_REQUIRE_MFA=0 in dev): the header must follow the middleware and offer the
-    # modules, not "Finish setting up your second factor" with nothing to set up.
+def test_signing_in_goes_to_the_set_up_without_an_error_and_leaving_it_shows_one(client, make_user):
+    from allauth.account.models import EmailAddress
+
+    u = make_user("fresh2@example.com")
+    EmailAddress.objects.create(user=u, email=u.email, verified=True, primary=True)
+    r = client.post("/accounts/login/", {"login": u.email, "password": "correct horse battery staple"}, follow=True)
+    assert r.redirect_chain[-1][0].startswith("/accounts/2fa/totp/activate/")
+    html = r.content.decode()
+    assert "Set up your authenticator app" in html and 'role="alert"' not in html and 'id="main-nav"' not in html
+    r = client.get("/data/", follow=True)  # navigating away
+    assert r.redirect_chain[-1][0].startswith("/accounts/2fa/totp/activate/")
+    assert '<p class="alert" role="alert">Set up your second factor first.' in r.content.decode()
+
+
+def test_a_password_session_gets_in_with_the_whole_header_when_mfa_is_not_required(signed_in, make_user, settings):
+    # A laptop demo turns the requirement off (CEDARS_REQUIRE_MFA=0 in dev): no redirect, and the header offers the modules.
     c = signed_in(make_user("demo@example.com"), "password")
-    html = c.get("/about/").content.decode()
-    assert "Finish setting up your second factor" in html and 'id="main-nav"' not in html
     settings.CEDARS_REQUIRE_MFA = False
     r = c.get("/account/")
     assert r.status_code == 200
     html = r.content.decode()
-    assert 'id="main-nav"' in html and "Finish setting up your second factor" not in html and "Sign out" in html
+    assert 'id="main-nav"' in html and 'role="alert"' not in html and "Sign out" in html
 
 
 def test_mfa_and_federated_sessions_get_in(signed_in, make_user):
@@ -204,7 +217,7 @@ def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_
         'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
     )
     assert 'data-copy="authenticator_secret"' in html
-    assert "Finish setting up your second factor" in html and 'id="main-nav"' not in html  # no module menu yet
+    assert 'id="main-nav"' not in html  # no module menu yet
     r = client.post("/accounts/2fa/totp/activate/", {"code": _totp_code(client.session["mfa.totp.secret"])})
     assert r.status_code == 302 and "reauthenticate" not in r["Location"]
     assert {m["method"] for m in client.session["account_authentication_methods"]} >= {"password", "mfa"}

@@ -31,32 +31,57 @@ programs/program:
   guide:
     - One program's definition as it stands today, every earlier version, and where it appears across CEDARS. A program is never edited
       in place; a change starts a new version on its effective date, and the version before it is kept as it was.
-    - A statewide program shows its allocation factors, the share each funding PA carries by year. Evaluations lists the studies that
-      cover it; the last section links its budgets, claims and monthly reports.
+    - >-
+      A statewide program shows its allocation factors, the share each funding PA carries by year. The last section lists everything on
+      record about the program, each linked to its record, for one program year or every year: budget filings by cycle, fund shifts,
+      claims, monthly reports, the evaluations that cover it and the documents that name it.
   how:
     - The program's own administrators change it with Change this program. A change to a locked attribute goes to a CPUC approver as a
       request; the page says when one is waiting.
+    - Signed in, Follow this program sends you a notice when a filing that includes it is published or corrected, a fund shift moves its
+      funds, its details change or a document about it is published. Your notification settings choose which of these you hear about.
+    - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
   see: programs
   tour:
     - target: "#def-h"
       title: The definition
       text: The program's attributes in force today, and since when.
-    - target: main .head-row .button
-      title: Change this program
-      text: For the program's administrators. The change starts a new version on the date you give.
-      optional: true
+    - target: main .head-row .actions
+      title: Change or follow
+      text: The program's administrators change it here; the change starts a new version on the date you give. Anyone signed in can follow it.
     - target: "#ver-h"
       title: Versions
       text: Every version of the program, what changed in each and why.
     - target: "#alloc-h"
       title: Statewide allocation
       text: For a statewide program, each funding PA's share by version and year.
+    - target: "#rec-h"
+      title: Filings, reports and documents
+      text: Everything on record about the program. Choose a program year and Show, or see every year.
+    - target: "#bud-h"
+      title: Budget filings
+      text: Each cycle's budget filings that include the program, with its budget in each.
+      optional: true
+    - target: "#shift-h"
+      title: Fund shifts
+      text: Fund shifts with lines on the program.
+      optional: true
+    - target: "#claim-h"
+      title: Claims
+      text: Claims confirmations that include it, newest year first.
+      optional: true
+    - target: "#mon-h"
+      title: Monthly reports
+      text: Monthly reports that include it, newest month first.
+      optional: true
     - target: "#eval-h"
       title: Evaluations
       text: The EM&V studies that evaluate the program, and the program years each covers.
-    - target: "#fil-h"
-      title: Budgets, claims and monthly reports
-      text: Where the program appears in the filings.
+      optional: true
+    - target: "#doc-h"
+      title: Documents
+      text: Documents that name the program, newest first.
+      optional: true
 
 programs/change:
   title: Changing a program

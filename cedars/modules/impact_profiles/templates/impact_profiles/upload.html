@@ -42,6 +42,11 @@
 <h2>Generation result</h2>
 <p>{{ summary.created }} new profile{{ summary.created|pluralize }}, {{ summary.new_version }} new version{{ summary.new_version|pluralize }}, {{ summary.unchanged }} unchanged{% if u.generated_at %}, {{ u.generated_at|date:"Y-m-d H:i T" }}{% endif %}.</p>
 {% if summary.profiles %}<ul>{% for pk, key, sector, number in summary.profiles %}<li><a href="{% url 'impact_profiles:profile' pk %}">{{ key }}</a> / {{ sector }}, version {{ number }}</li>{% endfor %}</ul>{% endif %}
+{% if summary.identical %}
+<h3>Identical to an existing profile</h3>
+<p class="small">Every zone's 8,760 and the calendar match exactly, so the library stores them once and lists these as other names of that profile.</p>
+<ul class="small">{% for key, sector, same in summary.identical %}<li>{{ key }} / {{ sector }}: another name of {{ same }}</li>{% endfor %}</ul>
+{% endif %}
 {% if summary.skipped %}
 <h3>Permutations without a profile</h3>
 <ul class="small">{% for perm, reason in summary.skipped %}<li>{{ perm }}: {{ reason }}</li>{% endfor %}</ul>

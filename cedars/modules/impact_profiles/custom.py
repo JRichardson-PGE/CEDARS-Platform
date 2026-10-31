@@ -4,7 +4,8 @@ A custom profile belongs to the PA that uploaded it and is visible to everyone s
 not, with the columns Climate Zone (1 to 16, with or without CZ, or System for a statewide profile), Hour of Year and Impact: one
 8,760 per zone, checked with the same 8,760 rules as load shapes (LS-S01 to LS-S04). Replacing it adds a version (runs and claims that
 named the old one keep it, including a NMEC true-up's revised profile, BR-05.6); retiring keeps every version but leaves it out of the
-library the engine reads from then on.
+library the engine reads from then on. A file identical to a profile already in the library (every zone's 8,760 and the calendar) is
+attached to it as another name (identical.py, BR-06.18): the library stores the 8,760s once.
 
 A mapping row lets a permutation's profile ID stand for an existing profile, e.g. a measure's new-construction permutations (BldgVint
 New) using the existing-vintage profile, instead of hard-coding the vintage to Ex in eTRM (architecture: NR and NC sharing one shape).
@@ -22,7 +23,7 @@ from django.utils import timezone
 from cedars.services import audit
 from cedars.services.accounts.service import AccessDenied
 
-from . import access, shapes
+from . import access, identical, shapes
 from .loadshapes import SUM_TOLERANCE, Finding, check_header, hour_problem, open_csv, zone
 from .models import HOURS, ImpactProfile, MeasurePackage, ProfileMapping, ProfileVersion, ProfileZone
 
@@ -149,6 +150,7 @@ def _new_version(actor, profile: ImpactProfile, zones: dict, *, represents_year,
         created_by=actor,
     )
     ProfileZone.objects.bulk_create(ProfileZone(version=version, climate_zone=z, shape=shapes.store(a)) for z, a in zones.items())
+    identical.stamp(version)
     return version
 
 
@@ -185,7 +187,14 @@ def create_custom(
     audit.record(
         "impact_profile.created",
         obj=profile,
-        after={"family": "custom", "owner": organisation.code, "version": version.number, "zones": sorted(zones), "file": file_name},
+        after={
+            "family": "custom",
+            "owner": organisation.code,
+            "version": version.number,
+            "zones": sorted(zones),
+            "file": file_name,
+            "identical_to": identical.describe(identical.same_profile(version.content_sha256, exclude=profile)),
+        },
         actor=actor,
         organisation=organisation,
     )
@@ -223,7 +232,12 @@ def replace_custom(
         "impact_profile.replaced",
         obj=profile,
         before={"version": before.number if before else None},
-        after={"version": version.number, "zones": sorted(zones), "file": file_name},
+        after={
+            "version": version.number,
+            "zones": sorted(zones),
+            "file": file_name,
+            "identical_to": identical.describe(identical.same_profile(version.content_sha256, exclude=profile)),
+        },
         reason=reason,
         actor=actor,
         organisation=organisation,

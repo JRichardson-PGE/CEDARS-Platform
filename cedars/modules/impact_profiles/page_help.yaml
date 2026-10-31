@@ -41,10 +41,10 @@ impact_profiles/profile:
     - heading: Versions
       title: Versions
       text: Every version, newest first, with where it came from.
-    - heading: Profile IDs that use this profile
-      title: Profile IDs that use it
-      text: Other IDs mapped to this profile.
-      optional: true
+    - target: "#names-h"
+      title: Names of this profile
+      text: When another profile's 8,760s are identical to this one's, the names are listed here. The library stores the 8,760s once and every
+        name prices on them; each name keeps its own versions.
     - target: "#replace-h"
       title: Replace with a new version
       text: For the profile's owner. Upload the file; it is checked before the new version is kept.
@@ -179,6 +179,10 @@ impact_profiles/upload:
     - heading: Generation result
       title: Generation result
       text: Profiles made, new versions and unchanged ones.
+      optional: true
+    - heading: Identical to an existing profile
+      title: Identical to an existing profile
+      text: A generated profile whose 8,760s match an existing profile's becomes another name of that profile, priced on the same 8,760s.
       optional: true
 
 impact_profiles/sync_history:

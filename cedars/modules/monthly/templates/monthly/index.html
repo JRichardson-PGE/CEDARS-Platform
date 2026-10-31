@@ -3,7 +3,10 @@
 {% block content %}
 <div class="head-row">
   <div class="page-title"><h1>Monthly reports</h1>{% page_help "monthly/index" %}</div>
-  {% if sysadmin %}<div class="actions"><a class="button" href="{% url 'monthly:year_new' %}">Set up a program year</a></div>{% endif %}
+  <div class="actions">
+    <a class="button" href="{% url 'monthly:changes' %}">Change log</a>
+    {% if sysadmin %}<a class="button" href="{% url 'monthly:year_new' %}">Set up a program year</a>{% endif %}
+  </div>
 </div>
 <p>Each month a program administrator reports its commitments and the year's BCA inputs so far. Spend is read from the BCA inputs
 (program costs plus the measures' rebates and incentives) and compared with the operating budget (the approved budget plus fund shifts in effect), and the BCA inputs give estimated savings and total

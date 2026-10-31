@@ -7,8 +7,13 @@ monthly/index:
       compared with the operating budget; savings and ratios are estimated from them and labeled as not validated.
     - Each program year lists its twelve reports with their due dates and where your organization's stand, with the whole year in one
       view and the 13th-month report generated from the year's confirmed claims.
+  how:
+    - The change log lists every correction to a published monthly report, each with a change letter.
   see: monthly-reports
   tour:
+    - target: main > .head-row > .actions
+      title: Change log
+      text: Every correction to a published report. CPUC administrators set up a program year's reports here too.
     - target: main section .head-row .actions, main section .head-row .button
       title: The year in one view
       text: Every month of a year side by side, and the 13th-month report.
@@ -120,3 +125,37 @@ monthly/closing:
       title: By program
       text: Each program's claimed expenditure against its operating budget, with a CSV.
       optional: true
+
+monthly/changes:
+  title: Monthly reports change log
+  guide:
+    - Every correction to a published monthly report, newest first. A correction is a new version of a report made after it was
+      published; the version it replaces stays as it was confirmed. Each correction is published with a change letter giving the date, the
+      reason and each program whose spend, commitments or estimates changed.
+    - Choose a program administrator or a program year, then Apply, to narrow the list.
+  see: monthly-reports
+  tour:
+    - target: main form.filters
+      title: Which corrections
+      text: One PA or every PA, one program year or every year.
+      optional: true
+    - target: main table.list
+      title: The corrections
+      text: When each was published, the version it replaces, its reason and how many programs changed. Select one to read its change letter.
+
+monthly/change_letter:
+  title: A monthly report change letter
+  guide:
+    - What a correction to a published monthly report changed. The facts give when it was published, the version it corrects (kept as it
+      was confirmed), the correction and its reason.
+    - The table lists each program whose spend, commitments or estimates changed, before and after, with the total. The estimates are
+      priced from the year-to-date inputs and are never part of a claim; a version that was not priced shows them blank.
+  see: monthly-reports
+  tour:
+    - target: main dl.facts
+      title: The correction
+      text: Published when, which version it corrects, and why.
+    - target: "#programs-h"
+      title: Programs that changed
+      text: Each program's spend, commitments and estimates before and after, and the difference.
+

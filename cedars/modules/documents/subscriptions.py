@@ -171,6 +171,30 @@ def on_study_status(study: Study, before: str, after: str) -> None:
     transaction.on_commit(deliver)
 
 
+def notice(event) -> notifications.Concern | None:
+    """What the notification service tells the followers of a document's PAs and programs when a version is published (registered for
+    documents.documentversion, BR-09.2): the PAs it applies to (else the organization that filed it), its programs and its study's, and
+    the same message key as on_published, so a user who also follows its collection or study hears once."""
+    if event.action != "documents.version_published":
+        return None
+    v = DocumentVersion.objects.select_related("document__document_type", "document__study").get(pk=event.object_id)
+    doc = v.document
+    pas = set(doc.pas.values_list("pk", flat=True)) or {doc.owner_id}
+    programs = set(doc.programs.values_list("prg_id", flat=True))
+    if doc.study_id:
+        programs |= set(doc.study.coverage.values_list("program__prg_id", flat=True))
+    what = v.stage_label or f"Version {v.number}"
+    return notifications.Concern(
+        pas,
+        "documents",
+        doc.get_absolute_url(),
+        programs,
+        title=f"Published: {doc.title}"[:300],
+        body=f"{doc.get_collection_display()}, {doc.document_type.label}. {what} is published.",
+        key=f"documents:published:{v.pk}",
+    )
+
+
 def subscribers(collection: str = "") -> QuerySet:
     """Every subscription, for CPUC ED's list of who follows what (the PDA's subscriber report)."""
     qs = DocumentSubscription.objects.select_related("user", "option__attribute_list", "work_order", "study").order_by(

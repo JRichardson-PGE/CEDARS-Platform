@@ -13,8 +13,9 @@ budgets/index:
   see: budgets
   tour:
     - target: main .head-row .actions, main .head-row .button
-      title: Compare and fund shifts
-      text: Compare any two versions, or open the fund shifts. CPUC administrators set up new filings here too.
+      title: Compare, fund shifts and the change log
+      text: Compare any two versions, open the fund shifts, or see every correction to a published filing in the change log. CPUC
+        administrators set up new filings here too.
     - target: main section.cycle
       title: The current cycle
       text: Each filing of the cycle with its due date and your organization's status. Select a filing to open it.
@@ -226,3 +227,37 @@ budgets/operating:
     - heading: Shifts in effect
       title: Shifts in effect
       text: The shifts added, each linked to its page.
+
+budgets/changes:
+  title: Budgets change log
+  guide:
+    - Every correction to a published budget filing, newest first. A correction is a new version of a filing made after it was published;
+      the version it replaces stays as it was confirmed. Each correction is published with a change letter giving the date, the reason and
+      each program whose budget or results changed.
+    - Choose a program administrator or a filing cycle, then Apply, to narrow the list.
+  see: budgets
+  tour:
+    - target: main form.filters
+      title: Which corrections
+      text: One PA or every PA, one filing cycle or every cycle.
+      optional: true
+    - target: main table.list
+      title: The corrections
+      text: When each was published, the version it replaces, its reason and how many programs changed. Select one to read its change letter.
+
+budgets/change_letter:
+  title: A budget change letter
+  guide:
+    - What a correction to a published budget filing changed. The facts give when it was published, the version it corrects (kept as it
+      was confirmed), the correction and its reason.
+    - The table lists each program whose budget or priced results changed, before and after, over every program year, with the total. A
+      version that was not priced shows its results blank.
+  see: budgets
+  tour:
+    - target: main dl.facts
+      title: The correction
+      text: Published when, which version it corrects, and why.
+    - target: "#programs-h"
+      title: Programs that changed
+      text: Each program's budget, total system benefit, ratios and savings before and after, and the difference.
+

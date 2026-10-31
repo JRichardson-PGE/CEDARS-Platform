@@ -11,6 +11,7 @@ class BudgetsConfig(AppConfig):
     verbose_name = "Budgets"
 
     def ready(self):
+        from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
         from cedars.services.submissions.service import register_publisher
 
@@ -18,3 +19,12 @@ class BudgetsConfig(AppConfig):
 
         register_publisher("budgets", service.on_publish, service.on_unpublish)
         register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
+        register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
+        register_concerns("budgets.fundshift", shifts.notice)
+
+        from cedars.services.registry.service import register_program_records
+
+        from . import program_page
+
+        register_program_records("budgets", program_page.filings)  # each program's page lists its filings and shifts (BR-07.6)
+        register_program_records("fund_shifts", program_page.fund_shifts)

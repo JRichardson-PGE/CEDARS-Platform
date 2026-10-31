@@ -21,7 +21,7 @@ for a year by program, so another module (Monthly reports' 13th-month report, BR
 from collections.abc import Callable
 
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from cedars.services import audit
@@ -159,6 +159,18 @@ def latest(submission: Submission) -> SubmissionVersion | None:
 def current(submission: Submission) -> SubmissionVersion | None:
     """The published version that stands: what dashboards, downloads and later modules read."""
     return submission.versions.filter(status=SubmissionVersion.Status.PUBLISHED).order_by("-number").first()
+
+
+def standing_numbers(submission_ids) -> dict[int, tuple[int | None, int]]:
+    """{submission id: (the number of its standing published version or None, its latest version's number)} in one query, for pages
+    that list many submissions' versions at once (the program page, BR-07.6)."""
+    published = SubmissionVersion.Status.PUBLISHED
+    rows = (
+        SubmissionVersion.objects.filter(submission_id__in=list(submission_ids))
+        .values("submission_id")
+        .annotate(latest=Max("number"), standing=Max("number", filter=Q(status=published)))
+    )
+    return {r["submission_id"]: (r["standing"], r["latest"]) for r in rows}
 
 
 # --- calendar

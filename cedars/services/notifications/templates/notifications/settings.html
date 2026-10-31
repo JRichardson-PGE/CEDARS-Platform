@@ -2,19 +2,99 @@
 {% block title %}Notification settings{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Notification settings</h1>{% page_help "notifications/settings" %}</div>
-<p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Filing events reach you only for organizations you belong to (CPUC staff hear about every organization's).</p>
+<p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Events about a filing in progress (un-confirmed, reopened) reach you only for organizations you belong to; CPUC staff hear about every organization's.</p>
 <form method="post" class="stack form-narrow">{% csrf_token %}
+  <input type="hidden" name="follows" value="1">
+  <input type="hidden" name="reminders" value="1">
+  <input type="hidden" name="reminder_rows" value="{{ reminder_rows }}">
+
+  <h2 id="pas-h">PAs you follow</h2>
+  <fieldset aria-describedby="pas-help">
+    <legend>Hear about the events below for</legend>
+    <p id="pas-help" class="helptext">Applies to every event that concerns a PA: its filings, fund shifts, programs and documents. Reference data, rules and the filing calendar are not about one PA, so they always reach you.</p>
+    {% for value, label in scopes %}
+    <div><label><input type="radio" name="pa_scope" value="{{ value }}"{% if value == pref.pa_scope %} checked{% endif %}> {{ label }}</label></div>
+    {% endfor %}
+  </fieldset>
+  {% if pa_groups %}
+  <fieldset class="pa-choice" aria-describedby="pa-choice-help">
+    <legend>The PAs you choose</legend>
+    <p id="pa-choice-help" class="helptext">Used when you choose "Only the PAs I choose".</p>
+    {% for label, orgs in pa_groups %}
+    <fieldset>
+      <legend>{{ label }}</legend>
+      <div class="checks">
+        {% for o, on in orgs %}<label><input type="checkbox" name="pa" value="{{ o.pk }}"{% if on %} checked{% endif %}> {{ o.name }} ({{ o.code }})</label>{% endfor %}
+      </div>
+    </fieldset>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+
+  <h2 id="programs-h">Programs you follow</h2>
+  <p>Follow a program and you hear about it whatever PAs you follow and whichever events you subscribe to below, for example as its implementer. You can also follow a program from its page in the <a href="{% url 'programs:catalog' %}">Programs catalog</a>.</p>
+  <fieldset>
+    <legend>Programs you follow</legend>
+    {% if programs %}
+    <p class="helptext">Untick a program to stop following it.</p>
+    <div class="checks">
+      {% for p, name in programs %}<label><input type="checkbox" name="program" value="{{ p.prg_id }}" checked> <span><a href="/programs/{{ p.prg_id }}/">{{ p.prg_id }}</a>{% if name %}: {{ name }}{% endif %}</span></label>{% endfor %}
+    </div>
+    {% else %}<p>None yet.</p>{% endif %}
+    <p><label for="add-programs">Follow more programs <span class="helptext">PrgIDs, separated by commas, spaces or new lines</span></label>
+      <textarea id="add-programs" name="add_programs" rows="2" autocomplete="off"></textarea></p>
+  </fieldset>
+  <fieldset>
+    <legend>For the programs you follow, tell me when</legend>
+    <div class="checks">
+      {% for key, label, on in program_events %}<label><input type="checkbox" name="program_event" value="{{ key }}"{% if on %} checked{% endif %}> {{ label }}</label>{% endfor %}
+    </div>
+    <p><label for="program-channel">How the messages about them come</label>
+      <select id="program-channel" name="program_channel">
+        {% for code, label in channels %}<option value="{{ code }}"{% if code == pref.program_channel %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></p>
+  </fieldset>
+
+  <h2 id="events-h">Events</h2>
+  <p>A correction of a published filing (a refile) comes with a short summary of what changed and a link to its change letter.</p>
   {% for group, rows in groups %}
   <fieldset>
     <legend>{{ group }}</legend>
     {% for e, value in rows %}
     <p><label for="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">{{ e.label }}</label>
-      <select id="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" name="{{ e.code }}">
+      <select id="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" name="{{ e.key }}">
         {% for code, label in choices %}<option value="{{ code }}"{% if code == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
       </select></p>
     {% endfor %}
   </fieldset>
   {% endfor %}
+
+  <h2 id="reminders-h">Deadline reminders</h2>
+  <p>Be reminded of the <a href="/filings/calendar/">filing calendar</a>'s deadlines as many days before each is due as you choose (0 is on the day). Add as many reminders as you like, for example 14 days and 2 days before; leave the days blank to remove one.{% if not has_reminders %} You have none yet.{% endif %}</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Your deadline reminders">
+  <table class="list">
+    <caption class="sr-only">Your deadline reminders</caption>
+    <thead><tr><th scope="col">Days before</th><th scope="col">For</th><th scope="col">How</th></tr></thead>
+    <tbody>
+    {% for i, row in reminders %}
+      <tr>
+        <td><label class="sr-only" for="r{{ i }}-days">Reminder {{ forloop.counter }}: days before the due date</label>
+          <input id="r{{ i }}-days" name="r{{ i }}_days" type="number" min="0" max="365" step="1" inputmode="numeric" value="{{ row.0 }}" size="4"></td>
+        <td><label class="sr-only" for="r{{ i }}-module">Reminder {{ forloop.counter }}: which deadlines</label>
+          <select id="r{{ i }}-module" name="r{{ i }}_module">
+            {% for code, label in reminder_modules %}<option value="{{ code }}"{% if code == row.1 %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></td>
+        <td><label class="sr-only" for="r{{ i }}-channel">Reminder {{ forloop.counter }}: how it comes</label>
+          <select id="r{{ i }}-channel" name="r{{ i }}_channel">
+            {% for code, label in channels %}<option value="{{ code }}"{% if code == row.2 %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="helptext">Need more rows? Save, and two more blank rows appear.</p>
+
   <fieldset>
     <legend>Your own work</legend>
     <div class="checks"><label><input type="checkbox" name="email_direct"{% if pref.email_direct %} checked{% endif %}> Email me when my runs finish or fail and when my access changes</label></div>

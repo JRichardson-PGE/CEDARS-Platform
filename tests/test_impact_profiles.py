@@ -10,7 +10,7 @@ import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from cedars.modules.impact_profiles import custom, etrm, generation, jobs, library, loadshapes, shapes
+from cedars.modules.impact_profiles import custom, etrm, generation, identical, jobs, library, loadshapes, shapes
 from cedars.modules.impact_profiles.models import (
     EtrmSyncRun,
     ImpactProfile,
@@ -490,11 +490,11 @@ def test_mapping_lets_the_nc_permutation_use_the_existing_vintage_profile(leds, 
     assert len(alias) == 4 and {r["id"] for r in alias} == {target.pk}  # one row per IOU territory, pointing at the same shapes
 
 
-def profile_file(zones=("12", "System"), scale=1.0) -> bytes:
+def profile_file(zones=("12", "System"), scale=1.0, shape=None) -> bytes:
     out = io.StringIO()
     out.write("Climate Zone,Hour of Year,Impact\n")
     for z in zones:
-        for h, v in enumerate(SHAPE["Msr-LED"] * scale, start=1):
+        for h, v in enumerate((SHAPE["Msr-LED"] if shape is None else shape) * scale, start=1):
             out.write(f"{z},{h},{float(v)!r}\n")
     return out.getvalue().encode()
 
@@ -538,7 +538,12 @@ def test_export_is_the_engine_library_format(leds, developer, pge, cpuc_admin):
         developer, pge, profile_key="Custom A", target_sector="Commercial", territory="PGE", data=profile_file(), file_name="a.csv"
     )
     export = library.export(cpuc_admin)
-    assert (export.number, export.profiles, export.catalog_rows) == (1, 3, 9)  # 2 deemed x 4 territories + 1 custom
+    assert (export.number, export.profiles, export.stored_profiles, export.catalog_rows) == (
+        1,
+        3,
+        3,
+        9,
+    )  # 2 deemed x 4 territories + 1 custom
     cat = pq.read_table(default_storage.path(export.catalog_name))
     assert {"id", "end_use_name", "iou_ac_territory", "target_sector", "year_represented", "source_impact_type"} <= set(cat.column_names)
     pf = pq.ParquetFile(default_storage.path(export.hourly_name))
@@ -568,19 +573,97 @@ def test_engine_reads_the_export(leds, developer, pge, cpuc_admin, tmp_path, mon
     monkeypatch.setattr(
         rip.paths, "ref_path", lambda name: folder / {"impact_catalog": "catalog.parquet", "impact_hourly": "hourly.parquet"}[name]
     )
-    for f in (
-        rip._catalog,
-        rip._row_group_index,
-        rip._catalog_hourly,
-        rip._exact_key_index,
-        rip._loose_key_index,
-        rip._profile_shapes_by_zone,
-    ):
-        f.cache_clear()
+    from recet import runtime
+
+    runtime.clear_caches()
     monkeypatch.setattr(rip, "_read_cached_shapes", lambda pid: None)
     monkeypatch.setattr(rip, "_write_cached_shapes", lambda pid, s: None)
-    shape, year, source = rip.resolve_shape("OfL*Ex*rDXGF*Msr-LED*Std-Fluor", "SCE", "Com", "12")
+    try:
+        shape, year, source = rip.resolve_shape("OfL*Ex*rDXGF*Msr-LED*Std-Fluor", "SCE", "Com", "12")
+    finally:
+        runtime.clear_caches()
     assert source == "library" and year == 2009 and abs(shape.sum() - 1) < 1e-12
+
+
+def engine_folder(export, tmp_path) -> Path:
+    folder = tmp_path / "ref" / "impact_profiles"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "catalog.parquet").write_bytes(Path(default_storage.path(export.catalog_name)).read_bytes())
+    (folder / "hourly.parquet").write_bytes(Path(default_storage.path(export.hourly_name)).read_bytes())
+    return folder
+
+
+def custom_profile(user, org, key, territory="PGE", data=None, **kw):
+    return custom.create_custom(
+        user,
+        org,
+        profile_key=key,
+        target_sector="Commercial",
+        territory=territory,
+        data=data or profile_file(),
+        file_name=f"{key}.csv",
+        **kw,
+    )
+
+
+def test_identical_profiles_are_one_profile_with_several_names(developer, pge, cpuc_admin, tmp_path, monkeypatch):
+    a = custom_profile(developer, pge, "Office A")
+    b = custom_profile(developer, pge, "Office B renamed", territory="SCE")  # the same file under another Impact Profile Name
+    year = custom_profile(developer, pge, "Office C 2018", represents_year=2018)  # the same values on another calendar
+    off = SHAPE["Msr-LED"].copy()
+    off[100], off[101] = np.nextafter(off[100], 1.0), off[101] - (np.nextafter(off[100], 1.0) - off[100])
+    one_value = custom_profile(developer, pge, "Office D", data=profile_file(shape=off))  # one hour moved by one ulp
+    fewer_zones = custom_profile(developer, pge, "Office E", data=profile_file(zones=("12",)))
+    assert [str(p) for p in identical.same_profile(b.current_version().content_sha256, exclude=b)] == [str(a)]
+    for p in (year, one_value, fewer_zones):
+        assert not identical.same_profile(p.current_version().content_sha256, exclude=p).exists(), p.profile_key
+    event = AuditEvent.objects.filter(action="impact_profile.created", object_repr=str(b)).get()
+    assert event.after["identical_to"] == [str(a)]
+
+    export = library.export(cpuc_admin)
+    assert (export.profiles, export.stored_profiles, export.catalog_rows) == (5, 4, 5)
+    cat = {r["end_use_name"]: r for r in pq.read_table(default_storage.path(export.catalog_name)).to_pylist()}
+    assert cat["Office A"]["shape_id"] == cat["Office B renamed"]["shape_id"] == a.pk  # both names point at the one stored copy
+    assert {cat[k]["shape_id"] for k in ("Office C 2018", "Office D", "Office E")} == {year.pk, one_value.pk, fewer_zones.pk}
+    assert [r["id"] for r in (cat["Office A"], cat["Office B renamed"])] == [a.pk, b.pk]  # each name keeps its own id
+    pf = pq.ParquetFile(default_storage.path(export.hourly_name))
+    assert sorted(pf.metadata.row_group(g).column(0).statistics.min for g in range(pf.metadata.num_row_groups)) == sorted(
+        [a.pk, year.pk, one_value.pk, fewer_zones.pk]
+    )
+
+    rip = pytest.importorskip("recet.pipeline.real_impact_profiles")
+    if not hasattr(rip, "shape_id_of"):
+        pytest.skip("the pinned engine predates the consolidated library (ReCET 0.1.87)")
+    from recet import runtime
+
+    folder = engine_folder(export, tmp_path)
+    monkeypatch.setattr(
+        rip.paths, "ref_path", lambda name: folder / {"impact_catalog": "catalog.parquet", "impact_hourly": "hourly.parquet"}[name]
+    )
+    monkeypatch.setattr(rip, "_read_cached_shapes", lambda pid: None)
+    monkeypatch.setattr(rip, "_write_cached_shapes", lambda pid, s: None)
+    runtime.clear_caches()
+    try:
+        got_a = rip.resolve_shape("Office A", "PGE", "Commercial", "12")
+        got_b = rip.resolve_shape("Office B renamed", "SCE", "Commercial", "12")
+        got_d = rip.resolve_shape("Office D", "PGE", "Commercial", "12")
+    finally:
+        runtime.clear_caches()
+    assert got_a[0].tobytes() == got_b[0].tobytes() == SHAPE["Msr-LED"].tobytes() and got_b[2] == "library"
+    assert got_d[0].tobytes() == off.tobytes()
+
+
+def test_replacing_one_name_leaves_the_others(developer, pge, cpuc_admin):
+    a = custom_profile(developer, pge, "Office A")
+    b = custom_profile(developer, pge, "Office B", territory="SCE")
+    assert library.export(cpuc_admin).stored_profiles == 1
+    custom.replace_custom(developer, pge, b, data=profile_file(zones=("12",)), file_name="b2.csv", reason="true-up")
+    assert not identical.same_profile(a.current_version().content_sha256, exclude=a).exists()
+    assert a.current_version().number == 1 and {z.climate_zone for z in a.current_version().zones.all()} == {"12", "System"}
+    assert library.export(cpuc_admin).stored_profiles == 2
+    custom.retire(developer, pge, b, "closed")
+    c = custom_profile(developer, pge, "Office C", territory="SDGE")
+    assert [p.pk for p in identical.same_profile(c.current_version().content_sha256, exclude=c)] == [a.pk]  # a retired name is not listed
 
 
 def test_legacy_library_import(tmp_path, cpuc_admin):
@@ -639,3 +722,50 @@ def test_legacy_library_import(tmp_path, cpuc_admin):
     assert tou.family == "tou" and tou.current_version().represents_year == 2018
     assert library.import_library(folder / "catalog.parquet", folder / "hourly.parquet")["unchanged"] == 2
     assert not ProfileMapping.objects.exists()
+
+
+def test_importing_a_consolidated_library_keeps_every_name(tmp_path, cpuc_admin):
+    folder = tmp_path / "consolidated"
+    folder.mkdir()
+    rows = [
+        {
+            "id": 2,
+            "end_use_name": "SWXX001 Res A",
+            "iou_ac_territory": "PGE",
+            "target_sector": "Res",
+            "year_represented": None,
+            "shape_id": 2,
+        },
+        {
+            "id": 5,
+            "end_use_name": "SWXX001 Res A",
+            "iou_ac_territory": "SCE",
+            "target_sector": "Res",
+            "year_represented": None,
+            "shape_id": 2,
+        },
+        {
+            "id": 9,
+            "end_use_name": "SWXX002 Res B",
+            "iou_ac_territory": "SDGE",
+            "target_sector": "Res",
+            "year_represented": None,
+            "shape_id": 2,
+        },
+    ]
+    pq.write_table(pa.Table.from_pylist(rows), folder / "catalog.parquet")
+    t = pa.table(
+        {
+            "impact_profile_id": pa.array(np.full(8760, 2, dtype=np.int32)),
+            "climate_zone": pa.array(np.repeat(["13"], 8760)),
+            "hour_of_year": pa.array(np.arange(1, 8761, dtype=np.int16)),
+            "impact": pa.array(SHAPE["Msr-LED"]),
+        },
+        schema=library.HOURLY_SCHEMA,
+    )
+    pq.write_table(t, folder / "hourly.parquet", row_group_size=8760)
+    assert library.import_library(folder / "catalog.parquet", folder / "hourly.parquet")["imported"] == 3
+    first = ImpactProfile.objects.get(legacy_id=2)
+    assert [p.legacy_id for p in identical.same_profile(first.current_version().content_sha256)] == [2, 5, 9]
+    export = library.export(cpuc_admin)
+    assert (export.profiles, export.stored_profiles) == (3, 1)

@@ -130,7 +130,6 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .who { gap: .4rem; font-size: .85rem; }
   .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
 }
-.setting-up { margin: 0; color: var(--fg-2); font-size: .9rem; }
 /* Narrow screens: the header collapses to brand + Menu; the navigation stacks and the menus open inline. Without scripts the list is simply shown. */
 @media (max-width: 860px) {
   .top { gap: .75rem; }

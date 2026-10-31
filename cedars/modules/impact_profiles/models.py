@@ -383,6 +383,12 @@ class ProfileVersion(models.Model):
     )
     source = models.JSONField(default=dict, blank=True, help_text="Where it came from: upload, load-shape versions and UECs, or a file")
     reason = models.TextField(blank=True)
+    content_sha256 = models.CharField(
+        max_length=64,
+        blank=True,
+        db_index=True,
+        help_text="Its calendar and every zone's shape (identical.content_key): equal values are the same profile (BR-06.18)",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     superseded_at = models.DateTimeField(null=True, blank=True)
@@ -473,9 +479,9 @@ class ProcessingJob(models.Model):
 
 
 class LibraryExport(models.Model):
-    """The current catalog written in the engine's library format (catalog.parquet and hourly.parquet, one row group per profile), so a
-    run can price on it at once. Numbered and kept, and registered as a draft impact_profiles pack in the reference-data service, which
-    runs pin."""
+    """The current catalog written in the engine's library format (catalog.parquet, one row per name, and hourly.parquet, one row group
+    per stored profile), so a run can price on it at once. Numbered and kept, and registered as a draft impact_profiles pack in the
+    reference-data service, which runs pin."""
 
     number = models.PositiveIntegerField(unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -485,8 +491,11 @@ class LibraryExport(models.Model):
     catalog_sha256 = models.CharField(max_length=64)
     hourly_sha256 = models.CharField(max_length=64)
     catalog_rows = models.PositiveIntegerField(default=0)
-    profiles = models.PositiveIntegerField(default=0)
-    zone_shapes = models.PositiveIntegerField(default=0)
+    profiles = models.PositiveIntegerField(default=0, help_text="Profiles (names) in the library")
+    stored_profiles = models.PositiveIntegerField(
+        default=0, help_text="Profiles stored: identical profiles under several names are stored once (BR-06.18)"
+    )
+    zone_shapes = models.PositiveIntegerField(default=0, help_text="Zone 8,760s stored")
     families = models.JSONField(default=dict, blank=True, help_text="Profiles per family")
     pack = models.ForeignKey(
         "refdata.PackVersion",

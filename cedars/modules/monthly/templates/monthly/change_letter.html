@@ -1,0 +1,18 @@
+{% extends "core/base.html" %}
+{% block title %}Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
+{% block content %}
+<p class="small">{% if user.is_authenticated %}<a href="{% url 'monthly:index' %}">Monthly reports</a> › {% endif %}<a href="{% url 'monthly:changes' %}">Change log</a></p>
+<div class="page-title"><h1>Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "monthly/change_letter" %}</div>
+<dl class="facts">
+  <dt>Published</dt><dd>{{ letter.published_at|date:"Y-m-d H:i T" }}</dd>
+  <dt>Corrects</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' letter.previous.pk %}">Version {{ letter.previous.number }}</a>{% else %}Version {{ letter.previous.number }}{% endif %}, confirmed {{ letter.previous.confirmed_at|date:"Y-m-d" }}, which stays as it was confirmed</dd>
+  <dt>Correction</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' v.pk %}">Version {{ v.number }}</a>{% else %}Version {{ v.number }}{% endif %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}</dd>
+  <dt>Reason</dt><dd>{{ letter.reason }}</dd>
+</dl>
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">Programs whose figures changed</h2>
+<p class="small muted">Before is version {{ letter.previous.number }}, after is version {{ v.number }}. Spend and commitments are as reported; the estimates are priced from the year-to-date inputs ({{ unvalidated|lower }}s, never part of a claim){% if not estimated.before or not estimated.after %}, blank for a version that was not priced{% endif %}.</p>
+{% include "core/_letter_programs.html" %}
+</section>
+{% endblock %}

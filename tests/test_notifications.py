@@ -49,18 +49,22 @@ def test_public_events_reach_subscribers_by_page_and_email(cpuc_admin, pge_admin
     assert not q.email and q.emailed_at is None
 
 
-def test_filing_events_reach_only_the_organisation_and_cpuc(cpuc_admin, cpuc, pge, pge_admin, make_user, quarter):
+def test_publications_reach_every_subscriber_and_work_in_progress_only_the_organisation(
+    cpuc_admin, cpuc, pge, pge_admin, make_user, quarter
+):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="SCE", kind="pa", pa_type="IOU")
     sce_admin = make_user("admin@sce.com")
     access.grant(cpuc_admin, sce_admin, sce, "org.admin")
     reviewer = make_user("reviewer@cpuc.ca.gov")
     access.grant(cpuc_admin, reviewer, cpuc, "claims.read")
     for u in (pge_admin, sce_admin, reviewer):
-        service.subscribe(u, "submission.published")
+        service.subscribe(u, "submission.published", module="claims")
+        service.subscribe(u, "submission.reopened")
     service.subscribe(sce_admin, "reopen.requested")  # CPUC staff only
     _, v = _filed(cpuc_admin, pge, pge_admin, make_user, quarter, due_in=timedelta(minutes=1))
     got = set(Notification.objects.values_list("user__email", flat=True))
-    assert got == {pge_admin.email, reviewer.email}
+    assert got == {pge_admin.email, sce_admin.email, reviewer.email}  # a publication is public
+    Notification.objects.all().delete()
     submissions.move_deadline(cpuc_admin, v.submission.deadline, timezone.now() - timedelta(seconds=1), "close-out")
     submissions.request_reopen(v.confirmed_by, v.submission, "double counted")
     assert not Notification.objects.filter(user=sce_admin).exists()
@@ -112,14 +116,16 @@ def test_direct_messages_follow_the_users_preference(pge_admin, signed_in):
 
 
 def test_deadline_reminders_are_sent_once(cpuc_admin, pge_admin, quarter):
-    service.subscribe(pge_admin, "deadline.reminder")
+    service.set_reminders(pge_admin, [(7, "", "email"), (1, "", "email")])
     today = date(2028, 3, 1)
     due = timezone.make_aware(timezone.datetime(2028, 3, 8, 23, 59))
     submissions.add_deadline(cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=due)
     assert service.send_deadline_reminders(today) == 1
     assert service.send_deadline_reminders(today) == 0
-    assert Notification.objects.get().title.startswith("Due in 7 days: claims quarterly claim 2028Q1")
+    assert Notification.objects.get().title.startswith("Due in 7 days: Claims quarterly claim 2028Q1")
+    assert service.send_deadline_reminders(date(2028, 3, 4)) == 0  # the 7-day reminder is sent already
     assert service.send_deadline_reminders(date(2028, 3, 7)) == 1
+    assert Notification.objects.order_by("-id").first().title.startswith("Due tomorrow")
     call_command("send_deadline_reminders")
 
 
@@ -134,8 +140,8 @@ def test_pages(pge_admin, signed_in):
     assert service.unread(pge_admin) == 0
     settings_page = c.get("/notifications/settings/").content.decode()
     assert "Reference data is published" in settings_page
-    c.post("/notifications/settings/", {"pack.published": "email", "deadline.reminder": "in_app", "email_direct": "on"})
-    assert dict(Subscription.objects.filter(user=pge_admin).values_list("event", "channel")) == {
-        "pack.published": "email",
-        "deadline.reminder": "in_app",
+    c.post("/notifications/settings/", {"pack.published": "email", "submission.published:budgets": "in_app", "email_direct": "on"})
+    assert set(Subscription.objects.filter(user=pge_admin).values_list("event", "module", "channel")) == {
+        ("pack.published", "", "email"),
+        ("submission.published", "budgets", "in_app"),
     }
