@@ -270,10 +270,12 @@ def load(filing: LegacyFiling, *, only: str = "") -> Outcome:
                     "sources": sorted(s.sha256 for s in alls),
                 },
             )
-            v = imp.version
-            BudgetLine.objects.bulk_create(BudgetLine(version=v, **ln) for ln in lines)
-            BudgetResult.objects.bulk_create(BudgetResult(version=v, run=RUN, **r) for r in results)
-        outcome.published.append(code)
+            if imp.created:
+                v = imp.version
+                BudgetLine.objects.bulk_create(BudgetLine(version=v, **ln) for ln in lines)
+                BudgetResult.objects.bulk_create(BudgetResult(version=v, run=RUN, **r) for r in results)
+        # another load of the same files may have published it while this one ran
+        (outcome.published if imp.created else outcome.unchanged).append(code)
     return outcome
 
 
