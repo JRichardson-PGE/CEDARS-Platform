@@ -18,6 +18,12 @@ class DocumentsConfig(AppConfig):
 
         register_evaluations(studies.evaluations)  # each program's page lists the studies that evaluate it (BR-15.7)
 
+        from cedars.services.notifications.service import register_concerns
+
+        from . import subscriptions
+
+        register_concerns("documents.documentversion", subscriptions.notice)  # the PAs' and programs' followers (BR-09.2)
+
         from . import health
 
         health.register()

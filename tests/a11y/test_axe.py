@@ -314,6 +314,8 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     claims = _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
+    corrections = _corrections(cpuc_admin, pge, analyst, budgets, monthly)
+    _follows(pge_admin, community, pge, hvac)
     documents = _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst)
     legacy_years = _legacy()
     downloads = _downloads(community)
@@ -323,6 +325,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **claims,
         **budgets,
         **monthly,
+        **corrections,
         **documents,
         "pack": pack,
         "published_pack": published,
@@ -602,6 +605,61 @@ def _monthly(cpuc_admin, pge, pge_admin, analyst):
     bad = report("202802", commitments=["PGE|NOPE|202802|0|0|1|0|0|0|0|0|0|", "PGE|PGE_Res_HVAC|202801|0|0|1|0|0|0|0|0|0|"])
     monthly.upload(analyst, feb, pge, bad, "february.zip")
     return {"monthly_jan": jan, "monthly_feb": feb, "monthly_mar": mar, "monthly_version": v}
+
+
+def _corrections(cpuc_admin, pge, analyst, budgets_scene, monthly_scene):
+    """A business plan corrected after its due date and April's monthly report corrected after its due date: each correction's
+    publication writes its change letter (BR-09.3). Neither touches the filings the other pages show."""
+    from cedars.modules.budgets import service as budgets
+    from cedars.modules.monthly import service as monthly
+
+    from ..test_budgets import job
+    from ..test_monthly import report
+
+    plan = budgets.add_filing(
+        cpuc_admin, first_year=2028, kind="Business plan application", due_at=timezone.now() - timedelta(days=60), acc_version="2026"
+    )
+    key = "runs/scene/out/_results/group_sums2_measure_level_run.parquet"
+    april = monthly.months(2028)[3]
+    reopen = {m: submissions.policy(m).reopen_after_due for m in ("budgets", "monthly")}
+    for m in reopen:
+        submissions.set_policy(cpuc_admin, m, reopen_after_due="open")
+
+    def priced(module, v, run):
+        details = {"job_sha256": module.job_file(v)["sha256"], "acc": "2026", "release": "0.1.80", "results": {"group_sums": key}}
+        return submissions.record_calculation(None, v, run=run, input_hash=run, details=details)
+
+    v = budgets.confirm(analyst, priced(budgets, budgets.upload(analyst, plan, pge, job(), "plan.zip"), "plan1"))
+    submissions.request_reopen(analyst, v.submission, "The lighting program's marketing was left out")
+    more = job(
+        costs=[
+            "PGE_Res_HVAC|2028|2028Q1|PGE|1000|500|200|0|0|0|0|100|0|5000|0",
+            "PGE_Res_HVAC|2029|2029Q1|PGE|1100|500|200|0|0|0|0|100|0|0|0",
+            "PGE_Com_Ltg|2028|2028Q1|PGE|300|0|900|0|0|0|0|0|0|0|0",
+        ]
+    )
+    v2 = budgets.confirm(analyst, priced(budgets, budgets.upload(analyst, plan, pge, more, "plan_correction.zip"), "plan2"))
+    m = monthly.upload(analyst, april, pge, report("202804", measures=[]), "april.zip")
+    monthly.price(analyst, m)
+    m = monthly.confirm(analyst, SubmissionVersion.objects.get(pk=m.pk))
+    submissions.move_deadline(cpuc_admin, april, timezone.now() - timedelta(days=1), "the scene's correction")
+    submissions.request_reopen(analyst, m.submission, "A late lighting invoice")
+    lighting = "PGE_Com_Ltg|2028|2028Q2|PGE|450|0|0|0|0|0|0|0|0|50|0"
+    m2 = monthly.upload(analyst, april, pge, report("202804", measures=[], costs=[lighting]), "april_correction.zip")
+    monthly.price(analyst, m2)
+    m2 = monthly.confirm(analyst, SubmissionVersion.objects.get(pk=m2.pk))
+    for module, policy in reopen.items():
+        submissions.set_policy(cpuc_admin, module, reopen_after_due=policy)
+    return {"budget_letter": v2.budget_change_letter.pk, "monthly_letter": m2.monthly_change_letter.pk}
+
+
+def _follows(pge_admin, community, pge, hvac):
+    """What the notification settings page shows filled in: chosen PAs, a followed program, reminders; a community member who follows
+    a program from its page."""
+    notifications.set_follows(pge_admin, pa_scope="chosen", pas=[pge], programs=[hvac])
+    notifications.set_reminders(pge_admin, [(14, "budgets", "email"), (2, "", "in_app")])
+    notifications.subscribe(pge_admin, "submission.published", module="budgets")
+    notifications.follow_program(community, hvac)
 
 
 def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):

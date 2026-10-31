@@ -5,6 +5,7 @@
 <h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>
 <dl class="facts">
   <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
+  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'monthly:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
   {% if calc.nothing_priced %}<dt>Estimates</dt><dd>None: the report's Measure table has no rows</dd>
   {% elif calc.acc %}<dt>Estimates priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}

@@ -5,7 +5,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
-{legacy_filing}, {cost_set}."""
+{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}."""
 
 PAGES = [
     ("about", "/about/", None),
@@ -210,4 +210,10 @@ PAGES = [
     ("work-order", "/documents/work-orders/{work_order}/", "cpuc_admin"),
     ("work-order-follower", "/documents/work-orders/{work_order}/", "community"),
     ("study-follower", "/documents/studies/{study}/", "community"),
+    ("budgets-changes", "/budgets/changes/", None),
+    ("budgets-change-letter", "/budgets/changes/{budget_letter}/", None),
+    ("budgets-change-letter-signed-in", "/budgets/changes/{budget_letter}/", "community"),
+    ("monthly-changes", "/monthly/changes/", "community"),
+    ("monthly-change-letter", "/monthly/changes/{monthly_letter}/", None),
+    ("program-follower", "/programs/PGE_Res_HVAC/", "community"),
 ]

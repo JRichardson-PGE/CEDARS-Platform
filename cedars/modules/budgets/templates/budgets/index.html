@@ -7,11 +7,13 @@
   <div class="actions">
     <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
     <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
+    <a class="button" href="{% url 'budgets:changes' %}">Change log</a>
     {% if sysadmin %}<a class="button primary" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
   </div>
 </div>
 <p>Budget filings follow the four-year cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice letters.
-Each filing is uploaded, checked, priced and confirmed; every confirmed version is kept and can be compared with any other.</p>
+Each filing is uploaded, checked, priced and confirmed; every confirmed version is kept and can be compared with any other. A
+correction is a new version, published with a change letter in the <a href="{% url 'budgets:changes' %}">change log</a>.</p>
 {% for c in cycles %}
 {# The newest cycle is open; earlier cycles are collapsed behind their heading with a count, so the page is one screen for most visits. #}
 {% if forloop.first %}<section class="cycle" aria-labelledby="cycle-{{ c.cycle.pk }}">
