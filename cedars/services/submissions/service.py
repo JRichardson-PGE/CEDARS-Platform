@@ -47,6 +47,7 @@ VERSION_FIELDS = [
 _publishers: dict[str, tuple[Callable, Callable]] = {}
 _listeners: list[tuple[Callable, Callable]] = []
 _pricers: list[Callable] = []
+_run_states: list[Callable] = []
 _claims_totals: list[Callable] = []
 
 
@@ -65,6 +66,31 @@ def register_pricer(price: Callable) -> None:
     cost_test_set) starts a run on the job (a local file) for the version and returns the run's id; the run's end calls
     record_calculation. cost_test_set is the published cost-test set (a refdata pack) the filing's setup requires, or None."""
     _pricers[:] = [price]
+
+
+def register_run_state(state: Callable[[str], dict | None]) -> None:
+    """The Calculations module's reader: state(run_id) -> {"status", "label", "ended", "error"} for a run, or None for an unknown id."""
+    _run_states[:] = [state]
+
+
+def pricing_run(v: SubmissionVersion, *, reset_on: tuple[str, ...] = ("submission.files_attached",)) -> dict | None:
+    """The pricing run started for the version since its inputs last changed, while no finished run prices them: {"id", "status",
+    "label", "ended", "error"}. None when no run was started since the inputs changed, or the version already records its calculation.
+    A run that ended without pricing the version (failed, refused, stopped) is returned with ended=True, so a page can say so and offer
+    pricing again instead of waiting for it."""
+    if v.calculation:
+        return None
+    from cedars.services.audit.models import AuditEvent
+
+    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
+    last = events.filter(action__in=["submission.pricing_started", *reset_on]).order_by("-id").first()
+    run_id = (last.after or {}).get("run") if last is not None and last.action == "submission.pricing_started" else None
+    if not run_id or run_id == "none":
+        return None
+    state = _run_states[0](run_id) if _run_states else None
+    if state is None:
+        return {"id": run_id, "status": "unknown", "label": "unknown", "ended": False, "error": ""}
+    return {"id": run_id, **state}
 
 
 def register_claims_totals(totals: Callable) -> None:

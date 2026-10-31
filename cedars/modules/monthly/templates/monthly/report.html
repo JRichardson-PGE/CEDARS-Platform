@@ -33,11 +33,14 @@
   {% if v.status == "validated" %}
     {% if priced %}
       <p>Priced: the figures and estimates below are what confirming signs off on.</p>
-    {% elif pricing_run %}
-      <p>Pricing: <a href="{% url 'calculations:run' pricing_run %}">the run's page</a> shows its progress and its input check. Reload this page when it has finished.</p>
-    {% elif can_submit %}
+    {% elif pricing_run and not pricing_run.ended %}
+      <p>Pricing: <a href="{% url 'calculations:run' pricing_run.id %}">the run's page</a> shows its progress and its input check. Reload this page when it has finished.</p>
+    {% else %}
+      {% if pricing_run %}<div class="alert" role="alert"><p>The pricing run <a href="{% url 'calculations:run' pricing_run.id %}">{{ pricing_run.label|lower }}</a>{% if pricing_run.error %}: {{ pricing_run.error }}{% endif %} It did not price this version{% if can_submit %}; price it again once what it says is put right{% endif %}.</p></div>{% endif %}
+      {% if can_submit %}
       <form method="post" action="{% url 'monthly:price' deadline.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Price the estimates</button> <span class="small muted">Prices the year-to-date BCA inputs (the engine checks them as it does any run); confirming needs it.</span></form>
-    {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+      {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+    {% endif %}
   {% endif %}
 
   {% if tiles %}

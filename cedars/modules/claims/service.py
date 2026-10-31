@@ -34,7 +34,6 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.audit.models import AuditEvent
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
@@ -1017,7 +1016,7 @@ def _rule_findings(own: dict[str, upload.Table], year: int) -> tuple[list, list[
         except (rules.EngineMissing, ImportError) as e:  # the engine (and pandas with it) is not installed here
             raise AccessDenied(f"{e} The claims cannot be validated on this server.") from None
         have = {c.lower() for c in df.columns}
-        names = sorted(set(rs.rules.filter(table=table, kind="spec").values_list("field", flat=True)))
+        names = rules.spec_columns(rs, table)
         missing = [c for c in names if c.lower() not in have and _recet_name(c).lower() not in have]
         if missing:
             out += [
@@ -1197,16 +1196,10 @@ def price(actor, v: SubmissionVersion) -> str:
 
 
 def pricing_run(v: SubmissionVersion) -> str | None:
-    """The run started for the version since its records last changed, while the version has no finished one."""
-    if v.calculation:
-        return None
-    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
-    last = (
-        events.filter(action__in=["submission.pricing_started", "submission.files_attached", "submission.validated"])
-        .order_by("-id")
-        .first()
-    )
-    return (last.after or {}).get("run") if last and last.action == "submission.pricing_started" else None
+    """The run started for the version since its records last changed, while it has not ended; the pages use
+    submissions.pricing_run, which also tells them about a run that ended without pricing the version."""
+    state = submissions.pricing_run(v, reset_on=("submission.files_attached", "submission.validated"))
+    return state["id"] if state and not state["ended"] else None
 
 
 def priced(v: SubmissionVersion) -> bool:

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -536,8 +537,9 @@ def cost_tests_mismatch(run: Run, receipt: dict) -> str:
         return ""
     return (
         f"The engine priced a cost-test set whose file (SHA-256 {got[:12] or 'not recorded'}) is not the pinned {want['id']} "
-        f"{want['version']} ({want['sha256'][:12]}), so these results are not that set's. Register the engine's file as the set, or use a "
-        "release that ships it."
+        f"{want['version']} ({want['sha256'][:12]}), so these results are not that set's. A CPUC system administrator registers the "
+        "engine's own file for the set on Reference data (a set's id and version name one file, so the registered one must be the "
+        "engine's), or the run uses a release that ships the registered file."
     )
 
 
@@ -595,6 +597,17 @@ def expired_runs(cutoff):
             )  # once the record is gone
 
         yield f"calculation_run:{run.pk}", delete
+
+
+def run_state(run_id: str) -> dict | None:
+    """What the submissions service shows a filing page about its pricing run: status, its label, whether it has ended, its error."""
+    try:
+        run = Run.objects.filter(pk=run_id).first()
+    except (ValueError, ValidationError):
+        return None
+    if run is None:
+        return None
+    return {"status": run.status, "label": run.get_status_display(), "ended": run.status in Run.ENDED, "error": run.error or ""}
 
 
 def price_submission(
