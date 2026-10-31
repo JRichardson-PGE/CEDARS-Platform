@@ -214,7 +214,7 @@ def period(request, pk):
         "legacy": legacy.imported(v) if v is not None and v.imported else None,
     }
     if v is not None:
-        ctx["pricing_run"] = service.pricing_run(v)
+        ctx["pricing_run"] = submissions.pricing_run(v, reset_on=("submission.files_attached", "submission.validated"))
         ctx["priced"] = service.priced(v)
         ctx["stale"] = service.stale(v)
         ctx["file"] = service.own_file(v)

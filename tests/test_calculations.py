@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from cedars.core import storage
 from cedars.modules.calculations import dispatch, jobfiles, service
-from cedars.modules.calculations.models import Run
+from cedars.modules.calculations.models import Run, Worker
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
@@ -622,3 +622,38 @@ def test_s3_needs_a_bucket_per_area(settings):
         storage.store("uploads")
     with pytest.raises(storage.StorageError, match="no storage area"):
         storage.store("elsewhere")
+
+
+def test_new_run_for_only_me_is_the_users_own(tmp_path, signed_in, analyst, release):
+    upload = SimpleUploadedFile("job.zip", job_zip(tmp_path).read_bytes(), content_type="application/zip")
+    r = signed_in(analyst).post(
+        "/calculations/new/",
+        {"name": "mine", "run_for": "", "job": upload, "engine": "0.1.78|recet", "acc_version": "2024", "output_format": "csv.zip"},
+    )
+    run = Run.objects.get()
+    assert r.status_code == 302 and run.organisation is None and run.owner == analyst
+
+
+def test_the_worker_records_its_release_and_takes_only_that_releases_runs(tmp_path, worker, analyst, pge, release, cpuc_admin):
+    other = service.add_release(cpuc_admin, release="0.1.99", calculations=["recet"], accs={"recet": ["2024"]})
+    theirs = service.create_run(analyst, pge, request(other), job_zip(tmp_path))
+    mine = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
+    assert dispatch.worker_release() == "0.1.78"
+    assert not dispatch.serves("0.1.78") and dispatch.unserved([release, other]) == [release, other]
+    assert dispatch.work(once=True, poll=0.05) == 1
+    mine.refresh_from_db()
+    theirs.refresh_from_db()
+    assert mine.status == Run.Status.SUCCEEDED and theirs.status == Run.Status.QUEUED  # the older run waits for a 0.1.99 worker
+    w = Worker.objects.get()
+    assert w.release == "0.1.78" and w.lanes == ["small", "large"] and w.runs_priced == 0 and w.last_seen_at
+    assert dispatch.serves("0.1.78") and not dispatch.serves("0.1.99") and dispatch.unserved([release, other]) == [other]
+
+
+def test_new_run_says_when_no_worker_runs_a_release(signed_in, analyst, release, settings):
+    c = signed_in(analyst)
+    assert "No worker is running ReCET 0.1.78" in c.get("/calculations/new/").content.decode()
+    dispatch.heartbeat("host:1", "0.1.78")
+    assert "No worker is running" not in c.get("/calculations/new/").content.decode()
+    settings.CALCULATIONS_BACKEND = "batch"
+    Worker.objects.all().delete()
+    assert "No worker is running" not in c.get("/calculations/new/").content.decode()  # Batch starts one per run

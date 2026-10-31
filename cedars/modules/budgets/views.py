@@ -13,7 +13,6 @@ from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.audit.models import AuditEvent
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import FilingCycle
@@ -53,15 +52,6 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
             raise Http404
         return org
     return request.organisation
-
-
-def _pricing_run(v: SubmissionVersion) -> str | None:
-    """The run started for the version since its files last changed, while it has not finished."""
-    if v.calculation:
-        return None
-    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
-    last = events.filter(action__in=["submission.pricing_started", "submission.files_attached"]).order_by("-id").first()
-    return (last.after or {}).get("run") if last and last.action == "submission.pricing_started" else None
 
 
 def _money(x) -> str:
@@ -218,7 +208,7 @@ def filing(request, pk):
     if acting and (v is None or not v.locked):
         ctx["shifts_in_effect"] = shifts.operating_budget(org, deadline.cycle).shifts
     if v is not None:
-        ctx["pricing_run"] = _pricing_run(v)
+        ctx["pricing_run"] = submissions.pricing_run(v)
         ctx["priced"] = service.priced(v)
         ctx["file"] = service.job_file(v)
         if ctx["priced"]:

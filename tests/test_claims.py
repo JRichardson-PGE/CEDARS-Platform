@@ -665,6 +665,12 @@ def test_the_claims_rules_run_on_measure_and_program_cost(filer, year, pge, prog
     }
     assert not [f for f in found if f["rule_id"] in ("CLM-REQ", "CLM-TYPE") and f["table"] in ("Measure", "ProgramCost")]
     assert {f["record_id"] for f in found if f["table"] == "Measure"} <= {"PGE-2028-001", "PGE-2028-002"}  # keyed by ClaimID
+    # the set's ProgramCost key rule names "PrgID + PrgYear": two columns the file has, not a column it lacks
+    assert not [f for f in found if f["rule_id"] == "CLM-COL"], [f["message"] for f in found if f["rule_id"] == "CLM-COL"]
+    assert not [n for n in v.findings["notes"] if "ProgramCost rules were not run" in n]
+    assert {"PrgID", "PrgYear"} <= set(rules.spec_columns(rs, "ProgramCost")) and "PrgID + PrgYear" not in rules.spec_columns(
+        rs, "ProgramCost"
+    )
     # a Measure file without the specification's columns is rejected on them before its rules run
     v = service.upload_claims(filer, deadline(), pge, q1(), "q1.zip")
     assert {f["rule_id"] for f in service.findings(v) if f["table"] == "Measure" and f["severity"] == "reject"} == {"CLM-COL"}

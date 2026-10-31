@@ -42,7 +42,7 @@
   <ul class="bars">
     {% for b in chart.bars %}
     <li><span class="bar-name">{{ b.name }}</span>
-      <span class="bar-track" aria-hidden="true"><span class="bar{% if b.negative %} negative{% endif %}" style="width: {{ b.pct }}%"></span></span>
+      <svg class="bar-track" viewBox="0 0 100 1" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="bar{% if b.negative %} negative{% endif %}" x="0" y="0" width="{{ b.pct }}" height="1"/></svg>
       <span class="bar-value">{{ b.value }}{% if b.negative %} <span class="small">(negative)</span>{% endif %}</span></li>
     {% endfor %}
   </ul>

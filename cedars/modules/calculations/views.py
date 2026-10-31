@@ -1,6 +1,7 @@
 import mimetypes
 from pathlib import PurePosixPath
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -14,7 +15,7 @@ from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import drafts, forms, service
+from . import dispatch, drafts, forms, service
 from . import results as results_mod
 from .models import EngineRelease, InputDraft, Run
 
@@ -145,7 +146,18 @@ def new_run(request):
         else:
             messages.success(request, f"{run.name} is queued{' (inputs check only)' if run.settings.get('preflight_only') else ''}.")
             return redirect("calculations:run", pk=run.pk)
-    return render(request, "calculations/new.html", {"form": form, "releases": releases, "service": service, "draft": draft})
+    return render(
+        request,
+        "calculations/new.html",
+        {
+            "form": form,
+            "releases": releases,
+            "service": service,
+            "draft": draft,
+            "unserved": dispatch.unserved(releases),
+            "worker_minutes": settings.HEALTH["worker_seen"],
+        },
+    )
 
 
 def _draft_for(request):

@@ -189,6 +189,15 @@ def _is_utf8(content: bytes) -> bool:
     return True
 
 
+def spec_columns(rs: RuleSet, table: str) -> list[str]:
+    """The columns a rule set's specification names for a table: every spec rule's field, a key rule's "PrgID + PrgYear" split into
+    its columns (it names a two-column primary key, not a column)."""
+    names: set[str] = set()
+    for field in rs.rules.filter(table=table, kind="spec").values_list("field", flat=True):
+        names.update(part.strip() for part in field.split("+") if part.strip())
+    return sorted(names)
+
+
 def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_column: str = "CEInputID") -> tuple[list[Finding], list[str]]:
     """Run a rule set's rules for `table` on a raw-text frame: every failing (record, rule) as a Finding, rejects first, and notes on rules
     that could not be checked."""

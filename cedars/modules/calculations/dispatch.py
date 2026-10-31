@@ -18,20 +18,24 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shlex
 import socket
 import subprocess
 import tempfile
 import time
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
-from cedars.core import storage
+from cedars.core import health, storage
 
 from . import service
-from .models import EngineRelease, Run
+from .models import EngineRelease, Run, Worker
 
 log = logging.getLogger(__name__)
 
@@ -83,13 +87,53 @@ def command() -> list[str]:
     return shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
 
 
-def claim_next(worker: str, lanes=(Run.Lane.SMALL, Run.Lane.LARGE)) -> Run | None:
-    """Take the next queued local run, small runs first, oldest first."""
+def worker_release() -> str:
+    """The ReCET release the worker command runs (`recet --version` prints "recet X.Y.Z"); "" when it cannot say."""
+    try:
+        out = subprocess.run([*command(), "--version"], capture_output=True, text=True, timeout=120, check=False)  # noqa: S603 - our own setting
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    m = re.search(r"\b(\d+\.\d+\.\d+[\w.+-]*)", (out.stdout or "") + (out.stderr or ""))
+    return m.group(1) if m else ""
+
+
+def heartbeat(name: str, release: str, lanes=(Run.Lane.SMALL, Run.Lane.LARGE), priced: int = 0) -> Worker:
+    """Record that a worker is polling: its release and queues, now. Workers not seen for a week are forgotten."""
+    now = timezone.now()
+    w, _ = Worker.objects.update_or_create(name=name, defaults={"release": release, "lanes": list(lanes), "last_seen_at": now})
+    if priced:
+        Worker.objects.filter(pk=w.pk).update(runs_priced=priced)
+    Worker.objects.filter(last_seen_at__lt=now - timedelta(days=7)).delete()
+    return w
+
+
+def live_workers():
+    """The workers that polled within HEALTH worker_seen minutes."""
+    return Worker.objects.filter(last_seen_at__gte=timezone.now() - health.limit("worker_seen"))
+
+
+def serves(release: str) -> bool:
+    """Whether a run on the release is priced now: on AWS Batch always (a worker of the release's image starts per run); locally, when
+    a live worker runs that release (or one that could not say which)."""
+    if default_backend_name() != "local":
+        return True
+    return live_workers().filter(Q(release=release) | Q(release="")).exists()
+
+
+def unserved(releases) -> list[EngineRelease]:
+    """The releases among `releases` no live worker runs (local backend; empty on Batch)."""
+    return [r for r in releases if not serves(r.release)]
+
+
+def claim_next(worker: str, lanes=(Run.Lane.SMALL, Run.Lane.LARGE), release: str = "") -> Run | None:
+    """Take the next queued local run, small runs first, oldest first; a worker that knows its release takes only that release's runs
+    (another release's run waits for its own worker instead of being refused)."""
+    mine = {"engine_release": release} if release else {}
     with transaction.atomic():
         for lane in lanes:
             run = (
                 Run.objects.select_for_update(skip_locked=True)
-                .filter(status=Run.Status.QUEUED, backend="local", lane=lane)
+                .filter(status=Run.Status.QUEUED, backend="local", lane=lane, **mine)
                 .order_by("created_at")
                 .first()
             )
@@ -134,9 +178,12 @@ def _error_from(tail: str, code: int) -> str:
 def work(once: bool = False, poll: float = 2.0, idle: float = 5.0, lanes=(Run.Lane.SMALL, Run.Lane.LARGE)) -> int:
     """The worker loop: take a run, price it, repeat. Returns the number of runs priced (once=True: at most one)."""
     name = f"{socket.gethostname()}:{os.getpid()}"
+    release = worker_release()
+    log.info("worker %s runs ReCET %s", name, release or "(unknown release)")
     done = 0
     while True:
-        run = claim_next(name, lanes)
+        heartbeat(name, release, lanes, priced=done)
+        run = claim_next(name, lanes, release)
         if run is None:
             if once:
                 return done

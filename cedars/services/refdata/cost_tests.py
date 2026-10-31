@@ -104,11 +104,25 @@ def register_set(actor, data: bytes, *, source: str = "", notes: str = "") -> Pa
     key = file_key(h["id"], h["version"])
     store = storage.store("refdata")
     service._require(actor, KIND)
-    if PackVersion.objects.filter(kind=KIND, label=h["id"], version=h["version"]).exists():
-        raise service.AccessDenied(f"{h['id']} {h['version']} is already registered; a changed set is a new version (or a new set).")
+    digest = hashlib.sha256(data).hexdigest()
+    existing = PackVersion.objects.filter(kind=KIND, label=h["id"], version=h["version"]).first()
+    if existing is not None:
+        if sha256(existing) == digest:
+            raise service.AccessDenied(f"This file is already registered as {existing} ({existing.get_status_display().lower()}).")
+        raise service.AccessDenied(
+            f"{h['id']} {h['version']} is already registered as {existing} with a different file (SHA-256 {sha256(existing)[:12]}; "
+            f"this file {digest[:12]}). A set's id and version name one file for good: give the changed file a new version (or a new "
+            "id) and register that."
+        )
+    shipped = engine_copy(h["id"], h["version"])
+    if shipped is not None and shipped != data:
+        raise service.AccessDenied(
+            f"The engine ships {h['id']} {h['version']} with a different file (SHA-256 {hashlib.sha256(shipped).hexdigest()[:12]}; "
+            f"this file {digest[:12]}). A built-in set is registered from the engine's own file; a changed set takes a new version."
+        )
     store.put_bytes(key, data)
     first = h["program_years"]["from"]
-    manifest = {DEFINITION: {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data), "set": h}}
+    manifest = {DEFINITION: {"sha256": digest, "bytes": len(data), "set": h}}
     return service.register_pack(
         actor,
         kind=KIND,
@@ -120,6 +134,22 @@ def register_set(actor, data: bytes, *, source: str = "", notes: str = "") -> Pa
         source=source or "cost-test set file",
         notes=notes,
     )
+
+
+def engine_copy(sid: str, version: str) -> bytes | None:
+    """The engine's own file for a built-in set (ReCET ships its published sets as recet/data/cost_tests/<id>/definition.yaml), or
+    None when the engine is not installed here or ships no set of that id and version."""
+    try:
+        from importlib import resources
+
+        path = resources.files("recet").joinpath("data", "cost_tests", sid, "definition.yaml")
+        data = path.read_bytes()
+    except (ImportError, FileNotFoundError, OSError, TypeError):
+        return None
+    try:
+        return data if read(data).get("version") == version else None
+    except SetError:
+        return None
 
 
 def file_bytes(pack: PackVersion) -> bytes:

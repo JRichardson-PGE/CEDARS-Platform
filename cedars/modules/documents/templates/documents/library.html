@@ -45,7 +45,7 @@ behind the filters are kept by CPUC Energy Division.</p>
   {{ form.pa.as_field_group }}
   {% if form.status %}{{ form.status.as_field_group }}{% endif %}
   <button type="submit">Search</button>
-  <details{% if advanced %} open{% endif %} style="flex-basis: 100%">
+  <details{% if advanced %} open{% endif %} class="filters-more">
     <summary>More filters: program, year, dates and attributes</summary>
     <div class="filters">
       {{ form.program.as_field_group }}
