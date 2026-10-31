@@ -21,3 +21,4 @@
     {% endfor %}
   </ol>
 </div>
+{% if chart.limited %}<p class="small muted">The chart shows the first {{ chart.shown }}; the table lists them all.</p>{% endif %}

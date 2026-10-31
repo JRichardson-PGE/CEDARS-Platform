@@ -298,31 +298,32 @@ def _literal(text: str) -> str:
     return "'" + str(text).replace("'", "''") + "'"
 
 
-def run(q: Query) -> Result:
-    import duckdb
-    import pyarrow.parquet as pq
-
+def _start(q: Query) -> Result:
+    """The result's release, files and notes, before any reading. No rows when nothing is published or no file matches."""
     release = _release(q)
     if release is None:
-        result = Result(q, None, [], [], {}, ["Nothing has been published in this dataset yet."])
-        _finish(result)
-        return result
+        return Result(q, None, [], [], {}, ["Nothing has been published in this dataset yet."])
     files = pick_files(q, snapshots.release_files(release))
     result = Result(q, release, files, [], {"_sums": {}, "_rows": 0})
     result.notes += [f"Left out: {EXCLUSIONS[e].label}." for e in q.exclude]
     if not files:
         result.notes.append("No published filing matches this choice." if q.filing else "Nothing in force in this release.")
-        _finish(result)
-        return result
+    return result
 
-    numbers = result.fields
+
+def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[str] = ()) -> tuple[str, list[str], list]:
+    """The rows a query reads: the release's files unioned under one set of columns (a missing column reads as blank), and its WHERE
+    terms (years, filters, exclusions) with their arguments."""
+    import pyarrow.parquet as pq
+
     texts = list(
         dict.fromkeys(
             [DIMENSIONS[d].column for d in q.by + tuple(d for d, _ in q.filters) if DIMENSIONS[d].column]
             + [EXCLUSIONS[e].column for e in q.exclude]
-            + ["Used_Year", "CreditedPA"]
+            + ["Used_Year", "CreditedPA", *extra_texts]
         )
     )
+    texts = [c for c in texts if c not in numbers]
     selects = []
     for f in files:
         names = set(pq.read_schema(local_path(f)).names)
@@ -354,22 +355,37 @@ def run(q: Query) -> Result:
         ex = EXCLUSIONS[e]
         where.append(f"coalesce(lower(trim({_ident(ex.column)})), '') NOT IN ({', '.join('?' for _ in ex.values)})")
         args += [v.lower() for v in ex.values]
+    source = f"WITH data AS ({' UNION ALL '.join(selects)}) "
+    return source, where, args
 
-    dims = [f"{_expression(DIMENSIONS[d])} AS {_ident(d)}" for d in q.by]
-    sums = [f"sum({_ident(c)}) AS {_ident(c)}" for c in numbers]
-    sql = (
-        f"WITH data AS ({' UNION ALL '.join(selects)}) "
-        f"SELECT {', '.join(dims + sums + ['count(*) AS _rows'])} FROM data"
-        + (f" WHERE {' AND '.join(where)}" if where else "")
-        + (f" GROUP BY {', '.join(_ident(d) for d in q.by)} ORDER BY {', '.join(f'{_ident(d)} NULLS LAST' for d in q.by)}" if q.by else "")
-    )
+
+def _fetch(sql: str, args: list) -> tuple[list[str], list[tuple]]:
+    import duckdb
+
     con = duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
     try:
         cursor = con.execute(sql, args)
-        names = [c[0] for c in cursor.description]
-        raw = cursor.fetchall()
+        return [c[0] for c in cursor.description], cursor.fetchall()
     finally:
         con.close()
+
+
+def run(q: Query) -> Result:
+    result = _start(q)
+    if not result.files:
+        _finish(result)
+        return result
+    numbers = result.fields
+    source, where, args = _source(q, result.files, numbers)
+    dims = [f"{_expression(DIMENSIONS[d])} AS {_ident(d)}" for d in q.by]
+    sums = [f"sum({_ident(c)}) AS {_ident(c)}" for c in numbers]
+    sql = (
+        source
+        + f"SELECT {', '.join(dims + sums + ['count(*) AS _rows'])} FROM data"
+        + (f" WHERE {' AND '.join(where)}" if where else "")
+        + (f" GROUP BY {', '.join(_ident(d) for d in q.by)} ORDER BY {', '.join(f'{_ident(d)} NULLS LAST' for d in q.by)}" if q.by else "")
+    )
+    names, raw = _fetch(sql, args)
     for values in raw:
         record = dict(zip(names, values, strict=True))
         if not q.by and not record["_rows"]:
@@ -380,6 +396,47 @@ def run(q: Query) -> Result:
         result.rows.append(row)
     _finish(result)
     return result
+
+
+RECORD_COLUMNS = ["CEInputID", "PrgID", "MeasureID", "UseCategory", "Used_Year", "CreditedPA"]
+
+
+@dataclass
+class Records:
+    """The records behind a number (spec "Drill"; BR-07.6): one page of them, how many there are, and their sums, which equal the
+    grouped row they came from."""
+
+    result: Result  # release, files, notes and the totals over every matching record
+    columns: list[str]
+    rows: list[dict]
+    count: int
+    offset: int
+    limit: int
+
+
+def records(q: Query, *, limit: int = 100, offset: int = 0) -> Records:
+    """The measure-level records a query keeps (its `by` is ignored), in CEInputID order, with each metric per record."""
+    q = replace(q, by=())
+    totals = run(q)
+    if not totals.files or not totals.totals["_rows"]:
+        return Records(totals, RECORD_COLUMNS, [], 0, offset, limit)
+    numbers = totals.fields
+    source, where, args = _source(q, totals.files, numbers, RECORD_COLUMNS)
+    cols = [_ident(c) for c in RECORD_COLUMNS] + ["_organisation", "_filing"] + [_ident(c) for c in numbers]
+    sql = (
+        source
+        + f"SELECT {', '.join(cols)} FROM data"
+        + (f" WHERE {' AND '.join(where)}" if where else "")
+        + ' ORDER BY "CEInputID", _organisation LIMIT ? OFFSET ?'
+    )
+    names, raw = _fetch(sql, [*args, limit, offset])
+    rows = []
+    for values in raw:
+        record = dict(zip(names, values, strict=True))
+        sums = {c: record[c] or 0 for c in numbers}
+        record |= {m.code: m.value(sums) for m in totals.metric_list}
+        rows.append(record)
+    return Records(totals, RECORD_COLUMNS, rows, totals.totals["_rows"], offset, limit)
 
 
 def _expression(d: Dimension) -> str:

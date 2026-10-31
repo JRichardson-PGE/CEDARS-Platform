@@ -206,7 +206,7 @@ def test_the_total_system_benefit_page(both, client):
     page = client.get("/data/total-system-benefit/").content.decode()
     for caption in ("by primary sector", "by year", "share of each PA", "by program"):
         assert caption in page
-    assert 'href="/data/overview/?sector=Residential&amp;by=program"' in page
+    assert 'href="/data/overview/?sector=Residential&amp;by=program&amp;metric=tsb"' in page
     assert "View by" not in page
 
 
@@ -233,3 +233,42 @@ def test_the_savings_and_environment_pages(both, client):
     html = client.get("/data/energy-savings/?metric=therms").content.decode()
     assert "Gas savings, first year net (MMTherms) by primary sector" in html
     assert "(metric tons) by year" in client.get("/data/environmental-impact/").content.decode()
+
+
+def test_program_and_measure_pages_drill_to_the_records(both, client):
+    from cedars.modules.data import dashboard as d
+
+    programs = d.compare(d.parse(d.PAGES["programs"], _qd({})), "program", ("measures", "use_category"))
+    hvac = programs.rows[0]
+    assert hvac.key == "PGE_Res_HVAC" and hvac.drill == "/data/measures/?program=PGE_Res_HVAC&by=use_category&metric=tsb"
+    assert hvac.links == [("Program page", "/programs/PGE_Res_HVAC/")]
+    measures = d.compare(d.parse(d.PAGES["measures"], _qd({"program": "PGE_Res_HVAC"})), "measure")
+    assert [r.key for r in measures.rows] == [None]  # the test file has no MeasureID column
+    html = client.get("/data/programs/").content.decode()
+    assert "Program page" in html and 'href="/data/measures/?program=PGE_Res_HVAC&amp;by=use_category&amp;metric=tsb"' in html
+
+
+def test_records_sum_to_the_row_they_came_from(both, client):
+    from cedars.modules.data import query as dq
+
+    q = dq.Query("claims", ("tsb", "kwh_first_year_net"), filters=(("program", ("PGE_Res_HVAC",)),))
+    recs = dq.records(q, limit=1)
+    assert recs.count == 2 and len(recs.rows) == 1 and recs.rows[0]["CEInputID"] == "M0"
+    assert recs.result.totals["tsb"] == 150 == dq.run(q.but(by=("program",))).rows[0]["tsb"]
+    assert dq.records(q, limit=1, offset=1).rows[0]["tsb"] == 50
+    page = client.get("/data/records/?dataset=claims&metric=tsb&program=PGE_Res_HVAC").content.decode()
+    assert "Claimed records" in page and "M0" in page and "M1" in page and "Total of all 2" in page and "150" in page
+    forecast = client.get("/data/records/?dataset=forecast&metric=tsb&program=PGE_Res_HVAC").content.decode()
+    assert "Forecast records" in forecast and "300" in forecast
+    assert "could not be shown" in client.get("/data/records/?metric=nope").content.decode()
+    assert "No records match." in client.get("/data/records/?metric=tsb&program=NOPE").content.decode()
+
+
+def test_records_page_through(both, client, monkeypatch):
+    from cedars.modules.data import views
+
+    monkeypatch.setattr(views, "RECORDS_PER_PAGE", 1)
+    first = client.get("/data/records/?metric=tsb").content.decode()
+    assert "Records 1 to 1 of 3" in first and "page=2" in first and "Previous" not in first
+    last = client.get("/data/records/?metric=tsb&page=3").content.decode()
+    assert "Records 3 to 3 of 3" in last and "Next" not in last

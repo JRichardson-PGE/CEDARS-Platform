@@ -1,0 +1,39 @@
+{% extends "core/base.html" %}
+{% load data_tags %}
+{% block title %}Records · Portfolio dashboard{% endblock %}
+{% block content %}
+<h1>{{ series }} records</h1>
+<p>The {{ series|lower }} records behind a dashboard number, as published. Their total equals the row you came from.
+{% if as_of %}Data as of {{ as_of|date:"Y-m-d H:i e" }}.{% endif %}</p>
+{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+{% if applied %}<ul class="chips">{% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong></li>{% endfor %}</ul>{% endif %}
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if recs.count %}
+<div class="head-row">
+  <p>{{ recs.count }} record{{ recs.count|pluralize }}{% if recs.count > recs.limit %}, {{ first }} to {{ last }} shown{% endif %}.</p>
+  <p><a href="/data/download.csv?{{ download }}">Download the totals (CSV)</a></p>
+</div>
+<div class="hscroll" tabindex="0" role="region" aria-label="Records">
+<table class="list">
+  <caption class="sr-only">{{ series }} records, by CEInputID</caption>
+  <thead><tr><th scope="col">CEInputID</th><th scope="col">PrgID</th><th scope="col">Measure</th><th scope="col">Use category</th><th scope="col">Year</th><th scope="col">PA</th><th scope="col">Filed by</th>
+    {% for m in metric_list %}<th scope="col" class="num">{{ m.label }}{% if m.unit %} ({{ m.unit }}){% endif %}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in recs.rows %}
+  <tr><th scope="row" class="mono">{{ r.CEInputID }}</th><td><a href="/programs/{{ r.PrgID }}/">{{ r.PrgID }}</a></td><td>{{ r.MeasureID|default_if_none:"" }}</td>
+    <td>{{ r.UseCategory|default_if_none:"" }}</td><td>{{ r.Used_Year|default_if_none:"" }}</td><td>{{ r.CreditedPA|default_if_none:"" }}</td><td>{{ r.filed_by }}</td>
+    {% for m in metric_list %}<td class="num">{{ r|get_item:m.code|metric_value:m }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th scope="row" colspan="7">Total of all {{ recs.count }}</th>{% for m in metric_list %}<td class="num">{{ recs.result.totals|get_item:m.code|metric_value:m }}</td>{% endfor %}</tr></tfoot>
+</table>
+</div>
+{% if previous or next %}
+<nav class="pager" aria-label="Record pages">
+  {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
+  <span>Records {{ first }} to {{ last }} of {{ recs.count }}</span>
+  {% if next %}<a href="{{ next }}">Next</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}<p>No records match.</p>{% endif %}
+{% endblock %}

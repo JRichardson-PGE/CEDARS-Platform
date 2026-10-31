@@ -51,3 +51,8 @@ def series_name(comparison, series):
     from ..dashboard import SERIES
 
     return SERIES[series][0]
+
+
+@register.filter
+def has_links(rows):
+    return any(r.links for r in rows)
