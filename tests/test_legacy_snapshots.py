@@ -8,10 +8,13 @@ from cedars.modules.claims import legacy as legacy_claims
 from cedars.modules.claims import service as claims
 from cedars.modules.claims.models import ClaimResult
 from cedars.modules.data import query as dq
-from cedars.services.legacy import snapshot
+from cedars.services.audit.models import AuditEvent
+from cedars.services.legacy import snapshot, tables
+from cedars.services.legacy.models import LegacyImport
 from cedars.services.snapshots import service as snapshots
 from cedars.services.snapshots.models import Release, Snapshot
 
+from .legacy_fixtures import legacy_claim
 from .test_legacy_claims import _version, _year
 from .test_legacy_filings import _version as _filing_version
 from .test_legacy_filings import downloads  # noqa: F401 - a fixture
@@ -105,3 +108,69 @@ def test_measure_and_outputs_batches_line_up_whatever_their_row_groups():
     assert sum(m.num_rows for m, _ in pairs) == 7
     with pytest.raises(ValueError, match="different numbers of rows"):
         list(snapshot._aligned(iter(a), iter(b[:2])))
+
+
+BENEFITS = {"Electric Benefits": "30", "Gas Benefits": "10", "Other Benefits": "5", "TRC Cost": "40", "PAC Cost": "20"}
+
+
+def test_benefits_come_from_the_benefit_columns_and_fall_back_to_ratio_times_cost_per_record():
+    cols = {
+        "ElecBen": pa.array([30.0, None, 8.0]),
+        "GasBen": pa.array([10.0, None, None]),
+        "OtherBen": pa.array([5.0, None, None]),
+        "TRCRatio": pa.array([1.25, 2.0, 1.0]),
+        "TRCCost": pa.array([40.0, 10.0, None]),
+        "PACRatio": pa.array([2.5, 2.0, 1.0]),
+        "PACCost": pa.array([20.0, 10.0, 1.0]),
+        "RIMRatio": pa.array([1.0, 1.0, 1.0]),
+        "RIMCost": pa.array([3.0, 4.0, 5.0]),
+        "RIMBen": pa.array([7.0, 7.0, 7.0]),
+    }
+    b = tables.benefits(cols)
+    assert b["TRCBen"].values.to_pylist() == [45.0, 20.0, 8.0] and b["TRCBen"].source == "benefit columns"  # record 2: ratio x cost
+    assert b["TRCBen"].from_ratio.to_pylist() == [50.0, 20.0, 0.0]
+    assert b["PACBen"].values.to_pylist() == [40.0, 20.0, 8.0]
+    assert b["RIMBen"].values.to_pylist() == [7.0, 7.0, 7.0] and b["RIMBen"].source == "filed"
+    only_ratios = tables.benefits({k: v for k, v in cols.items() if k not in ("ElecBen", "GasBen", "OtherBen", "RIMBen")})
+    assert only_ratios["TRCBen"].source == "ratio x cost" and only_ratios["RIMBen"].values.to_pylist() == [3.0, 4.0, 5.0]
+
+
+def _benefit_year(tmp_path):
+    pge = [
+        legacy_claim("PGE-2019-0001", "PGE", "PGE_Com_001", 2019, **BENEFITS),
+        legacy_claim("PGE-2019-0002", "PGE", "PGE_Com_001", 2019, **BENEFITS),
+    ]
+    _year(tmp_path, 2019, layout="claims_a", pge=pge, sw=False)
+
+
+def test_a_claim_year_prices_the_tests_from_its_benefit_columns(tmp_path):
+    _benefit_year(tmp_path)
+    legacy_claims.load(2019)
+    v = _version("PGE", 2019)
+    loaded = _results(v)
+    assert loaded["TRCBen"] == pytest.approx(90.0) and loaded["PACBen"] == pytest.approx(80.0)  # not 1.25 x 40 and 2.5 x 20 per record
+    checks = {c["name"]: c for c in LegacyImport.objects.get(version=v).reconciliation["checks"]}
+    assert not checks["TRCBen = ratio x cost"]["ok"] and checks["TRCBen = ratio x cost"]["rebuilt"] == pytest.approx(100.0)
+    rows = _by_pa("claims", metrics=("trc", "pac"))
+    assert rows["PGE"]["trc"] == pytest.approx(90.0 / 80.0) and rows["PGE"]["pac"] == pytest.approx(80.0 / 40.0)
+
+
+def test_years_loaded_by_the_old_rule_are_corrected_and_their_snapshots_replaced(tmp_path, monkeypatch, capsys):
+    _benefit_year(tmp_path)
+    monkeypatch.setattr(tables, "BENEFIT_PARTS", {"TRCBen": (), "PACBen": (), "RIMBen": ()})  # the old rule: ratio x cost
+    legacy_claims.load(2019)
+    assert _results(_version("PGE", 2019))["TRCBen"] == pytest.approx(100.0)
+    old = Snapshot.objects.get(organisation__code="PGE")
+    assert _by_pa("claims", metrics=("trc",))["PGE"]["trc"] == pytest.approx(100.0 / 80.0)
+    monkeypatch.undo()
+
+    call_command("load_legacy_claims", "--rebuild-benefits")
+    assert "2019 PGE: 1 program results corrected" in capsys.readouterr().out
+    assert _results(_version("PGE", 2019))["TRCBen"] == pytest.approx(90.0)
+    assert AuditEvent.objects.filter(action="legacy.benefits_rebuilt").count() == 1
+
+    releases = Release.objects.filter(dataset="claims").count()
+    call_command("snapshot_legacy", "--replace")
+    assert "2 snapshots made, 0 failed" in capsys.readouterr().out
+    assert not Snapshot.objects.filter(pk=old.pk).exists() and Release.objects.filter(dataset="claims").count() == releases + 1
+    assert _by_pa("claims", metrics=("trc",))["PGE"]["trc"] == pytest.approx(90.0 / 80.0)

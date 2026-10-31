@@ -5,7 +5,7 @@ from `manage.py snapshot_legacy` with no reload.
 
 Statewide unallocated claims (outside every total) get no snapshot. Columns the downloads lack are added the way the loads' own program
 lines and checks count them (so the dashboards and the reconciliation agree):
-  TRCBen, PACBen, RIMBen        ratio x cost per record, where the layout has no benefit column (a blank ratio rebuilds 0)
+  TRCBen, PACBen, RIMBen        where the layout has no benefit column: the benefit columns' sum, else ratio x cost (tables.benefits)
   TotalExpenditures             WeightedProgramCost + the four incentive outputs (claims before 2023 and every filing)
   RebatesandIncents             the four incentive outputs (likewise)
 A file's own TotalExpenditures and RebatesandIncents (claims from 2023) are kept as filed."""
@@ -17,13 +17,13 @@ from cedars.core import storage
 from cedars.services.snapshots import service as snapshots
 from cedars.services.snapshots.models import Snapshot
 
+from . import tables
 from .models import LegacyImport
 from .service import AREA
 
 FILE = "measure_level.parquet"
 BATCH_ROWS = 50_000
 INCENTIVES = ("EndUserRebate", "IncentiveToOthers", "DILaborCost", "DIMaterialCost")
-BENEFITS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
 KEYS = ("PrgID", "Used_Year")
 
 
@@ -63,9 +63,9 @@ def _derived(t):
     def col(c):
         return pc.fill_null(t[c], 0.0) if c in t.column_names else pa.array([0.0] * t.num_rows, pa.float64())
 
-    for ben, (ratio, cost) in BENEFITS.items():
-        if ben not in t.column_names and ratio in t.column_names and cost in t.column_names:
-            t = _add(t, ben, pc.multiply(col(ratio), col(cost)))
+    for ben, b in tables.benefits({c: t[c] for c in t.column_names if pa.types.is_floating(t.schema.field(c).type)}).items():
+        if ben not in t.column_names:
+            t = _add(t, ben, b.values)
     if "RebatesandIncents" not in t.column_names:
         incentives = col(INCENTIVES[0])
         for c in INCENTIVES[1:]:
@@ -115,12 +115,15 @@ def build(folder: str, out: Path) -> int:
     return rows
 
 
-def publish_snapshot(imp: LegacyImport, *, release: bool = False) -> Snapshot | None:
-    """The import's snapshot, built and stored beside its tables when it has none yet. None for statewide unallocated claims."""
+def publish_snapshot(imp: LegacyImport, *, release: bool = False, replace: str = "") -> Snapshot | None:
+    """The import's snapshot, built and stored beside its tables when it has none yet. None for statewide unallocated claims. `replace`
+    (a reason) withdraws a snapshot it already has and builds it again, for one built by an earlier, wrong rule."""
     if imp.outside_totals:
         return None
     done = Snapshot.objects.filter(version=imp.version).first()
-    if done is not None:
+    if done is not None and replace:
+        snapshots.withdraw(imp.version_id, reason=replace, release=False)
+    elif done is not None:
         return done
     folder = folder_of(imp)
     with tempfile.TemporaryDirectory() as tmp:
@@ -130,7 +133,34 @@ def publish_snapshot(imp: LegacyImport, *, release: bool = False) -> Snapshot | 
     return snapshots.publish(imp.version_id, area=AREA, key=folder + FILE, release=release)
 
 
-def rebuild(datasets) -> None:
-    """One release per dataset after a load or a backfill (each import was published with release=False)."""
+def rebuild(datasets, *, changed: bool = False) -> None:
+    """One release per dataset after a load or a backfill (each import was published with release=False). `changed` after snapshots
+    were replaced, which leaves the set of versions as it was."""
     for d in sorted(set(datasets)):
-        snapshots.rebuild(d, "legacy CEDARS imports published")
+        snapshots.rebuild(d, "legacy CEDARS snapshots replaced" if changed else "legacy CEDARS imports published", changed=changed)
+
+
+def stored_benefits(imp: LegacyImport, keys: tuple[str, ...]) -> dict[tuple, dict[str, float]]:
+    """{key values: {benefit: sum}} of the benefits a layout has no column for, built from the import's stored Outputs table by
+    `tables.benefits` and summed on `keys` (PrgID, or PrgID and Used_Year), for correcting results computed by an earlier rule."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    out: dict[tuple, dict[str, float]] = {}
+    with tempfile.TemporaryDirectory() as tmp:
+        local = Path(tmp) / "Outputs.parquet"
+        with storage.store(AREA).open(folder_of(imp) + "Outputs.parquet") as src, open(local, "wb") as dst:
+            while block := src.read(1 << 22):
+                dst.write(block)
+        for batch in pq.ParquetFile(local).iter_batches(batch_size=BATCH_ROWS):
+            t = pa.Table.from_batches([batch])
+            built = {ben: b.values for ben, b in tables.benefits({c: t[c] for c in t.column_names if c not in keys}).items()}
+            built = {ben: v for ben, v in built.items() if ben not in t.column_names}
+            if not built:
+                return {}
+            g = pa.table({**{k: t[k] for k in keys}, **built}).group_by(list(keys)).aggregate([(b, "sum") for b in built])
+            for r in g.to_pylist():
+                mine = out.setdefault(tuple(r[k] or "" for k in keys), {})
+                for b in built:
+                    mine[b] = mine.get(b, 0.0) + (r[f"{b}_sum"] or 0.0)
+    return out

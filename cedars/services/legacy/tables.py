@@ -9,6 +9,7 @@ import hashlib
 import io
 import tempfile
 from collections import defaultdict
+from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
 
@@ -222,3 +223,47 @@ def add_program_history(programs_table, org: Organisation | None, reason: str, *
         )
         added += n
     return added
+
+
+# Each cost test's benefits per record (Jake's reconciliation, 2026-10-31: CEDARS' published ratios are the benefit columns over the
+# costs; the files' ratio columns are rounded and, for some PAs, disagree with the record's own benefits): the filed benefit column where
+# the layout has one, else the sum of the benefit columns below, else ratio x cost. A record whose benefit columns are all blank falls
+# back to ratio x cost (a batch with no benefit values at all is "ratio x cost" throughout).
+NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
+BENEFIT_PARTS = {"TRCBen": ("ElecBen", "GasBen", "OtherBen"), "PACBen": ("ElecBen", "GasBen"), "RIMBen": ()}
+
+
+@dataclass
+class Benefit:
+    values: object  # float64 array, one per record
+    from_ratio: object | None  # ratio x cost per record, for the soft check (None when the layout lacks the ratio or the cost)
+    source: str  # filed | benefit columns | ratio x cost
+
+
+def benefits(columns: dict) -> dict[str, Benefit]:
+    """Each test's benefits per record from {column: float array} (the outputs of a batch)."""
+    import pyarrow.compute as pc
+
+    def filled(c):
+        return pc.fill_null(columns[c], 0.0)
+
+    out = {}
+    for ben, (ratio, cost) in NUMERATORS.items():
+        from_ratio = pc.multiply(filled(ratio), filled(cost)) if ratio in columns and cost in columns else None
+        if ben in columns:
+            out[ben] = Benefit(columns[ben], from_ratio, "filed")
+            continue
+        parts = [c for c in BENEFIT_PARTS[ben] if c in columns]
+        present = None
+        for c in parts:
+            present = pc.is_valid(columns[c]) if present is None else pc.or_(present, pc.is_valid(columns[c]))
+        if parts and (from_ratio is None or pc.any(present).as_py()):
+            total = filled(parts[0])
+            for c in parts[1:]:
+                total = pc.add(total, filled(c))
+            if from_ratio is not None:
+                total = pc.if_else(present, total, from_ratio)
+            out[ben] = Benefit(total, from_ratio, "benefit columns")
+        elif from_ratio is not None:
+            out[ben] = Benefit(from_ratio, from_ratio, "ratio x cost")
+    return out

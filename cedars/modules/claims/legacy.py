@@ -23,14 +23,17 @@ Reconciliation per PA (the plan's levels 1 and 2):
   hard  rows written = rows read
   hard  every additive output summed exactly (decimal) from the file = its sum in the Parquet written (1e-9 relative)
   hard  the ten Weighted cost columns = Weighted Program Cost, per program (1e-9 relative)
-  soft  rebuilt PAC / RIM benefits (ratio x cost) = the file's own benefit columns, where it has them (1e-6 relative)
+  soft  each test's benefits (filed or from the benefit columns) = ratio x cost (1e-6 relative)
   soft  program lines' expenditures = the file's Total Expenditures (2023 on) or Budget (2016-2022) (1e-6 relative)
   info  records whose ratio has no cost to rebuild a numerator from; ClaimIDs repeated within the PA-year (the repeats get "#2", "#3"
         on their claim record, the files keep them as filed; the plan's gap 7); records with no ClaimID (no claim record)
   info  (year) participant rows whose program is in no PA's claims
 
-The downloads carry no TRC benefit column, so TRCBen is rebuilt per record as TRC ratio x TRC cost (PACBen and RIMBen too where the
-layout lacks them), and program ratios come from summed benefits and costs."""
+The downloads carry no TRC benefit column (and the 2016-2022 layout no PAC or RIM one), so the benefits are built per record as
+`legacy.tables.benefits` says: TRCBen = ElecBen + GasBen + OtherBen, PACBen = ElecBen + GasBen, ratio x cost only where a record has no
+benefit values (CEDARS' published ratios are the benefit columns over the costs; the files' ratios are rounded and, for some PAs,
+disagree with them). Program ratios come from summed benefits and costs. `rebuild_benefits` corrects the results of years loaded before
+(when every missing benefit was ratio x cost)."""
 
 import hashlib
 import json
@@ -65,7 +68,7 @@ PARTICIPANTS = ("participants",)
 KIND = "Annual (final) claim"
 COST_COLUMNS = [f"Wtd{f}" for f, _ in PROGRAM_COST_FIELDS]
 INCENTIVE_OUTPUTS = ["EndUserRebate", "IncentiveToOthers", "DILaborCost", "DIMaterialCost"]
-NUMERATORS = {"TRCBen": ("TRCRatio", "TRCCost"), "PACBen": ("PACRatio", "PACCost"), "RIMBen": ("RIMRatio", "RIMCost")}
+NUMERATORS = tables.NUMERATORS
 # A claim's filed totals (FILED_TOTALS), which the downloads carry only as CEDARS' outputs: GrossIncentive = the four incentive outputs.
 FILED = {
     "TotalFirstYearGrosskWh": ["FirstYearGrossKWh"],
@@ -446,17 +449,16 @@ class _Sums:
                 self.file_exact[c] += exact_sum
                 self.written[c] += float(pc.sum(outputs[c]).as_py() or 0)
         rebuilt = {}
-        for ben, (ratio, cost) in NUMERATORS.items():
-            if ratio not in nums or cost not in nums:
-                continue
-            r, cst = pc.fill_null(outputs[ratio], 0.0), pc.fill_null(outputs[cost], 0.0)
-            value = pc.multiply(r, cst)
-            self.rebuilt_total[ben] += float(pc.sum(value).as_py() or 0)
-            self.no_cost[ben] += int(pc.sum(pc.and_(pc.not_equal(r, 0.0), pc.equal(cst, 0.0)).cast(pa.int64())).as_py() or 0)
-            if ben in floats:
-                self.filed_total[ben] += float(pc.sum(outputs[ben]).as_py() or 0)
-            else:  # the layout has no benefit column for the test: rebuild it
-                rebuilt[ben] = value
+        for ben, b in tables.benefits({c: outputs[c] for c in nums}).items():
+            if b.from_ratio is not None:
+                ratio, cost = NUMERATORS[ben]
+                r, cst = pc.fill_null(outputs[ratio], 0.0), pc.fill_null(outputs[cost], 0.0)
+                self.rebuilt_total[ben] += float(pc.sum(b.from_ratio).as_py() or 0)
+                self.no_cost[ben] += int(pc.sum(pc.and_(pc.not_equal(r, 0.0), pc.equal(cst, 0.0)).cast(pa.int64())).as_py() or 0)
+                if b.source != "ratio x cost":
+                    self.filed_total[ben] += float(pc.sum(b.values).as_py() or 0)
+            if ben not in floats:  # the layout has no benefit column for the test: built from the benefit columns
+                rebuilt[ben] = b.values
         for prg, s in _group_sums(keys, {**floats, **rebuilt}).items():
             mine = self.floats[prg]
             for c, value in s.items():
@@ -595,3 +597,37 @@ def _row_sums(rows, columns: list[str]) -> list[float]:
         if c in rows.column_names:
             total = pc.add(total, pc.fill_null(pc.cast(tables.blank_to_null(rows[c]), pa.float64()), 0.0))
     return total.to_pylist()
+
+
+def rebuild_benefits() -> list[str]:
+    """Correct the results of claim years loaded when every benefit the layout lacks was ratio x cost (before 2026-10-31): TRCBen,
+    PACBen and RIMBen built again from the stored Outputs table as the load now builds them. Audited per import; the snapshots are
+    replaced separately (`manage.py snapshot_legacy --replace`)."""
+    out = []
+    for imp in legacy.LegacyImport.objects.filter(module=service.MODULE).select_related("version__submission__organisation"):
+        sums = legacy_snapshot.stored_benefits(imp, ("PrgID",))
+        if not sums:
+            continue
+        before, after = defaultdict(float), defaultdict(float)
+        changed = []
+        for res in ClaimResult.objects.filter(version=imp.version, run=RUN):
+            new = sums.get((res.prg_id,), {})
+            for b, v in new.items():
+                before[b] += res.values.get(b) or 0.0
+                after[b] += v
+            if any(res.values.get(b) != v for b, v in new.items()):
+                res.values = {**res.values, **new}
+                changed.append(res)
+        ClaimResult.objects.bulk_update(changed, ["values"])
+        code = imp.version.submission.organisation.code
+        if changed:
+            audit.record(
+                "legacy.benefits_rebuilt",
+                obj=imp,
+                before=dict(before),
+                after=dict(after),
+                reason="Benefits built from the benefit columns, not ratio x cost (CEDARS' published ratios use the columns)",
+                organisation=imp.version.submission.organisation,
+            )
+        out.append(f"{imp.period} {code}: {len(changed)} program results corrected")
+    return out

@@ -113,8 +113,9 @@ def _write(v: SubmissionVersion, dataset: str, key: str, area: str = "results") 
     return snap
 
 
-def withdraw(version_id: int) -> None:
-    """A version un-confirmed before its due date: its snapshot and file go (decision M), and a release without it is made."""
+def withdraw(version_id: int, *, reason: str = "un-confirmed before the due date", release: bool = True) -> None:
+    """A version un-confirmed before its due date: its snapshot and file go (decision M), and a release without it is made. Also used
+    to replace an imported version's snapshot built wrongly (`reason` says why; `release=False` leaves the release to the caller)."""
     snap = Snapshot.objects.select_related("version__submission__deadline__period", "version__submission__organisation").filter(
         version_id=version_id
     )
@@ -132,10 +133,11 @@ def withdraw(version_id: int) -> None:
         object_type="snapshots.snapshot",
         object_id=before["key"],
         before=before,
-        reason="un-confirmed before the due date",
+        reason=reason,
         organisation=v.submission.organisation,
     )
-    rebuild(dataset, f"{label(v)} withdrawn", changed=was_released)
+    if release:
+        rebuild(dataset, f"{label(v)} withdrawn", changed=was_released)
 
 
 def in_force(dataset: str) -> list[Snapshot]:
