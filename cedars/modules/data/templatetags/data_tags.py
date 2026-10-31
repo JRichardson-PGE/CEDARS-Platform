@@ -26,3 +26,28 @@ def percent(value):
 @register.filter
 def get_item(mapping, key):
     return mapping.get(key)
+
+
+@register.filter
+def number(value, goal_metric):
+    """A goal-page value: whole dollars for TSB, two decimals for savings."""
+    if value is None:
+        return "–"
+    return f"{value:,.0f}" if goal_metric.unit == "$" else f"{value:,.2f}"
+
+
+@register.filter
+def goal_percent(row, series):
+    return row.percent(series)
+
+
+@register.filter
+def series_label(comparison, series):
+    return comparison.series_label(series)
+
+
+@register.filter
+def series_name(comparison, series):
+    from ..dashboard import SERIES
+
+    return SERIES[series][0]

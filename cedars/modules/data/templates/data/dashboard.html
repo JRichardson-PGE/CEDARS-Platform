@@ -23,13 +23,18 @@
   </label>
   <label>From year <input type="number" name="year_from" min="2000" max="2100" inputmode="numeric" value="{{ view.query.year_from|default_if_none:'' }}"></label>
   <label>To year <input type="number" name="year_to" min="2000" max="2100" inputmode="numeric" value="{{ view.query.year_to|default_if_none:'' }}"></label>
-  <label>View by
+  {% if view_by %}<label>View by
     <select name="by">{% for code, label in view_by %}<option value="{{ code }}"{% if code == view.by %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-  </label>
+  </label>{% endif %}
+  {% if page.kind == "goals" %}<fieldset>
+    <legend>Goals</legend>
+    <label class="check"><input type="radio" name="period" value=""{% if not period %} checked{% endif %}> Annual targets</label>
+    <label class="check"><input type="radio" name="period" value="cycle"{% if period %} checked{% endif %}> Cycle goals</label>
+  </fieldset>{% endif %}
   <label>Metric
     <select name="metric">{% for code, label in metric_choices %}<option value="{{ code }}"{% if code == view.metric_choice %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   </label>
-  <fieldset>
+  {% if basis_controls %}<fieldset>
     <legend>Savings basis</legend>
     <label class="check"><input type="radio" name="gross" value=""{% if not gross %} checked{% endif %}> Net</label>
     <label class="check"><input type="radio" name="gross" value="1"{% if gross %} checked{% endif %}> Gross</label>
@@ -38,7 +43,7 @@
     <legend>Period</legend>
     <label class="check"><input type="radio" name="lifecycle" value=""{% if not lifecycle %} checked{% endif %}> First year</label>
     <label class="check"><input type="radio" name="lifecycle" value="1"{% if lifecycle %} checked{% endif %}> Lifecycle</label>
-  </fieldset>
+  </fieldset>{% endif %}
   {% for code, label, excluded in exclusions %}
   <label>{{ label }}
     <select name="{{ code }}"><option value="include"{% if not excluded %} selected{% endif %}>Included</option><option value="exclude"{% if excluded %} selected{% endif %}>Excluded</option></select>
@@ -70,20 +75,29 @@
 </section>
 {% endif %}
 
-{% if comparison %}
-<dl class="tiles">
-  {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ comparison.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
-  {% if comparison.both %}<div class="tile"><dt>% of forecast</dt><dd>{{ comparison.totals.percent|percent }}</dd></div>{% endif %}
-</dl>
-{% if comparison.notes %}<ul class="notices">{% for n in comparison.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if first %}
+{% if totals %}<dl class="tiles">
+  {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ totals.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
+  {% if totals.both %}<div class="tile"><dt>% of forecast</dt><dd>{{ totals.totals.percent|percent }}</dd></div>{% endif %}
+</dl>{% endif %}
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 
-<h2>{{ caption }}</h2>
-{% include "data/_chart.html" %}
-{% include "data/_table.html" %}
+{% for b in blocks %}
+<h2>{{ b.caption|capfirst }}</h2>
+{% if b.kind == "goals" %}
+{% include "data/_chart.html" with chart=b.chart caption=b.caption %}
+{% include "data/_goal_table.html" with c=b.comparison caption=b.caption %}
+{% elif b.kind == "matrix" %}
+{% include "data/_matrix.html" with m=b.matrix caption=b.caption by_label=b.by_label %}
+{% else %}
+{% if b.chart %}{% include "data/_chart.html" with chart=b.chart caption=b.caption %}{% endif %}
+{% include "data/_table.html" with comparison=b.comparison caption=b.caption by_label=b.by_label series_labels=b.series_labels %}
+{% endif %}
+{% endfor %}
 
 <h2>Download these rows</h2>
 <ul class="downloads">
-  {% for d in comparison.downloads %}<li>{{ d.series }}: {% for fmt, href in d.links %}<a href="{{ href }}" download>{{ fmt }}<span class="sr-only"> of the {{ d.series|lower }} rows</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}
+  {% for d in downloads %}<li>{{ d.series }}: {% for fmt, href in d.links %}<a href="{{ href }}" download>{{ fmt }}<span class="sr-only"> of the {{ d.series|lower }} rows</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}
 </ul>
 <p class="small muted">Each file records its release, when its data last changed, the snapshots it was read from, the filters and the
 canonical field names. <a href="{% url 'data:metrics_csv' %}">How each metric is defined</a>.</p>

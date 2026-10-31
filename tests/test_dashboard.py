@@ -118,3 +118,93 @@ def test_the_page_before_anything_is_published(client, db):
 def test_nothing_hidden_in_the_rows(both):
     """The default exclusions are stated, and including them brings the rows back."""
     assert dashboard.compare(view(cs="include", pension="include")).totals.values["claims"] == sum(r[7] for r in RECORDS)
+
+
+# --- page 1: goals; page 3: total system benefit
+
+
+@pytest.fixture
+def goal_set(cpuc_admin, make_user):
+    from datetime import date
+
+    from cedars.services.accounts import permissions as perms
+    from cedars.services.accounts import service as accounts
+    from cedars.services.registry import goals
+
+    second = make_user("second@cpuc.ca.gov", "Sam Second")
+    accounts.grant(cpuc_admin, second, accounts.cpuc(), perms.SYSTEM_ADMIN, reason="second administrator")
+    header = "Utility,Kind,FirstYear,LastYear,ProgramTSB,ProgramGWh,ProgramMW,ProgramMMTherms,CSGWh,CSMW,CSMMTherms\n"
+    content = (
+        header + "PGE,annual,2028,2028,600,1,1,1,0.018,1,1\nPGE,cycle,2028,2031,2000,1,1,1,0.05,1,1\nSCE,annual,2028,2028,100,1,1,,1,1,\n"
+    )
+    s = goals.import_goals(
+        cpuc_admin,
+        content.encode(),
+        decision="D.00-00-009",
+        adopted=date(2026, 1, 1),
+        rules=b"PA,Territory,Share,AppliesTo\nMCE,PGE,0.5,programs\n",
+    )
+    return goals.confirm(second, s)
+
+
+def goals_view(**params):
+    return dashboard.parse(dashboard.PAGES["goals"], _qd(params))
+
+
+def test_goals_by_year(both, goal_set):
+    from cedars.modules.data import goal_view
+
+    c = goal_view.compare(goals_view())
+    by = {r.key: r for r in c.rows}
+    assert set(by) == {"PGE 2028", "SCE 2028"}
+    pge = by["PGE 2028"]
+    assert pge.goal == 600 and pge.values == {"forecast": 360.0, "claims": 180.0}  # TSB without C&S, ESA or pension
+    assert pge.percent("claims") == 30 and pge.percent("forecast") == 60
+    assert by["SCE 2028"].values == {"forecast": None, "claims": None} and by["SCE 2028"].goal == 100
+    assert "pa=MCE&pa=PGE" in pge.drill and "year_from=2028" in pge.drill and pge.drill.startswith("/data/overview/?")
+    assert c.shares["MCE"] == [("PGE", 0.5)]
+
+
+def test_goals_by_cycle_and_codes_and_standards(both, goal_set):
+    from cedars.modules.data import goal_view
+
+    [pge] = goal_view.compare(goals_view(), "cycle").rows
+    assert (pge.period, pge.goal, pge.values["claims"]) == ("2028-2031", 2000, 180.0)
+    cs = {r.key: r for r in goal_view.compare(goals_view(metric="cs_gwh")).rows}
+    assert cs["PGE 2028"].values["claims"] == pytest.approx(0.009)  # 9,000 kWh of C&S = 0.009 GWh
+    assert cs["PGE 2028"].percent("claims") == pytest.approx(50)
+    assert "segment=codes_and_standards" in cs["PGE 2028"].drill and "cs=include" in cs["PGE 2028"].drill
+
+
+def test_counting_rules_share_a_cca_toward_its_territory(goal_set):
+    from cedars.modules.data import goal_view
+    from cedars.services.registry import goals
+
+    shares = goal_view.shares(goals.counting_rules(), "programs")
+    assert shares["MCE"] == [("PGE", 0.5)] and shares["PGE"] == [("PGE", 1.0)]
+    assert "MCE" not in goal_view.shares(goals.counting_rules(), "cs")
+
+
+def test_the_goals_page(both, goal_set, client):
+    page = client.get("/data/goals/").content.decode()
+    assert "against the goal, by year" in page and "MCE toward PGE at 0.5" in page and "30.0%" in page
+    assert 'name="cs"' not in page  # no C&S toggle on the goals page: each metric sets it
+    assert "against the goal, by cycle" in client.get("/data/goals/?period=cycle").content.decode()
+    assert "No goals or results" in client.get("/data/goals/?year_from=2030&year_to=2030").content.decode()
+
+
+def test_the_total_system_benefit_page(both, client):
+    from cedars.modules.data import dashboard as d
+
+    view = d.parse(d.PAGES["total-system-benefit"], _qd({}))
+    m = d.matrix(view, "pa", "sector")
+    assert m.series == "claims" and m.columns == ["Commercial", "Residential"]
+    [pge] = m.rows
+    assert pge["total"] == 180 and [c["share"] for c in pge["cells"]] == pytest.approx([100 / 6, 500 / 6])
+    years = d.compare(view, "year")
+    assert [r.key for r in years.rows] == [2028] and years.rows[0].drill == ""
+    page = client.get("/data/total-system-benefit/").content.decode()
+    for caption in ("by primary sector", "by year", "share of each PA", "by program"):
+        assert caption in page
+    assert 'href="/data/overview/?sector=Residential&amp;by=program"' in page
+    assert "View by" not in page

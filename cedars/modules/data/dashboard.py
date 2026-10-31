@@ -16,6 +16,16 @@ from . import query as dq
 
 
 @dataclass(frozen=True)
+class Section:
+    """One chart-and-table block of a page: grouped by `by`, or a share matrix of `by` rows across `columns`."""
+
+    by: str
+    title: str
+    chart: bool = True
+    columns: str = ""  # a matrix: each row's metric split across this dimension's values, as shares of the row
+
+
+@dataclass(frozen=True)
 class Page:
     slug: str
     title: str
@@ -23,6 +33,13 @@ class Page:
     metrics: tuple[str, ...]  # the metric control's choices (catalog codes or view-control bases); the first is the default
     exclude: tuple[str, ...] = dq.DEFAULT_EXCLUDE
     series: tuple[str, ...] = ("forecast", "claims")
+    sections: tuple[Section, ...] = ()  # none: one section grouped by the view-by control
+    kind: str = "compare"  # or "goals" (goal_view.py)
+
+    @property
+    def view_by(self) -> bool:
+        """Whether the page offers the view-by control (a page with fixed sections does not)."""
+        return not self.sections and self.kind == "compare"
 
 
 PAGES = {
@@ -35,7 +52,46 @@ PAGES = {
             "forecast achieved.",
             ("tsb", "kwh", "kw", "therms", "expenditure"),
         ),
+        Page(
+            "goals",
+            "Goals",
+            "Forecast and claimed results against the CPUC's energy efficiency goals for each IOU territory, by year or by cycle. CCA "
+            "and REN results count toward a territory as the goal decision's counting rules say.",
+            ("tsb", "cs_gwh", "cs_mw", "cs_mmtherms"),
+            exclude=("pension", "esa", "cs"),
+            kind="goals",
+        ),
+        Page(
+            "total-system-benefit",
+            "Total system benefit",
+            "Total system benefit by sector and year, each PA's split across sectors, and every program.",
+            ("tsb",),
+            sections=(
+                Section("sector", "by primary sector"),
+                Section("year", "by year"),
+                Section("pa", "share of each PA's total by primary sector", chart=False, columns="sector"),
+                Section("program", "by program", chart=False),
+            ),
+        ),
     ]
+}
+
+
+@dataclass(frozen=True)
+class GoalMetric:
+    label: str
+    metric: str  # the catalog metric compared with the goal
+    goal_field: str  # registry Goal field
+    applies_to: str  # the counting rules that apply: programs (incentive programs) or cs
+    unit: str
+    scale: float = 1.0  # the metric's shown value divided by this is in the goal's unit
+
+
+GOAL_METRICS = {
+    "tsb": GoalMetric("Total system benefit (excludes codes and standards)", "tsb", "program_tsb", "programs", "$"),
+    "cs_gwh": GoalMetric("Codes and standards electric savings", "kwh_first_year_net", "cs_gwh", "cs", "GWh", 1_000),
+    "cs_mw": GoalMetric("Codes and standards demand savings", "kw_first_year_net", "cs_mw", "cs", "MW"),
+    "cs_mmtherms": GoalMetric("Codes and standards gas savings", "therms_first_year_net", "cs_mmtherms", "cs", "MMTherms"),
 }
 
 SERIES = {"forecast": ("Forecast", "forecast"), "claims": ("Claimed", "claims")}
@@ -50,7 +106,7 @@ DRILL = {
     "use_category": "measure",
     "program": "measure",
 }
-VIEW_PARAMS = ("series", "filing", "year_from", "year_to", "by", "metric", "gross", "lifecycle", "cs", "esa", "pension") + FILTERS
+VIEW_PARAMS = ("series", "filing", "year_from", "year_to", "by", "metric", "period", "gross", "lifecycle", "cs", "esa", "pension") + FILTERS
 
 
 def current_cycle(today: date | None = None) -> FilingCycle | None:
@@ -103,7 +159,7 @@ def parse(page: Page, params) -> View:
     choice = raw.get("metric", [page.metrics[0]])[-1]
     if choice not in page.metrics:
         raise dq.QueryError(f"this page does not show {choice!r}")
-    qparams = dict(raw) | {"metric": [choice], "by": [by]}
+    qparams = dict(raw) | {"metric": [GOAL_METRICS[choice].metric if page.kind == "goals" else choice], "by": [by]}
     if "year_from" not in raw and "year_to" not in raw and (cycle := current_cycle()):
         qparams |= {"year_from": [str(cycle.first_year)], "year_to": [str(cycle.last_year)]}
     q = dq.from_params(qparams, dataset="claims", exclude=page.exclude)
@@ -139,6 +195,7 @@ class Comparison:
     results: dict  # series -> query.Result
     rows: list[Row]
     totals: Row
+    by: str = ""
 
     @property
     def both(self) -> bool:
@@ -161,29 +218,79 @@ class Comparison:
         """One download per series, each the series' own query (BR-07.2)."""
         out = []
         for s in self.results:
-            qs = self.view.for_series(s).query_string(self.view.page.exclude)
+            qs = replace(self.view.for_series(s), by=(self.by or self.view.by,)).query_string(self.view.page.exclude)
             out.append(
                 {"series": SERIES[s][0], "links": [(fmt.upper(), f"/data/download.{fmt}?{qs}") for fmt in ("csv", "xlsx", "parquet")]}
             )
         return out
 
 
-def compare(view: View) -> Comparison:
-    results = {s: dq.run(view.for_series(s)) for s in view.series}
+def compare(view: View, by: str | None = None) -> Comparison:
+    """Each series grouped by the view-by dimension (or `by`, for a page's fixed section)."""
+    by = by or view.by
+    results = {s: dq.run(replace(view.for_series(s), by=(by,))) for s in view.series}
     code = view.metric.code
     keyed: dict[object, Row] = {}
     for s, r in results.items():
         for row in r.rows:
-            key = row[view.by]
+            key = row[by]
             keyed.setdefault(key, Row(key, {})).values[s] = row[code]
-    next_by = DRILL.get(view.by)
+    next_by = DRILL.get(by)
+    overview = view.page.slug != "overview" and not view.page.view_by
     for row in keyed.values():
-        if next_by and row.key is not None:
-            row.drill = view.link(**{view.by: str(row.key), "by": next_by})
+        if next_by and row.key is not None and by != "year":
+            changes = {by: str(row.key), "by": next_by}
+            row.drill = ("/data/overview/" if overview else "") + view.link(**changes)
     first = view.series[-1]  # claims when shown, else forecast: the chart's and the table's order
-    rows = sorted(keyed.values(), key=lambda r: (r.values.get(first) is None, -(r.values.get(first) or 0), str(r.key)))
+    if by == "year":
+        rows = sorted(keyed.values(), key=lambda r: (r.key is None, r.key or 0))
+    else:
+        rows = sorted(keyed.values(), key=lambda r: (r.values.get(first) is None, -(r.values.get(first) or 0), str(r.key)))
     totals = Row("Total", {s: r.totals.get(code) for s, r in results.items()})
-    return Comparison(view, results, rows, totals)
+    return Comparison(view, results, rows, totals, by)
+
+
+@dataclass
+class Matrix:
+    """Each row's metric split across a dimension's values, for one series: the shares (of the row's total) and the values."""
+
+    series: str
+    result: dq.Result
+    by: str
+    columns_by: str
+    columns: list
+    rows: list[dict]  # {"key", "total", "cells": [{"value", "share"}]}
+
+    @property
+    def label(self) -> str:
+        return SERIES[self.series][0]
+
+
+def matrix(view: View, rows: str, columns: str) -> Matrix:
+    """For the series on the right of the comparison (claims when shown): a share bar's values kept in a table (spec page 3)."""
+    series = view.series[-1]
+    result = dq.run(replace(view.for_series(series), by=(rows, columns)))
+    code = view.metric.code
+    grid: dict[object, dict] = {}
+    cols: list = []
+    for r in result.rows:
+        grid.setdefault(r[rows], {})[r[columns]] = r[code]
+        if r[columns] not in cols:
+            cols.append(r[columns])
+    cols.sort(key=lambda c: (c is None, str(c)))
+    out = []
+    for key, cells in sorted(grid.items(), key=lambda kv: (kv[0] is None, str(kv[0]))):
+        total = sum(v or 0 for v in cells.values())
+        out.append(
+            {
+                "key": key,
+                "total": total,
+                "cells": [
+                    {"value": cells.get(c), "share": (100 * cells[c] / total) if total and cells.get(c) is not None else None} for c in cols
+                ],
+            }
+        )
+    return Matrix(series, result, rows, columns, cols, out)
 
 
 def applied_filters(view: View) -> list[dict]:

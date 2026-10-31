@@ -1,0 +1,24 @@
+{% load data_tags %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ caption }}">
+<table class="list">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr>
+    <th scope="col">IOU territory</th><th scope="col">{% if c.period == "cycle" %}Cycle{% else %}Year{% endif %}</th>
+    <th scope="col" class="num">Goal ({{ c.metric.unit }})</th>
+    {% for s in c.results %}<th scope="col" class="num">{{ c|series_label:s }}</th><th scope="col" class="num">{{ c|series_name:s }} % of goal</th>{% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for r in c.rows %}
+  <tr>
+    <th scope="row"><a href="{{ r.drill }}">{{ r.territory }}<span class="sr-only"> {{ r.period }}: results by PA</span></a></th>
+    <td>{{ r.period }}</td>
+    <td class="num">{{ r.goal|number:c.metric }}</td>
+    {% for s in c.results %}<td class="num">{{ r.values|get_item:s|number:c.metric }}</td><td class="num">{{ r|goal_percent:s|percent }}</td>{% endfor %}
+  </tr>
+  {% empty %}<tr><td colspan="9">No goals or results for these years. A CPUC administrator loads each goals decision on the goal sets page.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small muted">{% if c.metric.applies_to == "programs" %}TSB goals leave codes and standards out; their savings count toward the codes-and-standards goals.{% else %}Codes-and-standards programs only.{% endif %}
+{% if c.rules %}CCA and REN results counted as the goal decision says: {% for r in c.rules %}{{ r.pa }} toward {{ r.territory }}{% if r.share != 1 %} at {{ r.share|floatformat:"-2" }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.{% else %}No counting rules are loaded, so only each IOU's own results count toward its territory.{% endif %}</p>

@@ -288,3 +288,4 @@ ul.downloads { padding-left: 1.2rem; }
 .hatch-line { stroke: var(--chart-forecast); stroke-width: 3; }
 .zero { stroke: var(--fg); stroke-width: 1; }
 @media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
+.goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */

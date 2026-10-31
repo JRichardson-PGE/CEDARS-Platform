@@ -62,6 +62,8 @@ def dashboard_index(request):
 def dashboard_page(request, slug):
     from django.shortcuts import render
 
+    from . import goal_view
+
     page = dashboard.PAGES.get(slug)
     if page is None:
         raise Http404
@@ -71,30 +73,59 @@ def dashboard_page(request, slug):
     except query.QueryError as e:
         error = f"That view could not be shown: {e}."
         view = dashboard.parse(page, {})
-    comparison = dashboard.compare(view)
+    metric = view.metric
+    unit = f" ({metric.unit})" if metric.unit else ""
+    blocks, totals, goals = [], None, None
+    if page.kind == "goals":
+        period = "cycle" if request.GET.get("period") == "cycle" else "annual"
+        goals = goal_view.compare(view, period)
+        blocks.append({"kind": "goals", "comparison": goals, "chart": goal_view.chart(goals), "caption": _goal_caption(goals)})
+    else:
+        sections = page.sections or (dashboard.Section(view.by, f"by {query.DIMENSIONS[view.by].label.lower()}"),)
+        for sec in sections:
+            caption = f"{metric.label}{unit} {sec.title}"
+            if sec.columns:
+                m = dashboard.matrix(view, sec.by, sec.columns)
+                blocks.append(
+                    {"kind": "matrix", "matrix": m, "caption": f"{caption}, {m.label.lower()}", "by_label": query.DIMENSIONS[sec.by].label}
+                )
+                continue
+            c = dashboard.compare(view, sec.by)
+            totals = totals or c
+            blocks.append(
+                {
+                    "kind": "compare",
+                    "comparison": c,
+                    "chart": dashboard.chart(c) if sec.chart else None,
+                    "caption": caption,
+                    "by_label": query.DIMENSIONS[sec.by].label,
+                    "series_labels": [(sr, c.series_label(sr)) for sr in c.results],
+                }
+            )
+    first = goals or totals
     options = dashboard.filter_options()
     selected = view.query.filter_map
-    metric = view.metric
-    by_label = query.DIMENSIONS[view.by].label
-    caption = f"{metric.label}{f' ({metric.unit})' if metric.unit else ''} by {by_label.lower()}"
     context = {
         "page": page,
         "pages": dashboard.PAGES.values(),
         "view": view,
         "error": error,
-        "comparison": comparison,
-        "chart": dashboard.chart(comparison),
+        "blocks": blocks,
+        "totals": totals,
+        "first": first,
+        "notes": first.notes if first else [],
+        "downloads": first.downloads() if first else [],
         "metric": metric,
-        "by_label": by_label,
-        "caption": caption,
-        "series_labels": [(s, comparison.series_label(s)) for s in comparison.results],
+        "series_labels": [(sr, first.series_label(sr)) for sr in first.results] if first else [],
         "series_choices": [(code, label) for code, (label, _) in dashboard.SERIES.items()],
         "filings": dashboard.filings(),
-        "view_by": [(d, query.DIMENSIONS[d].label) for d in query.VIEW_BY],
-        "metric_choices": [(m, metrics.resolve(m).label.split(",")[0]) for m in page.metrics],
+        "view_by": [(d, query.DIMENSIONS[d].label) for d in query.VIEW_BY] if page.view_by else [],
+        "metric_choices": [(m, _metric_label(page, m)) for m in page.metrics],
+        "period": request.GET.get("period") == "cycle",
         "gross": request.GET.get("gross") in ("1", "true", "on"),
         "lifecycle": request.GET.get("lifecycle") in ("1", "true", "on"),
-        "exclusions": [(code, e.label, code in view.query.exclude) for code, e in query.EXCLUSIONS.items()],
+        "basis_controls": page.kind == "compare",
+        "exclusions": [(code, e.label, code in view.query.exclude) for code, e in query.EXCLUSIONS.items() if not (goals and code == "cs")],
         "applied": dashboard.applied_filters(view),
         "filter_fields": [
             {
@@ -108,3 +139,15 @@ def dashboard_page(request, slug):
         ],
     }
     return render(request, "data/dashboard.html", context)
+
+
+def _metric_label(page, code):
+    if page.kind == "goals":
+        g = dashboard.GOAL_METRICS[code]
+        return f"{g.label} ({g.unit})"
+    return metrics.resolve(code).label.split(",")[0]
+
+
+def _goal_caption(c):
+    when = "by cycle" if c.period == "cycle" else "by year"
+    return f"{c.metric.label} ({c.metric.unit}) against the goal, {when}"
