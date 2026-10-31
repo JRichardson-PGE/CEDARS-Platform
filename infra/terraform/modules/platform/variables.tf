@@ -39,6 +39,12 @@ variable "allowed_cidrs" {
   default     = ["0.0.0.0/0"]
 }
 
+variable "waf_requests_per_5min" {
+  description = "Requests one address may make in 5 minutes before the WAF blocks it (an agency network behind one address counts as one)"
+  type        = number
+  default     = 3000
+}
+
 variable "db_instance_class" {
   type    = string
   default = "db.t4g.medium"
@@ -131,6 +137,18 @@ variable "small_run_max_vcpus" {
   description = "vCPUs reserved for the small-run queue, so small runs finish within a minute during a maximum job"
   type        = number
   default     = 8
+}
+
+variable "alarm_emails" {
+  description = "Who the CloudWatch alarms email (the CPUC's hosting team; each address confirms its subscription). Empty: the SNS topic only"
+  type        = list(string)
+  default     = []
+}
+
+variable "alarm_5xx_per_5min" {
+  description = "Server errors in 5 minutes, two periods running, before the web 5xx alarm"
+  type        = number
+  default     = 10
 }
 
 variable "log_retention_days" {

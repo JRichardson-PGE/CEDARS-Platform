@@ -38,7 +38,7 @@
 <div class="hscroll" tabindex="0" role="region" aria-label="Versions">
 <table class="list">
   <caption class="sr-only">Versions of {{ p.prg_id }}, newest first</caption>
-  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">Entered by</th></tr></thead>
+  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">{% if signed_in %}Entered by{% else %}Entered{% endif %}</th></tr></thead>
   <tbody>
   {% for ver, changes in history %}
   <tr>
@@ -46,7 +46,7 @@
     <td class="nowrap">{{ ver.valid_to|date:"Y-m-d"|default:"open" }}</td>
     <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field|cut:"_"|capfirst }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
     <td>{{ ver.reason }}</td>
-    <td class="small">{{ ver.created_by.email|default:"imported" }}<br>{{ ver.created_at|date:"Y-m-d" }}</td>
+    <td class="small">{% if signed_in %}{{ ver.created_by.email|default:"imported" }}<br>{% endif %}{{ ver.created_at|date:"Y-m-d" }}</td>
   </tr>
   {% endfor %}
   </tbody>

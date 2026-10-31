@@ -17,3 +17,7 @@ class DocumentsConfig(AppConfig):
         from . import studies
 
         register_evaluations(studies.evaluations)  # each program's page lists the studies that evaluate it (BR-15.7)
+
+        from . import health
+
+        health.register()

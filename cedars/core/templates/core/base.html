@@ -61,6 +61,7 @@
         {% if nav.steward %}<li><a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a></li>{% endif %}
+        {% if nav.sysadmin %}<li><a href="{% url 'administration:health' %}"{% if '/admin/health/' in here %} aria-current="page"{% endif %}>Jobs and health</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a></li>{% endif %}
         {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a></li>{% endif %}
       </ul>

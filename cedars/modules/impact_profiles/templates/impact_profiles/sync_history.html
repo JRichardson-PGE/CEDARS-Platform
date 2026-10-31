@@ -7,11 +7,12 @@
   {% if is_admin %}<form method="post">{% csrf_token %}<button type="submit">Sync now</button></form>{% endif %}
 </div>
 <p>Draft measure packages and their permutations are pulled from eTRM every night. A package with bad data is left out and listed here
-with the reason; fix it in eTRM and it comes in with the next sync.</p>
+with the reason; fix it in eTRM and it comes in with the next sync. A nightly sync that fails is tried again{% if retry_minutes %} after
+{{ retry_minutes }} minutes{% endif %}, and if it still fails the CPUC's administrators are alerted.</p>
 <dl class="facts">
   <dt>Last successful sync</dt><dd>{% if last %}{{ last.finished_at|date:"Y-m-d H:i" }} ({{ last.get_trigger_display|lower }}, {{ last.source }}){% else %}None yet{% endif %}</dd>
   {% if last %}<dt>In that sync</dt><dd>{{ last.imported }} imported (new or changed), {{ last.unchanged }} unchanged, {{ last.excluded }} excluded</dd>{% endif %}
-  {% if latest and latest.status == "failed" %}<dt>Latest attempt</dt><dd><strong>Failed</strong> {{ latest.started_at|date:"Y-m-d H:i" }}: {{ latest.error }}</dd>{% endif %}
+  {% if latest and latest.status == "failed" %}<dt>Latest attempt</dt><dd><strong>Failed</strong> {{ latest.started_at|date:"Y-m-d H:i" }}{% if latest.attempt > 1 %} (attempt {{ latest.attempt }}){% endif %}: {{ latest.error }}{% if latest.alerted_at %} Administrators were alerted {{ latest.alerted_at|date:"Y-m-d H:i" }}.{% endif %}</dd>{% endif %}
 </dl>
 
 <h2>Packages excluded in the last sync</h2>
@@ -37,12 +38,12 @@ with the reason; fix it in eTRM and it comes in with the next sync.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Recent syncs">
 <table class="list">
   <caption class="sr-only">The last 20 syncs, newest first</caption>
-  <thead><tr><th scope="col">Started</th><th scope="col">How</th><th scope="col">Result</th><th scope="col">Packages</th><th scope="col">Imported</th><th scope="col">Unchanged</th><th scope="col">Excluded</th></tr></thead>
+  <thead><tr><th scope="col">Started</th><th scope="col">How</th><th scope="col">Attempt</th><th scope="col">Result</th><th scope="col">Packages</th><th scope="col">Imported</th><th scope="col">Unchanged</th><th scope="col">Excluded</th></tr></thead>
   <tbody>
   {% for r in runs %}
-  <tr><th scope="row" class="nowrap">{{ r.started_at|date:"Y-m-d H:i" }}</th><td>{{ r.get_trigger_display }}</td><td>{{ r.get_status_display }}{% if r.error %}: {{ r.error|truncatechars:120 }}{% endif %}</td>
+  <tr><th scope="row" class="nowrap">{{ r.started_at|date:"Y-m-d H:i" }}</th><td>{{ r.get_trigger_display }}</td><td>{{ r.attempt }}</td><td>{{ r.get_status_display }}{% if r.error %}: {{ r.error|truncatechars:120 }}{% endif %}{% if r.alerted_at %} (administrators alerted){% endif %}</td>
     <td>{{ r.packages_seen }}</td><td>{{ r.imported }}</td><td>{{ r.unchanged }}</td><td>{{ r.excluded }}</td></tr>
-  {% empty %}<tr><td colspan="7">No syncs yet.</td></tr>
+  {% empty %}<tr><td colspan="8">No syncs yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>

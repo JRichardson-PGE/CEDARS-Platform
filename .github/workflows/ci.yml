@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 14 * * 1" # Mondays: the dependency audit and image scan pick up vulnerabilities published since the last change
 
 permissions:
   contents: read
@@ -82,6 +84,26 @@ jobs:
       - run: docker build -t cedars-platform:ci .
       - name: The image imports the engine it was built with
         run: docker run --rm cedars-platform:ci python -c "import recet, recet.results_view; print('recet', recet.__version__)"
+      - name: Image scan (grype 0.118.0) fails on a High or Critical vulnerability that has a fix
+        # OS packages and every Python package in the image, the engine's included. Pinned binary, checked against its SHA-256.
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/grype.tgz" https://github.com/anchore/grype/releases/download/v0.118.0/grype_0.118.0_linux_amd64.tar.gz
+          echo "1d444c5e7360471815f7158f71935fcecc68a3c417d85c7344f770854300bba2  $RUNNER_TEMP/grype.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/grype.tgz" -C "$RUNNER_TEMP" grype
+          "$RUNNER_TEMP/grype" docker:cedars-platform:ci --only-fixed --fail-on high --by-cve
+
+  dependency-audit:
+    # Every locked Python package (uv.lock, with the development tools) against the PyPI / OSV advisories. The pinned engine's own
+    # dependencies are locked and audited in its repository and scanned here inside the image.
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv export --locked --format requirements-txt --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+      - name: pip-audit 2.9.0
+        run: uvx --from pip-audit==2.9.0 pip-audit --disable-pip --require-hashes --progress-spinner off -r "$RUNNER_TEMP/requirements.txt"
 
   secret-scan:
     # The repository is public: gitleaks (gitleaks.toml: its default rules plus personal emails, Windows user folders, key files,

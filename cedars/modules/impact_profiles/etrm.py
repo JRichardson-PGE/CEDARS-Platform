@@ -16,17 +16,21 @@ the database or a download."""
 import csv
 import hashlib
 import json
+import logging
+import time
 from dataclasses import dataclass, field
 from datetime import date
 
 from django.conf import settings
-from django.db import transaction
+from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
 from cedars.services import audit
 
 from . import access
 from .models import EtrmSyncRun, ExcludedPackage, MeasurePackage, PackageVersion, Permutation
+
+log = logging.getLogger(__name__)
 
 TEXT_FIELDS = [
     "sector",
@@ -287,21 +291,49 @@ def in_scope(rec: PackageRecord) -> bool:
 # --- the sync
 
 
-def sync(actor=None, source=None, trigger: str = EtrmSyncRun.Trigger.AUTOMATIC) -> EtrmSyncRun:
-    """Pull every draft package and store what changed. A source that cannot be read fails the run and changes nothing."""
+def _fail(run: EtrmSyncRun, error: str, actor) -> EtrmSyncRun:
+    run.status, run.error, run.finished_at = EtrmSyncRun.Status.FAILED, error, timezone.now()
+    run.save()
+    audit.record("etrm_sync.failed", obj=run, reason=error[:500], after={"attempt": run.attempt}, actor=actor)
+    return run
+
+
+def sync(actor=None, source=None, trigger: str = EtrmSyncRun.Trigger.AUTOMATIC, attempt: int = 1) -> EtrmSyncRun:
+    """Pull every draft package and store what changed. A source that cannot be read fails the run and changes nothing; an
+    unexpected error part way fails the run too (each package is stored on its own, by content hash, so trying again is safe)."""
     if actor is not None:
         access.require_admin(actor, "start an eTRM sync")
-    run = EtrmSyncRun.objects.create(trigger=trigger, started_by=actor)
+    run = EtrmSyncRun.objects.create(trigger=trigger, started_by=actor, attempt=attempt)
     try:
         source = source or configured_source()
         run.source = source.label
         records = source.packages()
     except SourceError as e:
-        run.status, run.error, run.finished_at = EtrmSyncRun.Status.FAILED, str(e), timezone.now()
-        run.save()
-        audit.record("etrm_sync.failed", obj=run, reason=str(e), actor=actor)
-        return run
+        return _fail(run, str(e), actor)
+    try:
+        _sync_records(run, records)
+    except Exception as e:  # noqa: BLE001 - the run must end failed (and be retried and alerted), never stay "running"
+        log.exception("eTRM sync %s failed part way", run.pk)
+        return _fail(run, f"Unexpected error after {run.packages_seen} packages: {type(e).__name__}: {e}", actor)
+    run.status, run.finished_at = EtrmSyncRun.Status.SUCCEEDED, timezone.now()
+    run.save()
+    audit.record(
+        "etrm_sync.finished",
+        obj=run,
+        after={
+            "source": run.source,
+            "seen": run.packages_seen,
+            "imported": run.imported,
+            "unchanged": run.unchanged,
+            "excluded": run.excluded,
+            "attempt": run.attempt,
+        },
+        actor=actor,
+    )
+    return run
 
+
+def _sync_records(run: EtrmSyncRun, records: list[PackageRecord]) -> None:
     seen: set[str] = set()
     for rec in records:
         if not in_scope(rec):
@@ -325,21 +357,64 @@ def sync(actor=None, source=None, trigger: str = EtrmSyncRun.Trigger.AUTOMATIC) 
         else:
             run.unchanged += 1
     MeasurePackage.objects.exclude(measure_version_id__in=seen).update(in_last_sync=False)
-    run.status, run.finished_at = EtrmSyncRun.Status.SUCCEEDED, timezone.now()
-    run.save()
-    audit.record(
-        "etrm_sync.finished",
-        obj=run,
-        after={
-            "source": run.source,
-            "seen": run.packages_seen,
-            "imported": run.imported,
-            "unchanged": run.unchanged,
-            "excluded": run.excluded,
-        },
-        actor=actor,
-    )
+
+
+def nightly(source=None, *, waits: list[float] | None = None, sleep=time.sleep) -> EtrmSyncRun:
+    """The scheduled sync (BR-11.3): tried again after each wait in settings.ETRM_SYNC_RETRY_MINUTES while it fails, and when the last
+    attempt fails too, every CPUC administrator who runs the sync is alerted (`alert_failure`). Each attempt is its own run in the
+    sync history. Returns the last run."""
+    waits = list(settings.ETRM_SYNC_RETRY_MINUTES if waits is None else waits)
+    attempts = len(waits) + 1
+    for n in range(1, attempts + 1):
+        run = sync(None, source, attempt=n)
+        if run.status == EtrmSyncRun.Status.SUCCEEDED:
+            return run
+        if n < attempts:
+            log.warning("eTRM sync attempt %s of %s failed (%s); trying again in %s min", n, attempts, run.error, waits[n - 1])
+            sleep(waits[n - 1] * 60)
+            if not connection.in_atomic_block:
+                close_old_connections()  # the wait may outlast the database connection
+    alert_failure(run, attempts)
     return run
+
+
+def administrators():
+    """Who is alerted: the CPUC's system administrators and its members with impact_profiles.admin."""
+    from cedars.services.accounts import permissions as perms
+    from cedars.services.accounts import service as accounts
+
+    org = accounts.cpuc()
+    if org is None:
+        return []
+    users = {u.pk: u for p in (perms.SYSTEM_ADMIN, access.ADMIN) for u in accounts.holders(org, p)}
+    return [users[k] for k in sorted(users)]
+
+
+def alert_failure(run: EtrmSyncRun, attempts: int = 1) -> int:
+    """Tell the administrators that the sync failed (on their notifications page, and by email unless they turned direct messages
+    off). Once per run. Returns how many were told."""
+    from cedars.services.notifications import service as notifications
+
+    if run.alerted_at is not None:
+        return 0
+    last = last_success()
+    started = timezone.localtime(run.started_at)
+    tries = f" after {attempts} attempts" if attempts > 1 else ""
+    lines = [
+        f"The {run.get_trigger_display().lower()} eTRM sync started {started:%Y-%m-%d %H:%M} failed{tries}.",
+        f"Error: {run.error}",
+        f"Last successful sync: {timezone.localtime(last.finished_at):%Y-%m-%d %H:%M}." if last else "No sync has succeeded yet.",
+        "Load shape uploads are checked against the packages of the last successful sync until one succeeds. "
+        "Start one from the eTRM sync history page once the cause is fixed.",
+    ]
+    body = "\n".join(lines)
+    told = 0
+    for user in administrators():
+        told += notifications.notify(user, "eTRM sync failed", body, "/impact-profiles/etrm/", key=f"etrm-sync-failed:{run.pk}") is not None
+    run.alerted_at = timezone.now()
+    run.save(update_fields=["alerted_at"])
+    audit.record("etrm_sync.alerted", obj=run, after={"administrators": told, "attempts": attempts}, actor=None)
+    return told
 
 
 @transaction.atomic
