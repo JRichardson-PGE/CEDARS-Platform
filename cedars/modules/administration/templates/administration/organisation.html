@@ -3,6 +3,7 @@
 {% block content %}
 <h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>
 {% if not is_admin %}<p class="muted">You are viewing this organisation as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
+{% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date:"Y-m-d" }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
 
 <section class="card" aria-labelledby="details-h">
   <h2 id="details-h">Details</h2>
@@ -16,6 +17,51 @@
     <form method="post" action="{% url 'administration:organisation_details' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in details_form %}{{ field.as_field_group }}{% endfor %}
       <div class="actions"><button type="submit" class="primary">Save details</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<section class="card" aria-labelledby="codes-h">
+  <h2 id="codes-h">Codes</h2>
+  <p>Every code this organization has used and when. A former code still finds it: records filed under one keep that code as filed and count under {% if org.successor %}{{ org.successor.code }}{% else %}{{ org.code }}{% endif %} on dashboards, in downloads and in legacy loads. A code stays with one organization for good.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Codes of {{ org.code }}">
+  <table class="list">
+    <caption class="sr-only">Codes of {{ org.code }} and when each was in use</caption>
+    <thead><tr><th scope="col">Code</th><th scope="col">In use</th><th scope="col">Recorded</th><th scope="col">Reason</th></tr></thead>
+    <tbody>
+    {% for c in history %}
+    <tr>
+      <th scope="row">{{ c.code }}{% if c.current and not c.organisation.successor_id %} <span class="status ok">Current</span>{% endif %}{% if c.organisation_id != org.pk %} <span class="small muted">(recorded as <a href="{% url 'administration:organisation' c.organisation.code %}">{{ c.organisation.code }}</a>, merged)</span>{% endif %}</th>
+      <td>{{ c.span }}</td>
+      <td>{% if c.recorded_at %}{{ c.recorded_at|date:"Y-m-d" }}{% if c.recorded_by %} by {{ c.recorded_by.email }}{% endif %}{% else %}<span class="muted">Before code history was kept</span>{% endif %}</td>
+      <td>{{ c.reason|default:"–" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if code_forms %}
+  <details>
+    <summary>Rename: give {{ org.code }} a new code</summary>
+    <form method="post" action="{% url 'administration:organisation_rename' org.code %}" class="stack form-narrow">{% csrf_token %}
+      {% for field in code_forms.rename %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">Rename</button></div>
+    </form>
+  </details>
+  <details>
+    <summary>Record a code {{ org.code }} used before</summary>
+    <form method="post" action="{% url 'administration:organisation_former_code' org.code %}" class="stack form-narrow">{% csrf_token %}
+      {% for field in code_forms.former %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">Record former code</button></div>
+    </form>
+  </details>
+  <details>
+    <summary>Merge in an organization recorded under an old code</summary>
+    <p class="small">For the same party added twice, e.g. legacy files loaded under its old code before the rename was recorded. The other organization keeps its own records and codes, becomes inactive and counts under {{ org.code }}. Move or remove its members first.</p>
+    <form method="post" action="{% url 'administration:organisation_merge' org.code %}" class="stack form-narrow">{% csrf_token %}
+      {% for field in code_forms.merge %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">Merge</button></div>
     </form>
   </details>
   {% endif %}

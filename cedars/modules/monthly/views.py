@@ -66,7 +66,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
     """Whose report the page shows: ?org=CODE for those who may read it (CPUC staff), else the organisation the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
-        org = get_object_or_404(Organisation, code=code)
+        org = access.by_code_or_404(code)
         if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
             raise Http404
         return org
@@ -447,7 +447,7 @@ def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
     PAs with monthly reports to choose from."""
     choices = list(Organisation.objects.filter(submissions__deadline__module=service.MODULE).distinct().order_by("code"))
     code = request.GET.get("org")
-    org = get_object_or_404(Organisation, code=code) if code else request.organisation
+    org = access.by_code_or_404(code) if code else request.organisation
     if org is None:
         return None, True, choices
     readable = service._org_reader(request.user, org) or service._cpuc_reader(request.user)

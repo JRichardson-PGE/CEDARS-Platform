@@ -8,6 +8,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import FilingCycle
@@ -221,7 +222,7 @@ def shift_withdraw(request, pk):
 def _operating(request, first_year):
     cycle = get_object_or_404(FilingCycle, first_year=first_year)
     code = request.GET.get("org")
-    org = get_object_or_404(Organisation, code=code) if code else request.organisation
+    org = access.by_code_or_404(code) if code else request.organisation
     if org is None or not shifts.can_read_operating(request.user, org):
         raise Http404
     return shifts.operating_budget(org, cycle)

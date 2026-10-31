@@ -47,7 +47,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
     """The organisation whose filing the page shows: ?org=CODE for those who may read it (CPUC staff), else the one the user acts for."""
     code = request.GET.get("org") or request.POST.get("org")
     if code:
-        org = get_object_or_404(Organisation, code=code)
+        org = access.by_code_or_404(code)
         sub = Submission(deadline=deadline, organisation=org)
         if not service.can_read_submission(request.user, sub):
             raise Http404

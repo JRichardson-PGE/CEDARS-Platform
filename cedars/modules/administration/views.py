@@ -44,7 +44,7 @@ def _refused(request, e: AccessDenied, to):
 
 
 def _org_or_404(request, code) -> Organisation:
-    org = get_object_or_404(Organisation, code=code)
+    org = service.by_code_or_404(code)  # a former code finds the organisation that had it
     if not (service.is_org_admin(request.user, org) or service.is_system_admin(request.user)):
         raise Http404
     return org
@@ -168,6 +168,7 @@ def organisations(request):
                 "campaign": campaign,
                 "undecided": campaign.items.filter(decision="").count() if campaign else 0,
                 "last": last,
+                "former": service.party_codes(org)[1:] if not org.successor_id else [],
             }
         )
     return render(request, "administration/organisations.html", {"rows": rows, "sysadmin": sysadmin})
@@ -204,6 +205,8 @@ def _grantable_codes(user, org) -> list[str]:
 @login_required
 def organisation(request, code):
     org = _org_or_404(request, code)
+    if org.code != code:  # an old link, under a former code
+        return redirect("administration:organisation", org.code)
     is_admin = service.is_org_admin(request.user, org)
     codes = _grantable_codes(request.user, org)
     memberships = org.memberships.filter(ended_at__isnull=True).select_related("user").order_by("user__email")
@@ -235,6 +238,15 @@ def organisation(request, code):
             "details_form": forms.OrganisationDetailsForm(org=org, initial={"name": org.name, "pa_type": org.pa_type})
             if service.is_system_admin(request.user)
             else None,
+            "history": service.code_history(org),
+            "predecessors": service.party_members(org)[1:] if not org.successor_id else [],
+            "code_forms": {
+                "rename": forms.RenameForm(),
+                "former": forms.FormerCodeForm(),
+                "merge": forms.MergeForm(org=org),
+            }
+            if service.is_system_admin(request.user) and not org.successor_id
+            else None,
             "no_admin": not service.org_admins(org).exists(),
             "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
                 "user"
@@ -249,7 +261,7 @@ def organisation(request, code):
 @require_POST
 def organisation_details(request, code):
     """A CPUC system administrator changes an organisation's name or PA type (with a reason)."""
-    org = get_object_or_404(Organisation, code=code)
+    org = service.by_code_or_404(code)
     if not service.is_system_admin(request.user):
         raise Http404
     back = f"/admin/organisations/{org.code}/"
@@ -265,6 +277,68 @@ def organisation_details(request, code):
     except AccessDenied as e:
         return _refused(request, e, back)
     return _done(request, f"{org.code}'s details saved.", back)
+
+
+def _form_problems(form) -> str:
+    return "; ".join(f"{form.fields[k].label if k in form.fields else k}: {' '.join(v)}" for k, v in form.errors.items())
+
+
+def _code_change(request, code, form_class, what: str, change):
+    """A CPUC system administrator's change to an organization's codes (rename, former code, merge): check the form, make the change
+    through the accounts service, and go back to the organization's page under the code it has now."""
+    org = service.by_code_or_404(code)
+    if not service.is_system_admin(request.user):
+        raise Http404
+    kwargs = {"org": org} if form_class is forms.MergeForm else {}
+    form = form_class(request.POST, **kwargs)
+    if not form.is_valid():
+        messages.error(request, f"Check the {what} form: {_form_problems(form)}")
+        return redirect("administration:organisation", org.code)
+    try:
+        message, target = change(org, form.cleaned_data)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect("administration:organisation", org.code)
+    messages.success(request, message)
+    return redirect("administration:organisation", target.code)
+
+
+@login_required
+@require_POST
+def organisation_rename(request, code):
+    """Give an organization a new code from a date (EBCE -> AVA): the old code stays in its history and still finds it."""
+
+    def change(org, d):
+        old = org.code
+        service.rename_organisation(request.user, org, code=d["code"], name=d["name"], effective=d["effective"], reason=d["reason"])
+        return f"{old} is now {org.code}. Its records filed as {old} stay as filed and count under {org.code}.", org
+
+    return _code_change(request, code, forms.RenameForm, "rename", change)
+
+
+@login_required
+@require_POST
+def organisation_former_code(request, code):
+    """Record a code an organization used before its current one (for records filed under it)."""
+
+    def change(org, d):
+        row = service.add_former_code(request.user, org, code=d["code"], since=d["since"], until=d["until"], reason=d["reason"])
+        return f"{row.code} recorded as {org.code}'s code {row.span}. Records filed as {row.code} now count under {org.code}.", org
+
+    return _code_change(request, code, forms.FormerCodeForm, "former code", change)
+
+
+@login_required
+@require_POST
+def organisation_merge(request, code):
+    """Record that this organization and another are one party (the same PA loaded under an old and a new code)."""
+
+    def change(org, d):
+        source = d["source"]
+        service.merge_organisation(request.user, source, into=org, effective=d["effective"], reason=d["reason"])
+        return f"{source.code} merged into {org.code}: its records stay its own and count under {org.code}.", org
+
+    return _code_change(request, code, forms.MergeForm, "merge", change)
 
 
 @login_required

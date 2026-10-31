@@ -51,6 +51,8 @@ PAGES = [
     ("organisation-first-admin", "/admin/organisations/SCE/", "cpuc_admin"),
     ("organisation-new", "/admin/organisations/new/", "cpuc_admin"),
     ("organisation-untyped", "/admin/organisations/NEWPA/", "cpuc_admin"),
+    ("organisation-renamed", "/admin/organisations/AVA/", "cpuc_admin"),
+    ("organisation-merged", "/admin/organisations/AVA2/", "cpuc_admin"),
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
     ("settings", "/admin/settings/", "cpuc_admin"),
     ("audit", "/admin/audit/", "cpuc_admin"),

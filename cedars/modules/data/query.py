@@ -42,6 +42,8 @@ DIMENSIONS = {
     for d in [
         # Built at query time from each PA's type in the platform (pa_type_expression); a PA with no type reads as blank.
         Dimension("pa_type", "PA type", "CreditedPA"),
+        # As filed (the credited PA, else the filer), read under its party's current code at query time (pa_expression): a former
+        # code (EBCE) counts as the PA's current one (AVA).
         Dimension("pa", "PA", "CreditedPA", "coalesce(nullif(trim(CreditedPA), ''), _organisation)"),
         Dimension("segment", "Segment", "Prg_ProgramSegment"),
         Dimension("sector", "Primary sector", "Prg_PrimarySector"),
@@ -380,8 +382,12 @@ def where_terms(q: Query) -> tuple[list[str], list]:
             where.append(f"{expr} IN ({', '.join('?' for _ in values)})")
             args += [int(v) for v in values if v.lstrip("-").isdigit()] or [None]
         elif d in PA_SELECTION:
+            if d == "pa":  # an old link's former code selects the PA it belongs to
+                values = list(dict.fromkeys(current_codes(values)))
             either.append((f"lower(trim({expr})) IN ({', '.join('?' for _ in values)})", [v.strip().lower() for v in values]))
         else:
+            if d == "organisation":
+                values = list(dict.fromkeys(current_codes(values)))
             where.append(f"lower(trim({expr})) IN ({', '.join('?' for _ in values)})")
             args += [v.strip().lower() for v in values]
     if either:
@@ -446,18 +452,41 @@ def run(q: Query) -> Result:
 def _expression(d: Dimension) -> str:
     if d.code == "pa_type":
         return pa_type_expression()
+    if d.code == "pa":
+        return pa_expression()
     return d.expression or _ident(d.column)
 
 
+def current_codes(codes) -> list[str]:
+    """PA codes under their party's current codes (EBCE -> AVA); other codes as given."""
+    from cedars.services.accounts import service as access
+
+    mapping = access.code_map()
+    return [access.current_code(c, mapping) for c in codes]
+
+
+def pa_expression(mapping: dict[str, str] | None = None) -> str:
+    """Each row's PA (the credited PA as filed, else the filer) under its party's current code: a CASE over the former codes (and
+    merged organizations' codes), read when the query runs so a rename recorded since counts at once. With no renames, the PA as filed."""
+    from cedars.services.accounts import service as access
+
+    raw = DIMENSIONS["pa"].expression
+    mapping = access.code_map() if mapping is None else mapping
+    if not mapping:
+        return raw
+    whens = " ".join(f"WHEN {_literal(old)} THEN {_literal(new)}" for old, new in sorted(mapping.items()))
+    return f"CASE upper(trim({raw})) {whens} ELSE {raw} END"
+
+
 def pa_type_expression(types: dict[str, str] | None = None) -> str:
-    """The PA type of each row's PA (the pa dimension), from each PA's type in the platform: a CASE over the typed PA codes, read
-    when the query runs so a PA typed since reads as typed. A PA with no type (or no PA) is NULL."""
+    """The PA type of each row's PA (the pa dimension, under current codes), from each PA's type in the platform: a CASE over the typed
+    PA codes, read when the query runs so a PA typed since reads as typed. A PA with no type (or no PA) is NULL."""
     from cedars.services.accounts import service as access
 
     types = access.pa_types() if types is None else types
     if not types:
         return "CAST(NULL AS VARCHAR)"
-    pa = f"upper(trim({DIMENSIONS['pa'].expression}))"
+    pa = f"upper(trim({pa_expression()}))"
     whens = " ".join(f"WHEN {_literal(code.upper())} THEN {_literal(t)}" for code, t in sorted(types.items()))
     return f"CASE {pa} {whens} END"
 
@@ -468,7 +497,7 @@ def selected_pas(q: Query, pas: dict[str, str]) -> set[str] | None:
     f = q.filter_map
     if not any(d in f for d in PA_SELECTION):
         return None
-    codes = {c.strip().upper() for c in f.get("pa", ())}
+    codes = {c.strip().upper() for c in current_codes(f.get("pa", ()))}
     types = {t.strip().upper() for t in f.get("pa_type", ())}
     return codes | {code for code, t in pas.items() if t.upper() in types}
 

@@ -1,10 +1,11 @@
 {% comment %}The PA filter, grouped by PA type: each group's "All" box is the pa_type filter (it keeps PAs given that type later too) and
-each PA's box the pa filter. Ticked boxes add up: "All RENs" and PGE keep the RENs and PG&E. Plain checkboxes, no script.{% endcomment %}
+each PA's box the pa filter. Ticked boxes add up: "All RENs" and PGE keep the RENs and PG&E. Plain checkboxes, no script. A renamed PA is
+one box under its current code, labelled with its former codes: its records filed under any of them count under it.{% endcomment %}
 {% if pa_groups %}<fieldset class="pa-filter">
   <legend>PA <span class="muted small">(tick whole groups, single PAs or both; none ticked: every PA)</span></legend>
   {% for g in pa_groups %}<fieldset>
     <legend>{{ g.label }}{% if g.description %} <span class="muted small">({{ g.description }})</span>{% endif %}</legend>
     {% if g.type %}<label class="check pa-all"><input type="checkbox" name="pa_type" value="{{ g.type }}"{% if g.all %} checked{% endif %}> All {{ g.label }}</label>{% endif %}
-    {% for pa, checked in g.pas %}<label class="check"><input type="checkbox" name="pa" value="{{ pa }}"{% if checked %} checked{% endif %}> {{ pa }}</label>{% endfor %}
+    {% for pa in g.pas %}<label class="check"><input type="checkbox" name="pa" value="{{ pa.code }}"{% if pa.checked %} checked{% endif %}> {{ pa.code }}{% if pa.former %} <span class="small">(formerly {{ pa.former|join:", " }})</span>{% endif %}</label>{% endfor %}
   </fieldset>{% endfor %}
 </fieldset>{% endif %}
