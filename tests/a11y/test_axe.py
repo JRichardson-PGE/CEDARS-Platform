@@ -737,8 +737,18 @@ def _open(browser, site, scene, path, who, **context_args):
 
 def _violations(page, axe_source):
     page.add_script_tag(content=axe_source)
-    page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")  # check what is folded away too
-    result = page.evaluate("async (tags) => await axe.run(document, {runOnly: {type: 'tag', values: tags}})", TAGS)
+    # Check what is folded away too: every disclosure on the page is opened, except the header's menus, which are dropdowns. An open
+    # dropdown covers whatever is under it, as it should, so each menu is opened on its own and only the header is checked in that state.
+    page.evaluate("document.querySelectorAll('details:not(.top nav details)').forEach(d => d.open = true)")
+    found = _run_axe(page)
+    for i in range(page.evaluate("document.querySelectorAll('.top nav details').length")):
+        page.evaluate("(i) => document.querySelectorAll('.top nav details').forEach((d, j) => { d.open = j === i })", i)
+        found += [v for v in _run_axe(page, within=".top") if v not in found]
+    return found
+
+
+def _run_axe(page, within="html"):
+    result = page.evaluate("async ([tags, within]) => await axe.run(within, {runOnly: {type: 'tag', values: tags}})", [TAGS, within])
     return [
         {"id": v["id"], "impact": v["impact"], "help": v["help"], "targets": [n["target"] for n in v["nodes"]][:5]}
         for v in result["violations"]
