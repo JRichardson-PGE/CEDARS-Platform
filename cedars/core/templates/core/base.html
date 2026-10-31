@@ -21,7 +21,8 @@
      .current and the page link inside it carries aria-current. app.js adds Escape, one-open-at-a-time and the narrow-screen Menu button.{% endcomment %}
   <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" hidden>Menu</button>
   <nav aria-label="Main" id="main-nav">
-    <a href="{% url 'core:home' %}"{% if here == '/' %} aria-current="page"{% endif %}>Home</a>
+    <a href="{% url 'data:dashboards' %}"{% if here|slice:":6" == '/data/' and here|slice:":14" != '/data/records/' and here|slice:":16" != '/data/downloads/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
+    <a href="{% url 'programs:catalog' %}"{% if here|slice:":10" == '/programs/' %} aria-current="page"{% endif %}>Programs</a>
     <details{% if here|slice:":9" == '/budgets/' or here|slice:":8" == '/claims/' or here|slice:":9" == '/monthly/' or '/filings/' in here %} class="current"{% endif %}>
       <summary>Filings</summary>
       <ul>
@@ -31,7 +32,6 @@
         <li><a href="{% url 'submissions:calendar' %}"{% if '/filings/' in here %} aria-current="page"{% endif %}>Filing calendar</a></li>
       </ul>
     </details>
-    <a href="{% url 'programs:catalog' %}"{% if here|slice:":10" == '/programs/' %} aria-current="page"{% endif %}>Programs</a>
     <details{% if '/calculations/' in here or '/impact-profiles/' in here %} class="current"{% endif %}>
       <summary>Calculations</summary>
       <ul>
@@ -42,10 +42,9 @@
         {% if nav.sysadmin %}<li><a href="{% url 'calculations:engines' %}"{% if '/calculations/engines/' in here %} aria-current="page"{% endif %}>Engine releases</a></li>{% endif %}
       </ul>
     </details>
-    <details{% if here|slice:":11" == '/documents/' or here|slice:":6" == '/data/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here %} class="current"{% endif %}>
+    <details{% if here|slice:":11" == '/documents/' or here|slice:":14" == '/data/records/' or here|slice:":16" == '/data/downloads/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here %} class="current"{% endif %}>
       <summary>Reference</summary>
       <ul>
-        <li><a href="{% url 'data:dashboards' %}"{% if here|slice:":6" == '/data/' and here|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a></li>
         <li><a href="{% url 'data:records' %}"{% if here|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a></li>
         <li><a href="{% url 'documents:library' %}"{% if here|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a></li>
         <li><a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a></li>
@@ -103,6 +102,7 @@
 <footer class="foot">
   <span>California Public Utilities Commission · Energy Division</span>
   <ul class="links">
+    <li><a href="{% url 'core:about' %}">About CEDARS</a></li>
     <li><a href="{% url 'documents:library' %}">Documents</a></li>
     <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
     <li><a href="{% url 'rules:index' %}">Validation rules</a></li>

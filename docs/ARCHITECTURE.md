@@ -8,7 +8,7 @@ how far it is built. Update the Status column in the PR that changes it.
 | Path | What |
 | --- | --- |
 | `cedars/settings/` | `base` (shared), `dev`, `test`, `sandbox`, `prod`; everything machine-specific from environment variables |
-| `cedars/core/` | Base templates, the page-wide announcer, security headers, health check, home page |
+| `cedars/core/` | Base templates, the page-wide announcer, security headers, health check, the About page (`/` opens the portfolio dashboard) |
 | `cedars/services/` | One app per shared service |
 | `cedars/modules/` | One app per module |
 | `tests/` | pytest-django; `tests/a11y/` drives Chromium with axe-core 4.10.2 |

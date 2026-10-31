@@ -8,7 +8,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {legacy_filing}."""
 
 PAGES = [
-    ("home", "/", None),
+    ("about", "/about/", None),
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("rules", "/rules/", None),
