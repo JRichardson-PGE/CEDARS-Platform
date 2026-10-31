@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}Goals of {{ s.decision }}{% endblock %}
+{% block content %}
+<h1>Goals of {{ s.decision }}</h1>
+<dl class="facts">
+  <dt>Adopted</dt><dd>{{ s.adopted|date:"Y-m-d" }}{% if s.url %} (<a href="{{ s.url }}">the decision</a>){% endif %}</dd>
+  <dt>Status</dt><dd>{{ s.get_status_display }}{% if s.confirmed_at %} {{ s.confirmed_at|date:"Y-m-d H:i" }} by {{ s.confirmed_by.email|default:"the system" }}{% endif %}</dd>
+  {% if s.status == "confirmed" %}<dt>In force for</dt><dd>{% if in_force.annual %}annual targets {{ in_force.annual|join:", " }}{% endif %}{% if in_force.annual and in_force.cycle %}; {% endif %}{% if in_force.cycle %}cycle years {{ in_force.cycle|first }} to {{ in_force.cycle|last }}{% endif %}{% if not in_force.annual and not in_force.cycle %}no years: newer goals replace it{% endif %}</dd>{% endif %}
+  <dt>Loaded</dt><dd>{{ s.created_at|date:"Y-m-d H:i" }} by {{ s.created_by.email|default:"the system" }}</dd>
+  <dt>Source</dt><dd>{{ s.source_name }} <span class="small muted">SHA-256 {{ s.source_sha256|truncatechars:20 }}</span></dd>
+  {% if s.notes %}<dt>Notes</dt><dd>{{ s.notes }}</dd>{% endif %}
+</dl>
+<p><a class="button" href="{% url 'administration:goal_set_csv' s.pk %}">Download the goals (CSV, the goal file layout)</a></p>
+
+<h2 id="cycle-h">Cumulative cycle goals</h2>
+{% include "administration/_goal_table.html" with rows=cycle_goals label="Cumulative cycle goals" period="Cycle" %}
+<h2 id="annual-h">Annual targets</h2>
+{% include "administration/_goal_table.html" with rows=annual_goals label="Annual targets" period="Year" %}
+
+<h2>Counting rules</h2>
+{% if rules %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Counting rules">
+<table class="list">
+  <thead><tr><th scope="col">PA</th><th scope="col">Counts toward</th><th scope="col">Share</th><th scope="col">Goals</th><th scope="col">Source</th></tr></thead>
+  <tbody>{% for r in rules %}<tr><th scope="row">{{ r.pa }}</th><td>{{ r.territory }}</td><td>{{ r.share }}</td><td>{{ r.get_applies_to_display }}</td><td>{{ r.source }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>This set lists no counting rules; the newest confirmed set that lists some governs.</p>{% endif %}
+
+<h2>Checks</h2>
+{% if issues %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Problems found">
+<table class="list">
+  <thead><tr><th scope="col">Where</th><th scope="col">Finding</th><th scope="col">Stops confirmation</th></tr></thead>
+  <tbody>{% for i in issues %}<tr><th scope="row">{{ i.where }}</th><td>{{ i.message }}</td><td>{% if i.blocking %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>Every row names an IOU territory, has at least one value and no negative ones; every cycle covers four years.</p>{% endif %}
+
+{% if s.status == "draft" %}
+<p>Check every number against the decision's tables before confirming. The administrator who loaded the set cannot confirm it.</p>
+<form method="post" class="actions">{% csrf_token %}
+  <button type="submit" name="action" value="confirm" class="primary">Confirm these goals</button>
+  <button type="submit" name="action" value="discard">Discard the draft</button>
+</form>
+{% endif %}
+{% endblock %}

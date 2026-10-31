@@ -73,6 +73,15 @@ class AllocationUploadForm(forms.Form):
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
 
 
+class GoalSetUploadForm(forms.Form):
+    file = forms.FileField(label="Goal file (CSV, one row per IOU and period)")
+    rules = forms.FileField(label="Counting rule file (CSV, optional)", required=False)
+    decision = forms.CharField(label="Decision", max_length=40, help_text="e.g. D.25-08-034")
+    adopted = forms.DateField(label="Adopted on", help_text="YYYY-MM-DD", widget=forms.DateInput(attrs={"type": "date"}))
+    url = forms.URLField(label="Link to the decision (optional)", required=False, max_length=400, assume_scheme="https")
+    notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
 class ApiTokenForm(forms.Form):
     name = forms.CharField(label="Name", max_length=100, help_text="What will use it, e.g. our claims system")
     organisation = forms.ChoiceField(label="Acting for")
