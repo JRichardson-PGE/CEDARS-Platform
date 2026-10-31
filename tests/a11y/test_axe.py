@@ -820,3 +820,42 @@ def test_reflows_at_320px(browser, site, scene, name, path, who):
     overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
     context.close()
     assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
+
+
+def test_other_filters_by_keyboard(browser, site, scene):
+    """The Programs catalog's Other filters panel, with the script: opened, a field chosen and a value ticked from the keyboard, applied
+    with Enter; the link carries only that filter. Without the script, "Show its options" shows the field's inputs."""
+    context, page = _open(browser, site, scene, "/programs/", None)
+    summary = page.locator(".other-filters > summary")
+    summary.focus()
+    page.keyboard.press("Enter")
+    assert page.locator(".other-filters").evaluate("d => d.open")
+    page.keyboard.press("Tab")
+    assert page.evaluate("document.activeElement.id") == "other-field"
+    assert page.locator(".other-pick button").is_hidden()  # only needed without the script
+    page.select_option("#other-field", "status")
+    assert page.locator(".other-field[data-field=status]").is_visible()
+    assert page.locator(".other-field[data-field=bp_sector]").is_hidden()
+    page.keyboard.press("Tab")
+    page.keyboard.press("Space")
+    assert page.evaluate("document.activeElement.name") == "status" and page.evaluate("document.activeElement.checked")
+    value = page.evaluate("document.activeElement.value")
+    with page.expect_navigation():
+        page.locator(".other-body > button").press("Enter")
+    assert page.url == f"{site.url}/programs/?status={value}"
+    assert page.locator(".chips").is_visible()
+    context.close()
+
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    page.goto(f"{site.url}/programs/")
+    page.locator(".other-filters > summary").click()
+    page.select_option("#other-field", "end_year")
+    assert page.locator(".other-field[data-field=end_year]").is_hidden()
+    page.locator(".other-pick button").click()
+    assert page.locator(".other-filters").evaluate("d => d.open")
+    assert page.locator(".other-field[data-field=end_year]").is_visible()
+    page.fill("input[name=end_year_from]", "2030")
+    page.locator(".other-body > button").click()
+    assert "end_year_from=2030" in page.url and "End year: 2030 or later" in page.locator(".chips").inner_text()
+    context.close()
