@@ -34,6 +34,7 @@ from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
@@ -409,6 +410,8 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
     checks and the claims rule set on its own records, write the compiled tables and the job to price, and record the result: validated
     when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    if v.locked:  # before anything is written: a published version's files never change
+        raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
     deadline, org = v.submission.deadline, v.submission.organisation
     year = deadline.period.year
     own = own_tables(v)
@@ -1164,6 +1167,19 @@ def price(actor, v: SubmissionVersion) -> str:
             allocation_version=cy.allocation_version,
             settings={"allocate_statewide": statewide, "acc_purpose": "claims"},
         )
+
+
+def pricing_run(v: SubmissionVersion) -> str | None:
+    """The run started for the version since its records last changed, while the version has no finished one."""
+    if v.calculation:
+        return None
+    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
+    last = (
+        events.filter(action__in=["submission.pricing_started", "submission.files_attached", "submission.validated"])
+        .order_by("-id")
+        .first()
+    )
+    return (last.after or {}).get("run") if last and last.action == "submission.pricing_started" else None
 
 
 def priced(v: SubmissionVersion) -> bool:
