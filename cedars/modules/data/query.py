@@ -226,6 +226,12 @@ class Result:
     rows: list[dict]  # the dimensions by code, each metric by code, and "_sums" (each field's sum) and "_rows"
     totals: dict  # each metric over every row kept, and "_sums" and "_rows"
     notes: list[str] = field(default_factory=list)
+    used: set = field(default_factory=set)  # the snapshots that gave rows (a file read but matched by nothing is not one of them)
+
+    @property
+    def files_used(self) -> list[dict]:
+        """The snapshots that contributed rows, when known: a one-PA download names that PA's filings, not every filing read."""
+        return [f for f in self.files if f["snapshot"] in self.used] if self.used else self.files
 
     @property
     def as_of(self):
@@ -250,8 +256,10 @@ class Result:
             "dataset": q.dataset,
             "release": self.release.number if self.release else None,
             "as_of": self.as_of.isoformat() if self.as_of else None,
-            "snapshots": [f["snapshot"] for f in self.files],
-            "filings": sorted({f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}" for f in self.files}),
+            "snapshots": [f["snapshot"] for f in self.files_used],
+            "filings": sorted(
+                {f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}" for f in self.files_used}
+            ),
             "metrics": {
                 m.code: {"label": m.label, "unit": m.unit, "numerator": m.numerator, "denominator": m.denominator} for m in self.metric_list
             },
@@ -347,6 +355,7 @@ def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[s
         ]
         cols += [f"CAST({_ident(c)} AS VARCHAR) AS {_ident(c)}" if c in names else f"CAST(NULL AS VARCHAR) AS {_ident(c)}" for c in texts]
         cols += [f"{_literal(f['organisation'])} AS _organisation", f"{_literal(filing_label(f))} AS _filing"]
+        cols += [f"{_literal(str(f['snapshot']))} AS _snapshot"]
         selects.append(f"SELECT {', '.join(cols)} FROM read_parquet({_literal(str(local_path(f)))})")
     where, args = where_terms(q)
     source = f"WITH data AS ({' UNION ALL '.join(selects)}) "
@@ -430,21 +439,29 @@ def run(q: Query) -> Result:
     source, where, args = _source(q, result.files, numbers)
     dims = [f"{_expression(DIMENSIONS[d])} AS {_ident(d)}" for d in q.by]
     sums = [f"sum({_ident(c)}) AS {_ident(c)}" for c in numbers]
+    # grouped by snapshot as well, so the result knows which filings gave it rows; the groups are added up here
+    groups = [_ident(d) for d in q.by] + ["_snapshot"]
     sql = (
         source
-        + f"SELECT {', '.join(dims + sums + ['count(*) AS _rows'])} FROM data"
+        + f"SELECT {', '.join(dims + ['_snapshot'] + sums + ['count(*) AS _rows'])} FROM data"
         + (f" WHERE {' AND '.join(where)}" if where else "")
-        + (f" GROUP BY {', '.join(_ident(d) for d in q.by)} ORDER BY {', '.join(f'{_ident(d)} NULLS LAST' for d in q.by)}" if q.by else "")
+        + f" GROUP BY {', '.join(groups)} ORDER BY {', '.join(f'{g} NULLS LAST' for g in groups)}"
     )
     names, raw = _fetch(sql, args)
+    rows: dict[tuple, dict] = {}
     for values in raw:
         record = dict(zip(names, values, strict=True))
-        if not q.by and not record["_rows"]:
+        if not record["_rows"]:
             continue
-        row = {d: record[d] for d in q.by}
-        row["_sums"] = {c: record[c] or 0 for c in numbers}
-        row["_rows"] = record["_rows"]
-        result.rows.append(row)
+        result.used.add(record["_snapshot"])
+        key = tuple(record[d] for d in q.by)
+        row = rows.get(key)
+        if row is None:
+            row = rows[key] = {d: record[d] for d in q.by} | {"_sums": dict.fromkeys(numbers, 0), "_rows": 0}
+        for c in numbers:
+            row["_sums"][c] += record[c] or 0
+        row["_rows"] += record["_rows"]
+    result.rows = list(rows.values())
     _finish(result)
     return result
 

@@ -9,9 +9,9 @@
 <h1>{{ series }} records, {{ job.fmt|upper }}</h1>
 <dl class="facts">
   <dt>Status</dt><dd><strong>{{ job.get_status_display }}</strong>{% if job.status == "queued" %}{% if ahead %}: {{ ahead }} download{{ ahead|pluralize }} ahead of it{% else %}: next to be made{% endif %}{% endif %}</dd>
-  <dt>Asked for</dt><dd>{{ job.created_at|date:"Y-m-d H:i e" }}</dd>
+  <dt>Asked for</dt><dd>{{ job.created_at|date:"Y-m-d H:i T" }}</dd>
   <dt>Records</dt><dd>{% if job.rows is not None %}{{ job.rows }}{% else %}{{ job.records }} when asked for{% endif %}</dd>
-  {% if job.finished_at %}<dt>Finished</dt><dd>{{ job.finished_at|date:"Y-m-d H:i e" }}</dd>{% endif %}
+  {% if job.finished_at %}<dt>Finished</dt><dd>{{ job.finished_at|date:"Y-m-d H:i T" }}</dd>{% endif %}
   {% if job.size %}<dt>Size</dt><dd>{{ job.size|filesizeformat }}</dd><dt>SHA-256</dt><dd class="mono">{{ job.sha256 }}</dd>{% endif %}
 </dl>
 {% if job.status == "done" %}

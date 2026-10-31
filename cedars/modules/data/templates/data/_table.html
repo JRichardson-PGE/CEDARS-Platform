@@ -11,7 +11,7 @@
   <tbody>
   {% for r in comparison.rows %}
   <tr>
-    <th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% else %}{{ r.key|default_if_none:"(blank)" }}{% endif %}</th>
+    <th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key|code_label }}</a>{% else %}{{ r.key|code_label|default_if_none:"(blank)" }}{% endif %}</th>
     {% for s, label in series_labels %}<td class="num">{{ r.values|get_item:s|metric_value:metric }}</td>{% endfor %}
     {% if comparison.both %}<td class="num">{{ r.difference|signed:metric }}</td>{% if metric.adds_up %}<td class="num">{{ r.percent|percent }}</td>{% endif %}{% endif %}
     {% if links %}<td>{% for text, href in r.links %}<a href="{{ href }}">{{ text }}<span class="sr-only">: {{ r.key }}</span></a>{% if not forloop.last %}<br>{% endif %}{% endfor %}</td>{% endif %}
@@ -27,4 +27,5 @@
   </tr></tfoot>{% endif %}
 </table>
 </div>
+{% if comparison.percent_note %}<p class="small">{{ comparison.percent_note }}</p>{% endif %}
 {% endwith %}

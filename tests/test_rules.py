@@ -92,3 +92,20 @@ def test_rule_pages_and_checker(client, signed_in, cpuc_admin, claims):
 def test_import_page_for_admins(signed_in, cpuc_admin):
     signed_in(cpuc_admin).post("/rules/import", {"code": "budget_filing"})
     assert RuleSet.objects.get(code="budget_filing").status == "draft"
+
+
+def test_findings_use_the_data_dictionarys_field_names(claims, monkeypatch):
+    """F14: the rule files name CET's fields (E3ClimateZone); findings and rule wording use the dictionary's (AC_Climate_Zone), with
+    the CET name in brackets once. F15: the profile-combination rules say where the library is missing on this server."""
+    assert not any(r.message.count("E3ClimateZone") > r.message.count("(E3ClimateZone)") for r in claims.rules.all())
+    assert claims.rules.filter(message__contains="AC_Climate_Zone (E3ClimateZone)").exists()
+    monkeypatch.setattr(service, "library_available", lambda: False)
+    content = _measure_csv([{"CEInputID": "M1", "PrgID": "PGE_X", "ClaimYearQuarter": "2028Q1", "AC_Climate_Zone": "99"}])
+    findings, notes = service.check(claims, "Measure", service.read_table(content))
+    assert not any(f.field.startswith("E3") for f in findings)
+    zone = [f for f in findings if f.field == "AC_Climate_Zone"]
+    assert zone and "AC_Climate_Zone (E3ClimateZone)" in zone[0].message and "E3ClimateZone should" not in zone[0].message
+    assert any("reference folder on this server" in n for n in notes) and not any("not installed" in n for n in notes)
+    assert service.canonical_text(service.canonical_text("E3TargetSector and E3TargetSector")) == (
+        "AC_Elec_Target_Sector (E3TargetSector) and AC_Elec_Target_Sector"
+    )

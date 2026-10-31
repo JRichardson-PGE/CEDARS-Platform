@@ -19,6 +19,14 @@ def signed(value, metric):
 
 
 @register.filter
+def code_label(value):
+    """A registry code as words ("codes_and_standards" -> "Codes and standards"); other values unchanged."""
+    from cedars.modules.data.dashboard import code_label as words
+
+    return words(value)
+
+
+@register.filter
 def percent(value):
     return "–" if value is None else f"{value:,.1f}%"
 

@@ -155,6 +155,10 @@ def visible_runs(user, organisations=None):
 
 
 def can_read(user, run: Run) -> bool:
+    """The owner of their own run, the organisation's readers and submitters, and a CPUC system administrator (who follows the
+    links on Jobs and health)."""
+    if access.is_system_admin(user):
+        return True
     if run.organisation is None:
         return run.owner_id == user.pk
     return access.has_permission(user, run.organisation, "calculations.read") or access.has_permission(
@@ -711,8 +715,37 @@ def output_files(run: Run) -> list[dict]:
     for name in names:
         if name == "progress.json" or name.startswith("_results/") or name not in listed:  # _results: what the Results pages read
             continue
-        out.append({"name": name, "bytes": listed[name], "sha256": (outputs.get(name) or {}).get("sha256", "")})
+        sha = (outputs.get(name) or {}).get("sha256", "")
+        if not sha and name == "receipt.json":  # the receipt lists the other files' hashes; its own is computed here
+            sha = hashlib.sha256(storage.store("results").get_bytes(prefix + name)).hexdigest()
+        out.append({"name": name, "bytes": listed[name], "sha256": sha})
     return out
+
+
+_PATH = re.compile(r"(?<![\w.])(?:/[\w.@+-]+){2,}/?|[A-Za-z]:\\(?:[\w.@+ -]+\\)*[\w.@+-]+")
+
+
+def plain_error(text: str) -> str:
+    """What a failed run's page tells the person: the engine's last line, with file paths cut to their names and a plain reading of
+    the common failures. The full message stays for administrators (BR-06.2: a failure says why in words a filer can act on)."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    last = [line for line in text.splitlines() if line.strip()][-1].strip()
+    kind, sep, rest = last.partition(": ")
+    if sep and kind.replace(".", "").replace("_", "").isalnum() and kind[:1].isupper():
+        last = rest
+        if kind.endswith("FileNotFoundError"):
+            names = sorted({m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1] for m in _PATH.finditer(rest)})
+            what = f" ({', '.join(names)})" if names else ""
+            return (
+                f"A reference file the calculation needs is missing on the worker{what}. Ask a CPUC system administrator to add it to "
+                "the worker's reference data, or run the calculation on a release that has it."
+            )
+        if kind.endswith("MemoryError"):
+            return "The worker ran out of memory on this job. Split the job, or ask a CPUC system administrator for a larger worker."
+    last = _PATH.sub(lambda m: m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1], last)
+    return (last[:297] + "...") if len(last) > 300 else last
 
 
 def output_key(run: Run, name: str) -> str | None:

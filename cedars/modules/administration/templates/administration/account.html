@@ -39,7 +39,7 @@ and stops working when it expires, when you revoke it, or when you leave the org
   {% for t in tokens %}
   <tr><th scope="row">{{ t.name }}</th><td><code>cedars_{{ t.prefix }}</code></td><td>{{ t.organisation.code|default:"Own calculations" }}</td><td>{{ t.scopes|join:", " }}</td>
     <td>{% if t.status == "active" %}Active until {{ t.expires_at|date:"Y-m-d" }}{% elif t.status == "expired" %}Expired {{ t.expires_at|date:"Y-m-d" }}{% else %}Revoked {{ t.revoked_at|date:"Y-m-d" }}{% endif %}</td>
-    <td>{{ t.last_used_at|date:"Y-m-d H:i"|default:"Never" }}</td>
+    <td>{{ t.last_used_at|date:"Y-m-d H:i T"|default:"Never" }}</td>
     <td>{% if t.status == "active" %}<form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<button type="submit">Revoke<span class="sr-only"> the token {{ t.name }}</span></button></form>{% endif %}</td></tr>
   {% endfor %}
   </tbody>

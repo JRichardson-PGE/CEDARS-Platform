@@ -43,6 +43,6 @@
 </section>
 
 <h2>Recent purges</h2>
-{% if runs %}<ul>{% for r in runs %}<li>{{ r.started_at|date:"Y-m-d H:i" }}: {% for cls, c in r.counts.items %}{{ cls }} {{ c.deleted }} deleted{% if c.held %}, {{ c.held }} held{% endif %}{% if c.failed %}, {{ c.failed }} failed{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}nothing expired{% endfor %}</li>{% endfor %}</ul>
+{% if runs %}<ul>{% for r in runs %}<li>{{ r.started_at|date:"Y-m-d H:i T" }}: {% for cls, c in r.counts.items %}{{ cls }} {{ c.deleted }} deleted{% if c.held %}, {{ c.held }} held{% endif %}{% if c.failed %}, {{ c.failed }} failed{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}nothing expired{% endfor %}</li>{% endfor %}</ul>
 {% else %}<p>The retention job has not run yet.</p>{% endif %}
 {% endblock %}

@@ -10,7 +10,7 @@
 <h1>{{ series }} records</h1>
 <p>The published measure-level records, for every PA in one file. Choose the records and the columns, then download them as CSV,
 Excel or Parquet. A download from a dashboard row holds exactly the records behind it.
-{% if as_of %}Data as of {{ as_of|date:"Y-m-d H:i e" }}.{% endif %}</p>
+{% if as_of %}Data as of {{ as_of|date:"Y-m-d H:i T" }}.{% endif %}</p>
 {% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:records' %}">Start again</a></p>{% endif %}
 
 <form method="post" action="{% url 'data:records' %}" class="filters dash-controls records-form" aria-label="Records and columns">
@@ -70,7 +70,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 
 {% if page.count %}
 <h2>Download</h2>
-<p>{{ page.count }} record{{ page.count|pluralize }} from {{ page.result.files|length }} published filing{{ page.result.files|length|pluralize }},
+<p>{{ page.count|floatformat:"0g" }} record{{ page.count|pluralize }} from {{ page.result.files|length }} published filing{{ page.result.files|length|pluralize }},
   with {{ page.columns|length }} column{{ page.columns|length|pluralize }}.
   {% for m in metric_list %}{{ m.label|capfirst }}{% if m.unit %} ({{ m.unit }}){% endif %}: {{ totals|get_item:m.code|metric_value:m }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>
 {% if too_many and page.columns %}
@@ -93,7 +93,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 {% endif %}
 {% elif page.columns %}
 <ul class="downloads">
-  {% for fmt, label, href in downloads %}{% if fmt == "XLSX" and xlsx_too_many %}<li>Excel: more rows than a worksheet holds; use CSV or Parquet</li>{% else %}<li><a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ page.count }} records</span></a></li>{% endif %}{% endfor %}
+  {% for fmt, label, href in downloads %}{% if fmt == "XLSX" and xlsx_too_many %}<li>Excel: more rows than a worksheet holds; use CSV or Parquet</li>{% else %}<li><a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ page.count|floatformat:"0g" }} records</span></a></li>{% endif %}{% endfor %}
 </ul>
 <p class="small muted">Each file records its release, when its data last changed, the snapshots and PAs it was read from, the filters,
   what was left out and the columns, under their canonical names.</p>
@@ -103,7 +103,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 <h2>The records</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Records, {{ first }} to {{ last }}">
 <table class="list records">
-  <caption class="sr-only">{{ series }} records {{ first }} to {{ last }} of {{ page.count }}, by CEInputID</caption>
+  <caption class="sr-only">{{ series }} records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}, by CEInputID</caption>
   <thead><tr>{% for c in page.columns %}<th scope="col" class="mono">{{ c }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for r in page.rows %}<tr>{% for v in r %}<td{% if v|is_number %} class="num"{% endif %}>{{ v|cell }}</td>{% endfor %}</tr>{% endfor %}
@@ -113,7 +113,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 {% if previous or next %}
 <nav class="pager" aria-label="Record pages">
   {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
-  <span>Records {{ first }} to {{ last }} of {{ page.count }}</span>
+  <span>Records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}</span>
   {% if next %}<a href="{{ next }}">Next</a>{% endif %}
 </nav>
 {% endif %}
