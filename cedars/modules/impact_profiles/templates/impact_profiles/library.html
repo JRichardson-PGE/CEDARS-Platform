@@ -13,6 +13,7 @@ zone. Profiles are versioned: runs and claims record the version they used.</p>
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
 </form>
+{% if page %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Impact profiles">
 <table class="list">
   <caption class="sr-only">Impact profiles matching the filters</caption>
@@ -22,10 +23,13 @@ zone. Profiles are versioned: runs and claims record the version they used.</p>
   <tr><th scope="row"><a href="{% url 'impact_profiles:profile' p.pk %}">{{ p.profile_key }}</a></th><td>{{ p.target_sector }}</td>
     <td>{{ p.iou_ac_territory|default:"Every territory" }}</td><td>{{ p.get_family_display }}</td><td>{{ p.owner.code|default:"" }}</td>
     <td>{{ p.n_versions }}</td><td>{% if p.retired_at %}Retired{% else %}In use{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="7">No profiles match.</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% else %}
+{% if request.GET %}{% url 'impact_profiles:library' as clear_url %}{% endif %}
+{% include "ui/empty.html" with title="No profiles match" text="Change or clear the filters to see more of the library." action_url=clear_url action="Clear filters" %}
+{% endif %}
 {% include "impact_profiles/_pager.html" with pager_label="Impact profile pages" %}
 {% endblock %}

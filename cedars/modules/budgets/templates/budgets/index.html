@@ -1,42 +1,66 @@
 {% extends "core/base.html" %}
+{% load ui %}
 {% block title %}Budgets{% endblock %}
 {% block content %}
 <div class="head-row">
   <h1>Budgets</h1>
   <div class="actions">
-    <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
     <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
-    {% if sysadmin %}<a class="button" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
+    <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
+    {% if sysadmin %}<a class="button primary" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
   </div>
 </div>
 <p>Budget filings follow the four-year cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice letters.
 Each filing is uploaded, checked, priced and confirmed; every confirmed version is kept and can be compared with any other.</p>
 {% for c in cycles %}
-<section aria-labelledby="cycle-{{ c.cycle.pk }}">
+{# The newest cycle is open; earlier cycles are collapsed behind their heading with a count, so the page is one screen for most visits. #}
+{% if forloop.first %}<section class="cycle" aria-labelledby="cycle-{{ c.cycle.pk }}">
 <h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle }} cycle</h2>
+{% else %}<details class="section">
+<summary><h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle }} cycle</h2>
+  <span class="count">{{ c.filings|length }} filing{{ c.filings|length|pluralize }}{% if c.standing %}, {{ c.standing|length }} standing budget{{ c.standing|length|pluralize }}{% endif %}</span></summary>
+<div class="section-body">
+{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle }} cycle">
 <table class="list">
   <caption class="sr-only">Filings of the {{ c.cycle }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
-  <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">ACC</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}</tr></thead>
+  <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">ACC</th><th scope="col">Source</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}</tr></thead>
   <tbody>
   {% for f in c.filings %}
   <tr>
     <th scope="row"><a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a></th>
-    <td class="nowrap">{{ f.deadline.due_at|date:"Y-m-d" }}{% if f.past_due %} <span class="small">(passed)</span>{% endif %}</td>
-    <td>{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}{% if f.legacy %}<br><span class="small">Imported from legacy CEDARS</span>{% endif %}</td>
-    {% if org %}<td>{% if f.latest %}Version {{ f.latest.number }}: {{ f.latest.get_status_display|lower }}{% else %}Not started{% endif %}</td>{% endif %}
+    <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date:"Y-m-d" }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
+    <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
+    <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>
+    {% if org %}<td>{% if f.latest %}<span class="status {{ f.latest.status|status_tone }}">{{ f.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ f.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
 {% if c.standing %}
-<h3>Budgets that stand</h3>
+<h3 id="standing-{{ c.cycle.pk }}">Budgets that stand</h3>
 <p class="small muted">Each PA's most recent confirmed filing in the cycle. Confirmed filings, their inputs and results are open to every signed-in user.</p>
-<ul>{% for v in c.standing %}<li><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.organisation.code }}: {{ v.submission.deadline.kind }}, version {{ v.number }}</a>, {% if v.imported %}imported from legacy CEDARS {{ v.confirmed_at|date:"Y-m-d" }}{% else %}confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}</li>{% endfor %}</ul>
+<div class="hscroll" tabindex="0" role="region" aria-label="Standing budgets of the {{ c.cycle }} cycle">
+<table class="list">
+  <caption class="sr-only">Standing budgets of the {{ c.cycle }} cycle, by program administrator</caption>
+  <thead><tr><th scope="col">PA</th><th scope="col">Filing</th><th scope="col" class="num">Version</th><th scope="col">Confirmed</th></tr></thead>
+  <tbody>
+  {% for v in c.standing %}
+  <tr>
+    <th scope="row"><span class="id">{{ v.submission.organisation.code }}</span></th>
+    <td><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.deadline.kind }}</a></td>
+    <td class="num">{{ v.number }}</td>
+    <td class="nowrap">{{ v.confirmed_at|date:"Y-m-d" }}{% if v.imported %}, imported from legacy CEDARS{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
 {% endif %}
-</section>
+{% if forloop.first %}</section>{% else %}</div></details>{% endif %}
 {% empty %}
-<p>No budget filing is set up yet.{% if sysadmin %} <a href="{% url 'budgets:filing_new' %}">Set up the first one</a>.{% endif %}</p>
+{% if sysadmin %}{% url 'budgets:filing_new' as new_url %}{% endif %}
+{% include "ui/empty.html" with title="No budget filing is set up yet" text="Filings appear here once the CPUC sets up a cycle's deadlines." action_url=new_url action="Set up the first filing" action_primary=True %}
 {% endfor %}
 {% endblock %}
