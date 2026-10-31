@@ -118,6 +118,14 @@ class Document(models.Model):
         "PDA document id", null=True, blank=True, unique=True, help_text="The PDA's deliverableID, which its old links carry (BR-15.10)"
     )
     calmac_id = models.CharField("CALMAC ID", max_length=50, blank=True, help_text="The report's id on calmac.org")
+    cedars_key = models.CharField(
+        "CEDARS record",
+        max_length=120,
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="<collection>:<key> of the CEDARS Reports & Documents, DEER Resources or program document it was migrated from",
+    )
 
     class Meta:
         ordering = [F("published_at").desc(nulls_first=True), "-created_at"]
@@ -359,6 +367,21 @@ class WorkOrder(models.Model):
 
     def get_absolute_url(self):
         return f"/documents/work-orders/{self.pk}/"
+
+
+class LegacyLink(models.Model):
+    """An address of the old CEDARS site (its Reports & Documents, DEER Resources and program document links) and the migrated
+    document or file it now leads to (BR-15.10). The path is kept decoded, as the old site's links resolve, with no host."""
+
+    path = models.CharField(max_length=500, unique=True)
+    document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="legacy_links")
+    file = models.ForeignKey("DocumentFile", null=True, blank=True, on_delete=models.PROTECT, related_name="legacy_links")
+
+    class Meta:
+        ordering = ["path"]
+
+    def __str__(self):
+        return self.path
 
 
 class Task(models.Model):
