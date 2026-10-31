@@ -748,9 +748,7 @@ def _violations(page, axe_source):
 
 
 def _run_axe(page, within="html"):
-    result = page.evaluate(
-        "async ([tags, within]) => await axe.run(within, {runOnly: {type: 'tag', values: tags}})", [TAGS, within]
-    )
+    result = page.evaluate("async ([tags, within]) => await axe.run(within, {runOnly: {type: 'tag', values: tags}})", [TAGS, within])
     return [
         {"id": v["id"], "impact": v["impact"], "help": v["help"], "targets": [n["target"] for n in v["nodes"]][:5]}
         for v in result["violations"]
