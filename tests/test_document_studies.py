@@ -51,7 +51,7 @@ def study(people):
 def test_the_register_starts_with_the_psrs_lists():
     assert AttributeOption.objects.filter(attribute_list__code="study_status").count() == 11
     assert option("study_status", "Completed").attribute_list.collections == []
-    assert option("study_lead", "REN")
+    assert option("study_lead", "REN") and option("study_lead", "CCA")  # RENs and CCAs lead studies too
     assert option("portfolio_cycle", "2022") and option("portfolio_cycle", "2026")
 
 

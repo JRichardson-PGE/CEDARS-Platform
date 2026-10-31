@@ -532,11 +532,20 @@ def test_engine_releases_are_configured_by_the_cpuc(signed_in, cpuc_admin, analy
     c = signed_in(cpuc_admin)
     r = c.post(
         "/calculations/engines/",
-        {"action": "add", "release": "0.1.80", "calculations": "recet: 2024, 2026\ncet-25.1: 2024", "default": "on"},
+        {
+            "action": "add",
+            "release": "0.1.80",
+            "calculations": "recet: 2024, 2026\ncet-25.1: 2024",
+            "default": "on",
+            "reason": "worker 0.1.80 deployed",
+        },
     )
     assert r.status_code == 302
     new = service.default_release()
     assert new.release == "0.1.80" and new.accs == {"recet": ["2024", "2026"], "cet-25.1": ["2024"]}
+    from cedars.services.audit.models import AuditEvent
+
+    assert AuditEvent.objects.get(action="engine_release.added", object_id=str(new.pk)).reason == "worker 0.1.80 deployed"
     r = c.post("/calculations/engines/", {"action": "retire", "release": new.pk})
     assert "Make another release the default first" in r.content.decode()
     c.post("/calculations/engines/", {"action": "default", "release": release.pk})

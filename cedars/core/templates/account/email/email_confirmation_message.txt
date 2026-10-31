@@ -1,0 +1,9 @@
+{% extends "account/email/base_message.txt" %}
+{% block content %}{% autoescape off %}Someone, most likely you, gave this email address for a CEDARS account.
+{% if code %}Enter this code in the browser window that asked for it:
+
+{{ code }}{% else %}To confirm the address, open this link:
+
+{{ activate_url }}{% endif %}
+
+If you did not create a CEDARS account, ignore this email: nothing happens without the confirmation.{% endautoescape %}{% endblock content %}

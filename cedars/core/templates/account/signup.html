@@ -1,0 +1,20 @@
+{% extends "account/base_entrance.html" %}
+{% load allauth %}
+{% block head_title %}Create an account{% endblock head_title %}
+{% block content %}
+<h1>Create a CEDARS account</h1>
+<p>An account lets you ask a program administrator for access to its filings and calculations. The public pages (dashboards, record downloads, documents, the data dictionary and the validation rules) need no account. CEDARS emails you a link to confirm the address.</p>
+{% url 'account_signup' as action_url %}
+{% element form form=form method="post" action=action_url tags="entrance,signup" %}
+  {% slot body %}
+    {% csrf_token %}
+    {% element fields form=form %}{% endelement %}
+    {{ redirect_field }}
+  {% endslot %}
+  {% slot actions %}
+    {% element button tags="prominent,signup" type="submit" %}Create the account{% endelement %}
+  {% endslot %}
+{% endelement %}
+<p class="small">Already have one? <a href="{{ login_url }}">Sign in</a>.</p>
+{% if SOCIALACCOUNT_ENABLED %}{% include "socialaccount/snippets/login.html" with page_layout="entrance" %}{% endif %}
+{% endblock content %}

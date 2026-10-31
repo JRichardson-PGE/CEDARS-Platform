@@ -110,6 +110,7 @@
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the claims{% endif %}</h2>
 {% if opens_later %}<p>These claims open on {{ deadline.opens_at|date:"Y-m-d" }}.</p>
 {% elif later_locked %}<p>{{ later_locked.kind }} is already confirmed, so this confirmation takes no more uploads.</p>
+{% elif earlier_open %}<p>Confirm the {{ earlier_open }} first: each confirmation is compiled on the one before it, so this one takes an upload once that one is confirmed.</p>
 {% else %}
 <p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept. Records with the same key as a record confirmed in an earlier
 quarter replace it. To withdraw a claim filed earlier this year, list its ClaimID in the Withdrawal table with the reason: its records

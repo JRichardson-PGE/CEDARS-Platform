@@ -411,6 +411,19 @@ def _adopt(actor, v: SubmissionVersion, f: dict) -> dict:
     return entry
 
 
+def earlier_unconfirmed(organisation, deadline: Deadline) -> Deadline | None:
+    """The first earlier confirmation of the year that has an upload but is not confirmed yet: it must be confirmed before this one
+    takes an upload, as each confirmation is compiled on the one before it. None when this one may be uploaded."""
+    for d in periods(deadline.period.year):
+        if number(d) >= number(deadline):
+            break
+        sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
+        v = submissions.latest(sub) if sub else None
+        if v is not None and not v.locked:
+            return d
+    return None
+
+
 def _require_in_order(organisation, deadline: Deadline) -> None:
     later = later_locked(organisation, deadline)
     if later is not None:
@@ -418,13 +431,9 @@ def _require_in_order(organisation, deadline: Deadline) -> None:
             f"{organisation.code}'s {label(later)} is already confirmed, and it was compiled on this one. Put corrections to these "
             "records in the latest confirmation's next upload."
         )
-    for d in periods(deadline.period.year):
-        if number(d) >= number(deadline):
-            break
-        sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
-        v = submissions.latest(sub) if sub else None
-        if v is not None and not v.locked:
-            raise AccessDenied(f"Confirm the {label(d)} first: each confirmation is compiled on the one before it.")
+    d = earlier_unconfirmed(organisation, deadline)
+    if d is not None:
+        raise AccessDenied(f"Confirm the {label(d)} first: each confirmation is compiled on the one before it.")
 
 
 @transaction.atomic

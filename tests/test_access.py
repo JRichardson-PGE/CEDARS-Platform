@@ -267,3 +267,9 @@ def test_bootstrap_command(db):
 
     with pytest.raises(CommandError):
         call_command("bootstrap_cpuc", "second@cpuc.ca.gov")
+
+
+def test_approving_pii_access_records_the_stewards_reason(cpuc_admin, pge, pge_admin, make_user):
+    g = service.grant(pge_admin, make_user("pii2@pge.com"), pge, perms.PII)
+    service.approve_pii(cpuc_admin, g, "cleared by the data-sharing agreement of 2026-09")
+    assert AuditEvent.objects.get(action="grant.approved", object_id=str(g.pk)).reason.startswith("cleared by")

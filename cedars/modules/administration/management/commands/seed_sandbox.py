@@ -19,7 +19,7 @@ ORGANISATIONS = [
     ("SCE", "Southern California Edison", "IOU"),
     ("SDGE", "San Diego Gas & Electric", "IOU"),
     ("SCG", "Southern California Gas Company", "IOU"),
-    ("BAYREN", "Bay Area Regional Energy Network", "REN"),
+    ("BAY", "Bay Area Regional Energy Network (BayREN)", "REN"),  # CEDARS's code for BayREN
     ("MCE", "MCE", "CCA"),
 ]
 DICTIONARY = Path(settings.BASE_DIR) / "data" / "dictionary"

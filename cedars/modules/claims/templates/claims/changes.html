@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Claims change log{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+{% if user.is_authenticated %}<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>{% endif %}
 <h1>Claims change log</h1>
 <p>Every correction to confirmed claims, newest first. A correction is a new version of a confirmation, made after its due date; the
 version it replaces stays as it was confirmed. Each change letter gives the date, the reason and what the correction changed.</p>

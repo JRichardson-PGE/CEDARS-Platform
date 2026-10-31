@@ -349,10 +349,12 @@ def test_a_later_quarter_is_compiled_over_the_confirmed_one(filer, year, pge, pr
     assert lines["PGE_Com"].claims == 1  # Q1's claim carries over
 
 
-def test_quarters_are_confirmed_in_order(filer, year, pge, programs, release, cpuc_admin):  # noqa: F811
+def test_quarters_are_confirmed_in_order(filer, year, pge, programs, release, cpuc_admin, signed_in):  # noqa: F811
     v1 = service.upload_claims(filer, deadline(), pge, q1(), "q1.zip")
     with pytest.raises(AccessDenied, match="Confirm the 2028 Q1 claim first"):
         service.upload_claims(filer, deadline("Q2 claim"), pge, q1(), "q2.zip")
+    page = signed_in(filer).get(f"/claims/periods/{deadline('Q2 claim').pk}/").content.decode()  # the page says so before any form
+    assert "Confirm the 2028 Q1 claim first" in page and 'name="file"' not in page
     finish_run(Run.objects.get(pk=service.price(filer, v1)))
     v1.refresh_from_db()
     v1 = service.confirm(filer, v1)
@@ -532,6 +534,11 @@ def test_a_correction_publishes_a_change_letter(
         ChangeLetter.objects.filter(pk=letter.pk).update(reason="edited")
     v1.refresh_from_db()
     assert v1.status == SubmissionVersion.Status.PUBLISHED and service.standing(pge, deadline()) == v2
+    # the change log, the letter and the linked-claims lookup are the public record of corrections (BR-09.3): no sign-in needed
+    for path in ("/claims/changes/", f"/claims/changes/{letter.pk}/", "/claims/links/?kind=claim&q=PGE-2028-001"):
+        r = client.get(path)
+        assert r.status_code == 200, path
+    assert "PGE-2028-002 was canceled" in client.get(f"/claims/changes/{letter.pk}/").content.decode()
 
     # pages: the change log and the letter are open to every signed-in user, linked from the versions
     sign_in(client, make_user("someone@example.com"))

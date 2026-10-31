@@ -57,7 +57,12 @@ how far it is built. Update the Status column in the PR that changes it.
 - Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) required of every
   account (`RequireMFAMiddleware`), and each federating organization's directory as an OpenID Connect app
   (`SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"]`). Cognito or the CPUC's provider plugs in the same way. A session's assurance
-  (password, mfa, federated) comes from allauth's sign-in records and is stamped on every audit event.
+  (password, mfa, federated) comes from allauth's sign-in records and is stamped on every audit event. The sign-in, sign-up,
+  password-reset and second-factor pages and emails are the platform's own templates over allauth's forms (`cedars/core/templates/account`,
+  `mfa`; `ACCOUNT_FORMS` for the field labels, `CEDARS_SUPPORT_EMAIL` for the help address). Setting up the second factor takes one
+  password: `accounts/signals.py` marks a fresh password sign-in as a recent reauthentication (allauth asks for one before an
+  authenticator is added) and records an activated authenticator as the session's second factor; a password-only session sees no
+  module navigation until then.
 - Run `manage.py bootstrap_cpuc EMAIL --steward` once per environment, and `manage.py close_recertifications` daily.
 - Impact profiles: `manage.py sync_etrm` nightly (scheduled in Terraform once `etrm_database` is set) and `manage.py run_impact_profile_jobs
   --loop` as an always-on service (upload checks, generation, syncs
@@ -104,7 +109,8 @@ how far it is built. Update the Status column in the PR that changes it.
   once, and its ClaimID is never filed again. A correction after the due date is a new version of the most recently confirmed
   confirmation (the annual one once it is confirmed); its publication writes a change letter against the version it replaces: the
   claims added, changed, removed, withdrawn and reinstated, each table's records, and each program's year to date before and after.
-  The letter is append-only in the database, as the audit trail is.
+  The letter is append-only in the database, as the audit trail is. The change log, each letter and the linked-claims lookup are
+  public pages (BR-09.3), as the filing calendar is (BR-01.5); version pages stay behind sign-in.
 - Claims link up through fields CEDARS already has: ParentClaimID (a NMEC true-up's parent), ParticipantID and SEM_Phase (a SEM
   engagement) and ProjectID, which serves as the project key (BR-05.11) rather than a new field: it is "the unique and persistent
   project identifier", stays on a claim when it is reclassified, and groups a multi-meter project or a population cohort. A true-up's

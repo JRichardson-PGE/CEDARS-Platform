@@ -35,9 +35,9 @@ def _period(year: int, code: str):
     return periods[("quarter" if code[0] == "q" else "month", int(code[1:]))]
 
 
-@login_required
 def calendar(request):
-    """The filing calendar: what each module expects and when (BR-09.4)."""
+    """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5); a CPUC system administrator adds deadlines
+    here."""
     sysadmin = access.is_system_admin(request.user)
     form = DeadlineForm(request.POST or None)
     if request.method == "POST" and sysadmin and form.is_valid():
