@@ -405,10 +405,11 @@ def _summary(problems: list, records: int, notes: list[str], rule_set: str, key:
 
 
 @transaction.atomic
-def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str) -> SubmissionVersion:
+def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None) -> SubmissionVersion:
     """Take a PA's upload for a filing: start the submission (or use its open draft), keep the job (the version's earlier file is
     deleted: superseded uploads are not kept, BR-04.4), read its budget lines, run the module's checks and the budget filing rule set,
-    and record the result: validated when nothing is rejected."""
+    and record the result: validated when nothing is rejected. `sources`: the files a combined upload was made of (jobfile.combine),
+    kept with the version's file entry."""
     if not hasattr(deadline, "budget_setup"):
         raise AccessDenied("This filing is not set up for budgets.")
     tables, job = jobfile.read_upload(data, filename)
@@ -426,7 +427,10 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str) 
     old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
     transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
     name = filename if filename.lower().endswith(".zip") else Path(filename).stem + ".zip"
-    v = submissions.attach_files(actor, v, [{"name": name, "key": key, "sha256": sha, "bytes": len(job), "uploaded_as": filename}])
+    entry = {"name": name, "key": key, "sha256": sha, "bytes": len(job), "uploaded_as": filename}
+    if sources:
+        entry["sources"] = sources
+    v = submissions.attach_files(actor, v, [entry])
     _replace_lines(v, lines)
     summary = _summary(problems, records, notes, rule_set, findings_key)
     rs = rules.in_force(RULE_SET)

@@ -511,10 +511,10 @@ def job_file(v: SubmissionVersion) -> dict | None:
 
 
 @transaction.atomic
-def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str) -> SubmissionVersion:
+def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None) -> SubmissionVersion:
     """Take a PA's report for a month: start the submission (or use its open draft), keep the upload (an earlier upload of the version is
     deleted: superseded drafts are not kept), read its lines, run the module's checks and record the result: validated when nothing is
-    rejected."""
+    rejected. `sources`: the files a combined upload was made of (upload.combine), kept with the report's file entry."""
     if deadline.module != MODULE or setup_for(deadline) is None:
         raise AccessDenied("This is not a monthly report that has been set up.")
     tables = up.read_upload(data, filename)
@@ -542,6 +542,8 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str) 
             "measures": len(up.rows(tables["Measure"])[1]),
         },
     ]
+    if sources:
+        files[0]["sources"] = sources
     v = submissions.attach_files(actor, v, files)
     _replace_lines(v, lines)
     return submissions.record_validation(actor, v, None, _summary(found, records, notes, findings_key))

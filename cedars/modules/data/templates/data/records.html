@@ -1,39 +1,108 @@
 {% extends "core/base.html" %}
 {% load data_tags %}
-{% block title %}Records · Portfolio dashboard{% endblock %}
+{% block title %}{{ series }} records · Record downloads{% endblock %}
 {% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}" aria-current="page">Record downloads</a>
+</nav>
 <h1>{{ series }} records</h1>
-<p>The {{ series|lower }} records behind a dashboard number, as published. Their total equals the row you came from.
+<p>The published measure-level records, for every PA in one file. Choose the records and the columns, then download them as CSV,
+Excel or Parquet. A download from a dashboard row holds exactly the records behind it.
 {% if as_of %}Data as of {{ as_of|date:"Y-m-d H:i e" }}.{% endif %}</p>
-{% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
-{% if applied %}<ul class="chips">{% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong></li>{% endfor %}</ul>{% endif %}
-{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
-{% if recs.count %}
-<div class="head-row">
-  <p>{{ recs.count }} record{{ recs.count|pluralize }}{% if recs.count > recs.limit %}, {{ first }} to {{ last }} shown{% endif %}.</p>
-  <p><a href="/data/download.csv?{{ download }}">Download the totals (CSV)</a></p>
-</div>
-<div class="hscroll" tabindex="0" role="region" aria-label="Records">
-<table class="list">
-  <caption class="sr-only">{{ series }} records, by CEInputID</caption>
-  <thead><tr><th scope="col">CEInputID</th><th scope="col">PrgID</th><th scope="col">Measure</th><th scope="col">Use category</th><th scope="col">Year</th><th scope="col">PA</th><th scope="col">Filed by</th>
-    {% for m in metric_list %}<th scope="col" class="num">{{ m.label }}{% if m.unit %} ({{ m.unit }}){% endif %}</th>{% endfor %}</tr></thead>
-  <tbody>
-  {% for r in recs.rows %}
-  <tr><th scope="row" class="mono">{{ r.CEInputID }}</th><td><a href="/programs/{{ r.PrgID }}/">{{ r.PrgID }}</a></td><td>{{ r.MeasureID|default_if_none:"" }}</td>
-    <td>{{ r.UseCategory|default_if_none:"" }}</td><td>{{ r.Used_Year|default_if_none:"" }}</td><td>{{ r.CreditedPA|default_if_none:"" }}</td><td>{{ r.filed_by }}</td>
-    {% for m in metric_list %}<td class="num">{{ r|get_item:m.code|metric_value:m }}</td>{% endfor %}</tr>
+{% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:records' %}">Start again</a></p>{% endif %}
+
+<form method="post" action="{% url 'data:records' %}" class="filters dash-controls records-form" aria-label="Records and columns">
+  {% csrf_token %}
+  {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <input type="hidden" name="columns" value="none">
+  <label>Data
+    <select name="dataset">{% for code, label in datasets %}<option value="{{ code }}"{% if code == q.dataset %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+  </label>
+  <label>Filing (forecast)
+    <select name="filing">
+      <option value="">Each PA's latest</option>
+      {% for value, label in filings %}<option value="{{ value }}"{% if value == q.filing %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>From year <input type="number" name="year_from" min="1990" max="2100" inputmode="numeric" value="{{ q.year_from|default_if_none:'' }}"></label>
+  <label>To year <input type="number" name="year_to" min="1990" max="2100" inputmode="numeric" value="{{ q.year_to|default_if_none:'' }}"></label>
+  {% if pas %}<fieldset>
+    <legend>PA <span class="muted small">(none ticked: every PA)</span></legend>
+    {% for pa, checked in pas %}<label class="check"><input type="checkbox" name="pa" value="{{ pa }}"{% if checked %} checked{% endif %}> {{ pa }}</label>{% endfor %}
+  </fieldset>{% endif %}
+  {% for f in text_filters %}
+  <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.value }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">{{ f.help }}</span></label>
   {% endfor %}
+  <details class="dash-filters"{% for f in more_filters %}{% if f.selected %} open{% endif %}{% endfor %}>
+    <summary>More filters and exclusions</summary>
+    {% for f in more_filters %}
+    {% if f.options %}<fieldset>
+      <legend>{{ f.label }}</legend>
+      {% for o in f.options %}<label class="check"><input type="checkbox" name="{{ f.code }}" value="{{ o }}"{% if o in f.selected %} checked{% endif %}> {{ o }}</label>{% endfor %}
+    </fieldset>{% else %}
+    <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.selected|join:',' }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">Separated by commas.</span></label>
+    {% endif %}
+    {% endfor %}
+    <fieldset>
+      <legend>Leave out <span class="muted small">(records hold every published program unless you leave some out)</span></legend>
+      {% for code, label, excluded in exclusions %}<label>{{ label }}
+        <select name="{{ code }}"><option value="include"{% if not excluded %} selected{% endif %}>Included</option><option value="exclude"{% if excluded %} selected{% endif %}>Left out</option></select></label>{% endfor %}
+    </fieldset>
+  </details>
+  {% if groups %}<fieldset class="column-picker">
+    <legend>Columns: {{ page.columns|length }} of {{ column_count }} chosen</legend>
+    <p class="small">Start from: {% for label, href in presets %}<a href="{{ href }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
+      Open a group to tick its columns. Each column is defined in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+    {% for g in groups %}
+    <details>
+      <summary>{{ g.label }} <span class="muted">({{ g.chosen }} of {{ g.count }} chosen)</span></summary>
+      <ul class="column-list">
+        {% for c, checked in g.columns %}<li><label class="check"><input type="checkbox" name="col" value="{{ c.name }}"{% if checked %} checked{% endif %}{% if c.definition %} aria-describedby="def-{{ g.slug }}-{{ forloop.counter }}"{% endif %}> <span class="mono">{{ c.name }}</span></label>{% if c.definition %} <span class="small muted" id="def-{{ g.slug }}-{{ forloop.counter }}">{{ c.definition|truncatewords:24 }}</span>{% endif %}</li>{% endfor %}
+      </ul>
+    </details>
+    {% endfor %}
+  </fieldset>{% endif %}
+  <button type="submit" class="primary">Show these records</button>
+</form>
+
+{% if applied %}<ul class="chips" aria-label="Applied filters">{% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong></li>{% endfor %}</ul>{% endif %}
+{% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if page.unknown %}<p class="notices">Not in these records, so left out: {{ page.unknown|join:", " }}.</p>{% endif %}
+
+{% if page.count %}
+<h2>Download</h2>
+<p>{{ page.count }} record{{ page.count|pluralize }} from {{ page.result.files|length }} published filing{{ page.result.files|length|pluralize }},
+  with {{ page.columns|length }} column{{ page.columns|length|pluralize }}.
+  {% for m in metric_list %}{{ m.label|capfirst }}{% if m.unit %} ({{ m.unit }}){% endif %}: {{ totals|get_item:m.code|metric_value:m }}{% if not forloop.last %}; {% else %}.{% endif %}{% endfor %}</p>
+{% if too_many %}
+<p class="alert" role="alert">These are more records than the {{ max_rows }} a download holds for now. Narrow the filters (a PA, program, measure or years) to download them.</p>
+{% elif page.columns %}
+<ul class="downloads">
+  {% for fmt, label, href in downloads %}{% if fmt == "XLSX" and xlsx_too_many %}<li>Excel: more rows than a worksheet holds; use CSV or Parquet</li>{% else %}<li><a href="{{ href }}" download>{{ label }}<span class="sr-only"> of the {{ page.count }} records</span></a></li>{% endif %}{% endfor %}
+</ul>
+<p class="small muted">Each file records its release, when its data last changed, the snapshots and PAs it was read from, the filters,
+  what was left out and the columns, under their canonical names.</p>
+{% else %}<p>Choose at least one column to download.</p>{% endif %}
+
+{% if page.columns %}
+<h2>The records</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Records, {{ first }} to {{ last }}">
+<table class="list records">
+  <caption class="sr-only">{{ series }} records {{ first }} to {{ last }} of {{ page.count }}, by CEInputID</caption>
+  <thead><tr>{% for c in page.columns %}<th scope="col" class="mono">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in page.rows %}<tr>{% for v in r %}<td{% if v|is_number %} class="num"{% endif %}>{{ v|cell }}</td>{% endfor %}</tr>{% endfor %}
   </tbody>
-  <tfoot><tr><th scope="row" colspan="7">Total of all {{ recs.count }}</th>{% for m in metric_list %}<td class="num">{{ recs.result.totals|get_item:m.code|metric_value:m }}</td>{% endfor %}</tr></tfoot>
 </table>
 </div>
 {% if previous or next %}
 <nav class="pager" aria-label="Record pages">
   {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
-  <span>Records {{ first }} to {{ last }} of {{ recs.count }}</span>
+  <span>Records {{ first }} to {{ last }} of {{ page.count }}</span>
   {% if next %}<a href="{{ next }}">Next</a>{% endif %}
 </nav>
 {% endif %}
-{% else %}<p>No records match.</p>{% endif %}
+{% endif %}
+{% elif not error %}<p>No records match.</p>{% endif %}
 {% endblock %}

@@ -67,3 +67,21 @@ def money(value):
 def series_word(dataset):
     """ "claims" -> "claimed", "forecast" -> "forecast"."""
     return "claimed" if dataset == "claims" else dataset
+
+
+@register.filter
+def is_number(value):
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+@register.filter
+def cell(value):
+    """A record's value on the records page: blank for none, whole numbers without decimals, others to two decimals from a thousand
+    up and six significant places below (the files keep every digit)."""
+    if value is None:
+        return ""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return value
+    if isinstance(value, float) and not value.is_integer():
+        return f"{value:,.2f}" if abs(value) >= 1000 else f"{value:.6g}"
+    return f"{int(value):,}"

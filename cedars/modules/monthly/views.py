@@ -242,9 +242,9 @@ def _action(request, pk, fn, done: str):
 def upload(request, pk):
     form = forms.UploadForm(request.POST, request.FILES)
     if not form.is_valid():
-        messages.error(request, "Choose the report's .zip or .xlsx file.")
+        messages.error(request, "Choose the report's .zip or .xlsx file, or its files.")
         return redirect("monthly:report", pk)
-    f = form.cleaned_data["file"]
+    files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def done(v):
         s = v.findings or {}
@@ -253,7 +253,11 @@ def upload(request, pk):
             return msg + (f", {s['warnings']:,} with warnings." if s.get("warnings") else ".") + " Price it next."
         return f"{s.get('rejected', 0):,} records are rejected. Fix them and upload the file again."
 
-    return _action(request, pk, lambda d, o: service.upload(request.user, d, o, f.read(), f.name), done)
+    def do(d, o):
+        c = up.combine(files)
+        return service.upload(request.user, d, o, c.data, c.filename, sources=c.sources)
+
+    return _action(request, pk, do, done)
 
 
 @login_required

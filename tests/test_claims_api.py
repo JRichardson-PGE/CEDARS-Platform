@@ -16,6 +16,7 @@ from cedars.services.submissions.models import SubmissionVersion
 
 from .test_budgets import release  # noqa: F401 - the engine release fixture
 from .test_claims import claim, claims_zip, confirmed, deadline, filer, finish_run, linked, programs, q1, row, tables, withdraw, year  # noqa: F401
+from .test_uploads import split
 
 pytestmark = pytest.mark.django_db
 API = "/api/v1/claims"
@@ -249,3 +250,8 @@ def test_a_step_acts_only_on_the_confirmations_latest_version(key, filer, year, 
         r = post(key, f"/versions/{v1.pk}/{step}")
         assert r.status_code == 409 and f"version {v2.number} is" in r.json()["detail"], step
     assert post(key, f"/versions/{v2.pk}/check").status_code == 200
+
+
+def test_the_api_takes_several_files(key, year, programs):  # noqa: F811
+    r = post(key, f"/periods/{deadline().pk}/upload", {"file": split(q1())})
+    assert r.status_code == 201 and r.json()["status"] == "validated", r.content

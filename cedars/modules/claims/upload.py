@@ -11,6 +11,8 @@ import zipfile
 from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
+from cedars.core import uploads
+
 from . import spec
 
 SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
@@ -31,6 +33,15 @@ class Table:
 
     def get(self, row: dict, column: str) -> str:
         return row.get(column, "")
+
+
+def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
+    """Several files chosen at once as the one upload read takes (cedars.core.uploads, BR-06.3); a PII table in any of them refuses
+    the whole upload, as in one file."""
+    try:
+        return uploads.combine(files, spec.table_name, refuse=_no_pii)
+    except uploads.CombineError as e:
+        raise UploadError(str(e)) from None
 
 
 def read(data: bytes, filename: str) -> dict[str, Table]:

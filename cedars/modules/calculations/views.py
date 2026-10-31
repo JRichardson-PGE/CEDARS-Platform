@@ -174,6 +174,7 @@ def run(request, pk):
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
             "settings": settings_view(run.settings),
+            "programs": service.programs_label(run),
             "engine": receipt.get("engine") or {},
             "packs": ((receipt.get("packs") or {}).get("files") or {}),
             "totals": receipt.get("totals") or {},

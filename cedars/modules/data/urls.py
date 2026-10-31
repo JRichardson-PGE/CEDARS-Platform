@@ -9,5 +9,6 @@ urlpatterns = [
     path("download.<str:fmt>", views.download, name="download"),
     path("metrics.csv", views.metrics_csv, name="metrics_csv"),
     path("records/", views.records_page, name="records"),
+    path("records/download.<str:fmt>", views.records_download, name="records_download"),
     path("<slug:slug>/", views.dashboard_page, name="dashboard"),
 ]
