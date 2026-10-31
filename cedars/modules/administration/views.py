@@ -232,6 +232,9 @@ def organisation(request, code):
             "campaign": campaign,
             "items": items,
             "recert_form": forms.RecertificationForm(),
+            "details_form": forms.OrganisationDetailsForm(org=org, initial={"name": org.name, "pa_type": org.pa_type})
+            if service.is_system_admin(request.user)
+            else None,
             "no_admin": not service.org_admins(org).exists(),
             "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
                 "user"
@@ -240,6 +243,28 @@ def organisation(request, code):
             else [],
         },
     )
+
+
+@login_required
+@require_POST
+def organisation_details(request, code):
+    """A CPUC system administrator changes an organisation's name or PA type (with a reason)."""
+    org = get_object_or_404(Organisation, code=code)
+    if not service.is_system_admin(request.user):
+        raise Http404
+    back = f"/admin/organisations/{org.code}/"
+    form = forms.OrganisationDetailsForm(request.POST, org=org)
+    if not form.is_valid():
+        problems = "; ".join(f"{form.fields[k].label if k in form.fields else k}: {' '.join(v)}" for k, v in form.errors.items())
+        messages.error(request, "Check the details form: " + problems)
+        return redirect(back)
+    d = form.cleaned_data
+    changes = {k: d[k] for k in service.ORGANISATION_DETAILS if k in d}
+    try:
+        service.change_organisation(request.user, org, reason=d["reason"], **changes)
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    return _done(request, f"{org.code}'s details saved.", back)
 
 
 @login_required

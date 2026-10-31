@@ -21,7 +21,6 @@ from cedars.services.registry import service as registry
 from .models import LegacySource
 from .service import LegacyError, open_member
 
-IOUS = {"PGE", "SCE", "SCG", "SDGE"}
 TRUE = {"true", "1", "yes", "y", "t"}
 # The program flag columns (Prg_*) and the registry's flag names.
 FLAGS = {
@@ -177,7 +176,7 @@ def organisation(code: str) -> Organisation:
     """The PA a legacy file names, created under its CEDARS code when the platform does not have it yet."""
     org = Organisation.objects.filter(code=code).first()
     if org is None:
-        org = access.create_organisation(None, code=code, name=code, kind="pa", pa_type="IOU" if code in IOUS else "")
+        org = access.create_organisation(None, code=code, name=code, kind="pa", pa_type=access.known_pa_type(code))
     return org
 
 

@@ -13,6 +13,7 @@ urlpatterns = [
     path("admin/organisations/", views.organisations, name="organisations"),
     path("admin/organisations/new/", views.organisation_new, name="organisation_new"),
     path("admin/organisations/<str:code>/", views.organisation, name="organisation"),
+    path("admin/organisations/<str:code>/details", views.organisation_details, name="organisation_details"),
     path("admin/organisations/<str:code>/grant", views.grant, name="grant"),
     path("admin/organisations/<str:code>/recertification", views.open_recertification, name="open_recertification"),
     path("admin/grants/<int:pk>/revoke", views.revoke, name="revoke"),

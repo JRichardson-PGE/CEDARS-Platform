@@ -6,12 +6,13 @@
 <div class="hscroll" tabindex="0" role="region" aria-label="Organisations">
 <table class="list">
   <caption class="sr-only">Organisations, their administrators and recertification status</caption>
-  <thead><tr><th scope="col">Organisation</th><th scope="col">Kind</th><th scope="col">Administrators</th><th scope="col">Members</th><th scope="col">Recertification</th></tr></thead>
+  <thead><tr><th scope="col">Organisation</th><th scope="col">Kind</th><th scope="col">PA type</th><th scope="col">Administrators</th><th scope="col">Members</th><th scope="col">Recertification</th></tr></thead>
   <tbody>
   {% for r in rows %}
   <tr>
     <th scope="row"><a class="id" href="{% url 'administration:organisation' r.org.code %}">{{ r.org.code }}</a> <span class="small muted">{{ r.org.name }}</span></th>
-    <td>{{ r.org.get_kind_display }}{% if r.org.pa_type %} ({{ r.org.pa_type }}){% endif %}{% if r.org.federated %}, federated{% endif %}</td>
+    <td>{{ r.org.get_kind_display }}{% if r.org.federated %}, federated{% endif %}</td>
+    <td>{% if r.org.kind == "pa" %}{% if r.org.pa_type %}{{ r.org.pa_type }}{% else %}<span class="status warn">Not set</span>{% endif %}{% else %}<span aria-hidden="true">–</span><span class="sr-only">Not a program administrator</span>{% endif %}</td>
     <td class="num">{% if r.admins %}{{ r.admins }}{% else %}<span class="status warn">None: needs a first administrator</span>{% endif %}</td>
     <td class="num">{{ r.members }}</td>
     <td>{% if r.campaign %}<span class="status info">Open</span> due {{ r.campaign.due_at|date:"Y-m-d" }}, {{ r.undecided }} not reviewed{% elif r.last %}<span class="status ok">Closed</span> {{ r.last.closed_at|date:"Y-m-d" }}{% else %}<span class="status">Never run</span>{% endif %}</td>

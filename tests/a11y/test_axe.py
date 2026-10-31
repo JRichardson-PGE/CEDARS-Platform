@@ -129,6 +129,7 @@ def local_storage(django_db_blocker):
 def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
+    service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
     analyst = make_user("analyst@pge.com", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
     service.grant(pge_admin, analyst, pge, perms.PII, reason="files claims with contacts")

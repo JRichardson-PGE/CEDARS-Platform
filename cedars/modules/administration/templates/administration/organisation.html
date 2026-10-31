@@ -4,6 +4,23 @@
 <h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>
 {% if not is_admin %}<p class="muted">You are viewing this organisation as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
 
+<section class="card" aria-labelledby="details-h">
+  <h2 id="details-h">Details</h2>
+  <dl class="facts">
+    <dt>Kind</dt><dd>{{ org.get_kind_display }}{% if org.federated %}, federated{% endif %}</dd>
+    {% if org.kind == "pa" %}<dt>PA type</dt><dd>{% if org.pa_type %}{{ org.pa_type }} ({{ org.get_pa_type_display|lower }}){% else %}<span class="status warn">Not set</span> The dashboards cannot group this PA's data until it has a type.{% endif %}</dd>{% endif %}
+  </dl>
+  {% if details_form %}
+  <details{% if org.kind == "pa" and not org.pa_type %} open{% endif %}>
+    <summary>Change the name or PA type</summary>
+    <form method="post" action="{% url 'administration:organisation_details' org.code %}" class="stack form-narrow">{% csrf_token %}
+      {% for field in details_form %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">Save details</button></div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
 {% if no_admin %}
 <div class="card">
   <h2>First administrator</h2>

@@ -124,7 +124,7 @@ def test_the_application_loads_as_imported_versions_with_lines_and_results(downl
     }
     # programs: the registry got a version per run of years
     p = Program.objects.get(prg_id="BAY_Res_01")
-    assert p.administrator.code == "BAY" and Organisation.objects.get(code="BAY").pa_type == ""
+    assert p.administrator.code == "BAY" and Organisation.objects.get(code="BAY").pa_type == "REN"
     (pv,) = p.versions.all()
     assert (pv.valid_from, pv.valid_to, pv.segment, pv.flags) == (
         date(2028, 1, 1),
