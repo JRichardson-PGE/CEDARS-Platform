@@ -64,6 +64,8 @@ class EtrmSyncRun(models.Model):
     unchanged = models.PositiveIntegerField(default=0)
     excluded = models.PositiveIntegerField(default=0)
     error = models.TextField(blank=True)
+    attempt = models.PositiveSmallIntegerField(default=1, help_text="1 for a sync's first try, 2 and on for its automatic retries")
+    alerted_at = models.DateTimeField(null=True, blank=True, help_text="When administrators were told this sync failed (its last attempt)")
 
     class Meta:
         ordering = ["-started_at", "-pk"]
