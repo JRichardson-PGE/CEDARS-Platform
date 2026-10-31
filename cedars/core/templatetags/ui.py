@@ -11,7 +11,7 @@ register = template.Library()
 
 # Submission version statuses (services.submissions) and the other words pages put in a badge, by tone.
 _TONES = {
-    "ok": {"published", "confirmed", "approved", "accepted", "active", "effective", "complete", "completed", "done", "paid", "closed"},
+    "ok": {"published", "confirmed", "approved", "accepted", "active", "effective", "complete", "completed", "done", "paid"},
     "warn": {"draft", "pending", "waiting", "open", "overdue", "expiring", "late"},
     "bad": {"rejected", "declined", "failed", "error", "revoked", "withdrawn", "purged"},
     "info": {"validated", "queued", "running", "submitted", "imported", "new", "under review"},
