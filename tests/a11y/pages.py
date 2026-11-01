@@ -5,7 +5,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
-{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {release_note}, {release_done}, {release_draft}."""
+{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}."""
 
 PAGES = [
     ("home", "/", None),
@@ -32,6 +32,7 @@ PAGES = [
         )
     ],
     ("about", "/about/", None),
+    # release notes, limits and the FAQ (gap 9); the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
     ("releases", "/releases/", None),
     ("releases-signed-in", "/releases/", "community"),
     ("release-coming", "/releases/{release_note}/", None),

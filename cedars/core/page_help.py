@@ -39,10 +39,10 @@ AREAS = {  # the Help index groups the pages by the file they come from, in this
     "dictionary": "Data dictionary",
     "rules": "Validation rules",
     "refdata": "Reference data",
+    "releases": "Release notes and limits",
     "notifications": "Notifications",
     "administration": "Your account and administration",
     "retention": "Retention",
-    "releases": "Release notes and limits",
 }
 STEP_KEYS = {"title", "text", "target", "heading", "optional"}
 ENTRY_KEYS = {"title", "guide", "how", "see", "tour", "tour_from"}
