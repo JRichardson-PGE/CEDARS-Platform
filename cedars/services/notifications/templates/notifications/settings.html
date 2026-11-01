@@ -41,8 +41,9 @@
       {% for p, name in programs %}<label><input type="checkbox" name="program" value="{{ p.prg_id }}" checked> <span><a href="/programs/{{ p.prg_id }}/">{{ p.prg_id }}</a>{% if name %}: {{ name }}{% endif %}</span></label>{% endfor %}
     </div>
     {% else %}<p>None yet.</p>{% endif %}
-    <p><label for="add-programs">Follow more programs <span class="helptext">PrgIDs, separated by commas, spaces or new lines</span></label>
-      <textarea id="add-programs" name="add_programs" rows="2" autocomplete="off"></textarea></p>
+    <div class="field"><label for="add-programs">Follow more programs</label>
+      <textarea id="add-programs" name="add_programs" rows="2" autocomplete="off" aria-describedby="add-programs-help"></textarea>
+      <span class="helptext" id="add-programs-help">PrgIDs, separated by commas, spaces or new lines</span></div>
   </fieldset>
   <fieldset>
     <legend>For the programs you follow, tell me when</legend>

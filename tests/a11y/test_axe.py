@@ -947,7 +947,8 @@ def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
 
 # Markup checks axe does not make (UI review 2, 2026-10-31): an id used twice (a label's for and a hint's aria-describedby reach only the
 # first; Django gives every form the same id_<field> ids unless the view sets auto_id), a checkbox or radio squeezed below 24 px by a
-# flex row, a summary under 24 px tall (2.5.8) and a table without a caption.
+# flex row, a summary under 24 px tall (2.5.8), a table without a caption, and a label or legend ending in a colon (the field template
+# writes none, batch B of the review, and neither do the hand-written labels).
 MARKUP = """() => {
   const ids = {}; document.querySelectorAll('[id]').forEach(e => { ids[e.id] = (ids[e.id] || 0) + 1; });
   const seen = e => e.getClientRects().length > 0;
@@ -960,6 +961,7 @@ MARKUP = """() => {
       .map(e => e.textContent.trim().slice(0, 60) + ' ' + size(e)),
     tables_without_caption: [...document.querySelectorAll('table')].filter(t => !t.querySelector('caption'))
       .map(t => (t.closest('[aria-label]') || t).getAttribute('aria-label') || t.outerHTML.slice(0, 80)),
+    label_colons: [...document.querySelectorAll('label, legend')].map(e => e.textContent.trim()).filter(t => t.endsWith(':')).slice(0, 10),
   }; }"""
 
 

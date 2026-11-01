@@ -1,0 +1,5 @@
+{% load allauth %}
+{% comment %}allauth's own version is form.as_p (label with a colon, hint above the control). Every CEDARS form field renders through the
+project's field template instead (django/forms/field.html: label, control, errors, hint, no colon), the sign-in and second-factor pages too.{% endcomment %}
+{% if attrs.form.non_field_errors %}<div class="alert" role="alert">{{ attrs.form.non_field_errors }}</div>{% endif %}
+{% for field in attrs.form %}{% if field.is_hidden %}{{ field }}{% else %}{{ field.as_field_group }}{% endif %}{% endfor %}

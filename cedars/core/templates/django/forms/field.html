@@ -1,13 +1,23 @@
-{% comment %}Every form field rendered with as_field_group (docs/DESIGN.md): one block per field, so a field stays together when a form
-wraps (the filter bars), in the order label, hint, errors, control. Same contents as Django's own template, wrapped in .field.{% endcomment %}
+{% comment %}Every form field rendered with as_field_group (docs/DESIGN.md): one .field block per field, so a field stays together when a form
+wraps (the filter bars), in the order label, control, errors, hint, the order the hand-written fields use (UI review 2, 2026-10-31). The hint
+sits under the control it describes, and the control's aria-describedby names it. The label is written here rather than by label_tag, so it
+carries no colon, like the hand-written labels. A checkbox is one line with the box inside its label, like the .checks lists.{% endcomment %}
 <div class="field{% if field.errors %} has-errors{% endif %}">
 {% if field.use_fieldset %}
   <fieldset{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>
-  {% if field.label %}{{ field.legend_tag }}{% endif %}
+  {% if field.label %}<legend>{{ field.label }}</legend>{% endif %}
+  {{ field }}
+  {{ field.errors }}
+  {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
+  </fieldset>
+{% elif field.field.widget.input_type == "checkbox" %}
+  <label class="check"{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>{{ field }} {{ field.label }}</label>
+  {{ field.errors }}
+  {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
 {% else %}
-  {% if field.label %}{{ field.label_tag }}{% endif %}
+  {% if field.label %}<label{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>{{ field.label }}</label>{% endif %}
+  {{ field }}
+  {{ field.errors }}
+  {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
 {% endif %}
-{% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
-{{ field.errors }}
-{{ field }}{% if field.use_fieldset %}</fieldset>{% endif %}
 </div>
