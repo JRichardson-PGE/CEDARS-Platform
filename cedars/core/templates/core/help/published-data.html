@@ -22,6 +22,19 @@ spending, Cost effectiveness, Energy savings and Environmental impact.</p>
 <p><a href="{% url 'data:records' %}">Record downloads</a> gives the published measure-level records for every PA in one file. Choose
 claims or a filing, the years and filters, then the columns (each defined in the data dictionary), and download. A large download is
 made in the background: sign in and CEDARS tells you when it is ready.</p>
+<h2>Saved views</h2>
+<p>Signed in, you can save any dashboard page or the records page with its choices (years, filters, metric and, for records, the
+columns) under a name, from the Saved views part at the bottom of the page. A view keeps the choices, not the numbers, so it always
+opens on the data published now. <a href="{% url 'data:views' %}">Saved views</a> lists your views, the ones shared with you and the
+ones published for everyone.</p>
+<ul>
+  <li><strong>Share</strong> a view with people by their CEDARS account's email address (they are told), or with the members of an
+  organization you belong to. They can open it and save a copy of their own; only you change it.</li>
+  <li><strong>Publish</strong>: ask the CPUC to publish a view, and a CPUC system administrator decides. A published view is open to
+  everyone, signed in or not, and does not change until it is unpublished.</li>
+  <li><strong>Your default columns</strong>: on the records page, make the columns you chose your default, and the page starts from them
+  instead of the key columns whenever a link names none.</li>
+</ul>
 <h2>The open data API</h2>
 <p>Programs can read the same published data as JSON, with no account, from the open data API at <code>/api/v1/data/</code>. It has the
 metric catalog (<code>metrics</code>), the dimensions, filters and exclusions (<code>dimensions</code>), sums of any metrics by any

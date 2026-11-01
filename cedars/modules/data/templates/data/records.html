@@ -5,6 +5,7 @@
 <nav class="subnav" aria-label="Data pages">
   <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
   <a href="{% url 'data:records' %}" aria-current="page">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
   {% if user.is_authenticated %}<a href="{% url 'data:downloads' %}">Your downloads</a>{% endif %}
 </nav>
 <div class="page-title"><h1>{{ series }} records</h1>{% page_help "data/records" %}</div>
@@ -50,6 +51,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
   </details>
   {% if groups %}<fieldset class="column-picker">
     <legend>Columns: {{ page.columns|length }} of {{ column_count }} chosen</legend>
+    {% if default_columns.on %}<p class="small"><strong>These are your default columns.</strong> The page starts from them when a link names no columns.</p>{% endif %}
     <p class="small">Start from: {% for label, href in presets %}<a href="{{ href }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
       Open a group to tick its columns. Each column is defined in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
     {% for g in groups %}
@@ -63,6 +65,15 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
   </fieldset>{% endif %}
   <button type="submit" class="primary">Show these records</button>
 </form>
+{% if user.is_authenticated and page.columns %}
+<form method="post" action="{% url 'data:records_default_columns' %}" class="filters default-columns" aria-label="Your default columns">
+  {% csrf_token %}
+  <input type="hidden" name="query" value="{{ job_query }}">
+  {% if not default_columns.on %}<button type="submit">Make these {{ page.columns|length }} columns my default</button>{% endif %}
+  {% if default_columns.set %}<button type="submit" name="clear" value="1">Start from the key columns again</button>{% endif %}
+  <span class="helptext">{% if default_columns.set %}Your records page starts from your own default columns when a link names none.{% else %}Your records page then starts from these columns, instead of the key ones, whenever a link names none.{% endif %}</span>
+</form>
+{% endif %}
 
 {% if applied %}<ul class="chips" aria-label="Applied filters">{% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong></li>{% endfor %}</ul>{% endif %}
 {% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
@@ -119,4 +130,5 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 {% endif %}
 {% endif %}
 {% elif not error %}<p>No records match.</p>{% endif %}
+{% include "data/_saved_views.html" %}
 {% endblock %}

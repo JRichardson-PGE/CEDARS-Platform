@@ -82,9 +82,11 @@ def dashboard_index(request):
 
 @require_GET
 def dashboard_page(request, slug):
+    from urllib.parse import urlencode
+
     from django.shortcuts import render
 
-    from . import budget_view, goal_view
+    from . import budget_view, goal_view, saved_pages
 
     page = dashboard.PAGES.get(slug)
     if page is None:
@@ -179,6 +181,7 @@ def dashboard_page(request, slug):
         ],
         "pa_groups": dashboard.pa_groups(selected),
     }
+    context |= saved_pages.page_context(request, page.slug, None if error else urlencode(view.params, doseq=True))
     return render(request, "data/dashboard.html", context)
 
 
@@ -220,22 +223,27 @@ def records_page(request):
     on to the short GET address of what it chose, so every choice has a link that reproduces it (and fits in a URL)."""
     from django.shortcuts import redirect, render
 
-    from . import records
+    from . import records, saved, saved_pages
 
-    error, page, number = None, None, 1
+    error, page, number, own_columns = None, None, 1, False
+    default = saved.default_columns(request.user)
     try:
         if request.method == "POST":
             rq = records.from_params({k: request.POST.getlist(k) for k in request.POST if k not in FORM_SKIP})
             cat = records.catalog(query.files_of(rq.query))
             columns, _ = records.chosen(cat, rq.params)
             return redirect(f"{request.path}?{records.query_string(rq.query, cat, columns)}")
-        rq = records.from_params(request.GET)
+        rq = records.from_params(request.GET, default_columns=default)
+        own_columns = rq.default_columns
         if request.GET.get("page", "").isdigit():
             number = max(int(request.GET["page"]), 1)
         page = records.page(rq, limit=RECORDS_PER_PAGE, offset=(number - 1) * RECORDS_PER_PAGE)
     except query.QueryError as e:
         error = f"Those records could not be shown: {e}."
-    return render(request, "data/records.html", _records_context(request, page, number, error))
+    context = _records_context(request, page, number, error)
+    context |= saved_pages.page_context(request, saved.RECORDS, context.get("job_query"))
+    context["default_columns"] = {"on": own_columns and page is not None, "set": default is not None}
+    return render(request, "data/records.html", context)
 
 
 def _records_context(request, page, number, error) -> dict:

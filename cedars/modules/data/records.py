@@ -59,6 +59,7 @@ KEY_COLUMNS = (
     "LifecycleNetGasCO2",
 )
 PRESETS = ("key", "all", "none")
+COLUMN_PARAMS = ("columns", "colgroup", "col", "drop")
 TEXT_FILTERS = ("program", "measure", "use_category")  # typed as comma-separated lists
 # The filters the page's form shows; any other filter rides along as a hidden field.
 FORM_FILTERS = ("pa_type", "pa", "program", "measure", "sector", "segment", "implementer_type", "measure_type", "use_category")
@@ -209,11 +210,13 @@ def encode(cat: Catalog, columns: list[str]) -> dict[str, list[str]]:
 class RecordQuery:
     query: dq.Query  # the rows (its `by` is always empty); its metrics are the totals the page shows
     params: dict  # the column parameters as given
+    default_columns: bool = False  # the columns are the person's own default (no column parameter was given)
 
 
-def from_params(params, *, today: date | None = None) -> RecordQuery:
+def from_params(params, *, today: date | None = None, default_columns: list[str] | None = None) -> RecordQuery:
     """The records a GET asks for. Nothing is excluded unless asked (record downloads hold every published record); with no
-    parameters at all, the current year (BR-07.7)."""
+    parameters at all, the current year (BR-07.7). With no column parameter, `default_columns` (a person's own default, BR-07.4) are
+    the columns instead of the key ones."""
     raw = {k: _many(params, k) for k in (params.keys() if hasattr(params, "keys") else [])}
     for k in TEXT_FILTERS:
         raw[k] = [part.strip() for v in raw.get(k, []) for part in v.split(",") if part.strip()]
@@ -223,7 +226,10 @@ def from_params(params, *, today: date | None = None) -> RecordQuery:
         year = str((today or timezone.localdate()).year)
         raw = {"year_from": [year], "year_to": [year]}
     q = dq.from_params(raw, exclude=())
-    return RecordQuery(q, {k: raw[k] for k in ("columns", "colgroup", "col", "drop") if k in raw})
+    columns = {k: raw[k] for k in COLUMN_PARAMS if k in raw}
+    if not columns and default_columns:
+        return RecordQuery(q, {"columns": ["none"], "col": list(default_columns)}, default_columns=True)
+    return RecordQuery(q, columns)
 
 
 def query_string(q: dq.Query, cat: Catalog | None = None, columns: list[str] | None = None, *, preset: str = "") -> str:
