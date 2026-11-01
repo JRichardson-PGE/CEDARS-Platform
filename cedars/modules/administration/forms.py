@@ -18,6 +18,46 @@ class GrantForm(forms.Form):
         self.fields["permission"].choices = [(c, perms.label(c)) for c in codes]
 
 
+class TemplateGrantForm(forms.Form):
+    """Grant a member every permission of a role template at once (BR-01.3)."""
+
+    email = forms.EmailField(label="Their email address", help_text="They need an account first.")
+    template = forms.ChoiceField(label="Role template")
+    expires = forms.DateField(label="Expires (optional)", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    reason = forms.CharField(label="Reason", required=False, max_length=500)
+
+    def __init__(self, *args, templates=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["template"].choices = [(str(t.pk), t.name) for t in templates]
+
+
+def _module_permission_choices():
+    return [(c, perms.label(c)) for c in perms.module_permissions()]
+
+
+class RoleTemplateForm(forms.Form):
+    """A CPUC system administrator's role template: a name, who it is for and the module permissions it grants."""
+
+    name = forms.CharField(label="Name", max_length=80, help_text="e.g. CPUC reviewer, Evaluator, Implementer, Consultant")
+    description = forms.CharField(
+        label="Who it is for (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}), max_length=1000
+    )
+    kinds = forms.MultipleChoiceField(
+        label="Offered for",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        choices=Organisation.Kind.choices,
+        help_text="The kinds of organization it is offered in. Tick none to offer it in every kind.",
+    )
+    permissions = forms.MultipleChoiceField(
+        label="Permissions it grants",
+        widget=forms.CheckboxSelectMultiple,
+        choices=_module_permission_choices,
+        help_text=("Module permissions only. An organization's administrator, PII access and the CPUC's own roles are granted one by one."),
+    )
+    reason = forms.CharField(label="Reason", max_length=500, required=False)
+
+
 class ReasonForm(forms.Form):
     reason = forms.CharField(label="Reason", max_length=500)
 

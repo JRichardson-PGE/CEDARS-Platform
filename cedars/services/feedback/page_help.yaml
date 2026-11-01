@@ -1,0 +1,57 @@
+# Help for each page (cedars/core/page_help.py): the Feedback link on every page, and the CPUC's list of what was sent.
+
+feedback/form:
+  title: Sending feedback
+  guide:
+    - Tell the CPUC's CEDARS team what worked, what did not, or what you expected to find on the page you came from. The message goes
+      with that page's address and, when you are signed in, your name and the organization you act for, so the team can reply.
+    - Leave out personal information such as phone numbers or customers' details.
+  how:
+    - Write your feedback and Send feedback; you go back to the page you came from.
+  see: getting-started
+  tour:
+    - target: main form
+      title: Your message
+      text: Write it and send it. The page you came from goes with it.
+
+feedback/inbox:
+  title: Feedback
+  guide:
+    - For CPUC system administrators. Every message sent from a page's Feedback link, newest first, with who sent it (or that they were
+      signed out) and the page. Each one is also on your Notifications page when it arrives.
+  how:
+    - Show New, Closed or All, then Apply.
+    - Open a message to read it whole, reply to the sender and close it with a note.
+  see: getting-started
+  tour:
+    - target: main form.filters
+      title: Which messages
+      text: New ones by default.
+    - target: main table.list
+      title: The messages
+      text: When, from whom, from which page, and where each stands.
+
+feedback/detail:
+  title: A feedback message
+  guide:
+    - >-
+      One message, with who sent it and for which organization, the page it came from and the message. Close it with a note on what
+      was done, or reopen a closed one with a reason; both are in the audit log.
+  how:
+    - Close records that it was dealt with; Reopen puts it back among the new ones.
+  see: getting-started
+  tour:
+    - target: main dl.facts
+      title: Where it came from
+      text: The sender, the page and where it stands.
+    - target: "#msg-h"
+      title: The message
+      text: What they wrote.
+    - target: "#close-h"
+      title: Close it
+      text: Note what was done.
+      optional: true
+    - target: "#reopen-h"
+      title: Reopen it
+      text: Back among the new ones, with a reason.
+      optional: true

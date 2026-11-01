@@ -179,6 +179,33 @@ class Membership(models.Model):
         return self.ended_at is None
 
 
+class RoleTemplate(models.Model):
+    """A named bundle of module permissions (BR-01.3), e.g. "CPUC reviewer" or "Evaluator", that an organization's administrators apply
+    when they grant a membership: one grant per permission, each audited and each recording the template it came from. CPUC system
+    administrators define the templates (configuration, not code). Changing a template changes what it grants from then on, never the
+    grants already made; a template no longer offered is retired, never deleted, so the grants it made still name it."""
+
+    name = models.CharField(max_length=80, unique=True, help_text="e.g. CPUC reviewer, Evaluator, Implementer, Consultant")
+    description = models.TextField(blank=True, help_text="Who it is for and what it lets them do")
+    permissions = models.JSONField(default=list, help_text="Module permission codes it grants (permissions.module_permissions())")
+    kinds = models.JSONField(
+        default=list, blank=True, help_text="The kinds of organization it is offered for (pa, cpuc, other); empty: every kind"
+    )
+    active = models.BooleanField(default=True, help_text="Offered when granting; a retired template is kept for the grants it made")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    changed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-active", "name"]
+
+    def __str__(self):
+        return self.name
+
+    def offered_for(self, organisation: Organisation) -> bool:
+        return self.active and (not self.kinds or organisation.kind in self.kinds)
+
+
 class Grant(models.Model):
     """One permission held by one member: who granted it and when, an optional expiry, and who revoked it, when and why (BR-01.2 to 01.4).
     A grant is never deleted; its status moves on and every move is an audit event."""
@@ -198,6 +225,14 @@ class Grant(models.Model):
     granted_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     granted_at = models.DateTimeField(auto_now_add=True)
     grant_reason = models.TextField(blank=True)
+    role_template = models.ForeignKey(
+        RoleTemplate,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="grants",
+        help_text="The role template it was granted with",
+    )
     approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="The data steward")
     approved_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)

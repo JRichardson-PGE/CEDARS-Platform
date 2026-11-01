@@ -63,6 +63,8 @@
         {% if nav.sysadmin %}<li><a href="{% url 'snapshots:holds' %}"{% if '/publication/' in here %} aria-current="page"{% endif %}>Publication holds</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:health' %}"{% if '/admin/health/' in here %} aria-current="page"{% endif %}>Jobs and health</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a></li>{% endif %}
+        {% if nav.sysadmin %}<li><a href="{% url 'administration:role_templates' %}"{% if '/admin/role-templates/' in here %} aria-current="page"{% endif %}>Role templates</a></li>{% endif %}
+        {% if nav.sysadmin %}<li><a href="{% url 'feedback:inbox' %}"{% if '/admin/feedback/' in here %} aria-current="page"{% endif %}>Feedback</a></li>{% endif %}
         {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a></li>{% endif %}
       </ul>
     </details>
@@ -115,6 +117,7 @@
     <li><a href="{% url 'core:about' %}">About CEDARS</a></li>
     <li><a href="{% url 'releases:index' %}">Release notes</a></li>
     <li><a href="{% url 'limits:index' %}">Limits</a></li>
+    <li><a href="{% url 'feedback:form' %}?from={{ request.get_full_path|urlencode }}">Feedback on this page</a></li>
     <li><a href="{% url 'documents:library' %}">Documents</a></li>
     <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
     <li><a href="{% url 'rules:index' %}">Validation rules</a></li>

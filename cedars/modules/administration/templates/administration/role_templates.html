@@ -1,0 +1,31 @@
+{% extends "core/base.html" %}
+{% block title %}Role templates{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Role templates</h1>{% page_help "administration/role_templates" %}</div>
+<p>A role template is a named bundle of module permissions, such as a CPUC reviewer or an evaluator. An organization's administrators grant one on the organization's page: it gives the member each permission at once, each grant recorded with the template it came from. Changing a template changes what it grants from then on, never the grants it already made.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Role templates">
+<table class="list">
+  <caption class="sr-only">Role templates, offered ones first</caption>
+  <thead><tr><th scope="col">Template</th><th scope="col">Offered for</th><th scope="col">Permissions</th><th scope="col">Open grants</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for t, labels, kinds, count in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'administration:role_template' t.pk %}">{{ t.name }}</a>{% if t.description %}<div class="small muted">{{ t.description }}</div>{% endif %}</th>
+    <td>{% if kinds %}{{ kinds|join:", " }}{% else %}Every kind of organization{% endif %}</td>
+    <td class="small">{{ labels|join:"; " }}</td>
+    <td>{{ count }}</td>
+    <td>{% if t.active %}<span class="status ok">Offered</span>{% else %}<span class="status">Retired</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5">No role templates yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h">Add a role template</h2>
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Add template</button></div>
+  </form>
+</section>
+{% endblock %}

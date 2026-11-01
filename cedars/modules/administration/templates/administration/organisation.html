@@ -107,6 +107,17 @@
 </section>
 {% endif %}
 
+{% if template_form %}
+<section class="card" aria-labelledby="tpl-h">
+  <h2 id="tpl-h">Grant a role template</h2>
+  <p class="small">Gives the member every permission of the template at once, each recorded with the template. Permissions they already hold stay as they are. {% for t in templates %}<b>{{ t.name }}</b>{% if t.description %}: {{ t.description }}{% endif %}{% if not forloop.last %} {% endif %}{% endfor %}</p>
+  <form method="post" action="{% url 'administration:grant_template' org.code %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in template_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Grant template</button></div>
+  </form>
+</section>
+{% endif %}
+
 <section aria-labelledby="members-h">
 <h2 id="members-h">Members</h2>
 {% if members %}
@@ -123,7 +134,7 @@
       <li>{{ label }}
         {% if g.status != "active" %}<span class="status">{{ g.get_status_display }}</span>{% endif %}
         {% if g.expires_at %}<span class="small muted">until {{ g.expires_at|date_words }}</span>{% endif %}
-        <span class="small muted">granted {{ g.granted_at|date_words }}{% if g.granted_by %} by {{ g.granted_by|person }}{% endif %}</span>
+        <span class="small muted">granted {{ g.granted_at|date_words }}{% if g.granted_by %} by {{ g.granted_by|person }}{% endif %}{% if g.role_template %} with the role template {{ g.role_template.name }}{% endif %}</span>
         {% if is_admin or g.permission == "system.admin" or g.permission == "pii.steward" %}
         {% if g.status == "suspended" %}
         <form method="post" action="{% url 'administration:reinstate' g.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">Reinstate<span class="sr-only"> {{ label }} for {{ m.user|person_name }}</span></button></form>

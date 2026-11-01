@@ -36,6 +36,20 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 3. Run the migrations as a one-off task: `aws ecs run-task` on the web task definition, with the command `python manage.py migrate`, then (not in the sandbox) `python manage.py migrate --database vault` for the PII vault's tables.
 4. Create the first CPUC administrator: `python manage.py bootstrap_cpuc EMAIL --steward`. In the sandbox, also run `python manage.py seed_sandbox`.
 
+## Sandbox refresh (BR-11.2, off by default)
+
+Production writes a bundle of its published, non-PII data (`export_sandbox_bundle`) and the sandbox loads it (`refresh_sandbox`),
+both in the jobs task, which has no PII vault URL. To schedule them, set in both environments' `main.tf`:
+
+- `sandbox_bundle_uri`: the same `s3://bucket/prefix` in production and the sandbox (a bucket the CPUC's cloud team chooses);
+- `sandbox_refresh_schedule`: production's export first (e.g. `cron(0 4 ? * SUN *)`), the sandbox's load a few hours later;
+- in the sandbox, `sandbox_read_bucket_arns`: production's refdata bucket, which copied reference packs are read from in place.
+
+The module grants its task role write (production) or read (sandbox) on the bundle's prefix. Where the bucket or production's refdata
+bucket is in another account, that account's bucket policy and KMS key policy must also allow the other environment's task role. Run
+by hand at any time: `python manage.py export_sandbox_bundle --to s3://...` in production, then `python manage.py refresh_sandbox
+--from s3://...` in the sandbox; each refresh is listed in the audit log (`sandbox.refreshed`) with what it added and left out.
+
 ## Check locally
 
 ```

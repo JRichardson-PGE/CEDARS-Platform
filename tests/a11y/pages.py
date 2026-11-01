@@ -127,6 +127,16 @@ PAGES = [
     ("publication-hold-owner", "/publication/holds/{held_snapshot}/", "pge_admin"),
     ("publication-scan-settings", "/publication/scan-settings/", "cpuc_admin"),
     ("settings", "/admin/settings/", "cpuc_admin"),
+    # BR-01.3 role templates and BR-12.4 feedback; the scene's {role_template} (Consultant, granted once), {feedback} (new, from a
+    # member), {feedback_closed} (closed, sent signed out)
+    ("role-templates", "/admin/role-templates/", "cpuc_admin"),
+    ("role-template", "/admin/role-templates/{role_template}/", "cpuc_admin"),
+    ("feedback-inbox", "/admin/feedback/", "cpuc_admin"),
+    ("feedback-inbox-closed", "/admin/feedback/?status=closed", "cpuc_admin"),
+    ("feedback-new", "/admin/feedback/{feedback}/", "cpuc_admin"),
+    ("feedback-closed", "/admin/feedback/{feedback_closed}/", "cpuc_admin"),
+    ("feedback-form", "/feedback/?from=/budgets/", None),
+    ("feedback-form-signed-in", "/feedback/?from=/claims/", "pge_admin"),
     ("audit", "/admin/audit/", "cpuc_admin"),
     ("health", "/admin/health/", "cpuc_admin"),
     ("allocations", "/admin/allocations/", "cpuc_admin"),
