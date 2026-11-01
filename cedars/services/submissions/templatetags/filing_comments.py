@@ -9,6 +9,8 @@ from .. import comments as service
 
 register = template.Library()
 
+FILING_NAMES = {"budgets": "budget", "claims": "claims", "monthly": "monthly report"}
+
 
 @register.inclusion_tag("submissions/_comments.html", takes_context=True)
 def filing_comments(context, v):
@@ -21,6 +23,8 @@ def filing_comments(context, v):
         "show": True,
         "v": v,
         "side": org,
+        "filer": org.pk == v.submission.organisation_id,
+        "module_name": FILING_NAMES.get(v.submission.deadline.module, v.submission.deadline.module),
         "comments": list(service.thread(v.submission)),
         "csrf_token": context.get("csrf_token"),
         "max_chars": service.max_chars(),
