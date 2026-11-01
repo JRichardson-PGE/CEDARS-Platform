@@ -17,7 +17,10 @@ how a criterion is met.
   named after its table ("Versions table"), so the two landmarks differ.
 - The sticky header (it stays at the top of windows at least 861 px wide and 480 px tall, and scrolls away on smaller ones): backing up a
   long page with Shift+Tab, and scrolling each link and field in the content just into view from below, never leaves one hidden under
-  it (2.4.11 focus not obscured); it scrolls away at 320 x 640 and 1280 x 400.
+  it (2.4.11 focus not obscured); it scrolls away at 320 x 640 and 1280 x 400, and wherever its navigation wraps to a second row.
+  The full header (every menu) of a member of one organization stays on one row from 1280 px wide, with a long organization code and
+  a three-digit unread count; a member of several organizations (the Acting for switcher) needs 1440 px, and below that the header
+  wraps and scrolls away (`tests/a11y/test_header_rows.py`).
 - How it runs: the `scene` fixture in `tests/a11y/test_axe.py` (the organizations, people and records the pages show) is built once
   per test process and every check reads it, with the site served from one thread (`uv run pytest -m a11y -n auto` spreads the checks
   over the cores; CI does). So a page must not change data when it is shown (GET), and a page that needs a record the scene lacks adds

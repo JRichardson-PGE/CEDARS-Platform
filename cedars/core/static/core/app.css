@@ -88,6 +88,10 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 @media (min-width: 861px) and (min-height: 480px) {
   html { scroll-padding-top: calc(var(--header-h, 6rem) + .75rem); }
   body > header { position: sticky; top: 0; z-index: 10; }
+  /* A header whose navigation wraps to a second row (a narrow window, a long organization code, a large unread count) is too tall to
+     keep in view: it scrolls away with the page instead (app.js marks it; UAT 2 U02). */
+  html.header-wrapped { scroll-padding-top: 0; }
+  html.header-wrapped body > header { position: static; }
 }
 .menu-btn { display: none; margin-left: auto; }
 .top nav { display: flex; gap: .15rem; align-self: stretch; align-items: stretch; }
@@ -111,7 +115,7 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .org-switch { display: flex; gap: .4rem; align-items: center; }
 .org-switch label { flex-direction: row; font-size: .85rem; color: var(--fg-2); }
 .org-switch select { padding: .25rem .4rem; min-height: 32px; }
-.org-badge { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: 999px; padding: .15rem .65rem .15rem .3rem; background: var(--bg); color: var(--fg-2); font-size: .82rem; }
+.org-badge { display: inline-flex; align-items: center; gap: .4rem; border: 1px solid var(--line); border-radius: 999px; padding: .15rem .3rem .15rem .65rem; background: var(--bg); color: var(--fg-2); font-size: .82rem; }
 .org-badge b { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; padding: .08rem .45rem; font-weight: 700; letter-spacing: .02em; }
 .bell { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; min-height: 32px; font-size: .85rem; }
 .bell[aria-current="page"], .bell:hover { color: var(--link); border-color: var(--control); }
@@ -126,9 +130,14 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
 .foot ul.links { display: flex; gap: .3rem 1rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .foot ul.links li { margin: 0; }
 
-/* Mid widths (861-1400 px): tighter navigation and account cluster, so the header with every menu stays on one row at 1280 px, with a
-   two-digit unread count on Notifications too. */
-@media (min-width: 861px) and (max-width: 1400px) {
+/* Mid widths (861-1700 px): tighter navigation and account cluster, so the header with every menu stays on one row from 1280 px for a
+   member of one organization, whatever its code's length and the unread count (shown as 99+ above 99). The "Acting for" words of the
+   badge are kept for screen readers only. At the full spacing that header needs about 1,470 px and a member of several organizations'
+   (with the Acting for switcher) about 1,650 px, so the tighter spacing runs to 1700 px (UAT 2 U02). A header that still wraps scrolls
+   away with the page (header-wrapped). */
+@media (min-width: 861px) and (max-width: 1700px) {
+  .org-badge .label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .org-badge { padding-left: .3rem; }
   .top { gap: .5rem; }
   .top nav > a, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
   .who { gap: .3rem; font-size: .85rem; }
