@@ -5,7 +5,8 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
-{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}."""
+{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
+{claims_preview}."""
 
 PAGES = [
     ("home", "/", None),
@@ -218,6 +219,16 @@ PAGES = [
     ("claims-period-cpuc", "/claims/periods/{claims_q1}/?org=PGE", "cpuc_admin"),
     ("claims-period-pii", "/claims/periods/{claims_q1}/", "pii_filer"),
     ("claims-period-pii-rejected", "/claims/periods/{claims_q2}/", "pii_filer"),
+    # gap 15: correcting a draft's records in place (BR-02.4); the scene's {claims_draft} is Q2's rejected draft, {claims_preview} a
+    # partial correction of it waiting in its preview
+    ("records", "/filings/versions/{claims_draft}/records/", "analyst"),
+    ("records-found", "/filings/versions/{claims_draft}/records/?table=&q=2028", "analyst"),
+    ("record-rejected", "/filings/versions/{claims_draft}/records/Measure/?k=PGE-2028-003", "analyst"),
+    ("record-earlier", "/filings/versions/{claims_draft}/records/ContactClaim/?k=PGE-2028-001&k=PGE-C1", "analyst"),
+    ("record-new", "/filings/versions/{claims_draft}/records/Site/new", "analyst"),
+    ("record-delete", "/filings/versions/{claims_draft}/records/Claim/delete?k=PGE-2028-003", "analyst"),
+    ("records-correction", "/filings/versions/{claims_draft}/records/correction/{claims_preview}/", "analyst"),
+    ("records-confirmed", "/filings/versions/{claims_corrected}/records/", "analyst"),
     ("claims-version", "/claims/versions/{claims_version}/", "community"),
     ("claims-version-corrected", "/claims/versions/{claims_corrected}/", "community"),
     ("claims-changes", "/claims/changes/", "community"),

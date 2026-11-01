@@ -66,6 +66,14 @@ GUIDES = [
         ("claims",),
     ),
     Guide(
+        "correcting-records",
+        "Correcting filed records",
+        "Changing, adding and deleting single records of a draft filing, partial corrections with a preview, and what is checked and "
+        "recorded.",
+        "Program administrators",
+        ("claims", "budgets", "monthly"),
+    ),
+    Guide(
         "monthly-reports",
         "Monthly reports",
         "What a monthly report holds, how spending is compared with the operating budget, and the 13th-month report.",

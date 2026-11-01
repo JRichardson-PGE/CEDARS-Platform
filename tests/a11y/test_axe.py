@@ -872,8 +872,17 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     comments.post(cpuc_admin, v, "Please check PGE-2028-002's unit count before the next quarter.", [note])
     comments.post(analyst, v, "It was canceled.\nThe correction withdraws it.")
     restatement = _restatement(analyst, pge, v2, group_sums)
+    # correcting the Q2 draft's records in place (BR-02.4): a partial correction waiting in its preview
+    from cedars.services.submissions import corrections
+
+    fix = _zip({"Measure.csv": "ClaimID,PrgID,NumUnits\nPGE-2028-003,PGE_Res_HVAC,4\n",
+                "Delete.csv": "Table,ClaimID\nClaim,SCE-2028-1\nMeasure,SCE-2028-1\n"})  # fmt: skip
+    with no_rules:
+        preview = corrections.preview(analyst, q2v, fix, "q2_fix.zip")
     return {
         "restatement": restatement,
+        "claims_draft": q2v,
+        "claims_preview": preview.token,
         "claims_q1": q1,
         "claims_q2": q2,
         "claims_q3": q3,

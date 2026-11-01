@@ -1,0 +1,43 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<h2>When records can be corrected one by one</h2>
+<p>A filing's records are corrected in place only on an open draft: a version not yet confirmed, or the new draft an un-confirm (before the
+due date) or an approved reopen (after it) leaves. A confirmed version never changes; its correction is the next version, which starts with
+the records it replaces. You need the module's submit permission for the filing's organization.</p>
+<p>From the filing's page, choose <strong>Correct records</strong>. Claims are corrected this way now; budget filings and monthly reports
+still take a corrected file.</p>
+<h2>Finding and changing a record</h2>
+<ol>
+  <li><strong>Find</strong> the record by its key (a ClaimID, a PrgID, a SiteID) or any of its values, in one table or every table.</li>
+  <li><strong>Open</strong> it: its fields are on a form, with what its last check found beside the fields concerned.</li>
+  <li><strong>Save and check</strong>. The record is checked again at once, together with the records whose checks it can affect: those
+  with the same key, those that refer to it (a claim's other records, the measures of a program whose cost record changed, the records at a
+  site), and the claims rule set's checks on a changed Measure or ProgramCost record. Every other record keeps its findings. The page
+  says whether anything is still rejected.</li>
+</ol>
+<p>Add a record from <strong>Add a record</strong>, and delete one from its form. The version's file is rewritten as a new file (with its own
+SHA-256) each time, and its pricing is void: price it again before confirming. <strong>Check again</strong> on the filing's page always
+checks every record.</p>
+<h2>Claims filed in an earlier confirmation</h2>
+<p>A quarter's upload holds the records new or changed since the last confirmation, and the search finds the year's earlier records too.
+Correcting one adds the corrected record to this version, where it stands over the earlier one; its key stays. A claim filed earlier is
+taken out of the year by naming it in the Withdrawal table, never by deleting it. ContactClaim, InfrastructureCost and ClaimSite records
+are one set per claim: correcting one of a claim's earlier records brings the claim's other records of that table into this version too.</p>
+<h2>A partial correction</h2>
+<p>For many records at once, upload a file of only the records that change or are new, in the filing's own format: a .zip of CSV files
+named after their tables, an Excel workbook with a sheet per table, or one table's CSV file named after it (Measure.csv).</p>
+<ul>
+  <li>Records are matched on their key: a record already in the version is changed, any other is added.</li>
+  <li>A column the file leaves out keeps each record's value; a column with a blank cell makes that value blank.</li>
+  <li>To delete records, add a table named <strong>Delete</strong> with a Table column and the key columns of each record to delete
+  (for example Table = Measure, ClaimID = PGE-2028-0042).</li>
+  <li>One partial correction changes a limited number of records (<a href="{% url 'limits:index' %}">Limits</a> gives it); a larger
+  one is a new upload of the whole file.</li>
+</ul>
+<p>You see every change, field by field, before anything is changed, and can download them as CSV. Apply it, and it is checked the same
+way as a single record. It applies only to the records as they stood when you previewed it.</p>
+<h2>What is recorded</h2>
+<p>Every record changed, added or deleted is an event in the audit trail, with the record before and after, who made the change, the
+optional reason, and how: the record editor, or a partial correction with its file's name and SHA-256. When a corrected version is
+published, its change letter and the notice to followers say how many records were corrected one by one.</p>
+{% endblock %}

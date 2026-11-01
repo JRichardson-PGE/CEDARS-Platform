@@ -40,7 +40,9 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions.corrections import Scope
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 from cedars.services.vault import service as vault
 
@@ -370,6 +372,19 @@ def upload_claims(
     if not tables:
         raise upload.UploadError("The file has no records: each table it holds has only its column names.")
     v = submissions.start(actor, deadline, organisation)
+    extra = {"uploaded_as": filename}
+    ignored = {t.name: t.ignored for t in tables.values() if t.ignored}
+    if ignored:
+        extra["ignored_columns"] = ignored
+    if sources:
+        extra["sources"] = sources
+    v = _store_upload(actor, v, tables, extra)
+    return check(actor, v)
+
+
+def _store_upload(actor, v: SubmissionVersion, tables: dict[str, upload.Table], extra: dict) -> SubmissionVersion:
+    """Keep `tables` as the version's records (its claims.zip, in a folder named by its SHA-256) and attach it as the version's file;
+    the version's earlier upload is deleted once this is recorded (superseded uploads are not kept, BR-05.9)."""
     content = upload.to_zip(tables)
     sha = hashlib.sha256(content).hexdigest()
     folder = f"{_prefix(v)}{sha[:12]}/"
@@ -378,14 +393,8 @@ def upload_claims(
     # the superseded upload, once this one is recorded; a reopened version starts with its predecessor's files, which stay with it
     old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
     transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
-    ignored = {t.name: t.ignored for t in tables.values() if t.ignored}
-    entry = {"name": "claims.zip", "key": folder + "claims.zip", "sha256": sha, "bytes": len(content), "uploaded_as": filename}
-    if ignored:
-        entry["ignored_columns"] = ignored
-    if sources:
-        entry["sources"] = sources
-    v = submissions.attach_files(actor, v, [entry])
-    return check(actor, v)
+    entry = {"name": "claims.zip", "key": folder + "claims.zip", "sha256": sha, "bytes": len(content), **extra}
+    return submissions.attach_files(actor, v, [entry])
 
 
 def corrected_version(v: SubmissionVersion) -> SubmissionVersion | None:
@@ -437,10 +446,14 @@ def _require_in_order(organisation, deadline: Deadline) -> None:
 
 
 @transaction.atomic
-def check(actor, v: SubmissionVersion) -> SubmissionVersion:
+def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict | None = None) -> SubmissionVersion:
     """Compile the version's records over the year to date (the standing version of the confirmation before it), run the module's
     checks and the claims rule set on its own records, write the compiled tables and the job to price, and record the result: validated
-    when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since."""
+    when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since.
+
+    After a correction in place (BR-02.4) `scope` says which records changed and `before` is the version's summary before it: only
+    the changed records and those whose checks they can affect are checked again (`_scoped`); every other record keeps its findings.
+    The compiled tables, the job, the program lines and the claim index are always rebuilt whole."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
     if v.locked:  # before anything is written: a published version's files never change
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
@@ -455,9 +468,13 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
     corrected = compiled_tables(previous) if previous else {}
     deemed, etrm_summary = fill_deemed(own, base)
     comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
-    problems = deemed + derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
-    found, notes, rule_set = _rule_findings(own, year)
-    problems += found
+    rescope = _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before) if scope else None
+    if rescope is not None:
+        problems, notes, rule_set, rechecked = rescope
+    else:
+        problems = deemed + derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
+        found, notes, rule_set = _rule_findings(own, year)
+        problems += found
     own_f = own_file(v)
     store = storage.store("uploads")
     if not own_f["key"].startswith(_prefix(v)):  # a reopened version's predecessor's upload: copy it, never write beside the original
@@ -491,11 +508,154 @@ def check(actor, v: SubmissionVersion) -> SubmissionVersion:
             "withdrawn": len(withdrawn(own)),
             "withdrawn_total": len(withdrawn(comp.tables)),
             "etrm": etrm_summary,
+            "columns": {name: list(t.columns) for name, t in own.items()},
         }
     )
-    if etrm_summary.get("note"):
+    if etrm_summary.get("note") and etrm_summary["note"] not in summary["notes"]:
         summary["notes"] = [*summary["notes"], etrm_summary["note"]]
+    if rescope is not None:
+        summary["checked_again"] = {"records": rechecked, "since": (before or {}).get("checked_at", "")}
+        summary["checked_at"] = (before or {}).get("checked_at", "")
+        summary["notes"] = [
+            f"Checked again after a correction: {rechecked:,} record{'s' if rechecked != 1 else ''} (the ones changed and those whose "
+            "checks they affect); every other record keeps its findings from the last full check. Check again checks every record.",
+            *summary["notes"],
+        ]
+    else:
+        summary["checked_at"] = timezone.now().isoformat()
     return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
+
+
+# --- correcting records in place (BR-02.4)
+
+
+def _old_findings(previous: dict | None) -> list[dict] | None:
+    key = (previous or {}).get("findings_key")
+    if not key or not storage.store("uploads").exists(key):
+        return None
+    return json.loads(storage.store("uploads").get_bytes(key))
+
+
+def _rule_set_label() -> str:
+    rs = rules.in_force(RULE_SET)
+    return f"{rs.label} ({rs.effective_from})" if rs else ""
+
+
+def _related(own: dict[str, upload.Table], scope: Scope) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
+    """The lines to check again after a correction: (for the module's checks, for the claims rule set). The module's checks look at
+    the records changed, those with the same key (duplicates), and those whose references the change can make or break: the claim's
+    other records and the true-ups naming it (a Claim, Measure, by-claim or Withdrawal record changed), the program's measures (a
+    ProgramCost record), the records at a site (a Site record). The rule set checks each Measure and ProgramCost record on its own,
+    so it looks only at the records changed and those with the same key."""
+    keys: dict[str, set[tuple]] = defaultdict(set)
+    claims, prgs, sites = set(), set(), set()
+    for c in scope.changes:
+        for r in (c.before, c.after):
+            if not r:
+                continue
+            keys[c.table].add(_key(c.table, r))
+            if c.table in (*CLAIM_TABLES, "Withdrawal") and _claim(r):
+                claims.add(_claim(r))
+            if c.table == "ProgramCost" and r.get("PrgID", "").strip():
+                prgs.add(r["PrgID"].strip().lower())
+            if c.table == "Site" and r.get("SiteID", "").strip():
+                sites.add(r["SiteID"].strip().lower())
+    module: dict[str, set[int]] = defaultdict(set)
+    engine: dict[str, set[int]] = defaultdict(set)
+    for name, t in own.items():
+        changed = scope.lines(name)
+        for i, r in enumerate(t.rows, start=2):
+            same = i in changed or _key(name, r) in keys.get(name, ())
+            take = (
+                same
+                or (name in (*CLAIM_TABLES, "Withdrawal") and _claim(r) in claims)
+                or (name == "Claim" and r.get("ParentClaimID", "").strip().lower() in claims)
+                or (name == "Measure" and r.get("PrgID", "").strip().lower() in prgs)
+                or (name in ("Claim", "ClaimSite", "Participant") and r.get("SiteID", "").strip().lower() in sites)
+            )
+            if take:
+                module[name].add(i)
+            if same and name in RULE_TABLES:
+                engine[name].add(i)
+    return module, engine
+
+
+def _subset(own: dict[str, upload.Table], lines: dict[str, set[int]]) -> tuple[dict[str, upload.Table], dict[str, list[int]]]:
+    """The tables cut to the given lines, and for each the line each of its rows came from."""
+    sub, back = {}, {}
+    for name, ls in lines.items():
+        if not ls or name not in own:
+            continue
+        order = sorted(ls)
+        sub[name] = upload.Table(name, own[name].columns, [own[name].rows[i - 2] for i in order])
+        back[name] = order
+    return sub, back
+
+
+def _moved(p, back: dict[str, list[int]]):
+    """A finding on a cut table, moved to its record's line in the whole table (a table-wide finding, line 1, stays)."""
+    row = p.row if p.row < 2 else back[p.table][p.row - 2]
+    return Problem(row, p.record_id, p.table, p.field, p.rule_id, p.severity, p.message, p.fix, p.value)
+
+
+def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None):
+    """A correction's check (BR-02.4: "that row re-validated"): the module's checks on the records `_related` names, the claims rule
+    set on the changed Measure and ProgramCost records, and every other record's findings carried over to its new line. None when the
+    whole version must be checked instead: no earlier findings, another rule set in force since, or a table's columns changed."""
+    old = _old_findings(previous)
+    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label():
+        return None
+    before_columns = (previous or {}).get("columns")
+    now_columns = {name: list(t.columns) for name, t in own.items()}
+    if before_columns is not None and before_columns != now_columns:
+        return None
+    module, engine = _related(own, scope)
+    sub, back = _subset(own, module)
+    problems = [p for p in deemed if p.row in module.get(p.table, ())]
+    problems += [_moved(p, back) for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected)]
+    notes = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
+    rule_set = (previous or {}).get("rule_set", "")
+    sub_e, back_e = _subset(own, engine)
+    if sub_e:
+        found, notes, rule_set = _rule_findings(sub_e, year)
+        for f in found:
+            row = f.row if f.row < 2 or f.table not in back_e else back_e[f.table][f.row - 2]
+            problems.append(Problem(row, f.record_id, f.table, f.field, f.rule_id, f.severity, f.message, f.fix, f.value))
+    kept = []
+    for f in old:
+        t, row = f.get("table", ""), f.get("row", 0)
+        if row >= 2:
+            new = scope.line_map.get(t, {}).get(row, row) if t in scope.line_map else row
+            if new is None:
+                continue  # the record was deleted
+            again = module if str(f.get("rule_id", "")).startswith("CLM-") else engine
+            if new in again.get(t, ()):
+                continue  # checked again: its findings now are the new ones
+            f = {**f, "row": new}
+        kept.append(Problem(**f))
+    seen, out = set(), []
+    for p in kept + problems:
+        k = (p.table, p.row, p.field, p.rule_id, p.message)
+        if k not in seen:
+            seen.add(k)
+            out.append(p)
+    out.sort(key=lambda p: (spec.TABLES.index(p.table) if p.table in spec.TABLES else 99, p.row, p.severity != "reject"))
+    rechecked = len({(n, i) for lines in (module, engine) for n, ls in lines.items() for i in ls})
+    return out, notes, rule_set, rechecked
+
+
+@transaction.atomic
+def correct_records(actor, v: SubmissionVersion, tables: dict, scope: Scope) -> SubmissionVersion:
+    """Keep a correction's tables (corrections.apply's) as the version's new upload and check what it changed (the record editor and
+    partial corrections, through the submissions service's corrections)."""
+    v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    previous = dict(v.findings or {})
+    if stale(v):
+        previous = {}  # compiled over a confirmation that has changed since: check the whole version on the one that stands
+    f = own_file(v) or {}
+    own = {name: upload.Table(name, t.columns, t.rows) for name, t in tables.items() if t.rows}
+    v = _store_upload(actor, v, own, {"uploaded_as": f.get("uploaded_as", "claims.zip"), "corrected": True})
+    return check(actor, v, scope=scope, before=previous)
 
 
 # --- deemed claims against eTRM (BR-05.8)
@@ -1489,6 +1649,9 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     if previous is None:
         return None
     changes = correction_changes(previous, v)
+    in_place = corrections.summary(v)
+    if in_place:
+        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     c = changes["claims"]
     audit.record(
@@ -1531,7 +1694,12 @@ def notice(v: SubmissionVersion, event) -> Concern:
             claims = ", ".join(
                 f"{k} {counts.get(k, {}).get('count', 0):,}" for k in ("added", "changed", "removed", "withdrawn", "reinstated")
             )
-            parts = [f"Reason: {letter.reason}" if letter.reason else "", f"Claims {claims}.", letters.summary(c, LETTER_FIGURES)]
+            parts = [
+                f"Reason: {letter.reason}" if letter.reason else "",
+                f"Claims {claims}.",
+                corrections.summary_text(c.get("in_place") or {}),
+                letters.summary(c, LETTER_FIGURES),
+            ]
             return Concern(
                 programs={p["prg_id"] for p in c.get("programs", [])},
                 link=f"/claims/changes/{letter.pk}/",

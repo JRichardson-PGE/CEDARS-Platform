@@ -22,6 +22,7 @@ against the claims' ContactIDs and SiteIDs, and kept apart in the PII vault. Upl
 CPUC data steward approves, and every use is recorded with its reason.</p>
 <h2>Corrections and the change log</h2>
 <p>Before a due date you can un-confirm. After it, a correction is a new version: ask to reopen, and the version you correct stays as
-confirmed. Each new version is published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.
+confirmed. A draft's records can be corrected one by one, or by a partial correction file, without uploading the whole file again
+(<a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>). Each new version is published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.
 <a href="{% url 'claims:links' %}">Linked claims</a> shows claims that continue a project across years.</p>
 {% endblock %}

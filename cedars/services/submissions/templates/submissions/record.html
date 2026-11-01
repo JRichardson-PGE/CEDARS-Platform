@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+{% block title %}{% if mode == "add" %}Add a {{ t.name }} record{% else %}{{ t.name }} {{ found.shown }}{% endif %} · version {{ v.number }}{% endblock %}
+{% block content %}
+{% include "submissions/_record_crumbs.html" %}
+<div class="page-title"><h1>{% if mode == "add" %}Add a {{ t.name }} record{% else %}{{ t.name }} {{ found.shown }}{% endif %}</h1>{% page_help "submissions/record" %}</div>
+<p class="small muted">{{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }} ({{ v.get_status_display|lower }}).{% if t.note %} {{ t.note }}{% endif %}</p>
+{% if mode == "edit" %}
+{% if found.earlier %}
+<div role="note" class="card"><p><strong>Filed in {{ found.earlier }}.</strong> Saving adds the corrected record to this version, where it stands over the earlier one; its key stays.</p></div>
+{% else %}<p>Line {{ found.line }} of this version's {{ t.name }} table.</p>{% endif %}
+{% if findings %}
+<section aria-labelledby="row-findings-h" class="card">
+<h2 id="row-findings-h">Findings on this record: {{ findings|length }}{% if rejected %}, rejected{% endif %}</h2>
+<ul>{% for f in findings %}<li>{% if f.severity == "reject" %}<strong>Rejected</strong>{% else %}Warning{% endif %}{% if f.field and ", " not in f.field %} on <a href="#f-{{ f.field|slugify }}">{{ f.field }}</a>{% elif f.field %} on {{ f.field }}{% endif %}: {{ f.message }}. {{ f.fix }} <span class="small muted">({{ f.rule_id }}{% if f.row == 1 %}, about the whole table{% endif %})</span></li>{% endfor %}</ul>
+</section>
+{% elif not found.earlier %}<p>No findings on this record.</p>{% endif %}
+{% endif %}
+
+<form method="post" class="stack form-narrow" aria-labelledby="fields-h">{% csrf_token %}
+  <input type="hidden" name="state" value="{{ state }}">
+  {% if mode == "edit" %}{% for k in found.key %}<input type="hidden" name="k" value="{{ k }}">{% endfor %}{% endif %}
+  <h2 id="fields-h">Fields</h2>
+  <p class="small muted">Key: {{ t.key|join:", " }}.{% if mode == "edit" and not found.earlier %} Changing the key renames the record; another record may not have the new key.{% endif %}</p>
+  {% for r in rows %}
+  <div class="field" id="f-{{ r.f.name|slugify }}">
+    <label for="in-{{ r.f.name }}">{{ r.f.name }}{% if r.f.required %} (required){% endif %}{% if r.locked %} (key, stays){% endif %}</label>
+    {% if r.f.choices %}
+    <select id="in-{{ r.f.name }}" name="f-{{ r.f.name }}" aria-describedby="help-{{ r.f.name }}{% if r.findings %} err-{{ r.f.name }}{% endif %}"{% if r.findings %} aria-invalid="true"{% endif %}{% if r.locked %} disabled{% endif %}>
+      <option value=""{% if not r.value %} selected{% endif %}>(blank)</option>
+      {% for c in r.f.choices %}<option{% if c == r.value %} selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <input type="text" id="in-{{ r.f.name }}" name="f-{{ r.f.name }}" value="{{ r.value }}" autocomplete="off" aria-describedby="help-{{ r.f.name }}{% if r.findings %} err-{{ r.f.name }}{% endif %}"{% if r.findings %} aria-invalid="true"{% endif %}{% if r.locked %} readonly{% endif %}>
+    {% endif %}
+    {% if r.findings %}<div class="field-errors" id="err-{{ r.f.name }}"><ul>{% for f in r.findings %}<li>{% if f.severity == "reject" %}Rejected{% else %}Warning{% endif %}: {{ f.message }}. {{ f.fix }}</li>{% endfor %}</ul></div>{% endif %}
+    <span class="small muted" id="help-{{ r.f.name }}">{{ r.f.type }}{% if r.f.description %}. {{ r.f.description|truncatewords:40 }}{% endif %}</span>
+  </div>
+  {% endfor %}
+  <div class="field"><label for="in-reason">Why (optional)</label>
+    <textarea id="in-reason" name="reason" rows="2" aria-describedby="in-reason-help"></textarea>
+    <span class="small muted" id="in-reason-help">Kept with the change in the audit trail.</span></div>
+  <div class="actions"><button type="submit" class="primary">{% if mode == "add" %}Add and check{% else %}Save and check{% endif %}</button>
+    {% if mode == "edit" and not found.earlier %}<a class="button" href="{% url 'submissions:record_delete' v.pk t.name %}?{{ key_query }}">Delete this record</a>{% endif %}
+    <a href="{% url 'submissions:records' v.pk %}">Cancel</a></div>
+</form>
+{% endblock %}
