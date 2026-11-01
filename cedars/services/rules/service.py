@@ -553,8 +553,8 @@ def _is_utf8(content: bytes) -> bool:
 # The engine's note when the profile-combination rules cannot run, and what it means on this server.
 _NO_LIBRARY = "the CEDARS impact-profile library is not installed"
 _NO_LIBRARY_HERE = (
-    "the impact-profile library is not in the engine's reference folder on this server (RECET_DATA for the web service); the "
-    "profile-combination rules are checked when the job is priced"
+    "the combinations of end use, utility and sector are not checked here; they are checked against the impact-profile library "
+    "when the job is priced"
 )
 
 

@@ -23,6 +23,7 @@ beside the filed ones without importing the Calculations module. The version its
 restatement was started on it.
 """
 
+import hashlib
 from collections.abc import Callable
 
 from django.db import transaction
@@ -52,8 +53,21 @@ VERSION_FIELDS = [
 _publishers: dict[str, tuple[Callable, Callable]] = {}
 _listeners: list[tuple[Callable, Callable]] = []
 _pricers: list[Callable] = []
+
+
+class PricingUnavailable(AccessDenied):
+    """A pricer's refusal that the CPUC's set-up causes and the filer cannot fix (no default engine release, a release without the
+    filing's ACC, a reference data pack not yet published). `price` tells the filer that in their words and sends the technical reason
+    to the CPUC's system administrators (UAT 2, U04)."""
+
+
+PRICING_UNAVAILABLE = (
+    "This filing cannot be priced yet: the CPUC has not finished setting up pricing for it. Its system administrators have been told. "
+    "Nothing in your upload needs to change; price it again once they have."
+)
 _run_states: list[Callable] = []
 _claims_totals: list[Callable] = []
+_acc_needs: dict[str, Callable] = {}
 _restaters: list[tuple[Callable, Callable]] = []
 _deadline_pages: dict[str, Callable] = {}
 
@@ -109,6 +123,17 @@ def register_deadline_page(module: str, page: Callable[[Deadline], str]) -> None
 def deadline_page(deadline: Deadline) -> str:
     page = _deadline_pages.get(deadline.module)
     return page(deadline) if page else ""
+
+
+def register_acc_needs(module: str, needs: Callable) -> None:
+    """A filing module's set-ups still to be filed: needs() -> [(what, ACC year)], e.g. ("2028 claims", "2026"), for each set-up with a
+    deadline still to come. The Engine releases page warns when the default release lacks one (UAT 2, U05)."""
+    _acc_needs[module] = needs
+
+
+def acc_needs() -> list[tuple[str, str]]:
+    """Every filing module's set-ups still to be filed, with the ACC each is priced on."""
+    return [need for module in sorted(_acc_needs) for need in _acc_needs[module]()]
 
 
 def register_claims_totals(totals: Callable) -> None:
@@ -323,8 +348,21 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
     return _change(actor, v, "submission.changed", what, calculation={}, status=status)
 
 
+def price(actor, v: SubmissionVersion, job_zip, **options):
+    """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
+    the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed.
+    Options: name, acc_version, allocation_version, settings, cost_test_set and `profiles_8760` (a supplied 8,760-profile file the
+    job's records name: a claims true-up's parent profiles, BR-05.6). A refusal the CPUC's set-up causes (PricingUnavailable) is
+    recorded and sent to the system administrators outside the refused transaction, and the filer is told in their words."""
+    try:
+        return _price(actor, v, job_zip, **options)
+    except PricingUnavailable as e:
+        _pricing_unavailable(actor, v, str(e))
+        raise AccessDenied(str(e) if access.is_system_admin(actor) else PRICING_UNAVAILABLE) from e
+
+
 @transaction.atomic
-def price(
+def _price(
     actor,
     v: SubmissionVersion,
     job_zip,
@@ -336,9 +374,6 @@ def price(
     cost_test_set=None,
     profiles_8760: bytes | None = None,
 ):
-    """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
-    the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed.
-    `profiles_8760`: a supplied 8,760-profile file the job's records name (a claims true-up's parent profiles, BR-05.6)."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
     _require(actor, v.submission, "submit")
     _refuse_imported(v.submission)
@@ -359,6 +394,23 @@ def price(
     )
     audit.record("submission.pricing_started", obj=v, after={"run": str(run), "acc": acc_version}, actor=actor)
     return str(run)
+
+
+def _pricing_unavailable(actor, v: SubmissionVersion, reason: str) -> None:
+    """Record a refused pricing and tell each CPUC system administrator once per version and reason."""
+    from cedars.services.accounts import permissions as perms
+    from cedars.services.notifications import service as notifications
+
+    audit.record("submission.pricing_unavailable", obj=v, after={"reason": reason}, actor=actor)
+    cpuc = access.cpuc()
+    if cpuc is None:
+        return
+    who = f"{v.submission.organisation.code}, {v.submission.deadline}, version {v.number}"
+    key = f"pricing-unavailable-{v.pk}-{hashlib.sha256(reason.encode()).hexdigest()[:12]}"
+    for admin in access.holders(cpuc, perms.SYSTEM_ADMIN):
+        notifications.notify(
+            admin, f"A filing cannot be priced: {who}", f"{reason}\n\nThe filer was told pricing is not set up yet.", key=key
+        )
 
 
 @transaction.atomic

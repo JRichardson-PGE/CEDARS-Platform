@@ -10,7 +10,7 @@
 <p>A fund shift moves dollars between programs within a filing cycle, across its program years if need be. It is not part of a budget
 filing and has no cost-effectiveness run. Its amounts must add up to zero. A shift that touches a statewide program takes effect once
 every other PA funding that program has acknowledged it. The approved budget never changes; the operating budget does.</p>
-{% if org and cycles %}
+{% if can_read_operating and cycles %}
 <p>{{ org.code }}'s operating budget: {% for c in cycles %}<a href="{% url 'budgets:operating' c.first_year %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% endif %}
 

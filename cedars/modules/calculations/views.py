@@ -247,6 +247,11 @@ def run_file(request, pk, name):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
+def _needs(missing: list[tuple[str, str]]) -> str:
+    """Filings a release lacks the ACC of, in words: "2028 claims (2026 ACC), 2029 claims (2026 ACC)"."""
+    return ", ".join(f"{what} ({acc} ACC)" for what, acc in missing)
+
+
 @login_required
 def engines(request):
     """The engine releases runs can use (CPUC system administrators add, set the default and retire them)."""
@@ -276,6 +281,8 @@ def engines(request):
                 if action == "default":
                     service.set_default_release(request.user, r)
                     messages.success(request, f"{r} is now the default for new runs.")
+                    if missing := service.missing_accs(r):
+                        messages.warning(request, f"{r} cannot price {_needs(missing)}: filings price on the default release.")
                 else:
                     service.retire_release(request.user, r, request.POST.get("reason", ""))
                     messages.success(request, f"{r} is retired.")
@@ -287,7 +294,11 @@ def engines(request):
         "calculations/engines.html",
         {
             "releases": [
-                (r, [(service.calculation_label(c), ", ".join(service.accs_for(r, c))) for c in r.calculations])
+                (
+                    r,
+                    [(service.calculation_label(c), ", ".join(service.accs_for(r, c))) for c in r.calculations],
+                    _needs(service.missing_accs(r)) if r.active else "",
+                )
                 for r in EngineRelease.objects.all()
             ],
             "form": form,

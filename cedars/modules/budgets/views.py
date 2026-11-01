@@ -93,11 +93,13 @@ def index(request):
     for cycle in FilingCycle.objects.filter(deadlines__module=service.MODULE).distinct().order_by("-first_year"):
         rows = []
         for d in service.filings(cycle).order_by("due_at"):
-            latest = None
+            latest, can_open = None, True
             if org is not None:
                 sub = Submission.objects.filter(deadline=d, organisation=org).first()
                 latest = submissions.latest(sub) if sub else None
-            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d)})
+                # The filing page refuses a filing the user may not read (UAT 2, U03): name it without a link then.
+                can_open = sub is None or service.can_read_submission(request.user, sub)
+            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d), "can_open": can_open})
         standing = []
         for o in Organisation.objects.filter(submissions__deadline__module=service.MODULE, submissions__deadline__cycle=cycle).distinct():
             v = service.standing(o, cycle)
@@ -383,6 +385,7 @@ def version(request, pk):
         {
             "v": v,
             "label": service.label(v.submission.deadline),
+            "can_open_filing": service.can_read_submission(request.user, v.submission),
             "t": t,
             "head": head,
             "rows": rows,

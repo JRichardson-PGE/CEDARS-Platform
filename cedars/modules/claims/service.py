@@ -145,6 +145,12 @@ def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=N
     return cy
 
 
+def acc_needs() -> list[tuple[str, str]]:
+    """The claim years with a confirmation still to come, and the ACC each is priced on (submissions.register_acc_needs)."""
+    years = set(Deadline.objects.filter(module=MODULE, due_at__gte=timezone.now()).values_list("period__year", flat=True))
+    return [(f"{cy.year} claims", cy.acc_version) for cy in ClaimYear.objects.filter(year__in=years).order_by("year") if cy.acc_version]
+
+
 def periods(year: int) -> list[Deadline]:
     """The year's deadlines in filing order: Q1 to Q4, then the annual one."""
     ds = Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=year).select_related("period")

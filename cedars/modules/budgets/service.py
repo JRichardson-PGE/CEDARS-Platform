@@ -46,6 +46,12 @@ RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # --- filings (the CPUC sets them up)
 
 
+def acc_needs() -> list[tuple[str, str]]:
+    """The budget filings still to come, and the ACC each is priced on (submissions.register_acc_needs)."""
+    setups = FilingSetup.objects.filter(deadline__module=MODULE, deadline__due_at__gte=timezone.now()).select_related("deadline__cycle")
+    return [(label(s.deadline), s.acc_version) for s in setups.order_by("deadline__due_at") if s.acc_version]
+
+
 def filings(cycle=None):
     qs = Deadline.objects.filter(module=MODULE, cycle__isnull=False).select_related("cycle", "budget_setup__allocation_version")
     return qs.filter(cycle=cycle) if cycle is not None else qs

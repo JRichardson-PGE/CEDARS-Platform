@@ -38,6 +38,8 @@ def shift_list(request):
             "waiting": shifts.waiting_for(org) if org and shifts.access.has_permission(request.user, org, "budgets.confirm") else [],
             "can_submit": shifts.can_submit(request.user, org),
             "cycles": shifts.cycles(),
+            # Only offered to those who may read the acting organization's operating budget (UAT 2, U03).
+            "can_read_operating": org is not None and shifts.can_read_operating(request.user, org),
         },
     )
 
@@ -78,6 +80,7 @@ def shift(request, pk):
             "problems": shifts.problems(s) if s.status == FundShift.Status.DRAFT else [],
             "warnings": shifts.warnings(s) if s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING) else [],
             "editable": editable,
+            "can_read_operating": shifts.can_read_operating(request.user, s.organisation),
             "can_withdraw": s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING)
             and shifts.can_submit(request.user, s.organisation)
             and org == s.organisation,
