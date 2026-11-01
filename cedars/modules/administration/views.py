@@ -21,6 +21,7 @@ from cedars.services.accounts.models import (
     Organisation,
     PolicyChange,
     RecertificationItem,
+    RoleTemplate,
     User,
 )
 from cedars.services.accounts.service import AccessDenied
@@ -209,10 +210,12 @@ def organisation(request, code):
         return redirect("administration:organisation", org.code)
     is_admin = service.is_org_admin(request.user, org)
     codes = _grantable_codes(request.user, org)
+    # role templates bundle module permissions, which only the organization's own administrators grant
+    templates = service.role_templates_for(org) if is_admin else []
     memberships = org.memberships.filter(ended_at__isnull=True).select_related("user").order_by("user__email")
     members = []
     for m in memberships:
-        grants = m.grants.filter(status__in=Grant.OPEN).order_by("permission")
+        grants = m.grants.filter(status__in=Grant.OPEN).select_related("role_template", "granted_by").order_by("permission")
         members.append((m, [(g, perms.label(g.permission)) for g in grants]))
     campaign = org.recertifications.filter(closed_at__isnull=True).first()
     items = []
@@ -228,6 +231,8 @@ def organisation(request, code):
             "is_admin": is_admin,
             "members": members,
             "grant_form": forms.GrantForm(codes=codes, auto_id="grant_%s") if codes else None,
+            "template_form": forms.TemplateGrantForm(templates=templates, auto_id="tpl_%s") if templates else None,
+            "templates": templates,
             "requests": [
                 (r, [(c, perms.label(c)) for c in r.permissions])
                 for r in org.access_requests.filter(status="pending").select_related("user")
@@ -362,6 +367,34 @@ def grant(request, code):
     if g.status == Grant.Status.PENDING:
         return _done(request, f"{perms.label(g.permission)} for {user.email} is waiting for a data steward's approval.", back)
     return _done(request, f"Granted {perms.label(g.permission)} to {user.email}.", back)
+
+
+@login_required
+@require_POST
+def grant_template(request, code):
+    """Grant a member every permission of a role template (BR-01.3)."""
+    org = _org_or_404(request, code)
+    back = f"/admin/organizations/{org.code}/"
+    templates = service.role_templates_for(org)
+    form = forms.TemplateGrantForm(request.POST, templates=templates)
+    if not form.is_valid():
+        messages.error(request, f"Check the role template form: {_form_problems(form)}")
+        return redirect(back)
+    d = form.cleaned_data
+    user = User.objects.filter(email__iexact=d["email"]).first()
+    if user is None:
+        messages.error(request, f"There is no account for {d['email']}. Ask them to create one, then grant access.")
+        return redirect(back)
+    template = next(t for t in templates if str(t.pk) == d["template"])
+    try:
+        result = service.apply_role_template(request.user, user, org, template, expires_at=_end_of_day(d["expires"]), reason=d["reason"])
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    labels = ", ".join(perms.label(g.permission) for g in result.granted)
+    msg = f"Granted {template.name} to {user.email}: {labels}."
+    if result.already:
+        msg += f" Already held: {', '.join(perms.label(p) for p in result.already)}."
+    return _done(request, msg, back)
 
 
 @login_required
@@ -582,6 +615,86 @@ def audit_log(request):
     query = request.GET.copy()
     query.pop("page", None)
     return render(request, "administration/audit.html", {"page": page, "form": form, "query": query.urlencode()})
+
+
+# --- role templates (BR-01.3)
+
+
+TEMPLATE_EVENTS = {
+    "role_template.created": "Added",
+    "role_template.changed": "Changed",
+    "role_template.retired": "Retired",
+    "role_template.reinstated": "Offered again",
+}
+
+
+def _template_form_values(d) -> dict:
+    return {"name": d["name"], "description": d["description"], "permissions": d["permissions"], "kinds": d["kinds"]}
+
+
+@login_required
+def role_templates(request):
+    _require_sysadmin(request)
+    form = forms.RoleTemplateForm(request.POST or None, auto_id="new_%s")
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            t = service.create_role_template(request.user, reason=d["reason"], **_template_form_values(d))
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            msg = f"Role template {t.name} added. Organization administrators can grant it now."
+            return _done(request, msg, "administration:role_templates")
+    rows = [
+        (t, [perms.label(p) for p in t.permissions], [Organisation.Kind(k).label for k in t.kinds], t.grants.count())
+        for t in RoleTemplate.objects.all()
+    ]
+    return render(request, "administration/role_templates.html", {"rows": rows, "form": form})
+
+
+@login_required
+def role_template(request, pk):
+    _require_sysadmin(request)
+    t = get_object_or_404(RoleTemplate, pk=pk)
+    back = f"/admin/role-templates/{t.pk}/"
+    if request.method == "POST" and request.POST.get("action") in ("retire", "reinstate"):
+        reason = request.POST.get("reason", "")
+        try:
+            service.change_role_template(request.user, t, reason=reason, active=request.POST["action"] == "reinstate")
+        except AccessDenied as e:
+            return _refused(request, e, back)
+        return _done(request, f"{t.name} {'retired' if request.POST['action'] == 'retire' else 'offered again'}.", back)
+    form = forms.RoleTemplateForm(
+        request.POST or None,
+        auto_id="tpl_%s",
+        initial={"name": t.name, "description": t.description, "permissions": t.permissions, "kinds": t.kinds},
+    )
+    form.fields["reason"].required = True
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            service.change_role_template(request.user, t, reason=d["reason"], **_template_form_values(d))
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            return _done(request, f"{t.name} saved. Grants it already made are unchanged.", back)
+    grants = t.grants.filter(status__in=Grant.OPEN).select_related("membership__user", "membership__organisation")
+    return render(
+        request,
+        "administration/role_template.html",
+        {
+            "t": t,
+            "form": form,
+            "grants": [
+                (g, perms.label(g.permission))
+                for g in grants.order_by("membership__organisation__code", "membership__user__email", "permission")
+            ],
+            "history": [
+                (e, TEMPLATE_EVENTS.get(e.action, e.action))
+                for e in AuditEvent.objects.filter(object_type="accounts.roletemplate", object_id=str(t.pk)).order_by("-at", "-id")[:20]
+            ],
+        },
+    )
 
 
 # --- statewide allocation versions (BR-06.7, BR-13.8)

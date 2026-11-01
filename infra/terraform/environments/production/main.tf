@@ -60,6 +60,10 @@ module "platform" {
   web_count           = 2
   batch_max_vcpus     = 64
   small_run_max_vcpus = 8
+  # BR-11.2 sandbox refresh, off by default: the CPUC sets the bundle's place and a schedule (e.g. "cron(0 4 ? * SUN *)") to turn
+  # it on, and the sandbox's own settings to load it after.
+  sandbox_bundle_uri       = ""
+  sandbox_refresh_schedule = ""
 }
 
 output "platform" {

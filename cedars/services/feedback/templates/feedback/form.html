@@ -1,0 +1,12 @@
+{% extends "core/base.html" %}
+{% block title %}Send feedback{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Send feedback</h1>{% page_help "feedback/form" %}</div>
+<p>Tell the CPUC's CEDARS team what worked, what did not, or what you expected to find. Your message goes to the team with the page you sent it from{% if user.is_authenticated %} and your name, so they can reply{% else %}. You are signed out, so it is sent without your name; <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">sign in</a> if you would like a reply{% endif %}.</p>
+<p>From the page: <code>{{ page }}</code> <a href="{{ page }}">Back to it</a></p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Send feedback</button></div>
+</form>
+<p class="small muted">For a question about a filing or a deadline, see <a href="{% url 'core:help' %}">Help</a>, which also says how to reach the CPUC.</p>
+{% endblock %}

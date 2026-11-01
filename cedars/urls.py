@@ -6,6 +6,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("admin/retention/", include("cedars.services.retention.urls")),
     path("", include("cedars.modules.administration.urls")),
+    path("", include("cedars.services.feedback.urls")),
     path("dictionary/", include("cedars.services.dictionary.urls")),
     path("rules/", include("cedars.services.rules.urls")),
     path("filings/", include("cedars.services.submissions.urls")),

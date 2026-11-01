@@ -99,6 +99,7 @@ administration/organisation:
       can be merged in.
   how:
     - Grant gives a member a permission; Revoke takes one away and Remove member takes them out of the organization.
+    - Grant template gives a member every permission of a role template (such as Evaluator or Consultant) at once.
     - Approve or Decline each access request waiting for a decision.
     - Start a recertification, then Certify each grant to keep it or Remove it; Reinstate restores a suspended grant.
     - CPUC system administrators Save details, Rename the code, Record a former code or Merge another organization into this one.
@@ -118,6 +119,10 @@ administration/organisation:
     - target: "#grant-h"
       title: Grant a permission
       text: Give a member, or someone new, a permission.
+      optional: true
+    - target: "#tpl-h"
+      title: Grant a role template
+      text: Give a member a whole role's permissions at once, such as an evaluator's or a consultant's.
       optional: true
     - target: "#members-h"
       title: Members
@@ -164,6 +169,50 @@ administration/settings:
     - target: main form
       title: The settings
       text: Change and Save.
+
+administration/role_templates:
+  title: Role templates
+  see: getting-started
+  guide:
+    - For CPUC system administrators. A role template is a named bundle of module permissions, such as a CPUC reviewer, an evaluator, an
+      implementer or a consultant. Organization administrators grant one on their organization's page, which gives the member each of
+      its permissions at once; each grant records the template it came from, and every step is in the audit log.
+    - A template holds module permissions only. An organization's administrator, PII access and the CPUC's own roles each need a decision
+      of their own, so they are granted one by one.
+  how:
+    - Add template with a name, who it is for, the kinds of organization it is offered in and the permissions it grants.
+    - Open a template to change it, retire it or offer it again.
+  tour:
+    - target: main table.list
+      title: The templates
+      text: Each template, where it is offered, what it grants and how many open grants it made.
+    - target: "#new-h"
+      title: Add a role template
+      text: Name it, choose where it is offered and what it grants.
+
+administration/role_template:
+  title: A role template
+  see: getting-started
+  guide:
+    - One role template, its permissions and the open grants it made. A change applies to grants made from now on; members who already
+      have it keep their permissions until they are revoked on their organization's page. A retired template is no longer offered, and
+      the grants it made stay.
+  how:
+    - Change the name, description, kinds or permissions, give a reason and Save template.
+    - Retire stops it being offered; Offer again brings it back. Both need a reason.
+  tour:
+    - target: "#edit-h"
+      title: Change the template
+      text: What it grants from now on.
+    - target: "#state-h"
+      title: Retire or offer again
+      text: Whether organization administrators can grant it.
+    - target: "#grants-h"
+      title: Open grants
+      text: Who has permissions from it now.
+    - target: "#history-h"
+      title: History
+      text: Every change, who made it and why.
 
 administration/audit:
   title: The audit log

@@ -115,6 +115,31 @@ variable "etrm_database" {
   default     = false
 }
 
+variable "sandbox_bundle_uri" {
+  description = "BR-11.2: where production writes the sandbox refresh bundle and the sandbox reads it (s3://bucket/prefix). Blank: no refresh"
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.sandbox_bundle_uri == "" || can(regex("^s3://[a-z0-9][a-z0-9.-]+[a-z0-9](/.*)?$", var.sandbox_bundle_uri))
+    error_message = "sandbox_bundle_uri must be blank or s3://bucket/prefix."
+  }
+}
+
+variable "sandbox_refresh_schedule" {
+  description = <<-EOT
+    BR-11.2: when the sandbox refresh runs (an EventBridge Scheduler expression, Pacific time), e.g. "cron(0 4 ? * SUN *)" in production
+    (writes the bundle) and a few hours later in the sandbox (loads it). Blank, the default: off; the commands can still be run by hand.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "sandbox_read_bucket_arns" {
+  description = "Sandbox only: production buckets it reads in place (the refdata bucket, which copied reference packs point at)"
+  type        = list(string)
+  default     = []
+}
+
 variable "worker_vcpu" {
   description = "vCPU per calculation job (Fargate)"
   type        = number

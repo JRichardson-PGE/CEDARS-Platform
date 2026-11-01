@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}Feedback {{ fb.created_at|date_words }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'feedback:inbox' %}">Feedback</a></li></ol></nav>
+<div class="page-title"><h1>Feedback of {{ fb.created_at|datetime_words }}</h1>{% page_help "feedback/detail" %}</div>
+<dl class="facts">
+  <dt>From</dt><dd>{% if fb.user %}{{ fb.user|person }}{% if fb.organisation %}, acting for {{ fb.organisation.code }}{% endif %}{% else %}Someone signed out (no name or address is kept){% endif %}</dd>
+  <dt>Page</dt><dd><a href="{{ fb.page }}"><code>{{ fb.page }}</code></a></dd>
+  <dt>Status</dt><dd><span class="status {% if fb.status == 'new' %}info{% else %}ok{% endif %}">{{ fb.get_status_display }}</span>{% if fb.closed_at %} {{ fb.closed_at|date_words }}{% if fb.closed_by %} by {{ fb.closed_by|person }}{% endif %}{% endif %}</dd>
+  <dt>Administrators told</dt><dd>{{ fb.notified }}</dd>
+</dl>
+<section class="card" aria-labelledby="msg-h">
+  <h2 id="msg-h">Message</h2>
+  <p class="prewrap">{{ fb.message }}</p>
+  {% if fb.note %}<h3>Note when closed</h3><p class="prewrap">{{ fb.note }}</p>{% endif %}
+</section>
+{% if fb.status == "new" %}
+<section class="card" aria-labelledby="close-h">
+  <h2 id="close-h">Close it</h2>
+  {% if fb.user %}{% with address=fb.user.email %}<p class="small">To reply, write to <a href="mailto:{{ address }}">{{ fb.user|person }}</a>.</p>{% endwith %}{% endif %}
+  <form method="post" action="{% url 'feedback:close' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in close_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Close</button></div>
+  </form>
+</section>
+{% else %}
+<section class="card" aria-labelledby="reopen-h">
+  <h2 id="reopen-h">Reopen it</h2>
+  <form method="post" action="{% url 'feedback:reopen' fb.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in reopen_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Reopen</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

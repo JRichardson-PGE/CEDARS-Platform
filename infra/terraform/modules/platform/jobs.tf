@@ -65,7 +65,55 @@ locals {
     var.etrm_database ? {
       sync-etrm = { command = ["python", "manage.py", "sync_etrm"], at = "cron(0 1 * * ? *)", task = "jobs" }
     } : {},
+    # BR-11.2: off unless both the bundle's place and a schedule are set. Production (or staging) writes the bundle of its published,
+    # non-PII data; the sandbox loads it. Both run in the jobs task, which has no PII vault URL, so the export cannot reach the vault.
+    local.sandbox_refresh ? {
+      (var.environment == "sandbox" ? "sandbox-refresh" : "sandbox-bundle") = {
+        command = var.environment == "sandbox" ? ["python", "manage.py", "refresh_sandbox", "--from", var.sandbox_bundle_uri] : [
+          "python", "manage.py", "export_sandbox_bundle", "--to", var.sandbox_bundle_uri
+        ]
+        at   = var.sandbox_refresh_schedule
+        task = "jobs"
+      }
+    } : {},
   )
+  sandbox_refresh = var.sandbox_bundle_uri != "" && var.sandbox_refresh_schedule != ""
+  sandbox_bundle  = var.sandbox_bundle_uri == "" ? null : regex("^s3://([^/]+)/?(.*)$", var.sandbox_bundle_uri)
+}
+
+# The bundle's place: production writes it, the sandbox reads it (and, in place, the production buckets it is given). A bucket in
+# another account also needs that account's bucket policy (and KMS key policy) to allow these roles: the CPUC's cloud team sets those.
+resource "aws_iam_role_policy" "sandbox_bundle" {
+  count = var.sandbox_bundle_uri == "" && length(var.sandbox_read_bucket_arns) == 0 ? 0 : 1
+  role  = aws_iam_role.web.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = concat(
+      var.sandbox_bundle_uri == "" ? [] : [
+        {
+          Effect   = "Allow"
+          Action   = var.environment == "sandbox" ? ["s3:GetObject", "s3:ListBucket"] : ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+          Resource = ["arn:aws:s3:::${local.sandbox_bundle[0]}", "arn:aws:s3:::${local.sandbox_bundle[0]}/${local.sandbox_bundle[1]}*"]
+        },
+      ],
+      length(var.sandbox_read_bucket_arns) == 0 ? [] : [
+        {
+          Effect   = "Allow"
+          Action   = ["s3:GetObject", "s3:ListBucket"]
+          Resource = flatten([for b in var.sandbox_read_bucket_arns : [b, "${b}/*"]])
+        },
+      ],
+    )
+  })
+}
+
+resource "aws_iam_role_policy" "worker_sandbox_reads" {
+  count = var.environment == "sandbox" && length(var.sandbox_read_bucket_arns) > 0 ? 1 : 0
+  role  = aws_iam_role.worker.id
+  policy = jsonencode({
+    Version   = "2012-10-17"
+    Statement = [{ Effect = "Allow", Action = ["s3:GetObject", "s3:ListBucket"], Resource = flatten([for b in var.sandbox_read_bucket_arns : [b, "${b}/*"]]) }]
+  })
 }
 
 resource "aws_security_group" "jobs" {
