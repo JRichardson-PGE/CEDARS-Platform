@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Getting support{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'core:help' %}">Help</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li></ol></nav>
 <div class="page-title"><h1>Getting support</h1>{% page_help "core/help/contact" %}</div>
 <p>Where to ask for help, report a problem or send feedback.</p>
 {% include "core/help/_support.html" %}

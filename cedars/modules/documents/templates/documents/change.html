@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Change the details of {{ doc.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></li></ol></nav>
 <div class="page-title"><h1>Change the details</h1>{% page_help "documents/change" %}</div>
 <p>The change is recorded with its reason, and what each field was before. The files do not change here:
 <a href="{% url 'documents:new_version' doc.pk %}">add a version</a> to replace them.</p>

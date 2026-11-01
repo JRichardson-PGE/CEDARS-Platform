@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ org.code }}{% endblock %}
 {% block content %}
+{% if is_admin %}<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:organisations' %}">Organizations</a></li></ol></nav>{% endif %}
 <div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation" %}</div>
 {% if not is_admin %}<p class="muted">You are viewing this organization as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
 {% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date_words }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
@@ -74,16 +75,6 @@
 </div>
 {% endif %}
 
-{% if grant_form %}
-<section class="card" aria-labelledby="grant-h">
-  <h2 id="grant-h">{% if no_admin %}Assign the first administrator{% else %}Grant a permission{% endif %}</h2>
-  <form method="post" action="{% url 'administration:grant' org.code %}" class="stack form-narrow">{% csrf_token %}
-    {% for field in grant_form %}{{ field.as_field_group }}{% endfor %}
-    <div class="actions"><button type="submit" class="primary">Grant</button></div>
-  </form>
-</section>
-{% endif %}
-
 {% if requests %}
 <section aria-labelledby="req-h">
 <h2 id="req-h">Access requests</h2>
@@ -103,6 +94,16 @@
   {% else %}<p>Asked for: {% for code, label in labels %}{{ label }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
 </div>
 {% endfor %}
+</section>
+{% endif %}
+
+{% if grant_form %}
+<section class="card" aria-labelledby="grant-h">
+  <h2 id="grant-h">{% if no_admin %}Assign the first administrator{% else %}Grant a permission{% endif %}</h2>
+  <form method="post" action="{% url 'administration:grant' org.code %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in grant_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Grant</button></div>
+  </form>
 </section>
 {% endif %}
 

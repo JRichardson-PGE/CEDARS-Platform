@@ -8,7 +8,6 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
 (<a href="{% url 'programs:locked' %}">which attributes are locked</a>).{% endif %}</p>
 <form method="get" class="filters catalog-filters" aria-label="Filter the programs" data-clean-get>
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
-  <button type="submit">Apply</button>
   <details class="other-filters"{% if other.open %} open{% endif %}>
     <summary>Other filters{% if other.applied %} <span class="count">({{ other.applied }} applied)</span>{% endif %}</summary>
     <div class="other-body">
@@ -60,9 +59,9 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
       </div>
       {% endfor %}
       </div>
-      <button type="submit" class="primary">Apply filters</button>
     </div>
   </details>
+  <button type="submit">Apply</button>
 </form>
 {% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 {% if applied %}

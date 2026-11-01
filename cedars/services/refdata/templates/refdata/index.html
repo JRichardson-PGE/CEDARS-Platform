@@ -11,7 +11,7 @@
 <form method="get" class="row-form">
   <p><label for="kind">Kind</label>
   <select id="kind" name="kind"><option value="">Every kind</option>{% for code, label in kinds %}<option value="{{ code }}"{% if code == kind %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></p>
-  <div class="actions"><button type="submit">Show</button></div>
+  <div class="actions"><button type="submit">Apply</button></div>
 </form>
 <div class="hscroll" tabindex="0" role="region" aria-label="Data packs">
 <table class="list">

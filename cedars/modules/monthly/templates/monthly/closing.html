@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ year }} 13th-month report{% if org %} · {{ org.code }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' year %}{{ csv_query }}">{{ year }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li><li><a href="{% url 'monthly:year' year %}{{ csv_query }}">{{ year }}</a></li></ol></nav>
 <div class="page-title"><h1>{{ year }} 13th-month report{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/closing" %}</div>
 <p>The 13th-month report is generated from the program administrator's confirmed claims for {{ year }}, so it always matches the
 annual claim that stands. Nothing is uploaded for it. December's confirmed monthly report is shown beside it, so the year's monthly
@@ -9,7 +9,7 @@ spend can be reconciled to the claims.</p>
 {% if choices %}
 <form method="get" class="filters" aria-label="Choose the program administrator">
   <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
-  <button type="submit">Show</button>
+  <button type="submit">Apply</button>
 </form>
 {% endif %}
 {% if org %}

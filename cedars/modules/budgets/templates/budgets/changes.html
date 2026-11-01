@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Budgets change log{% endblock %}
 {% block content %}
-{% if user.is_authenticated %}<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>{% endif %}
+{% if user.is_authenticated %}<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li></ol></nav>{% endif %}
 <div class="page-title"><h1>Budgets change log</h1>{% page_help "budgets/changes" %}</div>
 <p>Every correction to a published budget filing, newest first. A correction is a new version of a filing, made after it was
 published; the version it replaces stays as it was confirmed. Each change letter gives the date, the reason and each program whose

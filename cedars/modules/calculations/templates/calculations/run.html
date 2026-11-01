@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}{{ run.name }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
   {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}

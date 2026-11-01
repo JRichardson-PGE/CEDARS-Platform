@@ -92,13 +92,13 @@ administration/organisation:
       title: Codes
       text: The codes it has used, and when.
       optional: true
-    - target: "#grant-h"
-      title: Grant a permission
-      text: Give a member, or someone new, a permission.
-      optional: true
     - target: "#req-h"
       title: Access requests
       text: Requests waiting for a decision.
+      optional: true
+    - target: "#grant-h"
+      title: Grant a permission
+      text: Give a member, or someone new, a permission.
       optional: true
     - target: "#members-h"
       title: Members

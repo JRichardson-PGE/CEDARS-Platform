@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Your new API token{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:account' %}">Your account</a></li></ol></nav>
 <div class="page-title"><h1>Your new API token</h1>{% page_help "administration/token_created" %}</div>
 <p class="alert" role="alert">Copy the key now. It is shown only on this page: CEDARS keeps only a fingerprint of it, so if you lose it,
 revoke the token and make a new one.</p>

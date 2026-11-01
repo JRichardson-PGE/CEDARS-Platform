@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
-{% block title %}{{ table }} row {{ number }}, {{ draft.name }}{% endblock %}
+{% block title %}{{ table }} row {{ number }} · Edit inputs · {{ draft.name }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a> › <a href="{{ back }}">{{ draft.name }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:drafts' %}">Edit inputs</a></li><li><a href="{{ back }}">{{ draft.name }}</a></li></ol></nav>
 <div class="page-title"><h1>{{ table }} row {{ number }} <span class="small muted">of {{ count }}</span></h1>{% page_help "calculations/draft_row" %}</div>
 <nav class="pager" aria-label="Rows">
   {% if number > 1 %}<a href="{% url 'calculations:draft_row' draft.pk table number|add:-1 %}">Previous row</a>{% endif %}

@@ -158,9 +158,15 @@ button.link { background: none; border: none; color: var(--link); padding: 0; mi
 button.link:hover { text-decoration-thickness: 2px; }
 .danger, button.danger { color: var(--bad); border-color: var(--bad); }
 
+/* ---------- Breadcrumbs: the page's parents, above its heading (DESIGN.md) ---------- */
+.crumbs { display: flex; flex-wrap: wrap; list-style: none; margin: 0 0 .5rem; padding: 0; font-size: .86rem; }
+.crumbs li { display: flex; align-items: center; min-height: 24px; }
+.crumbs li + li::before { content: "\203A"; content: "\203A" / ""; padding: 0 .45rem; color: var(--fg-2); }
+.crumbs a { display: inline-flex; align-items: center; min-height: 24px; }
+
 /* ---------- Sub-navigation (a module's sections) as a tab strip ---------- */
-.subnav { display: flex; gap: 0 .25rem; flex-wrap: wrap; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line); font-size: .95rem; }
-.subnav a { padding: .55rem .75rem; text-decoration: none; color: var(--fg-2); border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 500; min-height: 24px; }
+.subnav { display: flex; gap: 0; flex-wrap: wrap; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line); font-size: .95rem; }
+.subnav a { padding: .55rem .6rem; text-decoration: none; color: var(--fg-2); border-bottom: 3px solid transparent; margin-bottom: -1px; font-weight: 500; min-height: 24px; }
 .subnav a:hover { color: var(--link); }
 .subnav a[aria-current="page"] { color: var(--link); border-bottom-color: var(--primary); font-weight: 600; }   /* current section shown by more than colour */
 

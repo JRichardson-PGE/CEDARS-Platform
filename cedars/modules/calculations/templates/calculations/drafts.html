@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Edit inputs{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>Edit inputs</h1>{% page_help "calculations/drafts" %}</div>
 {% if no_engine %}
 <p class="alert" role="alert">Edit inputs needs the ReCET engine package installed on this server (engine/README.md).</p>

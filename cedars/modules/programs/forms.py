@@ -37,13 +37,30 @@ class CatalogFilter(forms.Form):
     pa = forms.ChoiceField(label="PA", required=False)
     state = forms.ChoiceField(label="Open or closed", required=False, choices=STATE_CHOICES)
     segment = forms.ChoiceField(label="Segment", required=False, choices=SEGMENT_CHOICES)
-    year = forms.IntegerField(
-        label="Program year", required=False, min_value=2000, max_value=2100, help_text="Blank: the attributes in force today"
-    )
+    # a choice of the registry's years, "Today" first (UI review 2, #32); a year outside them that a link names is still offered
+    year = forms.TypedChoiceField(label="Program year", required=False, coerce=int, empty_value=None)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["pa"].choices = pa_choices()
+        asked = str(self.data.get("year", "")).strip() if self.data else ""
+        chosen = int(asked) if asked.isdigit() and 1990 <= int(asked) <= 2100 else None
+        self.fields["year"].choices = [("", "Today")] + [(y, str(y)) for y in registry_years(chosen)]
+
+
+def registry_years(chosen: int | None = None) -> list[int]:
+    """The program years the registry covers, newest first: from its first program's start through the last filing cycle on record
+    (or four years ahead), plus `chosen`."""
+    from cedars.services.registry.models import FilingCycle, ProgramVersion
+
+    today = timezone.localdate().year
+    starts = [y for y in ProgramVersion.objects.values_list("start_year", flat=True).distinct() if y]
+    starts += [d.year for d in ProgramVersion.objects.values_list("valid_from", flat=True).distinct() if d]
+    first = min(starts) if starts else today - 10
+    last_cycle = FilingCycle.objects.order_by("-last_year").values_list("last_year", flat=True).first()
+    last = max(today + 4, last_cycle or 0)
+    years = set(range(max(first, last - 40), last + 1)) | ({chosen} if chosen else set())
+    return sorted(years, reverse=True)
 
 
 class ProgramChangeForm(forms.Form):

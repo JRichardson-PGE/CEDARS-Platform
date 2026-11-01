@@ -4,7 +4,7 @@ templates are shared.
 
 Every series is one `query.run` on its dataset with the same parameters, so the chart, the table and each series' download agree."""
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field, replace
 from datetime import date
 from urllib.parse import urlencode
@@ -42,6 +42,11 @@ class Page:
     series: tuple[str, ...] = ("forecast", "claims")
     sections: tuple[Section, ...] = ()  # none: one section grouped by the view-by control
     kind: str = "compare"  # or "goals" (goal_view.py)
+    short: str = ""  # the sub-navigation's label when the title is long (UI review 2, #22: the strip fits one row at 1280 px)
+
+    @property
+    def nav_title(self) -> str:
+        return self.short or self.title
 
     @property
     def view_by(self) -> bool:
@@ -86,6 +91,7 @@ PAGES = {
             "Programs ranked by the metric, each linked to its program page and to its measures by use category.",
             ("tsb", "kwh", "kw", "therms", "expenditure", "trc"),
             sections=(Section("program", "by program", limit=CHART_LIMIT, drill=("measures", "use_category")),),
+            short="Programs",
         ),
         Page(
             "measures",
@@ -96,6 +102,7 @@ PAGES = {
                 Section("use_category", "by measure use category", drill=("measures", "measure")),
                 Section("measure", "by measure", chart=False),
             ),
+            short="Measures",
         ),
         Page(
             "budget",
@@ -104,6 +111,7 @@ PAGES = {
             "claimed expenditure, by year and by program, and the cost elements by sector. Choose PAs under Filters.",
             ("expenditure",),
             kind="budget",
+            short="Budget",
         ),
         Page(
             "cost-effectiveness",
@@ -129,6 +137,7 @@ PAGES = {
             "Emissions avoided, in metric tons, by sector, by year and by program, gross or net, first year or lifecycle.",
             tuple(catalog.EMISSIONS),
             sections=(Section("sector", "by primary sector"), Section("year", "by year"), Section("program", "by program", chart=False)),
+            short="Environment",
         ),
     ]
 }
@@ -465,7 +474,14 @@ def filter_options() -> dict[str, list[str]]:
     versions = ProgramVersion.objects.all()
 
     def distinct(f):
-        return sorted({v for v in versions.values_list(f, flat=True).distinct() if v})
+        # One choice per value whatever its case or spaces (the filters match on lower(trim()), query.py): filed data spell some
+        # values two ways ("Resource Acquisition", "Resource acquisition"). The choice shows the spelling most programs use; the records
+        # keep what was filed.
+        counts = Counter(v.strip() for v in versions.values_list(f, flat=True) if v and v.strip())
+        best: dict[str, str] = {}
+        for v, _n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
+            best.setdefault(v.casefold(), v)
+        return sorted(best.values(), key=str.casefold)
 
     return {
         "sector": distinct("primary_sector"),

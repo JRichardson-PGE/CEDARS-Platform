@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Cost-test sets{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'refdata:index' %}">Reference data</a></li></ol></nav>
 <div class="page-title"><h1>Cost-test sets</h1>{% page_help "refdata/cost_tests" %}</div>
 <p>A cost-test definition set says which value streams each cost test adds up and how it shares the program costs (ReCET's
 COST_TESTS.md). Every run is pinned to one.

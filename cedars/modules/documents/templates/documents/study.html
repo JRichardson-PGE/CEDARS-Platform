@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ s.study_id }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'documents:studies' %}">Evaluation studies</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'documents:studies' %}">Evaluation studies</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ s.title }}</h1>{% page_help "documents/study" %}</div>
   <div class="actions">

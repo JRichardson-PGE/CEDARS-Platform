@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Comments on {{ doc.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>Comments and responses</h1>{% page_help "documents/comments" %}</div>
   <p><a href="{% url 'documents:comments_csv' doc.pk %}">Comment-and-response report (CSV)</a></p>

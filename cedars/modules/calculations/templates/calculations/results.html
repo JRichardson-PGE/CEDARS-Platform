@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Results · {{ run.name }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>Results: {{ run.name }}</h1>{% page_help "calculations/results" %}</div>
   <div class="actions">

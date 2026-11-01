@@ -3,7 +3,7 @@
 {% block title %}{{ page.title }} · Portfolio dashboard{% endblock %}
 {% block content %}
 <nav class="subnav" aria-label="Portfolio dashboard pages">
-  {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
+  {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.nav_title }}</a>{% endfor %}
   <a href="{% url 'data:records' %}">Record downloads</a>
 </nav>
 <div class="page-title"><h1>{{ page.title }}</h1>{% page_help "data/dashboard" page.slug %}</div>
@@ -64,7 +64,7 @@
     {% endif %}
     {% endfor %}
   </details>
-  <button type="submit" class="primary">Apply</button>
+  <button type="submit">Apply</button>
 </form>
 
 {% if applied %}

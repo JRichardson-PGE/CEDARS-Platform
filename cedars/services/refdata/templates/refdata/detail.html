@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
-{% block title %}{{ pack.label }}{% endblock %}
+{% block title %}{{ pack }}{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'refdata:index' %}">Reference data</a></li></ol></nav>
 <div class="page-title"><h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>{% page_help "refdata/detail" %}</div>
 <dl class="facts">
   <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>

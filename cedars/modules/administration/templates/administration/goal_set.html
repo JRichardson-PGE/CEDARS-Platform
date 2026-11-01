@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Goals of {{ s.decision }}{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a></li></ol></nav>
 <div class="page-title"><h1>Goals of {{ s.decision }}</h1>{% page_help "administration/goal_set" %}</div>
 <dl class="facts">
   <dt>Adopted</dt><dd>{{ s.adopted|date_words }}{% if s.url %} (<a href="{{ s.url }}">the decision</a>){% endif %}</dd>

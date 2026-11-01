@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Respond to {{ doc.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></li></ol></nav>
 <div class="page-title"><h1>Respond to the recommendations</h1>{% page_help "documents/response_new" %}</div>
 <ul>{% for r, status in requests %}<li>{{ r.pa.code }}: {{ status }}</li>{% endfor %}</ul>
 <p>The response is kept as a version of this deliverable, at the stage PA response. Once published it is public and never changes; a revised

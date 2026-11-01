@@ -83,7 +83,20 @@ def test_sums_by_dimension_with_the_default_exclusions(claims):
     assert by["Residential"]["trc"] == 1.0 and by["Commercial"]["trc"] == 2.0
     assert r.totals["tsb"] == 180 and r.totals["_rows"] == 3
     assert r.totals["trc"] == pytest.approx(240 / 220)  # from summed benefits and costs, never an average of ratios
-    assert r.notes == ["Left out: Pension and Benefits programs.", "Left out: Codes and standards."]
+    assert r.notes == ["Left out: Pension and Benefits programs and codes and standards."]
+
+
+def test_a_value_spelled_two_ways_is_one_group(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    """UI review 2, #22: filed data spell some values two ways; the groups fold them as the filters do, under the commoner spelling."""
+    records = [
+        ("PGE_A", "Resource Acquisition", "Residential", "Downstream", "HVAC", "2028", "False", 10.0, 0.0, 0.0, 0.0, 0.0),
+        ("PGE_B", "Resource acquisition", "Residential", "Downstream", "HVAC", "2028", "False", 20.0, 0.0, 0.0, 0.0, 0.0),
+        ("PGE_C", "Resource acquisition ", "residential", "Downstream", "HVAC", "2028", "False", 30.0, 0.0, 0.0, 0.0, 0.0),
+    ]
+    publish(filer, claims_deadline(cpuc_admin, 1), pge, django_capture_on_commit_callbacks, "c1", records=records)
+    r = dq.run(dq.Query("claims", ("tsb",), by=("segment", "sector")))
+    assert [(row["segment"], row["sector"], row["tsb"]) for row in r.rows] == [("Resource acquisition", "Residential", 60)]
+    assert dq.run(dq.Query("claims", ("tsb",), filters=(("segment", ("RESOURCE ACQUISITION",)),))).totals["tsb"] == 60
 
 
 def test_toggles_change_every_total_as_the_query_does(claims):
@@ -242,7 +255,7 @@ def test_programs_excluded_from_cost_effectiveness_can_be_left_out(claims):
     assert dq.run(q).totals["trc"] == pytest.approx(240 / 220)
     r = dq.run(q.but(exclude=("pension", "no_ce")))
     assert r.totals["trc"] == pytest.approx(200 / 200) and r.totals["tsb"] == 1150  # PGE_Com_Lt left out
-    assert "Left out: Programs excluded from cost-effectiveness." in r.notes
+    assert "Left out: Pension and Benefits programs and programs excluded from cost-effectiveness." in r.notes
 
 
 def test_metric_catalog_download(client):

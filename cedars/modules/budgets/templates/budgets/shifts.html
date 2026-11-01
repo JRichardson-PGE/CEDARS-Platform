@@ -2,7 +2,7 @@
 {% load budget_money %}
 {% block title %}Fund shifts{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>Fund shifts</h1>{% page_help "budgets/shifts" %}</div>
   {% if can_submit %}<div class="actions"><a class="button" href="{% url 'budgets:shift_new' %}">New fund shift</a></div>{% endif %}

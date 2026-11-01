@@ -17,7 +17,7 @@ programs/catalog:
       text: Search the ID and names, choose PAs, sectors, statuses and years, then Apply.
     - heading: Other filters
       title: Other filters
-      text: Any other program attribute. Choose the attribute, then its values or range, and Apply filters.
+      text: Any other program attribute. Choose the attribute, then its values or range, and Apply.
     - target: section.applied
       title: Applied filters
       text: What the list is filtered by. Remove one, or Reset all.

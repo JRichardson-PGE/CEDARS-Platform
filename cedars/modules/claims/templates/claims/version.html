@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'claims:index' %}">Claims</a> › <a href="{% url 'claims:period' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li><li><a href="{% url 'claims:period' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></li></ol></nav>
 <div class="page-title"><h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "claims/version" %}</div>
 <dl class="facts">
   <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} confirmed {{ v.confirmed_at|date_words }}{% endif %}{% if v.late %} (late){% endif %}</dd>

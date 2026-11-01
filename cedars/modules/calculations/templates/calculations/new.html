@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}New run{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>New run</h1>{% page_help "calculations/new" %}</div>
 {% if not form %}
 <p>No engine release is set up yet. A CPUC system administrator adds one on the <a href="{% url 'calculations:engines' %}">engine releases</a> page.</p>

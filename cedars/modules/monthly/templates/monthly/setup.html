@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}How {{ setup.year }}'s monthly reports are priced{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li></ol></nav>
 <div class="page-title"><h1>How {{ setup.year }}'s monthly reports are priced</h1>{% page_help "monthly/setup" %}</div>
 <p>Reports already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses
 these. Due dates are moved on the <a href="{% url 'submissions:calendar' %}">filing calendar</a>.</p>

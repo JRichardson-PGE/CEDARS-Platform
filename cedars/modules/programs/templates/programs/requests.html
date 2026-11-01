@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Program change requests{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
 <div class="page-title"><h1>Program change requests</h1>{% page_help "programs/requests" %}</div>
 <p>A program's administrators change most of its attributes themselves. A change to a <a href="{% url 'programs:locked' %}">locked attribute</a>
 is a request{% if approver %}, which you or another CPUC programs approver decides{% else %} that a CPUC programs approver decides{% endif %}.

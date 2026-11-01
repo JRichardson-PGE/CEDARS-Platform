@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Downloads of {{ doc.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{{ doc.get_absolute_url }}">{{ doc.title }}</a></li></ol></nav>
 <div class="page-title"><h1>Downloads</h1>{% page_help "documents/downloads" %}</div>
 <p>Every download of this document's files, and every view in the browser, newest first. Each is an event in the audit trail.
 Downloads by people who were not signed in are counted as "public".</p>

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Compare · {{ a.name }}{% if b %} and {{ b.name }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:run' a.pk %}">{{ a.name }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:run' a.pk %}">{{ a.name }}</a></li></ol></nav>
 <div class="page-title"><h1>Compare two runs</h1>{% page_help "calculations/compare" %}</div>
 <dl class="facts">
   <dt>A</dt><dd><a href="{% url 'calculations:results' a.pk %}">{{ a.name }}</a> <span class="small muted">{{ calc_a|default:a.calculation }}, ReCET {{ a.engine_release }}, {{ a.acc_version }} ACC, {{ a.created_at|datetime_words }}</span></dd>

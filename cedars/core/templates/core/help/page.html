@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Help: {{ entry.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'core:help' %}">Help</a> › <a href="{% url 'core:help_pages' %}">Help for each page</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li><li><a href="{% url 'core:help_pages' %}">Help for each page</a></li></ol></nav>
 <div class="page-title"><h1>Help: {{ entry.title }}</h1>{% page_help "core/help/page" %}</div>
 <p class="muted">{{ entry.area_label }}</p>
 {% for p in entry.guide %}<p class="measure">{{ p }}</p>

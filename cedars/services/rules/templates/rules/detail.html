@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ rs.label }} {{ rs.effective_from|date_words }}{% endblock %}
 {% block content %}
-<p><a href="{% url 'rules:index' %}">Validation rules</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'rules:index' %}">Validation rules</a></li></ol></nav>
 <div class="page-title"><h1>{{ rs.label }} <span class="muted">effective {{ rs.effective_from|date_words }}</span></h1>{% page_help "rules/detail" %}</div>
 <p>{{ rs.get_status_display }}{% if rs.published_at %} {{ rs.published_at|date_words }}{% endif %}. {{ counts.reject|default:0 }} rules reject a record, {{ counts.warning|default:0 }} give a warning. {{ rs.source }}</p>
 {% if sysadmin and rs.status == "draft" %}<form method="post" action="{% url 'rules:publish' rs.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Publish this rule set</button></form>{% endif %}
