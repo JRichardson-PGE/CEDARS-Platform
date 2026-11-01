@@ -28,7 +28,6 @@ from .loadshapes import SUM_TOLERANCE, Finding, check_header, hour_problem, open
 from .models import HOURS, ImpactProfile, MeasurePackage, ProfileMapping, ProfileVersion, ProfileZone
 
 COLUMNS = ["Climate Zone", "Hour of Year", "Impact"]
-MAX_MB = 20
 
 
 class ProfileRejected(Exception):
@@ -41,9 +40,10 @@ class ProfileRejected(Exception):
 
 def read_profile_file(data: bytes, name: str) -> dict[str, np.ndarray]:
     """{climate zone: 8,760} from a custom profile file, or ProfileRejected with every finding."""
-    if len(data) > MAX_MB * 1024 * 1024:
+    max_mb = settings.IMPACT_PROFILES_CUSTOM_MAX_MB  # on the Limits page (/limits/)
+    if len(data) > max_mb * 1024 * 1024:
         raise ProfileRejected(
-            [Finding("LS-F02", message=f"The file is {len(data) / 1024 / 1024:.1f} MB; a custom profile file is at most {MAX_MB} MB.")]
+            [Finding("LS-F02", message=f"The file is {len(data) / 1024 / 1024:.1f} MB; a custom profile file is at most {max_mb} MB.")]
         )
     text, findings = open_csv(io.BytesIO(data), name, len(data))
     if text is None:

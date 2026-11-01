@@ -76,6 +76,13 @@ EVENTS = [
     EventType("deadline.moved", "A deadline moves", "public", "Filing calendar"),
     EventType("pack.published", "Reference data is published (ACC, impact profiles, DEER, value lists ...)", "public", "Reference data"),
     EventType("pack.withdrawn", "Reference data is withdrawn", "public", "Reference data"),
+    EventType(
+        "release.published",
+        "Release notes are published: a change to the specifications, rules, limits or CEDARS itself, before it takes effect",
+        "public",
+        "Release notes",
+    ),
+    EventType("release.withdrawn", "Published release notes are withdrawn", "public", "Release notes"),
     EventType("rule_set.published", "A validation rule set is published", "public", "Rules and dictionary"),
     EventType("dictionary.published", "A new version of the data dictionary is published", "public", "Rules and dictionary"),
 ]

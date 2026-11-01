@@ -1,0 +1,56 @@
+{% extends "core/base.html" %}
+{% block title %}Release notes{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Release notes</h1>{% page_help "releases/index" %}</div>
+<p>Every change to CEDARS' specifications, validation rules, limits and system is announced here before it takes effect, usually at
+least {{ notice_days }} days before. A note published at shorter notice says why. This site runs CEDARS release {{ running }}.</p>
+<div class="actions">
+  <a href="{% url 'limits:index' %}">Current limits</a>
+  <a href="{% url 'core:help_faq' %}">Frequently asked questions</a>
+  <a href="{% url 'releases:feed' %}">Feed (RSS)</a>
+  {% if sysadmin %}<a class="button" href="{% url 'releases:manage' %}">Write release notes</a>{% endif %}
+</div>
+{% include "releases/_subscribe.html" %}
+
+<section aria-labelledby="coming-h">
+<h2 id="coming-h">Coming changes</h2>
+{% if coming %}
+<ul class="release-list">
+  {% for n in coming %}<li>
+    <h3><a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a></h3>
+    <p class="small"><span class="status info">Coming</span> Takes effect {{ n.effective_on|date_words }}{% if n.version %} with release {{ n.version }}{% endif %} · published {{ n.published_at|date_words }}</p>
+    <p>{{ n.summary }}</p>
+  </li>{% endfor %}
+</ul>
+{% else %}<p>No changes are announced.</p>{% endif %}
+</section>
+
+<section aria-labelledby="this-release-h">
+<h2 id="this-release-h">This release: {{ running }}</h2>
+{% if running_note %}<p><a href="{% url 'releases:detail' running_note.pk %}">{{ running_note.title }}</a>, in effect since {{ running_note.effective_on|date_words }}.</p>
+{% else %}<p>No release note has been published for release {{ running }}.</p>{% endif %}
+{% if running_guides %}<p>Guides revised for it:</p>
+<ul class="links">{% for title, link in running_guides %}<li><a href="{{ link }}">{{ title }}</a></li>{% endfor %}</ul>
+{% else %}<p>No user guide was revised for it.</p>{% endif %}
+</section>
+
+<section aria-labelledby="past-h">
+<h2 id="past-h">In effect and withdrawn</h2>
+{% if past %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Earlier release notes">
+<table class="list">
+  <caption class="sr-only">Release notes in effect or withdrawn, newest first</caption>
+  <thead><tr><th scope="col">Release note</th><th scope="col">Release</th><th scope="col">Took effect</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for n in past %}<tr>
+    <th scope="row"><a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a></th>
+    <td>{{ n.version|default:"No new code" }}</td>
+    <td>{{ n.effective_on|date_words }}</td>
+    <td>{% if n.is_withdrawn %}<span class="status warn">Withdrawn</span>{% else %}<span class="status ok">In effect</span>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet.</p>{% endif %}
+</section>
+{% endblock %}

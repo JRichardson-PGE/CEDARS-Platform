@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
+from cedars.core import uploads
 from cedars.services.accounts.service import AccessDenied
 
 from . import drafts, service
@@ -31,7 +32,12 @@ class NewDraftForm(djforms.Form):
         widget=djforms.RadioSelect,
         initial="upload",
     )
-    job = djforms.FileField(label="Job file (.zip)", required=False, help_text="Measure.csv and, optionally, ProgramCost.csv, zipped")
+    job = djforms.FileField(
+        label="Job file (.zip)",
+        required=False,
+        help_text=uploads.limit_text("Measure.csv and, optionally, ProgramCost.csv, zipped.", False),
+        validators=[uploads.check_size],
+    )
 
     def __init__(self, *args, organisations=(), **kwargs):
         super().__init__(*args, **kwargs)

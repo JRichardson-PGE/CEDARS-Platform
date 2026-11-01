@@ -1,0 +1,23 @@
+{# One FAQ question, its answer and its worked example. hl = the heading level: h3 under a topic, h2 in search results. #}
+<article class="faq" id="{{ q.id }}" aria-labelledby="{{ q.id }}-q">
+  {% if hl == 2 %}<h2 id="{{ q.id }}-q">{{ q.q }}</h2>{% else %}<h3 id="{{ q.id }}-q">{{ q.q }}</h3>{% endif %}
+  {% for p in q.a %}<p>{{ p }}</p>{% endfor %}
+  {% if q.example %}
+  <div class="example">
+    <p class="example-title"><strong>Worked example: {{ q.example.title }}</strong></p>
+    {% if q.example.intro %}<p>{{ q.example.intro }}</p>{% endif %}
+    {% if q.example.steps %}<ol>{% for s in q.example.steps %}<li>{{ s }}</li>{% endfor %}</ol>{% endif %}
+    {% if q.example.table %}
+    <div class="hscroll" tabindex="0" role="region" aria-label="{{ q.example.table.caption }}">
+    <table class="list">
+      <caption>{{ q.example.table.caption }}</caption>
+      <thead><tr>{% for h in q.example.table.head %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for row in q.example.table.rows %}<tr>{% for c in row %}{% if forloop.first %}<th scope="row">{{ c }}</th>{% else %}<td>{{ c }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+    </div>
+    {% endif %}
+    {% if q.example.result %}<p>{{ q.example.result }}</p>{% endif %}
+  </div>
+  {% endif %}
+  <p class="small">{% for text, href in q.links %}<a href="{{ href }}">{{ text }}</a> · {% endfor %}<a href="{% url 'core:help_guide' q.guide %}">The user guide</a> · <a href="{% url 'core:help_faq' %}#{{ q.id }}">Link to this answer</a></p>
+</article>

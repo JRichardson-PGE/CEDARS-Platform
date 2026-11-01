@@ -1,0 +1,34 @@
+{% extends "core/base.html" %}
+{% block title %}{{ note.title }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'releases:index' %}">Release notes</a></li></ol></nav>
+<div class="page-title"><h1>{{ note.title }}</h1>{% page_help "releases/detail" %}</div>
+<p>{{ note.summary|linebreaksbr }}</p>
+<dl class="facts">
+  <dt>Status</dt><dd>{% if status == "withdrawn" %}<span class="status warn">Withdrawn</span>{% elif status == "coming" %}<span class="status info">Coming</span>{% else %}<span class="status ok">In effect</span>{% endif %}</dd>
+  <dt>Takes effect</dt><dd>{{ note.effective_on|date_words }}</dd>
+  <dt>Published</dt><dd>{{ note.published_at|date_words }}</dd>
+  <dt>Release</dt><dd>{% if note.version %}CEDARS {{ note.version }}{% if note.version == running %} (this site runs it){% endif %}{% else %}No new code: the change is made in CEDARS' settings or data{% endif %}</dd>
+  {% if note.short_notice_reason %}<dt>Why at short notice</dt><dd>{{ note.short_notice_reason|linebreaksbr }}</dd>{% endif %}
+  {% if note.is_withdrawn %}<dt>Withdrawn</dt><dd>{{ note.withdrawn_at|date_words }}: {{ note.withdrawn_reason|linebreaksbr }}</dd>{% endif %}
+</dl>
+<h2>Changes</h2>
+{% include "releases/_changes.html" %}
+{% if note.version %}
+<h2>Guides revised for this release</h2>
+{% if guides %}<ul class="links">{% for title, link in guides %}<li><a href="{{ link }}">{{ title }}</a></li>{% endfor %}</ul>
+{% else %}<p>None: the user guides already describe what this release changes, or the release is not yet built.</p>{% endif %}
+{% endif %}
+{% include "releases/_subscribe.html" %}
+{% if sysadmin and not note.is_withdrawn %}
+<section class="card" aria-labelledby="withdraw-h">
+  <h2 id="withdraw-h">Withdraw this note</h2>
+  <p>A published note never changes. If the plan changed, withdraw it (everyone subscribed is told, and the note stays here, marked
+  withdrawn with your reason) and publish a new one.</p>
+  <form method="post" action="{% url 'releases:withdraw' note.pk %}" class="stack form-narrow">{% csrf_token %}
+    <p><label for="withdraw-reason">Reason</label><textarea id="withdraw-reason" name="reason" rows="2" required></textarea></p>
+    <div class="actions"><button type="submit">Withdraw</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{
+  "faq": {
+    "release": "0.2.0",
+    "sha256": "2901fccdeddc7715491f5b3036cf50e9ee8b95a7c14e00f1f389aaa5ea6a28c3"
+  },
+  "guide:accessibility": {
+    "release": "0.2.0",
+    "sha256": "7f59236db35c8c2b9de972d3902bcfcb7ba0f58f0f9bfd220793926170f91e74"
+  },
+  "guide:budgets": {
+    "release": "0.2.0",
+    "sha256": "26bfad4ade444dbc7e950011b372d92c127f829c3933d9828824f576f8410eba"
+  },
+  "guide:calculations": {
+    "release": "0.2.0",
+    "sha256": "f38f9bb6fe5fefbeef645aa6dd6785221f80759ac11c5f6fe4ad37f1a89f9c03"
+  },
+  "guide:claims": {
+    "release": "0.2.0",
+    "sha256": "866e3bc37d1600b92c49c3bee60130c77d7ee7576a7015f40b5ad3298a8eb6b9"
+  },
+  "guide:getting-started": {
+    "release": "0.2.0",
+    "sha256": "9a62d60d3c40e1065acf06386b61af32e4ef23c3752a629f5395c0f061433cd6"
+  },
+  "guide:monthly-reports": {
+    "release": "0.2.0",
+    "sha256": "25b3b013cfebeca155d3fd112d654047291a5dfc7be40ce90c8c4fbceb569400"
+  },
+  "guide:programs": {
+    "release": "0.2.0",
+    "sha256": "2e31d2575340521af47a9f6e312a1c2c64e69c5af13b34eae3d7bbfe1275b360"
+  },
+  "guide:published-data": {
+    "release": "0.2.0",
+    "sha256": "d8bc94d2b1ba514d5c12864c876d755f09a8206844a83cf8b0bfcdcd1462838c"
+  }
+}

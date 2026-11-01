@@ -32,5 +32,12 @@ to the programs you follow.</p>
 <p>Your own systems can file and read through the CEDARS API. On your account page, under <strong>API tokens</strong>, make a token for one
 organization and the modules it may use; it can do no more than you can. Copy its key when it is shown: it is shown only once. A token
 stops working when it expires, when you revoke it, or when you leave the organization. The <a href="/api/v1/schema">API description</a>
-lists every endpoint.</p>
+lists every endpoint. Calls are rate limited; the <a href="{% url 'limits:index' %}">Limits</a> page gives the current rates.</p>
+<h2>Changes, limits and this guide's release</h2>
+<p>Every change to CEDARS' specifications, validation rules, limits or system is announced in the
+<a href="{% url 'releases:index' %}">release notes</a> before it takes effect, and every page shows the changes coming soon. Signed in,
+choose <strong>Send me each release note by email</strong> there to be told of each one. The <a href="{% url 'limits:index' %}">Limits</a>
+page lists every limit as the site applies it now (upload sizes, files per upload, run and download sizes, API rates), and each upload
+field says its own. Each user guide, like this one, says the CEDARS release it was revised for, and the footer shows the release the
+site runs. The <a href="{% url 'core:help_faq' %}">frequently asked questions</a> have short answers with worked examples.</p>
 {% endblock %}

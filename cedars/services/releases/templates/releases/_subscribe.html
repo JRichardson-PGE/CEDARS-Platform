@@ -1,0 +1,8 @@
+{% if user.is_authenticated %}
+<form method="post" action="{% url 'releases:subscribe' %}" class="actions">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+  {% if subscribed %}<p class="small">Each release note is sent to you by email as it is published.</p><input type="hidden" name="stop" value="1"><button type="submit">Stop sending me release notes</button>
+  {% else %}<button type="submit" class="primary">Send me each release note by email</button>{% endif %}
+</form>
+{% else %}
+<p class="small"><a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in</a> to be sent each release note as it is published.</p>
+{% endif %}

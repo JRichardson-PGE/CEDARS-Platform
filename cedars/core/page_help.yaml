@@ -197,6 +197,25 @@ core/help/contact:
       title: Accessibility barriers
       text: If something does not work with your keyboard, screen reader or zoom, say so; it is fixed as a defect.
 
+core/help/faq:
+  title: Frequently asked questions
+  see: getting-started
+  guide:
+    - >-
+      Short answers by topic, several with a worked example, each linked to the user guide that goes further. The limits they mention
+      are the site's as they stand now. Search finds the questions with every word you give, in the question, its answer or its example.
+  how:
+    - Type a few words and choose Search, or pick a topic. Show every question clears the search.
+    - Link to this answer under each answer is a permanent link to it.
+  tour:
+    - target: form[role="search"]
+      title: Search
+      text: Words to look for and, optionally, one topic. It works without scripts.
+    - target: article.faq
+      title: An answer
+      text: The question, its answer, any worked example, and links to the user guide and to this answer.
+      optional: true  # a search that matches nothing shows none
+
 core/help/tour:
   title: The tour, written out
   see: accessibility

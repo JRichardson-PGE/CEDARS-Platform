@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import connection
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
@@ -5,6 +6,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
+from . import faq, revisions
 from . import help as site_help
 from . import page_help as pages
 
@@ -38,7 +40,45 @@ def help_guide(request, slug):
     return render(
         request,
         f"core/help/{slug}.html",
-        {"guide": guide, "guides": site_help.GUIDES, "support": site_help.support()},
+        {
+            "guide": guide,
+            "guides": site_help.GUIDES,
+            "support": site_help.support(),
+            "questions": faq.for_guide(slug),
+            "revision": _revision(guide),
+        },
+    )
+
+
+def _revision(guide) -> dict:
+    """The release a guide was revised for, the release the site runs, and the releases in effect since that changed its part (BR-12.5)."""
+    from cedars.services.releases import service as releases
+
+    behind = next((g.behind for g in releases.guide_revisions() if g.slug == guide.slug), [])
+    return {"release": guide.revised, "running": releases.running(), "behind": behind}
+
+
+@require_GET
+def help_faq(request):
+    """The FAQ (BR-12.3): every question by topic, or those matching ?q= words, in ?topic= one topic. Works without scripts."""
+    q = " ".join(request.GET.get("q", "").split())[:200]
+    topics = faq.topics()
+    topic = request.GET.get("topic", "")
+    if topic not in {t.key for t in topics}:
+        topic = ""
+    searching = bool(q or topic)
+    return render(
+        request,
+        "core/help/faq.html",
+        {
+            "topics": topics,
+            "q": q,
+            "topic": topic,
+            "searching": searching,
+            "results": faq.search(q, topic) if searching else [],
+            "topic_titles": {t.key: t.title for t in topics},
+            "revision": {"release": revisions.revised("faq"), "running": settings.VERSION},
+        },
     )
 
 

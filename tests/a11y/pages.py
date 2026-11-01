@@ -32,6 +32,18 @@ PAGES = [
         )
     ],
     ("about", "/about/", None),
+    # release notes, limits and the FAQ (gap 9); the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
+    ("releases", "/releases/", None),
+    ("releases-signed-in", "/releases/", "community"),
+    ("release-coming", "/releases/{release_note}/", None),
+    ("release-in-effect", "/releases/{release_done}/", "cpuc_admin"),
+    ("releases-manage", "/releases/manage/", "cpuc_admin"),
+    ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
+    ("limits", "/limits/", None),
+    ("faq", "/help/faq/", None),
+    ("faq-search", "/help/faq/?q=upload+too+large", None),
+    ("faq-topic", "/help/faq/?topic=claims", "analyst"),
+    ("faq-no-match", "/help/faq/?q=zebra", None),
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("rules", "/rules/", None),

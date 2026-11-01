@@ -14,7 +14,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from cedars.core import api, storage
+from cedars.core import api, storage, uploads
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import AllocationVersion
 
@@ -157,7 +157,10 @@ RunDetail = inline_serializer(
 class NewRun(serializers.Serializer):
     """What New run takes, as form fields. Settings left out take New run's defaults."""
 
-    job = serializers.FileField(help_text="Measure.csv and, optionally, ProgramCost.csv, zipped together")
+    job = serializers.FileField(
+        help_text="Measure.csv and, optionally, ProgramCost.csv, zipped together; at most CEDARS_UPLOAD_MAX_MB (see /limits/)",
+        validators=[uploads.check_size],
+    )
     name = serializers.CharField(max_length=200)
     personal = serializers.BooleanField(default=False, help_text="The caller's own run, not the organization's")
     release = serializers.CharField(required=False, help_text="A ReCET release from /engines; the default release when left out")

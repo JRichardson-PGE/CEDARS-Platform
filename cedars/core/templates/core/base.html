@@ -100,6 +100,7 @@
 </div>
 </header>
 <main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
+{% if coming_changes %}{# BR-12.1: changes announced in the release notes, shown on every page until they take effect #}<p class="coming-changes"><strong>Coming change{{ coming_changes|length|pluralize }}:</strong> {% for n in coming_changes|slice:":2" %}<a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a>, {{ n.effective_on|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if coming_changes|length > 2 %}; and <a href="{% url 'releases:index' %}">{{ coming_changes|length|add:"-2" }} more</a>{% endif %}.</p>{% endif %}
 {% if messages %}{# Errors (e.g. "Set up your second factor first.") are alerts, the rest status messages. #}{% for message in messages %}{% if message.level_tag == "error" %}<p class="alert" role="alert">{{ message }}</p>{% endif %}{% endfor %}<ul class="messages" role="status">{% for message in messages %}{% if message.level_tag != "error" %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endif %}{% endfor %}</ul>{% endif %}
 {% block content %}{% endblock %}
 </main>
@@ -110,6 +111,8 @@
   <ul class="links">
     <li><a href="{% url 'core:help' %}">Help</a></li>
     <li><a href="{% url 'core:about' %}">About CEDARS</a></li>
+    <li><a href="{% url 'releases:index' %}">Release notes</a></li>
+    <li><a href="{% url 'limits:index' %}">Limits</a></li>
     <li><a href="{% url 'documents:library' %}">Documents</a></li>
     <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
     <li><a href="{% url 'rules:index' %}">Validation rules</a></li>
