@@ -357,8 +357,17 @@ def _rule_findings(tables: dict[str, bytes], cycle) -> tuple[list, list[str], st
         frames = {t: rules.read_table(tables[t]) for t in jobfile.TABLES}
     except rules.EngineMissing as e:
         raise AccessDenied(f"{e} The filing cannot be validated on this server.") from None
+    out, notes = _rule_findings_on(frames, cycle.covers, rs)
+    return out, notes, f"{rs.label} ({rs.effective_from})"
+
+
+def _rule_findings_on(frames: dict, covers, rs) -> tuple[list, list[str]]:
+    """Rule set version `rs` on each table read (`frames`), the rows of each year `covers(year)` accepts checked with that year as the
+    filing year. The upload's step (`_rule_findings`) and the pre-upload checker's (`precheck`)."""
     out, notes = [], set()
     for table, year_col, id_col in (("ProgramCost", "PrgYear", "PrgID"), ("Measure", "ClaimYearQuarter", "CEInputID")):
+        if table not in frames:
+            continue
         df = frames[table]
         have = {c.lower() for c in df.columns}
         spec = rules.spec_columns(rs, table)
@@ -374,7 +383,7 @@ def _rule_findings(tables: dict[str, bytes], cycle) -> tuple[list, list[str], st
             continue
         years = df[year_col].astype(str).str[:4]
         for y in sorted(set(years)):
-            if not (y.isdigit() and cycle.covers(int(y))):
+            if not (y.isdigit() and covers(int(y))):
                 continue  # the module's own check reports it
             part = df[years == y]
             try:
@@ -390,7 +399,29 @@ def _rule_findings(tables: dict[str, bytes], cycle) -> tuple[list, list[str], st
                 f.row = int(lines[f.row - 2]) + 2
             out += found
             notes.update(n)
-    return out, sorted(notes), f"{rs.label} ({rs.effective_from})"
+    return out, sorted(notes)
+
+
+def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[list, list[str], int]:
+    """The pre-upload checker's budgets step (rules.precheck): one table checked by `_rule_findings_on`, the step an upload runs, against
+    version `rs`, each year's rows as that year's filing; with `filing_year`, only that year's rows."""
+    from cedars.services.rules.precheck import YEAR_COLUMN, CheckError
+
+    try:
+        df = rules.read_table(content)
+    except rules.EngineMissing:
+        raise
+    except Exception as e:  # noqa: BLE001 - a file that cannot be read is the caller's problem to report, not a server error
+        raise CheckError(f"The file could not be read as a {table} table: {e}") from None
+    out, notes = _rule_findings_on({table: df}, lambda y: filing_year is None or y == filing_year, rs)
+    col = YEAR_COLUMN[table]
+    if col in df.columns:
+        years = df[col].astype(str).str[:4]
+        other = int((~years.str.isdigit()).sum()) if filing_year is None else int((years != str(filing_year)).sum())
+        if other:
+            why = "have no year in" if filing_year is None else f"are not for {filing_year} in"
+            notes.insert(0, f"{other} record{'s' if other != 1 else ''} {why} {col}: their rules were not run.")
+    return out, notes, len(df)
 
 
 def _recet_name(column: str) -> str:

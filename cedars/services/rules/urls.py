@@ -9,6 +9,7 @@ urlpatterns = [
     path("differences/", views.differences, name="differences"),
     path("check/", views.check, name="check"),
     path("<int:pk>/", views.detail, name="detail"),
+    path("<int:pk>/rules.json", views.rule_set_json, name="json"),
     path("<int:pk>/publish", views.publish, name="publish"),
     path("<int:pk>/new-version", views.new_version, name="new_version"),
     path("<int:pk>/discard", views.discard, name="discard"),

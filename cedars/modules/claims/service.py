@@ -1008,10 +1008,11 @@ def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
             "Enter 1: every claim a CCA or REN files has it.", r.get("CCAREN_Flag", ""))  # fmt: skip
 
 
-def _rule_findings(own: dict[str, upload.Table], year: int) -> tuple[list, list[str], str]:
+def _rule_findings(own: dict[str, upload.Table], year: int | None, rs=None) -> tuple[list, list[str], str]:
     """The claims rule set in force (CEDARS' own Measure and ProgramCost rules, run by the engine) on the upload's own records, with the
-    claim year as the filing year. A table without the specification's columns is rejected on those columns before its rules run."""
-    rs = rules.in_force(RULE_SET)
+    claim year as the filing year. A table without the specification's columns is rejected on those columns before its rules run.
+    `rs`: another published version (the pre-upload checker, `precheck`); default the version in force."""
+    rs = rs or rules.in_force(RULE_SET)
     if rs is None:
         return [], ["No claims rule set is published yet, so only the module's own checks ran."], ""
     out, notes = [], set()
@@ -1045,6 +1046,26 @@ def _rule_findings(own: dict[str, upload.Table], year: int) -> tuple[list, list[
         out += found
         notes.update(n)
     return out, sorted(notes), f"{rs.label} ({rs.effective_from})"
+
+
+def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[list, list[str], int]:
+    """The pre-upload checker's claims step (rules.precheck): one table read as an upload reads it (upload.read: canonical names,
+    unknown and system columns dropped, values trimmed) and checked by `_rule_findings`, the step `check` runs, against version `rs`.
+    The claim year is `filing_year`, else the one year the table's records are for."""
+    from cedars.services.rules.precheck import YEAR_COLUMN, CheckError, year_of
+
+    rules.require_engine()
+    try:
+        t = upload.without_system_fields(upload.table_from_csv(table, content))
+    except upload.UploadError as e:
+        raise CheckError(str(e)) from None
+    notes = []
+    if filing_year is None and t.rows:
+        filing_year = year_of(r.get(YEAR_COLUMN[table], "") for r in t.rows)
+        if filing_year is not None:
+            notes.append(f"Checked as {filing_year} claims, the year of every record; give the claim year to check for another.")
+    found, rule_notes, _ = _rule_findings({table: t}, filing_year, rs)
+    return found, notes + rule_notes, len(t.rows)
 
 
 def _recet_name(column: str) -> str:

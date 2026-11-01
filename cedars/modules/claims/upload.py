@@ -153,6 +153,11 @@ def _table(name: str, raw: list[list[str]]) -> Table:
     return Table(name, columns, rows, ignored=[h for h, n in zip(header, names, strict=True) if n is None])
 
 
+def table_from_csv(name: str, content: bytes) -> Table:
+    """One table's CSV read as an upload reads it (the pre-upload checker)."""
+    return _table(name, _csv_rows(content))
+
+
 def without_system_fields(t: Table) -> Table:
     """An upload's table without the columns CEDARS fills in (spec.SYSTEM_FIELDS): they are ignored, as an unknown column is."""
     drop = [c for c in spec.SYSTEM_FIELDS.get(t.name, ()) if c in t.columns]

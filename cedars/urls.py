@@ -24,6 +24,7 @@ urlpatterns = [
     path("deer-resources/", include("cedars.modules.documents.legacy_urls")),
     path("api/v1/calculations/", include("cedars.modules.calculations.api_urls")),
     path("api/v1/claims/", include("cedars.modules.claims.api_urls")),
+    path("api/v1/rules/", include("cedars.services.rules.api_urls")),
     path("api/v1/", include("cedars.core.api_urls")),
     path("calculations/", include("cedars.modules.calculations.urls")),
     path("django-admin/", admin.site.urls),
