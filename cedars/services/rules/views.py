@@ -2,14 +2,15 @@ from collections import Counter
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import Http404, HttpResponse
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import service
+from . import forms, service
 from .models import Rule, RuleSet
 
 MAX_UPLOAD = 200 * 1024 * 1024
@@ -66,6 +67,8 @@ def detail(request, pk):
             "table": table,
             "q": q,
             "sysadmin": request.user.is_authenticated and access.is_system_admin(request.user),
+            "version_form": forms.NewVersionForm(auto_id="version_%s"),
+            "drafts": RuleSet.objects.filter(code=rs.code, status=RuleSet.Status.DRAFT).exclude(pk=rs.pk),
         },
     )
 
@@ -151,7 +154,157 @@ def check(request):
 
 
 def rule(request, pk, rule_id):
+    r = get_object_or_404(Rule.objects.select_related("rule_set"), rule_set_id=pk, rule_id=rule_id)
+    sysadmin = request.user.is_authenticated and access.is_system_admin(request.user)
+    replaced = None
+    if r.replaces and r.rule_set.based_on_id:
+        replaced = Rule.objects.filter(rule_set_id=r.rule_set.based_on_id, rule_id=r.replaces).first()
+    return render(request, "rules/rule.html", {"r": r, "sysadmin": sysadmin, "replaced": replaced})
+
+
+# --- administrators change the rules as new versions (BR-12.6)
+
+
+def _admin(request):
+    if not access.is_system_admin(request.user):
+        raise PermissionDenied("Only a CPUC system administrator changes the rules.")
+
+
+@login_required
+@require_POST
+def new_version(request, pk):
+    _admin(request)
+    rs = get_object_or_404(RuleSet, pk=pk)
+    form = forms.NewVersionForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the date the new version takes effect and why the rules change.")
+        return redirect("rules:detail", pk=rs.pk)
+    try:
+        new = service.new_version(request.user, rs, form.cleaned_data["effective_from"], form.cleaned_data["reason"])
+    except (AccessDenied, service.RuleError) as e:
+        messages.error(request, str(e))
+        return redirect("rules:detail", pk=rs.pk)
+    messages.success(request, f"Started a draft of {new}: change its rules, then publish it.")
+    return redirect("rules:detail", pk=new.pk)
+
+
+@login_required
+@require_POST
+def discard(request, pk):
+    _admin(request)
+    rs = get_object_or_404(RuleSet, pk=pk)
+    try:
+        service.discard_draft(request.user, rs, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect("rules:detail", pk=rs.pk)
+    messages.success(request, f"The draft {rs} is discarded.")
+    return redirect("rules:index")
+
+
+def _rule_page(request, rs, form, r=None):
+    return render(request, "rules/rule_form.html", {"rs": rs, "form": form, "r": r})
+
+
+@login_required
+def add_rule(request, pk):
+    _admin(request)
+    rs = get_object_or_404(RuleSet, pk=pk)
+    if rs.status != RuleSet.Status.DRAFT:
+        messages.error(request, "A published rule set never changes: start a new version and add the rule to it.")
+        return redirect("rules:detail", pk=rs.pk)
+    if request.method != "POST":
+        return _rule_page(
+            request, rs, forms.RuleForm(initial={"kind": "rule", "severity": "reject", "modules": service.MODULES_FOR.get(rs.code, [])})
+        )
+    form = forms.RuleForm(request.POST)
+    if form.is_valid():
+        d = form.cleaned_data
+        try:
+            r = service.add_rule(
+                request.user,
+                rs,
+                kind=d["kind"],
+                severity=d["severity"],
+                table=d["table"],
+                field=d["field"],
+                definition=d["definition"],
+                message=d["message"],
+                fix=d["fix"],
+                modules=d["modules"],
+                reason=d["reason"],
+            )
+        except (AccessDenied, service.RuleError) as e:
+            form.add_error(None, str(e))
+        else:
+            if d["difference"]:
+                service.edit_rule(request.user, r, difference=d["difference"], reason=d["reason"])
+            messages.success(request, f"Added rule {r.rule_id}.")
+            return redirect("rules:rule", pk=rs.pk, rule_id=r.rule_id)
+    return _rule_page(request, rs, form)
+
+
+@login_required
+def edit_rule(request, pk, rule_id):
+    _admin(request)
+    r = get_object_or_404(Rule.objects.select_related("rule_set"), rule_set_id=pk, rule_id=rule_id)
+    rs = r.rule_set
+    if rs.status != RuleSet.Status.DRAFT:
+        messages.error(request, "A published rule set never changes: start a new version and change the rule there.")
+        return redirect("rules:rule", pk=rs.pk, rule_id=r.rule_id)
+    if request.method != "POST":
+        return _rule_page(request, rs, forms.RuleForm(rule=r), r)
+    form = forms.RuleForm(request.POST, rule=r)
+    if form.is_valid():
+        d = form.cleaned_data
+        test_changed = any(
+            v != getattr(r, k)
+            for k, v in (
+                ("kind", d["kind"]),
+                ("severity", d["severity"]),
+                ("table", d["table"]),
+                ("field", d["field"]),
+                ("definition", d["definition"]),
+            )
+        )
+        wording = {k: d[k] for k in ("message", "fix")}
+        if test_changed:  # a blank message or fix is written again from the new test; an unchanged one is too
+            wording = {k: (v if v.strip() and v != getattr(r, k) else None) for k, v in wording.items()}
+        try:
+            r = service.edit_rule(
+                request.user,
+                r,
+                severity=d["severity"],
+                table=d["table"],
+                field=d["field"],
+                kind=d["kind"],
+                definition=d["definition"],
+                difference=d["difference"],
+                modules=d["modules"],
+                reason=d["reason"],
+                **wording,
+            )
+        except (AccessDenied, service.RuleError) as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(
+                request,
+                f"Saved rule {r.rule_id}."
+                + (f" Its test changed, so it replaces {r.replaces}." if r.replaces and r.replaces != rule_id else ""),
+            )
+            return redirect("rules:rule", pk=rs.pk, rule_id=r.rule_id)
+    return _rule_page(request, rs, form, r)
+
+
+@login_required
+@require_POST
+def remove_rule(request, pk, rule_id):
+    _admin(request)
     r = get_object_or_404(Rule, rule_set_id=pk, rule_id=rule_id)
-    if r is None:
-        raise Http404
-    return render(request, "rules/rule.html", {"r": r})
+    try:
+        service.remove_rule(request.user, r, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect("rules:rule", pk=pk, rule_id=rule_id)
+    messages.success(request, f"Removed rule {rule_id} from this draft.")
+    return redirect("rules:detail", pk=pk)

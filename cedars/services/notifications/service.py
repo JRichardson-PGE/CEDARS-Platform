@@ -85,6 +85,7 @@ EVENTS = [
     EventType("release.withdrawn", "Published release notes are withdrawn", "public", "Release notes"),
     EventType("rule_set.published", "A validation rule set is published", "public", "Rules and dictionary"),
     EventType("dictionary.published", "A new version of the data dictionary is published", "public", "Rules and dictionary"),
+    EventType("value_list.published", "A new version of a value list is published", "public", "Rules and dictionary"),
 ]
 BY_KEY = {e.key: e for e in EVENTS}
 CODES = {e.code for e in EVENTS}

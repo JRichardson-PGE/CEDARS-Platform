@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% block title %}{% if r %}Change rule {{ r.rule_id }}{% else %}Add a rule{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'rules:index' %}">Validation rules</a></li><li><a href="{% url 'rules:detail' rs.pk %}">{{ rs }}</a></li>{% if r %}<li><a href="{% url 'rules:rule' rs.pk r.rule_id %}">Rule {{ r.rule_id }}</a></li>{% endif %}</ol></nav>
+<div class="page-title"><h1>{% if r %}Change rule {{ r.rule_id }}{% else %}Add a rule{% endif %}</h1>{% page_help "rules/rule_form" %}</div>
+<p>In the draft {{ rs }}. A rule's ID is worked out from its test, so a changed test gives the rule a new ID that records the one it
+replaces. The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. Field names may
+be the data dictionary's or any name it lists, such as CET's.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <h2 id="what-h">What the rule tests</h2>
+  {{ form.kind.as_field_group }}
+  {{ form.severity.as_field_group }}
+  {{ form.table.as_field_group }}
+  {{ form.field.as_field_group }}
+  <fieldset class="stack" aria-describedby="record-help">
+    <legend><h3 id="record-h">A test on a record</h3></legend>
+    <p id="record-help" class="small">Read when the kind is a test on a record. The field tested must pass the test on every record
+    the conditions pick out; with no conditions, on every record.</p>
+    {{ form.rule.as_field_group }}
+    {{ form.value.as_field_group }}
+    {{ form.connector.as_field_group }}
+    {% for i, f, t, v in form.condition_fields %}
+    <fieldset class="row-form">
+      <legend>Condition {{ i }}{% if i > 1 %} <span class="small muted">(optional)</span>{% endif %}</legend>
+      {{ f.as_field_group }}{{ t.as_field_group }}{{ v.as_field_group }}
+    </fieldset>
+    {% endfor %}
+  </fieldset>
+  <fieldset class="stack" aria-describedby="spec-help">
+    <legend><h3 id="spec-h">A constraint on one field</h3></legend>
+    <p id="spec-help" class="small">Read when the kind is a constraint on one field. Give only what the chosen constraint needs: the
+    number of characters, the value list, or the range.</p>
+    {{ form.check.as_field_group }}
+    {{ form.n.as_field_group }}
+    {{ form.value_list.as_field_group }}
+    <div class="row-form">{{ form.lo.as_field_group }}{{ form.lo_open.as_field_group }}</div>
+    <div class="row-form">{{ form.hi.as_field_group }}{{ form.hi_open.as_field_group }}</div>
+  </fieldset>
+  <h2 id="words-h">What a filer reads</h2>
+  {{ form.message.as_field_group }}
+  {{ form.fix.as_field_group }}
+  {{ form.difference.as_field_group }}
+  {{ form.modules.as_field_group }}
+  {{ form.reason.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">{% if r %}Save the change{% else %}Add the rule{% endif %}</button>
+  <a href="{% if r %}{% url 'rules:rule' rs.pk r.rule_id %}{% else %}{% url 'rules:detail' rs.pk %}{% endif %}">Cancel</a></div>
+</form>
+{% endblock %}

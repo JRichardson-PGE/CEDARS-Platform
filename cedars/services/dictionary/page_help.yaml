@@ -8,12 +8,12 @@ dictionary/index:
     - Download the whole catalog as CSV, or the upload templates for each kind of filing.
   how:
     - Search by any name a field is known by, or by words in its definition.
-    - Download the catalog (CSV) or the name crosswalk (CSV).
+    - Download the catalog (CSV) or the name crosswalk (CSV), or open the value lists.
   see: published-data
   tour:
     - target: main p.actions
-      title: Downloads
-      text: The catalog as CSV.
+      title: Downloads and value lists
+      text: The catalog and the name crosswalk as CSV, and the value lists the rules check codes against.
     - heading: Upload templates
       title: Upload templates
       text: The templates for each filing's tables, with every column in order.
@@ -37,3 +37,89 @@ dictionary/field:
     - target: main dl.facts
       title: The details
       text: Type, unit, source, cost tests, aggregation, other names and where it is used.
+
+dictionary/lists:
+  title: Value lists
+  guide:
+    - The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check
+      values against. Each list is kept in versions; the version in force on a date is the newest published one effective by then.
+      Until a list has a version here, the list shipped with the calculation engine is in force.
+    - A code is accepted for claim years from its start year to its end year. A retired code keeps its row with an end year; a code is
+      never deleted.
+  how:
+    - Select a list for its codes and versions.
+  see: published-data
+  tour:
+    - target: main table.list
+      title: The lists
+      text: Each list, the version in force, how many codes it has, and any version or draft waiting to take effect.
+
+dictionary/list:
+  title: A value list
+  guide:
+    - One list's codes, in the version in force or any other version, with the claim years each code is accepted for, and every
+      published version with the date it took effect and why it changed.
+    - A CPUC system administrator starts a new version here (a draft copy of the newest version) and changes it on the draft's page.
+  how:
+    - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV.
+    - "Administrators: Start a new version."
+  see: published-data
+  tour:
+    - target: "#edit-h"
+      title: Change this list
+      text: For CPUC system administrators. Start a new version, or open the draft already started.
+      optional: true
+    - target: main form.filters
+      title: Version and filters
+      text: Choose the version, search, and show the codes accepted in a claim year, then Apply, or download the codes shown.
+    - target: main table.list
+      title: The codes
+      text: Each code, its description and the claim years it is accepted for.
+    - target: "#versions-h"
+      title: Versions
+      text: Every published version, when it took effect, what it was copied from and why it changed.
+
+dictionary/list_draft:
+  title: A value list draft
+  guide:
+    - The next version of a list, copied from the newest version (or the engine's list for the first). Add codes, change a code's
+      description, retire a code by giving the last claim year it is accepted, or reinstate it by clearing that year. A code from an
+      earlier version is never deleted; a draft may take out only a code it added itself.
+    - Add or change many codes at once from a CSV with a code column and any of description, start_year and end_year; codes the file
+      leaves out stay as they are. Publish with the date the version takes effect and why the list changes. Every change is recorded in
+      the audit trail.
+  how:
+    - Add a code, or read a file into the draft.
+    - Select Change beside a code to retire, reinstate or describe it.
+    - Publish the version with its date and reason, or discard the draft.
+  see: published-data
+  tour:
+    - target: "#changes-h"
+      title: What this draft changes
+      text: The codes added, retired, reinstated or otherwise changed against the version it was copied from.
+    - target: "#add-h"
+      title: Add a code
+      text: A new code with its description and the claim years it is accepted for.
+    - target: "#upload-h"
+      title: From a file
+      text: Add or change many codes from a CSV; nothing is deleted.
+    - target: main table.list
+      title: The codes
+      text: Each code in the draft. Select Change to retire, reinstate or describe it.
+    - target: "#publish-h"
+      title: Publish
+      text: The date the version takes effect and why the list changes; then the rules and the input editor use it from that date.
+
+dictionary/code:
+  title: Changing a code
+  guide:
+    - One code in a value list draft. Give the last claim year it is accepted to retire it, clear that year to reinstate it, or correct
+      its description. A code from an earlier version keeps its start year and is never deleted; a code the draft added may change its
+      years or be taken out.
+  how:
+    - Change the description or the years, give the reason and Save the change.
+  see: published-data
+  tour:
+    - target: main form.stack
+      title: The code
+      text: Its description, the claim years it is accepted for, and the reason for the change.

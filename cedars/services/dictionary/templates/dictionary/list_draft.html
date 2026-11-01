@@ -1,0 +1,59 @@
+{% extends "core/base.html" %}
+{% block title %}Draft of value list {{ vl.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:lists' %}">Value lists</a></li><li><a href="{% url 'dictionary:list' vl.name %}">{{ vl.name }}</a></li></ol></nav>
+<div class="page-title"><h1>Draft of {{ vl.name }}, version {{ draft.number }}</h1>{% page_help "dictionary/list_draft" %}</div>
+<p>A copy of {{ draft.based_on }}. Nothing here is used until the draft is published, and then the rules and the input editor accept
+exactly its codes from the date it takes effect. Retire a code by giving it the last claim year it is accepted; a code from an earlier
+version is never deleted. A published version never changes.</p>
+<section class="card" aria-labelledby="changes-h">
+  <h2 id="changes-h">What this draft changes</h2>
+  <p>Against {{ draft.based_on }}: {{ changes.added|length }} added, {{ changes.retired|length }} retired, {{ changes.reinstated|length }} reinstated, {{ changes.changed|length }} otherwise changed.</p>
+  {% if changes.added or changes.retired or changes.reinstated or changes.changed %}
+  <ul>
+    {% for r in changes.added|slice:":50" %}<li>Added: {{ r.code }}{% if r.start_year %}, from {{ r.start_year }}{% endif %}{% if r.end_year %} to {{ r.end_year }}{% endif %}</li>{% endfor %}
+    {% for r in changes.retired|slice:":50" %}<li>Retired: {{ r.code }}, accepted up to {{ r.end_year }}</li>{% endfor %}
+    {% for r in changes.reinstated|slice:":50" %}<li>Reinstated: {{ r.code }}</li>{% endfor %}
+    {% for r in changes.changed|slice:":50" %}<li>Changed: {{ r.after.code }}{% if r.before.description != r.after.description %}, description{% endif %}{% if r.before.end_year != r.after.end_year %}, end year {{ r.before.end_year }} to {{ r.after.end_year }}{% endif %}{% if r.before.start_year != r.after.start_year %}, start year{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+<section class="card" aria-labelledby="add-h">
+  <h2 id="add-h">Add a code</h2>
+  <form method="post" action="{% url 'dictionary:add_code' vl.name %}" class="row-form">{% csrf_token %}
+    {% for field in add_form %}{{ field.as_field_group }}{% endfor %}
+    <button type="submit">Add the code</button>
+  </form>
+</section>
+<section class="card" aria-labelledby="upload-h">
+  <h2 id="upload-h">Add or change codes from a file</h2>
+  <form method="post" action="{% url 'dictionary:upload_codes' vl.name %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+    {% for field in upload_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Read the file into the draft</button>
+    <a href="{% url 'dictionary:list' vl.name %}?format=csv{% if latest %}&amp;version={{ latest.number }}{% else %}&amp;version=shipped{% endif %}">Download the current codes as a starting file</a></div>
+  </form>
+</section>
+<h2 id="codes-h">Codes in the draft</h2>
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="q">Code or description</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="year">Claim year</label><input type="text" inputmode="numeric" id="year" name="year" value="{{ year }}" size="6"></div>
+  <div class="field"><label for="state">Codes</label><select id="state" name="state"><option value="">All</option><option value="active"{% if state == "active" %} selected{% endif %}>Accepted</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Not accepted (retired or not yet started)</option></select></div>
+  <button type="submit">Apply</button>
+</form>
+<p>{{ total }} code{{ total|pluralize }}.</p>
+{% include "dictionary/_codes.html" with editable=True %}
+<section class="card" aria-labelledby="publish-h">
+  <h2 id="publish-h">Publish this version</h2>
+  <p>{% if latest %}Version {{ latest.number }} takes effect {{ latest.effective_from|date_words }}; this one takes effect after it.{% else %}The first version published here replaces the engine's list from the date it takes effect.{% endif %}</p>
+  <form method="post" action="{% url 'dictionary:publish_list' vl.name %}" class="row-form">{% csrf_token %}
+    {% for field in publish_form %}{{ field.as_field_group }}{% endfor %}
+    <button type="submit" class="primary">Publish the version</button>
+  </form>
+  <details><summary>Discard this draft</summary>
+    <form method="post" action="{% url 'dictionary:discard_list_draft' vl.name %}" class="row-form">{% csrf_token %}
+      <div class="field"><label for="discard-reason">Reason</label><input type="text" id="discard-reason" name="reason" required></div>
+      <button type="submit">Discard the draft</button>
+    </form>
+  </details>
+</section>
+{% endblock %}

@@ -4,7 +4,35 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'rules:index' %}">Validation rules</a></li></ol></nav>
 <div class="page-title"><h1>{{ rs.label }} <span class="muted">effective {{ rs.effective_from|date_words }}</span></h1>{% page_help "rules/detail" %}</div>
 <p>{{ rs.get_status_display }}{% if rs.published_at %} {{ rs.published_at|date_words }}{% endif %}. {{ counts.reject|default:0 }} rules reject a record, {{ counts.warning|default:0 }} give a warning. {{ rs.source }}</p>
-{% if sysadmin and rs.status == "draft" %}<form method="post" action="{% url 'rules:publish' rs.pk %}" class="actions">{% csrf_token %}<button type="submit" class="primary">Publish this rule set</button></form>{% endif %}
+{% if rs.based_on %}<p>Copied from <a href="{% url 'rules:detail' rs.based_on.pk %}">the version effective {{ rs.based_on.effective_from|date_words }}</a>{% if rs.reason %}: {{ rs.reason }}{% endif %}.
+  <a href="{% url 'rules:differences' %}?a={{ rs.based_on.pk }}&amp;b={{ rs.pk }}">What this version changes</a>.</p>{% endif %}
+{% if sysadmin and rs.status == "draft" %}
+<section class="card" aria-labelledby="draft-h">
+  <h2 id="draft-h">Change this draft</h2>
+  <p>Add rules, change a rule's test or wording from its page, or take a rule out. A rule whose test changes gets a new ID and records
+  the one it replaces. Nothing here is used until the draft is published, and a published version never changes.</p>
+  <div class="actions">
+    <a class="button" href="{% url 'rules:add_rule' rs.pk %}">Add a rule</a>
+    <form method="post" action="{% url 'rules:publish' rs.pk %}">{% csrf_token %}<button type="submit" class="primary">Publish this rule set</button></form>
+  </div>
+  <details><summary>Discard this draft</summary>
+    <form method="post" action="{% url 'rules:discard' rs.pk %}" class="row-form">{% csrf_token %}
+      <div class="field"><label for="discard-reason">Reason</label><input type="text" id="discard-reason" name="reason" required></div>
+      <button type="submit">Discard the draft</button>
+    </form>
+  </details>
+</section>
+{% elif sysadmin %}
+<section class="card" aria-labelledby="version-h">
+  <h2 id="version-h">Start a new version</h2>
+  <p>A draft copy of these rules, to change and publish with a later effective date. These rules stay in force until it takes effect.
+  {% if drafts %}Drafts of these rules already started: {% for d in drafts %}<a href="{% url 'rules:detail' d.pk %}">{{ d }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+  <form method="post" action="{% url 'rules:new_version' rs.pk %}" class="row-form">{% csrf_token %}
+    {% for field in version_form %}{{ field.as_field_group }}{% endfor %}
+    <button type="submit">Start the draft</button>
+  </form>
+</section>
+{% endif %}
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Field or words</label><input type="search" id="q" name="q" value="{{ q }}"></div>
   <div class="field"><label for="severity">Severity</label><select id="severity" name="severity"><option value="">All</option><option value="reject"{% if severity == "reject" %} selected{% endif %}>Rejects the record</option><option value="warning"{% if severity == "warning" %} selected{% endif %}>Warning</option></select></div>
@@ -18,7 +46,7 @@
   <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Rule and suggested fix</th></tr></thead>
   <tbody>
   {% for r in rules %}
-  <tr><th scope="row"><a href="{% url 'rules:rule' rs.pk r.rule_id %}">{{ r.rule_id }}</a></th><td>{{ r.get_severity_display }}</td><td>{{ r.table }}</td><td>{{ r.field }}</td>
+  <tr><th scope="row"><a href="{% url 'rules:rule' rs.pk r.rule_id %}">{{ r.rule_id }}</a>{% if r.replaces %}<br><span class="small muted">replaces {{ r.replaces }}</span>{% endif %}</th><td>{{ r.get_severity_display }}</td><td>{{ r.table }}</td><td>{{ r.field }}</td>
     <td>{{ r.message }}<br><span class="small muted">Fix: {{ r.fix }}</span>{% if r.difference %}<br><span class="small">Differs between modules: {{ r.difference }}</span>{% endif %}</td></tr>
   {% empty %}<tr><td colspan="5">No rules match.</td></tr>
   {% endfor %}

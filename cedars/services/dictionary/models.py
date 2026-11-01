@@ -88,3 +88,89 @@ class Usage(models.Model):
 
     def __str__(self):
         return f"{self.module}.{self.table}[{self.position}] {self.field.name}"
+
+
+class ValueList(models.Model):
+    """A code set the rules and the input editor check values against (BR-12.6), under the engine's name for it (e.g. `sector`,
+    `ac_climate_zone`). Until a version is published here, the list the pinned engine ships is the one in force."""
+
+    name = models.CharField(max_length=60, unique=True, help_text="The engine's name for the list (its file in recet/data/value_lists)")
+    label = models.CharField(max_length=120, blank=True, help_text="The field it fills, e.g. Sector")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.label or self.name
+
+
+class ValueListVersion(models.Model):
+    """One version of a value list: every code it has, retired ones included. An administrator edits a draft (copied from the version
+    in force) and publishes it with the date it takes effect and the reason; a published version never changes and its codes are never
+    deleted (database triggers, migration 0002). The version in force on a date is the newest published one effective by then."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PUBLISHED = "published", "Published"
+
+    value_list = models.ForeignKey(ValueList, on_delete=models.PROTECT, related_name="versions")
+    number = models.PositiveIntegerField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.DRAFT)
+    effective_from = models.DateField(null=True, blank=True, help_text="Set when it is published")
+    reason = models.TextField(blank=True, help_text="Why this version was made, given when it is published")
+    based_on = models.CharField(max_length=120, blank=True, help_text='e.g. "version 2", or "the list shipped with ReCET 0.1.87"')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    published_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["value_list", "-number"]
+        constraints = [
+            models.UniqueConstraint(fields=["value_list", "number"], name="dictionary_one_list_version_number"),
+            models.UniqueConstraint(fields=["value_list"], condition=models.Q(status="draft"), name="dictionary_one_draft_per_list"),
+            models.UniqueConstraint(
+                fields=["value_list", "effective_from"],
+                condition=models.Q(status="published"),
+                name="dictionary_one_list_version_per_date",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status="draft") | models.Q(effective_from__isnull=False),
+                name="dictionary_published_list_has_date",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.value_list} version {self.number}{' (draft)' if self.status == self.Status.DRAFT else ''}"
+
+
+class Code(models.Model):
+    """One code of a value list version: active for claim years start_year to end_year (blank: open). A retired code keeps its row with
+    an end year; codes are never deleted from a published version, and a draft may drop only a code it added itself."""
+
+    version = models.ForeignKey(ValueListVersion, on_delete=models.CASCADE, related_name="codes")
+    code = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    start_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    end_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    extra = models.JSONField(default=dict, blank=True, help_text="The list's other columns as shipped (claim_spec, pa_group, ...)")
+    added_in_draft = models.BooleanField(default=False, help_text="Added in this version, so the draft may still drop it")
+
+    class Meta:
+        ordering = ["code"]
+        constraints = [
+            models.UniqueConstraint("version", Lower("code"), name="dictionary_one_code_per_version"),
+            models.CheckConstraint(
+                condition=models.Q(start_year__isnull=True)
+                | models.Q(end_year__isnull=True)
+                | models.Q(end_year__gte=models.F("start_year")),
+                name="dictionary_code_years_in_order",
+            ),
+        ]
+
+    def __str__(self):
+        return self.code
+
+    def active_in(self, year: int) -> bool:
+        return (self.start_year is None or self.start_year <= year) and (self.end_year is None or self.end_year >= year)
