@@ -15,11 +15,10 @@ Who may do what (permissions in the documents module, held in an organization):
 from __future__ import annotations
 
 import hashlib
-import re
 import tempfile
 from dataclasses import dataclass, field
 from datetime import date
-from pathlib import Path, PurePath
+from pathlib import Path
 
 from django.conf import settings
 from django.contrib.postgres.search import SearchHeadline, SearchQuery
@@ -28,7 +27,7 @@ from django.db.models import Max, Prefetch, Q, QuerySet
 from django.db.models.functions import Left
 from django.utils import timezone
 
-from cedars.core import storage
+from cedars.core import files, storage
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
@@ -60,26 +59,9 @@ CPUC_COLLECTIONS = (Collection.GUIDANCE, Collection.DEER)
 PA_COLLECTIONS = (Collection.PA, Collection.PROGRAM, Collection.EMV)
 OTHER_COLLECTIONS = (Collection.EMV,)
 
-# The file types a document may carry, with the type it is served as. Executables and web pages are refused (the PDA holds 16 .exe main
-# files and 3 file names containing HTML: capture of 2026-10-30). Only the INLINE types open in the browser; the rest download.
-FILE_TYPES = {
-    ".pdf": "application/pdf",
-    ".doc": "application/msword",
-    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ".xls": "application/vnd.ms-excel",
-    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
-    ".xlsb": "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
-    ".ppt": "application/vnd.ms-powerpoint",
-    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    ".csv": "text/csv",
-    ".txt": "text/plain",
-    ".zip": "application/zip",
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-}
-INLINE = {".pdf", ".txt", ".png", ".jpg", ".jpeg"}
+# The file types a document may carry (shared with the comments on filing versions: cedars.core.files).
+FILE_TYPES = files.FILE_TYPES
+INLINE = files.INLINE
 MARK_START, MARK_END = "\x02", "\x03"  # around a matched word in a text extract
 SEARCH_FIELDS = ("q", "collection", "document_type", "pa", "program", "year", "options", "published_from", "published_to", "status")
 
@@ -263,11 +245,7 @@ class Upload:
     file: object
 
 
-def clean_name(name: str) -> str:
-    """The file's own name (no folders), without characters that break a download header or a storage key."""
-    base = PurePath(str(name).replace("\\", "/")).name
-    base = re.sub(r'[\x00-\x1f"<>|:*?/\\]+', "_", base).strip(" .")
-    return base[:200] or "file"
+clean_name = files.clean_name
 
 
 def file_type(name: str) -> str:

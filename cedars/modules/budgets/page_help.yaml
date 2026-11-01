@@ -95,6 +95,7 @@ budgets/version:
   how:
     - Download this table (CSV) gives the rows you see. Column definitions explains each column.
     - Compare with another version opens the comparison with this version chosen.
+    - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: budgets
   tour:
     - target: main form.filters
@@ -118,6 +119,10 @@ budgets/version:
     - target: main .head-row .button
       title: Compare
       text: Compare this version with any other you can read.
+    - target: "#comments-h"
+      title: Comments
+      text: Your organization and CPUC staff discuss the filing here, with files attached. Not public; a comment is never edited.
+      optional: true
 
 budgets/compare:
   title: Comparing budget versions

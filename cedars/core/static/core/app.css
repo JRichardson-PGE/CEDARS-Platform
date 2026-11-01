@@ -328,6 +328,8 @@ section.cycle { margin-bottom: .5rem; }
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }
 .nowrap { white-space: nowrap; }
+.prewrap { white-space: pre-wrap; overflow-wrap: anywhere; }   /* a comment keeps its line breaks and never widens the page */
+ol.comments { list-style: none; padding: 0; margin: 0; }
 
 /* ---------- Dashboards (cedars/modules/data): controls, applied-filter chips, server-rendered bar charts ---------- */
 .dash-controls fieldset { display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
