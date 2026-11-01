@@ -377,6 +377,15 @@ ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: cent
 .tour-offer { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; background: var(--info-bg); border-left: 4px solid var(--info);
   border-radius: var(--r); padding: .55rem .9rem; margin: 1rem 0 0; }
 .tour-offer button.link { margin-left: auto; }
+
+/* ---------- Release notes, limits and the FAQ (cedars/services/releases, core/help/faq.html) ---------- */
+.coming-changes { background: var(--info-bg); border-left: 4px solid var(--info); border-radius: var(--r); padding: .5rem .9rem; margin: 0 0 1rem; }   /* text and links on --info-bg as .tour-offer: fg and link over 7:1 in both schemes */
+.release-list { list-style: none; padding: 0; margin: 0; }
+.release-list li { border-bottom: 1px solid var(--line-2); padding: .25rem 0 .75rem; }
+.release-list h3 { margin-top: .75rem; }
+.faq { border-top: 1px solid var(--line-2); margin-top: 1rem; max-width: 72ch; }
+.faq .example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem 1rem; margin: .5rem 0 .75rem; }
+.faq .example table caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
 .front-cycle > .head-row { align-items: flex-end; }
 .cycle-pick { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; margin: 0; }
 .front-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 1rem; margin: .75rem 0 1rem; }

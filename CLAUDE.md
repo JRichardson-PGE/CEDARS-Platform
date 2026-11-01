@@ -39,6 +39,10 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   selector or heading text (`cedars/core/page_help.py`). A changed page keeps its help true; the tests fail on a heading without help and on
   a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have). The help pages themselves
   (`page_help.WITHOUT_HELP`: a page's help on a page of its own, and the list of them) have no (?): it would be help about the help.
+- **Release notes, limits and guides** (BR-12.1, 12.5; `cedars/services/releases`). A limit people meet is a setting listed in
+  `releases/limits.py`, never a number in a page or message. A change to a user guide (`core/templates/core/help/<slug>.html`) or the
+  FAQ (`core/faq.yaml`) is recorded with `uv run python manage.py help_revisions --update` in the same PR (a test fails otherwise); bump
+  `cedars.__version__` for a release, and announce user-facing changes as a release note before they take effect.
 - **Same-origin scripts only.** The CSP allows `'self'`; vendor a library with its integrity checked, never load it from a CDN.
 - **PostgreSQL only** (tests too): the design relies on its triggers and ranges.
 - **Secrets from the environment**, never in files. Settings per environment in `cedars/settings/`.

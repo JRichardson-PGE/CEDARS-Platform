@@ -4,6 +4,11 @@ from django.conf import settings
 def platform(request):
     # platform_version, not version: a page whose view passes its own "version" (a catalog, a filing) would hide the footer's
     ctx = {"platform_version": settings.VERSION, "environment": settings.ENVIRONMENT, "support_email": settings.CEDARS_SUPPORT_EMAIL}
+    from cedars.services.releases.service import banner
+
+    if not hasattr(request, "_coming_changes"):  # once per request: a page can render several templates with this context
+        request._coming_changes = banner()
+    ctx["coming_changes"] = request._coming_changes  # announced changes taking effect within the notice period (BR-12.1)
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
         from cedars.services.accounts import service

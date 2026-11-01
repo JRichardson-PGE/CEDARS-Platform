@@ -23,11 +23,49 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 
 from django import forms
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.utils.functional import lazy
 
 SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
 TEXT_SUFFIXES = (".csv", ".txt")
 PART_LABEL = re.compile(r"[\s_\-.]*(?:\(\s*\d+\s*\)|(?:part|pt)?[\s_\-.]*\d+)$", re.IGNORECASE)
-MAX_FILES = 20
+# The upload limits are settings, shown as they stand on the Limits page (/limits/) and beside every upload field (BR-12.1).
+MAX_FILES = settings.CEDARS_UPLOAD_MAX_FILES  # for the API's field declarations; the checks read the setting itself
+
+
+def max_files() -> int:
+    return settings.CEDARS_UPLOAD_MAX_FILES
+
+
+def max_mb() -> int:
+    return settings.CEDARS_UPLOAD_MAX_MB
+
+
+def _mb(size: int) -> str:
+    return f"{size / 1024 / 1024:.1f} MB"
+
+
+def too_large(name: str, size: int) -> str:
+    """The refusal for a file over the size limit, or "" when it is within it."""
+    if size is None or size <= max_mb() * 1024 * 1024:
+        return ""
+    return f"{name} is {_mb(size)}; each file may be at most {max_mb()} MB (see Limits, /limits/)."
+
+
+def check_size(file) -> None:
+    """A form or API field validator: refuses an uploaded file over CEDARS_UPLOAD_MAX_MB."""
+    problem = too_large(getattr(file, "name", "The file"), getattr(file, "size", None))
+    if problem:
+        raise ValidationError(problem)
+
+
+def _limit_text(base: str = "", several: bool = True) -> str:
+    limit = f"Up to {max_files()} files of up to {max_mb()} MB each." if several else f"Up to {max_mb()} MB."
+    return f"{base} {limit}".strip()
+
+
+limit_text = lazy(_limit_text, str)  # a field's help text, read when the form is shown (so it follows the settings)
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -39,13 +77,16 @@ class MultipleFileField(forms.FileField):
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("widget", MultipleFileInput())
+        kwargs["help_text"] = limit_text(kwargs.get("help_text", ""))  # the limits beside the field, as they stand
         super().__init__(*args, **kwargs)
 
     def clean(self, data, initial=None):
         one = super().clean
         files = [one(d, initial) for d in data] if isinstance(data, (list, tuple)) else [one(data, initial)]
-        if len(files) > MAX_FILES:
-            raise forms.ValidationError(f"Choose at most {MAX_FILES} files; put more tables in a .zip.")
+        if len(files) > max_files():
+            raise forms.ValidationError(f"Choose at most {max_files()} files; put more tables in a .zip.")
+        for f in files:
+            check_size(f)
         return files
 
 
@@ -112,6 +153,11 @@ def combine(
     (None for none); `refuse(name)` raises for a name the module never accepts."""
     if not files:
         raise CombineError("Choose a file to upload.")
+    if len(files) > max_files():  # the pages' field checks these too; the API reaches here directly
+        raise CombineError(f"Choose at most {max_files()} files; put more tables in a .zip.")
+    for name, content in files:
+        if problem := too_large(name, len(content)):
+            raise CombineError(problem)
     if len(files) == 1 and files[0][0].lower().endswith((".zip", ".xlsx")) and not _has_parts(files[0], table_of):
         return Combined(files[0][1], files[0][0])
     pieces: dict[str, list[tuple[str, list[list[str]]]]] = {}

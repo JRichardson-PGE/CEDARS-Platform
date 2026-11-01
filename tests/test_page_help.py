@@ -66,6 +66,7 @@ def test_the_tag_needs_an_entry():
         Template('{% page_help "nope/nothing" %}').render(Context({}))
 
 
+@pytest.mark.django_db  # every page reads the coming release notes (the banner)
 def test_the_button_and_the_dialog(client):
     page = client.get("/help/contact/").content.decode()
     assert (
@@ -89,6 +90,7 @@ def test_every_page_help_page(client):
     assert client.get("/help/pages/nope/").status_code == 404
 
 
+@pytest.mark.django_db  # every page reads the coming release notes (the banner)
 def test_the_help_page_links_back_and_to_the_tour(client):
     body = client.get("/help/pages/rules/index/?from=/rules/%3Fq%3Dx").content.decode()
     assert 'href="/rules/?q=x"' in body and 'href="/rules/?q=x&amp;tour=1"' in body
@@ -98,5 +100,6 @@ def test_the_help_page_links_back_and_to_the_tour(client):
     assert 'href="/?tour=1"' in client.get("/help/pages/data/front/").content.decode()
 
 
+@pytest.mark.django_db  # every page reads the coming release notes (the banner)
 def test_the_help_index_lists_the_pages(client):
     assert 'href="/help/pages/"' in client.get("/help/").content.decode()

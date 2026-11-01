@@ -170,7 +170,7 @@ def test_a_programs_admin_grant_can_change_its_organisations_programs(signed_in,
 def test_the_catalog_reads_the_whole_cedars_list_in_a_few_queries(signed_in, make_user, cpuc_admin, django_assert_max_num_queries):
     import_cedars_programs((DATA / "cedars_programs_20261003.csv").read_bytes(), actor=None)
     c = signed_in(make_user("someone@example.com"))
-    with django_assert_max_num_queries(20):
+    with django_assert_max_num_queries(21):  # 20, and one for the coming release notes every page announces
         r = c.get("/programs/?state=closed")
     assert r.status_code == 200 and "595 programs" in r.content.decode()
 

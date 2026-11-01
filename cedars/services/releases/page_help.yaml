@@ -1,0 +1,130 @@
+# Help for the release notes and limits pages (cedars/core/page_help.py). A plain scalar with ": " in it breaks YAML: use >- blocks.
+
+releases/index:
+  title: Release notes
+  see: getting-started
+  guide:
+    - >-
+      Every change to CEDARS' specifications, validation rules, limits and system, announced before it takes effect. Coming changes are
+      listed first, soonest first; then the release this site runs, with the guides revised for it; then every note in effect or
+      withdrawn.
+    - >-
+      A note is published at least the usual notice period before its changes take effect; one published at shorter notice says why.
+      A published note never changes: if a plan changes, the note is withdrawn (it stays here, marked, with the reason) and a new one
+      is published.
+  how:
+    - Signed in, choose Send me each release note by email to be told of each note as it is published.
+    - The feed (RSS) carries the same notes for a feed reader or your own systems.
+  tour:
+    - heading: Coming changes
+      title: Coming changes
+      text: Published notes still to take effect, soonest first. Every page also announces those taking effect within the notice period.
+    - heading: "This release"
+      title: The release this site runs
+      text: Its note and the user guides revised for it, so you can tell the guides match what the site does.
+    - heading: In effect and withdrawn
+      title: Earlier notes
+      text: Every note in effect or withdrawn, newest first.
+    - target: main form[action$="subscribe"], main a[href^="/accounts/login/"]
+      title: Be told of each note
+      text: Signed in, release notes can be sent to you by email as each is published. Change it later on your notification settings.
+
+releases/detail:
+  title: A release note
+  see: getting-started
+  guide:
+    - >-
+      One announced change: what changes and why, the day it takes effect, the platform release it ships in (or that it needs no new
+      code), and each change by kind (a specification, a rule, a limit or how CEDARS works) with what you need to do.
+    - A limit change gives the limit's new value; the Limits page shows it as coming until it takes effect.
+  how:
+    - CPUC system administrators can withdraw a published note, with a reason; everyone subscribed is told.
+  tour:
+    - target: dl.facts
+      title: When and in which release
+      text: Its status, the day it takes effect, when it was published, the release and, if published at short notice, why.
+    - heading: Changes
+      title: The changes
+      text: Each change, the part of CEDARS it touches and what you need to do.
+    - heading: Guides revised for this release
+      title: Guides revised for it
+      text: The user guides rewritten for this release.
+      optional: true
+    - heading: Withdraw this note
+      title: Withdraw
+      text: For CPUC system administrators. A published note is withdrawn, never edited.
+      optional: true
+
+releases/limits:
+  title: Limits
+  see: getting-started
+  guide:
+    - >-
+      Every limit CEDARS applies now, read from the setting that enforces it: upload sizes and files per upload, calculation run sizes,
+      download sizes and API rates. Each row says where the limit applies and what happens over it.
+    - A planned change to a limit is announced in the release notes before it takes effect and shown here with its date.
+  how:
+    - These limits as JSON, for your own systems, are linked at the top of the page.
+  tour:
+    - heading: Uploads
+      title: Upload limits
+      text: The largest file and the most files one upload may hold, by kind of upload.
+    - heading: Calculations
+      title: Run limits
+      text: How many measures a run may hold, and which runs take the faster queue.
+    - heading: Downloads
+      title: Download limits
+      text: How many rows are made while you wait, and how many background downloads may wait at once.
+    - heading: The API and signing in
+      title: API limits
+      text: How many calls a minute the API answers, with and without a token, and how long a token lasts.
+
+releases/manage:
+  title: Write release notes
+  see: getting-started
+  guide:
+    - >-
+      For CPUC system administrators. Draft a release note, list its changes and publish it before they take effect: at least the
+      usual notice period before, or with a reason for the shorter notice. Publishing tells everyone subscribed and puts the note on
+      every page until it takes effect.
+    - >-
+      The check at the top says whether the release this site runs has its note, whether every limit change in effect is what the site
+      applies, and whether the user guides were revised for the releases that changed their part of CEDARS.
+  how:
+    - Fill in New release note and Save the draft, then open the draft to add its changes and publish it.
+    - A limit change names its limit; change that limit's setting on the day the note says.
+  tour:
+    - heading: "Check:"
+      title: The check
+      text: What does not match yet between the release notes, the limits the site applies and the guides.
+    - heading: Drafts
+      title: Drafts
+      text: Notes not yet published. Only CPUC system administrators see them.
+    - heading: New release note
+      title: A new note
+      text: Its title, the release it ships in (blank when no new code is needed), a summary and the day it takes effect.
+    - heading: The limits and their settings
+      title: Limits and settings
+      text: Each limit, its value now and the environment setting that sets it.
+
+releases/edit:
+  title: A draft release note
+  see: getting-started
+  guide:
+    - >-
+      For CPUC system administrators. List the note's changes, each with its kind, the part of CEDARS it touches, what changes and what
+      people need to do, then publish it. A note needs at least one change and a date after today.
+    - Once published it cannot be edited. Until then you can change its title, release, summary or date, or discard it.
+  how:
+    - Add a change for each thing that changes; a limit change names its limit and the new value.
+    - Publish; if it takes effect sooner than the usual notice period, say why it cannot wait.
+  tour:
+    - heading: Changes
+      title: Its changes
+      text: Every change listed so far, each with a Remove button.
+    - heading: Add a change
+      title: Add a change
+      text: The kind, the part of CEDARS, what changes and what to do; a limit change also names the limit and its new value.
+    - heading: Publish
+      title: Publish
+      text: Publishing tells everyone subscribed to release notes. A shorter notice than usual needs a reason, shown with the note.

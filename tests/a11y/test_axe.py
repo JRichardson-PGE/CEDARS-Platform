@@ -329,6 +329,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **budgets,
         **monthly,
         **corrections,
+        **_releases(cpuc_admin),
         **documents,
         "pack": pack,
         "published_pack": published,
@@ -812,6 +813,33 @@ def _etrm(cpuc_admin):
 
     sample = Path(__file__).parent.parent / "data" / "etrm_permutations_export.csv"
     return refdata.publish_pack(cpuc_admin, etrm.load(cpuc_admin, [sample], label="eTRM published permutations", version="2026-10-30"))
+
+
+def _releases(cpuc_admin):
+    """Release notes: one coming (a limit change, at short notice, so every page shows the banner), one in effect, one withdrawn and a
+    draft with a change."""
+    from unittest import mock
+
+    from cedars.services.releases import service as releases
+
+    def note(title, days, version="", **change):
+        n = releases.create_draft(
+            cpuc_admin, title=title, summary=f"{title}: what changes and why.", effective_on=today + timedelta(days=days), version=version
+        )
+        releases.add_change(cpuc_admin, n, **{"kind": "system", "area": "claims", "text": "Claims uploads are compiled faster.", **change})
+        return n
+
+    today = timezone.localdate()
+    coming = note("Larger uploads", 7, "0.3.0", kind="limit", limit="upload_mb", limit_value="200 MB", text="Each file may be larger.")
+    releases.publish(cpuc_admin, coming, short_notice_reason="The Q4 claims need it.")
+    with mock.patch.object(releases, "today", return_value=today - timedelta(days=40)):
+        done = note("Release notes and limits", 20, "0.2.0", area="everyone", action="Nothing.")
+        releases.publish(cpuc_admin, done)
+        gone = note("A rule change", 30, kind="rule", area="budgets")
+        releases.publish(cpuc_admin, gone)
+    releases.withdraw(cpuc_admin, gone, "Replaced by the 2028 rule set.")
+    draft = note("Next release", 45, "0.4.0")
+    return {"release_note": coming.pk, "release_done": done.pk, "release_draft": draft.pk}
 
 
 def _zip(files: dict[str, str]) -> bytes:

@@ -1,0 +1,349 @@
+# Frequently asked questions (BR-12.3), shown and searched at /help/faq/ (cedars/core/faq.py).
+#
+# Each topic has questions; each question has an id (its anchor, never changed once published), q, a (paragraphs), tags (more words
+# to find it by), guide (the user guide that goes further, a slug of core.help.GUIDES), optional links [{text, href}] and an optional
+# worked example {title, intro, steps, table {caption, head, rows}, result}. {limit:<key>} is replaced by that limit as it stands
+# (releases/limits.py) and {notice_days} by the release notice period, so an answer never states an old number.
+# A plain scalar with ": " in it breaks YAML: use a >- block. Changing this file changes the FAQ's release (manage.py help_revisions).
+
+topics:
+  - key: accounts
+    title: Accounts and access
+    questions:
+      - id: need-an-account
+        q: Do I need an account to read or download published data?
+        a:
+          - >-
+            No. The portfolio dashboard, record downloads, the document library, the data dictionary, the validation rules, the
+            filing calendar, the release notes and the limits are open to everyone. You need an account to file for a program
+            administrator, to review filings for the CPUC, to run cost-effectiveness calculations, or to follow documents.
+          - >-
+            One thing needs signing in even for published data: a download too large to make while you wait is made in the
+            background, and CEDARS tells you when it is ready.
+        tags: [sign in, public, open data, anonymous]
+        guide: published-data
+      - id: lost-second-factor
+        q: I lost the phone with my authenticator app. How do I sign in?
+        a:
+          - >-
+            Use one of the recovery codes CEDARS showed you when you set up your second factor: each signs you in once. Then set up
+            the authenticator app again on your account page and keep the new recovery codes somewhere safe.
+          - >-
+            Without a recovery code, ask CEDARS support for help (Help, Getting support).
+        tags: [mfa, two-factor, authenticator, recovery codes, locked out]
+        guide: getting-started
+        links:
+          - {text: Getting support, href: /help/contact/}
+      - id: file-for-a-pa
+        q: How do I get permission to file for my organization?
+        a:
+          - >-
+            Open your account page and choose Ask an organization for access. Pick the organization and the permissions you need
+            (for example claims, read and submit) and say why. Your organization's own administrators decide; the CPUC is not
+            asked. Access to personal information in claims also needs a CPUC data steward's approval.
+        tags: [permission, grant, access request, role, organization administrator]
+        guide: getting-started
+      - id: api-calls
+        q: How do our own systems file or read through the API?
+        a:
+          - >-
+            Make an API token on your account page for one organization and the modules it may use; it can do no more than you can.
+            Send it with every call as an Authorization header. Calls are counted per person: {limit:api_rate_user} with a token
+            and {limit:api_rate_anon} without one. Over the limit a call gets 429 Too Many Requests and a Retry-After header saying
+            how many seconds to wait. A token lasts at most {limit:api_token_days}.
+        tags: [api, token, rate limit, 429, retry-after, automation, integration]
+        guide: getting-started
+        links:
+          - {text: API description (OpenAPI), href: /api/v1/schema}
+          - {text: Current limits, href: /limits/}
+        example:
+          title: Reading your runs with a token
+          intro: A script lists the calculation runs it can see, and waits when it is told to slow down.
+          steps:
+            - "Make a token on your account page for the organization, with Calculations ticked, and copy its key (shown once)."
+            - "Call GET /api/v1/calculations/runs with the header Authorization: Bearer <your key>."
+            - "The answer is JSON. If the status is 429, read Retry-After (say 12) and call again after 12 seconds."
+          result: >-
+            The script never needs a password or the second factor, and revoking the token on your account page stops it at once.
+
+  - key: uploads
+    title: Uploading and filing
+    questions:
+      - id: file-too-large
+        q: My upload was refused as too large. What can I do?
+        a:
+          - >-
+            Each file uploaded to Budgets, Claims or Monthly reports, and a calculation job's .zip, may be at most
+            {limit:upload_mb}. Zip a CSV file before uploading it: CSV files usually zip to a small part of their size. If a zipped table is
+            still too large, split it into parts named after the table and upload them together: one filing upload may hold
+            {limit:upload_files}.
+        tags: [size, mb, limit, big file, refused, upload]
+        guide: budgets
+        links:
+          - {text: Current limits, href: /limits/}
+        example:
+          title: Sending a large Measure table in parts
+          intro: A claims upload whose Measure table is too large for one file.
+          steps:
+            - Split Measure.csv into Measure_1.csv and Measure_2.csv, each with the same header row.
+            - Zip each part on its own, or upload the CSV parts as they are, together with the other tables' files.
+            - Choose all the files at once in the upload field.
+          table:
+            caption: The files chosen and the table CEDARS makes of them
+            head: [File chosen, Holds, Becomes]
+            rows:
+              - [Measure_1.zip, "Measure rows 1 to 400,000", "Measure.csv, rows 1 to 400,000"]
+              - [Measure_2.zip, "Measure rows 400,001 to 750,000", "Measure.csv, rows 400,001 to 750,000"]
+              - [Claim.csv, Every claim, Claim.csv]
+          result: >-
+            CEDARS joins the parts in the order the files were chosen into one upload and checks it as one file.
+      - id: several-files
+        q: Can I send one filing in several files?
+        a:
+          - >-
+            Yes, in Budgets, Claims and Monthly reports. Choose them all at once: each may be a .zip of tables, an Excel workbook
+            with a sheet per table, or one table's .csv. A table may come in parts named after it (Measure_1.csv, Measure (2).csv,
+            Measure-part3.csv); the parts must have the same columns, in any order and case. A calculation run always takes one
+            job .zip.
+        tags: [multiple files, parts, combine, zip, workbook, excel]
+        guide: budgets
+      - id: findings
+        q: How do I read the findings after a check?
+        a:
+          - >-
+            The version's page lists the findings by rule, rejects first. A reject must be fixed before the filing can be priced; a
+            warning does not stop it. The findings file names each finding's line, record, field and rule and says how to fix it.
+            Each rule's page explains it, with the versions of the rule set in force.
+        tags: [errors, warnings, rejects, validation, rules, findings file]
+        guide: budgets
+        links:
+          - {text: Validation rules, href: /rules/}
+      - id: correct-after-due-date
+        q: How do I correct a filing after its due date?
+        a:
+          - >-
+            Before the due date you can un-confirm and upload again. After it, choose Ask to reopen on the filing's page and say why;
+            a CPUC approver decides. Approved, the correction is a new version: the version you correct stays as it was confirmed,
+            and the new one is published with a change letter saying what changed. Subscribers to the PA and followers of the
+            programs it changed are told.
+        tags: [reopen, correction, refile, change letter, version, un-confirm]
+        guide: claims
+      - id: budget-made-of
+        q: What makes up a program's budget?
+        a:
+          - >-
+            A program's budget for a year is its ProgramCost row plus the rebates and incentives of its measures for that program
+            year. Fund shifts then move budget between programs; the standing filing plus the shifts in effect is the operating
+            budget that monthly spending is compared with.
+        tags: [budget, programcost, rebates, incentives, operating budget, fund shift]
+        guide: budgets
+        example:
+          title: A program's budget for 2029
+          intro: One program's ProgramCost row and its measures' incentives, then a fund shift.
+          table:
+            caption: How the program's 2029 budget adds up
+            head: [Part, Amount]
+            rows:
+              - ["ProgramCost row (administration, marketing, direct implementation)", "$1,200,000"]
+              - ["Measures' rebates and incentives (100 measures)", "$3,300,000"]
+              - [Budget filed, "$4,500,000"]
+              - ["Fund shift in effect: moved to another program", "-$250,000"]
+              - [Operating budget, "$4,250,000"]
+          result: Monthly reports compare the program's 2029 spending with $4,250,000.
+
+  - key: claims
+    title: Claims
+    questions:
+      - id: quarter-compiled
+        q: Which records go in a quarter's claims upload?
+        a:
+          - >-
+            Only the records that are new or changed since the last confirmed quarter. CEDARS compiles them over the earlier
+            confirmed quarters: a record with the same key as one confirmed earlier replaces it, and every other earlier record is
+            kept. To take a claim out, list its ClaimID in the Withdrawal table with the reason.
+        tags: [quarter, compile, replace, withdrawal, year to date]
+        guide: claims
+        example:
+          title: The second quarter compiled over the first
+          intro: Q1 confirmed claims A and B. The Q2 upload changes B, adds C and withdraws A.
+          table:
+            caption: What the year holds once Q2 is confirmed
+            head: [Claim, Confirmed in Q1, In the Q2 upload, After Q2]
+            rows:
+              - [A, Yes, "In the Withdrawal table", "Kept, marked withdrawn: not priced or counted"]
+              - [B, Yes, "Yes, with a corrected quantity", "Q2's record replaces Q1's"]
+              - [C, No, Yes, Added]
+          result: The year to date is priced and confirmed as A (withdrawn), the new B and C.
+      - id: deemed-rejected
+        q: Why was a deemed measure rejected?
+        a:
+          - >-
+            Deemed measures are checked against eTRM: a deemed value that differs from eTRM's for the measure rejects the record.
+            The net-to-gross fields may vary and only warn. Blanks that eTRM sets are filled in for you. The finding names the
+            field, your value and eTRM's.
+        tags: [etrm, deemed, measure detail, net-to-gross, ntg]
+        guide: claims
+      - id: pii
+        q: Where do contacts and sites go?
+        a:
+          - >-
+            Never in the claims file. PII_Contact and PII_Site are uploaded on the period's page on their own, checked against the
+            claims' ContactIDs and SiteIDs and kept in the PII vault. Uploading or reading them needs the PII permission, which a
+            CPUC data steward approves; every use is recorded with its reason.
+        tags: [personal information, contact, site, privacy, vault, steward]
+        guide: claims
+
+  - key: calculations
+    title: Calculations and results
+    questions:
+      - id: acc-and-cet-version
+        q: CET asked for an "Avoided Cost Version". Which ACC is that?
+        a:
+          - >-
+            CEDARS names avoided costs by the year of the ACC (the CPUC's Avoided Cost Calculator), for example "2024 ACC". CET's
+            Avoided Cost Version is a different number: it is not the ACC's year. New run's "Which ACC applies to my filing?" says
+            which ACC a filing or a claim year takes.
+        tags: [acc, avoided cost calculator, avoided cost version, cet, year]
+        guide: calculations
+        example:
+          title: CET's versions and the ACCs they hold
+          table:
+            caption: CET's Avoided Cost Version and the ACC by year
+            head: [CET Avoided Cost Version, ACC]
+            rows:
+              - ["2022", 2021 ACC]
+              - ["2024", 2022 ACC]
+              - ["2026", 2024 ACC]
+          result: A job CET priced on Avoided Cost Version 2026 is priced here on the 2024 ACC.
+      - id: portfolio-ratio
+        q: How is a cost-effectiveness ratio for several programs worked out?
+        a:
+          - >-
+            Benefits are added up, costs are added up, and the ratio is one sum over the other. It is never an average of the
+            programs' own ratios, which would count a small program as much as a large one. The dashboard, the Results page and
+            the downloads all work this way.
+        tags: [trc, pac, ratio, benefit-cost, average, portfolio, sum]
+        guide: calculations
+        example:
+          title: The TRC ratio of two programs
+          table:
+            caption: Two programs' TRC benefits and costs, and the ratio of their sums
+            head: [Program, TRC benefits, TRC costs, Program's own ratio]
+            rows:
+              - [Program A, "$9,000,000", "$6,000,000", "1.50"]
+              - [Program B, "$500,000", "$1,000,000", "0.50"]
+              - [Both, "$9,500,000", "$7,000,000", "1.36 (9.5 / 7.0)"]
+          result: >-
+            The two programs' TRC ratio is 1.36, not 1.00 (the average of 1.50 and 0.50): Program A is twelve times Program B's
+            cost and counts that much more.
+      - id: impact-profile
+        q: What does an impact profile do to a measure's savings?
+        a:
+          - >-
+            An impact profile spreads one kWh of savings over the year's 8,760 hours, for each climate zone; its 8,760 shares add up
+            to 1. A measure's annual savings times each hour's share is its savings in that hour, which is priced at that hour's
+            avoided cost.
+        tags: [8760, load shape, hourly, profile, avoided cost, climate zone]
+        guide: calculations
+        example:
+          title: One hour of a lighting measure
+          table:
+            caption: A measure's savings in one hour, and their value
+            head: [Step, Value]
+            rows:
+              - [Annual net savings, "1,000 kWh"]
+              - [The profile's share for 7 to 8 pm on 15 July, "0.0004"]
+              - [Savings in that hour, "1,000 x 0.0004 = 0.4 kWh"]
+              - [The ACC's avoided cost that hour, "$0.25 per kWh"]
+              - [Value of that hour's savings, "0.4 x $0.25 = $0.10"]
+          result: The measure's first-year electric benefit is that sum over all 8,760 hours, then over each year of its life, discounted.
+      - id: run-too-large
+        q: My run was refused for having too many measures.
+        a:
+          - >-
+            One run may hold up to {limit:run_records}. Split the job into several runs (by PA, program or year) and compare or add
+            up their results. Runs of up to {limit:small_run_records} take the faster small-runs queue.
+        tags: [too_many_records, records, size, measures, queue]
+        guide: calculations
+        links:
+          - {text: Current limits, href: /limits/}
+      - id: edit-in-browser
+        q: Can I fix a job's inputs in the browser?
+        a:
+          - >-
+            Yes, for a job of up to {limit:edit_rows}: Edit inputs edits its Measure and ProgramCost tables row by row, checking each
+            cell by the engine's own rules as you save, and the draft can be run or downloaded as a job .zip. Edit larger jobs
+            offline and upload them.
+        tags: [edit inputs, draft, browser, spreadsheet, cells]
+        guide: calculations
+      - id: who-sees-my-run
+        q: Who can see my calculation runs?
+        a:
+          - >-
+            You choose when you start it: a run for yourself is yours alone; a run for an organization is seen by that
+            organization's members and stays with it. A run that prices a filing belongs to the filing's organization.
+        tags: [privacy, runs, organization, sharing]
+        guide: calculations
+
+  - key: data
+    title: Published data and downloads
+    questions:
+      - id: background-download
+        q: Why is my download made in the background?
+        a:
+          - >-
+            Downloads of up to {limit:download_rows} are made while you wait. A larger one is made in the background: sign in,
+            request it, and CEDARS tells you when it is ready under your downloads. You may have {limit:download_jobs} waiting at
+            once.
+        tags: [download, csv, excel, parquet, rows, large, job]
+        guide: published-data
+        links:
+          - {text: Record downloads, href: /data/records/}
+      - id: what-is-left-out
+        q: Why do the dashboard's totals differ from a PA's own report?
+        a:
+          - >-
+            The dashboard counts confirmed filings only, and says on every page what it leaves out: by default pension and benefits
+            programs and codes and standards (and, on the Goals page, Energy Savings Assistance). Include them with the controls at
+            the top. A download is the page's own query, so its totals match the page.
+        tags: [totals, exclusions, codes and standards, esa, confirmed, differ]
+        guide: published-data
+
+  - key: changes
+    title: Changes, limits and notices
+    questions:
+      - id: hear-about-changes
+        q: How do I find out about a change before it takes effect?
+        a:
+          - >-
+            Every change to the specifications, the rules, a limit or how CEDARS works is announced in the release notes before it
+            takes effect, usually at least {notice_days} days before; a note given at shorter notice says why. Every page shows the
+            changes coming within that time. Signed in, tick release notes on your notification settings to be sent each one as it
+            is published.
+        tags: [release notes, announcement, notice, upcoming, subscribe, email]
+        guide: getting-started
+        links:
+          - {text: Release notes, href: /releases/}
+          - {text: Notification settings, href: /notifications/settings/}
+      - id: current-limits
+        q: Where are the current limits listed?
+        a:
+          - >-
+            On the Limits page: every limit as the site applies it now (upload sizes, files per upload, run and download sizes, API
+            rates), where it applies, what happens over it, and any announced change with its date. Each upload field also says its
+            limits.
+        tags: [limits, maximum, size, rate, quota]
+        guide: getting-started
+        links:
+          - {text: Current limits, href: /limits/}
+      - id: guide-release
+        q: How do I know a guide matches what the site does?
+        a:
+          - >-
+            Each user guide says the CEDARS release it was revised for and the release the site runs (the footer shows it too).
+            Every change to a guide is recorded against the release that ships it, and each release's notes list the guides it
+            revised.
+        tags: [guide, documentation, version, release, out of date]
+        guide: getting-started
+        links:
+          - {text: Release notes, href: /releases/}

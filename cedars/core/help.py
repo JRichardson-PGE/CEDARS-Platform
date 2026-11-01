@@ -17,6 +17,14 @@ class Guide:
     title: str
     summary: str
     audience: str  # who it is for, in words
+    areas: tuple[str, ...] = ()  # the parts of CEDARS it covers (releases.service.AREAS): a release changing one should revise it
+
+    @property
+    def revised(self) -> str:
+        """The platform release this guide was last revised for (BR-12.5; cedars/core/revisions.py)."""
+        from . import revisions
+
+        return revisions.revised(f"guide:{self.slug}")
 
 
 GUIDES = [
@@ -26,24 +34,28 @@ GUIDES = [
         "Creating an account, the second factor, asking an organization for access, acting for an organization, notifications and "
         "API tokens.",
         "Everyone who signs in",
+        ("accounts", "api"),
     ),
     Guide(
         "published-data",
         "Finding published data",
         "The portfolio dashboard, record downloads, the document library, the data dictionary and the validation rules. No account needed.",
         "Everyone",
+        ("data", "documents", "reference"),
     ),
     Guide(
         "programs",
         "Programs",
         "The program catalog, a program's page and versions, and asking for a change to a program.",
         "Program administrators and CPUC staff",
+        ("programs",),
     ),
     Guide(
         "budgets",
         "Budget filings and fund shifts",
         "Uploading, checking, pricing and confirming a budget filing; comparing versions; fund shifts and the operating budget.",
         "Program administrators",
+        ("budgets",),
     ),
     Guide(
         "claims",
@@ -51,18 +63,21 @@ GUIDES = [
         "Quarterly and annual claims: the template, uploads compiled over earlier quarters, withdrawals, personal information and "
         "corrections.",
         "Program administrators",
+        ("claims",),
     ),
     Guide(
         "monthly-reports",
         "Monthly reports",
         "What a monthly report holds, how spending is compared with the operating budget, and the 13th-month report.",
         "Program administrators",
+        ("monthly",),
     ),
     Guide(
         "calculations",
         "Cost-effectiveness runs",
         "Starting a run, reading its results, comparing two runs, editing a small job's inputs, output templates and impact profiles.",
         "Analysts at PAs and the CPUC",
+        ("calculations",),
     ),
     Guide(
         "accessibility",

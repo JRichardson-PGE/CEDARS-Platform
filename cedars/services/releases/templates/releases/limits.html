@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Limits{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Limits</h1>{% page_help "releases/limits" %}</div>
+<p>The limits CEDARS applies now, read from the settings that enforce them, so this page always says what the site does. A planned
+change to a limit is announced in the <a href="{% url 'releases:index' %}">release notes</a> before it takes effect, and shown here
+with its date.</p>
+<p class="small"><a href="{% url 'limits:index' %}?format=json">These limits as JSON</a>, for your own systems.</p>
+{% for group, rows in groups %}
+<section aria-labelledby="limits-{{ forloop.counter }}">
+<h2 id="limits-{{ forloop.counter }}">{{ group }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ group }} limits">
+<table class="list">
+  <caption class="sr-only">{{ group }}: each limit, its value now, where it applies, what happens over it and any announced change</caption>
+  <thead><tr><th scope="col">Limit</th><th scope="col">Now</th><th scope="col">Where it applies</th><th scope="col">Over the limit</th><th scope="col">Announced change</th></tr></thead>
+  <tbody>
+  {% for lim, coming in rows %}<tr id="{{ lim.key }}">
+    <th scope="row">{{ lim.label }}</th>
+    <td><strong>{{ lim.current }}</strong></td>
+    <td>{{ lim.applies }}</td>
+    <td>{{ lim.over }}</td>
+    <td>{% for note, change in coming %}<a href="{% url 'releases:detail' note.pk %}">{{ change.limit_value }} from {{ note.effective_on|date_words }}</a>{% if not forloop.last %}<br>{% endif %}{% empty %}None{% endfor %}</td>
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% endfor %}
+{% if sysadmin %}<p class="small">For administrators: each limit is an environment setting, named on the <a href="{% url 'releases:manage' %}">release notes' writing page</a>.</p>{% endif %}
+{% endblock %}

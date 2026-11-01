@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}{% if searching %}{{ results|length }} answer{{ results|length|pluralize }} · {% endif %}Frequently asked questions{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li></ol></nav>
+<div class="page-title"><h1>Frequently asked questions</h1>{% page_help "core/help/faq" %}</div>
+<p>Short answers, several with a worked example, each linked to the user guide that goes further. The limits they mention are the
+site's as they stand now.</p>
+<form method="get" class="filters" role="search" aria-label="Search the questions">
+  <p><label for="faq-q">Search the questions</label><input id="faq-q" type="search" name="q" value="{{ q }}" placeholder="e.g. upload too large"></p>
+  <p><label for="faq-topic">Topic</label><select id="faq-topic" name="topic"><option value="">Every topic</option>{% for t in topics %}<option value="{{ t.key }}"{% if t.key == topic %} selected{% endif %}>{{ t.title }}</option>{% endfor %}</select></p>
+  <div class="actions"><button type="submit" class="primary">Search</button>{% if searching %} <a href="{% url 'core:help_faq' %}">Show every question</a>{% endif %}</div>
+</form>
+{% if searching %}
+<p>{{ results|length }} answer{{ results|length|pluralize }}{% if q %} with every word of “{{ q }}”{% endif %}{% if topic %} under {% for key, title in topic_titles.items %}{% if key == topic %}{{ title }}{% endif %}{% endfor %}{% endif %}.</p>
+{% for item in results %}{% include "core/help/_question.html" with q=item hl=2 %}{% empty %}
+<p>No question matches. Try fewer or other words, look through <a href="{% url 'core:help_faq' %}">every question</a>, or <a href="{% url 'core:help_contact' %}">ask CEDARS support</a>.</p>
+{% endfor %}
+{% else %}
+<nav aria-labelledby="faq-topics-h"><h2 id="faq-topics-h">Topics</h2>
+<ul class="links">{% for t in topics %}<li><a href="#topic-{{ t.key }}">{{ t.title }}</a> ({{ t.questions|length }})</li>{% endfor %}</ul></nav>
+{% for t in topics %}
+<section aria-labelledby="topic-{{ t.key }}">
+  <h2 id="topic-{{ t.key }}">{{ t.title }}</h2>
+  {% for item in t.questions %}{% include "core/help/_question.html" with q=item hl=3 %}{% endfor %}
+</section>
+{% endfor %}
+{% endif %}
+<p class="small muted">These answers were revised for CEDARS release {{ revision.release|default:"(not recorded)" }}; this site runs release {{ revision.running }}. Not answered here? <a href="{% url 'core:help_contact' %}">Getting support</a>.</p>
+{% endblock %}
