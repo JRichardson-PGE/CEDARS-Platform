@@ -7,7 +7,7 @@ class Deadline(models.Model):
     """One entry in the filing calendar: what a module expects, for which period or cycle, and when it is due (BR-09.4)."""
 
     module = models.CharField(max_length=40)
-    kind = models.CharField(max_length=80, help_text="e.g. quarterly claim, TUAL, monthly report")
+    kind = models.CharField(max_length=80, help_text="e.g. Q1 claim, TUAL, monthly report")
     period = models.ForeignKey("registry.ReportingPeriod", null=True, blank=True, on_delete=models.PROTECT, related_name="deadlines")
     cycle = models.ForeignKey("registry.FilingCycle", null=True, blank=True, on_delete=models.PROTECT, related_name="deadlines")
     opens_at = models.DateTimeField(null=True, blank=True)

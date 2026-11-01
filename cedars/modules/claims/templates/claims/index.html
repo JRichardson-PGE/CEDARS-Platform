@@ -38,7 +38,7 @@ correction is a new version, published with a change letter in the <a href="{% u
   {% for p in y.periods %}
   <tr>
     <th scope="row"><a href="{% url 'claims:period' p.deadline.pk %}">{{ p.deadline.kind }}</a></th>
-    <td class="due"><time datetime="{{ p.deadline.due_at|date:'c' }}">{{ p.deadline.due_at|date:"Y-m-d" }}</time><small>{{ p.deadline.due_at|due_words }}</small></td>
+    <td class="due"><time datetime="{{ p.deadline.due_at|date:'c' }}">{{ p.deadline.due_at|date_words }}</time><small>{{ p.deadline.due_at|due_words }}</small></td>
     {% if org %}<td>{% if p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}

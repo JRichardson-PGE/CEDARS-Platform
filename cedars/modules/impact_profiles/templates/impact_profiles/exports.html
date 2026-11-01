@@ -15,7 +15,7 @@ under Reference data.</p>
   <thead><tr><th scope="col">Number</th><th scope="col">Written</th><th scope="col">Profiles</th><th scope="col">Catalog rows</th><th scope="col">Zone 8,760s</th><th scope="col">Files</th><th scope="col">Data pack</th></tr></thead>
   <tbody>
   {% for e in exports %}
-  <tr><th scope="row">{{ e.number }}</th><td class="nowrap">{{ e.created_at|date:"Y-m-d H:i T" }}{% if e.created_by %} by {{ e.created_by.email }}{% endif %}</td>
+  <tr><th scope="row">{{ e.number }}</th><td class="nowrap">{{ e.created_at|datetime_words }}{% if e.created_by %} by {{ e.created_by|person }}{% endif %}</td>
     <td>{{ e.profiles }}</td><td>{{ e.catalog_rows }}</td><td>{{ e.zone_shapes }}</td>
     <td><a href="{% url 'impact_profiles:export_file' e.number 'catalog.parquet' %}">catalog.parquet<span class="sr-only"> of write {{ e.number }}</span></a>,
         <a href="{% url 'impact_profiles:export_file' e.number 'hourly.parquet' %}">hourly.parquet<span class="sr-only"> of write {{ e.number }}</span></a></td>

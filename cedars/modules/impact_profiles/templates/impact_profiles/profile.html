@@ -11,7 +11,7 @@
   {% if p.package %}<dt>Measure package</dt><dd><a href="{% url 'impact_profiles:package' p.package.measure_version_id %}">{{ p.package.measure_version_id }}</a> {{ p.package.name }}</dd>{% endif %}
   {% if p.description %}<dt>Description</dt><dd>{{ p.description }}</dd>{% endif %}
   {% if p.legacy_id %}<dt>Legacy CEDARS id</dt><dd>{{ p.legacy_id }}</dd>{% endif %}
-  <dt>Status</dt><dd>{% if p.retired_at %}Retired {{ p.retired_at|date:"Y-m-d" }}{% if p.retired_by %} by {{ p.retired_by.email }}{% endif %}: {{ p.retire_reason }}{% else %}In use{% endif %}</dd>
+  <dt>Status</dt><dd>{% if p.retired_at %}Retired {{ p.retired_at|date_words }}{% if p.retired_by %} by {{ p.retired_by|person }}{% endif %}: {{ p.retire_reason }}{% else %}In use{% endif %}</dd>
   {% if current %}<dt>Current version</dt><dd>{{ current.number }}, drawn on the {{ current.represents_year|default:"2009" }} calendar</dd>{% endif %}
 </dl>
 {% if p.family == "deer" %}<p class="small muted">DEER profiles follow a CEDARS calculation path that has not been reproduced yet; they are carried as they were in CEDARS.</p>{% endif %}
@@ -40,8 +40,8 @@
   <thead><tr><th scope="col">Version</th><th scope="col">Added</th><th scope="col">By</th><th scope="col">Why</th><th scope="col">Zones</th><th scope="col">Status</th><th scope="col">Download</th></tr></thead>
   <tbody>
   {% for v in versions %}
-  <tr><th scope="row">{{ v.number }}</th><td class="nowrap">{{ v.created_at|date:"Y-m-d H:i T" }}</td><td>{{ v.created_by.email|default:"the system" }}</td>
-    <td>{{ v.reason }}</td><td>{{ v.zones.all|length }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td>
+  <tr><th scope="row">{{ v.number }}</th><td class="nowrap">{{ v.created_at|datetime_words }}</td><td>{{ v.created_by|person|default:"the system" }}</td>
+    <td>{{ v.reason }}</td><td>{{ v.zones.all|length }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date_words }}{% else %}Current{% endif %}</td>
     <td><a href="{% url 'impact_profiles:profile_version_csv' p.pk v.number %}">CSV<span class="sr-only"> of version {{ v.number }}</span></a></td></tr>
   {% endfor %}
   </tbody>

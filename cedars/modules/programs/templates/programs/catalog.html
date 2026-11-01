@@ -88,7 +88,7 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
     <th scope="row"><a class="id" href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></th>
     <td>{{ v.name }}</td>
     <td>{{ pa }}</td>
-    <td><span class="status {{ status|status_tone }}">{{ status }}</span></td>
+    <td>{% if status == "Not given" %}<span class="muted">Not given</span>{% else %}<span class="status {{ status|status_tone }}">{{ status }}</span>{% endif %}</td>
     <td>{{ segment }}</td>
     <td class="nowrap">{% if v.start_year %}{{ v.start_year }}{% endif %}{% if v.start_year or v.end_year %} to {% endif %}{% if v.end_year %}{{ v.end_year }}{% elif v.start_year %}open{% endif %}</td>
   </tr>

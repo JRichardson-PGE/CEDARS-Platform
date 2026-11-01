@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation" %}</div>
 {% if not is_admin %}<p class="muted">You are viewing this organization as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
-{% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date:"Y-m-d" }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
+{% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date_words }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
 
 <section class="card" aria-labelledby="details-h">
   <h2 id="details-h">Details</h2>
@@ -34,7 +34,7 @@
     <tr>
       <th scope="row">{{ c.code }}{% if c.current and not c.organisation.successor_id %} <span class="status ok">Current</span>{% endif %}{% if c.organisation_id != org.pk %} <span class="small muted">(recorded as <a href="{% url 'administration:organisation' c.organisation.code %}">{{ c.organisation.code }}</a>, merged)</span>{% endif %}</th>
       <td>{{ c.span }}</td>
-      <td>{% if c.recorded_at %}{{ c.recorded_at|date:"Y-m-d" }}{% if c.recorded_by %} by {{ c.recorded_by.email }}{% endif %}{% else %}<span class="muted">Before code history was kept</span>{% endif %}</td>
+      <td>{% if c.recorded_at %}{{ c.recorded_at|date_words }}{% if c.recorded_by %} by {{ c.recorded_by|person }}{% endif %}{% else %}<span class="muted">Before code history was kept</span>{% endif %}</td>
       <td>{{ c.reason|default:"–" }}</td>
     </tr>
     {% endfor %}
@@ -89,14 +89,14 @@
 <h2 id="req-h">Access requests</h2>
 {% for r, labels in requests %}
 <div class="card">
-  <h3>{{ r.user.email }} <span class="small muted">asked {{ r.created_at|date:"Y-m-d" }}</span></h3>
+  <h3>{{ r.user|person }} <span class="small muted">asked {{ r.created_at|date_words }}</span></h3>
   {% if r.message %}<p>{{ r.message }}</p>{% endif %}
   {% if is_admin %}
   <form method="post" action="{% url 'administration:decide_request' r.pk %}" class="stack">{% csrf_token %}
     <fieldset><legend>Permissions to grant</legend>
       <div class="checks">{% for code, label in labels %}<label><input type="checkbox" name="permissions" value="{{ code }}" checked> {{ label }}</label>{% endfor %}</div>
     </fieldset>
-    <label for="note-{{ r.pk }}">Note to {{ r.user.email }} (optional)</label>
+    <label for="note-{{ r.pk }}">Note to {{ r.user|person_name }} (optional)</label>
     <input type="text" id="note-{{ r.pk }}" name="note">
     <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve</button><button type="submit" name="decision" value="decline">Decline</button></div>
   </form>
@@ -116,18 +116,18 @@
   <tbody>
   {% for m, grants in members %}
   <tr>
-    <th scope="row">{{ m.user.email }}{% if m.user.name %}<br><span class="small muted">{{ m.user.name }}</span>{% endif %}</th>
+    <th scope="row">{{ m.user|person }}</th>
     <td><ul class="grants">
       {% for g, label in grants %}
       <li>{{ label }}
         {% if g.status != "active" %}<span class="status">{{ g.get_status_display }}</span>{% endif %}
-        {% if g.expires_at %}<span class="small muted">until {{ g.expires_at|date:"Y-m-d" }}</span>{% endif %}
-        <span class="small muted">granted {{ g.granted_at|date:"Y-m-d" }}{% if g.granted_by %} by {{ g.granted_by.email }}{% endif %}</span>
+        {% if g.expires_at %}<span class="small muted">until {{ g.expires_at|date_words }}</span>{% endif %}
+        <span class="small muted">granted {{ g.granted_at|date_words }}{% if g.granted_by %} by {{ g.granted_by|person }}{% endif %}</span>
         {% if is_admin or g.permission == "system.admin" or g.permission == "pii.steward" %}
         {% if g.status == "suspended" %}
-        <form method="post" action="{% url 'administration:reinstate' g.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">Reinstate<span class="sr-only"> {{ label }} for {{ m.user.email }}</span></button></form>
+        <form method="post" action="{% url 'administration:reinstate' g.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">Reinstate<span class="sr-only"> {{ label }} for {{ m.user|person_name }}</span></button></form>
         {% endif %}
-        <details class="inline"><summary>Revoke<span class="sr-only"> {{ label }} for {{ m.user.email }}</span></summary>
+        <details class="inline"><summary>Revoke<span class="sr-only"> {{ label }} for {{ m.user|person_name }}</span></summary>
           <form method="post" action="{% url 'administration:revoke' g.pk %}">{% csrf_token %}
             <label for="rv-{{ g.pk }}">Reason</label><input type="text" id="rv-{{ g.pk }}" name="reason" required>
             <button type="submit">Revoke</button>
@@ -139,7 +139,7 @@
       {% endfor %}
     </ul></td>
     <td>{% if is_admin %}
-      <details class="inline"><summary>Remove<span class="sr-only"> {{ m.user.email }} from {{ org.code }}</span></summary>
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ m.user|person_name }} from {{ org.code }}</span></summary>
         <form method="post" action="{% url 'administration:end_membership' m.pk %}">{% csrf_token %}
           <label for="em-{{ m.pk }}">Reason</label><input type="text" id="em-{{ m.pk }}" name="reason" required>
           <button type="submit">Remove member</button>
@@ -156,17 +156,17 @@
 <section aria-labelledby="recert-h" id="recertification">
 <h2 id="recert-h">Recertification</h2>
 {% if campaign %}
-<p>Open, due {{ campaign.due_at|date:"Y-m-d" }}. Confirm or remove each grant; what is not reviewed by then may be suspended.</p>
+<p>Open, due {{ campaign.due_at|date_words }}. Confirm or remove each grant; what is not reviewed by then may be suspended.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Grants to recertify">
 <table class="list">
   <caption class="sr-only">Grants to recertify</caption>
   <thead><tr><th scope="col">Member</th><th scope="col">Permission</th><th scope="col">Review</th></tr></thead>
   <tbody>
   {% for item, label in items %}
-  <tr><th scope="row">{{ item.grant.membership.user.email }}</th><td>{{ label }}</td>
-    <td>{% if item.decision %}{{ item.get_decision_display }} {{ item.decided_at|date:"Y-m-d" }}{% elif is_admin %}
-      <form method="post" action="{% url 'administration:recertify' item.pk %}" class="inline-form">{% csrf_token %}<button type="submit" name="decision" value="certify">Certify<span class="sr-only"> {{ label }} for {{ item.grant.membership.user.email }}</span></button></form>
-      <details class="inline"><summary>Remove<span class="sr-only"> {{ label }} for {{ item.grant.membership.user.email }}</span></summary>
+  <tr><th scope="row">{{ item.grant.membership.user|person }}</th><td>{{ label }}</td>
+    <td>{% if item.decision %}{{ item.get_decision_display }} {{ item.decided_at|date_words }}{% elif is_admin %}
+      <form method="post" action="{% url 'administration:recertify' item.pk %}" class="inline-form">{% csrf_token %}<button type="submit" name="decision" value="certify">Certify<span class="sr-only"> {{ label }} for {{ item.grant.membership.user|person_name }}</span></button></form>
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ label }} for {{ item.grant.membership.user|person_name }}</span></summary>
         <form method="post" action="{% url 'administration:recertify' item.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="remove">
           <label for="rc-{{ item.pk }}">Reason</label><input type="text" id="rc-{{ item.pk }}" name="reason" required>
           <button type="submit">Remove</button>
@@ -194,8 +194,8 @@
   <thead><tr><th scope="col">Member</th><th scope="col">Name</th><th scope="col">Modules</th><th scope="col">Expires</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for t in tokens %}
-  <tr><th scope="row">{{ t.user.email }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|join:", " }}</td><td>{{ t.expires_at|date:"Y-m-d" }}</td><td>{{ t.last_used_at|date:"Y-m-d"|default:"Never" }}</td>
-    <td><form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<input type="hidden" name="from" value="organisation"><button type="submit">Revoke<span class="sr-only"> {{ t.user.email }}'s token {{ t.name }}</span></button></form></td></tr>
+  <tr><th scope="row">{{ t.user|person }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|join:", " }}</td><td>{{ t.expires_at|date_words }}</td><td>{{ t.last_used_at|date_words|default:"Never" }}</td>
+    <td><form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<input type="hidden" name="from" value="organisation"><button type="submit">Revoke<span class="sr-only"> {{ t.user|person_name }}'s token {{ t.name }}</span></button></form></td></tr>
   {% endfor %}
   </tbody>
 </table>

@@ -20,9 +20,9 @@ Approving it starts the new version on the date asked for.</p>
   <tr>
     <th scope="row"><a href="{% url 'programs:request' r.pk %}">{{ r.program.prg_id }}<span class="sr-only">: change request {{ r.pk }}</span></a></th>
     <td>{{ names }}</td>
-    <td class="nowrap">{{ r.effective|date:"Y-m-d" }}</td>
-    <td class="small">{{ r.requested_by.email }}<br>{{ r.requested_at|date:"Y-m-d" }}</td>
-    <td>{{ r.get_status_display }}</td>
+    <td class="nowrap">{{ r.effective|date_words }}</td>
+    <td class="small">{{ r.requested_by|person }}<br>{{ r.requested_at|date_words }}</td>
+    <td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span></td>
   </tr>
   {% empty %}<tr><td colspan="5">No requests here.</td></tr>
   {% endfor %}

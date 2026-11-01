@@ -42,7 +42,7 @@ class Command(BaseCommand):
         registry.ensure_cycle(year - (year - 2024) % 4)  # cycles start 2024, 2028, ...
         periods = {(p.kind, p.number): p for p in registry.ensure_periods(year)}
         due = [
-            ("claims", "quarterly claim", periods[("quarter", q)], (year if q < 4 else year + 1, (q * 3 + 2) % 12 or 12, 1))
+            ("claims", f"Q{q} claim", periods[("quarter", q)], (year if q < 4 else year + 1, (q * 3 + 2) % 12 or 12, 1))
             for q in range(1, 5)
         ]
         due += [("monthly", "monthly report", periods[("month", m)], (year if m < 12 else year + 1, m % 12 + 1, 15)) for m in range(1, 13)]

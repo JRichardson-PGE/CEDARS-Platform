@@ -4,8 +4,8 @@
 <p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' deadline.period.year %}{% if org %}?org={{ org.code|urlencode }}{% endif %}">{{ deadline.period.year }}</a></p>
 <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/report" %}</div>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
-  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
+  <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   <dt>Estimates priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for {{ setup.year }}{% endif %}</dd>
 </dl>
 {% if not org %}<p>You are not acting for a program administrator. Confirmed reports are in <a href="{% url 'monthly:year' deadline.period.year %}">the year's view</a>.</p>{% endif %}
@@ -59,7 +59,7 @@
   </form>
   {% endif %}
   {% if v.locked and past_due and can_submit %}
-    {% if pending_reopen %}<p>A request to reopen this report, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
+    {% if pending_reopen %}<p>A request to reopen this report, sent {{ pending_reopen.requested_at|date_words }}, is waiting for a CPUC approver.</p>
     {% else %}
     <form method="post" action="{% url 'monthly:reopen' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
       <div class="field"><label for="reopen-reason">Reason for the correction</label><textarea id="reopen-reason" name="reason" rows="2" required></textarea></div>
@@ -73,7 +73,7 @@
 {% if can_submit and not v.locked %}
 <section aria-labelledby="upload-h">
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the report{% endif %}</h2>
-{% if opens_later %}<p>This report opens on {{ deadline.opens_at|date:"Y-m-d" }}, when the month has ended.</p>
+{% if opens_later %}<p>This report opens on {{ deadline.opens_at|date_words }}, when the month has ended.</p>
 {% else %}
 <p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept.</p>
 <form method="post" enctype="multipart/form-data" action="{% url 'monthly:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
@@ -104,8 +104,8 @@
   <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Confirmed</th><th scope="col">Reason</th></tr></thead>
   <tbody>{% for ver in versions %}<tr>
     <th scope="row"><a href="{% url 'monthly:version' ver.pk %}">Version {{ ver.number }}</a></th>
-    <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
-    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }} by {{ ver.confirmed_by.email }}{% endif %}</td>
+    <td><span class="status {{ ver.status|status_tone }}">{{ ver.get_status_display }}</span>{% if ver.late %} <span class="small">(late)</span>{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date_words }} by {{ ver.confirmed_by|person }}{% endif %}</td>
     <td>{{ ver.reason }}</td>
   </tr>{% endfor %}</tbody>
 </table>

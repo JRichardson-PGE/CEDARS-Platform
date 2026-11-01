@@ -26,7 +26,7 @@
 
 <h2>Legal holds</h2>
 {% if holds %}
-<ul>{% for h in holds %}<li><strong>{{ h.record_class }}{% if h.object_ref %} {{ h.object_ref }}{% else %} (every record){% endif %}</strong>: {{ h.reason }} <span class="small muted">placed {{ h.placed_at|date:"Y-m-d" }} by {{ h.placed_by.email }}</span>
+<ul>{% for h in holds %}<li><strong>{{ h.record_class }}{% if h.object_ref %} {{ h.object_ref }}{% else %} (every record){% endif %}</strong>: {{ h.reason }} <span class="small muted">placed {{ h.placed_at|date_words }} by {{ h.placed_by|person }}</span>
   <details class="inline"><summary>Release<span class="sr-only"> the hold on {{ h.record_class }}</span></summary>
     <form method="post">{% csrf_token %}<input type="hidden" name="action" value="release"><input type="hidden" name="hold" value="{{ h.pk }}">
       <p><label for="rel-{{ h.pk }}">Reason</label><input id="rel-{{ h.pk }}" name="reason" required></p><button type="submit">Release</button>
@@ -43,6 +43,6 @@
 </section>
 
 <h2>Recent purges</h2>
-{% if runs %}<ul>{% for r in runs %}<li>{{ r.started_at|date:"Y-m-d H:i T" }}: {% for cls, c in r.counts.items %}{{ cls }} {{ c.deleted }} deleted{% if c.held %}, {{ c.held }} held{% endif %}{% if c.failed %}, {{ c.failed }} failed{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}nothing expired{% endfor %}</li>{% endfor %}</ul>
+{% if runs %}<ul>{% for r in runs %}<li>{{ r.started_at|datetime_words }}: {% for cls, c in r.counts.items %}{{ cls }} {{ c.deleted }} deleted{% if c.held %}, {{ c.held }} held{% endif %}{% if c.failed %}, {{ c.failed }} failed{% endif %}{% if not forloop.last %}; {% endif %}{% empty %}nothing expired{% endfor %}</li>{% endfor %}</ul>
 {% else %}<p>The retention job has not run yet.</p>{% endif %}
 {% endblock %}

@@ -24,10 +24,10 @@
   {% if s.group %}<dt>Group</dt><dd>{{ s.group.label }}</dd>{% endif %}
   <dt>Funding cycles</dt><dd>{% for o in cycles %}{{ o.label }}{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
   <dt>Budget</dt><dd>{% if s.budget is not None %}${{ s.budget|floatformat:"0g" }}{% else %}Not given{% endif %}</dd>
-  {% if s.next_activity or s.next_activity_due %}<dt>Next activity</dt><dd>{{ s.next_activity }}{% if s.next_activity_due %}, due {{ s.next_activity_due|date:"Y-m-d" }}{% endif %}</dd>{% endif %}
-  <dt>Completion date</dt><dd>{{ s.completion_date|date:"Y-m-d"|default:"Not given" }}</dd>
+  {% if s.next_activity or s.next_activity_due %}<dt>Next activity</dt><dd>{{ s.next_activity }}{% if s.next_activity_due %}, due {{ s.next_activity_due|date_words }}{% endif %}</dd>{% endif %}
+  <dt>Completion date</dt><dd>{{ s.completion_date|date_words|default:"Not given" }}</dd>
   {% if s.calmac_id %}<dt>CALMAC ID</dt><dd>{{ s.calmac_id }}</dd>{% endif %}
-  <dt>Last updated</dt><dd>{{ s.updated_at|date:"Y-m-d" }}</dd>
+  <dt>Last updated</dt><dd>{{ s.updated_at|date_words }}</dd>
   {% if s.psr %}<dt>Migrated from</dt><dd>The PSR, project {{ s.psr.project }}: its old link leads here</dd>{% endif %}
 </dl>
 {% if s.description %}<h3>Description</h3><p>{{ s.description|linebreaksbr }}</p>{% endif %}
@@ -38,7 +38,7 @@
 {% if sees_contacts %}
 <h3>Contacts <span class="small muted">(not public)</span></h3>
 <dl class="facts">
-  <dt>ED program manager</dt><dd>{% if s.ed_program_manager %}{{ s.ed_program_manager.name|default:s.ed_program_manager.email }}{% else %}Not given{% endif %}</dd>
+  <dt>ED program manager</dt><dd>{% if s.ed_program_manager %}{{ s.ed_program_manager|person }}{% else %}Not given{% endif %}</dd>
   <dt>Other contacts</dt><dd>{{ s.contacts|linebreaksbr|default:"None recorded" }}</dd>
 </dl>
 {% if s.psr.fields %}
@@ -90,7 +90,7 @@
 <section aria-labelledby="docs-h">
 <h2 id="docs-h">Documents</h2>
 <ul class="links">
-  {% for d, stage in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ stage }}, {% if d.published_at %}published {{ d.published_at|date:"Y-m-d" }}{% else %}not published{% endif %}</span></li>
+  {% for d, stage in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ stage }}, {% if d.published_at %}published {{ d.published_at|date_words }}{% else %}not published{% endif %}</span></li>
   {% empty %}<li>No documents are filed for this study yet.</li>{% endfor %}
 </ul>
 {% if can_file %}<p><a class="button primary" href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">Upload a document<span class="sr-only"> for {{ s.study_id }}</span></a></p>{% endif %}
@@ -106,7 +106,7 @@
   <tbody>
   {% for h in history %}
   <tr>
-    <th scope="row" class="nowrap">{{ h.at|date:"Y-m-d" }}</th>
+    <th scope="row" class="nowrap">{{ h.at|date_words }}</th>
     <td>{{ h.who }}</td>
     <td><ul class="grants">{% for field, old, new in h.changes %}<li>{{ field|cut:"_"|capfirst }}: {% if old or old == 0 %}{{ old }} to {% endif %}{{ new|default:"(blank)" }}</li>{% endfor %}</ul></td>
     <td>{{ h.action }}</td>

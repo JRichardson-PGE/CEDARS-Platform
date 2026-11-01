@@ -10,7 +10,7 @@
 <div class="page-title"><h1>{{ series }} records</h1>{% page_help "data/records" %}</div>
 <p>The published measure-level records, for every PA in one file. Choose the records and the columns, then download them as CSV,
 Excel or Parquet. A download from a dashboard row holds exactly the records behind it.
-{% if as_of %}Data as of {{ as_of|date:"Y-m-d H:i T" }}.{% endif %}</p>
+{% if as_of %}Data as of {{ as_of|datetime_words }}.{% endif %}</p>
 {% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:records' %}">Start again</a></p>{% endif %}
 
 <form method="post" action="{% url 'data:records' %}" class="filters dash-controls records-form" aria-label="Records and columns">

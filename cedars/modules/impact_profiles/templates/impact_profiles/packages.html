@@ -3,7 +3,7 @@
 {% block content %}
 {% include "impact_profiles/_nav.html" with section="packages" %}
 <div class="page-title"><h1>Deemed load shapes</h1>{% page_help "impact_profiles/packages" %}</div>
-<p>Draft measure packages from eTRM starting in 2027 or later, synced nightly{% if last_sync %} (last synced {{ last_sync.finished_at|date:"Y-m-d H:i T" }}){% endif %}.
+<p>Draft measure packages from eTRM starting in 2027 or later, synced nightly{% if last_sync %} (last synced {{ last_sync.finished_at|datetime_words }}){% endif %}.
 Upload a package's 8,760 baseline and measure load shapes from its page; its permutations' UECs turn them into impact profiles.
 Measure versions starting before 2027 keep their DEER impact profile IDs. <a href="{% url 'impact_profiles:load_shape_template' %}">Download the load-shape template (CSV)</a>.</p>
 <form method="get" class="filters">
@@ -17,7 +17,7 @@ Measure versions starting before 2027 keep their DEER impact profile IDs. <a hre
   <tbody>
   {% for p in page %}
   <tr><th scope="row"><a href="{% url 'impact_profiles:package' p.measure_version_id %}">{{ p.measure_version_id }}</a></th><td>{{ p.name }}</td>
-    <td>{{ p.pa_lead }}</td><td class="nowrap">{{ p.start_date|date:"Y-m-d" }}</td><td>{{ p.current.permutation_count|default:0 }}</td><td>{{ p.n_shapes }}</td></tr>
+    <td>{{ p.pa_lead }}</td><td class="nowrap">{{ p.start_date|date_words }}</td><td>{{ p.current.permutation_count|default:0 }}</td><td>{{ p.n_shapes }}</td></tr>
   {% empty %}<tr><td colspan="6">No draft packages match.</td></tr>
   {% endfor %}
   </tbody>

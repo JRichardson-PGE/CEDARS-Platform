@@ -18,10 +18,10 @@
   </div>
 </div>
 {% if following %}<p>You follow this program: you hear when a filing that includes it is published or corrected, when a fund shift moves its funds, when its details change and when a document about it is published, as you chose on your <a href="{% url 'notifications:settings' %}">notification settings</a>.</p>{% endif %}
-{% for r in pending %}<p>A change from {{ r.effective|date:"Y-m-d" }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
+{% for r in pending %}<p>A change from {{ r.effective|date_words }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
 
 <section aria-labelledby="def-h">
-<h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date:"Y-m-d" }}</span>{% endif %}</h2>
+<h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date_words }}</span>{% endif %}</h2>
 {% if v %}
 <dl class="facts">
   <dt>Program administrator</dt><dd>{% if p.statewide %}Statewide (SW){% else %}{{ p.administrator.name }} ({{ pa }}){% endif %}</dd>
@@ -40,7 +40,7 @@
   {% if v.exclude_from_budget or v.exclude_from_ce or v.exclude_from_statewide %}<dt>Excluded from</dt><dd>{% if v.exclude_from_budget %}budget {% endif %}{% if v.exclude_from_ce %}cost-effectiveness {% endif %}{% if v.exclude_from_statewide %}statewide{% endif %}</dd>{% endif %}
   {% if v.website %}<dt>Website</dt><dd><a href="{{ v.website }}">{{ v.website }}</a></dd>{% endif %}
 </dl>
-{% if upcoming %}<p>A change is already entered to start on {{ upcoming.0.valid_from|date:"Y-m-d" }}; see the versions below.</p>{% endif %}
+{% if upcoming %}<p>A change is already entered to start on {{ upcoming.0.valid_from|date_words }}; see the versions below.</p>{% endif %}
 {% else %}<p>This program has no attributes recorded yet.</p>{% endif %}
 </section>
 
@@ -54,11 +54,11 @@
   <tbody>
   {% for ver, changes in history %}
   <tr>
-    <th scope="row" class="nowrap">{{ ver.valid_from|date:"Y-m-d" }}</th>
-    <td class="nowrap">{{ ver.valid_to|date:"Y-m-d"|default:"open" }}</td>
+    <th scope="row" class="nowrap">{{ ver.valid_from|date_words }}</th>
+    <td class="nowrap">{{ ver.valid_to|date_words|default:"open" }}</td>
     <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field|cut:"_"|capfirst }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
     <td>{{ ver.reason }}</td>
-    <td class="small">{% if signed_in %}{{ ver.created_by.email|default:"imported" }}<br>{% endif %}{{ ver.created_at|date:"Y-m-d" }}</td>
+    <td class="small">{% if signed_in %}{{ ver.created_by|person|default:"imported" }}<br>{% endif %}{{ ver.created_at|date_words }}</td>
   </tr>
   {% endfor %}
   </tbody>
@@ -78,7 +78,7 @@
   {% for row, shares in allocation %}
   <tr>
     <th scope="row">{{ row.version.label }}</th>
-    <td>{{ row.version.get_status_display }}</td>
+    <td><span class="status {{ row.version.status|status_tone }}">{{ row.version.get_status_display }}</span></td>
     <td>{{ row.year }}</td>
     <td>{{ row.percent_electric }}</td>
     {% for s in shares %}<td>{{ s.weighted|default:"" }}</td>{% endfor %}
@@ -105,9 +105,9 @@
 {% elif budget_groups %}
 <p class="small muted">The program's filed budget in each version of each filing: program costs plus its measures' rebates and incentives, nominal dollars, with the priced total system benefit (TSB) and TRC ratio. Every version is kept; the standing one is the latest published.</p>
 {% for g in budget_groups %}
-<div class="hscroll" tabindex="0" role="region" aria-label="Budget filings for the {{ g.cycle }} cycle">
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget filings for the {{ g.cycle|cycle_label }} cycle">
 <table class="list">
-  <caption>{{ g.cycle }} cycle</caption>
+  <caption>{{ g.cycle|cycle_label }} cycle</caption>
   <thead><tr><th scope="col">Filing</th><th scope="col">PA</th><th scope="col">Status</th>{% for y in g.years %}<th scope="col" class="num">{{ y }}</th>{% endfor %}<th scope="col" class="num">Total</th><th scope="col" class="num">TSB</th><th scope="col" class="num">TRC</th></tr></thead>
   <tbody>
   {% for r in g.rows %}
@@ -141,10 +141,10 @@
   <tbody>
   {% for r in records.fund_shifts %}
   <tr>
-    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">{{ r.cycle }} cycle</span></th>
+    <th scope="row"><a href="{{ r.url }}">{{ r.title }}</a><br><span class="small">{{ r.cycle|cycle_label }} cycle</span></th>
     <td>{{ r.organisation }}</td>
     <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
-    <td class="nowrap">{{ r.when|date:"Y-m-d" }}</td>
+    <td class="nowrap">{{ r.when|date_words }}</td>
     <td><ul class="grants">{% for pa, y, amount in r.shown.lines %}<li>{{ y }}: {{ amount }}{% if pa != r.organisation %} ({{ pa }}'s portion){% endif %}</li>{% endfor %}</ul></td>
     <td class="num">{{ r.shown.net }}</td>
   </tr>
@@ -223,7 +223,7 @@
     <td class="nowrap">{{ e.years }}</td>
     <td>{% if e.whole %}The whole program{% else %}Part of the program{% endif %}{% if e.note %}<br><span class="small">{{ e.note }}</span>{% endif %}</td>
     <td>{{ e.lead }}</td>
-    <td>{{ e.status|default:"Not given" }}</td>
+    <td>{% if e.status %}<span class="status {{ e.status|status_tone }}">{{ e.status }}</span>{% else %}<span class="muted">Not given</span>{% endif %}</td>
     <td>{% if e.deliverable %}<a href="{{ e.deliverable.url }}">{{ e.deliverable.title }}</a> <span class="small">({{ e.deliverable.stage }})</span>{% else %}None published yet{% endif %}</td>
   </tr>
   {% endfor %}
@@ -250,7 +250,7 @@
     <td>{{ r.type }}</td>
     <td class="nowrap">{{ r.years|default:"Not given" }}</td>
     <td>{{ r.organisation }}</td>
-    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date:"Y-m-d" }}</span>{% endif %}</td>
+    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date_words }}</span>{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

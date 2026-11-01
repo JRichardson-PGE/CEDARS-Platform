@@ -7,7 +7,7 @@
   <caption class="sr-only">Deadlines, soonest first</caption>
   <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th></tr></thead>
   <tbody>
-  {% for d in deadlines %}<tr><td>{{ d.due_at|date:"Y-m-d" }}</td><td>{{ d.module|capfirst }}</td><th scope="row">{{ d.kind }}</th><td>{{ d.period|default:d.cycle }}</td></tr>
+  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.kind }}</a>{% else %}{{ d.kind }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</td></tr>{% endwith %}
   {% empty %}<tr><td colspan="4">No deadlines yet.</td></tr>{% endfor %}
   </tbody>
 </table>

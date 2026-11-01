@@ -3,10 +3,10 @@
 {% block content %}
 <div class="page-title"><h1>Goals of {{ s.decision }}</h1>{% page_help "administration/goal_set" %}</div>
 <dl class="facts">
-  <dt>Adopted</dt><dd>{{ s.adopted|date:"Y-m-d" }}{% if s.url %} (<a href="{{ s.url }}">the decision</a>){% endif %}</dd>
-  <dt>Status</dt><dd>{{ s.get_status_display }}{% if s.confirmed_at %} {{ s.confirmed_at|date:"Y-m-d H:i T" }} by {{ s.confirmed_by.email|default:"the system" }}{% endif %}</dd>
+  <dt>Adopted</dt><dd>{{ s.adopted|date_words }}{% if s.url %} (<a href="{{ s.url }}">the decision</a>){% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if s.confirmed_at %} {{ s.confirmed_at|date_words }} by {{ s.confirmed_by|person|default:"the system" }}{% endif %}</dd>
   {% if s.status == "confirmed" %}<dt>In force for</dt><dd>{% if in_force.annual %}annual targets {{ in_force.annual|join:", " }}{% endif %}{% if in_force.annual and in_force.cycle %}; {% endif %}{% if in_force.cycle %}cycle years {{ in_force.cycle|first }} to {{ in_force.cycle|last }}{% endif %}{% if not in_force.annual and not in_force.cycle %}no years: newer goals replace it{% endif %}</dd>{% endif %}
-  <dt>Loaded</dt><dd>{{ s.created_at|date:"Y-m-d H:i T" }} by {{ s.created_by.email|default:"the system" }}</dd>
+  <dt>Loaded</dt><dd>{{ s.created_at|date_words }} by {{ s.created_by|person|default:"the system" }}</dd>
   <dt>Source</dt><dd>{{ s.source_name }} <span class="small muted">SHA-256 {{ s.source_sha256|truncatechars:20 }}</span></dd>
   {% if s.notes %}<dt>Notes</dt><dd>{{ s.notes }}</dd>{% endif %}
 </dl>

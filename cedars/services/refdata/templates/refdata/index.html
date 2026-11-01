@@ -18,7 +18,7 @@
   <caption class="sr-only">Data packs, newest first within each kind</caption>
   <thead><tr><th scope="col">Pack</th><th scope="col">Kind</th><th scope="col">Status</th><th scope="col">In force from</th><th scope="col">Files</th><th scope="col">Registered</th></tr></thead>
   <tbody>
-  {% for p in packs %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}</a></th><td>{{ p.get_kind_display }}</td><td>{{ p.get_status_display }}</td><td>{{ p.valid_from|date:"Y-m-d"|default:"not dated" }}</td><td>{{ p.files }}</td><td>{{ p.registered_at|date:"Y-m-d" }}</td></tr>
+  {% for p in packs %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}</a></th><td>{{ p.get_kind_display }}</td><td><span class="status {{ p.status|status_tone }}">{{ p.get_status_display }}</span></td><td>{{ p.valid_from|date_words|default:"not dated" }}</td><td>{{ p.files }}</td><td>{{ p.registered_at|date_words }}</td></tr>
   {% empty %}<tr><td colspan="6">No data packs yet.</td></tr>{% endfor %}
   </tbody>
 </table>

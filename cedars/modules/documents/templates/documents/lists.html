@@ -18,7 +18,7 @@ offered for new ones; a value is never deleted.</p>
   {% for o in options %}
   <tr>
     <th scope="row">{{ o.label }}</th>
-    <td>{% if o.retired_on %}Retired {{ o.retired_on|date:"Y-m-d" }}{% else %}Offered{% endif %}</td>
+    <td>{% if o.retired_on %}Retired {{ o.retired_on|date_words }}{% else %}Offered{% endif %}</td>
     {% if admin %}<td>
       <details class="inline"><summary>Correct the label<span class="sr-only"> of {{ o.label }}</span></summary>
         <form method="post" action="{% url 'documents:change_option' o.pk 'rename' %}">{% csrf_token %}

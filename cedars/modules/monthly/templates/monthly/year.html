@@ -23,7 +23,7 @@ spend this month is the change since the month before, and the year-to-date spen
     <th scope="col">Rebates and incentives, year to date</th><th scope="col">Funds committed, year to date</th><th scope="col">Estimated TSB, year to date (unvalidated)</th></tr></thead>
   <tbody>{% for row in rows %}<tr>
     <th scope="row"><a href="{% url 'monthly:report' row.m.deadline.pk %}?org={{ org.code|urlencode }}">{{ row.m.deadline.period.starts|date:"F" }}</a></th>
-    <td>{% if row.m.version %}<a href="{% url 'monthly:version' row.m.version.pk %}">{{ row.status }}</a>{% else %}{{ row.status }}{% endif %}</td>
+    <td>{% if row.m.version %}{% url 'monthly:version' row.m.version.pk as version_url %}{% endif %}{% include "ui/version_status.html" with s=row.status url=version_url %}</td>
     {% for c in row.cells %}<td class="num">{{ c }}{% if forloop.first and not row.m.consistent %} (spend fell){% endif %}</td>{% endfor %}
   </tr>{% endfor %}</tbody>
 </table>

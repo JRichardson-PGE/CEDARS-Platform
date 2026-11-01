@@ -12,7 +12,7 @@ and a run that names none uses the most recently confirmed version with factors 
   <tbody>
   {% for v in versions %}
   <tr><th scope="row"><a href="{% url 'administration:allocation' v.pk %}">{{ v.label }}</a></th><td>{{ v.get_purpose_display }}</td><td>{{ v.filing_cycle|default:"" }}</td>
-    <td>{{ v.get_status_display }}{% if v.confirmed_at %} {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}</td><td class="small">{{ v.source_name }}</td></tr>
+    <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} <span class="small muted nowrap">{{ v.confirmed_at|date_words }}</span>{% endif %}</td><td class="small">{{ v.source_name }}</td></tr>
   {% empty %}<tr><td colspan="5">No versions yet.</td></tr>
   {% endfor %}
   </tbody>

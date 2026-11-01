@@ -14,11 +14,11 @@ its documents. This register replaces the Project Status Report. Everything here
   <div class="row-fields">
     <section aria-labelledby="upcoming-h">
       <h2 id="upcoming-h">Next activities due</h2>
-      <ul class="links">{% for s in upcoming %}<li>{{ s.next_activity_due|date:"Y-m-d" }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>, {{ s.next_activity|default:"activity not named" }}</li>{% empty %}<li>No activity is due from today.</li>{% endfor %}</ul>
+      <ul class="links">{% for s in upcoming %}<li>{{ s.next_activity_due|date_words }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>, {{ s.next_activity|default:"activity not named" }}</li>{% empty %}<li>No activity is due from today.</li>{% endfor %}</ul>
     </section>
     <section aria-labelledby="recent-h">
       <h2 id="recent-h">Recently updated</h2>
-      <ul class="links">{% for s in recent %}<li>{{ s.updated_at|date:"Y-m-d" }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>{% if s.status %}, {{ s.status.label }}{% endif %}</li>{% empty %}<li>No studies yet.</li>{% endfor %}</ul>
+      <ul class="links">{% for s in recent %}<li>{{ s.updated_at|date_words }}: <a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>{% if s.status %}, {{ s.status.label }}{% endif %}</li>{% empty %}<li>No studies yet.</li>{% endfor %}</ul>
     </section>
   </div>
 </details>
@@ -43,10 +43,10 @@ its documents. This register replaces the Project Status Report. Everything here
     <td>{{ s.lead.label }}</td>
     <td>{% if s.work_order %}<a href="{{ s.work_order.get_absolute_url }}">{{ s.work_order.number }}</a>{% endif %}</td>
     <td class="num">{% if s.budget is not None %}${{ s.budget|floatformat:"0g" }}{% endif %}</td>
-    <td>{{ s.status.label|default:"Not given" }}</td>
+    <td>{% if s.status %}<span class="status {{ s.status.label|status_tone }}">{{ s.status.label }}</span>{% else %}<span class="muted">Not given</span>{% endif %}</td>
     <td>{{ s.manager.code }}</td>
-    <td class="nowrap">{{ s.completion_date|date:"Y-m-d" }}</td>
-    <td>{{ s.next_activity }}{% if s.next_activity_due %} <span class="nowrap">({{ s.next_activity_due|date:"Y-m-d" }})</span>{% endif %}</td>
+    <td class="nowrap">{{ s.completion_date|date_words }}</td>
+    <td>{{ s.next_activity }}{% if s.next_activity_due %} <span class="nowrap">({{ s.next_activity_due|date_words }})</span>{% endif %}</td>
   </tr>
   {% empty %}<tr><td colspan="9">No studies match.</td></tr>
   {% endfor %}

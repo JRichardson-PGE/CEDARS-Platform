@@ -13,7 +13,7 @@
   <tbody>
   {% for e in page %}
   <tr>
-    <td class="nowrap">{{ e.at|date:"Y-m-d H:i:s T" }}</td>
+    <td class="nowrap">{{ e.at|datetime_words }}</td>
     <td>{{ e.actor_label }}{% if e.organisation %} <span class="small muted">for {{ e.organisation.code }}</span>{% endif %}{% if e.assurance %} <span class="small muted">({{ e.assurance }})</span>{% endif %}</td>
     <th scope="row">{{ e.action }}</th>
     <td>{{ e.object_repr }} <span class="small muted">{{ e.object_type }} {{ e.object_id }}</span></td>

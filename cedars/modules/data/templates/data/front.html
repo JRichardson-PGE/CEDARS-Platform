@@ -23,7 +23,7 @@
 
 <section class="front-cycle" data-tour="cycle" aria-labelledby="cycle-title">
   <div class="head-row">
-    <h2 id="cycle-title">{% if summary.cycle %}The {{ summary.cycle }} program cycle so far{% else %}This program cycle{% endif %}</h2>
+    <h2 id="cycle-title">{% if summary.cycle %}The {{ summary.cycle|cycle_label }} program cycle so far{% else %}This program cycle{% endif %}</h2>
     {% if summary.cycles|length > 1 %}
     <form method="get" action="{% url 'core:home' %}" class="cycle-pick">
       <label for="cycle">Program cycle
@@ -34,7 +34,7 @@
     {% endif %}
   </div>
   {% if summary.cycle %}
-  <p class="muted small">Statewide totals of the published, confirmed filings{% if summary.as_of %}, as of {{ summary.as_of|date:"F j, Y" }}{% endif %}.
+  <p class="muted small">Statewide totals of the published, confirmed filings{% if summary.as_of %}, as of {{ summary.as_of|date_words }}{% endif %}.
     {% if summary.claimed_span %}Claims cover {{ summary.claimed_span }} so far; the budget and forecast cover the whole cycle.{% else %}No claims are published for this cycle yet.{% endif %}
     Each card links to the dashboard page that breaks its numbers down.</p>
   <div class="front-cards">

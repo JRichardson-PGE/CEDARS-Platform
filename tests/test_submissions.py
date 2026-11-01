@@ -162,6 +162,8 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     c = signed_in(cpuc_admin)
     page = c.get("/filings/calendar/").content.decode()
     assert "quarterly claim" in page and "Add a deadline" in page
+    assert f'<a href="/claims/periods/{deadline.pk}/">quarterly claim</a>' in page  # each row links to the filing's page
+    assert 'class="due"><time datetime="' in page and "Due in 1" in page  # the date with its urgency in words
     c.post("/filings/calendar/", {"module": "monthly", "kind": "monthly report", "year": 2028, "period": "m1", "due": "2028-02-15"})
     assert "monthly report" in c.get("/filings/calendar/").content.decode()
     v1 = service.confirm(analyst, _priced(analyst, deadline, pge), "h1")

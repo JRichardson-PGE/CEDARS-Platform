@@ -18,13 +18,13 @@
   <tbody>
   {% for r, st in rows %}
   <tr>
-    <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a><br><span class="small muted">{{ r.created_at|date:"Y-m-d H:i T" }}</span></th>
+    <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a><br><span class="small muted">{{ r.created_at|datetime_words }}</span></th>
     <td>{{ r.organisation.code|default:"Only you" }}</td>
     <td>{% if r.calculation == "recet" %}ReCET{% else %}CET {{ r.calculation|cut:"cet-" }} replica{% endif %} <span class="small muted">{{ r.engine_release }}</span></td>
     <td>{{ r.acc_version }}</td>
     <td>{{ r.measure_count|default_if_none:"" }}</td>
     <td><span data-run-status="{% url 'calculations:run_status' r.pk %}"{% if r.ended %} data-ended="1"{% endif %}>{{ st.text }}</span></td>
-    <td class="small">{{ r.owner.email }}</td>
+    <td class="small">{{ r.owner|person }}</td>
   </tr>
   {% endfor %}
   </tbody>

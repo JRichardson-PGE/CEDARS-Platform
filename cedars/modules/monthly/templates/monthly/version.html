@@ -4,8 +4,8 @@
 <p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' report.year %}?org={{ v.submission.organisation.code|urlencode }}">{{ report.year }}</a> › <a href="{% url 'monthly:report' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
 <div class="page-title"><h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "monthly/version" %}</div>
 <dl class="facts">
-  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
-  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'monthly:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
+  <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} confirmed {{ v.confirmed_at|date_words }}{% endif %}{% if v.late %} (late){% endif %}</dd>
+  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'monthly:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date_words }}){% endif %}</dd>{% endif %}
   {% if calc.nothing_priced %}<dt>Estimates</dt><dd>None: the report's Measure table has no rows</dd>
   {% elif calc.acc %}<dt>Estimates priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}

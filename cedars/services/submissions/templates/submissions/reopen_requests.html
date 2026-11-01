@@ -7,8 +7,8 @@
 {% for r, approver in pending %}
 <div class="card">
   <h3>{{ r.submission }}</h3>
-  <p>{{ r.requested_by.email }} asked {{ r.requested_at|date:"Y-m-d" }}: {{ r.reason }}</p>
-  {% if approver != user %}<p class="small muted">You decide as {{ approver.email }}'s delegate.</p>{% endif %}
+  <p>{{ r.requested_by|person }} asked {{ r.requested_at|date_words }}: {{ r.reason }}</p>
+  {% if approver != user %}<p class="small muted">You decide as {{ approver|person_name }}'s delegate.</p>{% endif %}
   <form method="post" action="{% url 'submissions:decide' r.pk %}" class="stack">{% csrf_token %}
     <label for="note-{{ r.pk }}">Note (optional)</label><input type="text" id="note-{{ r.pk }}" name="note">
     <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> reopening {{ r.submission }}</span></button>
@@ -21,7 +21,7 @@
 <h2>Decided</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Decided requests">
 <table class="list"><thead><tr><th scope="col">Filing</th><th scope="col">Decision</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
-<tbody>{% for r in decided %}<tr><th scope="row">{{ r.submission }}</th><td>{{ r.get_status_display }} {{ r.decided_at|date:"Y-m-d" }}</td><td>{{ r.decided_by.email }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
+<tbody>{% for r in decided %}<tr><th scope="row">{{ r.submission }}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
 </div>
 {% endif %}
 {% endblock %}

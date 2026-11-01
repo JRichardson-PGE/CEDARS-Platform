@@ -4,7 +4,7 @@
 <p class="small"><a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></p>
 <div class="page-title"><h1>Change {{ p.prg_id }}</h1>{% page_help "programs/change" %}</div>
 <p>Your change starts a new version on its effective date; the version before it ends the day before and is kept as it was. The date
-can be in the future, but not on or before {{ latest.valid_from|date:"Y-m-d" }}, when the latest version started. Only the attributes you
+can be in the future, but not on or before {{ latest.valid_from|date_words }}, when the latest version started. Only the attributes you
 change are recorded as changed.</p>
 {% if locked %}<p>Locked: {{ locked|join:", " }}. A change to any of them is sent, with the rest of the change, as a
 <a href="{% url 'programs:requests' %}">request</a> for a CPUC approver's decision; nothing changes until it is approved.</p>{% endif %}
