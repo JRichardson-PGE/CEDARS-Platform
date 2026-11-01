@@ -133,7 +133,7 @@ def goal_set(cpuc_admin, make_user):
     from cedars.services.accounts import service as accounts
     from cedars.services.registry import goals
 
-    second = make_user("second@cpuc.ca.gov", "Sam Second")
+    second = make_user("second@cpuc.example.org", "Sam Second")
     accounts.grant(cpuc_admin, second, accounts.cpuc(), perms.SYSTEM_ADMIN, reason="second administrator")
     header = "Utility,Kind,FirstYear,LastYear,ProgramTSB,ProgramGWh,ProgramMW,ProgramMMTherms,CSGWh,CSMW,CSMMTherms\n"
     content = (
@@ -240,9 +240,15 @@ def test_the_savings_and_environment_pages(both, client):
     assert "(metric tons) by year" in client.get("/data/environmental-impact/").content.decode()
 
 
-def test_program_and_measure_pages_drill_to_the_records(both, client):
-    from cedars.modules.data import dashboard as d
+def test_program_and_measure_pages_drill_to_the_records(both, client, pge, pge_admin):
+    from datetime import date
 
+    from cedars.modules.data import dashboard as d
+    from cedars.services.registry import service as registry
+
+    programs = d.compare(d.parse(d.PAGES["programs"], _qd({})), "program", ("measures", "use_category"))
+    assert programs.rows[0].links == []  # not in the program registry, so no program page to link (UAT 2, U06)
+    registry.create_program(pge_admin, prg_id="PGE_Res_HVAC", administrator=pge, valid_from=date(2024, 1, 1), name="Residential HVAC")
     programs = d.compare(d.parse(d.PAGES["programs"], _qd({})), "program", ("measures", "use_category"))
     hvac = programs.rows[0]
     assert hvac.key == "PGE_Res_HVAC" and hvac.drill == "/data/measures/?program=PGE_Res_HVAC&by=use_category&metric=tsb"
@@ -276,7 +282,8 @@ def test_records_page_through(both, client, monkeypatch):
     assert "Records 1 to 1 of 5" in client.get("/data/records/?metric=tsb").content.decode()  # records leave nothing out unless asked
 
 
-def test_budget_and_spending(both, pge, monkeypatch, client):
+def test_budget_and_spending(both, pge, pge_admin, monkeypatch, client):
+    from datetime import date
     from decimal import Decimal
 
     from cedars.modules.data import budget_view
@@ -295,6 +302,7 @@ def test_budget_and_spending(both, pge, monkeypatch, client):
 
     monkeypatch.setattr(registry, "_operating_budget_sources", [budget])
     monkeypatch.setattr(registry, "_reported_spend_sources", [spend])
+    registry.create_program(pge_admin, prg_id="PGE_Res_HVAC", administrator=pge, valid_from=date(2024, 1, 1), name="Residential HVAC")
     view = d_parse("budget", year_from="2028", year_to="2029", pa="PGE")
     s = budget_view.compare(view)
     assert s.organisations == ["PGE"]
@@ -304,6 +312,8 @@ def test_budget_and_spending(both, pge, monkeypatch, client):
     assert (y29.budget, y29.values["claims"], y29.cumulative_budget, y29.cumulative_claims) == (250, None, 500, 110)
     hvac = next(r for r in s.by_program if r.key == "PGE_Res_HVAC")
     assert (hvac.budget, hvac.monthly, hvac.values["claims"], hvac.monthly_share) == (450, 60, 100.0, 60 / 450 * 100)
+    # a PrgID not in the registry has no program page to link (UAT 2, U06)
+    assert hvac.drill == "/programs/PGE_Res_HVAC/" and next(r for r in s.by_program if r.key == "PGE_Com_Lt").drill == ""
     by_sector = {r["sector"]: r for r in s.elements.rows}
     assert by_sector["Residential"]["incentives"] == 50 and by_sector["Residential"]["expenditure"] == 100
     g = budget_view.chart(s)
@@ -311,6 +321,7 @@ def test_budget_and_spending(both, pge, monkeypatch, client):
     page = client.get("/data/budget/?year_from=2028&year_to=2029&pa=PGE").content.decode()
     assert "Monthly reported (unvalidated)" in page and "through PGE 2028-06" in page and "Cost elements by primary sector, claimed" in page
     assert "not yet validated" in page
+    assert "PGE_Com_Lt <span" in page and "(not in the program registry)" in page and "/programs/PGE_Com_Lt/" not in page
 
 
 def test_budget_page_without_budgets(both, client):

@@ -21,7 +21,7 @@ spend this month is the change since the month before, and the year-to-date spen
   <caption id="year-caption">{{ org.code }}'s {{ year }} reports by month, totals over its programs</caption>
   <thead><tr><th scope="col">Month</th><th scope="col">Report</th>{% for h in headings %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>{% for row in rows %}<tr>
-    <th scope="row"><a href="{% url 'monthly:report' row.m.deadline.pk %}?org={{ org.code|urlencode }}">{{ row.m.deadline.period.starts|date:"F" }}</a></th>
+    <th scope="row">{% if published_only %}{{ row.m.deadline.period.starts|date:"F" }}{% else %}<a href="{% url 'monthly:report' row.m.deadline.pk %}?org={{ org.code|urlencode }}">{{ row.m.deadline.period.starts|date:"F" }}</a>{% endif %}</th>
     <td>{% if row.m.version %}{% url 'monthly:version' row.m.version.pk as version_url %}{% endif %}{% include "ui/version_status.html" with s=row.status url=version_url %}</td>
     {% for c in row.cells %}<td class="num">{{ c }}{% if forloop.first and not row.m.consistent %} (spend fell){% endif %}</td>{% endfor %}
   </tr>{% endfor %}</tbody>

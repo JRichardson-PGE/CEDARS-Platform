@@ -31,6 +31,7 @@ from cedars.services.refdata import service as refdata
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion
+from cedars.services.submissions.service import PricingUnavailable
 
 from . import jobfiles, jobspec
 from .models import EngineRelease, Run
@@ -106,6 +107,14 @@ def add_release(
         actor=actor,
     )
     return r
+
+
+def missing_accs(r: EngineRelease) -> list[tuple[str, str]]:
+    """The filings still to come that the release could not price, as (what, ACC): their ACC is not among its own calculation's."""
+    from cedars.services.submissions import service as submissions
+
+    have = set(accs_for(r, RECET)) if RECET in (r.calculations or []) else set()
+    return [(what, acc) for what, acc in submissions.acc_needs() if acc not in have]
 
 
 @transaction.atomic
@@ -681,7 +690,7 @@ def price_submission(
     set in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles (BR-05.6), a supplied 8,760 file."""
     release = default_release()
     if release is None:
-        raise AccessDenied("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
+        raise PricingUnavailable("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
     req = RunRequest(
         name=name,
         release=release,
@@ -692,6 +701,16 @@ def price_submission(
         cost_test_set=cost_test_set,
         profiles_8760=profiles_8760,
     )
+    # The CPUC's set-up, which the filer cannot change: the default release must carry the filing's ACC, and its packs be published.
+    if acc_version not in accs_for(release, RECET):
+        raise PricingUnavailable(
+            f"The default engine release, ReCET {release.release}, has no {acc_version} ACC (it has "
+            f"{', '.join(accs_for(release, RECET)) or 'none'}). Make a release with it the default on Engine releases."
+        )
+    try:
+        packs_for(req, filing=True)
+    except AccessDenied as e:
+        raise PricingUnavailable(str(e)) from e
     return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
 
 

@@ -168,13 +168,15 @@ def _concerns(event) -> Concern:
                 c.body = more.body
                 c.key = more.key
             if event.action == "submission.commented":  # the discussion on a filing (BR-09.5): who wrote what, on the version's page
+                from cedars.services.submissions import comments
+
                 after = event.after or {}
                 text = after.get("text", "")
                 files = [f.get("name", "") for f in after.get("files", [])]
                 c.title = f"Comment on {event.object_repr} from {after.get('side', '')}".strip()
                 c.body = (text[:500] + ("..." if len(text) > 500 else "")) + (f"\nAttached: {', '.join(files)}" if files else "")
                 c.link = f"{c.link or ''}#comment-{after.get('comment', '')}" if c.link else c.link
-                c.key = ""
+                c.key = comments.notice_key(after["comment"]) if after.get("comment") else ""  # the reviewers' direct message: once each
             return c
         if t == "submissions.reopenrequest":
             from cedars.services.submissions.models import ReopenRequest

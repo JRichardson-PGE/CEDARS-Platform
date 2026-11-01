@@ -82,6 +82,6 @@ and its portion must add up to zero.</p>
   for the cycle (a TUAL or MCAL, say). From then on the later filing is taken to include it, and the shift no longer adds anything:
   put its amounts into the later filing's numbers, or make the shift again after that filing.{% if s.status == "effective" %}
   A shift in effect is not withdrawn; a new shift moves the money back.{% endif %}</p>
-  {% if s.status == "effective" %}<p><a href="{% url 'budgets:operating' s.cycle.first_year %}?org={{ s.organisation.code }}">{{ s.organisation.code }}'s operating budget</a></p>{% endif %}
+  {% if s.status == "effective" and can_read_operating %}<p><a href="{% url 'budgets:operating' s.cycle.first_year %}?org={{ s.organisation.code }}">{{ s.organisation.code }}'s operating budget</a></p>{% endif %}
 </div>
 {% endblock %}

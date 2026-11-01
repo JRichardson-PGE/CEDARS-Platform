@@ -14,5 +14,5 @@ class Command(BaseCommand):
     def handle(self, code, as_of, publish, **opts):
         rs = service.import_from_engine(None, code, as_of)
         if publish:
-            service.publish(None, rs)
+            rs = service.publish(None, rs)  # the published set, so the line below says so (UAT 2, U14)
         self.stdout.write(f"{rs}: {rs.rules.count()} rules, {rs.get_status_display().lower()}")

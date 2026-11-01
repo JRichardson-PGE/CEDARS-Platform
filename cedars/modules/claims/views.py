@@ -91,11 +91,13 @@ def index(request):
     for cy in cys:
         rows = []
         for d in service.periods(cy.year):
-            latest = None
+            latest, can_open = None, True
             if org is not None:
                 sub = Submission.objects.filter(deadline=d, organisation=org).first()
                 latest = submissions.latest(sub) if sub else None
-            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d)})
+                # The period page refuses a confirmation the user may not read (UAT 2, U03): name it without a link then.
+                can_open = sub is None or service.can_read_submission(request.user, sub)
+            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d), "can_open": can_open})
         years.append({"cy": cy, "periods": rows, "legacy": any(r["deadline"].pk in imported for r in rows)})
     return render(request, "claims/index.html", {"years": years, "org": org, "sysadmin": access.is_system_admin(request.user)})
 
@@ -450,6 +452,7 @@ def version(request, pk):
         {
             "v": v,
             "label": service.label(v.submission.deadline),
+            "can_open_filing": service.can_read_submission(request.user, v.submission),
             "t": t,
             "pa": pa,
             "head": [m[1] for m in service.METRICS],

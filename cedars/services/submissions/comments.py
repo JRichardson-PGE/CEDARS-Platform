@@ -10,7 +10,12 @@ the version it was written on, and a new one goes on the version being read.
 
 Files are checked and kept as the document library's are (`cedars.core.files`: the same accepted types and size limit, the uploads storage
 area), under the version. Posting a comment and downloading a file each write an audit event on the version (`submission.commented`,
-`submission.attachment_downloaded`), so the version's audit history shows them with its other events (BR-09.1)."""
+`submission.attachment_downloaded`), so the version's audit history shows them with its other events (BR-09.1).
+
+Who hears of a comment: the filing organization's comment goes straight to the module's CPUC reviewers (Jake, 2026-11-01: those who hold
+`<module>.approve` in the CPUC, and their delegates for today, the people whose My queue it lands in), as a direct message emailed unless
+they turned direct emails off. Anyone else hears of it by subscribing to `submission.commented`. A reviewer who also subscribes gets one
+message (both carry `notice_key`), by the channel their subscription chose."""
 
 from __future__ import annotations
 
@@ -18,6 +23,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import QuerySet
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 
 from cedars.core import files as filetypes
 from cedars.services import audit
@@ -26,7 +32,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 
-from .models import Attachment, Comment, Submission, SubmissionVersion
+from .models import Attachment, Comment, Delegation, Submission, SubmissionVersion
 
 ORG_ACTIONS = ("read", "submit", "confirm")
 CPUC_ACTIONS = ("read", "approve")
@@ -153,7 +159,54 @@ def post(actor, v: SubmissionVersion, text: str, uploads: list[tuple[str, object
         actor=actor,
         organisation=org,
     )
+    if org.pk == v.submission.organisation_id:  # the filing organization wrote: its reviewers are told once the comment is kept
+        transaction.on_commit(lambda: tell_reviewers(comment))
     return comment
+
+
+def notice_key(comment_pk: int) -> str:
+    """The key every message about one comment carries, so nobody is told of it twice."""
+    return f"submission-comment-{comment_pk}"
+
+
+def reviewers(submission: Submission, on=None) -> list:
+    """The module's CPUC reviewers: the active users who hold `<module>.approve` in the CPUC, and today's delegates of those approvers."""
+    cpuc = access.cpuc()
+    if cpuc is None:
+        return []
+    module = submission.deadline.module
+    approvers = list(access.holders(cpuc, f"{module}.approve"))
+    day = on or timezone.localdate()
+    delegations = Delegation.objects.filter(module=module, approver__in=approvers, starts__lte=day, ends__gte=day, delegate__is_active=True)
+    out = {u.pk: u for u in approvers}
+    for d in delegations.select_related("delegate"):
+        out.setdefault(d.delegate_id, d.delegate)
+    return sorted(out.values(), key=lambda u: u.pk)
+
+
+def notice(comment: Comment) -> tuple[str, str, str]:
+    """A comment's message: title, body (the first 500 characters and the files' names) and link (the comment on its version's page)."""
+    v = comment.version
+    text = comment.text
+    files = [a.name for a in comment.attachments.all()]
+    body = (text[:500] + ("..." if len(text) > 500 else "")) + (f"\nAttached: {', '.join(files)}" if files else "")
+    page = version_page(v)
+    return f"Comment on {v} from {comment.organisation.code}", body, f"{page}#comment-{comment.pk}" if page else ""
+
+
+def tell_reviewers(comment: Comment) -> int:
+    """Tell the module's CPUC reviewers of a filing organization's comment (not its author); the number told."""
+    from cedars.services.notifications import service as notifications
+
+    comment = Comment.objects.select_related("version__submission__deadline", "version__submission__organisation", "organisation").get(
+        pk=comment.pk
+    )
+    title, body, link = notice(comment)
+    told = 0
+    for user in reviewers(comment.version.submission):
+        if user.pk != comment.author_id and notifications.notify(user, title, body, link, key=notice_key(comment.pk)):
+            told += 1
+    return told
 
 
 def attachment_for(user, pk: int) -> Attachment:

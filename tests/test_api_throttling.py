@@ -31,7 +31,7 @@ def call(key, path="/api/v1/me"):
 
 
 def test_a_user_over_the_limit_gets_429_with_retry_after_and_others_do_not(make_user, pge, pge_admin):
-    a, b = member(make_user, pge, pge_admin, "a@pge.com"), member(make_user, pge, pge_admin, "b@pge.com")
+    a, b = member(make_user, pge, pge_admin, "a@pge.example.org"), member(make_user, pge, pge_admin, "b@pge.example.org")
     _, key_a = tokens.create_token(a, pge, name="a", scopes=["calculations"], days=30)
     _, key_a2 = tokens.create_token(a, pge, name="a again", scopes=["calculations"], days=30)
     _, key_b = tokens.create_token(b, pge, name="b", scopes=["calculations"], days=30)

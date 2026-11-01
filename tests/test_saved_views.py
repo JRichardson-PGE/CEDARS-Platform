@@ -108,7 +108,7 @@ def test_sharing_with_a_person_tells_them_and_unsharing_hides_it_again(client, o
 
 
 def test_sharing_with_an_organization_reaches_its_active_members_only(client, cpuc_admin, pge, pge_admin, make_user, other):
-    member = make_user("member@pge.com")
+    member = make_user("member@pge.example.org")
     access.ensure_membership(pge_admin, member, pge)
     view = saved.save(pge_admin, name="PG&E programs", page="programs", query="pa=PGE")
     with pytest.raises(access.AccessDenied):

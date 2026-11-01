@@ -25,6 +25,9 @@ class ClaimsConfig(AppConfig):
 
         register_publisher("claims", service.on_publish, service.on_unpublish)
         register_claims_totals(service.year_totals)
+        from cedars.services.submissions.service import register_acc_needs
+
+        register_acc_needs("claims", service.acc_needs)  # Engine releases warns when the default release lacks one
         register_deadline_page("claims", service.deadline_page)  # the filing calendar links each claim period
 
         from cedars.services.notifications.service import register_filing

@@ -46,6 +46,12 @@ RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # --- filings (the CPUC sets them up)
 
 
+def acc_needs() -> list[tuple[str, str]]:
+    """The budget filings still to come, and the ACC each is priced on (submissions.register_acc_needs)."""
+    setups = FilingSetup.objects.filter(deadline__module=MODULE, deadline__due_at__gte=timezone.now()).select_related("deadline__cycle")
+    return [(label(s.deadline), s.acc_version) for s in setups.order_by("deadline__due_at") if s.acc_version]
+
+
 def filings(cycle=None):
     qs = Deadline.objects.filter(module=MODULE, cycle__isnull=False).select_related("cycle", "budget_setup__allocation_version")
     return qs.filter(cycle=cycle) if cycle is not None else qs
@@ -434,11 +440,6 @@ def _recet_name(column: str) -> str:
 def _summary(problems: list, records: int, notes: list[str], rule_set: str, key: str) -> dict:
     rejected = {(p.table, p.row, p.record_id) for p in problems if p.severity == "reject"}
     warned = {(p.table, p.row, p.record_id) for p in problems if p.severity != "reject"} - rejected
-    by_rule = defaultdict(lambda: [0, "", ""])
-    for p in problems:
-        by_rule[p.rule_id][0] += 1
-        by_rule[p.rule_id][1:] = [p.severity, p.message]
-    top = sorted(by_rule.items(), key=lambda kv: (kv[1][1] != "reject", -kv[1][0]))
     return {
         "records": records,
         "rejected": len(rejected),
@@ -447,10 +448,7 @@ def _summary(problems: list, records: int, notes: list[str], rule_set: str, key:
         "rule_set": rule_set,
         "findings_key": key,
         "findings": len(problems),
-        "by_rule": [
-            {"rule_id": k, "count": c, "severity": s, "example": m, "unit": "columns" if k.endswith("-COL") else "records"}
-            for k, (c, s, m) in top[:20]
-        ],
+        "by_rule": rules.by_rule(problems),
     }
 
 

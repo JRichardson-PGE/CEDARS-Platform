@@ -26,7 +26,7 @@ RULES = "PA,Territory,Share,AppliesTo,Source\nMCE,PGE,1,programs,counting exampl
 
 @pytest.fixture
 def second_admin(cpuc_admin, make_user):
-    u = make_user("second@cpuc.ca.gov", "Sam Second")
+    u = make_user("second@cpuc.example.org", "Sam Second")
     accounts.grant(cpuc_admin, u, accounts.cpuc(), perms.SYSTEM_ADMIN, reason="second administrator")
     return u
 

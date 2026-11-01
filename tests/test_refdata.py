@@ -115,7 +115,7 @@ def test_registering_needs_a_manifest_and_a_new_version(cpuc_admin, acc):
 def test_who_manages_packs(cpuc_admin, cpuc, pge_admin, make_user, acc):
     with pytest.raises(AccessDenied, match="system administrator"):
         service.register_pack(pge_admin, kind="value_lists", label="lists", manifest=acc.manifest, storage_uri="x")
-    profiles_admin = make_user("profiles@cpuc.ca.gov")
+    profiles_admin = make_user("profiles@cpuc.example.org")
     access.grant(cpuc_admin, profiles_admin, cpuc, "impact_profiles.admin")
     library = service.register_pack(
         profiles_admin, kind="impact_profiles", label="Impact profiles", version="export 12", manifest=acc.manifest, storage_uri="x"

@@ -105,7 +105,7 @@ def test_findings_use_the_data_dictionarys_field_names(claims, monkeypatch):
     assert not any(f.field.startswith("E3") for f in findings)
     zone = [f for f in findings if f.field == "AC_Climate_Zone"]
     assert zone and "AC_Climate_Zone (E3ClimateZone)" in zone[0].message and "E3ClimateZone should" not in zone[0].message
-    assert any("reference folder on this server" in n for n in notes) and not any("not installed" in n for n in notes)
+    assert any("the impact-profile library when the job is priced" in n for n in notes) and not any("not installed" in n for n in notes)
     assert service.canonical_text(service.canonical_text("E3TargetSector and E3TargetSector")) == (
         "AC_Elec_Target_Sector (E3TargetSector) and AC_Elec_Target_Sector"
     )

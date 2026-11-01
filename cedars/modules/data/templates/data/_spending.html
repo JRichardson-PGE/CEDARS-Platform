@@ -48,7 +48,7 @@
     {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th>{% endif %}</tr></thead>
   <tbody>
   {% for r in sp.by_program %}
-  <tr><th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% else %}(blank){% endif %}</th><td class="num">{{ r.budget|money }}</td>
+  <tr><th scope="row">{% if r.drill %}<a href="{{ r.drill }}">{{ r.key }}</a>{% elif r.key is None %}(blank){% else %}{{ r.key }} <span class="small muted">(not in the program registry)</span>{% endif %}</th><td class="num">{{ r.budget|money }}</td>
     {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
     <td class="num">{{ r.monthly|money }}</td><td class="num">{{ r.monthly_share|percent }}</td>
     {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td>{% endif %}</tr>

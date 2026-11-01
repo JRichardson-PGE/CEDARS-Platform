@@ -81,7 +81,7 @@ def test_administrators_list_and_close_feedback(client, signed_in, cpuc_admin, p
     page = client.get("/admin/feedback/").content.decode()
     assert "Where is the 2027 claim?" in page
     detail = client.get(f"/admin/feedback/{fb.pk}/").content.decode()
-    assert "mailto:admin@pge.com" in detail
+    assert "mailto:admin@pge.example.org" in detail
     client.post(f"/admin/feedback/{fb.pk}/close", {"note": "Replied by email"})
     fb.refresh_from_db()
     assert (fb.status, fb.closed_by, fb.note) == ("closed", cpuc_admin, "Replied by email")

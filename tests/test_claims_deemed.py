@@ -157,14 +157,14 @@ def test_loading_a_download(cpuc_admin, tmp_path, make_user, pge):
     with pytest.raises(etrm.EtrmError, match="not an eTRM permutations download"):
         etrm.load(cpuc_admin, [bad], label="x", version="1")
     with pytest.raises(refdata.AccessDenied):
-        etrm.load(make_user("someone@pge.com"), [p], label="x", version="2")
+        etrm.load(make_user("someone@pge.example.org"), [p], label="x", version="2")
     out = io.StringIO()
     call_command("load_etrm_permutations", str(p), "--pack-version", "cmd", stdout=out)
     assert "3 permutations" in out.getvalue()
 
 
 def test_the_pack_page_looks_up_a_permutation(client, cpuc_admin, pack, make_user):
-    sign_in(client, make_user("someone@pge.com"))
+    sign_in(client, make_user("someone@pge.example.org"))
     url = reverse("refdata:detail", args=[pack.pk])
     r = client.get(url)
     assert r.status_code == 200 and b"4 published permutations" in r.content

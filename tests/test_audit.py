@@ -9,10 +9,10 @@ pytestmark = pytest.mark.django_db
 
 
 def test_record_takes_the_actor_from_the_context(make_user, pge):
-    u = make_user("someone@pge.com")
+    u = make_user("someone@pge.example.org")
     with acting_as(u, pge, "mfa", "req-1"):
         e = audit.record("thing.changed", obj=pge, before={"a": 1}, after={"a": 2}, reason="because")
-    assert (e.actor, e.actor_label, e.organisation, e.assurance, e.request_id) == (u, "someone@pge.com", pge, "mfa", "req-1")
+    assert (e.actor, e.actor_label, e.organisation, e.assurance, e.request_id) == (u, "someone@pge.example.org", pge, "mfa", "req-1")
     assert (e.object_type, e.object_id, e.reason) == ("accounts.organisation", str(pge.pk), "because")
     assert audit.diff(e.before, e.after) == [("a", 1, 2)]
 
@@ -35,7 +35,7 @@ def test_events_cannot_be_updated_or_deleted(pge):
 
 
 def test_an_actor_with_events_cannot_be_deleted(make_user, pge):
-    u = make_user("someone@pge.com")
+    u = make_user("someone@pge.example.org")
     audit.record("thing.changed", obj=pge, actor=u)
     with pytest.raises(IntegrityError), transaction.atomic():
         u.delete()

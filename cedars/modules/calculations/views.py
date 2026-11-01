@@ -15,6 +15,7 @@ from cedars.core import storage
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata.models import PackVersion
 
 from . import dispatch, drafts, forms, service
 from . import results as results_mod
@@ -92,6 +93,10 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
             continue
         if k == "output_template":
             v = f"{settings.get('output_template_name') or 'unnamed'} ({len(v)} columns)"
+        elif k == "filing_validation":  # the choice's words, not its code (UAT 2, U10)
+            v = service.FILING_CHECKS.get(v, v)
+        elif k == "acc_purpose":
+            v = dict(forms.ACC_PURPOSES).get(v, v)
         out.append((service.jobspec.SETTINGS.get(k, k), v))
     return out
 
@@ -192,6 +197,10 @@ def run(request, pk):
             "settings": settings_view(run.settings),
             "settings_cost_test_set": (run.settings or {}).get("cost_test_set", ""),
             "programs": service.programs_label(run),
+            # the reference data packs pinned, less the cost-test set, which has its own row (UAT 2, U10)
+            "reference_packs": [
+                p for kind, p in (((run.spec or {}).get("context") or {}).get("packs") or {}).items() if kind != PackVersion.Kind.COST_TESTS
+            ],
             "engine": receipt.get("engine") or {},
             "packs": ((receipt.get("packs") or {}).get("files") or {}),
             "totals": results_mod.headline_totals(receipt.get("totals") or {}, run.measure_count),
@@ -247,6 +256,11 @@ def run_file(request, pk, name):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
+def _needs(missing: list[tuple[str, str]]) -> str:
+    """Filings a release lacks the ACC of, in words: "2028 claims (2026 ACC), 2029 claims (2026 ACC)"."""
+    return ", ".join(f"{what} ({acc} ACC)" for what, acc in missing)
+
+
 @login_required
 def engines(request):
     """The engine releases runs can use (CPUC system administrators add, set the default and retire them)."""
@@ -276,6 +290,8 @@ def engines(request):
                 if action == "default":
                     service.set_default_release(request.user, r)
                     messages.success(request, f"{r} is now the default for new runs.")
+                    if missing := service.missing_accs(r):
+                        messages.warning(request, f"{r} cannot price {_needs(missing)}: filings price on the default release.")
                 else:
                     service.retire_release(request.user, r, request.POST.get("reason", ""))
                     messages.success(request, f"{r} is retired.")
@@ -287,7 +303,11 @@ def engines(request):
         "calculations/engines.html",
         {
             "releases": [
-                (r, [(service.calculation_label(c), ", ".join(service.accs_for(r, c))) for c in r.calculations])
+                (
+                    r,
+                    [(service.calculation_label(c), ", ".join(service.accs_for(r, c))) for c in r.calculations],
+                    _needs(service.missing_accs(r)) if r.active else "",
+                )
                 for r in EngineRelease.objects.all()
             ],
             "form": form,

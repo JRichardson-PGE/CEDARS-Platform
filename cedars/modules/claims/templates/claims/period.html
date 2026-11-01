@@ -27,7 +27,7 @@
 
 {% if v %}
 <section class="card" aria-labelledby="now-h">
-  <h2 id="now-h">Version {{ v.number }}: {{ v.get_status_display }}</h2>
+  <h2 id="now-h">Version {{ v.number }}: {{ v.get_status_display }}{% if v.status == "validated" and priced %} and priced{% endif %}</h2>
   {% if legacy %}<p>Imported from legacy CEDARS, {{ legacy.records|default:legacy.outside_totals|floatformat:"0g" }} records{% if legacy.outside_totals %} kept outside every total{% endif %}. It is read-only: <a href="{% url 'claims:version' v.pk %}">its page</a> shows what it holds, its source and its reconciliation.</p>{% endif %}
   {% if file %}<p>File: {{ file.uploaded_as|default:file.name }} <span class="small muted">SHA-256 {{ file.sha256|truncatechars:20 }}</span>{% if v.reason %}. Reason for this version: {{ v.reason }}{% endif %}</p>
   {% if file.ignored_columns %}<p class="small">Columns the template does not have were ignored: {% for t, cols in file.ignored_columns.items %}{{ t }}: {{ cols|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}

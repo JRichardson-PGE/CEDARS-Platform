@@ -258,7 +258,7 @@ def test_the_owner_sees_the_hold_and_cannot_release_it(client, filer, held_snap)
 
 def test_another_organization_cannot_see_the_hold(client, make_user, cpuc_admin, held_snap):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    other = make_user("analyst@sce.com")
+    other = make_user("analyst@sce.example.org")
     access.ensure_membership(cpuc_admin, other, sce)
     sign_in(client, other)
     assert client.get(reverse("snapshots:hold", args=[held_snap.pk])).status_code == 404

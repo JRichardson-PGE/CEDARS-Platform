@@ -11,7 +11,7 @@ from urllib.parse import urlencode
 
 from django.utils import timezone
 
-from cedars.services.registry.models import FilingCycle, ProgramVersion
+from cedars.services.registry.models import FilingCycle, Program, ProgramVersion
 from cedars.services.snapshots import service as snapshots
 
 from . import metrics as catalog
@@ -349,13 +349,16 @@ def compare(view: View, by: str | None = None, drill: tuple[str, str] = ("", "")
             key = row[by]
             keyed.setdefault(key, Row(key, {})).values[s] = row[code]
     target, next_by = drill if drill[0] else ("" if view.page.view_by else "overview", DRILL.get(by))
+    registered = set()
+    if by == "program":  # a PrgID not in the registry has no program page (UAT 2, U06)
+        registered = set(Program.objects.filter(prg_id__in=[str(k) for k in keyed if k is not None]).values_list("prg_id", flat=True))
     for row in keyed.values():
         if next_by and row.key is not None and by != "year":
             changes = {by: str(row.key), "by": next_by}
             if target != view.page.slug and target:
                 changes |= {"metric": view.metric_choice if view.metric_choice in PAGES[target].metrics else None}
             row.drill = (f"/data/{target}/" if target and target != view.page.slug else "") + view.link(**changes)
-        if row.key is not None and by == "program":
+        if row.key is not None and by == "program" and str(row.key) in registered:
             row.links.append(("Program page", f"/programs/{row.key}/"))
         if row.key is not None and by == "measure":
             for s in results:
