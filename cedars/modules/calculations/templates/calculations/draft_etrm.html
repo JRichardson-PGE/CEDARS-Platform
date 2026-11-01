@@ -14,7 +14,7 @@
   <h2 id="package-h">1. Measure package</h2>
   {% if package %}
   <p><strong>{{ package.label }}</strong>{% if package.name %}: {{ package.name }}{% endif %}
-    <span class="small muted">({{ package.permutations }} permutation{{ package.permutations|pluralize }}{% if package.start_date %}, from {{ package.start_date|date:"Y-m-d" }}{% endif %}{% if package.end_date %} to {{ package.end_date|date:"Y-m-d" }}{% endif %})</span></p>
+    <span class="small muted">({{ package.permutations }} permutation{{ package.permutations|pluralize }}{% if package.start_date %}, from {{ package.start_date|date_words }}{% endif %}{% if package.end_date %} to {{ package.end_date|date_words }}{% endif %})</span></p>
   <p><a href="?q={{ q|urlencode }}&amp;year={{ year_value }}">Choose another package</a></p>
   {% else %}
   <form method="get" class="row-form" role="search" aria-label="Find a measure package">
@@ -73,7 +73,7 @@
 {% if permutation %}
 <section class="card" aria-labelledby="row-h">
   <h2 id="row-h">3. The measure row</h2>
-  <p>Permutation <strong>{{ permutation.measure_detail_id }}</strong>{% if permutation.start_date %}, in effect from {{ permutation.start_date|date:"Y-m-d" }}{% endif %}{% if permutation.end_date %} to {{ permutation.end_date|date:"Y-m-d" }}{% endif %}.</p>
+  <p>Permutation <strong>{{ permutation.measure_detail_id }}</strong>{% if permutation.start_date %}, in effect from {{ permutation.start_date|date_words }}{% endif %}{% if permutation.end_date %} to {{ permutation.end_date|date_words }}{% endif %}.</p>
   {% if not_in_effect %}<p class="alert" role="alert"><strong>Warning:</strong> not in effect in {{ claim_year }}, the claim year of row 1 (which the new row takes). {{ not_in_effect }}</p>{% endif %}
   {% if restricted %}<p class="alert" role="alert"><strong>Warning:</strong> eTRM marks this a restricted permutation.</p>{% endif %}
   {% if matches > 1 %}<p class="small">The pack has more than one permutation with this offering; the first by Measure Detail ID is used.</p>{% endif %}
