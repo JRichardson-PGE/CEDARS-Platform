@@ -1795,3 +1795,12 @@ def year_totals(organisation, year: int) -> list[dict]:
             }
         )
     return out
+
+
+def deadline_page(deadline) -> str:
+    """The claims period page of one of a claim year's deadlines, for the filing calendar; "" for any other claims deadline."""
+    from django.urls import reverse
+
+    if deadline.kind not in KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
+        return ""
+    return reverse("claims:period", args=[deadline.pk])

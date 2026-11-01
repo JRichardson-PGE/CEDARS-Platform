@@ -10,9 +10,9 @@
 with the reason; fix it in eTRM and it comes in with the next sync. A nightly sync that fails is tried again{% if retry_minutes %} after
 {{ retry_minutes }} minutes{% endif %}, and if it still fails the CPUC's administrators are alerted.</p>
 <dl class="facts">
-  <dt>Last successful sync</dt><dd>{% if last %}{{ last.finished_at|date:"Y-m-d H:i T" }} ({{ last.get_trigger_display|lower }}, {{ last.source }}){% else %}None yet{% endif %}</dd>
+  <dt>Last successful sync</dt><dd>{% if last %}{{ last.finished_at|datetime_words }} ({{ last.get_trigger_display|lower }}, {{ last.source }}){% else %}None yet{% endif %}</dd>
   {% if last %}<dt>In that sync</dt><dd>{{ last.imported }} imported (new or changed), {{ last.unchanged }} unchanged, {{ last.excluded }} excluded</dd>{% endif %}
-  {% if latest and latest.status == "failed" %}<dt>Latest attempt</dt><dd><strong>Failed</strong> {{ latest.started_at|date:"Y-m-d H:i T" }}{% if latest.attempt > 1 %} (attempt {{ latest.attempt }}){% endif %}: {{ latest.error }}{% if latest.alerted_at %} Administrators were alerted {{ latest.alerted_at|date:"Y-m-d H:i T" }}.{% endif %}</dd>{% endif %}
+  {% if latest and latest.status == "failed" %}<dt>Latest attempt</dt><dd><strong>Failed</strong> {{ latest.started_at|datetime_words }}{% if latest.attempt > 1 %} (attempt {{ latest.attempt }}){% endif %}: {{ latest.error }}{% if latest.alerted_at %} Administrators were alerted {{ latest.alerted_at|datetime_words }}.{% endif %}</dd>{% endif %}
 </dl>
 
 <h2>Packages excluded in the last sync</h2>
@@ -26,7 +26,7 @@ with the reason; fix it in eTRM and it comes in with the next sync. A nightly sy
   <thead><tr><th scope="col">Measure Version ID</th><th scope="col">Name</th><th scope="col">PA lead</th><th scope="col">Reason</th><th scope="col">Detected</th></tr></thead>
   <tbody>
   {% for x in page %}
-  <tr><th scope="row">{{ x.measure_version_id }}</th><td>{{ x.name }}</td><td>{{ x.pa_lead }}</td><td>{{ x.reason }}</td><td class="nowrap">{{ x.detected_at|date:"Y-m-d H:i:s T" }}</td></tr>
+  <tr><th scope="row">{{ x.measure_version_id }}</th><td>{{ x.name }}</td><td>{{ x.pa_lead }}</td><td>{{ x.reason }}</td><td class="nowrap">{{ x.detected_at|datetime_words }}</td></tr>
   {% empty %}<tr><td colspan="5">None.</td></tr>
   {% endfor %}
   </tbody>
@@ -41,7 +41,7 @@ with the reason; fix it in eTRM and it comes in with the next sync. A nightly sy
   <thead><tr><th scope="col">Started</th><th scope="col">How</th><th scope="col">Attempt</th><th scope="col">Result</th><th scope="col">Packages</th><th scope="col">Imported</th><th scope="col">Unchanged</th><th scope="col">Excluded</th></tr></thead>
   <tbody>
   {% for r in runs %}
-  <tr><th scope="row" class="nowrap">{{ r.started_at|date:"Y-m-d H:i T" }}</th><td>{{ r.get_trigger_display }}</td><td>{{ r.attempt }}</td><td>{{ r.get_status_display }}{% if r.error %}: {{ r.error|truncatechars:120 }}{% endif %}{% if r.alerted_at %} (administrators alerted){% endif %}</td>
+  <tr><th scope="row" class="nowrap">{{ r.started_at|datetime_words }}</th><td>{{ r.get_trigger_display }}</td><td>{{ r.attempt }}</td><td>{{ r.get_status_display }}{% if r.error %}: {{ r.error|truncatechars:120 }}{% endif %}{% if r.alerted_at %} (administrators alerted){% endif %}</td>
     <td>{{ r.packages_seen }}</td><td>{{ r.imported }}</td><td>{{ r.unchanged }}</td><td>{{ r.excluded }}</td></tr>
   {% empty %}<tr><td colspan="8">No syncs yet.</td></tr>
   {% endfor %}

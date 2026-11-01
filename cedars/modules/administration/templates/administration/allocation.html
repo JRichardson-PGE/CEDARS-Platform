@@ -3,8 +3,8 @@
 {% block content %}
 <div class="page-title"><h1>{{ v.label }}</h1>{% page_help "administration/allocation" %}</div>
 <dl class="facts">
-  <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle }}{% endif %}</dd>
-  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %} {{ v.confirmed_at|date:"Y-m-d H:i T" }} by {{ v.confirmed_by.email|default:"the system" }}{% endif %}</dd>
+  <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle|cycle_label }}{% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} {{ v.confirmed_at|date_words }} by {{ v.confirmed_by|person|default:"the system" }}{% endif %}</dd>
   <dt>Factors</dt><dd>{{ count }} program-years, {% if years %}{{ years|first }} to {{ years|last }}{% endif %}</dd>
   <dt>Source</dt><dd>{{ v.source_name }} <span class="small muted">SHA-256 {{ v.source_sha256|truncatechars:20 }}</span></dd>
   {% if v.notes %}<dt>Notes</dt><dd>{{ v.notes }}</dd>{% endif %}

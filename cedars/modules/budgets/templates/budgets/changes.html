@@ -19,7 +19,7 @@ budget or results changed.</p>
   <thead><tr><th scope="col">Published</th><th scope="col">Correction</th><th scope="col">Replaces</th><th scope="col">Reason</th><th scope="col">Programs changed</th></tr></thead>
   <tbody>
   {% for c in letters %}<tr>
-    <td class="nowrap">{{ c.published_at|date:"Y-m-d" }}</td>
+    <td class="nowrap">{{ c.published_at|date_words }}</td>
     <th scope="row"><a href="{% url 'budgets:change_letter' c.pk %}">{{ c.version.submission.organisation.code }} {{ c.version.submission.deadline.cycle }} {{ c.version.submission.deadline.kind }}, version {{ c.version.number }}</a></th>
     <td>Version {{ c.previous.number }}</td>
     <td>{{ c.reason|truncatechars:160 }}</td>

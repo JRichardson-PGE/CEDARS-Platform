@@ -1,2 +1,2 @@
-<li><strong>{{ kd.on|date:"Y-m-d" }}</strong>: {% if kd.link %}<a href="{{ kd.link }}">{{ kd.title }}</a>{% else %}{{ kd.title }}{% endif %}{% if kd.detail %}<br><span class="small">{{ kd.detail }}</span>{% endif %}
+<li><strong>{{ kd.on|date_words }}</strong>: {% if kd.link %}<a href="{{ kd.link }}">{{ kd.title }}</a>{% else %}{{ kd.title }}{% endif %}{% if kd.detail %}<br><span class="small">{{ kd.detail }}</span>{% endif %}
   {% if is_ed %}<form method="post" action="{% url 'documents:remove_key_date' kd.pk %}" class="inline-form">{% csrf_token %}<button type="submit" class="link">Remove<span class="sr-only"> {{ kd.title }}</span></button></form>{% endif %}</li>

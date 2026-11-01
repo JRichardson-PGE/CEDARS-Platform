@@ -11,7 +11,7 @@
 {% if doc.summary %}<p>{{ doc.summary|linebreaksbr }}</p>{% endif %}
 
 <section aria-labelledby="current-h">
-<h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.stage %}: {{ current.stage_label }}{% endif %}{% if current.published %}, published {{ current.published_at|date:"Y-m-d" }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
+<h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.stage %}: {{ current.stage_label }}{% endif %}{% if current.published %}, published {{ current.published_at|date_words }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
 {% if current %}
 <ul class="links">
   {% for f in current.files.all %}
@@ -28,7 +28,7 @@
 {% endif %}
 {% endif %}
 {% if open_versions %}
-<p><strong>Open for comment:</strong> {% for v in open_versions %}version {{ v.number }}{% if v.stage %} ({{ v.stage_label }}){% endif %} until {{ v.comment_period.closes|date:"Y-m-d" }}{% if not forloop.last %}; {% endif %}{% endfor %}.
+<p><strong>Open for comment:</strong> {% for v in open_versions %}version {{ v.number }}{% if v.stage %} ({{ v.stage_label }}){% endif %} until {{ v.comment_period.closes|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}.
   {% if user.is_authenticated %}<a href="{% url 'documents:comments' doc.pk %}#comment-form-h">Comment or ask a question</a>{% else %}<a href="{% url 'account_login' %}?next={% url 'documents:comments' doc.pk %}">Sign in to comment</a>{% endif %}</p>
 {% endif %}
 <p class="small muted">Permanent link: <code>{{ request.scheme }}://{{ request.get_host }}{{ doc.get_absolute_url }}</code></p>
@@ -46,7 +46,7 @@
   {% if doc.work_order %}<dt>Work order</dt><dd><a href="{{ doc.work_order.get_absolute_url }}">{{ doc.work_order.number }}</a>{% if doc.task %}, task {{ doc.task.name }}{% endif %}</dd>{% endif %}
   {% for name, labels in attributes.items %}<dt>{{ name }}</dt><dd>{{ labels|join:", " }}</dd>{% endfor %}
   {% if doc.calmac_id %}<dt>CALMAC ID</dt><dd>{{ doc.calmac_id }}</dd>{% endif %}
-  <dt>First published</dt><dd>{{ doc.published_at|date:"Y-m-d"|default:"Not yet" }}</dd>
+  <dt>First published</dt><dd>{{ doc.published_at|date_words|default:"Not yet" }}</dd>
   {% if doc.pda_id %}<dt>Migrated from</dt><dd>The PDA, document {{ doc.pda_id }}: its old links lead here</dd>{% endif %}
   {% if doc.cedars_key %}<dt>Migrated from</dt><dd>{{ doc.migrated_from }}{% if doc.legacy_links.exists %}: its old links lead here{% endif %}</dd>{% endif %}
 </dl>
@@ -64,12 +64,12 @@
   <tr>
     <th scope="row">{{ v.number }}</th>
     {% if doc.deliverable %}<td>{{ v.stage_label }}</td>{% endif %}
-    <td class="nowrap">{% if v.published %}{{ v.published_at|date:"Y-m-d" }}{% else %}<span class="status">Not published</span>
+    <td class="nowrap">{% if v.published %}{{ v.published_at|date_words }}{% else %}<span class="status">Not published</span>
       {% if can_publish and v != current %}<form method="post" action="{% url 'documents:publish' doc.pk v.number %}" class="actions">{% csrf_token %}<button type="submit">Publish version {{ v.number }}</button></form>{% endif %}{% endif %}</td>
     <td><ul class="links grants">{% for f in v.files.all %}<li><a href="{{ f.get_absolute_url }}">{{ f.name }}<span class="sr-only">, version {{ v.number }}</span></a></li>{% endfor %}</ul></td>
     <td>{{ v.reason|default:"First version" }}</td>
-    <td class="small">{{ v.organisation.code }}{% if sees_unpublished %}<br>{{ v.created_by.email }}{% endif %}<br>{{ v.created_at|date:"Y-m-d" }}</td>
-    <td class="small">{% if v.comment_period %}{{ v.comment_period.opens|date:"Y-m-d" }} to {{ v.comment_period.closes|date:"Y-m-d" }}<br>{% endif %}{% if v.comment_count %}<a href="{% url 'documents:comments' doc.pk %}#version-{{ v.number }}">{{ v.comment_count }} comment{{ v.comment_count|pluralize }}<span class="sr-only"> on version {{ v.number }}</span></a>{% elif v.comment_period %}None yet{% else %}No comment period{% endif %}</td>
+    <td class="small">{{ v.organisation.code }}{% if sees_unpublished %}<br>{{ v.created_by|person }}{% endif %}<br>{{ v.created_at|date_words }}</td>
+    <td class="small">{% if v.comment_period %}{{ v.comment_period.opens|date_words }} to {{ v.comment_period.closes|date_words }}<br>{% endif %}{% if v.comment_count %}<a href="{% url 'documents:comments' doc.pk %}#version-{{ v.number }}">{{ v.comment_count }} comment{{ v.comment_count|pluralize }}<span class="sr-only"> on version {{ v.number }}</span></a>{% elif v.comment_period %}None yet{% else %}No comment period{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>
@@ -90,9 +90,9 @@
   {% for r, status, filed in requests %}
   <tr>
     <th scope="row">{{ r.pa.code }}</th>
-    <td class="nowrap">{{ r.due|date:"Y-m-d" }}</td>
+    <td class="nowrap">{{ r.due|date_words }}</td>
     <td>{{ status }}</td>
-    <td>{% for v in filed %}{% if v.published or sees_unpublished or r.pa in responding_pas %}Version {{ v.number }}{% if v.published %}, published {{ v.published_at|date:"Y-m-d" }}{% endif %}{% if not forloop.last %}; {% endif %}{% endif %}{% empty %}None yet{% endfor %}</td>
+    <td>{% for v in filed %}{% if v.published or sees_unpublished or r.pa in responding_pas %}Version {{ v.number }}{% if v.published %}, published {{ v.published_at|date_words }}{% endif %}{% if not forloop.last %}; {% endif %}{% endif %}{% empty %}None yet{% endfor %}</td>
   </tr>
   {% endfor %}
   </tbody>

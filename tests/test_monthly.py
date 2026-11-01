@@ -407,7 +407,8 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert client.get(reverse("monthly:version", args=[v.pk])).status_code == 200
     assert client.get(reverse("monthly:findings_csv", args=[v.pk])).status_code == 404
     assert client.get(reverse("monthly:report", args=[jan.pk]) + "?org=PGE").status_code == 404
-    assert b"Version 1: published" in client.get(reverse("monthly:year", args=[2028]) + "?org=PGE").content
+    year_page = client.get(reverse("monthly:year", args=[2028]) + "?org=PGE").content.decode()
+    assert 'class="status ok">Published</span>' in year_page and "version 1</a>" in year_page
     assert client.get(reverse("monthly:year_new")).status_code == 404
     client.logout()
     sign_in(client, cpuc_admin)

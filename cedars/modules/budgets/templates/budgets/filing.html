@@ -7,8 +7,8 @@
   {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">How it is priced</a>{% endif %}
 </div>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
-  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
+  <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if setup.acc_version %} ({{ setup.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}; cost tests: {% if setup.cost_test_set %}{{ setup.cost_test_set }}{% else %}the published set in force for the program year{% endif %}</dd>{% endif %}
 </dl>
@@ -64,7 +64,7 @@
   </form>
   {% endif %}
   {% if v.locked and past_due and can_submit and not legacy %}
-    {% if pending_reopen %}<p>A request to reopen this filing, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
+    {% if pending_reopen %}<p>A request to reopen this filing, sent {{ pending_reopen.requested_at|date_words }}, is waiting for a CPUC approver.</p>
     {% else %}
     <form method="post" action="{% url 'budgets:reopen' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
       <div class="field"><label for="reopen-reason">Reason for the correction</label><textarea id="reopen-reason" name="reason" rows="2" required></textarea></div>
@@ -87,7 +87,7 @@
 {% if can_submit and not v.locked %}
 <section aria-labelledby="upload-h">
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the filing{% endif %}</h2>
-{% if opens_later %}<p>This filing opens on {{ deadline.opens_at|date:"Y-m-d" }}.</p>
+{% if opens_later %}<p>This filing opens on {{ deadline.opens_at|date_words }}.</p>
 {% else %}
 <p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept. Each program's budget is its ProgramCost row plus its measures' rebates and incentives, by program year.</p>
 <form method="post" enctype="multipart/form-data" action="{% url 'budgets:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
@@ -107,8 +107,8 @@
   <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Confirmed</th><th scope="col">Reason</th></tr></thead>
   <tbody>{% for ver in versions %}<tr>
     <th scope="row"><a href="{% url 'budgets:version' ver.pk %}">Version {{ ver.number }}</a></th>
-    <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
-    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by.email }}{% endif %}{% endif %}</td>
+    <td><span class="status {{ ver.status|status_tone }}">{{ ver.get_status_display }}</span>{% if ver.late %} <span class="small">(late)</span>{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date_words }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by|person }}{% endif %}{% endif %}</td>
     <td>{{ ver.reason }}</td>
   </tr>{% endfor %}</tbody>
 </table>

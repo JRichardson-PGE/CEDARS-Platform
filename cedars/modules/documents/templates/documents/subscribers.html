@@ -15,7 +15,7 @@
   <tr>
     <th scope="row">{{ target }}</th>
     <td>{{ subs|length }}</td>
-    <td class="small">{% for s in subs %}{{ s.user.name|default:s.user.email }} ({{ s.get_channel_display|lower }}){% if not forloop.last %}; {% endif %}{% endfor %}</td>
+    <td class="small">{% for s in subs %}{{ s.user|person_name }} ({{ s.get_channel_display|lower }}){% if not forloop.last %}; {% endif %}{% endfor %}</td>
   </tr>
   {% endfor %}
   </tbody>

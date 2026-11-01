@@ -13,19 +13,19 @@
   <thead><tr><th scope="col">Person</th><th scope="col">Organization</th><th scope="col">Asked by</th><th scope="col">Decision</th></tr></thead>
   <tbody>
   {% for g in pending %}
-  <tr><th scope="row">{{ g.membership.user.email }}</th><td>{{ g.membership.organisation.code }}{% if g.membership.organisation.federated %} (federated){% endif %}</td>
-    <td>{{ g.granted_by.email|default:"system" }}, {{ g.granted_at|date:"Y-m-d" }}{% if g.grant_reason %}: {{ g.grant_reason }}{% endif %}</td>
+  <tr><th scope="row">{{ g.membership.user|person }}</th><td>{{ g.membership.organisation.code }}{% if g.membership.organisation.federated %} (federated){% endif %}</td>
+    <td>{{ g.granted_by|person|default:"system" }}, {{ g.granted_at|date_words }}{% if g.grant_reason %}: {{ g.grant_reason }}{% endif %}</td>
     <td>
-      <details class="inline"><summary>Approve<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></summary>
+      <details class="inline"><summary>Approve<span class="sr-only"> PII access for {{ g.membership.user|person_name }}</span></summary>
         <form method="post" action="{% url 'administration:pii_decision' g.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="approve">
           <label for="ap-{{ g.pk }}">Reason (optional, kept in the audit trail)</label><input type="text" id="ap-{{ g.pk }}" name="reason">
-          <button type="submit" class="primary">Approve<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></button>
+          <button type="submit" class="primary">Approve<span class="sr-only"> PII access for {{ g.membership.user|person_name }}</span></button>
         </form>
       </details>
-      <details class="inline"><summary>Decline<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></summary>
+      <details class="inline"><summary>Decline<span class="sr-only"> PII access for {{ g.membership.user|person_name }}</span></summary>
         <form method="post" action="{% url 'administration:pii_decision' g.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="decline">
           <label for="dc-{{ g.pk }}">Reason</label><input type="text" id="dc-{{ g.pk }}" name="reason" required>
-          <button type="submit">Decline<span class="sr-only"> PII access for {{ g.membership.user.email }}</span></button>
+          <button type="submit">Decline<span class="sr-only"> PII access for {{ g.membership.user|person_name }}</span></button>
         </form>
       </details>
     </td></tr>
@@ -41,7 +41,7 @@
 <p>PII only for federated organizations and sessions: <strong>{% if policy.pii_requires_federated %}required{% else %}not required{% endif %}</strong>.</p>
 {% for c in changes %}
 <div class="card">
-  <p>{{ c.proposed_by.email }} proposed {{ c.proposed_at|date:"Y-m-d" }}: federated sessions for PII <strong>{% if c.value %}required{% else %}not required{% endif %}</strong>. Reason: {{ c.reason }}</p>
+  <p>{{ c.proposed_by|person }} proposed {{ c.proposed_at|date_words }}: federated sessions for PII <strong>{% if c.value %}required{% else %}not required{% endif %}</strong>. Reason: {{ c.reason }}</p>
   <form method="post" action="{% url 'administration:decide_change' c.pk %}" class="actions">{% csrf_token %}
     {% if c.proposed_by != user %}<button type="submit" name="decision" value="confirm" class="primary">Confirm the change</button>{% else %}<span class="muted">A second steward must confirm your proposal.</span>{% endif %}
     <button type="submit" name="decision" value="withdraw">Withdraw it</button>
@@ -57,7 +57,7 @@
 
 <section aria-labelledby="stewards-h">
 <h2 id="stewards-h">Data stewards</h2>
-<ul>{% for g in stewards %}<li>{{ g.membership.user.email }}{% if g.certified_at %} <span class="small muted">certified {{ g.certified_at|date:"Y-m-d" }}</span>{% endif %}</li>{% endfor %}</ul>
+<ul>{% for g in stewards %}<li>{{ g.membership.user|person }}{% if g.certified_at %} <span class="small muted">certified {{ g.certified_at|date_words }}</span>{% endif %}</li>{% endfor %}</ul>
 <p class="small muted">A CPUC system administrator grants and revokes stewards from the CPUC organization's page. The last steward cannot be revoked.</p>
 </section>
 {% endblock %}

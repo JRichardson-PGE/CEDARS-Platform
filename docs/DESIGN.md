@@ -53,8 +53,13 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 | `.messages`, `.alert`, `ul.notices` | page messages, an inline alert, a notice list | tinted by state |
 | `button`, `.button`, `.primary`, `button.link`, `.danger` | the button set | 36 px high, 24 px minimum for inline ones |
 | `.field`, `.helptext`, `.field-errors`, `fieldset` | form fields | `as_field_group` renders every field as one `.field` block (`core/templates/django/forms/field.html`) in the order label, control, errors, hint, so a field stays together when a filter bar wraps. No colon after a label or legend; a checkbox is one line with its box inside the label (`label.check`). A hand-written field follows the same shape: `<div class="field"><label for>…</label><input aria-describedby="…-help"><span class="helptext" id="…-help">…</span></div>`. Inside a `form.stack`, only a `<p>` holding a label or control stacks as a field; a prose `<p>` stays prose (links inline) |
-| `td.due` with `<time>` and `<small>` | a due date with its urgency in words | `{{ due_at\|due_words }}`: "Due in 2 weeks", "Passed 7 months ago" |
-| `.status` + `{{ status\|status_tone }}` | a badge toned from a status word | `{% load ui %}` |
+| `td.due` with `<time>` and `<small>` | a due date with its urgency in words | `{{ due_at\|due_words }}`: "Due in 2 weeks", "Passed 7 months ago"; every filing index and the calendar use it |
+| `{{ when\|date_words }}`, `{{ when\|datetime_words }}` | the one way a date is written | ISO, "2026-10-31", on every record (a version, a confirmation, a publication); the time with its zone, "2026-10-31 14:56 PDT", only where the minute matters: runs, uploads, jobs, logs and notifications. Never `\|date:"..."` in a template |
+| `{{ user\|person }}`, `{{ user\|person_name }}` | a person | the name, then the email address in small muted text (`person`); the name alone, or the email when none is recorded, inside labels, headings and sr-only text (`person_name`). Never a bare `.email` |
+| `{{ cycle\|cycle_label }}` | a filing cycle's years | "2024-2027", or "2021" for a one-year cycle (`str(cycle)` stays "2021-2021": it is a key) |
+| `ui/dash.html`, `.muted` | a missing value | a missing number is a dash with "none" for screen readers; a missing status is muted text ("Not given"), never a badge |
+| `ui/version_status.html` | an organization's status on a filing | the badge, then "version 2" in small text, a link when the version has a page (Monthly index and year) |
+| `.status` + `{{ status\|status_tone }}` | a badge toned from a status word | every status column, row and fact is a badge (never plain words); a date beside it stays text. The `ui` filters are builtins: no `{% load %}` needed |
 | `details.section` with `h2` in `summary` and `.section-body` | an earlier cycle or year, collapsed with a count | the newest stays an open `section.cycle` |
 | `ui/empty.html` (`.empty`) | an empty state with its one action | `{% include "ui/empty.html" with title=... text=... action_url=... action=... %}` |
 | `.id` | an identifier (PA code, PrgID, field name) in the mono face | |

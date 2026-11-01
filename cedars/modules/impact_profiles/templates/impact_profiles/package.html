@@ -5,8 +5,8 @@
 <div class="page-title"><h1>{{ pkg.measure_version_id }} <span class="muted">{{ pkg.name }}</span></h1>{% page_help "impact_profiles/package" %}</div>
 <dl class="facts">
   <dt>PA lead</dt><dd>{{ pkg.pa_lead }}</dd>
-  <dt>Starts</dt><dd>{{ pkg.start_date|date:"Y-m-d" }}</dd>
-  <dt>eTRM version here</dt><dd>{% if pkg.current %}{{ pkg.current.number }}, synced {{ pkg.current.sync_run.started_at|date:"Y-m-d H:i T" }}, {{ pkg.current.permutation_count }} permutations{% else %}none yet{% endif %}</dd>
+  <dt>Starts</dt><dd>{{ pkg.start_date|date_words }}</dd>
+  <dt>eTRM version here</dt><dd>{% if pkg.current %}{{ pkg.current.number }}, synced {{ pkg.current.sync_run.started_at|datetime_words }}, {{ pkg.current.permutation_count }} permutations{% else %}none yet{% endif %}</dd>
   <dt>In the last sync</dt><dd>{% if pkg.in_last_sync %}Yes{% else %}No: eTRM no longer offers this draft{% endif %}</dd>
 </dl>
 
@@ -74,8 +74,8 @@ profile it should use instead of changing the vintage in eTRM.</p>
   <thead><tr><th scope="col">File</th><th scope="col">Uploaded</th><th scope="col">By</th><th scope="col">Status</th><th scope="col">Series kept</th></tr></thead>
   <tbody>
   {% for u in uploads %}
-  <tr><th scope="row"><a href="{% url 'impact_profiles:upload' u.pk %}">{{ u.file_name }}</a></th><td class="nowrap">{{ u.uploaded_at|date:"Y-m-d H:i T" }}</td>
-    <td>{{ u.uploaded_by.email }}</td><td>{{ u.get_status_display }}</td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
+  <tr><th scope="row"><a href="{% url 'impact_profiles:upload' u.pk %}">{{ u.file_name }}</a></th><td class="nowrap">{{ u.uploaded_at|datetime_words }}</td>
+    <td>{{ u.uploaded_by|person }}</td><td><span class="status {{ u.status|status_tone }}">{{ u.get_status_display }}</span></td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
   {% empty %}<tr><td colspan="5">No uploads yet.</td></tr>
   {% endfor %}
   </tbody>

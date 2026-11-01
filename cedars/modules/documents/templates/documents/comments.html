@@ -16,7 +16,7 @@ A comment can be posted only while its version's comment period is open; its aut
 <form method="post" action="{% url 'documents:post_comment' doc.pk %}" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}{{ field.as_field_group }}{% endif %}{% endfor %}
-  {% if open_versions|length == 1 %}<p class="small muted">On version {{ open_versions.0.number }}{% if open_versions.0.stage %} ({{ open_versions.0.stage_label }}){% endif %}; comments close {{ open_versions.0.comment_period.closes|date:"Y-m-d" }}.</p>{% endif %}
+  {% if open_versions|length == 1 %}<p class="small muted">On version {{ open_versions.0.number }}{% if open_versions.0.stage %} ({{ open_versions.0.stage_label }}){% endif %}; comments close {{ open_versions.0.comment_period.closes|date_words }}.</p>{% endif %}
   <div class="actions"><button type="submit" class="primary">Post it</button></div>
 </form>
 {% else %}
@@ -28,7 +28,7 @@ A comment can be posted only while its version's comment period is open; its aut
 {% for v, rows, is_open in sections %}
 <section aria-labelledby="version-{{ v.number }}">
 <h2 id="version-{{ v.number }}">Version {{ v.number }}{% if v.stage %}: {{ v.stage_label }}{% endif %}</h2>
-<p class="small">{% if v.comment_period %}Comment period {{ v.comment_period.opens|date:"Y-m-d" }} to {{ v.comment_period.closes|date:"Y-m-d" }}: {% if is_open %}<strong>open</strong>{% else %}closed{% endif %}.{% else %}No comment period.{% endif %}
+<p class="small">{% if v.comment_period %}Comment period {{ v.comment_period.opens|date_words }} to {{ v.comment_period.closes|date_words }}: {% if is_open %}<strong>open</strong>{% else %}closed{% endif %}.{% else %}No comment period.{% endif %}
   {{ rows|length }} comment{{ rows|length|pluralize }}.</p>
 {% if can_manage and v.published %}
 <details class="inline"><summary>{% if v.comment_period %}Change the comment period<span class="sr-only"> of version {{ v.number }}</span>{% else %}Open a comment period<span class="sr-only"> on version {{ v.number }}</span>{% endif %}</summary>
@@ -43,12 +43,12 @@ A comment can be posted only while its version's comment period is open; its aut
 {% for c in rows %}
 <article class="comment" id="comment-{{ c.pk }}" aria-labelledby="comment-{{ c.pk }}-h">
   <h3 id="comment-{{ c.pk }}-h">{{ c.subject }} <span class="small muted">({{ c.get_kind_display|lower }})</span></h3>
-  <p class="small">{{ c.author_name }}{% if c.organisation %}, {{ c.organisation.code }}{% endif %}, {{ c.created_at|date:"Y-m-d" }}{% if c.section %} · Section or page: {{ c.section }}{% endif %}</p>
+  <p class="small">{{ c.author_name }}{% if c.organisation %}, {{ c.organisation.code }}{% endif %}, {{ c.created_at|date_words }}{% if c.section %} · Section or page: {{ c.section }}{% endif %}</p>
   <p>{{ c.text|linebreaksbr }}</p>
   {% if c.file_name %}<p class="small">Supporting file: <a href="{{ c.get_file_url }}">{{ c.file_name }}</a></p>{% endif %}
   {% for r in c.responses.all %}
   <div class="response">
-    <p class="small"><strong>Response</strong> from {{ r.author_name }}, {{ r.organisation.code }}, {{ r.created_at|date:"Y-m-d" }}</p>
+    <p class="small"><strong>Response</strong> from {{ r.author_name }}, {{ r.organisation.code }}, {{ r.created_at|date_words }}</p>
     <p>{{ r.text|linebreaksbr }}</p>
   </div>
   {% empty %}{% if c.kind == "question" %}<p class="small muted">Not answered yet.</p>{% endif %}

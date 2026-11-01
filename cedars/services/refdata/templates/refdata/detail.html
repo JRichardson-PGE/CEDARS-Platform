@@ -4,16 +4,16 @@
 <div class="page-title"><h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>{% page_help "refdata/detail" %}</div>
 <dl class="facts">
   <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>
-  <dt>Status</dt><dd>{{ pack.get_status_display }}{% if pack.published_at %}, published {{ pack.published_at|date:"Y-m-d H:i T" }} by {{ pack.published_by.email|default:"the system" }}{% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ pack.status|status_tone }}">{{ pack.get_status_display }}</span>{% if pack.published_at %}, published {{ pack.published_at|date_words }} by {{ pack.published_by|person|default:"the system" }}{% endif %}</dd>
   {% if pack.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ pack.withdrawn_reason }}</dd>{% endif %}
   {% if pack.acc_year %}<dt>ACC</dt><dd>{{ pack.acc_year }} ACC</dd>{% endif %}
-  <dt>In force from</dt><dd>{{ pack.valid_from|date:"Y-m-d"|default:"not dated" }}</dd>
+  <dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>
   <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
   <dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>
   <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
   {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
   {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}
-  <dt>Registered</dt><dd>{{ pack.registered_at|date:"Y-m-d H:i T" }} by {{ pack.registered_by.email|default:"the system" }}</dd>
+  <dt>Registered</dt><dd>{{ pack.registered_at|date_words }} by {{ pack.registered_by|person|default:"the system" }}</dd>
 </dl>
 
 {% if cost_set %}
@@ -41,7 +41,7 @@ published pack in force: blank fields are filled from it and filed values that d
 {% if mdid %}
   {% if permutation %}
   <h3>{{ permutation.measure_detail_id }}</h3>
-  <p>Measure version {{ permutation.measure_version_id|upper }}, in effect {{ permutation.start_date|date:"Y-m-d"|default:"from the start" }} to {{ permutation.end_date|date:"Y-m-d"|default:"now" }}.</p>
+  <p>Measure version {{ permutation.measure_version_id|upper }}, in effect {{ permutation.start_date|date_words|default:"from the start" }} to {{ permutation.end_date|date_words|default:"now" }}.</p>
   <div class="hscroll" tabindex="0" role="region" aria-label="Permutation values">
   <table class="list">
     <caption class="sr-only">The permutation's values under eTRM's column names, and the claims fields each fills</caption>
@@ -60,13 +60,13 @@ published pack in force: blank fields are filled from it and filed values that d
 <table class="list">
   <caption class="sr-only">Checks this kind of pack must pass before it is published, with the latest result</caption>
   <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Latest result</th></tr></thead>
-  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.name }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date:"Y-m-d" }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
+  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.name }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date_words }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
 {% else %}<p>This kind of pack needs no tie-out before it is published.</p>{% endif %}
 {% if tie_outs %}
 <h3>Every result</h3>
-<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date:"Y-m-d H:i T" }}: {{ t.name }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
+<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date_words }}: {{ t.name }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
 {% endif %}
 
 <h2>Files</h2>

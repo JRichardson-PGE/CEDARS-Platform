@@ -5,8 +5,8 @@
 <div class="page-title"><h1>QC summary: {{ u.file_name }}</h1>{% page_help "impact_profiles/upload" %}</div>
 <dl class="facts">
   <dt>Package</dt><dd><a href="{% url 'impact_profiles:package' u.package.measure_version_id %}">{{ u.package.measure_version_id }}</a>, checked against its eTRM version {{ u.package_version.number }}</dd>
-  <dt>Uploaded</dt><dd>{{ u.uploaded_at|date:"Y-m-d H:i T" }} by {{ u.uploaded_by.email }} for {{ u.organisation.code }}</dd>
-  <dt>Status</dt><dd><strong>{{ u.get_status_display }}</strong>{% if position is not None %}, {% if position %}{{ position }} job{{ position|pluralize }} ahead in {{ u.organisation.code }}'s queue{% else %}next in {{ u.organisation.code }}'s queue{% endif %}{% endif %}</dd>
+  <dt>Uploaded</dt><dd>{{ u.uploaded_at|datetime_words }} by {{ u.uploaded_by|person }} for {{ u.organisation.code }}</dd>
+  <dt>Status</dt><dd><span class="status {{ u.status|status_tone }}">{{ u.get_status_display }}</span>{% if position is not None %}, {% if position %}{{ position }} job{{ position|pluralize }} ahead in {{ u.organisation.code }}'s queue{% else %}next in {{ u.organisation.code }}'s queue{% endif %}{% endif %}</dd>
   <dt>Series</dt><dd>{{ u.accepted_count }} kept of {{ u.series_count }}{% if u.accept_partial %} (series that pass are kept when others fail){% else %} (one failure rejects the whole file){% endif %}</dd>
   <dt>File</dt><dd>{{ u.size|filesizeformat }}, SHA-256 <span class="small">{{ u.sha256|truncatechars:20 }}</span></dd>
 </dl>
@@ -40,7 +40,7 @@
 
 {% if summary %}
 <h2>Generation result</h2>
-<p>{{ summary.created }} new profile{{ summary.created|pluralize }}, {{ summary.new_version }} new version{{ summary.new_version|pluralize }}, {{ summary.unchanged }} unchanged{% if u.generated_at %}, {{ u.generated_at|date:"Y-m-d H:i T" }}{% endif %}.</p>
+<p>{{ summary.created }} new profile{{ summary.created|pluralize }}, {{ summary.new_version }} new version{{ summary.new_version|pluralize }}, {{ summary.unchanged }} unchanged{% if u.generated_at %}, {{ u.generated_at|datetime_words }}{% endif %}.</p>
 {% if summary.profiles %}<ul>{% for pk, key, sector, number in summary.profiles %}<li><a href="{% url 'impact_profiles:profile' pk %}">{{ key }}</a> / {{ sector }}, version {{ number }}</li>{% endfor %}</ul>{% endif %}
 {% if summary.identical %}
 <h3>Identical to an existing profile</h3>

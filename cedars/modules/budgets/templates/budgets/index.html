@@ -17,21 +17,21 @@ correction is a new version, published with a change letter in the <a href="{% u
 {% for c in cycles %}
 {# The newest cycle is open; earlier cycles are collapsed behind their heading with a count, so the page is one screen for most visits. #}
 {% if forloop.first %}<section class="cycle" aria-labelledby="cycle-{{ c.cycle.pk }}">
-<h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle }} cycle</h2>
+<h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle|cycle_label }} cycle</h2>
 {% else %}<details class="section">
-<summary><h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle }} cycle</h2>
+<summary><h2 id="cycle-{{ c.cycle.pk }}">{{ c.cycle|cycle_label }} cycle</h2>
   <span class="count">{{ c.filings|length }} filing{{ c.filings|length|pluralize }}{% if c.standing %}, {{ c.standing|length }} standing budget{{ c.standing|length|pluralize }}{% endif %}</span></summary>
 <div class="section-body">
 {% endif %}
-<div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle }} cycle">
+<div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle|cycle_label }} cycle">
 <table class="list">
-  <caption class="sr-only">Filings of the {{ c.cycle }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
+  <caption class="sr-only">Filings of the {{ c.cycle|cycle_label }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
   <thead><tr><th scope="col">Filing</th><th scope="col">Due</th><th scope="col">ACC</th><th scope="col">Source</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}</tr></thead>
   <tbody>
   {% for f in c.filings %}
   <tr>
     <th scope="row"><a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a></th>
-    <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date:"Y-m-d" }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
+    <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date_words }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
     <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
     <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>
     {% if org %}<td>{% if f.latest %}<span class="status {{ f.latest.status|status_tone }}">{{ f.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ f.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
@@ -43,9 +43,9 @@ correction is a new version, published with a change letter in the <a href="{% u
 {% if c.standing %}
 <h3 id="standing-{{ c.cycle.pk }}">Budgets that stand</h3>
 <p class="small muted">Each PA's most recent confirmed filing in the cycle. Confirmed filings, their inputs and results are open to every signed-in user.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Standing budgets of the {{ c.cycle }} cycle">
+<div class="hscroll" tabindex="0" role="region" aria-label="Standing budgets of the {{ c.cycle|cycle_label }} cycle">
 <table class="list">
-  <caption class="sr-only">Standing budgets of the {{ c.cycle }} cycle, by program administrator</caption>
+  <caption class="sr-only">Standing budgets of the {{ c.cycle|cycle_label }} cycle, by program administrator</caption>
   <thead><tr><th scope="col">PA</th><th scope="col">Filing</th><th scope="col" class="num">Version</th><th scope="col">Confirmed</th></tr></thead>
   <tbody>
   {% for v in c.standing %}
@@ -53,7 +53,7 @@ correction is a new version, published with a change letter in the <a href="{% u
     <th scope="row"><span class="id">{{ v.submission.organisation.code }}</span></th>
     <td><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.deadline.kind }}</a></td>
     <td class="num">{{ v.number }}</td>
-    <td class="nowrap">{{ v.confirmed_at|date:"Y-m-d" }}{% if v.imported %}, imported from legacy CEDARS{% endif %}</td>
+    <td class="nowrap">{{ v.confirmed_at|date_words }}{% if v.imported %}, imported from legacy CEDARS{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

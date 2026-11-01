@@ -53,7 +53,7 @@ Only CPUC staff see this page.</p>
     <th scope="row"><a href="{{ i.url }}">{{ i.what }}</a><br><span class="small">{{ i.kind_label }}</span></th>
     <td>{{ i.owner.code }}</td>
     <td>{% if i.study %}<a href="{{ i.study.get_absolute_url }}">{{ i.study.study_id }}</a>{% endif %}</td>
-    <td class="nowrap">{{ i.since|date:"Y-m-d" }}</td>
+    <td class="nowrap">{{ i.since|date_words }}</td>
     <td>{{ age }} <span class="small muted">({{ band|lower }})</span></td>
   </tr>
   {% empty %}<tr><td colspan="5">Nothing is waiting.</td></tr>

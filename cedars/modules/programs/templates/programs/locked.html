@@ -13,8 +13,8 @@ approver decides. CPUC system administrators and programs approvers change them 
   <caption class="sr-only">Locked-attribute policies, newest first</caption>
   <thead><tr><th scope="col">From</th><th scope="col">Locked</th><th scope="col">Reason</th><th scope="col">Set by</th></tr></thead>
   <tbody>{% for pol, labels in policies %}<tr>
-    <th scope="row" class="nowrap">{{ pol.effective_from|date:"Y-m-d" }}{% if pol.effective_from > today %} <span class="small">(not yet in force)</span>{% endif %}</th>
-    <td>{{ labels|join:", "|default:"None" }}</td><td>{{ pol.reason }}</td><td class="small">{{ pol.set_by.email|default:"shipped" }}</td>
+    <th scope="row" class="nowrap">{{ pol.effective_from|date_words }}{% if pol.effective_from > today %} <span class="small">(not yet in force)</span>{% endif %}</th>
+    <td>{{ labels|join:", "|default:"None" }}</td><td>{{ pol.reason }}</td><td class="small">{{ pol.set_by|person|default:"shipped" }}</td>
   </tr>{% empty %}<tr><td colspan="4">No policy: nothing is locked.</td></tr>{% endfor %}</tbody>
 </table>
 </div>

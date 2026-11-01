@@ -4,9 +4,9 @@
 <p class="small">{% if user.is_authenticated %}<a href="{% url 'monthly:index' %}">Monthly reports</a> › {% endif %}<a href="{% url 'monthly:changes' %}">Change log</a></p>
 <div class="page-title"><h1>Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "monthly/change_letter" %}</div>
 <dl class="facts">
-  <dt>Published</dt><dd>{{ letter.published_at|date:"Y-m-d H:i T" }}</dd>
-  <dt>Corrects</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' letter.previous.pk %}">Version {{ letter.previous.number }}</a>{% else %}Version {{ letter.previous.number }}{% endif %}, confirmed {{ letter.previous.confirmed_at|date:"Y-m-d" }}, which stays as it was confirmed</dd>
-  <dt>Correction</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' v.pk %}">Version {{ v.number }}</a>{% else %}Version {{ v.number }}{% endif %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}</dd>
+  <dt>Published</dt><dd>{{ letter.published_at|date_words }}</dd>
+  <dt>Corrects</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' letter.previous.pk %}">Version {{ letter.previous.number }}</a>{% else %}Version {{ letter.previous.number }}{% endif %}, confirmed {{ letter.previous.confirmed_at|date_words }}, which stays as it was confirmed</dd>
+  <dt>Correction</dt><dd>{% if user.is_authenticated %}<a href="{% url 'monthly:version' v.pk %}">Version {{ v.number }}</a>{% else %}Version {{ v.number }}{% endif %}, confirmed {{ v.confirmed_at|date_words }}</dd>
   <dt>Reason</dt><dd>{{ letter.reason }}</dd>
 </dl>
 

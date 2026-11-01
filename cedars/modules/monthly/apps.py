@@ -12,11 +12,12 @@ class MonthlyConfig(AppConfig):
     verbose_name = "Monthly reports"
 
     def ready(self):
-        from cedars.services.submissions.service import register_publisher
+        from cedars.services.submissions.service import register_deadline_page, register_publisher
 
         from . import service
 
         register_publisher("monthly", service.on_publish, service.on_unpublish)
+        register_deadline_page("monthly", service.deadline_page)  # the filing calendar links each of its deadlines
 
         from cedars.services.registry.service import register_reported_spend
 

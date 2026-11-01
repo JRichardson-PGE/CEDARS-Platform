@@ -11,8 +11,8 @@ every submission and run records the version it was checked against.</p>
   <thead><tr><th scope="col">Rule set</th><th scope="col">Effective from</th><th scope="col">Status</th><th scope="col">Source</th></tr></thead>
   <tbody>
   {% for rs in sets %}
-  <tr><th scope="row"><a href="{% url 'rules:detail' rs.pk %}">{{ rs.label }}</a></th><td>{{ rs.effective_from|date:"Y-m-d" }}</td>
-    <td>{{ rs.get_status_display }}{% if rs.pk in in_force %} <strong>(in force)</strong>{% endif %}</td><td class="small">{{ rs.source }}</td></tr>
+  <tr><th scope="row"><a href="{% url 'rules:detail' rs.pk %}">{{ rs.label }}</a></th><td>{{ rs.effective_from|date_words }}</td>
+    <td><span class="status {{ rs.status|status_tone }}">{{ rs.get_status_display }}</span>{% if rs.pk in in_force %} <strong>(in force)</strong>{% endif %}</td><td class="small">{{ rs.source }}</td></tr>
   {% empty %}<tr><td colspan="4">No rule sets yet.</td></tr>
   {% endfor %}
   </tbody>

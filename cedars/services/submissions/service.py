@@ -49,6 +49,7 @@ _listeners: list[tuple[Callable, Callable]] = []
 _pricers: list[Callable] = []
 _run_states: list[Callable] = []
 _claims_totals: list[Callable] = []
+_deadline_pages: dict[str, Callable] = {}
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
@@ -91,6 +92,17 @@ def pricing_run(v: SubmissionVersion, *, reset_on: tuple[str, ...] = ("submissio
     if state is None:
         return {"id": run_id, "status": "unknown", "label": "unknown", "ended": False, "error": ""}
     return {"id": run_id, **state}
+
+
+def register_deadline_page(module: str, page: Callable[[Deadline], str]) -> None:
+    """A module's page for one of its deadlines: page(deadline) -> its URL, or "" when the module has no page for it (a deadline
+    added by hand on the filing calendar, a year not set up). The filing calendar links each deadline through it."""
+    _deadline_pages[module] = page
+
+
+def deadline_page(deadline: Deadline) -> str:
+    page = _deadline_pages.get(deadline.module)
+    return page(deadline) if page else ""
 
 
 def register_claims_totals(totals: Callable) -> None:

@@ -8,7 +8,7 @@ revoke the token and make a new one.</p>
   <dt>Name</dt><dd>{{ token.name }}</dd>
   <dt>Acting for</dt><dd>{{ token.organisation|default:"your own calculations (no organisation)" }}</dd>
   <dt>Modules</dt><dd>{{ token.scopes|join:", " }}</dd>
-  <dt>Expires</dt><dd>{{ token.expires_at|date:"Y-m-d" }}</dd>
+  <dt>Expires</dt><dd>{{ token.expires_at|date_words }}</dd>
 </dl>
 <label for="key">Key</label>
 <input type="text" id="key" readonly value="{{ key }}" class="key" autocomplete="off" spellcheck="false">

@@ -11,8 +11,8 @@ record. The portfolio dashboard compares forecasts and claims with the goals in 
   <thead><tr><th scope="col">Decision</th><th scope="col">Adopted</th><th scope="col">Status</th><th scope="col">In force for</th><th scope="col">Source file</th></tr></thead>
   <tbody>
   {% for s, years in sets %}
-  <tr><th scope="row"><a href="{% url 'administration:goal_set' s.pk %}">{{ s.decision }}</a></th><td>{{ s.adopted|date:"Y-m-d" }}</td>
-    <td>{{ s.get_status_display }}{% if s.confirmed_at %} {{ s.confirmed_at|date:"Y-m-d" }}{% endif %}</td>
+  <tr><th scope="row"><a href="{% url 'administration:goal_set' s.pk %}">{{ s.decision }}</a></th><td>{{ s.adopted|date_words }}</td>
+    <td><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if s.confirmed_at %} <span class="small muted nowrap">{{ s.confirmed_at|date_words }}</span>{% endif %}</td>
     <td>{% if s.status == "confirmed" %}{% if years.annual %}targets {{ years.annual|first }}-{{ years.annual|last }}{% endif %}{% if years.annual and years.cycle %}; {% endif %}{% if years.cycle %}cycles {{ years.cycle|first }}-{{ years.cycle|last }}{% endif %}{% if not years.annual and not years.cycle %}Replaced by newer goals{% endif %}{% else %}Not yet{% endif %}</td>
     <td class="small">{{ s.source_name }}</td></tr>
   {% empty %}<tr><td colspan="5">No goals loaded yet.</td></tr>

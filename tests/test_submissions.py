@@ -162,6 +162,16 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     c = signed_in(cpuc_admin)
     page = c.get("/filings/calendar/").content.decode()
     assert "quarterly claim" in page and "Add a deadline" in page
+    # a deadline added by hand has no module page behind it, so it is not a link; a claim year's periods are
+    assert '<th scope="row">quarterly claim</th>' in page and f'href="/claims/periods/{deadline.pk}/"' not in page
+    from cedars.modules.claims import service as claims
+
+    claims.add_year(cpuc_admin, year=2029, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
+    q1 = claims.periods(2029)[0]
+    page = c.get("/filings/calendar/").content.decode()
+    assert f'<a href="/claims/periods/{q1.pk}/">Q1 claim</a>' in page  # each row links to the filing's page
+    assert c.get(f"/claims/periods/{q1.pk}/").status_code == 200
+    assert 'class="due"><time datetime="' in page and "Due in 1" in page  # the date with its urgency in words
     c.post("/filings/calendar/", {"module": "monthly", "kind": "monthly report", "year": 2028, "period": "m1", "due": "2028-02-15"})
     assert "monthly report" in c.get("/filings/calendar/").content.decode()
     v1 = service.confirm(analyst, _priced(analyst, deadline, pge), "h1")

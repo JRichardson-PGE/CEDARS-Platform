@@ -22,7 +22,7 @@
 <h2 id="settings-h">Settings</h2>
 <dl class="facts">
   <dt>For</dt><dd>{{ run.organisation|default:"Only you" }}</dd>
-  <dt>Started by</dt><dd>{{ run.owner.email }}, {{ run.created_at|date:"Y-m-d H:i T" }}</dd>
+  <dt>Started by</dt><dd>{{ run.owner|person }}, {{ run.created_at|datetime_words }}</dd>
   <dt>Engine</dt><dd>{{ calculation }}, ReCET {{ run.engine_release }}{% if engine.image %} <span class="small muted">({{ engine.image }})</span>{% endif %}</dd>
   <dt>ACC</dt><dd>{{ run.acc_version }} ACC</dd>
   <dt>Measures</dt><dd>{{ run.measure_count|default_if_none:"" }}</dd>

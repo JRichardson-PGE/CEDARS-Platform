@@ -11,7 +11,7 @@
   <tbody>
   {% for u in page %}
   <tr><th scope="row"><a href="{% url 'impact_profiles:upload' u.pk %}">{{ u.file_name }}</a></th><td>{{ u.package.measure_version_id }}</td><td>{{ u.organisation.code }}</td>
-    <td>{{ u.uploaded_by.email }}</td><td class="nowrap">{{ u.uploaded_at|date:"Y-m-d H:i T" }}</td><td>{{ u.get_status_display }}</td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
+    <td>{{ u.uploaded_by|person }}</td><td class="nowrap">{{ u.uploaded_at|datetime_words }}</td><td><span class="status {{ u.status|status_tone }}">{{ u.get_status_display }}</span></td><td>{{ u.accepted_count }} of {{ u.series_count }}</td></tr>
   {% empty %}<tr><td colspan="7">No uploads yet.</td></tr>
   {% endfor %}
   </tbody>

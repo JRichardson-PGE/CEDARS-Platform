@@ -15,7 +15,7 @@
     <td>{% if r.org.kind == "pa" %}{% if r.org.pa_type %}{{ r.org.pa_type }}{% else %}<span class="status warn">Not set</span>{% endif %}{% else %}<span aria-hidden="true">–</span><span class="sr-only">Not a program administrator</span>{% endif %}</td>
     <td class="num">{% if r.admins %}{{ r.admins }}{% else %}<span class="status warn">None: needs a first administrator</span>{% endif %}</td>
     <td class="num">{{ r.members }}</td>
-    <td>{% if r.campaign %}<span class="status info">Open</span> due {{ r.campaign.due_at|date:"Y-m-d" }}, {{ r.undecided }} not reviewed{% elif r.last %}<span class="status ok">Closed</span> {{ r.last.closed_at|date:"Y-m-d" }}{% else %}<span class="status">Never run</span>{% endif %}</td>
+    <td>{% if r.campaign %}<span class="status info">Open</span> due {{ r.campaign.due_at|date_words }}, {{ r.undecided }} not reviewed{% elif r.last %}<span class="status ok">Closed</span> {{ r.last.closed_at|date_words }}{% else %}<span class="status">Never run</span>{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

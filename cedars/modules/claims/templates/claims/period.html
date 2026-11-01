@@ -7,8 +7,8 @@
   {% if sysadmin %}<a class="button" href="{% url 'claims:setup' cy.year %}">How {{ cy.year }} claims are priced</a>{% endif %}
 </div>
 <dl class="facts">
-  <dt>Due</dt><dd>{{ deadline.due_at|date:"Y-m-d H:i T" }}{% if past_due %} (passed){% endif %}</dd>
-  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date:"Y-m-d" }}</dd>{% endif %}
+  <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}; cost tests: {% if cy.cost_test_set %}{{ cy.cost_test_set }}{% else %}the published set in force for {{ cy.year }}{% endif %}</dd>{% endif %}
@@ -20,7 +20,7 @@
 <h2 id="earlier-h">Earlier confirmations this year</h2>
 <p class="small muted">This confirmation's upload is compiled over the latest of them. Their compiled inputs can be downloaded (BR-02.5).</p>
 <ul class="links">
-  {% for e in earlier %}<li>{{ e.deadline.kind }}: {% if e.standing %}<a href="{% url 'claims:version' e.standing.pk %}">version {{ e.standing.number }}</a>, confirmed {{ e.standing.confirmed_at|date:"Y-m-d" }}{% if e.standing.findings.compiled_key %} (<a href="{% url 'claims:file' e.standing.pk 0 %}">year-to-date inputs</a>){% endif %}{% else %}not confirmed{% endif %}</li>{% endfor %}
+  {% for e in earlier %}<li>{{ e.deadline.kind }}: {% if e.standing %}<a href="{% url 'claims:version' e.standing.pk %}">version {{ e.standing.number }}</a>, confirmed {{ e.standing.confirmed_at|date_words }}{% if e.standing.findings.compiled_key %} (<a href="{% url 'claims:file' e.standing.pk 0 %}">year-to-date inputs</a>){% endif %}{% else %}not confirmed{% endif %}</li>{% endfor %}
 </ul>
 </section>
 {% endif %}
@@ -97,7 +97,7 @@
   {% endif %}
   {% if v.locked and past_due and can_submit and not legacy %}
     {% if later_locked %}<p>{{ later_locked.kind }} is confirmed on top of this one, so corrections to these records go in the latest confirmation.</p>
-    {% elif pending_reopen %}<p>A request to reopen these claims, sent {{ pending_reopen.requested_at|date:"Y-m-d" }}, is waiting for a CPUC approver.</p>
+    {% elif pending_reopen %}<p>A request to reopen these claims, sent {{ pending_reopen.requested_at|date_words }}, is waiting for a CPUC approver.</p>
     {% else %}
     <form method="post" action="{% url 'claims:reopen' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
       <div class="field"><label for="reopen-reason">Reason for the correction</label><textarea id="reopen-reason" name="reason" rows="2" required></textarea></div>
@@ -111,7 +111,7 @@
 {% if can_submit and not v.locked %}
 <section aria-labelledby="upload-h">
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the claims{% endif %}</h2>
-{% if opens_later %}<p>These claims open on {{ deadline.opens_at|date:"Y-m-d" }}.</p>
+{% if opens_later %}<p>These claims open on {{ deadline.opens_at|date_words }}.</p>
 {% elif later_locked %}<p>{{ later_locked.kind }} is already confirmed, so this confirmation takes no more uploads.</p>
 {% elif earlier_open %}<p>Confirm the {{ earlier_open }} first: each confirmation is compiled on the one before it, so this one takes an upload once that one is confirmed.</p>
 {% else %}
@@ -135,9 +135,9 @@ stay, marked withdrawn, and are no longer priced or counted. Personal informatio
 SiteID. Reading them needs the PII grant, which a data steward approves; every upload and download is recorded in the audit trail.</p>
 {% if pii %}
   {% if pii.status == "accepted" %}
-  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|date:"Y-m-d H:i T" }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
+  <p><strong>Kept:</strong> {{ pii.counts.PII_Contact|default:0|floatformat:"0g" }} contacts and {{ pii.counts.PII_Site|default:0|floatformat:"0g" }} sites, uploaded {{ pii.uploaded_at|datetime_words }}{% if pii_inherited %} with an earlier version (this version uses them until it has its own){% endif %}.</p>
   {% else %}
-  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|date:"Y-m-d H:i T" }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
+  <p><strong>Not kept:</strong> the file uploaded {{ pii.uploaded_at|datetime_words }} has {{ pii.findings|length|floatformat:"0g" }} finding{{ pii.findings|length|pluralize }}, so none of it was stored.</p>
   <div class="hscroll" tabindex="0" role="region" aria-label="PII findings">
   <table class="list">
     <caption class="sr-only">PII findings: the record's key and field, never its value</caption>
@@ -176,8 +176,8 @@ SiteID. Reading them needs the PII grant, which a data steward approves; every u
   <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Confirmed</th><th scope="col">Reason</th></tr></thead>
   <tbody>{% for ver in versions %}<tr>
     <th scope="row"><a href="{% url 'claims:version' ver.pk %}">Version {{ ver.number }}</a></th>
-    <td>{{ ver.get_status_display }}{% if ver.late %} (late){% endif %}</td>
-    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date:"Y-m-d" }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by.email }}{% endif %}{% endif %}</td>
+    <td><span class="status {{ ver.status|status_tone }}">{{ ver.get_status_display }}</span>{% if ver.late %} <span class="small">(late)</span>{% endif %}</td>
+    <td>{% if ver.confirmed_at %}{{ ver.confirmed_at|date_words }}{% if ver.imported %}, imported from legacy CEDARS{% elif ver.confirmed_by %} by {{ ver.confirmed_by|person }}{% endif %}{% endif %}</td>
     <td>{{ ver.reason }}{% if ver.letter %} (<a href="{% url 'claims:change_letter' ver.letter.pk %}">change letter</a>){% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>

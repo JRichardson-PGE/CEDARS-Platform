@@ -72,10 +72,11 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
     return request.organisation
 
 
-def _status(v: SubmissionVersion | None) -> str:
+def _status(v: SubmissionVersion | None) -> dict:
+    """The acting organization's status for the index and year pages: the badge's code and words, the version beside it."""
     if v is None:
-        return "Not started"
-    return f"Version {v.number}: {v.get_status_display().lower()}{' (late)' if v.late else ''}"
+        return {"code": "", "label": "Not started", "version": "", "late": False}
+    return {"code": v.status, "label": v.get_status_display(), "version": f"version {v.number}", "late": v.late}
 
 
 # --- home and set-up

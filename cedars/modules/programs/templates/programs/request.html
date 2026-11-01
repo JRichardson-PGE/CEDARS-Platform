@@ -2,13 +2,13 @@
 {% block title %}Change to {{ r.program.prg_id }}{% endblock %}
 {% block content %}
 <p class="small"><a href="{% url 'programs:requests' %}">Program change requests</a></p>
-<div class="page-title"><h1>Change to <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a> from {{ r.effective|date:"Y-m-d" }}</h1>{% page_help "programs/request" %}</div>
+<div class="page-title"><h1>Change to <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a> from {{ r.effective|date_words }}</h1>{% page_help "programs/request" %}</div>
 <dl class="facts">
-  <dt>Status</dt><dd>{{ r.get_status_display }}{% if r.decided_at %} {{ r.decided_at|date:"Y-m-d" }} by {{ r.decided_by.email }}{% if r.decided_as_delegate_of %} (delegate of {{ r.decided_as_delegate_of.email }}){% endif %}{% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span>{% if r.decided_at %} {{ r.decided_at|date_words }} by {{ r.decided_by|person }}{% if r.decided_as_delegate_of %} (delegate of {{ r.decided_as_delegate_of|person }}){% endif %}{% endif %}</dd>
   {% if r.decision_note %}<dt>Decision note</dt><dd>{{ r.decision_note }}</dd>{% endif %}
-  <dt>Asked by</dt><dd>{{ r.requested_by.email }}, {{ r.requested_at|date:"Y-m-d" }}</dd>
+  <dt>Asked by</dt><dd>{{ r.requested_by|person }}, {{ r.requested_at|date_words }}</dd>
   <dt>Reason</dt><dd>{{ r.reason }}</dd>
-  {% if r.version %}<dt>New version</dt><dd>From {{ r.version.valid_from|date:"Y-m-d" }}, in the <a href="{% url 'programs:program' r.program.prg_id %}">program's versions</a></dd>{% endif %}
+  {% if r.version %}<dt>New version</dt><dd>From {{ r.version.valid_from|date_words }}, in the <a href="{% url 'programs:program' r.program.prg_id %}">program's versions</a></dd>{% endif %}
 </dl>
 <div class="hscroll" tabindex="0" role="region" aria-label="Requested changes">
 <table class="list">
@@ -41,7 +41,7 @@
 {% if events %}
 <section aria-labelledby="hist-h">
 <h2 id="hist-h">History</h2>
-<ul>{% for e in events %}<li>{{ e.at|date:"Y-m-d H:i T" }}: {{ e.action }} by {{ e.actor.email|default:"the system" }}{% if e.reason %} ({{ e.reason }}){% endif %}</li>{% endfor %}</ul>
+<ul>{% for e in events %}<li>{{ e.at|datetime_words }}: {{ e.action }} by {{ e.actor|person|default:"the system" }}{% if e.reason %} ({{ e.reason }}){% endif %}</li>{% endfor %}</ul>
 </section>
 {% endif %}
 {% endblock %}

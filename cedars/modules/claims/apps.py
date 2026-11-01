@@ -11,12 +11,13 @@ class ClaimsConfig(AppConfig):
     verbose_name = "Claims"
 
     def ready(self):
-        from cedars.services.submissions.service import register_claims_totals, register_publisher
+        from cedars.services.submissions.service import register_claims_totals, register_deadline_page, register_publisher
 
         from . import service
 
         register_publisher("claims", service.on_publish, service.on_unpublish)
         register_claims_totals(service.year_totals)
+        register_deadline_page("claims", service.deadline_page)  # the filing calendar links each claim period
 
         from cedars.services.notifications.service import register_filing
 

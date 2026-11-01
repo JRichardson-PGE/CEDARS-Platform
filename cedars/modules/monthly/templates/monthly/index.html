@@ -30,8 +30,8 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
   {% for m in y.months %}
   <tr>
     <th scope="row"><a href="{% url 'monthly:report' m.deadline.pk %}">{{ m.deadline.period.starts|date:"F" }}</a></th>
-    <td class="nowrap">{{ m.deadline.due_at|date:"Y-m-d" }}{% if m.past_due %} <span class="small">(passed)</span>{% endif %}</td>
-    {% if org %}<td>{{ m.status }}</td>{% endif %}
+    <td class="due"><time datetime="{{ m.deadline.due_at|date:'c' }}">{{ m.deadline.due_at|date_words }}</time><small>{{ m.deadline.due_at|due_words }}</small></td>
+    {% if org %}<td>{% include "ui/version_status.html" with s=m.status %}</td>{% endif %}
   </tr>
   {% endfor %}
   </tbody>

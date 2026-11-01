@@ -27,8 +27,8 @@
   <thead><tr><th scope="col">Version</th><th scope="col">Upload</th><th scope="col">By</th><th scope="col">Added</th><th scope="col">Status</th></tr></thead>
   <tbody>
   {% for v in versions %}
-  <tr><th scope="row">{{ v.number }}</th><td><a href="{% url 'impact_profiles:upload' v.upload.pk %}">{{ v.upload.file_name }}</a></td><td>{{ v.upload.uploaded_by.email }}</td>
-    <td class="nowrap">{{ v.created_at|date:"Y-m-d H:i T" }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date:"Y-m-d" }}{% else %}Current{% endif %}</td></tr>
+  <tr><th scope="row">{{ v.number }}</th><td><a href="{% url 'impact_profiles:upload' v.upload.pk %}">{{ v.upload.file_name }}</a></td><td>{{ v.upload.uploaded_by|person }}</td>
+    <td class="nowrap">{{ v.created_at|datetime_words }}</td><td>{% if v.superseded_at %}Replaced {{ v.superseded_at|date_words }}{% else %}Current{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>

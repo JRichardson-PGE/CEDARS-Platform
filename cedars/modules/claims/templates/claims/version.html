@@ -4,14 +4,14 @@
 <p class="small"><a href="{% url 'claims:index' %}">Claims</a> › <a href="{% url 'claims:period' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></p>
 <div class="page-title"><h1>{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "claims/version" %}</div>
 <dl class="facts">
-  <dt>Status</dt><dd>{{ v.get_status_display }}{% if v.confirmed_at %}, confirmed {{ v.confirmed_at|date:"Y-m-d" }}{% endif %}{% if v.late %} (late){% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} confirmed {{ v.confirmed_at|date_words }}{% endif %}{% if v.late %} (late){% endif %}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed{% if calc.acc %} ({{ calc.acc }} ACC){% endif %}</dd>
   {% else %}<dt>Year to date</dt><dd>{% if s.base_label %}This version's records over {{ s.base_label }}{% else %}This version's records (the year's first confirmation){% endif %}</dd>
   {% if calc.acc %}<dt>Priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>
   {% if calc.cost_tests %}<dt>Cost tests</dt><dd>{{ calc.cost_tests.id }} {{ calc.cost_tests.version }}</dd>{% endif %}{% endif %}{% endif %}
   {% if s.rule_set %}<dt>Rule set</dt><dd>{{ s.rule_set }}</dd>{% endif %}
-  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'claims:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date:"Y-m-d" }}){% endif %}</dd>{% endif %}
+  {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'claims:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date_words }}){% endif %}</dd>{% endif %}
 </dl>
 {% if legacy %}{% include "legacy/_imported.html" %}{% endif %}
 {% if not t.priced %}<p>Not priced yet: the table shows what was filed only.</p>{% endif %}
@@ -42,10 +42,10 @@
   {% for row in rows %}<tr>
     <th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}</th>
     <td class="num">{{ row.r.claims|floatformat:"0g" }}</td>
-    {% for c in row.cells %}<td class="num">{{ c }}</td>{% endfor %}
+    {% for c in row.cells %}<td class="num">{% if c %}{{ c }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}
   </tr>{% empty %}<tr><td colspan="{{ head|length|add:2 }}">No programs.</td></tr>{% endfor %}
   </tbody>
-  <tfoot><tr><th scope="row">Total</th><td class="num">{{ t.total.claims|floatformat:"0g" }}</td>{% for c in total %}<td class="num">{{ c }}</td>{% endfor %}</tr></tfoot>
+  <tfoot><tr><th scope="row">Total</th><td class="num">{{ t.total.claims|floatformat:"0g" }}</td>{% for c in total %}<td class="num">{% if c %}{{ c }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr></tfoot>
 </table>
 </div>
 <details class="small"><summary>Column definitions</summary>
@@ -60,7 +60,7 @@
 <table class="list">
   <caption id="withdrawn-caption" class="sr-only">Claims withdrawn in the year to date</caption>
   <thead><tr><th scope="col">ClaimID</th><th scope="col">Status</th><th scope="col">Reason</th><th scope="col">Withdrawn in</th><th scope="col">Date</th></tr></thead>
-  <tbody>{% for w in withdrawals %}<tr><th scope="row">{{ w.claim }}</th><td>Withdrawn</td><td>{{ w.reason }}</td><td>{{ w.withdrawn_in }}</td><td class="nowrap">{% if w.confirmed_at %}{{ w.confirmed_at|date:"Y-m-d" }}{% else %}Not confirmed yet{% endif %}</td></tr>{% endfor %}</tbody>
+  <tbody>{% for w in withdrawals %}<tr><th scope="row">{{ w.claim }}</th><td>Withdrawn</td><td>{{ w.reason }}</td><td>{{ w.withdrawn_in }}</td><td class="nowrap">{% if w.confirmed_at %}{{ w.confirmed_at|date_words }}{% else %}Not confirmed yet{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
 </section>

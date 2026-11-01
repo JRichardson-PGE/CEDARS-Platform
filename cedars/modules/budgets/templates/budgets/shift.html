@@ -6,11 +6,11 @@
 <div class="page-title"><h1>{{ s.title }}</h1>{% page_help "budgets/shift" %}</div>
 <dl class="facts">
   <dt>PA</dt><dd>{{ s.organisation.code }}</dd>
-  <dt>Cycle</dt><dd>{{ s.cycle }}</dd>
-  <dt>Status</dt><dd>{{ s.get_status_display }}{% if s.effective_at %} since {{ s.effective_at|date:"Y-m-d" }}{% endif %}</dd>
+  <dt>Cycle</dt><dd>{{ s.cycle|cycle_label }}</dd>
+  <dt>Status</dt><dd><span class="status {{ s.status|status_tone }}">{{ s.get_status_display }}</span>{% if s.effective_at %} since {{ s.effective_at|date_words }}{% endif %}</dd>
   <dt>Reason</dt><dd>{{ s.reason }}</dd>
-  <dt>Started</dt><dd>{{ s.created_at|date:"Y-m-d" }} by {{ s.created_by.email }}</dd>
-  {% if s.submitted_at %}<dt>Submitted</dt><dd>{{ s.submitted_at|date:"Y-m-d" }} by {{ s.submitted_by.email }}</dd>{% endif %}
+  <dt>Started</dt><dd>{{ s.created_at|date_words }} by {{ s.created_by|person }}</dd>
+  {% if s.submitted_at %}<dt>Submitted</dt><dd>{{ s.submitted_at|date_words }} by {{ s.submitted_by|person }}</dd>{% endif %}
   {% if s.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ s.withdrawn_reason }}</dd>{% endif %}
 </dl>
 
@@ -55,7 +55,7 @@ and its portion must add up to zero.</p>
     <th scope="row">{{ code }}</th>
     <td>{% for item, amount in items %}{{ item }}: {{ amount|money:2 }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
     <td class="num">{{ total|money:2 }}</td>
-    <td>{% if own %}Shift's PA{% elif a %}Yes, {{ a.acknowledged_at|date:"Y-m-d" }} by {{ a.acknowledged_by.email }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}Not yet{% endif %}</td>
+    <td>{% if own %}Yes (the shift's PA){% elif a %}Yes, {{ a.acknowledged_at|date_words }} by {{ a.acknowledged_by|person }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}<span class="muted">Not yet</span>{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>
