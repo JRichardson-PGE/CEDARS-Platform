@@ -6,7 +6,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}, {monthly_draft}."""
+{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}."""
 
 PAGES = [
     ("home", "/", None),
@@ -333,4 +333,10 @@ PAGES = [
     ("claims-restatements", "/claims/restatements/", "analyst"),
     ("claims-restatement", "/claims/restatements/{restatement}/", "analyst"),
     ("claims-restatement-figure", "/claims/restatements/{restatement}/?metric=TRC&pa=PGE", "analyst"),
+    # BR-10.3 document accessibility: the scene's {access_check} (findings, needing review), {access_reviewed} (reviewed)
+    ("accessibility-files", "/admin/document-accessibility/", "cpuc_admin"),
+    ("accessibility-files-all", "/admin/document-accessibility/?state=all&kind=pdf", "cpuc_admin"),
+    ("accessibility-file", "/admin/document-accessibility/{access_check}/", "cpuc_admin"),
+    ("accessibility-file-reviewed", "/admin/document-accessibility/{access_reviewed}/", "cpuc_admin"),
+    ("accessibility-settings", "/admin/document-accessibility/settings/", "cpuc_admin"),
 ]

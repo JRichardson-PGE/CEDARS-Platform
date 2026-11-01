@@ -21,6 +21,7 @@ from django.urls import NoReverseMatch, reverse
 
 from cedars.core import files as filetypes
 from cedars.services import audit
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -122,11 +123,21 @@ def post(actor, v: SubmissionVersion, text: str, uploads: list[tuple[str, object
     try:
         for position, (name, (_, f)) in enumerate(zip(names, uploads, strict=True)):
             folder = f"submissions/versions/{v.pk}/comments/{comment.pk}/{position}"
-            s = filetypes.store(folder, name, f, max_mb())
-            kept.append(
-                Attachment.objects.create(
-                    comment=comment, position=position, name=s.name, key=s.key, sha256=s.sha256, size=s.size, content_type=s.content_type
-                )
+            s = filetypes.store(folder, name, f, max_mb(), inspect=accessibility.inspect)
+            a = Attachment.objects.create(
+                comment=comment, position=position, name=s.name, key=s.key, sha256=s.sha256, size=s.size, content_type=s.content_type
+            )
+            kept.append(a)
+            accessibility.record(
+                "filing_comment",
+                a.pk,
+                s.check,
+                file_name=a.name,
+                sha256=a.sha256,
+                url=version_page(v),
+                title=f"Comment on {v}",
+                organisation=org,
+                uploaded_by=actor,
             )
     except filetypes.FileRefused as e:
         raise CommentRefused(str(e)) from e

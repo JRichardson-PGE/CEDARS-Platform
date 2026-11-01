@@ -120,25 +120,13 @@ TYPE_LABELS = {
 def template_xlsx() -> bytes:
     """The claims template: a Fields sheet with every field's type, whether it is required, the name CEDARS gives it and its
     description, then a sheet per table with its columns in order (an upload as it stands: the Fields sheet is ignored)."""
-    import io
+    from cedars.core import workbooks
 
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
-
-    wb = Workbook()
-    about = wb.active
-    about.title = "Fields"
-    about.append(["Table", "Field", "CEDARS name", "Type", "Required", "Description"])
+    book = workbooks.Book("CEDARS claims upload template", subject="The claims tables' columns and the definition of each field")
+    about = book.sheet("Fields", ["Table", "Field", "CEDARS name", "Type", "Required", "Description"], widths={5: 60})
     for name in TABLES:
         for f in fields()[name]:
             cedars = f.cedars_name if f.cedars_name != f.name else ""
             about.append([name, f.name, cedars, TYPE_LABELS[f.type], "yes" if f.required else "", f.description])
-        ws = wb.create_sheet(name)
-        ws.append(upload_columns(name))
-        for c in ws[1]:
-            c.font = Font(bold=True)
-    for c in about[1]:
-        c.font = Font(bold=True)
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+        book.sheet(name, upload_columns(name))
+    return book.save()

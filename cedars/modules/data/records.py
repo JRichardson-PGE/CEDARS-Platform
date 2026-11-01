@@ -401,22 +401,22 @@ def _parquet(batches, schema, meta, out) -> int:
 
 
 def _xlsx(batches, schema, meta, out) -> int:
-    from openpyxl import Workbook
+    from cedars.core import workbooks
 
-    wb = Workbook(write_only=True)
-    data = wb.create_sheet("Data")
-    data.append(schema.names)
+    book = workbooks.Book(
+        f"CEDARS record download: {meta.get('dataset') or 'records'}",
+        subject="Records from a CEDARS publication snapshot; what they are is on the About sheet",
+        write_only=True,
+    )
+    data = book.sheet("Data", schema.names)
     n = 0
     for b in batches:
         cols = [b.column(i).to_pylist() for i in range(b.num_columns)]
         for row in zip(*cols, strict=True):
-            data.append(list(row))
+            data.append(row)
         n += b.num_rows
-    about = wb.create_sheet("About")
-    about.append(["Item", "Value"])
-    for k, v in _stamp_lines(meta):
-        about.append([k, v])
-    wb.save(out)
+    book.sheet("About", ["Item", "Value"], _stamp_lines(meta), widths={0: 24, 1: 80})
+    book.save(out)
     return n
 
 

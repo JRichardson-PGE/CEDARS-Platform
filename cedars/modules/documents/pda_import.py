@@ -407,7 +407,7 @@ def _comment(c: dict, version: DocumentVersion, cpuc, source, report: Report) ->
     if pda_id and Comment.objects.filter(pda_id=pda_id).exists():
         return
     posted = _when(c.get("createdOn")) or version.published_at
-    file = {}
+    file, checked = {}, None
     name = c.get("attachment")
     if name and pda_id:
         path = source.comment_file(pda_id, str(name))
@@ -418,7 +418,7 @@ def _comment(c: dict, version: DocumentVersion, cpuc, source, report: Report) ->
 
             try:
                 with open(path, "rb") as f:
-                    file = _store_attachment(version, Upload(str(name), f))
+                    file, checked = _store_attachment(version, Upload(str(name), f), enforce=False)
             except DocumentError:  # a refused type or an empty file: the comment is kept without it
                 report.comment_files_missing += 1
     comment = Comment.objects.create(
@@ -435,6 +435,19 @@ def _comment(c: dict, version: DocumentVersion, cpuc, source, report: Report) ->
         **file,
     )
     report.comments += 1
+    if checked is not None:
+        from cedars.services.accessibility import service as accessibility
+
+        accessibility.record(
+            "document_comment",
+            comment.pk,
+            checked,
+            file_name=comment.file_name,
+            sha256=comment.file_sha256,
+            url=version.document.get_absolute_url(),
+            title=f"Comment on {version.document.title}",
+            imported=True,
+        )
     if c.get("response"):
         CommentResponse.objects.create(
             comment=comment,

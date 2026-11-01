@@ -335,6 +335,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **_mandates(cpuc_admin, rules),
         **documents,
         **_publication_hold(pge),
+        **_accessibility_checks(cpuc_admin, documents["document"]),
         "pack": pack,
         "published_pack": published,
         "etrm_pack": _etrm(cpuc_admin),
@@ -1434,3 +1435,19 @@ def test_a_page_tour_starts_from_its_link(browser, site, scene):
     assert page.locator("#tour").evaluate("d => d.open")
     assert page.evaluate("document.activeElement.id") == "tour-title"
     context.close()
+
+
+def _accessibility_checks(cpuc_admin, document):
+    """The document accessibility check (BR-10.3): the scene's files are not real PDFs, so their checks say "not checked"; the report's
+    main file is given findings (shown on its document page and as {access_check}), and one is reviewed."""
+    from cedars.services.accessibility import service as accessibility
+    from cedars.services.accessibility.models import FileCheck
+
+    main = document.versions.order_by("-number").first().files.get(position=0)
+    fc = FileCheck.objects.get(source="document", ref=str(main.pk))
+    found = [{"code": "pdf_untagged", "where": "", "count": 1}, {"code": "pdf_no_language", "where": "", "count": 1}]
+    FileCheck.objects.filter(pk=fc.pk).update(findings=found, note="")
+    other = FileCheck.objects.exclude(pk=fc.pk).filter(source="document").first()
+    FileCheck.objects.filter(pk=other.pk).update(findings=[{"code": "pdf_image_only", "where": "", "count": 1}], note="")
+    accessibility.review(cpuc_admin, other, "An accessible copy is filed as the next version.")
+    return {"access_check": fc.pk, "access_reviewed": other.pk}

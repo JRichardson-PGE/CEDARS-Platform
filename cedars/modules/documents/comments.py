@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from cedars.core import storage
 from cedars.services import audit
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -76,8 +77,9 @@ def _author_organisation(user, organisation: Organisation | None) -> Organisatio
     return organisation if organisation in access.organisations_of(user) else None
 
 
-def _store_attachment(version: DocumentVersion, upload: Upload) -> dict:
-    """Store a comment's file under its version, in a folder named by its content's hash (the comment row is written once, after)."""
+def _store_attachment(version: DocumentVersion, upload: Upload, *, enforce: bool = True):
+    """Store a comment's file under its version, in a folder named by its content's hash (the comment row is written once, after):
+    its fields for the comment, and its accessibility check (refused only when the settings say so and `enforce`, not for an import)."""
     ((name, content_type),) = _check_uploads([upload])
     digest, size = hashlib.sha256(), 0
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
@@ -93,11 +95,15 @@ def _store_attachment(version: DocumentVersion, upload: Upload) -> dict:
             raise DocumentError(f"{name} is empty.")
         if size > _max_bytes():
             raise DocumentError(f"{name} is larger than a file may be.")
+        try:
+            checked = accessibility.inspect(Path(tmp.name), name, enforce=enforce)
+        except accessibility.Refused as e:
+            raise DocumentError(str(e)) from e
         key = f"documents/{version.document_id}/v{version.number}/comments/{digest.hexdigest()[:16]}/{name}"
         storage.store("uploads").put_file(key, Path(tmp.name))
     finally:
         Path(tmp.name).unlink(missing_ok=True)
-    return {"file_name": name, "file_key": key, "file_sha256": digest.hexdigest(), "file_size": size, "file_type": content_type}
+    return {"file_name": name, "file_key": key, "file_sha256": digest.hexdigest(), "file_size": size, "file_type": content_type}, checked
 
 
 @dataclass
@@ -122,7 +128,7 @@ def post(actor, organisation: Organisation | None, version: DocumentVersion, c: 
         raise DocumentError("Give the subject and the comment.")
     if len(c.subject.strip()) > 100 or len(c.section.strip()) > 100 or len(c.text.strip()) > 2000:
         raise DocumentError("Keep the subject and the section to 100 characters and the comment to 2,000.")
-    file = _store_attachment(version, c.attachment) if c.attachment is not None else {}
+    file, checked = _store_attachment(version, c.attachment) if c.attachment is not None else ({}, None)
     comment = Comment.objects.create(
         version=version,
         kind=c.kind,
@@ -134,6 +140,18 @@ def post(actor, organisation: Organisation | None, version: DocumentVersion, c: 
         organisation=_author_organisation(actor, organisation),
         **file,
     )
+    if checked is not None:
+        accessibility.record(
+            "document_comment",
+            comment.pk,
+            checked,
+            file_name=comment.file_name,
+            sha256=comment.file_sha256,
+            url=version.document.get_absolute_url(),
+            title=f"Comment on {version.document.title}",
+            organisation=comment.organisation,
+            uploaded_by=actor,
+        )
     audit.record(
         "documents.comment_posted",
         obj=comment,

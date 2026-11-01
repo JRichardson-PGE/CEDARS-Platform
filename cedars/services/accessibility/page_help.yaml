@@ -1,0 +1,63 @@
+# Help for each page (cedars/core/page_help.py): the document accessibility check of uploads (BR-10.3).
+
+accessibility/files:
+  title: Document accessibility
+  see: accessibility
+  guide:
+    - For CPUC system administrators. Every PDF and workbook stored as a document's file, or attached to a comment on a document or on
+      a filing, is checked as it is stored. PDFs need tagged text (not scanned images), a title and a language; workbooks need a marked
+      header row on each sheet with data, no merged cells, alternative text on pictures and charts, and sheet names that say what they hold.
+    - The uploader is warned of what was found. Nothing is refused unless blocking is turned on in the settings.
+  how:
+    - Choose what to show (by default the files needing review), a type, a finding or where the files are, then Apply.
+    - Open a file's check to see each finding with how to fix it, and mark it reviewed with a note.
+    - Change whether uploads are refused on the settings page.
+  tour:
+    - target: main form.filters
+      title: Which files
+      text: Files needing review by default; filter by type, finding or where they were uploaded.
+    - target: main table.list
+      title: The files
+      text: Each file, what it belongs to, what the check found and whether it has been reviewed.
+
+accessibility/file:
+  title: A file's accessibility check
+  see: accessibility
+  guide:
+    - >-
+      What the accessibility check found in one uploaded file, with how to fix each finding and the WCAG 2.2 success criteria it bears
+      on. The file itself is never changed; an accessible version is filed as a new version of its document.
+  how:
+    - Mark it reviewed with a note on what was done (for example "accessible copy filed as version 2"), or why it stands as it is.
+    - Reopen a reviewed file, with a reason, to put it back among those needing review.
+  tour:
+    - target: main dl.facts
+      title: The file
+      text: What it belongs to, who uploaded it and whether it has been reviewed.
+    - target: "#found-h"
+      title: What the check found
+      text: Each finding, where it is and how to fix it.
+    - target: "#review-h"
+      title: Mark it reviewed
+      text: Say what was done; it is in the audit log.
+      optional: true
+    - target: "#reopen-h"
+      title: Reopen it
+      text: Back among the files needing review, with a reason.
+      optional: true
+
+accessibility/settings:
+  title: Document accessibility settings
+  see: accessibility
+  guide:
+    - For CPUC system administrators. Whether the accessibility check only warns, or refuses an upload with the findings chosen. Files
+      brought over from the legacy sites are checked and listed but never refused. Every change needs a reason and is in the audit log.
+  how:
+    - Tick Refuse uploads to turn blocking on, choose the findings that refuse a file, give the reason and Save.
+  tour:
+    - target: "#block"
+      title: Warn or refuse
+      text: Off by default, so files are stored and listed for review.
+    - heading: Findings that refuse an upload
+      title: Which findings refuse
+      text: The findings that stop an upload while blocking is on.

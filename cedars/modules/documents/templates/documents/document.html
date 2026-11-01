@@ -15,10 +15,11 @@
 <h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.stage %}: {{ current.stage_label }}{% endif %}{% if current.published %}, published {{ current.published_at|date_words }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
 {% if current %}
 <ul class="links">
-  {% for f in current.files.all %}
+  {% for f, check in current_files %}
   <li>{% if f.main %}<strong>{{ f.name }}</strong>{% else %}{{ f.name }} <span class="muted">(attachment)</span>{% endif %}
     <span class="small muted">{{ f.size|filesizeformat }}</span>:
-    <a href="{{ f.get_absolute_url }}">Download<span class="sr-only"> {{ f.name }}</span></a>{% if f.pk in inline %} · <a href="{{ f.get_absolute_url }}?view=1">View<span class="sr-only"> {{ f.name }}</span> in the browser</a>{% endif %}</li>
+    <a href="{{ f.get_absolute_url }}">Download<span class="sr-only"> {{ f.name }}</span></a>{% if f.pk in inline %} · <a href="{{ f.get_absolute_url }}?view=1">View<span class="sr-only"> {{ f.name }}</span> in the browser</a>{% endif %}
+    {% if check.findings %}<br><span class="small"><span class="status warn">May not be accessible</span> {% if can_manage %}{% for x in check.finding_list %}{{ x.describe }}{% if not forloop.last %}; {% endif %}{% endfor %}. File an accessible version, or {% else %}Parts of this file may be hard to read with assistive technology. {% endif %}<a href="{% url 'core:help_contact' %}">ask for an accessible copy<span class="sr-only"> of {{ f.name }}</span></a>.</span>{% endif %}</li>
   {% endfor %}
 </ul>
 {% if can_publish and not current.published %}

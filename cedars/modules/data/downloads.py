@@ -66,20 +66,16 @@ def _csv(header, rows, stamp) -> bytes:
 
 
 def _xlsx(header, rows, stamp) -> bytes:
-    from openpyxl import Workbook
+    from cedars.core import workbooks
 
-    wb = Workbook(write_only=True)
-    data = wb.create_sheet("Data")
-    data.append(header)
-    for r in rows:
-        data.append(r)
-    about = wb.create_sheet("About")
-    about.append(["Item", "Value"])
-    for k, v in _stamp_lines(stamp):
-        about.append([k, v])
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    book = workbooks.Book(
+        f"CEDARS {stamp.get('dataset', 'dashboard')} download",
+        subject="A CEDARS dashboard's rows; what they are is on the About sheet",
+        write_only=True,
+    )
+    book.sheet("Data", header, rows)
+    book.sheet("About", ["Item", "Value"], _stamp_lines(stamp), widths={0: 24, 1: 80})
+    return book.save()
 
 
 def _parquet(header, rows, stamp) -> bytes:
