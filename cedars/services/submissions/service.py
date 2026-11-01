@@ -16,6 +16,11 @@ one refuses (`_refuse_imported`), and no publisher hook runs for them (the loadi
 
 Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
 for a year by program, so another module (Monthly reports' 13th-month report, BR-14.2) reads them without importing Claims.
+
+Restated runs (`register_restater`, `restate`, BR-06.17): the Calculations module registers the function that re-prices a published
+version's job as an analysis run, owned by whoever asks and never recorded on the version, so a filing module can show restated results
+beside the filed ones without importing the Calculations module. The version itself is never changed: only an audit event says a
+restatement was started on it.
 """
 
 from collections.abc import Callable
@@ -49,6 +54,7 @@ _listeners: list[tuple[Callable, Callable]] = []
 _pricers: list[Callable] = []
 _run_states: list[Callable] = []
 _claims_totals: list[Callable] = []
+_restaters: list[tuple[Callable, Callable]] = []
 _deadline_pages: dict[str, Callable] = {}
 
 
@@ -115,6 +121,47 @@ def register_claims_totals(totals: Callable) -> None:
 def claims_totals(organisation: Organisation, year: int) -> list[dict]:
     """A PA's confirmed claims for a year by program; [] when Claims is not installed or nothing is confirmed."""
     return _claims_totals[0](organisation, year) if _claims_totals else []
+
+
+def register_restater(restate: Callable, options: Callable, describe: Callable) -> None:
+    """The Calculations module's restater (BR-06.17): restate(actor, organisation, version, job_zip, *, name, release, acc_version,
+    record_accs, allocation_version, settings, cost_test_set) starts an analysis run on the job (a local file) for `organisation` (None:
+    the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release", "default", "accs"}], the
+    active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status", "label", "ended", "error",
+    "url", "release", "acc", "allocation", "cost_tests", "programs", "results"} for a run, or None once it is gone (expired)."""
+    _restaters[:] = [(restate, options, describe)]
+
+
+def restated_run(run_id: str) -> dict | None:
+    """What a restatement page shows about one of its runs (see register_restater); None for a run that no longer exists."""
+    return _restaters[0][2](run_id) if _restaters and run_id else None
+
+
+def restate_options() -> list[dict]:
+    """The releases a restatement may use, default first; [] when Calculations is not installed."""
+    return _restaters[0][1]() if _restaters else []
+
+
+def restate(actor, v: SubmissionVersion, job_zip, *, organisation, name: str, release: str, acc_version: str, **kw) -> str:
+    """Start a restated run of a published version's job (BR-06.17): an analysis run for `organisation`, on `release` and `acc_version`
+    (`record_accs`: the ACCs records name in the job's ACCVersion column). The version, its calculation and its results never change;
+    the audit trail records the restatement on it. Returns the run's id."""
+    v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
+    if v.status != SubmissionVersion.Status.PUBLISHED:
+        raise AccessDenied("Only a confirmed (published) version is restated; a version in progress is priced for confirmation instead.")
+    if v.imported:
+        raise AccessDenied("This version was imported from legacy CEDARS: it has no job of measure inputs to price again.")
+    if not _restaters:
+        raise AccessDenied("The calculation service is not installed here, so filings cannot be restated.")
+    run = _restaters[0][0](actor, organisation, v, job_zip, name=name, release=release, acc_version=acc_version, **kw)
+    audit.record(
+        "submission.restatement_started",
+        obj=v,
+        after={"run": str(run), "release": release, "acc": acc_version, "for": organisation.code if organisation else None},
+        actor=actor,
+        organisation=organisation,
+    )
+    return str(run)
 
 
 def policy(module: str) -> WorkflowPolicy:

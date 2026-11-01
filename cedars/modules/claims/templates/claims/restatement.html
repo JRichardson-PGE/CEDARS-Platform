@@ -1,0 +1,102 @@
+{% extends "core/base.html" %}
+{% block title %}{{ rs.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li><li><a href="{% url 'claims:restatements' %}">Restated claims</a></li></ol></nav>
+<div class="page-title"><h1>{{ rs.name }}</h1>{% page_help "claims/restatement" %}</div>
+<p>An analysis of <a href="{% url 'claims:version' v.pk %}">{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</a>
+priced again on today's engine. The filed record is not changed: the confirmed version and its results stay as they were confirmed.</p>
+<dl class="facts">
+  <dt>Status</dt><dd>{% if state == "done" %}<span class="status ok">Done</span>{% elif state == "failed" %}<span class="status bad">Failed</span> A run ended without results; see its page below.{% else %}<span class="status info">Running</span> The figures appear once every run has finished. <a href="{% url 'claims:restatement' rs.pk %}">Check again</a>{% endif %}</dd>
+  <dt>For</dt><dd>{% if rs.organisation %}{{ rs.organisation.name }} ({{ rs.organisation.code }}){% else %}{{ rs.owner|person }}'s own analysis{% endif %}</dd>
+  <dt>Started</dt><dd>{{ rs.created_at|date_words }} by {{ rs.owner|person }}</dd>
+  {% if rs.reason %}<dt>Why</dt><dd>{{ rs.reason }}</dd>{% endif %}
+  {% if rs.overrides_key %}<dt>ACC by claim</dt><dd>Some claims are priced on their own ACC, from the file uploaded with the restatement.</dd>{% endif %}
+</dl>
+
+<section aria-labelledby="inputs-h">
+<h2 id="inputs-h">What changed since the claims were filed</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="inputs-caption">
+<table class="list">
+  <caption id="inputs-caption" class="sr-only">What the claims were priced with when filed, and in this restatement</caption>
+  <thead><tr><th scope="col">Input</th><th scope="col">As filed</th><th scope="col">Restated</th><th scope="col">Changed</th></tr></thead>
+  <tbody>{% for what, a, b, changed in inputs %}<tr><th scope="row">{{ what }}</th><td>{{ a }}</td><td>{{ b|default:"Known once the run starts" }}</td><td>{% if changed %}Changed{% else %}Same{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="runs-h">
+<h2 id="runs-h">Runs</h2>
+<ul class="links">{% for r in runs %}<li>{{ r.title }}: {% if r.d %}<a href="{{ r.d.url }}">{{ r.d.acc }} ACC, ReCET {{ r.d.release }}</a> <span class="status {{ r.d.status|status_tone }}">{{ r.d.label }}</span>{% if r.d.error %} {{ r.d.error|truncatechars:300 }}{% endif %}{% else %}no longer kept{% endif %}</li>{% endfor %}</ul>
+{% if not rs.acc_changes %}<p class="small muted">The ACC is the filed one, so one run is enough: the whole change is the program and engine effect.</p>{% endif %}
+</section>
+
+{% if state == "done" %}
+{% if c.pas|length > 1 %}
+<form method="get" class="filters" aria-label="What to show">
+  <label>Credited to <select name="pa"><option value="">Every PA</option>{% for p in c.pas %}<option{% if p == pa %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
+  <input type="hidden" name="metric" value="{{ metric }}">{% if year %}<input type="hidden" name="year" value="{{ year }}">{% endif %}
+  <button type="submit">Apply</button>
+</form>
+{% endif %}
+
+<section aria-labelledby="summary-h">
+<h2 id="summary-h">Filed and restated</h2>
+<p class="small muted">Every program{% if pa %} credited to {{ pa }}{% endif %}. Program and engine effect = current engine on the filed ACC less filed: the engine
+release, the program registry, the allocation and the cost-test set. ACC effect = restated less the current engine on the filed ACC: the
+avoided costs alone. The two add up to the total change.</p>
+<p><a class="button" href="{% url 'claims:restatement_csv' rs.pk %}{% if pa %}?pa={{ pa|urlencode }}{% endif %}">Download every program and figure (CSV)</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="summary-caption">
+<table class="list data">
+  <caption id="summary-caption" class="sr-only">Totals as filed and restated, and the change split into its causes</caption>
+  <thead><tr><th scope="col">Figure</th><th scope="col">Filed ({{ rs.filed.acc }} ACC)</th><th scope="col">Current engine, filed ACC</th><th scope="col">Restated</th><th scope="col">Program and engine effect</th><th scope="col">ACC effect</th><th scope="col">Total change</th></tr></thead>
+  <tbody>{% for row in summary %}<tr><th scope="row">{{ row.label }}</th>{% for cell in row.cells %}<td class="num">{% if cell %}{{ cell }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="programs-h">
+<h2 id="programs-h">By program</h2>
+<form method="get" class="filters" aria-label="Which figure to show by program">
+  <label>Figure <select name="metric">{% for k, name in metrics %}<option value="{{ k }}"{% if k == metric %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+  {% if pa %}<input type="hidden" name="pa" value="{{ pa }}">{% endif %}{% if year %}<input type="hidden" name="year" value="{{ year }}">{% endif %}
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="programs-caption">
+<table class="list data">
+  <caption id="programs-caption" class="sr-only">{{ metric_label }} by program, filed and restated</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">Filed</th><th scope="col">Current engine, filed ACC</th><th scope="col">Restated</th><th scope="col">Program and engine effect</th><th scope="col">ACC effect</th><th scope="col">Total change</th></tr></thead>
+  <tbody>
+  {% for row in by_program %}<tr><th scope="row">{{ row.p.prg_id }}{% if row.p.name %}<br><span class="small">{{ row.p.name }}</span>{% endif %}</th>{% for cell in row.cells %}<td class="num">{% if cell %}{{ cell }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>
+  {% empty %}<tr><td colspan="7">No programs.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><th scope="row">Total</th>{% for cell in by_program_total %}<td class="num">{% if cell %}{{ cell }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr></tfoot>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="years-h">
+<h2 id="years-h">Beside another claim year</h2>
+<p>Set these claims, as restated, beside {{ v.submission.organisation.code }}'s confirmed claims of another year. On the ACC that year
+was filed on, the difference is what the programs did rather than a change in avoided costs.</p>
+{% if others %}
+<form method="get" class="filters" aria-label="Which claim year to compare with">
+  <label>Claim year <select name="year"><option value="">Choose a year</option>{% for y, ov in others %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }} ({{ ov.calculation.acc }} ACC)</option>{% endfor %}</select></label>
+  <input type="hidden" name="metric" value="{{ metric }}">{% if pa %}<input type="hidden" name="pa" value="{{ pa }}">{% endif %}
+  <button type="submit">Apply</button>
+</form>
+{% if other %}
+{% if same_acc %}<p>Both are on the {{ other_acc }} ACC{% if other_release and other_release != rs.release %}, though {{ year }} was filed on ReCET {{ other_release }}, so part of the difference may be the engine's{% endif %}.</p>
+{% else %}<p class="alert" role="alert">{{ year }} was filed on the {{ other_acc }} ACC and this restatement is not on it alone, so the difference still includes a change in avoided costs. Restate these claims on the {{ other_acc }} ACC to compare like with like.</p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="years-caption">
+<table class="list data">
+  <caption id="years-caption" class="sr-only">{{ metric_label }} by program: {{ v.submission.deadline.period.year }} restated and {{ year }} as filed</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">{{ v.submission.deadline.period.year }} restated</th><th scope="col">{{ year }} filed</th><th scope="col">Change</th></tr></thead>
+  <tbody>{% for r in years_rows %}{% if not r.total %}<tr><th scope="row">{{ r.prg_id }}{% if r.name %}<br><span class="small">{{ r.name }}</span>{% endif %}</th>{% for cell in r.cells %}<td class="num">{% if cell %}{{ cell }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>{% endif %}{% endfor %}</tbody>
+  <tfoot>{% for r in years_rows %}{% if r.total %}<tr><th scope="row">Total</th>{% for cell in r.cells %}<td class="num">{% if cell %}{{ cell }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>{% endif %}{% endfor %}</tfoot>
+</table>
+</div>
+{% endif %}
+{% else %}<p>{{ v.submission.organisation.code }} has no confirmed claims of another year priced on this platform yet.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

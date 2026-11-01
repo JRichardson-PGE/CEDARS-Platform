@@ -1,3 +1,4 @@
+from django.conf import settings as conf
 from django.db import models
 
 # The ten ProgramCost fields CET adds up into a program's cost, in the specification's order (as Budgets reads them).
@@ -151,3 +152,60 @@ class ClaimRecord(models.Model):
 
     def __str__(self):
         return self.claim_id
+
+
+class Restatement(models.Model):
+    """A confirmed version's claims priced again on the current engine (BR-06.17): an analysis that never changes the filed record. It
+    holds up to two analysis runs on the version's published job: `restated` on the chosen release and ACC (an ACC per record when some
+    records name their own, BR-06.5) and, when that ACC differs from the filed one, `bridge`, the same release on the filed ACC. Filed to
+    bridge is the effect of the engine, the program registry, the allocation and the cost-test set; bridge to restated is the effect of
+    the ACC. The runs belong to `organisation` (blank: the owner's own), like any run; so does the restatement."""
+
+    version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.PROTECT, related_name="restatements")
+    organisation = models.ForeignKey(
+        "accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="claim_restatements"
+    )
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="claim_restatements")
+    name = models.CharField(max_length=200)
+    reason = models.TextField(blank=True, help_text="Why the claims were restated, in the requester's words")
+    release = models.CharField(max_length=40, help_text="The ReCET release both runs use")
+    acc_version = models.CharField("ACC", max_length=10, help_text="The ACC the restated run prices every record on that names none")
+    acc_records = models.JSONField(default=dict, help_text="{ACC: records} the restated run prices on each ACC")
+    overrides_key = models.CharField(max_length=300, blank=True, help_text="The uploaded ClaimID / ACC file (uploads area)")
+    filed = models.JSONField(default=dict, help_text="What the version was priced with when it was confirmed (its calculation)")
+    runs = models.JSONField(default=dict, help_text='{"restated": run id, "bridge": run id} ("bridge" only when the ACC changes)')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def acc_changes(self) -> bool:
+        return bool(self.runs.get("bridge"))
+
+
+class RestatementLine(models.Model):
+    """One program's results for one credited PA in one of a restatement's runs, summed from the run's group sums (as ClaimResult does
+    for the filed run). Read once the run finishes, so the comparison outlives the run's own files."""
+
+    class Role(models.TextChoices):
+        RESTATED = "restated", "Restated"
+        BRIDGE = "bridge", "Current engine on the filed ACC"
+
+    restatement = models.ForeignKey(Restatement, on_delete=models.CASCADE, related_name="lines")
+    role = models.CharField(max_length=10, choices=Role.choices)
+    pa = models.CharField("credited PA", max_length=20, blank=True)
+    prg_id = models.CharField("PrgID", max_length=60)
+    program_name = models.CharField(max_length=300, blank=True)
+    measures = models.PositiveIntegerField(default=0)
+    values = models.JSONField(default=dict, help_text="{output column: sum over the program's measures}")
+
+    class Meta:
+        ordering = ["role", "prg_id", "pa"]
+        constraints = [models.UniqueConstraint(fields=["restatement", "role", "pa", "prg_id"], name="claims_one_restatement_line")]
+
+    def __str__(self):
+        return f"{self.role} {self.prg_id} {self.pa}"

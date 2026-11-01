@@ -5,7 +5,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
-{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}."""
+{legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}."""
 
 PAGES = [
     ("home", "/", None),
@@ -241,4 +241,8 @@ PAGES = [
     ("monthly-changes", "/monthly/changes/", "community"),
     ("monthly-change-letter", "/monthly/changes/{monthly_letter}/", None),
     ("program-follower", "/programs/PGE_Res_HVAC/", "community"),
+    ("claims-restate", "/claims/versions/{claims_corrected}/restate", "analyst"),
+    ("claims-restatements", "/claims/restatements/", "analyst"),
+    ("claims-restatement", "/claims/restatements/{restatement}/", "analyst"),
+    ("claims-restatement-figure", "/claims/restatements/{restatement}/?metric=TRC&pa=PGE", "analyst"),
 ]

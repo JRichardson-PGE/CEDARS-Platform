@@ -196,6 +196,7 @@ class RunRequest:
     allocation_version: AllocationVersion | None = None
     cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
     cost_test_set: PackVersion | None = None  # a cost_tests pack (blank: the set in force for the job's first program year)
+    record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column (BR-06.5), pinned like the run's
 
 
 def _check(req: RunRequest) -> dict:
@@ -209,6 +210,15 @@ def _check(req: RunRequest) -> dict:
             + ", ".join(accs_for(req.release, req.calculation))
             + "."
         )
+    other = sorted(set(req.record_accs) - {req.acc_version})
+    missing = [a for a in other if a not in accs_for(req.release, req.calculation)]
+    if missing:
+        raise AccessDenied(
+            f"Records name the {', '.join(missing)} ACC, which {calculation_label(req.calculation)} in ReCET {req.release.release} "
+            "does not have."
+        )
+    if other and req.calculation != RECET:
+        raise AccessDenied("A CET replica prices every record on one ACC; an ACC per record (BR-06.5) is ReCET's own calculation.")
     if req.output_format not in OUTPUT_FORMATS:
         raise AccessDenied(f"Output format {req.output_format} is not offered.")
     st = {k: v for k, v in (req.settings or {}).items() if v not in (None, "")}
@@ -281,6 +291,28 @@ def packs_for(req: RunRequest, *, filing: bool) -> list[PackVersion]:
     return out
 
 
+def record_acc_packs(req: RunRequest, *, filing: bool) -> list[PackVersion]:
+    """The electric ACC packs of the other ACCs the job's records name (RunRequest.record_accs), chosen as packs_for chooses the run's;
+    an ACC with no registered pack is not pinned."""
+    if req.calculation != RECET:
+        return []
+    out = []
+    for acc in sorted(set(req.record_accs) - {req.acc_version}):
+        if not acc.isdigit():
+            continue
+        packs = PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year=int(acc))
+        packs = packs.exclude(status=PackVersion.Status.WITHDRAWN)
+        pack = packs.filter(status=PackVersion.Status.PUBLISHED).order_by("-published_at", "-registered_at").first()
+        pack = pack or packs.filter(status=PackVersion.Status.DRAFT).order_by("-registered_at").first()
+        if pack is None:
+            continue
+        ok, why = refdata.usable(pack, "filing" if filing else "analysis")
+        if not ok:
+            raise AccessDenied(f"{why} Publish it first, or price this as an analysis run.")
+        out.append(pack)
+    return out
+
+
 def cost_test_pack(req: RunRequest, st: dict, first_year: int | None, *, filing: bool) -> PackVersion | None:
     """The cost-test set a ReCET run is priced on (BR-06.8, BR-06.14; ReCET COST_TESTS.md): the pack the request names (by pack, or by
     its id in settings.cost_test_set), else the set in force for the job's first program year. A filing, or a run with CEDARS filing
@@ -320,7 +352,8 @@ def pack_files(packs, acc: str) -> dict:
     for p in packs:
         if p.kind not in REFERENCE_PREFIXES:  # a cost-test set is sent by its id or as an input, not as a reference-folder file
             continue
-        prefix = REFERENCE_PREFIXES[p.kind].format(acc=acc)
+        own = p.kind == PackVersion.Kind.ACC_ELECTRIC and p.acc_year  # a record ACC's pack (record_acc_packs) keeps its own folder
+        prefix = REFERENCE_PREFIXES[p.kind].format(acc=p.acc_year if own else acc)
         for rel, entry in sorted(p.manifest.items()):
             if rel.startswith(prefix):
                 files[rel] = {"sha256": entry["sha256"], "version": f"{p.label} {p.version}".strip()}
@@ -414,9 +447,12 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
             data = cost_tests.file_bytes(cset)
             key = run.storage_prefix + "cost_tests.yaml"
             inputs["cost_tests"] = {"key": key, "sha256": hashlib.sha256(data).hexdigest(), "bytes": uploads.put_bytes(key, data).size}
+    extra = record_acc_packs(req, filing=submission_version is not None)
     run.settings = st
     run.inputs = inputs
     pinned = refdata.pin(packs)
+    pinned.update({f"{p.kind}:{p.acc_year}": refdata.pin([p])[p.kind] for p in extra})  # keyed apart from the run's own ACC pack
+    packs = packs + extra
     run.input_hash = input_hash(inputs, st, req.release.release, req.calculation, req.acc_version, allocation_sha, pinned)
     run.estimate_seconds = estimate_seconds(run)
     run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
@@ -644,6 +680,79 @@ def price_submission(
         cost_test_set=cost_test_set,
     )
     return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
+
+
+def restate_options() -> list[dict]:
+    """The releases a restated run may use (registered with the submissions service): active releases with ReCET's own calculation,
+    the default first, each with its ACCs."""
+    return [
+        {"release": r.release, "default": r.default, "accs": accs_for(r, RECET)}
+        for r in releases().filter(active=True)
+        if RECET in (r.calculations or [])
+    ]
+
+
+def restate_version(
+    actor,
+    organisation,
+    version,
+    job_zip: Path,
+    *,
+    name: str,
+    release: str,
+    acc_version: str,
+    record_accs=(),
+    allocation_version=None,
+    settings: dict | None = None,
+    cost_test_set: PackVersion | None = None,
+):
+    """The restater the submissions service calls (BR-06.17, registered in apps.py): a published filing's job priced again as an
+    analysis run for `organisation` (None: the actor's own), ReCET's own calculation on `release`. The run is not linked to the version
+    (submission_version stays empty), so its end never records anything on the filing; it is an ordinary run its owner and organization
+    see on Runs. Returns the run's id."""
+    r = EngineRelease.objects.filter(release=release).first()
+    if r is None:
+        raise AccessDenied(f"ReCET {release} is not a registered engine release.")
+    req = RunRequest(
+        name=name,
+        release=r,
+        calculation=RECET,
+        acc_version=acc_version,
+        settings=settings or {},
+        allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
+        cost_test_set=cost_test_set,
+        record_accs=tuple(record_accs),
+    )
+    return create_run(actor, organisation, req, job_zip).pk
+
+
+def describe_run(run_id: str) -> dict | None:
+    """What a restatement page shows about one of its runs (registered with the submissions service): its state, its page, what it was
+    priced with, and where its kept results are once it has finished. None for a run that no longer exists (expired)."""
+    from django.urls import reverse
+
+    try:
+        run = Run.objects.select_related("allocation_version").filter(pk=run_id).first()
+    except (ValueError, ValidationError):
+        return None
+    if run is None:
+        return None
+    return {
+        "id": str(run.pk),
+        "status": run.status,
+        "label": run.get_status_display(),
+        "ended": run.ended,
+        "succeeded": run.status == Run.Status.SUCCEEDED,
+        "error": plain_error(run.error) if run.error else "",
+        "url": reverse("calculations:run", args=[run.pk]),
+        "release": run.engine_release,
+        "acc": run.acc_version,
+        "allocation": run.allocation_version.label if run.allocation_version else "",
+        "cost_tests": run.cost_tests,
+        "programs": programs_label(run),
+        "programs_sha256": (run.inputs.get("programs") or {}).get("sha256", ""),
+        "results": results_keys(run) if run.status == Run.Status.SUCCEEDED else {},
+    }
 
 
 GROUP_SUMS = re.compile(r"group_sums(\d+)_")

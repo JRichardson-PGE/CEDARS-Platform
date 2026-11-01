@@ -11,13 +11,13 @@ claims/index:
   how:
     - Open a confirmation to see where your organization's claims stand and to file or correct them.
     - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
-      and years.
+      and years; Restated claims lists confirmed claims priced again on today's engine.
     - Set up a claim year (CPUC system administrators) adds the next year's five confirmations.
   see: claims
   tour:
     - target: main .head-row .actions, main .head-row .button
-      title: Template, change log and linked claims
-      text: The claims template, every correction made so far, and claims that link across years. CPUC administrators set up claim years here.
+      title: Template, change log, linked and restated claims
+      text: The claims template, every correction made so far, claims that link across years, and restatements. CPUC administrators set up claim years here.
     - target: main section.cycle
       title: The current claim year
       text: Each confirmation with its due date and your organization's status. Select one to open it.
@@ -100,6 +100,7 @@ claims/version:
   how:
     - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
     - Column definitions explains each column.
+    - Restate these claims prices the confirmed version again on today's engine, as an analysis that never changes it.
   see: claims
   tour:
     - target: main form.filters
@@ -112,6 +113,10 @@ claims/version:
     - target: "#withdrawn-h"
       title: Withdrawn claims
       text: Claims withdrawn this year, with the reason. Their records stay but are not counted.
+      optional: true
+    - target: "#restated-h"
+      title: Restated results
+      text: Price these confirmed claims again on today's engine, and the restatements already made that you can see.
       optional: true
     - target: "#files-h"
       title: Files
@@ -166,4 +171,72 @@ claims/links:
     - target: "#results-h"
       title: The linked claims
       text: Every confirmed claim found, in order, with its filed savings and, for a chain, each true-up's change from its parent.
+      optional: true
+
+claims/restate:
+  title: Restating confirmed claims
+  guide:
+    - Prices a confirmed version's year to date again on today's engine (BR-06.17), as an analysis. The confirmed version, its results and
+      its published files never change; the runs are ordinary runs of the organization you choose (or your own).
+    - On the filed ACC one run is made, and the whole change from the filed results is the effect of the engine release, today's program
+      registry, the claim year's allocation version and cost-test set. On another ACC a second run on the filed ACC is made as well, so
+      the change splits into that effect and the effect of the ACC alone.
+    - An ACC per claim (BR-06.5) comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
+  how:
+    - Choose who the runs are for, the release (the default is the current engine) and the ACC, optionally upload the ACC by claim file,
+      then Restate. The restatement's page fills in as its runs finish.
+  see: claims
+  tour:
+    - target: "#how-h"
+      title: How the change is split
+      text: One run on the filed ACC, and a second on your ACC when it differs.
+    - target: main form
+      title: The restatement
+      text: Who it is for, the release, the ACC, an optional ACC per claim, a name and why.
+      optional: true
+
+claims/restatements:
+  title: Restated claims
+  guide:
+    - Every restatement you can see, newest first, yours and your organizations'. A restatement prices confirmed claims again on today's
+      engine as an analysis; the filed records are never changed.
+  how:
+    - To restate a confirmed version, open it from its claims period and choose Restate these claims.
+  see: claims
+  tour:
+    - target: main table.list
+      title: Restatements
+      text: Each restatement with the claims, release and ACC it used. Select one to see its results.
+
+claims/restatement:
+  title: A restatement
+  guide:
+    - Confirmed claims priced again on today's engine, beside the results they were confirmed with. The filed record is not changed.
+    - Program and engine effect = the current engine on the filed ACC less the filed results (the engine release, today's program registry,
+      the allocation and the cost-test set). ACC effect = the restated results less the current engine on the filed ACC. They add up to the
+      total change. On the filed ACC there is one run and no ACC effect.
+    - Beside another claim year sets these claims, as restated, beside the PA's confirmed claims of another year. On that year's ACC the
+      difference is what the programs did, not a change in avoided costs.
+  how:
+    - Choose a figure to see it by program; choose a claim year to compare with; download every program and figure as a CSV.
+    - While the runs are still running, Check again reloads the page.
+  see: claims
+  tour:
+    - target: "#inputs-h"
+      title: What changed
+      text: The release, programs, allocation, cost tests and ACC the claims were filed on and restated on.
+    - target: "#runs-h"
+      title: Runs
+      text: The restatement's runs and their status. Each links to its run page.
+    - target: "#summary-h"
+      title: Filed and restated
+      text: The totals as filed, on the current engine at the filed ACC, and restated, with the change split into its causes.
+      optional: true
+    - target: "#programs-h"
+      title: By program
+      text: One figure by program, split the same way.
+      optional: true
+    - target: "#years-h"
+      title: Beside another claim year
+      text: These claims as restated, beside another year's confirmed claims.
       optional: true

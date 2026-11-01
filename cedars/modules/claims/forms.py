@@ -96,3 +96,38 @@ class PIIForm(forms.Form):
         "It may name only the ContactIDs and SiteIDs of these claims.",
         widget=forms.ClearableFileInput(attrs={"accept": ".zip,.xlsx"}),
     )
+
+
+class RestateForm(forms.Form):
+    """A restatement of confirmed claims (BR-06.17): who it is for, the release and ACC, and optionally an ACC per claim."""
+
+    organisation = forms.ChoiceField(
+        label="Run for", required=False, help_text="The runs and the restatement belong to this organization, as any run does"
+    )
+    release = forms.ChoiceField(label="ReCET release", help_text="The default release is the current engine")
+    acc_version = forms.ChoiceField(label="ACC", help_text="Every record is priced on this ACC unless the file below names another for it")
+    overrides = forms.FileField(
+        label="ACC by claim (optional)",
+        required=False,
+        help_text="A CSV with a ClaimID column and an ACC column (comma- or pipe-delimited): each claim it names is priced on its own ACC "
+        "(BR-06.5). Every ClaimID must be one of these claims.",
+        widget=forms.ClearableFileInput(attrs={"accept": ".csv,.txt"}),
+    )
+    name = forms.CharField(label="Name", required=False, max_length=200, help_text="Blank: the claims, the release and the ACC")
+    reason = forms.CharField(
+        label="Why restate (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}), help_text="Kept with the restatement"
+    )
+
+    def __init__(self, *args, organisations=(), options=(), filed_acc="", **kw):
+        super().__init__(*args, **kw)
+        self.fields["organisation"].choices = [(o.code, f"{o.name} ({o.code})") for o in organisations] + [("", "My own analysis")]
+        self.fields["release"].choices = [
+            (o["release"], f"ReCET {o['release']}" + (" (default, the current engine)" if o["default"] else "")) for o in options
+        ]
+        accs = sorted({a for o in options for a in o["accs"]})
+        self.fields["acc_version"].choices = [(a, f"{a} ACC" + (" (as filed)" if a == filed_acc else "")) for a in accs]
+        if not self.is_bound:
+            default = next((o for o in options if o["default"]), options[0] if options else None)
+            self.initial.setdefault("release", default["release"] if default else "")
+            self.initial.setdefault("acc_version", filed_acc)
+            self.initial.setdefault("organisation", organisations[0].code if organisations else "")
