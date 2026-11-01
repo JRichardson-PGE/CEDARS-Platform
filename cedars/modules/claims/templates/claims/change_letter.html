@@ -64,6 +64,6 @@
 </table>
 </div>
 <p class="small">Both versions' year-to-date inputs can be downloaded from their pages, so anyone can compare them record by record.</p>
-{% if c.in_place %}<p>Corrected record by record on this version (BR-02.4): {{ c.in_place.records|floatformat:"0g" }} record{{ c.in_place.records|pluralize }}, {{ c.in_place.edit|floatformat:"0g" }} changed, {{ c.in_place.add|floatformat:"0g" }} added and {{ c.in_place.delete|floatformat:"0g" }} deleted{% if c.in_place.partial %}, {{ c.in_place.partial }} of them by partial correction file{{ c.in_place.partial|pluralize }}{% endif %}.</p>{% endif %}
+{% include "submissions/_letter_in_place.html" %}
 </section>
 {% endblock %}

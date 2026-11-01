@@ -6,7 +6,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}."""
+{claims_preview}, {monthly_draft}."""
 
 PAGES = [
     ("home", "/", None),
@@ -229,6 +229,11 @@ PAGES = [
     ("record-delete", "/filings/versions/{claims_draft}/records/Claim/delete?k=PGE-2028-003", "analyst"),
     ("records-correction", "/filings/versions/{claims_draft}/records/correction/{claims_preview}/", "analyst"),
     ("records-confirmed", "/filings/versions/{claims_corrected}/records/", "analyst"),
+    # the same pages on a budget filing's and a monthly report's rejected drafts (their records are the file's own columns)
+    ("records-budgets", "/filings/versions/{budget_draft}/records/?table=&q=NOPE", "analyst"),
+    ("record-budgets", "/filings/versions/{budget_draft}/records/Measure/?k=M1", "analyst"),
+    ("records-monthly", "/filings/versions/{monthly_draft}/records/", "analyst"),
+    ("record-monthly", "/filings/versions/{monthly_draft}/records/Commitments/?k=NOPE", "analyst"),
     ("claims-version", "/claims/versions/{claims_version}/", "community"),
     ("claims-version-corrected", "/claims/versions/{claims_corrected}/", "community"),
     ("claims-changes", "/claims/changes/", "community"),

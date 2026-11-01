@@ -32,3 +32,9 @@ class MonthlyConfig(AppConfig):
         from . import program_page
 
         register_program_records("monthly", program_page.reports)  # each program's page lists its monthly reports (BR-07.6)
+
+        from cedars.services.submissions import corrections as record_corrections
+
+        from .corrections import MonthlyEditor
+
+        record_corrections.register(MonthlyEditor())  # records corrected in place on an open draft (BR-02.4)

@@ -30,7 +30,9 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program
 from cedars.services.rules import service as rules
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions.corrections import Scope
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
 from . import jobfile
@@ -463,8 +465,31 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
         raise AccessDenied("This filing is not set up for budgets.")
     tables, job = jobfile.read_upload(data, filename)
     v = submissions.start(actor, deadline, organisation)
-    lines, problems, records = derive(tables, organisation, deadline.cycle)
-    found, notes, rule_set = _rule_findings(tables, deadline.cycle)
+    name = filename if filename.lower().endswith(".zip") else Path(filename).stem + ".zip"
+    entry = {"name": name, "uploaded_as": filename}
+    if sources:
+        entry["sources"] = sources
+    return _store_and_check(actor, v, tables, job, entry)
+
+
+def _store_and_check(
+    actor, v: SubmissionVersion, tables: dict[str, bytes], job: bytes, entry: dict, *, scope: Scope | None = None, before=None
+) -> SubmissionVersion:
+    """Keep `job` as the version's file (in a folder named by its SHA-256), read its budget lines, run the module's checks and the rule
+    set, and record the result. After a correction in place (BR-02.4) `scope` says which records changed and `before` is the version's
+    summary before it: the module's checks, which are file-wide (a program's year, its rows, its PrgIDs) and quick, still run on every
+    record, and the rule set runs only on the changed records and those with the same key (`_scoped`); every other record keeps its
+    rule-set findings, moved to its new line."""
+    v = SubmissionVersion.objects.select_related("submission__deadline__cycle", "submission__organisation").get(pk=v.pk)
+    if v.locked:
+        raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
+    cycle = v.submission.deadline.cycle
+    lines, problems, records = derive(tables, v.submission.organisation, cycle)
+    rescope = _scoped(tables, cycle, scope, before) if scope is not None else None
+    if rescope is not None:
+        found, notes, rule_set, rechecked = rescope
+    else:
+        found, notes, rule_set = _rule_findings(tables, cycle)
     problems += found
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
@@ -475,15 +500,119 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     # the superseded upload, once this one is recorded; a reopened version starts with its predecessor's files, which stay with it
     old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
     transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
-    name = filename if filename.lower().endswith(".zip") else Path(filename).stem + ".zip"
-    entry = {"name": name, "key": key, "sha256": sha, "bytes": len(job), "uploaded_as": filename}
-    if sources:
-        entry["sources"] = sources
-    v = submissions.attach_files(actor, v, [entry])
+    v = submissions.attach_files(actor, v, [{**entry, "key": key, "sha256": sha, "bytes": len(job)}])
     _replace_lines(v, lines)
     summary = _summary(problems, records, notes, rule_set, findings_key)
-    rs = rules.in_force(RULE_SET)
-    return submissions.record_validation(actor, v, rs, summary)
+    summary["columns"] = _columns(tables)
+    if rescope is not None:
+        summary["checked_at"] = (before or {}).get("checked_at", "")
+        summary["checked_again"] = {"records": rechecked, "since": summary["checked_at"]}
+        summary["notes"] = [
+            f"Checked again after a correction: the module's checks on every record, and the budget filing rules on {rechecked:,} "
+            f"record{'s' if rechecked != 1 else ''} (the ones changed and those with the same key); every other record keeps its rule "
+            "findings from the last full check. Uploading the file again checks every record.",
+            *summary["notes"],
+        ]
+    else:
+        summary["checked_at"] = timezone.now().isoformat()
+    return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
+
+
+# --- correcting records in place (BR-02.4)
+
+KEYS = {"Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
+MODULE_RULES = {"BUD-PRG", "BUD-ORG", "BUD-YEAR", "BUD-NUM", "BUD-DUP", "BUD-NOCOST"}  # derive's; the rule-set step's are the rest
+
+
+def _rule_set():
+    return rules.in_force(RULE_SET)
+
+
+def _columns(tables: dict[str, bytes]) -> dict[str, list[str]]:
+    return {t: [c.lower() for c in jobfile.rows(tables[t])[0]] for t in jobfile.TABLES if t in tables}
+
+
+def _key(table: str, row: dict) -> tuple[str, ...]:
+    return tuple(jobfile.get(row, c).strip().lower() for c in KEYS[table])
+
+
+def _scoped(tables: dict[str, bytes], cycle, scope: Scope, previous: dict | None):
+    """A correction's rule-set step: the budget filing rules on the changed records and those sharing a key with them (a primary key
+    rule sees both), and every other record's rule findings carried over to its new line. (findings, notes, rule set, records checked
+    again), or None when the whole version must be checked instead: no earlier findings, another rule set in force since, or a table's
+    columns changed."""
+    key = (previous or {}).get("findings_key")
+    if not key or not storage.store("uploads").exists(key):
+        return None
+    rs = _rule_set()
+    label_now = f"{rs.label} ({rs.effective_from})" if rs else ""
+    if (previous or {}).get("rule_set", "") != label_now:
+        return None
+    if (previous or {}).get("columns") != _columns(tables):
+        return None
+    old = json.loads(storage.store("uploads").get_bytes(key))
+    keys: dict[str, set[tuple]] = defaultdict(set)
+    for c in scope.changes:
+        for r in (c.before, c.after):
+            if r and c.table in KEYS:
+                keys[c.table].add(_key(c.table, r))
+    again: dict[str, list[int]] = {}
+    parsed = {t: jobfile.rows(tables[t]) for t in jobfile.TABLES}
+    for t, (_, rows) in parsed.items():
+        changed = scope.lines(t)
+        again[t] = [i for i, r in enumerate(rows, start=2) if i in changed or _key(t, r) in keys.get(t, ())]
+    found, notes = [], []
+    if rs is not None and any(again.values()):
+        try:
+            frames = {
+                t: rules.read_table(corrections.csv_bytes(parsed[t][0], [parsed[t][1][i - 2] for i in ls])) for t, ls in again.items() if ls
+            }
+        except rules.EngineMissing as e:
+            raise AccessDenied(f"{e} The filing cannot be validated on this server.") from None
+        found, notes = _rule_findings_on(frames, cycle.covers, rs)
+        for f in found:
+            if f.row >= 2:
+                f.row = again[f.table][f.row - 2]
+    kept = []
+    for f in old:
+        if f.get("rule_id") in MODULE_RULES:
+            continue  # the module's checks ran again on every record
+        t, row = f.get("table", ""), f.get("row", 0)
+        if row >= 2:
+            new = scope.line_map.get(t, {}).get(row, row) if t in scope.line_map else row
+            if new is None or new in again.get(t, ()):
+                continue  # deleted, or checked again: its findings now are the new ones
+            f = {**f, "row": new}
+        kept.append(Problem(**f))
+    seen, out = set(), []
+    for p in kept + list(found):
+        k = (p.table, p.row, p.field, p.rule_id, p.message)
+        if k not in seen:
+            seen.add(k)
+            out.append(p)
+    out.sort(key=lambda p: (jobfile.TABLES.index(p.table) if p.table in jobfile.TABLES else 9, p.row, p.severity != "reject"))
+    earlier = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
+    rechecked = sum(len(ls) for ls in again.values())
+    return out, sorted(set(earlier) | set(notes)), label_now, rechecked
+
+
+@transaction.atomic
+def correct_records(actor, v: SubmissionVersion, tables: dict[str, bytes], scope: Scope) -> SubmissionVersion:
+    """Keep a correction's tables (corrections.apply's, as CSV) as the version's new job and check what it changed (the record editor
+    and partial corrections, through the submissions service's corrections)."""
+    previous = dict(v.findings or {})
+    f = job_file(v) or {}
+    entry = {"name": "job.zip", "uploaded_as": f.get("uploaded_as", f.get("name", "job.zip")), "corrected": True}
+    return _store_and_check(actor, v, tables, jobfile.job_zip(tables), entry, scope=scope, before=previous)
+
+
+def ensure_checked(v: SubmissionVersion) -> None:
+    """A reopened version (n+1) starts with its predecessor's job, unchecked: check it, so its records can be corrected."""
+    f = job_file(v)
+    if v.locked or v.findings or f is None:
+        return
+    tables, job = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
+    _store_and_check(None, v, tables, job, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")})
 
 
 def _replace_lines(v: SubmissionVersion, lines: list[dict]) -> None:
@@ -846,6 +975,9 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     if previous is None:
         return None
     changes = correction_changes(previous, v)
+    in_place = corrections.summary(v)
+    if in_place:
+        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     audit.record(
         "budgets.change_letter_published",
@@ -876,7 +1008,12 @@ def notice(v: SubmissionVersion, event) -> Concern:
         letter = ChangeLetter.objects.filter(version=v).first()
         if letter is not None:
             c = letter.changes or {}
-            body = "\n".join(x for x in [f"Reason: {letter.reason}" if letter.reason else "", letters.summary(c, LETTER_FIGURES)] if x)
+            parts = [
+                f"Reason: {letter.reason}" if letter.reason else "",
+                corrections.summary_text(c.get("in_place") or {}),
+                letters.summary(c, LETTER_FIGURES),
+            ]
+            body = "\n".join(x for x in parts if x)
             return Concern(
                 programs={p["prg_id"] for p in c.get("programs", [])},
                 link=f"/budgets/changes/{letter.pk}/",

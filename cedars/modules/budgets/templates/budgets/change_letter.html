@@ -15,6 +15,7 @@
 <h2 id="programs-h">Programs whose budget or results changed</h2>
 <p class="small muted">Before is version {{ letter.previous.number }}, after is version {{ v.number }}, over every program year. The budget is as filed; total system benefit, the ratios and savings are as priced{% if not priced.before or not priced.after %} (a version that was not priced shows them blank){% endif %}.</p>
 {% include "core/_letter_programs.html" %}
+{% include "submissions/_letter_in_place.html" %}
 <p class="small">Both versions can be compared program by program, and their inputs downloaded, from their pages.</p>
 </section>
 {% endblock %}
