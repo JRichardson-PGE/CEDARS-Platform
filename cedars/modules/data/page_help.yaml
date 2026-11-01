@@ -6,6 +6,10 @@ data/front:
     - What CEDARS is, the current program cycle at a glance, and Help. The cards add up the published filings for one four-year program
       cycle; each links to the dashboard page that breaks its numbers down and uses that page's exclusions, so the two agree.
     - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
+  how:
+    - Choose a cycle and Apply to change the cards; each card links to its dashboard page.
+    - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
+    - Sign in, or Create an account; the published data need neither.
   see: published-data
   tour_from: front
 
@@ -21,13 +25,12 @@ data/dashboard: &dashboard
     - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
       then Apply.
     - Narrow to PAs, sectors, programs or measures under Filters. Applied filters show as chips; Remove takes one off.
+    - Point at a chart's row to see its values. With the keyboard, Tab to the chart and use the up and down arrow keys; Escape hides
+      the values. The table under each chart lists them all.
+    - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
     - Select a row's name to drill down one level; Program page opens the program.
     - Download these rows gives the rows you see as CSV, Excel or Parquet; Download the records behind these rows gives the measure-level
       records they add up.
-  how:
-    - Choose a cycle and Apply to change the cards; each card links to its dashboard page.
-    - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
-    - Sign in, or Create an account; the published data need neither.
   see: published-data
   tour: &dashboard_tour
     - target: main nav.subnav
@@ -36,7 +39,8 @@ data/dashboard: &dashboard
     - target: form.dash-controls
       title: What to show
       text: The series, the filing a forecast comes from, the years, the metric and how to break the rows down. Choose, then Apply.
-    - heading: Filters
+        Select Filters and view to fold these away; the page remembers it, as it does for each chart and table.
+    - target: details.dash-filters
       title: Filters
       text: Narrow to PAs (or every PA of a type), sectors, programs or measures. The count says how many are applied.
     - target: dl.tiles
@@ -45,7 +49,8 @@ data/dashboard: &dashboard
       optional: true
     - target: main .chart, main svg[role=img]
       title: The chart
-      text: The same numbers as the table under it. The table is the full record; the chart is for the shape.
+      text: The same numbers as the table under it. Point at a row, or Tab to the chart and use the arrow keys, to see its values. The
+        table is the full record; the chart is for the shape.
       optional: true
     - target: main table.data, main table.list
       title: The rows

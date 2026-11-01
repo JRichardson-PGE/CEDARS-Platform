@@ -170,8 +170,10 @@ def chart(s: Spending) -> dict:
         bars = []
         for i, sr in enumerate(series):
             v = r.values.get(sr)
-            bars.append({"series": sr, "x": 0, "w": round(100 * max(v or 0, 0) / high, 3), "y": 14 * i, "missing": v is None})
-        groups.append({"label": r.key, "bars": bars, "goal": None if r.budget is None else round(100 * r.budget / high, 3)})
+            bars.append({"series": sr, "x": 0, "w": round(100 * max(v or 0, 0) / high, 3), "y": 14 * i, "missing": v is None, "value": v})
+        groups.append(
+            {"label": r.key, "bars": bars, "goal": None if r.budget is None else round(100 * r.budget / high, 3), "goal_value": r.budget}
+        )
     return {
         "series": [{"code": sr, "label": SERIES[sr][0]} for sr in series],
         "groups": groups,

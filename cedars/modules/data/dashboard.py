@@ -571,10 +571,10 @@ def chart(comparison: Comparison, limit: int = 0) -> dict:
         for i, s in enumerate(series):
             v = r.values.get(s)
             if v is None:
-                bars.append({"series": s, "x": zero, "w": 0, "y": 14 * i, "missing": True})
+                bars.append({"series": s, "x": zero, "w": 0, "y": 14 * i, "missing": True, "value": None})
                 continue
             x = 100 * (min(v, 0) - low) / span
-            bars.append({"series": s, "x": round(x, 3), "w": round(100 * abs(v) / span, 3), "y": 14 * i, "missing": False})
+            bars.append({"series": s, "x": round(x, 3), "w": round(100 * abs(v) / span, 3), "y": 14 * i, "missing": False, "value": v})
         groups.append({"label": code_label(r.key), "bars": bars})
     return {
         "series": [{"code": s, "label": SERIES[s][0]} for s in series],
@@ -585,3 +585,16 @@ def chart(comparison: Comparison, limit: int = 0) -> dict:
         "limited": len(shown) < len(comparison.rows),
         "shown": len(shown),
     }
+
+
+def describe(chart: dict, fmt) -> dict:
+    """Give each of a chart's groups its values in words (`tip`: series code or "goal", label, value), shown when the pointer is over
+    the group or it has the keyboard focus, and read by screen readers once the page's script makes the chart navigable
+    (data/dashboard.js). `fmt` writes one value with its unit; a series with no value reads "none" (blank is not zero)."""
+    labels = {s["code"]: s["label"] for s in chart["series"]}
+    for g in chart["groups"]:
+        tip = [(b["series"], labels[b["series"]], "none" if b["missing"] else fmt(b["value"])) for b in g["bars"]]
+        if chart.get("goal") and g.get("goal_value") is not None:
+            tip.append(("goal", chart["goal"], fmt(g["goal_value"])))
+        g["tip"] = tip
+    return chart

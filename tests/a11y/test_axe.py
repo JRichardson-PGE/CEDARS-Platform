@@ -1451,3 +1451,71 @@ def _accessibility_checks(cpuc_admin, document):
     FileCheck.objects.filter(pk=other.pk).update(findings=[{"code": "pdf_image_only", "where": "", "count": 1}], note="")
     accessibility.review(cpuc_admin, other, "An accessible copy is filed as the next version.")
     return {"access_check": fc.pk, "access_reviewed": other.pk}
+
+
+# The dashboard's charts show each row's values under the pointer and on the keyboard, and its sections fold away and stay as they were
+# left (Jake 2026-11-01). Checked in a browser because the script does it: keyboard, pointer, Escape (1.4.13), contrast of the shown
+# values in both schemes, and the folded state surviving a reload.
+CHART_PAGE = "/data/overview/?by=program"
+TIP_SHOWN = "(li) => li.querySelector('.chart-tip').classList.contains('shown') && li.querySelector('.chart-tip').checkVisibility()"
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_dashboard_chart_values_on_keyboard_and_pointer(browser, axe_source, site, scene, scheme):
+    context, page = _open(
+        browser, site, scene, CHART_PAGE, None, color_scheme=scheme, bypass_csp=True, viewport={"width": 1280, "height": 900}
+    )
+    chart = page.locator(".chart[data-chart]").first
+    assert chart.get_attribute("role") == "group" and "Bar chart" in chart.get_attribute("aria-label")
+    rows = chart.locator(".chart-rows > li")
+    assert rows.count() >= 2, "the scene's chart needs two rows"
+    assert [rows.nth(i).get_attribute("tabindex") for i in range(2)] == ["0", "-1"]  # one tab stop
+
+    rows.first.focus()
+    assert rows.first.evaluate(TIP_SHOWN)
+    name = rows.first.evaluate("li => li.querySelector('.chart-tip').textContent.replace(/\\s+/g, ' ').trim()")
+    assert ":" in name and ("Forecast" in name or "Claimed" in name), name  # what is shown is what is read
+    page.keyboard.press("ArrowDown")
+    assert rows.nth(1).evaluate("li => li === document.activeElement")
+    assert rows.nth(1).evaluate(TIP_SHOWN) and not rows.first.evaluate(TIP_SHOWN)
+    assert rows.nth(1).get_attribute("tabindex") == "0" and rows.first.get_attribute("tabindex") == "-1"
+    page.keyboard.press("Escape")
+    assert not rows.nth(1).evaluate(TIP_SHOWN)
+    page.keyboard.press("ArrowUp")
+    assert rows.first.evaluate(TIP_SHOWN)
+
+    page.add_script_tag(content=axe_source)
+    found = _run_axe(page)  # with values shown
+    assert not found, f"chart values ({scheme}): " + json.dumps(found, indent=1)
+
+    page.evaluate("document.activeElement.blur()")
+    rows.nth(1).hover()
+    assert rows.nth(1).evaluate(TIP_SHOWN)
+    rows.nth(1).locator(".chart-tip").hover()  # the pointer can rest on the values without them going (1.4.13 hoverable)
+    assert rows.nth(1).evaluate(TIP_SHOWN)
+    page.keyboard.press("Escape")  # and Escape hides them (dismissible)
+    assert not rows.nth(1).evaluate(TIP_SHOWN)
+    page.mouse.move(0, 0)
+    context.close()
+
+
+def test_dashboard_sections_fold_and_stay_folded(browser, site, scene):
+    context, page = _open(browser, site, scene, CHART_PAGE, None, viewport={"width": 1280, "height": 900})
+    parts = page.locator("details.dash-part")
+    assert parts.count() >= 3 and all(parts.nth(i).evaluate("d => d.open") for i in range(parts.count()))
+    page.locator("details[data-part='filters'] > summary").click()
+    page.locator("details[data-part$=':chart'] > summary").first.focus()
+    page.keyboard.press("Enter")  # by keyboard as well as by pointer
+    page.reload()
+    assert not page.locator("details[data-part='filters']").evaluate("d => d.open")
+    assert not page.locator("details[data-part$=':chart']").first.evaluate("d => d.open")
+    assert page.locator("details[data-part$=':table']").first.evaluate("d => d.open")
+    # the filters stay folded on the dashboard's other pages; a chart's state is its own page's
+    page.goto(site.url + "/data/total-system-benefit/")
+    assert not page.locator("details[data-part='filters']").evaluate("d => d.open")
+    assert page.locator("details[data-part$=':chart']").first.evaluate("d => d.open")
+    page.goto(site.url + CHART_PAGE)
+    page.locator("details[data-part='filters'] > summary").click()
+    page.reload()
+    assert page.locator("details[data-part='filters']").evaluate("d => d.open")
+    context.close()

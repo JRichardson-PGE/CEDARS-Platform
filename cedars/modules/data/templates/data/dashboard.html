@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load data_tags %}
+{% load static data_tags %}
 {% block title %}{{ page.title }} · Portfolio dashboard{% endblock %}
 {% block content %}
 <nav class="subnav" aria-label="Portfolio dashboard pages">
@@ -12,6 +12,9 @@
 
 {% if error %}<p class="alert" role="alert">{{ error }} <a href="{% url 'data:dashboard' page.slug %}">Start again</a></p>{% endif %}
 
+<details class="section dash-part" open data-part="filters"{% if error %} data-keep-open{% endif %}>
+<summary><h2>Filters and view</h2>{% if applied %}<span class="count">{{ applied|length }} filter{{ applied|length|pluralize }} applied</span>{% endif %}</summary>
+<div class="section-body">
 <form method="get" class="filters dash-controls" aria-label="View controls">
   <fieldset>
     <legend>Series</legend>
@@ -67,6 +70,8 @@
   </details>
   <button type="submit">Apply</button>
 </form>
+</div>
+</details>
 
 {% if applied %}
 <section aria-labelledby="applied-heading" class="applied">
@@ -92,18 +97,21 @@
 </svg>
 {% for b in blocks %}
 <h2>{{ b.caption|capfirst }}</h2>
-{% if b.kind == "budget" %}
-{% include "data/_chart.html" with chart=b.chart caption=b.caption %}
-{% include "data/_spending.html" with sp=b.s %}
-{% elif b.kind == "goals" %}
-{% include "data/_chart.html" with chart=b.chart caption=b.caption %}
-{% include "data/_goal_table.html" with c=b.comparison caption=b.caption %}
-{% elif b.kind == "matrix" %}
-{% include "data/_matrix.html" with m=b.matrix caption=b.caption by_label=b.by_label %}
-{% else %}
-{% if b.chart %}{% include "data/_chart.html" with chart=b.chart caption=b.caption %}{% endif %}
-{% include "data/_table.html" with comparison=b.comparison caption=b.caption by_label=b.by_label series_labels=b.series_labels %}
+{% if b.chart %}{% with key=page.slug|add:":"|add:b.part|add:":chart" %}<details class="section dash-part" open data-part="{{ key }}">
+<summary><h3>Chart</h3><span class="sr-only">: {{ b.caption }}</span></summary>
+<div class="section-body">{% include "data/_chart.html" with chart=b.chart caption=b.caption %}</div>
+</details>{% endwith %}{% endif %}
+{% with key=page.slug|add:":"|add:b.part|add:":table" %}<details class="section dash-part" open data-part="{{ key }}">
+<summary><h3>Table</h3><span class="sr-only">: {{ b.caption }}</span></summary>
+<div class="section-body">
+{% if b.kind == "budget" %}{% include "data/_spending_years.html" with sp=b.s %}
+{% elif b.kind == "goals" %}{% include "data/_goal_table.html" with c=b.comparison caption=b.caption %}
+{% elif b.kind == "matrix" %}{% include "data/_matrix.html" with m=b.matrix caption=b.caption by_label=b.by_label %}
+{% else %}{% include "data/_table.html" with comparison=b.comparison caption=b.caption by_label=b.by_label series_labels=b.series_labels %}
 {% endif %}
+</div>
+</details>{% endwith %}
+{% if b.kind == "budget" %}{% include "data/_spending.html" with sp=b.s %}{% endif %}
 {% endfor %}
 
 <h2>Download these rows</h2>
@@ -141,3 +149,4 @@ columns, or to look through the records first, open them on the records page.</p
 {% endif %}
 {% include "data/_saved_views.html" %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'data/dashboard.js' %}" defer></script>{% endblock %}
