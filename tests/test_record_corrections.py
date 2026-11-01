@@ -269,7 +269,9 @@ def test_the_pages_find_change_add_and_delete_records(client, filer, year, pge, 
     client.logout()
     sign_in(client, reader)
     assert client.get(url).status_code == 404
-    assert reverse("submissions:records", args=[v.pk]) not in page_only(client.get(reverse("claims:period", args=[deadline().pk])).content.decode())
+    assert reverse("submissions:records", args=[v.pk]) not in page_only(
+        client.get(reverse("claims:period", args=[deadline().pk])).content.decode()
+    )
 
 
 def test_a_confirmed_version_says_why_it_is_not_corrected(client, filer, year, pge, programs, release):  # noqa: F811
