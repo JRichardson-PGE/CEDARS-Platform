@@ -87,10 +87,19 @@ def command() -> list[str]:
     return shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
 
 
+def version_command() -> list[str]:
+    """The command that prints the worker's release. `recet --version` prints "recet X.Y.Z", but `recet worker --version` is refused
+    (the worker subcommand takes no --version, UAT 2 U01), so a command ending in the worker subcommand asks the program itself."""
+    cmd = command()
+    if len(cmd) > 1 and cmd[-1] == "worker":
+        cmd = cmd[:-1]
+    return [*cmd, "--version"]
+
+
 def worker_release() -> str:
-    """The ReCET release the worker command runs (`recet --version` prints "recet X.Y.Z"); "" when it cannot say."""
+    """The ReCET release the worker command runs; "" when it cannot say."""
     try:
-        out = subprocess.run([*command(), "--version"], capture_output=True, text=True, timeout=120, check=False)  # noqa: S603 - our own setting
+        out = subprocess.run(version_command(), capture_output=True, text=True, timeout=120, check=False)  # noqa: S603 - our own setting
     except (OSError, subprocess.SubprocessError):
         return ""
     m = re.search(r"\b(\d+\.\d+\.\d+[\w.+-]*)", (out.stdout or "") + (out.stderr or ""))
