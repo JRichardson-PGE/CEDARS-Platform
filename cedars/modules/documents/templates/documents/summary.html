@@ -10,7 +10,7 @@ sector, so that table can add up to more than the total.</p>
   <label for="cycle">Funding cycle
     <select id="cycle" name="cycle"><option value="">Every study</option>{% for c in cycles %}<option value="{{ c.pk }}"{% if c == cycle %} selected{% endif %}>{{ c.label }}</option>{% endfor %}</select>
   </label>
-  <button type="submit">Show</button>
+  <button type="submit">Apply</button>
 </form>
 <dl class="tiles">
   <div class="tile"><dt>Studies</dt><dd>{{ total.studies }}</dd></div>

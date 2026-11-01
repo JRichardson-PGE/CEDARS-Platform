@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
-{% block title %}{{ draft.name }}{% endblock %}
+{% block title %}Edit inputs · {{ draft.name }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:drafts' %}">Edit inputs</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:drafts' %}">Edit inputs</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ draft.name }}</h1>{% page_help "calculations/draft" %}</div>
   <div class="actions">{% if can_change %}<a class="button primary" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a></div>

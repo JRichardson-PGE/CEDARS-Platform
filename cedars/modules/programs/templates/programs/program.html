@@ -1,8 +1,8 @@
 {% extends "core/base.html" %}
 {% load ui %}
-{% block title %}{{ p.prg_id }}{% endblock %}
+{% block title %}{{ p.prg_id }}{% if v %} · {{ v.name }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'programs:catalog' %}">Programs</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>{% page_help "programs/program" %}</div>
   <div class="actions">
@@ -95,7 +95,7 @@
 <p>Everything on record about this program, each linked to its record.{% if not signed_in %} You see what is published. Opening a filing needs you to <a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">sign in</a>; once signed in, a PA's own staff and CPUC staff also see filings not yet published and fund shifts.{% endif %}</p>
 <form method="get" class="filters" aria-label="Choose a program year">
   <label>Program year <select name="year"><option value="">Every year</option>{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></label>
-  <button type="submit">Show</button>
+  <button type="submit">Apply</button>
 </form>
 {% if year %}<p>Showing program year {{ year }} only. <a href="{% url 'programs:program' p.prg_id %}">Show every year</a></p>{% endif %}
 

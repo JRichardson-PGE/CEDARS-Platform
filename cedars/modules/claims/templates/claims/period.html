@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ label }}{% if org %} · {{ org.code }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "claims/period" %}</div>
   {% if sysadmin %}<a class="button" href="{% url 'claims:setup' cy.year %}">How {{ cy.year }} claims are priced</a>{% endif %}
@@ -34,9 +34,10 @@
   {% endif %}
 
   {% if counts %}
+  <p class="small">Year to date is compiled over {% if s.base_label %}{{ s.base_label }}{% else %}the year's first confirmation{% endif %}.</p>
   <div class="hscroll" tabindex="0" role="region" aria-label="Records by table">
   <table class="list">
-    <caption>Records by table: {% if s.base_label %}compiled over {{ s.base_label }}{% else %}the year's first confirmation{% endif %}</caption>
+    <caption class="sr-only">Records by table: {% if s.base_label %}compiled over {{ s.base_label }}{% else %}the year's first confirmation{% endif %}</caption>
     <thead><tr><th scope="col">Table</th><th scope="col">In this upload</th><th scope="col">Replacing earlier records</th><th scope="col">Year to date</th></tr></thead>
     <tbody>{% for t, own, replaced, total in counts %}<tr><th scope="row">{{ t }}</th><td class="num">{{ own|floatformat:"0g" }}</td><td class="num">{{ replaced|floatformat:"0g" }}</td><td class="num">{{ total|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
   </table>

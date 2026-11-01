@@ -1,14 +1,19 @@
 """The front page (Jake, 2026-10-31): what CEDARS is, the program cycle at a glance from the published data, and Help with its guides,
 support and the guided tour."""
 
+from datetime import timedelta
+
 import pytest
 from django.core.cache import cache
+from django.utils import timezone
 
 from cedars.core import help as site_help
 from cedars.modules.data import front
 from cedars.services.registry.models import FilingCycle
+from cedars.services.submissions import service as submissions
 
 from .test_dashboard import both, goal_set  # noqa: F401 - fixtures
+from .test_data_query import publish
 from .test_snapshots import filer  # noqa: F401 - fixture
 
 pytestmark = pytest.mark.django_db
@@ -61,6 +66,27 @@ def test_before_anything_is_published(db):
     c = cards(front.summary("2028-2031"))
     assert c["spending"].empty and c["savings"].empty and c["cost_effectiveness"].empty
     assert front.summary("2028-2031").claimed_span == ""
+
+
+@pytest.fixture
+def forecast_only(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    """A 2028-2031 forecast and no claims yet."""
+    cycle = FilingCycle.objects.create(first_year=2028, last_year=2031)
+    tual = submissions.add_deadline(cpuc_admin, module="budgets", kind="TUAL", cycle=cycle, due_at=timezone.now() - timedelta(days=1))
+    submissions.set_policy(cpuc_admin, "budgets", late_confirmation=True)
+    publish(filer, tual, pge, django_capture_on_commit_callbacks, "t1", scale=2.0)
+
+
+def test_a_cycle_with_no_claims_says_so_once(forecast_only, client):
+    """UI review 2, #23: the intro says no claims are published; the cards leave the claimed figures out and show the forecast."""
+    s = front.summary("2028-2031")
+    assert s.claimed_span == ""
+    c = cards(s)
+    assert all(f["value"] != front.NONE for card in s.cards for f in card.figures)
+    assert [f["label"] for f in c["savings"].figures] == ["MWh forecast", "MW forecast", "MMTherms forecast"]
+    assert [f["label"] for f in c["spending"].figures] == ["Budget in the latest filings, 2028-2031"]
+    page = client.get("/?cycle=2028-2031").content.decode()
+    assert "No claims are published for this cycle yet." in page and front.NONE not in page
 
 
 def test_no_cycle_set_up(db):

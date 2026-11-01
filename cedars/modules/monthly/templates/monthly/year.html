@@ -1,14 +1,14 @@
 {% extends "core/base.html" %}
 {% block title %}{{ year }} monthly reports{% if org %} · {{ org.code }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li></ol></nav>
 <div class="page-title"><h1>{{ year }} monthly reports{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/year" %}</div>
 <p>Every month of the year in one place. Reports are cumulative: each month's spend is read from its year-to-date BCA inputs, so the
 spend this month is the change since the month before, and the year-to-date spend should never fall.{% if published_only %} Only confirmed reports are shown.{% endif %}</p>
 {% if choices %}
 <form method="get" class="filters" aria-label="Choose the program administrator">
   <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
-  <button type="submit">Show</button>
+  <button type="submit">Apply</button>
 </form>
 {% endif %}
 {% if org %}

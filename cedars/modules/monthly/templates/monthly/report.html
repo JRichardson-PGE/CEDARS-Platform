@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ label }}{% if org %} · {{ org.code }}{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'monthly:index' %}">Monthly reports</a> › <a href="{% url 'monthly:year' deadline.period.year %}{% if org %}?org={{ org.code|urlencode }}{% endif %}">{{ deadline.period.year }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li><li><a href="{% url 'monthly:year' deadline.period.year %}{% if org %}?org={{ org.code|urlencode }}{% endif %}">{{ deadline.period.year }}</a></li></ol></nav>
 <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/report" %}</div>
 <dl class="facts">
   <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>

@@ -154,7 +154,9 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
     if spent is None and base is None:
         card.empty = "No budget or claimed expenditure is published for this cycle yet."
     else:
-        card.figures.append({"label": f"Spent, {so_far}", "value": money(spent)})
+        # with no claims in the cycle, the claimed figures are left out: the intro says so once (UI review 2, #23)
+        if spent is not None or claimed_years:
+            card.figures.append({"label": f"Spent, {so_far}", "value": money(spent)})
         card.figures.append({"label": f"{base_words.capitalize()}, {cycle}", "value": money(base)})
         if spent is not None and base:
             card.percent = 100 * spent / base
@@ -183,11 +185,12 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
     counted = sum(r.values.get("claims") or 0 for r in rows) if rows else None
     if tsb is None and goal is None:
         card.empty = "No claims are published for this cycle yet."
-    card.figures.append({"label": f"Voluntary programs, {so_far}", "value": money(tsb)})
+    if tsb is not None or claimed_years:
+        card.figures.append({"label": f"Voluntary programs, {so_far}", "value": money(tsb)})
     if goal is not None:
         goal_years = span([y for r in rows for y in (r.first_year, r.last_year)])
         card.figures.append({"label": f"Goal, {goal_years}", "value": money(goal)})
-        card.percent = 100 * (counted or 0) / goal if goal else None
+        card.percent = 100 * (counted or 0) / goal if goal and (tsb is not None or claimed_years) else None
         if card.percent is not None:
             card.percent_label = f"{card.percent:.0f}% of the goal"
         card.lines.append(
@@ -211,6 +214,10 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
     else:
         units = (("kwh_first_year_net", "MWh", 0), ("kw_first_year_net", "MW", 1), ("therms_first_year_net", "MMTherms", 2))
         for code, unit, decimals in units:
+            if c.get(code) is None and not claimed_years:  # nothing claimed in the cycle yet: the forecast alone
+                if f.get(code) is not None:
+                    card.figures.append({"label": f"{unit} forecast", "value": number(f.get(code), decimals)})
+                continue
             card.figures.append(
                 {
                     "label": unit,
@@ -241,6 +248,10 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
     else:
         for test in ("trc", "pac"):
             forecast = tests["forecast"].get(test)
+            if tests["claims"].get(test) is None and not claimed_years:  # nothing claimed in the cycle yet: the forecast alone
+                if forecast is not None:
+                    card.figures.append({"label": f"{test.upper()} ratio forecast", "value": ratio(forecast)})
+                continue
             card.figures.append(
                 {
                     "label": f"{test.upper()} ratio",

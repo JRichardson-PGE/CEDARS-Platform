@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Linked claims{% if q %}: {{ q }}{% endif %}{% endblock %}
 {% block content %}
-{% if user.is_authenticated %}<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>{% endif %}
+{% if user.is_authenticated %}<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>{% endif %}
 <div class="page-title"><h1>Linked claims</h1>{% page_help "claims/links" %}</div>
 <p>How confirmed claims link up across quarters and years: a NMEC claim's chain from the original claim through every true-up, every
 claim of one project (its ProjectID, the project key), or a SEM participant's claims across the phases of its engagement.</p>

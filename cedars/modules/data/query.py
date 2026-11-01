@@ -9,6 +9,7 @@ Datasets: claims (each PA's latest year-to-date claim per year), forecast (budge
 default each PA's latest filing in each cycle) and monthly (each PA's latest year-to-date report per year)."""
 
 import json
+from collections import Counter
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
@@ -78,6 +79,7 @@ class Exclusion:
     label: str
     column: str
     values: tuple[str, ...]  # compared trimmed and case-insensitively
+    phrase: str = ""  # the label inside a sentence, when it differs ("codes and standards"; a program name keeps its capitals)
 
 
 EXCLUSIONS = {
@@ -85,8 +87,14 @@ EXCLUSIONS = {
     for e in [
         Exclusion("pension", "Pension and Benefits programs", "Prg_ProgramCategory", ("Pension and Benefits",)),
         Exclusion("esa", "Energy Savings Assistance programs", "Prg_ProgramCategory", ("Energy Savings Assistance",)),
-        Exclusion("cs", "Codes and standards", "Prg_ProgramSegment", ("codes_and_standards", "Codes and Standards")),
-        Exclusion("no_ce", "Programs excluded from cost-effectiveness", "Prg_Exclude_From_CE", ("true", "1", "yes", "y", "t")),
+        Exclusion("cs", "Codes and standards", "Prg_ProgramSegment", ("codes_and_standards", "Codes and Standards"), "codes and standards"),
+        Exclusion(
+            "no_ce",
+            "Programs excluded from cost-effectiveness",
+            "Prg_Exclude_From_CE",
+            ("true", "1", "yes", "y", "t"),
+            "programs excluded from cost-effectiveness",
+        ),
     ]
 }
 # As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages, ESA out on
@@ -330,7 +338,10 @@ def _start(q: Query) -> Result:
         return Result(q, None, [], [], {}, ["Nothing has been published in this dataset yet."])
     files = pick_files(q, snapshots.release_files(release))
     result = Result(q, release, files, [], {"_sums": {}, "_rows": 0})
-    result.notes += [f"Left out: {EXCLUSIONS[e].label}." for e in q.exclude]
+    if q.exclude:  # one note for every exclusion (UI review 2, #22)
+        labels = [EXCLUSIONS[e].label for e in q.exclude]
+        labels = labels[:1] + [EXCLUSIONS[e].phrase or EXCLUSIONS[e].label for e in q.exclude[1:]]
+        result.notes.append(f"Left out: {', '.join(labels[:-1])} and {labels[-1]}." if len(labels) > 1 else f"Left out: {labels[0]}.")
     if not files:
         result.notes.append("No published filing matches this choice." if q.filing else "Nothing in force in this release.")
     return result
@@ -454,16 +465,30 @@ def run(q: Query) -> Result:
         if not record["_rows"]:
             continue
         result.used.add(record["_snapshot"])
-        key = tuple(record[d] for d in q.by)
+        # one group per value whatever its case or spaces, as the filters match (UI review 2, #22): filed data spell some segments two
+        # ways; each value shows the spelling with the most records
+        key = tuple(_fold(record[d]) for d in q.by)
         row = rows.get(key)
         if row is None:
             row = rows[key] = {d: record[d] for d in q.by} | {"_sums": dict.fromkeys(numbers, 0), "_rows": 0}
+            row["_spellings"] = [Counter() for _ in q.by]
         for c in numbers:
             row["_sums"][c] += record[c] or 0
         row["_rows"] += record["_rows"]
+        for counter, d in zip(row["_spellings"], q.by, strict=True):
+            value = record[d]
+            counter[value.strip() if isinstance(value, str) else value] += record["_rows"]
+    for row in rows.values():
+        for counter, d in zip(row.pop("_spellings"), q.by, strict=True):
+            row[d] = min(counter.items(), key=lambda kv: (-kv[1], str(kv[0])))[0]
     result.rows = list(rows.values())
     _finish(result)
     return result
+
+
+def _fold(value):
+    """A group's key: text trimmed and compared without case (as the filters compare it), anything else as it is."""
+    return value.strip().casefold() if isinstance(value, str) else value
 
 
 def _expression(d: Dimension) -> str:

@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}New fund shift{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li></ol></nav>
 <div class="page-title"><h1>New fund shift for {{ org.code }}</h1>{% page_help "budgets/shift_new" %}</div>
 <p>Name the shift and say why the money moves; the amounts come next.</p>
 <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}

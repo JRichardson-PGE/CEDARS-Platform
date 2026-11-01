@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{% if template %}Change {{ template.name }}{% else %}New output template{% endif %}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'calculations:runs' %}">Calculations</a> › <a href="{% url 'calculations:templates' %}">Output templates</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:templates' %}">Output templates</a></li></ol></nav>
 <div class="page-title"><h1>{% if template %}Change “{{ template.name }}”{% elif source %}Copy of “{{ source.name }}”{% else %}New output template{% endif %}</h1>{% page_help "calculations/template" %}</div>
 {% if not catalog %}
 <p class="alert" role="alert">No field catalog is published yet, so a template's columns cannot be checked. A CPUC system administrator publishes one on the data dictionary.</p>

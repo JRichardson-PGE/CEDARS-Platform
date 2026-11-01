@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ v.label }}{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:allocations' %}">Statewide allocation factors</a></li></ol></nav>
 <div class="page-title"><h1>{{ v.label }}</h1>{% page_help "administration/allocation" %}</div>
 <dl class="facts">
   <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle|cycle_label }}{% endif %}</dd>

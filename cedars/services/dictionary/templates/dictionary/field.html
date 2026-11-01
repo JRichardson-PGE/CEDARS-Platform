@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ f.name }}{% endblock %}
 {% block content %}
-<p><a href="{% url 'dictionary:index' %}">Data dictionary</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li></ol></nav>
 <div class="page-title"><h1>{{ f.name }}</h1>{% page_help "dictionary/field" %}</div>
 <p>{{ f.definition|default:"No definition yet." }}</p>
 <dl class="facts">

@@ -1065,7 +1065,7 @@ def test_other_filters_by_keyboard(browser, site, scene):
     assert page.evaluate("document.activeElement.name") == "status" and page.evaluate("document.activeElement.checked")
     value = page.evaluate("document.activeElement.value")
     with page.expect_navigation():
-        page.locator(".other-body > button").press("Enter")
+        page.locator("form.catalog-filters > button", has_text="Apply").press("Enter")
     assert page.url == f"{site.url}/programs/?status={value}"
     assert page.locator(".chips").is_visible()
     context.close()
@@ -1080,7 +1080,7 @@ def test_other_filters_by_keyboard(browser, site, scene):
     assert page.locator(".other-filters").evaluate("d => d.open")
     assert page.locator(".other-field[data-field=end_year]").is_visible()
     page.fill("input[name=end_year_from]", "2030")
-    page.locator(".other-body > button").click()
+    page.locator("form.catalog-filters > button", has_text="Apply").click()
     assert "end_year_from=2030" in page.url and "End year: 2030 or later" in page.locator(".chips").inner_text()
     context.close()
 

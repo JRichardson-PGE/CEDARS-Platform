@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{% if s %}Update {{ s.study_id }}{% else %}Add a study{% endif %}{% endblock %}
 {% block content %}
-<p class="small">{% if s %}<a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>{% else %}<a href="{% url 'documents:studies' %}">Evaluation studies</a>{% endif %}</p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li>{% if s %}<a href="{{ s.get_absolute_url }}">{{ s.study_id }}</a>{% else %}<a href="{% url 'documents:studies' %}">Evaluation studies</a>{% endif %}</li></ol></nav>
 <div class="page-title"><h1>{% if s %}Update {{ s.study_id }}{% else %}Add a study{% endif %}</h1>{% page_help "documents/study_form" %}</div>
 <p>{% if s %}The study ID stays {{ s.study_id }}. Each change is recorded with its reason; status and budget changes show in the
 study's history.{% else %}The study ID is made from the first funding cycle's first year, the first sector and the study's number, as

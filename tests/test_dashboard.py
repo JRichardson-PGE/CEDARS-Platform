@@ -104,7 +104,7 @@ def test_the_page(both, client):
     page = client.get("/data/overview/?by=sector").content.decode()
     assert "Portfolio dashboard pages" in page and "Forecast (as of" in page and "Claimed (as of" in page
     assert "% of forecast" in page and "50.0%" in page and 'href="?by=program&amp;sector=Residential"' in page
-    assert "Left out: Codes and standards." in page and "/data/download.csv?dataset=claims" in page
+    assert "Left out: Pension and Benefits programs and codes and standards." in page and "/data/download.csv?dataset=claims" in page
     assert client.get("/data/").status_code == 302
     assert client.get("/data/nope/").status_code == 404
     bad = client.get("/data/overview/?by=colour")

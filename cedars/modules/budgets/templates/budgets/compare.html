@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Compare budget versions{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li></ol></nav>
 <div class="page-title"><h1>Compare budget versions</h1>{% page_help "budgets/compare" %}</div>
 <p>Any two versions you can read, by program: a business plan with its TUAL, two versions of one filing, or two PAs' filings. Neither changes.</p>
 <form method="get" class="filters" aria-label="Versions to compare">

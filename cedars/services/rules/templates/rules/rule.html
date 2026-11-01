@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Rule {{ r.rule_id }}{% endblock %}
 {% block content %}
-<p><a href="{% url 'rules:detail' r.rule_set.pk %}">{{ r.rule_set }}</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'rules:detail' r.rule_set.pk %}">{{ r.rule_set }}</a></li></ol></nav>
 <div class="page-title"><h1>Rule {{ r.rule_id }}</h1>{% page_help "rules/rule" %}</div>
 <p>{{ r.message }}</p>
 <dl class="facts">

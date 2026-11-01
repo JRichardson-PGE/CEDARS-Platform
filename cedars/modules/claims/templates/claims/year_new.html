@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Set up a claim year{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'claims:index' %}">Claims</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
 <div class="page-title"><h1>Set up a claim year</h1>{% page_help "claims/year_new" %}</div>
 <p>A claim year has five confirmations, each with its own due date: the four quarters, then the final annual claims (due the
 following spring). Its claims are priced on the ACC chosen here, with statewide programs allocated by the allocation version chosen

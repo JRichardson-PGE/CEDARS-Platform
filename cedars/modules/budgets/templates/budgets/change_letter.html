@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
 {% block content %}
-<p class="small">{% if user.is_authenticated %}<a href="{% url 'budgets:index' %}">Budgets</a> › {% endif %}<a href="{% url 'budgets:changes' %}">Change log</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs">{% if user.is_authenticated %}<li><a href="{% url 'budgets:index' %}">Budgets</a></li>{% endif %}<li><a href="{% url 'budgets:changes' %}">Change log</a></li></ol></nav>
 <div class="page-title"><h1>Change letter: {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "budgets/change_letter" %}</div>
 <dl class="facts">
   <dt>Published</dt><dd>{{ letter.published_at|date_words }}</dd>

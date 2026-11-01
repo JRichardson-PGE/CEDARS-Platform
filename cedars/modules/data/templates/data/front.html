@@ -29,7 +29,7 @@
       <label for="cycle">Program cycle
         <select id="cycle" name="cycle">{% for c in summary.cycles %}<option value="{{ c }}"{% if c == summary.cycle %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
       </label>
-      <button type="submit">Show</button>
+      <button type="submit">Apply</button>
     </form>
     {% endif %}
   </div>

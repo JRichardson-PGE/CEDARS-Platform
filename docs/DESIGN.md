@@ -45,8 +45,9 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 | Class | What it is | Notes |
 |---|---|---|
 | `.head-row` + `h1` + `.actions` | page header: title, description, action buttons | one `.primary` button per page at most |
-| `.subnav` | a module's sections as a tab strip | links, not ARIA tabs; current marked by aria and a bar |
-| `.filters` | a filter bar: label above each control, Apply at the end | `label` elements stack by default |
+| `.subnav` | a module's sections as a tab strip | links, not ARIA tabs; current marked by aria and a bar; one row at 1280 px (a dashboard page with a long title has a `short` label for it) |
+| `.filters` | a filter bar: label above each control, Apply at the end | `label` elements stack by default. One submit button per bar, a plain `button` named "Apply" (a search box on its own: "Search"), after any "Other filters" / "More filters" disclosure so the one button sends both |
+| `nav[aria-label="Breadcrumb"] > ol.crumbs` | the page's parents, first thing in `content`, above the heading | on every page below a module index or a list; each parent is a link, the page itself is not listed (its `h1` follows); the › separators are drawn by CSS, so screen readers hear a list |
 | `table.list` (in `.hscroll`) | a data table | `td.num` for numbers; `td[colspan]` alone in the body reads as the empty state |
 | `.status` (+ `.ok` `.warn` `.bad` `.info`) | a status badge | the word is always present |
 | `.card`, `dl.tiles`, `dl.facts` | an object, summary numbers, key/value facts | cards are for objects, not for a page's main table |

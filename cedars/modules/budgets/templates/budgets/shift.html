@@ -2,7 +2,7 @@
 {% load budget_money %}
 {% block title %}{{ s.title }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'budgets:index' %}">Budgets</a> › <a href="{% url 'budgets:shifts' %}">Fund shifts</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li></ol></nav>
 <div class="page-title"><h1>{{ s.title }}</h1>{% page_help "budgets/shift" %}</div>
 <dl class="facts">
   <dt>PA</dt><dd>{{ s.organisation.code }}</dd>
