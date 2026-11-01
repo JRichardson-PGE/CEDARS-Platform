@@ -57,6 +57,7 @@ RuleSetSummary = inline_serializer(
 
 
 @extend_schema(
+    operation_id="rules_sets_list",
     summary="Published rule sets",
     description="Every published version of every module's rules, newest first within each; `in_force` marks the one an upload today "
     "is checked against. Public.",
@@ -71,6 +72,7 @@ def sets(request):
 
 
 @extend_schema(
+    operation_id="rules_set_retrieve",
     summary="One rule set, to check files without sending them",
     description="A published rule set as data (format cedars-rule-set, version 1): each rule's test, message and suggested fix, the "
     "specification's columns per table, the value lists its value-list rules read (as in force here) and `how_to_check`, how each kind "
