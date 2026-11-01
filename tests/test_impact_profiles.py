@@ -43,7 +43,7 @@ def synced(cpuc_admin):
 
 @pytest.fixture
 def developer(make_user, pge, pge_admin):
-    u = make_user("dev@pge.com", "Dee Veloper")
+    u = make_user("dev@pge.example.org", "Dee Veloper")
     access.grant(pge_admin, u, pge, "impact_profiles.submit")
     return u
 
@@ -283,8 +283,8 @@ def test_upload_rejects_the_whole_file_by_default(leds, developer, pge):
 
 def test_only_the_package_lead_uploads(leds, make_user, cpuc_admin, pge_admin, pge):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    u = make_user("dev@sce.com")
-    sce_admin = make_user("admin@sce.com")
+    u = make_user("dev@sce.example.org")
+    sce_admin = make_user("admin@sce.example.org")
     access.grant(cpuc_admin, sce_admin, sce, "org.admin")
     access.grant(sce_admin, u, sce, "impact_profiles.submit")
     with pytest.raises(AccessDenied, match="led by PGE"):
@@ -371,7 +371,7 @@ def draft_export(path, rows: list[dict]) -> Path:
 
 def test_a_draft_export_syncs_and_pairs_each_base_case_on_its_own_technology(cpuc_admin, make_user, tmp_path):
     sdge = access.create_organisation(cpuc_admin, code="SDGE", name="San Diego Gas & Electric", kind="pa", pa_type="IOU")
-    admin, dev = make_user("admin@sdge.com"), make_user("dev@sdge.com")
+    admin, dev = make_user("admin@sdge.example.org"), make_user("dev@sdge.example.org")
     access.grant(cpuc_admin, admin, sdge, "org.admin")
     access.grant(admin, dev, sdge, "impact_profiles.submit")
     ar = {
@@ -424,7 +424,7 @@ def test_a_download_without_technology_ids_is_excluded(cpuc_admin, tmp_path):
 
 def test_accelerated_replacement_gets_a_profile_per_baseline(synced, cpuc_admin, make_user):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    admin, dev = make_user("admin@sce.com"), make_user("dev@sce.com")
+    admin, dev = make_user("admin@sce.example.org"), make_user("dev@sce.example.org")
     access.grant(cpuc_admin, admin, sce, "org.admin")
     access.grant(admin, dev, sce, "impact_profiles.submit")
     hp = MeasurePackage.objects.get(measure_version_id="SWHC998-02-draft")

@@ -29,7 +29,7 @@ def create_user(email, name="", password="correct horse battery staple"):
 
 def create_cpuc_admin():
     """The bootstrap: the CPUC organization with a system administrator who is also its organization admin and the first steward."""
-    u = create_user("admin@cpuc.ca.gov", "Ada Admin")
+    u = create_user("admin@cpuc.example.org", "Ada Admin")
     org = service.create_organisation(None, code="CPUC", name="California Public Utilities Commission", kind="cpuc")
     for code in (perms.ORG_ADMIN, perms.SYSTEM_ADMIN, perms.STEWARD):
         service.grant(None, u, org, code, reason="bootstrap")
@@ -41,7 +41,7 @@ def create_pge(cpuc_admin):
 
 
 def create_pge_admin(cpuc_admin, pge):
-    u = create_user("admin@pge.com", "Pat Admin")
+    u = create_user("admin@pge.example.org", "Pat Admin")
     service.grant(cpuc_admin, u, pge, perms.ORG_ADMIN, reason="first admin")
     return u
 

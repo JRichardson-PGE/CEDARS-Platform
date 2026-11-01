@@ -54,9 +54,9 @@ def statewide(cpuc_admin, programs):  # noqa: F811
 @pytest.fixture
 def sce_confirmer(make_user, cpuc_admin, programs):  # noqa: F811
     sce = programs
-    admin = make_user("admin@sce.com")
+    admin = make_user("admin@sce.example.org")
     access.grant(cpuc_admin, admin, sce, "org.admin")
-    u = make_user("budgets@sce.com")
+    u = make_user("budgets@sce.example.org")
     for p in ("budgets.read", "budgets.confirm"):
         access.grant(admin, u, sce, p)
     return u
@@ -96,7 +96,7 @@ def test_lines_are_checked_and_nothing_is_saved_with_a_problem(filer, pge, cycle
 
 
 def test_making_a_shift_needs_budgets_submit(pge, pge_admin, cycle, make_user, programs):  # noqa: F811
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "budgets.read")
     with pytest.raises(AccessDenied, match="Budgets: Submit"):
         shifts.create(reader, pge, cycle, title="t", reason="r")

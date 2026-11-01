@@ -133,7 +133,7 @@ def test_adding_and_carrying_in_an_earlier_quarters_record(filer, year, pge, pro
 
 def test_who_and_when(filer, year, pge, programs, make_user, pge_admin, release):  # noqa: F811
     v = service.upload_claims(filer, deadline(), pge, bad_q1(), "q1.zip")
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "claims.read")
     assert "claims.submit" in corrections.refusal(reader, v)
     with pytest.raises(AccessDenied):
@@ -264,7 +264,7 @@ def test_the_pages_find_change_add_and_delete_records(client, filer, year, pge, 
     v.refresh_from_db()
     assert r.status_code == 302 and service.own_tables(v)["Measure"].rows[0]["NumUnits"] == "11"
     # a reader of the filing does not reach the editor
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "claims.read")
     client.logout()
     sign_in(client, reader)

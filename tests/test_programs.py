@@ -151,7 +151,7 @@ def test_a_change_that_changes_nothing_or_breaks_a_rule_is_refused(signed_in, pg
 
 def test_only_the_programs_administrators_and_the_cpuc_can_change_it(signed_in, make_user, cpuc_admin, programs):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    sce_admin = make_user("admin@sce.com")
+    sce_admin = make_user("admin@sce.example.org")
     access.grant(cpuc_admin, sce_admin, sce, "org.admin", reason="first admin")
     assert signed_in(sce_admin).get("/programs/PGE_Res_HVAC/change").status_code == 404
     assert signed_in(cpuc_admin).get("/programs/PGE_Res_HVAC/change").status_code == 200
@@ -159,10 +159,10 @@ def test_only_the_programs_administrators_and_the_cpuc_can_change_it(signed_in, 
 
 
 def test_a_programs_admin_grant_can_change_its_organisations_programs(signed_in, make_user, pge, pge_admin, programs):
-    analyst = make_user("analyst@pge.com")
+    analyst = make_user("analyst@pge.example.org")
     access.grant(pge_admin, analyst, pge, "programs.admin")
     assert signed_in(analyst).get("/programs/PGE_Res_HVAC/change").status_code == 200
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "programs.read")
     assert signed_in(reader).get("/programs/PGE_Res_HVAC/change").status_code == 404
 

@@ -23,7 +23,7 @@ def quarter():
 
 
 def _filed(cpuc_admin, pge, pge_admin, make_user, quarter, due_in=timedelta(days=10)):
-    analyst = make_user("analyst@pge.com")
+    analyst = make_user("analyst@pge.example.org")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, analyst, pge, p)
     d = submissions.add_deadline(cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=timezone.now() + due_in)
@@ -35,7 +35,7 @@ def _filed(cpuc_admin, pge, pge_admin, make_user, quarter, due_in=timedelta(days
 
 def test_public_events_reach_subscribers_by_page_and_email(cpuc_admin, pge_admin, make_user):
     service.subscribe(pge_admin, "pack.published")
-    quiet = make_user("quiet@pge.com")
+    quiet = make_user("quiet@pge.example.org")
     service.subscribe(quiet, "pack.published", Subscription.Channel.IN_APP)
     pack = refdata.register_pack(cpuc_admin, kind="value_lists", label="Value lists", version="2026-10", manifest=MANIFEST, storage_uri="x")
     assert Notification.objects.count() == 0  # registering is not publishing
@@ -53,9 +53,9 @@ def test_publications_reach_every_subscriber_and_work_in_progress_only_the_organ
     cpuc_admin, cpuc, pge, pge_admin, make_user, quarter
 ):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="SCE", kind="pa", pa_type="IOU")
-    sce_admin = make_user("admin@sce.com")
+    sce_admin = make_user("admin@sce.example.org")
     access.grant(cpuc_admin, sce_admin, sce, "org.admin")
-    reviewer = make_user("reviewer@cpuc.ca.gov")
+    reviewer = make_user("reviewer@cpuc.example.org")
     access.grant(cpuc_admin, reviewer, cpuc, "claims.read")
     for u in (pge_admin, sce_admin, reviewer):
         service.subscribe(u, "submission.published", module="claims")
