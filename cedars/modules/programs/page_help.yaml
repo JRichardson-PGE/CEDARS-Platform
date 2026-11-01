@@ -91,6 +91,10 @@ programs/change:
       changed, with your reason.
     - Locked attributes are listed above the form. A change that touches one goes, with the rest of the change, to a CPUC approver as a
       request, and nothing changes until it is approved.
+    - >-
+      Under each field is how to fill it in, with a link to its entry in Program fields (its definition and valid values). Status,
+      segment, primary sector, implementer and category offer only the listed values; a program that already carries a retired value
+      keeps it on offer.
   how:
     - Choose the effective date, change the attributes, give the reason, and Save the change.
     - A change to a locked attribute goes to a CPUC programs approver as a request.
@@ -137,6 +141,30 @@ programs/request:
     - target: "#hist-h"
       title: History
       text: Who asked, who decided, and when.
+
+programs/fields:
+  title: Program fields
+  guide:
+    - >-
+      Every field of a program's definition, in the order a program's page shows them: what the field means, how to fill it in, and the
+      values it takes. Where the data dictionary has the field, its definition is the dictionary's, linked to its entry there.
+    - >-
+      A field with a list of values says which ones are offered and how many programs carry each. A retired value stays on the versions
+      that have it and is no longer offered to other programs; values on record that the list lacks are named under the table.
+  how:
+    - Pick a field under Fields to go to it. Each field's name on a program's page links here too.
+    - A locked field says so; a change to it goes to a CPUC programs approver as a request.
+  see: programs
+  tour:
+    - target: "#toc-h"
+      title: Fields
+      text: Every field of the program record. Pick one to go to it.
+    - target: "#field-status"
+      title: One field
+      text: Its definition, where it comes from in CEDARS' Programs list, who sets it, how to fill it in and its valid values.
+    - heading: Valid values of Status
+      title: Valid values
+      text: Each value with its meaning, whether it is offered and how many programs carry it.
 
 programs/locked:
   title: Locked program attributes

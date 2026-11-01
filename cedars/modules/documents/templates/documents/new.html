@@ -25,6 +25,7 @@ Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p
   {{ form.attachments.as_field_group }}
   {{ form.comments_open.as_field_group }}
   {{ form.comments_close.as_field_group }}
+  {% if form.placeholder %}{{ form.placeholder.as_field_group }}{% endif %}
   {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
   <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% if study %}{{ study.get_absolute_url }}{% else %}{% url 'documents:library' %}{% endif %}">Cancel</a></div>
 </form>

@@ -182,6 +182,10 @@ class DocumentVersion(models.Model):
         related_name="+",
         help_text="The PA whose response to the recommendations this is",
     )
+    placeholder = models.BooleanField(
+        default=False,
+        help_text="An implementation plan filed as a placeholder: the full plan is still to come, as a later version (BR-13.6)",
+    )
 
     class Meta:
         ordering = ["document", "-number"]

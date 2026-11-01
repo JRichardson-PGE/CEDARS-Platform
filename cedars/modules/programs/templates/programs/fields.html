@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+{% block title %}Program fields{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
+<div class="page-title"><h1>Program fields</h1>{% page_help "programs/fields" %}</div>
+<p>Every field of a program's definition: what it means, how to fill it in and the values it takes. Definitions come from the
+<a href="{% url 'dictionary:index' %}">data dictionary</a>{% if catalog %} ({{ catalog }}){% endif %} wherever it has the field. A program's
+administrators change these on the program's change form, which offers only the values listed here; a retired value stays on the
+versions that have it.</p>
+
+<nav aria-labelledby="toc-h" class="toc">
+<h2 id="toc-h">Fields</h2>
+<ul class="links">{% for f in fields %}<li><a href="#{{ f.entry.anchor }}">{{ f.entry.label }}</a></li>{% endfor %}</ul>
+</nav>
+
+{% for f in fields %}
+<section aria-labelledby="{{ f.entry.anchor }}" class="field-guide">
+<h2 id="{{ f.entry.anchor }}">{{ f.entry.label }}</h2>
+<dl class="facts">
+  <dt>Definition</dt>
+  <dd>{% for d in f.definitions %}<p>{% if f.definitions|length > 1 %}<strong>{{ d.dictionary_field }}</strong>: {% endif %}{{ d.text }}{% if d.dictionary_field %} <span class="small">(<a href="{% url 'dictionary:field' d.dictionary_field %}">data dictionary: {{ d.dictionary_field }}</a>)</span>{% endif %}</p>{% endfor %}</dd>
+  {% if f.entry.cedars %}<dt>In CEDARS' Programs list</dt><dd><code>{{ f.entry.cedars }}</code></dd>{% endif %}
+  <dt>Who sets it</dt><dd>{% if f.set_by %}{{ f.set_by|capfirst }}{% else %}The program's administrators, on its change form{% if f.locked %}. <strong>Locked</strong>: a change goes to a CPUC programs approver as a <a href="{% url 'programs:requests' %}">request</a>{% endif %}{% endif %}</dd>
+</dl>
+<h3>How to fill it in</h3>
+{% for para in f.entry.guidance %}<p>{{ para }}</p>{% endfor %}
+<h3>Valid values</h3>
+{% if f.values %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Valid values of {{ f.entry.label }}">
+<table class="list">
+  <caption class="sr-only">Valid values of {{ f.entry.label }}</caption>
+  <thead><tr><th scope="col">Value</th><th scope="col">Meaning</th><th scope="col">Offered</th>{% if f.counted %}<th scope="col" class="num">Programs</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for v, offered, n in f.values %}
+  <tr>
+    <th scope="row">{{ v.label }}{% if v.label != v.code %}<br><code class="small">{{ v.code }}</code>{% endif %}</th>
+    <td>{{ v.meaning }}</td>
+    <td class="nowrap">{% if offered %}<span class="status ok">Offered</span>{% else %}<span class="status warn">Retired</span> <span class="small">from {{ v.retired_from|date_words }}</span>{% endif %}</td>
+    {% if f.counted %}<td class="num">{{ n }}</td>{% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if f.counted %}<p class="small muted">Programs: how many programs have the value in any of their versions.</p>{% endif %}
+{% if f.unlisted %}<p>Also on record, though not in the list: {% for code, n in f.unlisted %}{{ code }} ({{ n }} program{{ n|pluralize }}){% if not forloop.last %}, {% endif %}{% endfor %}. These stay on the versions that have them; a change to such a program offers its value, but no other program can take it.</p>{% endif %}
+{% else %}<p>{{ f.entry.values_note|default:"Any text." }}</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}

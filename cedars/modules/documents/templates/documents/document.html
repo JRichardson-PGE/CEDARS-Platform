@@ -9,6 +9,7 @@
 {% if not doc.published_at %}<p><span class="status">Not published</span> Only {{ doc.owner.code }}{% if pas|length > 1 %}, the PAs named on it{% endif %} and CPUC staff can see this document until a version is published.</p>{% endif %}
 {% if doc.deliverable %}<p>A deliverable of <a href="{{ doc.study.get_absolute_url }}">{{ doc.study.study_id }}</a>, kept with all its drafts, finals and responses on this page.{% if stage %} Current stage: <strong>{{ stage }}</strong>.{% endif %}</p>{% endif %}
 {% if doc.summary %}<p>{{ doc.summary|linebreaksbr }}</p>{% endif %}
+{% if current.placeholder %}<p><span class="status warn">Placeholder plan</span> Version {{ current.number }} is a placeholder: the full implementation plan is still to come, as a later version of this document.</p>{% endif %}
 
 <section aria-labelledby="current-h">
 <h2 id="current-h">{% if current %}Version {{ current.number }}{% if current.stage %}: {{ current.stage_label }}{% endif %}{% if current.published %}, published {{ current.published_at|date_words }}{% else %}, not published{% endif %}{% else %}No files yet{% endif %}</h2>
@@ -67,7 +68,7 @@
     <td class="nowrap">{% if v.published %}{{ v.published_at|date_words }}{% else %}<span class="status">Not published</span>
       {% if can_publish and v != current %}<form method="post" action="{% url 'documents:publish' doc.pk v.number %}" class="actions">{% csrf_token %}<button type="submit">Publish version {{ v.number }}</button></form>{% endif %}{% endif %}</td>
     <td><ul class="links grants">{% for f in v.files.all %}<li><a href="{{ f.get_absolute_url }}">{{ f.name }}<span class="sr-only">, version {{ v.number }}</span></a></li>{% endfor %}</ul></td>
-    <td>{{ v.reason|default:"First version" }}</td>
+    <td>{{ v.reason|default:"First version" }}{% if v.placeholder %}<br><span class="status warn">Placeholder</span>{% endif %}</td>
     <td class="small">{{ v.organisation.code }}{% if sees_unpublished %}<br>{{ v.created_by|person }}{% endif %}<br>{{ v.created_at|date_words }}</td>
     <td class="small">{% if v.comment_period %}{{ v.comment_period.opens|date_words }} to {{ v.comment_period.closes|date_words }}<br>{% endif %}{% if v.comment_count %}<a href="{% url 'documents:comments' doc.pk %}#version-{{ v.number }}">{{ v.comment_count }} comment{{ v.comment_count|pluralize }}<span class="sr-only"> on version {{ v.number }}</span></a>{% elif v.comment_period %}None yet{% else %}No comment period{% endif %}</td>
   </tr>

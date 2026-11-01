@@ -1,0 +1,304 @@
+# How each program definition field is filled in (BR-13.7). One entry per field of the program record, in the order the program page
+# shows them. Read by cedars/services/registry/field_guide.py; shown on /programs/fields/, on the change form beside each field and on
+# the program page.
+#
+# An entry:
+#   label:       the field's name on the pages
+#   dictionary:  the data dictionary field(s) that carry it (ReCET's Prg_ columns, decision L). Where the dictionary has the field, its
+#                definition is the one shown; `definition` below is used only when it does not (or no catalog is loaded yet).
+#   definition:  what the field is, in one or two sentences
+#   cedars:      the column in CEDARS' Programs list download, which the registry imports
+#   hint:        one sentence shown under the field on the change form
+#   guidance:    paragraphs on how to fill it in
+#   values:      the valid values, each {code, label, meaning}; a value no longer offered also has `retired_from` (a date): it stays on the
+#                versions that have it, is offered on the change form only to a program that already has it, and is listed as retired.
+#                Retire a value here, never delete it.
+#   values_note: for a field without a fixed list, what a valid value looks like
+#   set_by:      who sets it when it is not changed on the change form ("import": CEDARS' Programs list; "cpuc": CPUC staff)
+
+prg_id:
+  label: PrgID
+  dictionary: [PrgID]
+  definition: The program's identifier, used by every upload and every module to name the program.
+  cedars: PrgID
+  set_by: cpuc
+  guidance:
+    - >-
+      A PrgID is given once, when the program is added to the registry, and never changes or is reused. Budget filings, claims, monthly
+      reports and documents name the program by its PrgID instead of repeating its attributes (BR-13.1).
+    - >-
+      A PA's own program starts with the PA's code and an underscore (PGE_..., SCE_...); a statewide program's starts with SW_. A
+      statewide program's allocated rows in a filing carry the funding IOU's code in front (PGE_SW_...).
+  values_note: Letters, digits, underscores and hyphens, up to 60 characters, starting with the PA's code.
+
+administrator:
+  label: Program administrator
+  dictionary: [Prg_PA]
+  definition: The program administrator (PA) that runs the program, or SW for a statewide program funded by several PAs.
+  cedars: PA
+  set_by: cpuc
+  guidance:
+    - >-
+      Set when the program is added. A statewide program has no single administrator: it shows as Statewide (SW), and its costs and
+      savings are shared among the funding PAs by the statewide allocation factors.
+  values_note: One of the PAs registered in CEDARS, by its code (PGE, SCE, SCG, SDGE, the RENs and CCAs), or SW.
+
+name:
+  label: Program name
+  dictionary: [Prg_ProgramName]
+  definition: The program's name as filed with the CPUC.
+  cedars: ProgramName
+  hint: The regulatory name, as in the filing that approved the program.
+  guidance:
+    - >-
+      Use the name in the decision, resolution or advice letter that approved the program, written the same way each time. The name a
+      customer sees, if it differs, goes in Commercial name.
+    - Do not put the PrgID, the PA's code or the program years in the name; they are fields of their own.
+  values_note: Text, up to 300 characters. Required.
+
+commercial_name:
+  label: Commercial name
+  dictionary: []
+  definition: The name the program is marketed under to customers, where it differs from the filed name (BR-13.5).
+  hint: Only when customers know the program by another name; leave it blank otherwise.
+  guidance:
+    - >-
+      The catalog finds a program by either name, so a customer or implementer who knows only the marketed name can find it. Leave it
+      blank when the program is marketed under its filed name.
+  values_note: Text, up to 300 characters, or blank.
+
+status:
+  label: Status
+  dictionary: [Prg_ProgramStatus]
+  definition: Where the program is in its life, from new to closed.
+  cedars: ProgramStatus
+  hint: Change it when the program opens, stops taking new commitments, or closes.
+  guidance:
+    - >-
+      A program moves through the statuses in order: new, active, closed to new commitments, closure pending, closed. Change the status
+      from the date it takes effect; the earlier version keeps the earlier status, so reports for earlier years still show it.
+    - >-
+      A closed program stays in the registry and in search (BR-13.4). Claims can still be filed against a program that is closed to new
+      commitments for the commitments it made before.
+  values:
+    - {code: new, label: New, meaning: Approved, and not yet taking participants.}
+    - {code: active, label: Active, meaning: Taking participants.}
+    - code: closed_to_new_commitments
+      label: Closed to new commitments
+      meaning: No new participants or commitments; earlier commitments are still being paid and claimed.
+    - {code: closure_pending, label: Closure pending, meaning: Closing; the last claims and costs are still to come.}
+    - {code: closed, label: Closed, meaning: Nothing more is filed for it.}
+
+segment:
+  label: Segment
+  dictionary: [Prg_ProgramSegment]
+  definition: The portfolio segment the program belongs to (D.21-05-031), which decides how it counts toward the portfolio's goals.
+  cedars: ProgramSegment
+  hint: The segment the program was approved under.
+  guidance:
+    - >-
+      Use the segment the program was approved under in the PA's application or advice letter. Programs from before the segments were
+      introduced may have none; leave it blank for those rather than guessing one.
+  values:
+    - {code: resource_acquisition, label: Resource acquisition, meaning: Programs whose main purpose is near-term energy savings.}
+    - {code: market_support, label: Market support, meaning: "Programs that build markets, workforce and demand for efficiency over time."}
+    - {code: equity, label: Equity, meaning: Programs for hard-to-reach and underserved customers.}
+    - {code: codes_and_standards, label: Codes and standards, meaning: Advocacy and compliance support for building codes and appliance standards.}
+    - {code: evaluation_measurement_verification, label: EM&V, meaning: "Evaluation, measurement and verification."}
+
+primary_sector:
+  label: Primary sector
+  dictionary: [Prg_PrimarySector]
+  definition: The sector the program mainly serves.
+  cedars: PrimarySector
+  hint: The sector most of the program's budget serves.
+  guidance:
+    - >-
+      Choose the one sector most of the program's budget serves. A program that serves several sectors gives the split in Budget share
+      by sector; claims still report each measure's actual sector (BR-13.2).
+  values:
+    - {code: Residential, label: Residential, meaning: Homes and their occupants.}
+    - {code: Commercial, label: Commercial, meaning: Businesses and commercial buildings.}
+    - {code: Industrial, label: Industrial, meaning: Manufacturing and industrial processes.}
+    - {code: Agricultural, label: Agricultural, meaning: Farms and agricultural processing.}
+    - {code: Public, label: Public, meaning: "Government, schools and other public buildings."}
+    - {code: Cross-Cutting, label: Cross-Cutting, meaning: "Serves several sectors with no main one (workforce, emerging technologies, finance)."}
+    - {code: Portfolio Support, label: Portfolio Support, meaning: "Supports the portfolio as a whole rather than customers (EM&V, administration)."}
+
+sectors:
+  label: Budget share by sector
+  dictionary: [Prg_BPSector]
+  definition: How the program's budget is split among the sectors it serves, as shares that add up to 1.
+  cedars: BPSector
+  hint: Each sector as Name, colon, share, separated by commas; the shares add up to 1.
+  guidance:
+    - >-
+      Write each sector the program serves with its share of the budget, for example "Commercial: 0.9, Industrial: 0.1". The shares add
+      up to 1. A program that serves one sector has one share of 1. Budgets are allocated by these shares; claims report the sector
+      actually served (BR-13.2).
+  values_note: Sector names from the Primary sector list, each with a share between 0 and 1; the shares add up to 1.
+
+implementer:
+  label: Implementer
+  dictionary: [Prg_ProgramImplementer]
+  definition: Who delivers the program.
+  cedars: ProgramImplementer
+  hint: Who delivers the program; the contractor's name goes in Implementation contractor.
+  guidance:
+    - >-
+      Choose the kind of delivery, not the firm: a program run by a third party the PA chose by solicitation is Third-Party Solicited,
+      whatever the firm is called. The firm's name goes in Implementation contractor.
+  values:
+    - {code: IOU Core, label: IOU Core, meaning: "Run by the IOU's own staff."}
+    - {code: Third-Party Solicited, label: Third-Party Solicited, meaning: "Designed and delivered by a third party chosen by solicitation (D.16-08-019)."}
+    - {code: Third/Local Party, label: Third/Local Party, meaning: Delivered by a third party or a local party under contract.}
+    - {code: REN/CCA, label: REN/CCA, meaning: "Run by a regional energy network or a community choice aggregator."}
+    - {code: Local Government Partnership, label: Local Government Partnership, meaning: Delivered with a local government partner.}
+    - {code: State Institutional Partnership, label: State Institutional Partnership, meaning: "Delivered with a state institution (UC, CSU, community colleges, state agencies)."}
+    - {code: Non-Program, label: Non-Program, meaning: "Not a delivered program: a portfolio cost such as EM&V or administration."}
+
+category:
+  label: Category
+  dictionary: [Prg_ProgramCategory]
+  definition: The kind of program, for grouping in reports.
+  cedars: ProgramCategory
+  hint: The kind of program; Other when none of the categories fits.
+  guidance:
+    - Choose the category that describes most of what the program does. Use Other only when none fits.
+  values:
+    - {code: Audit, label: Audit, meaning: Energy audits and assessments.}
+    - {code: Codes and Standards, label: Codes and Standards, meaning: Codes and standards advocacy and compliance.}
+    - {code: Emerging Technologies, label: Emerging Technologies, meaning: Testing and introducing new technologies.}
+    - {code: Energy Savings Assistance, label: Energy Savings Assistance, meaning: The income-qualified Energy Savings Assistance program.}
+    - {code: Energy Savings Performance Incentive, label: Energy Savings Performance Incentive, meaning: The shareholder incentive mechanism.}
+    - {code: Evaluation Measurement and Verification, label: "Evaluation, Measurement and Verification", meaning: EM&V budgets.}
+    - {code: Financing, label: Financing, meaning: "On-bill financing and other financing programs."}
+    - {code: Government Partnerships, label: Government Partnerships, meaning: Programs delivered with government partners.}
+    - {code: Integrated Demand-Side Management, label: Integrated Demand-Side Management, meaning: Efficiency delivered together with demand response or distributed generation.}
+    - {code: Market Education Outreach, label: "Market Education, Outreach", meaning: "Marketing, education and outreach."}
+    - {code: Market Transformation, label: Market Transformation, meaning: Lasting changes in a market's practices.}
+    - {code: New Construction, label: New Construction, meaning: New buildings and major renovations.}
+    - {code: Pension and Benefits, label: Pension and Benefits, meaning: The pension and benefit costs of program staff.}
+    - {code: Workforce Education and Training, label: "Workforce Education and Training", meaning: Training for the efficiency workforce.}
+    - {code: Other, label: Other, meaning: None of the categories above.}
+
+implementation_contractor:
+  label: Implementation contractor
+  dictionary: [Prg_ImplementationContractor]
+  definition: The firm that delivers the program under contract, where there is one.
+  cedars: ImplementationContractor
+  hint: The contracted firm's name as in its contract; blank when the PA's own staff deliver it.
+  guidance:
+    - >-
+      Give the firm's legal name as in its contract, written the same way on every program it delivers, so a search finds them all.
+      Change it from the date a new contract takes over.
+  values_note: Text, up to 300 characters, or blank.
+
+start_year:
+  label: Start year
+  dictionary: [Prg_StartYear]
+  definition: The program's first program year.
+  cedars: StartYear
+  hint: The first year the program may file budgets or claims.
+  guidance:
+    - The first program year in the approval. A program carried over from an earlier cycle keeps its original start year.
+  values_note: A year from 1990 to 2100.
+
+end_year:
+  label: End year
+  dictionary: [Prg_EndYear]
+  definition: The program's last program year; blank when it is open-ended.
+  cedars: EndYear
+  hint: The last approved program year; blank when the program has no end year.
+  guidance:
+    - >-
+      The last program year the approval covers, or blank for a program approved without an end. It is never before the start year.
+      Claims for commitments made before the end can come in later years.
+  values_note: A year from 1990 to 2100, not before the start year, or blank.
+
+flags:
+  label: Delivery
+  dictionary:
+    - Prg_Resource_Flag
+    - Prg_NonResource_Flag
+    - Prg_Deemed_Flag
+    - Prg_Custom_Flag
+    - Prg_Upstream_Flag
+    - Prg_Midstream_Flag
+    - Prg_Downstream_Flag
+    - Prg_DirectInstall
+    - Prg_Audit_Flag
+    - Prg_Financing
+  definition: How the program is delivered, as CEDARS' Programs list records it.
+  cedars: Resource_Flag, NonResource_Flag, Deemed_Flag, Custom_Flag, Upstream_Flag, Midstream_Flag, Downstream_Flag, DirectInstall, Audit_Flag, Financing
+  set_by: import
+  guidance:
+    - >-
+      Each flag is True or False; a program can carry several (deemed and custom, midstream and downstream). Direct install is Yes,
+      Partial or No; financing is None, OBF (on-bill financing) or Other Financing. They come in with CEDARS' Programs list and are not
+      changed on the change form.
+  values_note: True or False for each flag; Yes, Partial or No for direct install; None, OBF or Other Financing for financing.
+
+statewide_program:
+  label: Statewide program it delivers
+  dictionary: [Prg_StatewideProgram]
+  definition: For a PA's part of a statewide program, the statewide program it delivers.
+  cedars: StatewideProgram
+  hint: The statewide program's code and name, e.g. SW_HVAC_Up - SW HVAC Upstream Program; blank otherwise.
+  guidance:
+    - >-
+      Write the statewide program's code, a space, a hyphen, a space and its name, as the statewide program is listed (for example
+      "SW_HVAC_Up - SW HVAC Upstream Program"). Leave it blank for a program that is not part of a statewide program.
+  values_note: Text, up to 200 characters, or blank.
+
+parent_program:
+  label: Parent program
+  dictionary: [Prg_ParentProgram]
+  definition: The group of programs this one is reported under, where the PA groups its programs.
+  cedars: ParentProgram
+  hint: The group the PA reports the program under, written as the PA writes it for its other programs.
+  guidance:
+    - >-
+      Use the same wording as the PA's other programs in the group (for example "Commercial Third Party Programs"), so the group adds up
+      in reports. Leave it blank when the PA does not group the program.
+  values_note: Text, up to 100 characters, or blank.
+
+website:
+  label: Website
+  dictionary: []
+  definition: The program's public web page, for the customer-facing catalog (BR-13.5).
+  hint: The program's public page, starting https://.
+  guidance:
+    - A page a customer can open without signing in that describes the program and how to take part. Leave it blank if there is none.
+  values_note: A web address, starting https://.
+
+exclude_from_budget:
+  label: Exclude from budget
+  dictionary: [Prg_Exclude_From_Budget]
+  definition: Leaves the program out of budget totals.
+  cedars: Exclude_From_Budget
+  hint: Only for a program CPUC staff have said is left out of budget totals.
+  guidance:
+    - >-
+      CEDARS' exclusion flags are set on CPUC staff's direction, for example for a program funded outside the energy efficiency
+      portfolio. The program still appears in the catalog and in its own filings.
+
+exclude_from_ce:
+  label: Exclude from cost-effectiveness
+  dictionary: [Prg_Exclude_From_CE]
+  definition: Leaves the program out of the portfolio's cost-effectiveness totals.
+  cedars: Exclude_From_CE
+  hint: Only for a program CPUC staff have said is left out of cost-effectiveness totals.
+  guidance:
+    - >-
+      Set on CPUC staff's direction. The program's measures are still priced; they are left out of the portfolio's cost-effectiveness
+      totals and ratios.
+
+exclude_from_statewide:
+  label: Exclude from statewide
+  dictionary: [Prg_Exclude_From_Statewide_Flag]
+  definition: Leaves the program out of statewide totals.
+  cedars: Exclude_From_Statewide_Flag
+  hint: Only for a program CPUC staff have said is left out of statewide totals.
+  guidance:
+    - Set on CPUC staff's direction.
