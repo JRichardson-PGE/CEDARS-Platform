@@ -15,6 +15,7 @@ from cedars.core import storage
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata.models import PackVersion
 
 from . import dispatch, drafts, forms, service
 from . import results as results_mod
@@ -92,6 +93,10 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
             continue
         if k == "output_template":
             v = f"{settings.get('output_template_name') or 'unnamed'} ({len(v)} columns)"
+        elif k == "filing_validation":  # the choice's words, not its code (UAT 2, U10)
+            v = service.FILING_CHECKS.get(v, v)
+        elif k == "acc_purpose":
+            v = dict(forms.ACC_PURPOSES).get(v, v)
         out.append((service.jobspec.SETTINGS.get(k, k), v))
     return out
 
@@ -192,6 +197,10 @@ def run(request, pk):
             "settings": settings_view(run.settings),
             "settings_cost_test_set": (run.settings or {}).get("cost_test_set", ""),
             "programs": service.programs_label(run),
+            # the reference data packs pinned, less the cost-test set, which has its own row (UAT 2, U10)
+            "reference_packs": [
+                p for kind, p in (((run.spec or {}).get("context") or {}).get("packs") or {}).items() if kind != PackVersion.Kind.COST_TESTS
+            ],
             "engine": receipt.get("engine") or {},
             "packs": ((receipt.get("packs") or {}).get("files") or {}),
             "totals": results_mod.headline_totals(receipt.get("totals") or {}, run.measure_count),

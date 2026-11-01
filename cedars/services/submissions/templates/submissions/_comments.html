@@ -14,7 +14,7 @@
 {% if not v.imported %}
 <form method="post" action="{% url 'submissions:comment' v.pk %}" enctype="multipart/form-data" class="stack form-narrow">
   <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-  <p><label for="comment-text">Your comment on version {{ v.number }}, for {{ side.code }}</label>
+  <p><label for="comment-text">Your comment on version {{ v.number }}, posted as {{ side.code }}</label>
     <textarea id="comment-text" name="text" rows="4" maxlength="{{ max_chars }}" required aria-describedby="comment-text-help"></textarea>
     <span class="small muted" id="comment-text-help">Up to {{ max_chars }} characters. Everyone on both sides who may read this filing sees it.</span></p>
   <p><label for="comment-files">Attach files (optional)</label>
