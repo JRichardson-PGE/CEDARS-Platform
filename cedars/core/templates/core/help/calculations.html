@@ -20,6 +20,12 @@ page you can <strong>compare</strong> it with another finished run you can see: 
 <p><a href="{% url 'calculations:drafts' %}">Edit inputs</a> edits a small job's Measure and ProgramCost tables row by row (jobs of up to
 500 measures; edit larger ones offline). Each cell is checked by the engine's own rules as you save, and the draft can be run or
 downloaded as a job zip.</p>
+<p><strong>Add a measure from eTRM</strong> (on a draft's Measure table) fills a new row from one eTRM permutation: find the measure
+package by its ID or name, then choose its offering one key at a time (offering, application type, delivery type, sector, building
+type, vintage, HVAC, climate zone, net-to-gross ID, GSIA ID, program administrator). Each list holds only the values left after the
+choices above it, and a key with a single value is chosen for you. Enter the number of units and add the row: it takes the
+permutation's savings, costs, NTG, life, installation rates, profiles and descriptions, and every field can still be changed. eTRM's
+"Any" (the PA enters the actual value) is left for you, and so are the program's own rebates, incentives and direct-install costs.</p>
 <h2>Output templates</h2>
 <p><a href="{% url 'calculations:templates' %}">Output templates</a> choose which columns, in which order, a run's measure-level file
 holds. The full results are kept either way.</p>

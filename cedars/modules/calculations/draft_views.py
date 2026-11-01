@@ -2,11 +2,14 @@
 and the page that edits one row. Server-rendered forms, so they work without scripts."""
 
 from django import forms as djforms
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Min
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
@@ -321,3 +324,130 @@ def draft_download(request, pk):
     resp = HttpResponse(data, content_type="application/zip")
     resp["Content-Disposition"] = f'attachment; filename="{slugify(d.name) or "job"}.zip"'
     return resp
+
+
+# --- add a measure from eTRM (BR-06.22)
+
+
+def _year(request, ed, df) -> tuple[int | None, str]:
+    """(the year packages must be in effect in, the year select's value): the year asked for, else row 1's claim year; "all" = any."""
+    asked = request.GET.get("year", "")
+    if asked == "all":
+        return None, "all"
+    if asked.isdigit() and 2000 <= int(asked) <= 2100:
+        return int(asked), asked
+    y = ed.claim_year(df.at[0, "ClaimYearQuarter"]) if len(df) else None
+    return (y, str(y)) if y else (None, "all")
+
+
+@login_required
+def draft_etrm(request, pk):
+    """Add a measure from eTRM: find a measure package, choose its offering one key at a time (each choice lists only the values left
+    by the ones before it, and a key with one value is chosen for you), enter the units, and the new row is filled from the
+    permutation. Plain GET forms, so every step works without scripts."""
+    from cedars.services.refdata import etrm
+
+    if drafts.engine() is None:
+        return _no_engine(request)
+    ed = drafts.engine()
+    d = _draft_or_404(request, pk)
+    if not drafts.can_change(request.user, d):
+        raise Http404
+    pack = etrm.editor_pack()
+    df = drafts.frame(d, "Measure")
+    if request.method == "POST" and pack is not None:
+        mdid = request.POST.get("measure_detail_id", "")
+        perm = etrm.lookup(pack, [mdid]).get(mdid.strip().lower())
+        if perm is None:
+            messages.error(request, "That permutation is not in the eTRM pack. Choose the offering again.")
+        else:
+            try:
+                done = drafts.add_from_etrm(request.user, d, perm, request.POST.get("units", ""))
+            except AccessDenied as e:
+                messages.error(request, str(e))
+            else:
+                left = "; ".join(f"{c} ({why})" for c, _src, why in done.left)
+                messages.success(
+                    request,
+                    f"Added row {done.index + 1} from {perm.measure_detail_id}: {len(done.filled)} fields filled from eTRM."
+                    + (f" Left for you: {left}." if left else "")
+                    + " Every field can still be changed here.",
+                )
+                return redirect("calculations:draft_row", pk=d.pk, table="Measure", number=done.index + 1)
+        return redirect(f"{reverse('calculations:draft_etrm', args=[d.pk])}?{request.GET.urlencode()}")
+
+    year, year_value = _year(request, ed, df)
+    q = request.GET.get("q", "").strip()[:100]
+    ctx = {
+        "draft": d,
+        "pack": pack,
+        "q": q,
+        "year": year,
+        "year_value": year_value,
+        "years": _years(year_value, pack),
+        "full": len(df) >= ed.MAX_EDIT_ROWS,
+        "max_rows": ed.MAX_EDIT_ROWS,
+    }
+    if pack is None:
+        return render(request, "calculations/draft_etrm.html", ctx)
+    mvid = request.GET.get("package", "").strip().lower()
+    pkg = etrm.package(pack, mvid) if mvid else None
+    if pkg is None:
+        cap = settings.ETRM_PACKAGE_LIST
+        found = etrm.packages(pack, q, year, limit=cap + 1)
+        ctx.update(packages=found[:cap], more_packages=len(found) > cap, package_list=cap)
+        return render(request, "calculations/draft_etrm.html", ctx)
+    narrowed = etrm.narrow(pack, pkg.measure_version_id, {f: request.GET.get(f, "") for f in etrm.KEY_FIELDS})
+    perm = narrowed.permutation
+    shown = {st.field for st in narrowed.steps}
+    ctx.update(
+        package=pkg,
+        steps=[(st, _options(st, pkg.offerings)) for st in narrowed.steps],
+        carried=[(f, request.GET[f]) for f in etrm.KEY_FIELDS if f not in shown and request.GET.get(f)],
+        permutation=perm,
+        matches=narrowed.matches,
+    )
+    if perm is not None:
+        fill, left = etrm.measure_row(perm, df.columns)
+        sources = {**etrm.MEASURE_FIELDS, **etrm.MEASURE_DESCRIPTIONS, "MeasureID": etrm.ID, "AC_Climate_Zone": "Building Location"}
+        claim = ed.claim_year(df.at[0, "ClaimYearQuarter"]) if len(df) else None
+        ctx.update(
+            fill=[(c, fill[c], sources.get(c, "")) for c in df.columns if c in fill],
+            left=left,
+            claim_year=claim,
+            not_in_effect=_not_in_effect(perm, claim),
+            norm_unit=perm.values.get("Normalized Unit", ""),
+            restricted=perm.values.get("Restricted Permutation", "").strip() not in ("", "0", "False", "false"),
+        )
+    return render(request, "calculations/draft_etrm.html", ctx)
+
+
+def _years(year_value: str, pack) -> list[str]:
+    """The years to offer: from the pack's earliest package start (or the year asked for) to five years ahead."""
+    from cedars.services.refdata.models import EtrmPackage
+
+    first = EtrmPackage.objects.filter(pack=pack).aggregate(m=Min("start_date"))["m"] if pack else None
+    now = timezone.localdate().year
+    lo = min(first.year if first else now, int(year_value) if year_value.isdigit() else now)
+    hi = max(now + 5, int(year_value) if year_value.isdigit() else now)
+    return [str(y) for y in range(lo, hi + 1)]
+
+
+def _options(step, offerings: dict) -> list[tuple[str, str]]:
+    """A step's (value, text) options; an offering is shown with its description."""
+    if step.field == "offering":
+        return [(v, f"{v}: {offerings[v]}" if offerings.get(v) else v) for v in step.options]
+    return [(v, v or "(blank)") for v in step.options]
+
+
+def _not_in_effect(perm, year: int | None) -> str:
+    """Why the permutation is not in effect in the claim year, or ""."""
+    from datetime import date
+
+    if not year:
+        return ""
+    if perm.start_date and perm.start_date > date(year, 12, 31):
+        return f"It starts on {perm.start_date:%Y-%m-%d}, after {year}."
+    if perm.end_date and perm.end_date < date(year, 1, 1):
+        return f"It ended on {perm.end_date:%Y-%m-%d}, before {year}."
+    return ""

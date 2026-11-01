@@ -14,6 +14,7 @@ urlpatterns = [
     path("drafts/", draft_views.draft_list, name="drafts"),
     path("drafts/<uuid:pk>/", draft_views.draft, name="draft"),
     path("drafts/<uuid:pk>/job.zip", draft_views.draft_download, name="draft_download"),
+    path("drafts/<uuid:pk>/etrm/", draft_views.draft_etrm, name="draft_etrm"),
     path("drafts/<uuid:pk>/<str:table>/<int:number>/", draft_views.draft_row, name="draft_row"),
     path("runs/<uuid:pk>/edit-inputs", draft_views.draft_from_run, name="draft_from_run"),
     path("runs/<uuid:pk>/stop", views.stop, name="stop"),

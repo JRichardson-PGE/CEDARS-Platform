@@ -118,7 +118,11 @@ SPECS = [
         select="not_draft",
         clear=("registered_by", "published_by"),
         refresh=("status", "withdrawn_reason"),
-        children=(Child("refdata.TieOut", "pack", clear=("recorded_by",)), Child("refdata.EtrmPermutation", "pack")),
+        children=(
+            Child("refdata.TieOut", "pack", clear=("recorded_by",)),
+            Child("refdata.EtrmPermutation", "pack"),
+            Child("refdata.EtrmPackage", "pack"),
+        ),
     ),
     Spec(
         "dictionary.CatalogVersion",

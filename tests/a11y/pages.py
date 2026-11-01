@@ -187,6 +187,10 @@ PAGES = [
     ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
     ("edit-inputs-program-costs", "/calculations/drafts/{draft}/?table=ProgramCost", "analyst"),
     ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
+    # gap 25 (BR-06.22): add a measure from the eTRM pack: packages, the offering's open choice, the permutation and its row
+    ("edit-inputs-etrm", "/calculations/drafts/{draft}/etrm/?year=all", "analyst"),
+    ("edit-inputs-etrm-offering", "/calculations/drafts/{draft}/etrm/?year=all&package=swhc052-02", "analyst"),
+    ("edit-inputs-etrm-row", "/calculations/drafts/{draft}/etrm/?year=all&package=swhc052-02&delivery_type=DnDeemed", "analyst"),
     ("new-run-from-draft", "/calculations/new/?draft={draft}", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
     ("results", "/calculations/runs/{finished_run}/results/", "analyst"),

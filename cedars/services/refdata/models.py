@@ -114,10 +114,66 @@ class EtrmPermutation(models.Model):
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     values = models.JSONField(default=dict)
+    # the offering keys, in the Measure Detail ID's order (refdata.etrm.OFFERING_KEYS), as their own columns so the input editor's
+    # narrowing lookup (BR-06.22) reads them from one index: each choice's values are a few index probes, whatever the pack's size
+    offering = models.CharField(max_length=60, blank=True)
+    meas_app_type = models.CharField(max_length=60, blank=True)
+    delivery_type = models.CharField(max_length=60, blank=True)
+    sector = models.CharField(max_length=60, blank=True)
+    bldg_type = models.CharField(max_length=60, blank=True)
+    bldg_vint = models.CharField(max_length=60, blank=True)
+    bldg_hvac = models.CharField(max_length=60, blank=True)
+    bldg_loc = models.CharField(max_length=60, blank=True)
+    ntg_id = models.CharField(max_length=100, blank=True)
+    gsia_id = models.CharField(max_length=60, blank=True)
+    pa_type = models.CharField(max_length=60, blank=True)
+    pa = models.CharField(max_length=60, blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["pack", "key"], name="refdata_one_permutation_per_pack")]
-        indexes = [models.Index(fields=["pack", "measure_version_id"], name="refdata_perm_version")]
+        indexes = [
+            models.Index(
+                fields=[
+                    "pack",
+                    "measure_version_id",
+                    "offering",
+                    "meas_app_type",
+                    "delivery_type",
+                    "sector",
+                    "bldg_type",
+                    "bldg_vint",
+                    "bldg_hvac",
+                    "bldg_loc",
+                    "ntg_id",
+                    "gsia_id",
+                    "pa_type",
+                    "pa",
+                ],
+                name="refdata_perm_offering",
+            )
+        ]
 
     def __str__(self):
         return self.measure_detail_id
+
+
+class EtrmPackage(models.Model):
+    """One measure package (an eTRM measure version, e.g. SWHC052-02) of an eTRM permutations pack: its name, offerings and dates, written
+    when the pack is loaded, so the input editor lists packages without reading the permutations."""
+
+    pack = models.ForeignKey(PackVersion, on_delete=models.CASCADE, related_name="etrm_packages")
+    measure_version_id = models.CharField(max_length=60, help_text="in lower case, as on the permutations")
+    label = models.CharField(max_length=60, help_text="the measure version as eTRM writes it, e.g. SWHC052-02")
+    name = models.CharField(max_length=255, blank=True)
+    use_category = models.CharField(max_length=60, blank=True)
+    offerings = models.JSONField(default=dict, help_text="{Offering ID: Offering Description}")
+    permutations = models.PositiveIntegerField(default=0)
+    start_date = models.DateField(null=True, blank=True, help_text="the earliest permutation's start")
+    end_date = models.DateField(null=True, blank=True, help_text="the latest permutation's end; blank while any is open-ended")
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["pack", "measure_version_id"], name="refdata_one_package_per_pack")]
+        ordering = ["label"]
+
+    def __str__(self):
+        return self.label
