@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Value lists{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li></ol></nav>
+<div class="page-title"><h1>Value lists</h1>{% page_help "dictionary/lists" %}</div>
+<p>The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check values
+against. Each list is kept in versions: the version in force on a date is the newest published one effective by then, and until a list
+has a version here, the list shipped with the calculation engine{% if release %} (ReCET {{ release }}){% endif %} is the one in force.
+A code is accepted for claim years from its start year to its end year; a retired code keeps its row with an end year, and a code is
+never deleted.</p>
+{% if not engine %}<p class="alert" role="alert">The calculation engine is not installed on this server, so its lists are not shown.</p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Value lists">
+<table class="list">
+  <caption class="sr-only">Value lists and the version of each in force</caption>
+  <thead><tr><th scope="col">List</th><th scope="col">Field</th><th scope="col">In force</th><th scope="col">Codes</th><th scope="col">Waiting</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr><th scope="row"><a href="{% url 'dictionary:list' r.name %}">{{ r.name }}</a></th><td>{{ r.label }}</td>
+    <td>{% if r.version %}Version {{ r.version.number }}, from {{ r.version.effective_from|date_words }}{% else %}As shipped with the engine{% endif %}</td>
+    <td>{{ r.codes }}</td>
+    <td>{% if r.later %}Version {{ r.later.number }} from {{ r.later.effective_from|date_words }}{% endif %}{% if r.later and r.draft %}; {% endif %}{% if r.draft %}<a href="{% url 'dictionary:draft' r.name %}">A draft<span class="sr-only"> of {{ r.name }}</span></a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="5">No value lists.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

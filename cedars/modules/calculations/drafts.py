@@ -311,8 +311,13 @@ class Issue:
 
 
 def choices():
-    """The engine's dropdown values: CET's value lists (codes active for the claim year), the IOUs it prices. No profile library."""
-    return _editor().ChoiceSource()
+    """The engine's dropdown values: the value lists in force (codes active for the claim year, as CPUC administrators keep them:
+    dictionary.value_lists), the IOUs it prices. No profile library."""
+    from cedars.services.dictionary import value_lists
+
+    ed = _editor()
+    value_lists.apply_to_engine()
+    return ed.ChoiceSource()
 
 
 class ChecksFailed(Exception):

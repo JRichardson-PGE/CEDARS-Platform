@@ -241,4 +241,16 @@ PAGES = [
     ("monthly-changes", "/monthly/changes/", "community"),
     ("monthly-change-letter", "/monthly/changes/{monthly_letter}/", None),
     ("program-follower", "/programs/PGE_Res_HVAC/", "community"),
+    # gap 10: administrators edit value lists and rules as new versions (BR-12.6)
+    ("rule-set-admin", "/rules/{rules}/", "cpuc_admin"),
+    ("rule-set-draft", "/rules/{rules_draft}/", "cpuc_admin"),
+    ("rule-draft", "/rules/{rules_draft}/V7a8b9c/", "cpuc_admin"),
+    ("rule-add", "/rules/{rules_draft}/add/", "cpuc_admin"),
+    ("rule-edit", "/rules/{rules_draft}/S1a2b3c/edit/", "cpuc_admin"),
+    ("rule-differences-changed", "/rules/differences/?a={rules}&b={rules_draft}", None),
+    ("value-lists", "/dictionary/lists/", None),
+    ("value-list", "/dictionary/lists/sector/", None),
+    ("value-list-admin", "/dictionary/lists/sector/?year=2018", "cpuc_admin"),
+    ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
+    ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
 ]

@@ -28,10 +28,23 @@ rules/detail:
   guide:
     - One version of a rule set, every rule in it with its ID, severity (reject or warning), field and message. A rule's ID is a content
       hash, the same wherever the same rule is used.
+    - CPUC system administrators change the rules without a code change (BR-12.6). Start a new version of a published set, with the
+      date it takes effect and the reason; in the draft, add rules, change a rule's test or wording, or take a rule out; then publish
+      it. A published version never changes, and the version in force stays in force until the new one takes effect.
   how:
     - Filter by field or words, severity and table, and download the rules shown as CSV.
+    - "Administrators: Start the draft makes a new version to change; in a draft, Add a rule, open a rule to change it, and Publish
+      this rule set."
   see: published-data
   tour:
+    - target: "#version-h"
+      title: Start a new version
+      text: For CPUC system administrators. A draft copy of these rules with a later effective date, to change and publish.
+      optional: true
+    - target: "#draft-h"
+      title: Change this draft
+      text: Add a rule, open a rule to change it, publish the draft, or discard it.
+      optional: true
     - target: main form.filters
       title: Filter
       text: By field or words, severity and table, then Apply, or download the rules shown as CSV.
@@ -44,8 +57,16 @@ rules/rule:
   guide:
     - One validation rule, what it checks, its severity, the message a filer sees and how to fix it, and the rule as data, exactly as the
       checker runs it.
+    - In a draft rule set, a CPUC system administrator changes the rule or takes it out. A rule whose test changed names the rule it
+      replaces.
+  how:
+    - "Administrators, in a draft: Change the rule, or Take it out with the reason."
   see: published-data
   tour:
+    - target: "#change-h"
+      title: Change this rule
+      text: In a draft, change the rule's test or wording, or take it out of the draft.
+      optional: true
     - heading: The rule as data
       title: The rule as data
       text: The rule's definition as the checker reads it.
@@ -82,3 +103,32 @@ rules/check:
       title: Results
       text: How many records were rejected or warned, and the findings by rule.
       optional: true
+
+rules/rule_form:
+  title: Adding or changing a rule
+  guide:
+    - A rule is either a test on a record (when some fields hold, another field must pass a test, such as NumUnits is greater than 0
+      when MeasAppType equals 'AR') or a constraint on one field (filled in, a number, at most so many characters, a code of a value
+      list, within a range). Choose the kind, then fill in that part of the form; the other part is ignored.
+    - The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. A rule's ID is worked
+      out from its test, so a changed test gives the rule a new ID that records the one it replaces. Leave the message and fix blank to
+      have them written from the test.
+  how:
+    - Choose the kind of rule, whether a failing record is rejected or warned, the table and the field.
+    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to.
+    - For a constraint on one field, choose what the field must be and what that constraint needs.
+    - Give the reason, then Add the rule or Save the change.
+  see: published-data
+  tour:
+    - heading: What the rule tests
+      title: What the rule tests
+      text: The kind of rule, its severity, the table and the field.
+    - target: "#record-h"
+      title: A test on a record
+      text: The test, its value and up to five conditions; read when the kind is a test on a record.
+    - target: "#spec-h"
+      title: A constraint on one field
+      text: What the field must be; read when the kind is a constraint on one field.
+    - heading: What a filer reads
+      title: What a filer reads
+      text: The message and fix a filer sees (blank to write them from the test), the modules that apply the rule and your reason.

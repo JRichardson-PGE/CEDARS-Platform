@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}Value list {{ vl.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li><li><a href="{% url 'dictionary:lists' %}">Value lists</a></li></ol></nav>
+<div class="page-title"><h1>Value list {{ vl.name }}</h1>{% page_help "dictionary/list" %}</div>
+<p>The codes {% if vl.label != vl.name %}<a href="{% url 'dictionary:field' vl.label %}">{{ vl.label }}</a>{% else %}this field{% endif %} may hold.
+{% if current %}In force: version {{ current.number }}, from {{ current.effective_from|date_words }}.{% else %}No version is published here yet, so the list shipped with the engine{% if release %} (ReCET {{ release }}){% endif %} is in force.{% endif %}</p>
+<p id="showing"><strong>Showing {% if shown %}version {{ shown.number }}{% if shown == current %} (in force){% endif %}{% else %}the list as shipped with the engine{% endif %}.</strong>
+{% if shown and shown.reason %}Why it changed: {{ shown.reason }}{% endif %}
+{% if changes %}Against {{ shown.based_on }}: {{ changes.added|length }} added, {{ changes.retired|length }} retired, {{ changes.reinstated|length }} reinstated, {{ changes.changed|length }} otherwise changed.{% endif %}</p>
+{% if can_edit %}
+<section class="card" aria-labelledby="edit-h">
+  <h2 id="edit-h">Change this list</h2>
+  {% if draft %}<p>A draft of the next version is open: <a href="{% url 'dictionary:draft' vl.name %}">change the draft</a>.</p>
+  {% else %}<p>Start a new version: a draft copy of {% if versions %}the newest version{% else %}the engine's list{% endif %} to change code by code or from a file, then publish with the date it takes effect.</p>
+  <form method="post" action="{% url 'dictionary:start_version' vl.name %}" class="actions">{% csrf_token %}<button type="submit">Start a new version</button></form>{% endif %}
+</section>
+{% endif %}
+<form method="get" class="filters" role="search">
+  <div class="field"><label for="version">Version</label><select id="version" name="version">
+    {% for v in versions %}<option value="{{ v.number }}"{% if v == shown %} selected{% endif %}>Version {{ v.number }}, from {{ v.effective_from|date_words }}</option>{% endfor %}
+    <option value="shipped"{% if not shown %} selected{% endif %}>As shipped with the engine</option></select></div>
+  <div class="field"><label for="q">Code or description</label><input type="search" id="q" name="q" value="{{ q }}"></div>
+  <div class="field"><label for="year">Claim year</label><input type="text" inputmode="numeric" id="year" name="year" value="{{ year }}" size="6" aria-describedby="year-help"><div class="helptext" id="year-help">For which codes are accepted that year.</div></div>
+  <div class="field"><label for="state">Codes</label><select id="state" name="state"><option value="">All</option><option value="active"{% if state == "active" %} selected{% endif %}>Accepted</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Not accepted (retired or not yet started)</option></select></div>
+  <button type="submit">Apply</button>
+  <button type="submit" name="format" value="csv">Download these codes (CSV)</button>
+</form>
+<p>{{ total }} code{{ total|pluralize }}.</p>
+{% include "dictionary/_codes.html" with editable=False %}
+<h2 id="versions-h">Versions</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="versions-h">
+<table class="list">
+  <caption class="sr-only">Published versions of this list, newest first</caption>
+  <thead><tr><th scope="col">Version</th><th scope="col">In force from</th><th scope="col">Copied from</th><th scope="col">Why</th></tr></thead>
+  <tbody>
+  {% for v in versions %}<tr><th scope="row"><a href="?version={{ v.number }}">Version {{ v.number }}</a>{% if v == current %} <strong>(in force)</strong>{% endif %}</th><td>{{ v.effective_from|date_words }}</td><td>{{ v.based_on }}</td><td>{{ v.reason }}</td></tr>
+  {% empty %}<tr><td colspan="4">None published here yet: the engine's list is in force.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

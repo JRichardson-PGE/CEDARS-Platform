@@ -165,9 +165,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         rules=b"PA,Territory,Share,AppliesTo,Source\nMCE,PGE,1,programs,example\n",
         source_name="goals.csv",
     )
-    rules = RuleSet.objects.create(
-        code="claims", label="Quarterly claims", effective_from=date(2026, 3, 12), status="published", source="test"
-    )
+    rules = RuleSet.objects.create(code="claims", label="Quarterly claims", effective_from=date(2026, 3, 12), source="test")
     Rule.objects.create(
         rule_set=rules,
         rule_id="S1a2b3c",
@@ -192,6 +190,8 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         difference="Budget filings do not apply it.",
         modules=["claims"],
     )
+    RuleSet.objects.filter(pk=rules.pk).update(status="published")  # rules are added while a set is a draft (migration 0002)
+    rules_draft, value_list_draft = _admin_drafts(rules)
     # a filing past its due date with a reopen request waiting for a CPUC claims approver
     service.grant(pge_admin, analyst, pge, "claims.confirm")
     approver = make_user("approver@cpuc.ca.gov", "Avery Prover")
@@ -340,6 +340,8 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "finished_run": finished,
         "draft": draft,
         "rules": rules,
+        "rules_draft": rules_draft,
+        "list_code": value_list_draft,
         "cpuc_admin": cpuc_admin,
         "approver": approver,
         "change_request": change_request.pk,
@@ -353,6 +355,31 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **impact_profiles,
         "sw": sw_id,
     }
+
+
+def _admin_drafts(rules):
+    """Gap 10 (BR-12.6): a draft copy of the published rules with a changed rule, and the sector value list with a published
+    version and a draft that adds a code. Made directly (the scene has no engine to copy the shipped list from)."""
+    from cedars.services.dictionary.models import Code, ValueList, ValueListVersion
+
+    draft = RuleSet.objects.create(
+        code="claims", label="Quarterly claims", effective_from=date(2027, 1, 1), based_on=rules, reason="D.26-01-001", source="Copied"
+    )
+    for r in rules.rules.all():
+        Rule.objects.create(
+            rule_set=draft,
+            **{f: getattr(r, f) for f in ("rule_id", "severity", "table", "field", "message", "fix", "kind", "definition", "modules")},
+        )
+    Rule.objects.filter(rule_set=draft, rule_id="W4d5e6f").update(rule_id="V7a8b9c", severity="reject", replaces="W4d5e6f")
+    sector = ValueList.objects.create(name="sector", label="Sector")
+    v1 = ValueListVersion.objects.create(value_list=sector, number=1, based_on="the list shipped with ReCET")
+    rows = [("Residential", 2019, None), ("Commercial", 2019, None), ("Res", 2013, 2018)]
+    Code.objects.bulk_create(Code(version=v1, code=c, start_year=a, end_year=b) for c, a, b in rows)
+    ValueListVersion.objects.filter(pk=v1.pk).update(status="published", effective_from=date(2026, 1, 1), reason="First version")
+    v2 = ValueListVersion.objects.create(value_list=sector, number=2, based_on="version 1")
+    Code.objects.bulk_create(Code(version=v2, code=c, start_year=a, end_year=b) for c, a, b in rows)
+    new = Code.objects.create(version=v2, code="Tribal", description="Tribal communities", start_year=2028, added_in_draft=True)
+    return draft, new.pk
 
 
 def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):

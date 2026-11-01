@@ -12,6 +12,20 @@
   {% if r.difference %}<dt>Differs between modules</dt><dd>{{ r.difference }}</dd>{% endif %}
   <dt>Source</dt><dd>{{ r.source }}</dd>
 </dl>
+{% if r.replaces %}<p>This rule's test was changed in this version: it replaces rule {% if replaced %}<a href="{% url 'rules:rule' replaced.rule_set_id replaced.rule_id %}">{{ r.replaces }}</a>{% else %}{{ r.replaces }}{% endif %}{% if replaced %} ({{ replaced.get_severity_display|lower }}: {{ replaced.message }}){% endif %}.</p>{% endif %}
+{% if sysadmin and r.rule_set.status == "draft" %}
+<section class="card" aria-labelledby="change-h">
+  <h2 id="change-h">Change this rule</h2>
+  <p>The rule set is a draft, so this rule may change. A change to its test gives it a new ID.</p>
+  <div class="actions"><a class="button" href="{% url 'rules:edit_rule' r.rule_set_id r.rule_id %}">Change the rule</a></div>
+  <details><summary>Take this rule out of the draft</summary>
+    <form method="post" action="{% url 'rules:remove_rule' r.rule_set_id r.rule_id %}" class="row-form">{% csrf_token %}
+      <div class="field"><label for="remove-reason">Reason</label><input type="text" id="remove-reason" name="reason" required></div>
+      <button type="submit">Take it out</button>
+    </form>
+  </details>
+</section>
+{% endif %}
 <h2>The rule as data</h2>
-<pre>{{ r.definition }}</pre>
+<pre tabindex="0">{{ r.definition }}</pre>
 {% endblock %}
