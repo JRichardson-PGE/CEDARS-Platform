@@ -65,6 +65,29 @@ topics:
             - "The answer is JSON. If the status is 429, read Retry-After (say 12) and call again after 12 seconds."
           result: >-
             The script never needs a password or the second factor, and revoking the token on your account page stops it at once.
+      - id: open-data-api
+        q: Can a program read the published data without an account?
+        a:
+          - >-
+            Yes. The open data API at /api/v1/data serves what the dashboards and record downloads show, as JSON, with no account:
+            the metric catalog, the dimensions and filters, sums by any dimension, and the measure-level records with the columns
+            you choose, a page at a time (at most {limit:api_data_rows} a page). The same query string gives the same numbers as
+            the dashboard page or download, and every answer says which release it read. Only fields the data dictionary marks
+            public are served. Calls without a token are limited to {limit:api_rate_anon} per address.
+        tags: [api, open data, json, records, dashboard, download, public]
+        guide: published-data
+        links:
+          - {text: API description (OpenAPI), href: /api/v1/schema}
+          - {text: The data API's datasets, href: /api/v1/data/}
+        example:
+          title: Total system benefit by PA for one year
+          intro: A script reads each PA's claimed TSB for 2028, then the records behind one PA.
+          steps:
+            - "Call GET /api/v1/data/query with dataset=claims, metric=tsb, by=pa, year_from=2028 and year_to=2028."
+            - "Each row has the PA, its tsb and records; totals is over every PA; stamp.release names the release read."
+            - "Call GET /api/v1/data/records with the same years, pa=SCE and limit=500, and follow next until it is null."
+          result: >-
+            The totals match the Total system benefit page for the same choices, because both run the same query on the same release.
 
   - key: uploads
     title: Uploading and filing
