@@ -189,11 +189,11 @@
 <h3 id="mon-h">Monthly reports</h3>
 {% if records.monthly is None %}<p>Monthly reports are not part of this site.</p>
 {% elif records.monthly %}
-<p class="small muted">Year-to-date spend (program costs plus rebates and incentives) and funds committed, as each month's report gives them. Monthly figures are not validated; the claims are.</p>
+<p class="small muted">Year-to-date spend (program costs plus paid incentives, the measures' rebates and incentives), paid incentives, and incentives committed to be paid in the future (not spend, and not comparable with paid incentives), as each month's report gives them. Monthly figures are not validated; the claims are.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Monthly reports table">
 <table class="list">
   <caption class="sr-only">Monthly reports that include {{ p.prg_id }}, newest month first</caption>
-  <thead><tr><th scope="col">Report</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Spend, year to date</th><th scope="col" class="num">Funds committed, year to date</th></tr></thead>
+  <thead><tr><th scope="col">Report</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col" class="num">Spend, year to date</th><th scope="col" class="num">Paid incentives, year to date (part of spend)</th><th scope="col" class="num">Committed incentives, year to date (to be paid later)</th></tr></thead>
   <tbody>
   {% for r in records.monthly %}
   <tr>
@@ -201,6 +201,7 @@
     <td>{{ r.organisation }}</td>
     <td><span class="status {{ r.status|status_tone }}">{{ r.status }}</span></td>
     <td class="num">{{ r.shown.ytd|default:"Not reported" }}</td>
+    <td class="num">{{ r.shown.paid|default:"Not reported" }}</td>
     <td class="num">{{ r.shown.committed|default:"Not reported" }}</td>
   </tr>
   {% endfor %}

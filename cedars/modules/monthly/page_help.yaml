@@ -84,9 +84,11 @@ monthly/report:
 monthly/version:
   title: A monthly report version
   guide:
-    - One version of a PA's monthly report, by program. Spend and commitments are compared with the operating budget; savings, total system
+    - One version of a PA's monthly report, by program. Spend is shown beside the approved and operating budgets; savings, total system
       benefit and ratios are estimated from the year-to-date BCA inputs and labeled so. A month's spend is the change in the year-to-date
       spend, so it is known once the month before is confirmed.
+    - Paid incentives (the measures' rebates and incentives) are part of spend and shown on their own too. Committed incentives are what
+      the PA has committed to pay in the future, from the Commitments table; they are not spend and not comparable with paid incentives.
   how:
     - Download this report by program (CSV) gives the table as shown.
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
@@ -94,11 +96,11 @@ monthly/version:
   tour:
     - target: dl.tiles, main .tile
       title: Totals
-      text: The month's and the year's spend, commitments and estimates.
+      text: The month's and the year's spend, paid and committed incentives, and estimates.
       optional: true
     - target: "#programs-h"
       title: By program
-      text: Each program's spend and commitments against its operating budget, and the estimates, with a CSV.
+      text: Each program's approved and operating budgets, spend, paid incentives and committed incentives, and the estimates, with a CSV.
     - target: "#files-h"
       title: Files
       text: The upload and, once confirmed, the estimate run's settings.
@@ -112,6 +114,7 @@ monthly/year:
   guide:
     - Every month of a program year in one place for one PA, totals over its programs. Reports are cumulative, so each month's spend is the
       change in its year-to-date spend. A month that does not add up with the one before it is flagged.
+    - Paid incentives are part of spend; committed incentives are to be paid in the future and are not compared with them.
   how:
     - Choose the PA and the year and Apply; Download the year (CSV) gives every month.
   see: monthly-reports
@@ -121,7 +124,7 @@ monthly/year:
       text: Choose the program administrator.
     - target: main table.data
       title: By month
-      text: Each month's spend, commitments and estimates, with a CSV of the year.
+      text: Each month's spend, paid and committed incentives, and estimates, with a CSV of the year.
       optional: true
 
 monthly/closing:

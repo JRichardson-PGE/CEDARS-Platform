@@ -268,12 +268,13 @@ def test_a_monthly_report_correction_has_a_change_letter_and_a_notice(
     letter = MonthlyLetter.objects.get(version=v2)
     (p,) = letter.changes["programs"]
     assert p["prg_id"] == "PGE_Com_Ltg" and p["before"]["YTDExpenditures"] == 200 and p["after"]["YTDExpenditures"] == 450
+    assert p["before"]["RebatesAndIncentives"] == 0 and "YTDCommittedFunds" in p["before"]  # paid and committed, apart
     n = Notification.objects.filter(user=u).order_by("-id").first()
     assert n.title == "Corrected monthly report: PGE January 2028 report, version 2" and n.link == f"/monthly/changes/{letter.pk}/"
     assert "PGE_Com_Ltg: spend, year to date $200 to $450" in n.body
 
     page = client.get(f"/monthly/changes/{letter.pk}/").content.decode()  # public
-    assert "a late lighting invoice" in page and "+$250" in page
+    assert "a late lighting invoice" in page and "+$250" in page and monthly.PAID in page and monthly.COMMITTED in page
     assert f'href="/monthly/changes/{letter.pk}/"' in client.get("/monthly/changes/").content.decode()
 
 
