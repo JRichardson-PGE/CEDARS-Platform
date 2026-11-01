@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load filing_comments %}
 {% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li><li><a href="{% url 'monthly:year' report.year %}?org={{ v.submission.organisation.code|urlencode }}">{{ report.year }}</a></li><li><a href="{% url 'monthly:report' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a></li></ol></nav>
@@ -67,4 +68,6 @@ trending and are never part of a claim.</p></div>
 {% if public %}<p>This report is confirmed: its upload and the estimate run's settings are published.</p>{% endif %}
 <ul>{% for name, i in files %}<li><a href="{% url 'monthly:file' v.pk i %}">{{ name }}</a></li>{% empty %}<li>None yet.</li>{% endfor %}</ul>
 </section>
+
+{% filing_comments v %}
 {% endblock %}

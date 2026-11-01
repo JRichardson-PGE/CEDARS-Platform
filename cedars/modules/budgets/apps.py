@@ -29,3 +29,10 @@ class BudgetsConfig(AppConfig):
 
         register_program_records("budgets", program_page.filings)  # each program's page lists its filings and shifts (BR-07.6)
         register_program_records("fund_shifts", program_page.fund_shifts)
+
+        from cedars.core import queue as my_queue
+
+        from . import queue
+
+        # each user's queue (BR-09.5): fund shifts waiting for their PA's acknowledgment
+        my_queue.register("fund_shift", "Fund shifts to acknowledge", queue.acknowledgements, action="Acknowledge", order=60)

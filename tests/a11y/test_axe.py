@@ -810,6 +810,12 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     wrong = {"PII_Contact.csv": "ContactID,ContactName,ContactPhoneNumber\nPGE-C9,A. Customer,415-555-0100\n",
              "PII_Site.csv": "SiteID,SiteAddress\nPGE-S1,1 Market St\n"}  # fmt: skip
     claims.upload_pii(pii_filer, q2v, _zip(wrong), "pii.zip", "mfa")
+    # the filing's discussion (BR-09.5): CPUC staff ask, with a file; PG&E answers, so the reply waits on the claims approver's queue
+    from cedars.services.submissions import comments
+
+    note = ("review_notes.txt", io.BytesIO(b"PGE-2028-002: 4 units filed, 3 installed."))
+    comments.post(cpuc_admin, v, "Please check PGE-2028-002's unit count before the next quarter.", [note])
+    comments.post(analyst, v, "It was canceled.\nThe correction withdraws it.")
     restatement = _restatement(analyst, pge, v2, group_sums)
     return {
         "restatement": restatement,

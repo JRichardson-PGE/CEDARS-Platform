@@ -144,6 +144,31 @@ core/about:
       title: The parts of CEDARS
       text: Each module with what it does and the phase that delivers it.
 
+core/queue:
+  title: My queue
+  see: getting-started
+  guide:
+    - The work waiting on you across CEDARS, for every organization you act for, read live from each module, so an item leaves the queue the
+      moment the work is done. Nothing here is assigned by hand.
+    - "It holds: correction requests and program changes to decide (CPUC approvers and their delegates), data steward and access decisions,
+      filings priced and ready to confirm (those who may confirm them), fund shifts to acknowledge for a co-funding PA, comments on filings
+      waiting for your side's reply, documents filed but not published, responses to recommendations and unanswered questions."
+  how:
+    - Each row's link opens the page where the work is done. Items with a due date come first, overdue ones marked Overdue.
+    - A fund shift is acknowledged while acting for the PA the row names; switch with Acting for at the top of the page.
+  tour:
+    - target: ul.queue-summary
+      title: What is waiting
+      text: How many items of each kind wait on you; each links to its list.
+      optional: true
+    - target: main table.list
+      title: The items
+      text: What each one is, for which organization, since when and by when, and the link to act on it.
+      optional: true
+    - target: main details
+      title: What the queue covers
+      text: Every kind of work the queue looks for, and who sees each.
+
 core/help/index:
   title: Help
   see: getting-started

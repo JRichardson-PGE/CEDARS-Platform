@@ -164,3 +164,44 @@ class Delegation(models.Model):
 
     def __str__(self):
         return f"{self.delegate} for {self.approver} ({self.module})"
+
+
+class Comment(models.Model):
+    """A comment on a filing version (BR-09.5), between the filing organization and CPUC staff: never edited (the database refuses,
+    migration 0004); a correction is another comment. Not public, even on a published version. Removed only with a draft version the
+    retention policy removes."""
+
+    version = models.ForeignKey(SubmissionVersion, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author_name = models.CharField(max_length=200, help_text="As the author was named when they wrote it")
+    organisation = models.ForeignKey(
+        "accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The side it was written for: the filer or the CPUC"
+    )
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"comment on {self.version} by {self.author_name}"
+
+
+class Attachment(models.Model):
+    """A file attached to a comment, kept in the uploads storage area under the version (cedars.core.files: the document library's
+    accepted types)."""
+
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="attachments")
+    position = models.PositiveSmallIntegerField()
+    name = models.CharField(max_length=200)
+    key = models.CharField(max_length=500)
+    sha256 = models.CharField(max_length=64)
+    size = models.BigIntegerField()
+    content_type = models.CharField(max_length=120)
+
+    class Meta:
+        ordering = ["comment", "position"]
+        constraints = [models.UniqueConstraint(fields=["comment", "position"], name="submissions_one_attachment_position")]
+
+    def __str__(self):
+        return self.name

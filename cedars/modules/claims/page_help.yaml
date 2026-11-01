@@ -101,6 +101,7 @@ claims/version:
     - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
     - Column definitions explains each column.
     - Restate these claims prices the confirmed version again on today's engine, as an analysis that never changes it.
+    - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: claims
   tour:
     - target: main form.filters
@@ -121,6 +122,10 @@ claims/version:
     - target: "#files-h"
       title: Files
       text: The tables as filed.
+    - target: "#comments-h"
+      title: Comments
+      text: Your organization and CPUC staff discuss the filing here, with files attached. Not public; a comment is never edited.
+      optional: true
 
 claims/changes:
   title: The claims change log

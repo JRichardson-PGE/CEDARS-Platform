@@ -89,6 +89,7 @@ monthly/version:
       spend, so it is known once the month before is confirmed.
   how:
     - Download this report by program (CSV) gives the table as shown.
+    - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: monthly-reports
   tour:
     - target: dl.tiles, main .tile
@@ -101,6 +102,10 @@ monthly/version:
     - target: "#files-h"
       title: Files
       text: The upload and, once confirmed, the estimate run's settings.
+    - target: "#comments-h"
+      title: Comments
+      text: Your organization and CPUC staff discuss the filing here, with files attached. Not public; a comment is never edited.
+      optional: true
 
 monthly/year:
   title: A year of monthly reports

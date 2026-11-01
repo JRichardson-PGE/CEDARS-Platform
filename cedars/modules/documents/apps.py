@@ -33,3 +33,12 @@ class DocumentsConfig(AppConfig):
         from . import health
 
         health.register()
+
+        from cedars.core import queue as my_queue
+
+        from . import queue
+
+        # each user's queue (BR-09.5): documents to publish, responses owed, questions to answer
+        my_queue.register("document_draft", "Documents to publish", queue.drafts, action="Review and publish", order=80)
+        my_queue.register("document_response", "Responses to recommendations", queue.responses, action="Respond", order=85)
+        my_queue.register("document_question", "Questions to answer", queue.questions, action="Answer", order=90)

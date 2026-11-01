@@ -1,0 +1,27 @@
+{% if show %}
+<section aria-labelledby="comments-h" id="comments">
+<h2 id="comments-h">Comments</h2>
+<p class="small muted">Between {{ v.submission.organisation.code }} and CPUC staff, about every version of this filing. Not public, even once the filing is published. A comment is never edited: post another to correct one.</p>
+{% if comments %}
+<ol class="comments">
+  {% for c in comments %}<li id="comment-{{ c.pk }}" class="card">
+    <p class="small"><strong>{{ c.author_name }}</strong>, {{ c.organisation.code }}, {{ c.created_at|datetime_words }}, on version {{ c.version.number }}{% if c.version_id == v.pk %} (this version){% endif %}</p>
+    <p class="prewrap">{{ c.text }}</p>
+    {% if c.attachments.all %}<ul class="files" aria-label="Files attached to this comment">{% for a in c.attachments.all %}<li><a href="{% url 'submissions:attachment' a.pk %}">{{ a.name }}</a> <span class="small muted">({{ a.size|filesizeformat }})</span></li>{% endfor %}</ul>{% endif %}
+  </li>{% endfor %}
+</ol>
+{% else %}<p>No comments yet.</p>{% endif %}
+{% if not v.imported %}
+<form method="post" action="{% url 'submissions:comment' v.pk %}" enctype="multipart/form-data" class="stack form-narrow">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+  <p><label for="comment-text">Your comment on version {{ v.number }}, for {{ side.code }}</label>
+    <textarea id="comment-text" name="text" rows="4" maxlength="{{ max_chars }}" required aria-describedby="comment-text-help"></textarea>
+    <span class="small muted" id="comment-text-help">Up to {{ max_chars }} characters. Everyone on both sides who may read this filing sees it.</span></p>
+  <p><label for="comment-files">Attach files (optional)</label>
+    <input type="file" id="comment-files" name="files" multiple accept="{{ accept }}" aria-describedby="comment-files-help">
+    <span class="small muted" id="comment-files-help">Up to {{ max_files }} files of {{ max_mb }} MB each: {{ accepted }}. See <a href="{% url 'limits:index' %}">Limits</a>.</span></p>
+  <div class="actions"><button type="submit" class="primary">Post comment</button></div>
+</form>
+{% endif %}
+</section>
+{% endif %}

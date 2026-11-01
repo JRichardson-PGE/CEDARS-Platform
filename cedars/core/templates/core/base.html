@@ -78,6 +78,7 @@
       <button type="submit">Switch</button>
     </form>
     {% elif request.organisation %}<span class="org-badge" data-tour="acting-for"><b>{{ request.organisation.code }}</b> Acting for</span>{% endif %}
+    <a href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue</a>
     <a class="bell" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}>Notifications{% if unread_notifications %} <span class="count">{{ unread_notifications }}</span><span class="sr-only"> unread</span>{% endif %}</a>
     <a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a>
     <a href="{% url 'administration:account' %}" data-tour="account"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
