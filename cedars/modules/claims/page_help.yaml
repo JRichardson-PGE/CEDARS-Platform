@@ -100,6 +100,7 @@ claims/version:
   how:
     - Download this table (CSV) gives the rows you see; Claims and their links gives each claim's links to others.
     - Column definitions explains each column.
+    - True-ups priced against their parents' profiles, when the version has NMEC true-ups, shows what each revised 8,760 profile changes.
     - Restate these claims prices the confirmed version again on today's engine, as an analysis that never changes it.
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: claims
@@ -111,6 +112,10 @@ claims/version:
     - target: "#programs-h"
       title: By program
       text: Each program's year-to-date results, with downloads and the column definitions.
+    - target: "#true-ups-h"
+      title: True-ups priced against their parents' profiles
+      text: Each NMEC true-up's change in benefits from its parent's 8,760 profile to its own, by program, and the parent profile version it was priced against.
+      optional: true
     - target: "#withdrawn-h"
       title: Withdrawn claims
       text: Claims withdrawn this year, with the reason. Their records stay but are not counted.
@@ -175,7 +180,7 @@ claims/links:
       text: Choose what to look up by and enter the ID.
     - target: "#results-h"
       title: The linked claims
-      text: Every confirmed claim found, in order, with its filed savings and, for a chain, each true-up's change from its parent.
+      text: Every confirmed claim found, in order, with its filed savings and, for a chain, each true-up's change from its parent and the benefit its revised 8,760 profile changes against the profile its parent was priced on.
       optional: true
 
 claims/restate:

@@ -16,6 +16,12 @@
 <h2>Withdrawing a claim</h2>
 <p>To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload with the reason. Its
 records stay, marked withdrawn, and are no longer priced or counted.</p>
+<h2>NMEC true-ups</h2>
+<p>A NMEC true-up names the claim it adjusts in ParentClaimID, with NMEC_TU_Flag set, and is filed on its revised (metered) 8,760
+profile. When priced, it is also priced on the profile its parent claim was priced on: the same profile version, read from the profile
+library that parent's run used, even when the profile has since been replaced. The difference is shown on the version's page, by
+program, and on the claim's NMEC chain in <a href="{% url 'claims:links' %}">Linked claims</a>. It is reported only: the results,
+ratios and cost tests use each claim's own values.</p>
 <h2>Personal information</h2>
 <p>Contacts and sites (PII_Contact, PII_Site) never go in the claims file. They are uploaded separately on the period's page, checked
 against the claims' ContactIDs and SiteIDs, and kept apart in the PII vault. Uploading or reading them needs the PII permission, which a

@@ -197,6 +197,8 @@ class RunRequest:
     cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
     cost_test_set: PackVersion | None = None  # a cost_tests pack (blank: the set in force for the job's first program year)
     record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column (BR-06.5), pinned like the run's
+    # a supplied 8,760-profile file (ReCET's profiles_8760, Parquet): the profile versions true-ups are priced against (BR-05.6)
+    profiles_8760: bytes | None = None
 
 
 def _check(req: RunRequest) -> dict:
@@ -412,6 +414,15 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
             inputs["cet_outputs"] = {"key": key, "sha256": storage.sha256_of(cet), "bytes": uploads.put_file(key, cet).size}
     inputs["job_zip"] = {"key": run.storage_prefix + "job.zip", "sha256": storage.sha256_of(Path(job_zip))}
     inputs["job_zip"]["bytes"] = uploads.put_file(inputs["job_zip"]["key"], Path(job_zip)).size
+    if req.profiles_8760:
+        if req.calculation != RECET:
+            raise AccessDenied("A CET replica prices each record on its own profile only; supplied 8,760 profiles are ReCET's.")
+        key = run.storage_prefix + "profiles_8760.parquet"
+        inputs["profiles_8760"] = {
+            "key": key,
+            "sha256": hashlib.sha256(req.profiles_8760).hexdigest(),
+            "bytes": uploads.put_bytes(key, req.profiles_8760).size,
+        }
     allocation_sha = None
     if st.get("allocate_statewide"):
         version = req.allocation_version or (registry.most_recent_allocation(info.first_year) if info.first_year else None)
@@ -662,11 +673,12 @@ def price_submission(
     allocation_version=None,
     settings: dict | None = None,
     cost_test_set: PackVersion | None = None,
+    profiles_8760: bytes | None = None,
 ):
     """The pricer the submissions service calls (registered in apps.py): a filing version's job on the default release, ReCET's own
     calculation; with settings allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most
     recent confirmed one for the program year). `cost_test_set`: the published set the filing's setup requires (blank: the published
-    set in force for the job's first program year)."""
+    set in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles (BR-05.6), a supplied 8,760 file."""
     release = default_release()
     if release is None:
         raise AccessDenied("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
@@ -678,6 +690,7 @@ def price_submission(
         settings=settings or {},
         allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
         cost_test_set=cost_test_set,
+        profiles_8760=profiles_8760,
     )
     return create_run(actor, version.submission.organisation, req, job_zip, submission_version=version).pk
 
@@ -705,6 +718,7 @@ def restate_version(
     allocation_version=None,
     settings: dict | None = None,
     cost_test_set: PackVersion | None = None,
+    profiles_8760: bytes | None = None,
 ):
     """The restater the submissions service calls (BR-06.17, registered in apps.py): a published filing's job priced again as an
     analysis run for `organisation` (None: the actor's own), ReCET's own calculation on `release`. The run is not linked to the version
@@ -722,6 +736,7 @@ def restate_version(
         allocation_version=allocation_version if (settings or {}).get("allocate_statewide") else None,
         cost_test_set=cost_test_set,
         record_accs=tuple(record_accs),
+        profiles_8760=profiles_8760,
     )
     return create_run(actor, organisation, req, job_zip).pk
 
@@ -786,6 +801,7 @@ def _record_for_submission(run: Run) -> None:
         "allocation_sha256": (run.inputs.get("sw_factors") or {}).get("sha256"),
         "programs_sha256": (run.inputs.get("programs") or {}).get("sha256"),
         "cost_tests": ((run.spec or {}).get("context") or {}).get("cost_tests"),
+        "packs": ((run.spec or {}).get("context") or {}).get("packs") or {},  # refdata.pin of the packs, by kind (their ids)
         "spec_key": run.storage_prefix + "job.json",
         "receipt_key": out + "receipt.json",
         "results": results_keys(run),

@@ -70,7 +70,7 @@ def register_listener(published: Callable[[SubmissionVersion], None], unpublishe
 
 def register_pricer(price: Callable) -> None:
     """The Calculations module's pricing function: price(actor, version, job_zip, *, name, acc_version, allocation_version, settings,
-    cost_test_set) starts a run on the job (a local file) for the version and returns the run's id; the run's end calls
+    cost_test_set, profiles_8760) starts a run on the job (a local file) for the version and returns the run's id; the run's end calls
     record_calculation. cost_test_set is the published cost-test set (a refdata pack) the filing's setup requires, or None."""
     _pricers[:] = [price]
 
@@ -125,10 +125,11 @@ def claims_totals(organisation: Organisation, year: int) -> list[dict]:
 
 def register_restater(restate: Callable, options: Callable, describe: Callable) -> None:
     """The Calculations module's restater (BR-06.17): restate(actor, organisation, version, job_zip, *, name, release, acc_version,
-    record_accs, allocation_version, settings, cost_test_set) starts an analysis run on the job (a local file) for `organisation` (None:
-    the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release", "default", "accs"}], the
-    active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status", "label", "ended", "error",
-    "url", "release", "acc", "allocation", "cost_tests", "programs", "results"} for a run, or None once it is gone (expired)."""
+    record_accs, allocation_version, settings, cost_test_set, profiles_8760) starts an analysis run on the job (a local file) for
+    `organisation` (None: the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release",
+    "default", "accs"}], the active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status",
+    "label", "ended", "error", "url", "release", "acc", "allocation", "cost_tests", "programs", "results"} for a run, or None once it
+    is gone (expired)."""
     _restaters[:] = [(restate, options, describe)]
 
 
@@ -333,9 +334,11 @@ def price(
     allocation_version=None,
     settings: dict | None = None,
     cost_test_set=None,
+    profiles_8760: bytes | None = None,
 ):
     """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
-    the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed."""
+    the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed.
+    `profiles_8760`: a supplied 8,760-profile file the job's records name (a claims true-up's parent profiles, BR-05.6)."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
     _require(actor, v.submission, "submit")
     _refuse_imported(v.submission)
@@ -352,6 +355,7 @@ def price(
         allocation_version=allocation_version,
         settings=settings or {},
         cost_test_set=cost_test_set,
+        **({"profiles_8760": profiles_8760} if profiles_8760 else {}),
     )
     audit.record("submission.pricing_started", obj=v, after={"run": str(run), "acc": acc_version}, actor=actor)
     return str(run)

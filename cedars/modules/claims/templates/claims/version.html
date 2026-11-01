@@ -53,6 +53,38 @@
   <dl class="facts">{% for name, help in definitions %}<dt>{{ name }}</dt><dd>{{ help }}</dd>{% endfor %}</dl></details>
 </section>
 
+{% if true_ups %}
+<section aria-labelledby="true-ups-h">
+<h2 id="true-ups-h">True-ups priced against their parents' profiles</h2>
+<p>Each NMEC true-up below is priced twice: on its own 8,760 profile, and on the profile its parent claim was priced on, with the same
+ACC, timing and quantities. The difference is what the revised profile changes (BR-05.6). It is reported only: the table above, the
+ratios and the cost tests use each claim's own values.</p>
+{% if true_ups.programs %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="true-ups-programs-caption">
+<table class="list data">
+  <caption id="true-ups-programs-caption">Change from the parents' profiles, by program</caption>
+  <thead><tr><th scope="col">Program</th>{% for h in true_ups.head %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for row in true_ups.programs %}<tr><th scope="row">{{ row.r.prg_id }}{% if row.r.name %}<br><span class="small">{{ row.r.name }}</span>{% endif %}</th>{% for c in row.cells %}<td class="num">{% if c %}{{ c }}{% else %}{% include "ui/dash.html" %}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+{% elif true_ups.priced %}<p>The run priced no change from the parents' profiles.</p>
+{% else %}<p>Not priced yet: the change from the parents' profiles is shown once this version is priced.</p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="true-ups-caption">
+<table class="list">
+  <caption id="true-ups-caption">The parent profile each true-up is priced against{% if true_ups.count > true_ups.entries|length %} (the first {{ true_ups.entries|length }} of {{ true_ups.count }}){% endif %}</caption>
+  <thead><tr><th scope="col">ClaimID</th><th scope="col">ParentClaimID</th><th scope="col">Parent's profile</th><th scope="col">Version</th><th scope="col">Parent priced in</th><th scope="col">Note</th></tr></thead>
+  <tbody>{% for e in true_ups.entries %}<tr>
+    <th scope="row">{{ e.claim }}</th><td>{{ e.parent }}</td>
+    <td>{{ e.profile|default:"None" }}{% if e.profile_2nd %}<br><span class="small">2nd baseline: {{ e.profile_2nd }}{% if e.version_2nd %}, version {{ e.version_2nd }}{% endif %}</span>{% endif %}</td>
+    <td>{% if e.version %}{{ e.version }}{% else %}Not pinned{% endif %}</td>
+    <td>{{ e.source }}{% if e.library %}<br><span class="small">{{ e.library }}</span>{% endif %}</td>
+    <td>{{ e.note }}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
 {% if withdrawals %}
 <section aria-labelledby="withdrawn-h">
 <h2 id="withdrawn-h">Withdrawn claims</h2>
