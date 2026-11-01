@@ -8,6 +8,8 @@ least {{ notice_days }} days before. A note published at shorter notice says why
   <a href="{% url 'limits:index' %}">Current limits</a>
   <a href="{% url 'core:help_faq' %}">Frequently asked questions</a>
   <a href="{% url 'releases:feed' %}">Feed (RSS)</a>
+  <a href="{% url 'mandates:index' %}">CPUC-mandated changes</a>
+  <a href="{% url 'dictionary:changes' %}">Specification change log</a>
   {% if sysadmin %}<a class="button" href="{% url 'releases:manage' %}">Write release notes</a>{% endif %}
 </div>
 {% include "releases/_subscribe.html" %}

@@ -12,6 +12,7 @@ urlpatterns = [
     path("reference-data/", include("cedars.services.refdata.urls")),
     path("releases/", include("cedars.services.releases.urls")),
     path("limits/", include("cedars.services.releases.limits_urls")),
+    path("mandates/", include("cedars.services.releases.mandates_urls")),
     path("notifications/", include("cedars.services.notifications.urls")),
     path("programs/", include("cedars.modules.programs.urls")),
     path("budgets/", include("cedars.modules.budgets.urls")),

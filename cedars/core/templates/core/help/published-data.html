@@ -31,4 +31,11 @@ is open for comment.</p>
 <p>The <a href="{% url 'dictionary:index' %}">data dictionary</a> defines every field CEDARS takes or produces, with its unit and the
 name CET used for it (both names are accepted on upload). The <a href="{% url 'rules:index' %}">validation rules</a> list what each
 filing is checked against, rule by rule, with the versions in force; you can compare two versions of a rule set.</p>
+<p>Fields are never deleted from the dictionary. A field no longer needed is retired after a review of who uses it, who relies on it
+and whether a CPUC decision still requires it: it stays in the dictionary marked retired, with the reviews, and leaves the upload
+templates from its retirement date (uploads that still have the column are read, and the column ignored). The dictionary's
+<a href="{% url 'dictionary:changes' %}">change log</a> lists what each version changed, field by field, with every published version
+of the value lists and rule sets. The <a href="{% url 'mandates:index' %}">register of CPUC-mandated changes</a> beside it lists each
+decision or resolution that changes CEDARS' data or calculations, what it requires, when it takes effect, how far it is implemented
+and where CEDARS carries it.</p>
 {% endblock %}

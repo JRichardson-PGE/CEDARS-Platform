@@ -271,6 +271,16 @@ def _stage_field(stages, required=True):
     )
 
 
+def _placeholder_field(replacing: bool = False):
+    """BR-13.6: an implementation plan filed before the full plan is ready is flagged, on its program's page too."""
+    return forms.BooleanField(
+        label="This is a placeholder plan",
+        required=False,
+        help_text="Only for an implementation plan: tick it when the full plan is still to come"
+        + ("; leave it unticked for the version that brings the full plan" if replacing else ", as a later version of this document"),
+    )
+
+
 class NewDocumentForm(FilesMixin, PeriodMixin, DetailsForm):
     publish = forms.BooleanField(label="Publish it now", required=False, help_text="Published documents are public and never change")
 
@@ -289,11 +299,15 @@ class NewDocumentForm(FilesMixin, PeriodMixin, DetailsForm):
                 help_text="Its drafts, finals and the PAs' responses then follow on this one record. Name its study above.",
             )
             self.fields["stage"] = _stage_field(WORK_STAGES, required=False)
+        if self.collection == Collection.PROGRAM:
+            self.fields["placeholder"] = _placeholder_field()
         if not can_publish:
             del self.fields["publish"]
 
     def clean(self):
         d = super().clean()
+        if d.get("placeholder") and not service.takes_placeholder(self.collection, d.get("document_type")):
+            self.add_error("placeholder", "Only an implementation plan is filed as a placeholder.")
         if d.get("deliverable"):
             if not d.get("study"):
                 self.add_error("study", "A deliverable belongs to a study: give its study ID.")
@@ -304,7 +318,12 @@ class NewDocumentForm(FilesMixin, PeriodMixin, DetailsForm):
     def workflow(self) -> dict:
         d = self.cleaned_data
         deliverable = bool(d.get("deliverable"))
-        return {"deliverable": deliverable, "stage": (d.get("stage") or "") if deliverable else "", "comment_period": self.period()}
+        return {
+            "deliverable": deliverable,
+            "stage": (d.get("stage") or "") if deliverable else "",
+            "comment_period": self.period(),
+            "placeholder": bool(d.get("placeholder")),
+        }
 
 
 class ChangeDetailsForm(DetailsForm):
@@ -317,12 +336,15 @@ class VersionForm(FilesMixin, PeriodMixin):
 
     field_order = ["stage", "main_file", "attachments", "reason", "comments_open", "comments_close", "publish"]
 
-    def __init__(self, *args, can_publish=False, stages=(), **kwargs):
+    def __init__(self, *args, can_publish=False, stages=(), placeholder=False, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["attachments"].widget.attrs["accept"] = ACCEPT
         if stages:
             self.fields["stage"] = _stage_field(stages)
-            self.order_fields(self.field_order)
+        if placeholder:
+            self.fields["placeholder"] = _placeholder_field(replacing=True)
+        if stages or placeholder:
+            self.order_fields([*self.field_order[:-1], "placeholder", "publish"])
         if not can_publish:
             del self.fields["publish"]
 

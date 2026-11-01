@@ -10,8 +10,9 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
+from . import changes as changelog
 from . import forms, service, value_lists
-from .models import Code, Field, Usage, ValueList
+from .models import CatalogVersion, Code, Field, Usage, ValueList, ValueListVersion
 
 TABLES = {("calculations", "Measure"), ("calculations", "ProgramCost")}
 
@@ -28,11 +29,16 @@ def index(request):
     v = _version_or_404()
     q = request.GET.get("q", "").strip()
     kind = request.GET.get("kind", "")
+    state = request.GET.get("state", "")
     fields = Field.objects.filter(version=v).prefetch_related("aliases")
     if q:
         fields = fields.filter(Q(name__icontains=q) | Q(definition__icontains=q) | Q(aliases__name__icontains=q)).distinct()
     if kind in ("input", "output"):
         fields = fields.filter(kind=kind)
+    if state == "retired":
+        fields = fields.filter(state=Field.State.RETIRED)
+    elif state != "all":  # in use, and those retiring later (BR-08.4: retired fields stay, shown on request)
+        fields = fields.exclude(state=Field.State.RETIRED, retired_from__lte=timezone.localdate())
     page = Paginator(fields.order_by("kind", "group", "name"), 100).get_page(request.GET.get("page"))
     tables = sorted({(u.module, u.table) for u in Usage.objects.filter(field__version=v)})
     query = request.GET.copy()
@@ -40,7 +46,18 @@ def index(request):
     return render(
         request,
         "dictionary/index.html",
-        {"catalog": v, "page": page, "q": q, "kind": kind, "tables": tables, "query": query.urlencode(), "total": fields.count()},
+        {
+            "catalog": v,
+            "page": page,
+            "q": q,
+            "kind": kind,
+            "state": state,
+            "tables": tables,
+            "query": query.urlencode(),
+            "total": fields.count(),
+            "today": timezone.localdate(),
+            "retired_count": Field.objects.filter(version=v, state=Field.State.RETIRED).count(),
+        },
     )
 
 
@@ -49,7 +66,113 @@ def detail(request, name):
     f = Field.objects.filter(version=v, name=name).prefetch_related("aliases", "usages").first()
     if f is None:
         raise Http404
-    return render(request, "dictionary/field.html", {"catalog": v, "f": f})
+    from cedars.services.releases import mandates
+
+    return render(
+        request,
+        "dictionary/field.html",
+        {
+            "catalog": v,
+            "f": f,
+            "today": timezone.localdate(),
+            "history": changelog.history(f.name),
+            "mandates": mandates.for_field(f.name),
+            "can_retire": changelog.can_retire(request.user),
+        },
+    )
+
+
+# --- retiring a field (BR-08.4) and the change log
+
+
+@login_required
+def retire(request, name):
+    """Retire a field after its usage, audience and regulatory review: a new catalog version with the field marked retired."""
+    if not changelog.can_retire(request.user):
+        raise PermissionDenied("Only a CPUC system administrator retires a field.")
+    v = _version_or_404()
+    f = Field.objects.filter(version=v, name=name).prefetch_related("usages").first()
+    if f is None:
+        raise Http404
+    from cedars.services.releases import mandates
+
+    form = forms.RetireForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        c = form.cleaned_data
+        try:
+            new, _ = changelog.retire(
+                request.user,
+                f.name,
+                retired_from=c["retired_from"],
+                reason=c["reason"],
+                usage=c["review_usage"],
+                audience=c["review_audience"],
+                regulatory=c["review_regulatory"],
+            )
+        except (AccessDenied, changelog.RetirementError) as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(
+                request,
+                f"{f.name} is retired from {c['retired_from']:%Y-%m-%d} in catalog version {new.label}. "
+                "Announce it in a release note before that day.",
+            )
+            return redirect("dictionary:field", name=f.name)
+    return render(
+        request,
+        "dictionary/retire.html",
+        {"catalog": v, "f": f, "form": form, "held": mandates.requiring_field(f.name)},
+    )
+
+
+@login_required
+@require_POST
+def reinstate(request, name):
+    if not changelog.can_retire(request.user):
+        raise PermissionDenied("Only a CPUC system administrator reinstates a field.")
+    try:
+        new, _ = changelog.reinstate(request.user, name, reason=request.POST.get("reason", ""))
+    except (AccessDenied, changelog.RetirementError) as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, f"{name} is back in use in catalog version {new.label}.")
+    return redirect("dictionary:field", name=name)
+
+
+def changes(request):
+    """The specification change log: each catalog version's field changes, and the published value list and rule set versions."""
+    from cedars.services.rules.models import RuleSet
+
+    versions = [(c.version, c.previous, c.counts) for c in map(changelog.changes, CatalogVersion.objects.all())]
+    lists = ValueListVersion.objects.filter(status="published").select_related("value_list").order_by("-effective_from", "-pk")
+    rule_sets = RuleSet.objects.filter(status="published").order_by("-effective_from", "-pk")
+    return render(
+        request, "dictionary/changes.html", {"versions": versions, "lists": lists, "rule_sets": rule_sets, "current": service.current()}
+    )
+
+
+def changes_csv(request):
+    _version_or_404()
+    return _download(changelog.log_csv(), "cedars_dictionary_changes.csv", "text/csv; charset=utf-8")
+
+
+def version_changes(request, pk):
+    from cedars.services.releases import mandates
+
+    v = get_object_or_404(CatalogVersion, pk=pk)
+    ch = changelog.changes(v)
+    return render(
+        request,
+        "dictionary/version_changes.html",
+        {
+            "ch": ch,
+            "v": v,
+            "current": service.current(),
+            "mandates": mandates.for_record("catalog", v.pk),
+            "first": ch.previous is None,
+            "total": v.fields.count(),
+        },
+    )
 
 
 def _download(content, filename, content_type):

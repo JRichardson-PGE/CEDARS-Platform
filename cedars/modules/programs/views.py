@@ -12,6 +12,7 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.notifications import service as notifications
+from cedars.services.registry import field_guide
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationEntry, FilingCycle, Program, ProgramChangeRequest, ProgramVersion
 
@@ -150,6 +151,32 @@ def catalog_csv(request):
             ]
         )
     return response
+
+
+def fields(request):
+    """The program fields guide (BR-13.7): every field of the program record with its definition (the data dictionary's where it has
+    the field), how to fill it in, and its valid values, retired ones marked and each with the number of programs on record that carry
+    it. Public, like the catalog."""
+    return render(
+        request,
+        "programs/fields.html",
+        {"fields": field_guide.guide(), "catalog": _catalog_label(), "today": timezone.localdate()},
+    )
+
+
+def _catalog_label() -> str:
+    from cedars.services.dictionary import service as dictionary
+
+    version = dictionary.current()
+    return version.label if version is not None else ""
+
+
+def field_links() -> dict[str, str]:
+    """{field: its entry in the program fields guide}, for the labels on the program page."""
+    from django.urls import reverse
+
+    url = reverse("programs:fields")
+    return {e.name: f"{url}#{e.anchor}" for e in field_guide.entries()}
 
 
 def _program_or_404(prg_id: str) -> Program:
@@ -295,6 +322,8 @@ def program(request, prg_id):
             "budget_groups": _budget_groups(records["budgets"] or []),
             "query_year": f"?year={year}" if year else "",
             "following": notifications.follows_program(request.user, p),
+            "about": field_links(),
+            "placeholders": [r for r in records.get("documents") or [] if r.get("placeholder")],
         },
     )
 
@@ -339,7 +368,9 @@ def change(request, prg_id):
             messages.success(request, f"Saved: {names}, from {form.cleaned_data['effective']:%Y-%m-%d}.")
             return redirect("programs:program", prg_id=p.prg_id)
     return render(
-        request, "programs/change.html", {"p": p, "latest": latest, "form": form, "locked": [form.fields[f].label for f in locked]}
+        request,
+        "programs/change.html",
+        {"p": p, "latest": latest, "form": form, "locked": [form.fields[f].label for f in locked], "about": field_links()},
     )
 
 

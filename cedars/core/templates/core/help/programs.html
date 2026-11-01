@@ -7,7 +7,13 @@ any other attribute: choose a field, set what to keep, then <strong>Apply</stron
 <h2>A program's page</h2>
 <p>Each program's page shows its status, segment, primary sector, implementer and years, then every version of it, its statewide
 allocation factors in each allocation version, and the EM&amp;V studies that evaluate it. Filings, claims and runs record the program
-and allocation versions they used.</p>
+and allocation versions they used. An implementation plan marked <strong>Placeholder</strong> stands in for a plan still to come; the
+full plan is filed as a later version of the same document.</p>
+<h2>What each field means</h2>
+<p><a href="{% url 'programs:fields' %}">Program fields</a> describes every field of a program's definition: what it means (the data
+dictionary's definition where it has the field), how to fill it in, and its valid values, with how many programs carry each. Each
+field's name on a program's page links there, and the change form shows how to fill in each field under it. Status, segment, primary
+sector, implementer and category take only the listed values; a retired value stays on the versions that have it.</p>
 <h2>Changing a program</h2>
 <ul>
   <li>A program's own administrators change most attributes themselves with <strong>Change</strong> on its page. A change starts a new

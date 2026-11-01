@@ -11,10 +11,19 @@ def _covers(doc: Document, year: int) -> bool:
     return first is None or first <= year <= last
 
 
+def _placeholder(user, doc: Document) -> bool:
+    """Whether the version the reader is served is a placeholder plan (BR-13.6), from the prefetched versions."""
+    versions = sorted(doc.versions.all(), key=lambda v: v.number, reverse=True)
+    published = [v for v in versions if v.published]
+    if published:
+        return published[0].placeholder
+    return bool(versions) and versions[0].placeholder and service.sees_unpublished(user, doc)
+
+
 def documents(program, user, year: int | None = None) -> list[dict]:
     """One row per document naming the program that the user may read; year keeps those covering it (or giving no years). Newest
     first."""
-    qs = Document.objects.filter(programs=program).select_related("owner", "document_type")
+    qs = Document.objects.filter(programs=program).select_related("owner", "document_type").prefetch_related("versions")
     if user is None or not user.is_authenticated:
         qs = qs.filter(published_at__isnull=False)
     labels = dict(Collection.choices)
@@ -35,6 +44,7 @@ def documents(program, user, year: int | None = None) -> list[dict]:
                 "collection": labels.get(doc.collection, doc.collection),
                 "type": doc.document_type.label,
                 "years": doc.years,
+                "placeholder": _placeholder(user, doc),
             }
         )
     out.sort(key=lambda r: r["when"], reverse=True)

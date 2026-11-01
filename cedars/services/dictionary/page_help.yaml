@@ -8,18 +8,19 @@ dictionary/index:
     - Download the whole catalog as CSV, or the upload templates for each kind of filing.
   how:
     - Search by any name a field is known by, or by words in its definition.
-    - Download the catalog (CSV) or the name crosswalk (CSV), or open the value lists.
+    - Download the catalog (CSV) or the name crosswalk (CSV), or open the value lists or the change log.
+    - Retired fields are not shown at first; choose State, Retired (or All) to see them.
   see: published-data
   tour:
     - target: main p.actions
       title: Downloads and value lists
-      text: The catalog and the name crosswalk as CSV, and the value lists the rules check codes against.
+      text: The catalog and the name crosswalk as CSV, the value lists the rules check codes against, and every version's changes.
     - heading: Upload templates
       title: Upload templates
       text: The templates for each filing's tables, with every column in order.
     - target: main form.filters
       title: Search
-      text: Search names and definitions, and narrow to inputs or outputs.
+      text: Search names and definitions, and narrow to inputs or outputs, or to retired fields.
     - target: main table.list
       title: Fields
       text: Each field by kind and group. Select a name for its full entry.
@@ -29,6 +30,11 @@ dictionary/field:
   guide:
     - One field's full entry, its definition, kind, type and unit, where its values come from, the cost tests it counts in, how it adds up,
       the years it is in use, the other names an upload may give it, and every table it appears in.
+    - >-
+      A retired field says from when and why, with the usage, audience and regulatory reviews behind it. Its history lists each
+      dictionary version that changed it, and the register entries that require it are linked.
+  how:
+    - "CPUC system administrators: retire the field after its reviews, or reinstate a retired one."
   see: published-data
   tour:
     - target: main .page-title + p
@@ -37,6 +43,13 @@ dictionary/field:
     - target: main dl.facts
       title: The details
       text: Type, unit, source, cost tests, aggregation, other names and where it is used.
+    - heading: History
+      title: History
+      text: Each dictionary version that added, changed, retired or reinstated the field.
+    - target: "#admin-h"
+      title: Retire or reinstate
+      text: For CPUC system administrators.
+      optional: true
 
 dictionary/lists:
   title: Value lists
@@ -123,3 +136,69 @@ dictionary/code:
     - target: main form.stack
       title: The code
       text: Its description, the claim years it is accepted for, and the reason for the change.
+
+dictionary/retire:
+  title: Retire a field
+  guide:
+    - >-
+      For CPUC system administrators. A field is retired, never deleted, after three reviews: who files or reads it (usage), who relies
+      on it in published data (audience), and whether a CPUC decision, resolution or the Standard Practice Manual still requires it
+      (regulatory).
+    - >-
+      Retiring makes a new catalog version with the field marked retired from the date given. The field stays in the dictionary and in
+      earlier filings and downloads, uploads that still carry the column are read and the column ignored, and it leaves the upload
+      templates and schemas on that day. A field the register of CPUC-mandated changes says is required cannot be retired.
+  how:
+    - Give the date (today or later), the three reviews and the reason, then Retire.
+    - Announce the retirement in a release note before the date.
+  see: published-data
+  tour:
+    - heading: What to review
+      title: What to review
+      text: What the catalog says about the field, its audience, the decision that requires it, its cost tests and where it is used.
+    - target: main form.stack
+      title: The reviews
+      text: The date it takes effect, the usage, audience and regulatory reviews, and why it is retired. All are kept with the field.
+
+dictionary/changes:
+  title: The specification change log
+  guide:
+    - >-
+      Every version of the data dictionary with how many fields it added, retired, reinstated, changed or dropped against the version
+      before it, and every published version of the value lists and the validation rule sets.
+    - >-
+      It is published with the register of CPUC-mandated changes, which says which decision or resolution each change carries out.
+  how:
+    - Select a dictionary version for its changes field by field.
+    - Download every version's changes as CSV.
+  see: published-data
+  tour:
+    - target: main p.actions
+      title: Download
+      text: Every dictionary version's changes, field by field, as one CSV file.
+    - heading: Data dictionary versions
+      title: Dictionary versions
+      text: Each version, newest first, with what it changed against the version before it.
+    - heading: Value list versions
+      title: Value list versions
+      text: Each published version of a value list, when it took effect and why.
+    - heading: Validation rule set versions
+      title: Rule set versions
+      text: Each published rule set and when it took effect.
+
+dictionary/version_changes:
+  title: Changes in a dictionary version
+  guide:
+    - >-
+      One version of the data dictionary against the version before it: each field added, retired (with the reason), reinstated,
+      changed (each attribute, other name or use, before and after) or dropped. The first version lists no changes: it brought in
+      every field.
+  see: published-data
+  tour:
+    - target: main .page-title + p
+      title: The version
+      text: When it was loaded and how many fields it changed, by kind of change.
+    - target: main table.list
+      title: The changes
+      text: Each field, the kind of change and the details, before and after.
+      optional: true
