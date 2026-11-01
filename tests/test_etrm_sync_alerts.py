@@ -34,7 +34,7 @@ class Flaky:
 
 @pytest.fixture
 def profiles_admin(cpuc_admin, make_user, cpuc):
-    u = make_user("profiles@cpuc.ca.gov", "Pat Profiles")
+    u = make_user("profiles@cpuc.example.org", "Pat Profiles")
     access.grant(cpuc_admin, u, cpuc, "impact_profiles.admin")
     return u
 
@@ -50,7 +50,7 @@ def test_a_failed_sync_is_tried_again_and_nobody_is_alerted_when_a_retry_succeed
 
 
 def test_when_every_attempt_fails_each_administrator_is_alerted_once(cpuc_admin, profiles_admin, make_user):
-    make_user("someone@pge.com", "Not An Admin")
+    make_user("someone@pge.example.org", "Not An Admin")
     waits = []
     run = etrm.nightly(Flaky(5), waits=[10, 30], sleep=waits.append)
     assert run.status == EtrmSyncRun.Status.FAILED and run.attempt == 3 and run.alerted_at is not None

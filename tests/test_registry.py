@@ -69,7 +69,7 @@ def test_versions_cannot_overlap_in_the_database(program):
 
 def test_only_the_programs_administrator_changes_it(program, cpuc_admin, make_user):
     with pytest.raises(AccessDenied, match="PGE's administrators"):
-        service.change_program(make_user("x@sce.com"), program, effective=date(2027, 1, 1), reason="r", name="X")
+        service.change_program(make_user("x@sce.example.org"), program, effective=date(2027, 1, 1), reason="r", name="X")
     service.change_program(cpuc_admin, program, effective=date(2027, 1, 1), reason="CPUC correction", name="Residential HVAC Program")
     with pytest.raises(AccessDenied, match="reason"):
         service.change_program(cpuc_admin, program, effective=date(2028, 1, 1), reason="", name="Y")

@@ -64,7 +64,7 @@ def programs(pge_admin, pge, cpuc_admin):
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("budgets@pge.com", "Bea Udget")
+    u = make_user("budgets@pge.example.org", "Bea Udget")
     for p in ("budgets.submit", "budgets.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -207,7 +207,7 @@ def test_a_new_upload_replaces_the_last_and_keeps_nothing_superseded(filer, fili
 
 
 def test_a_filer_needs_budgets_submit(make_user, pge, pge_admin, filing, programs):
-    u = make_user("reader@pge.com")
+    u = make_user("reader@pge.example.org")
     access.grant(pge_admin, u, pge, "budgets.read")
     with pytest.raises(AccessDenied, match="budgets.submit"):
         service.upload(u, filing, pge, job(), "tual.zip")

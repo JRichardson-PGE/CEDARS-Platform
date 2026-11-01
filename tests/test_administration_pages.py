@@ -84,7 +84,7 @@ def test_switching_organisation(signed_in, make_user, cpuc_admin, pge, pge_admin
     sce = service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa")
     u = make_user("both@example.com")
     service.grant(pge_admin, u, pge, "claims.read")
-    sce_admin = make_user("admin@sce.com")
+    sce_admin = make_user("admin@sce.example.org")
     service.grant(cpuc_admin, sce_admin, sce, perms.ORG_ADMIN)
     service.grant(sce_admin, u, sce, "claims.read")
     c = signed_in(u)
@@ -99,7 +99,7 @@ def test_switching_organisation(signed_in, make_user, cpuc_admin, pge, pge_admin
 
 
 def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com")
+    u = make_user("analyst@pge.example.org")
     c = signed_in(pge_admin)
     c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": "claims.submit", "reason": "new analyst"})
     g = Grant.objects.get(membership__user=u, permission="claims.submit")
@@ -112,9 +112,9 @@ def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pg
 
 def test_grant_for_an_unknown_email_explains(signed_in, pge, pge_admin):
     r = signed_in(pge_admin).post(
-        f"/admin/organizations/{pge.code}/grant", {"email": "nobody@pge.com", "permission": "claims.read"}, follow=True
+        f"/admin/organizations/{pge.code}/grant", {"email": "nobody@pge.example.org", "permission": "claims.read"}, follow=True
     )
-    assert "There is no account for nobody@pge.com" in r.content.decode()
+    assert "There is no account for nobody@pge.example.org" in r.content.decode()
 
 
 def test_other_organisations_are_hidden(signed_in, make_user, cpuc_admin, pge, pge_admin):
@@ -124,7 +124,7 @@ def test_other_organisations_are_hidden(signed_in, make_user, cpuc_admin, pge, p
 
 
 def test_cpuc_assigns_a_first_admin_through_the_page(signed_in, make_user, cpuc_admin, pge):
-    u = make_user("first@pge.com")
+    u = make_user("first@pge.example.org")
     c = signed_in(cpuc_admin)
     page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert "Assign the first administrator" in page
@@ -135,7 +135,7 @@ def test_cpuc_assigns_a_first_admin_through_the_page(signed_in, make_user, cpuc_
 
 
 def test_recertification_through_the_page(signed_in, make_user, pge, pge_admin):
-    u = make_user("a@pge.com")
+    u = make_user("a@pge.example.org")
     g = service.grant(pge_admin, u, pge, "claims.read")
     c = signed_in(pge_admin)
     c.post(f"/admin/organizations/{pge.code}/recertification", {"due": "2099-01-31"})
@@ -149,10 +149,10 @@ def test_recertification_through_the_page(signed_in, make_user, pge, pge_admin):
 
 
 def test_steward_approves_pii_through_the_page(signed_in, make_user, cpuc_admin, pge, pge_admin):
-    u = make_user("pii@pge.com")
+    u = make_user("pii@pge.example.org")
     g = service.grant(pge_admin, u, pge, perms.PII)
     c = signed_in(cpuc_admin)
-    assert "pii@pge.com" in c.get("/admin/stewardship/").content.decode()
+    assert "pii@pge.example.org" in c.get("/admin/stewardship/").content.decode()
     c.post(f"/admin/stewardship/grants/{g.pk}", {"decision": "approve"})
     g.refresh_from_db()
     assert g.status == "active"
@@ -160,7 +160,7 @@ def test_steward_approves_pii_through_the_page(signed_in, make_user, cpuc_admin,
 
 
 def test_policy_change_needs_two_stewards_through_the_page(signed_in, make_user, cpuc_admin, cpuc):
-    second = make_user("s2@cpuc.ca.gov")
+    second = make_user("s2@cpuc.example.org")
     service.grant(cpuc_admin, second, cpuc, perms.STEWARD)
     signed_in(cpuc_admin).post("/admin/stewardship/changes/propose", {"value": "true", "reason": "security review"})
     change = PolicyChange.objects.get()

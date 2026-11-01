@@ -58,7 +58,7 @@ def test_saving_changing_and_deleting_a_template(analyst, make_user, cpuc_admin,
     with pytest.raises(AccessDenied, match="at least one column"):
         output_templates.save(analyst, "Other", [])
 
-    other = make_user("other@pge.com")
+    other = make_user("other@pge.example.org")
     assert t not in output_templates.visible(other)
     with pytest.raises(AccessDenied, match="someone else's"):
         output_templates.save(other, "Mine", ["CEInputID"], template=t)

@@ -25,7 +25,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def analyst(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com", "Ana Lyst")
+    u = make_user("analyst@pge.example.org", "Ana Lyst")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -33,7 +33,7 @@ def analyst(make_user, pge, pge_admin):
 
 @pytest.fixture
 def approver(make_user, cpuc_admin, cpuc):
-    u = make_user("approver@cpuc.ca.gov", "Avery Prover")
+    u = make_user("approver@cpuc.example.org", "Avery Prover")
     access.grant(cpuc_admin, u, cpuc, "claims.approve")
     return u
 
@@ -75,7 +75,7 @@ def test_both_sides_comment_with_files_and_each_is_audited(analyst, approver, de
 def test_only_the_filer_and_cpuc_staff_take_part(analyst, deadline, pge, make_user, cpuc_admin):
     v = _priced(analyst, deadline, pge)
     other_pa = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    outsider = make_user("someone@sce.com")
+    outsider = make_user("someone@sce.example.org")
     access.grant(None, outsider, other_pa, "claims.submit")
     assert not comments.can_discuss(outsider, v.submission)
     with pytest.raises(AccessDenied):
@@ -176,7 +176,7 @@ def test_a_delegate_sees_the_approvers_requests(analyst, approver, deadline, pge
     v = submissions.confirm(analyst, _priced(analyst, deadline, pge), "h1")
     submissions.move_deadline(None, deadline, timezone.now() - timedelta(days=1), "moved for the test")
     submissions.request_reopen(analyst, v.submission, "A late invoice")
-    delegate = make_user("delegate@cpuc.ca.gov", "Del Egate")
+    delegate = make_user("delegate@cpuc.example.org", "Del Egate")
     submissions.delegate(approver, module="claims", delegate_to=delegate, starts=date.today(), ends=date.today() + timedelta(days=5))
     (item,) = {s.kind.key: s.items for s in queue.sections(delegate)}["reopen"]
     assert "Avery Prover's delegate" in item.note

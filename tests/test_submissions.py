@@ -15,7 +15,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def analyst(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com")
+    u = make_user("analyst@pge.example.org")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -100,9 +100,9 @@ def test_after_the_due_date_a_correction_is_a_new_version_with_approval(analyst,
     assert isinstance(req, ReopenRequest)
     with pytest.raises(AccessDenied, match="approver"):
         service.decide_reopen(analyst, req, True)
-    approver = make_user("approver@cpuc.ca.gov")
+    approver = make_user("approver@cpuc.example.org")
     access.grant(cpuc_admin, approver, cpuc, "claims.approve")
-    deputy = make_user("deputy@cpuc.ca.gov")
+    deputy = make_user("deputy@cpuc.example.org")
     service.delegate(approver, module="claims", delegate_to=deputy, starts=date.today(), ends=date.today() + timedelta(days=7))
     v2 = service.decide_reopen(deputy, req, True, "approved while the approver is away")
     req.refresh_from_db()
@@ -139,12 +139,12 @@ def test_late_first_filings(analyst, deadline, pge, cpuc_admin):
 
 
 def test_permissions_are_per_module_and_organisation(analyst, deadline, pge, make_user, pge_admin, cpuc_admin):
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "claims.read")
     with pytest.raises(AccessDenied, match="claims.submit in PGE"):
         service.start(reader, deadline, pge)
     v = _priced(analyst, deadline, pge)
-    submitter = make_user("submitter@pge.com")
+    submitter = make_user("submitter@pge.example.org")
     access.grant(pge_admin, submitter, pge, "claims.submit")
     with pytest.raises(AccessDenied, match="claims.confirm"):
         service.confirm(submitter, v, "h1")
@@ -181,7 +181,7 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     assert "double counted" not in approver_page  # the CPUC admin is not a claims approver
     from cedars.services.accounts.models import User
 
-    approver = User.objects.create_user(email="approver@cpuc.ca.gov", password="x")
+    approver = User.objects.create_user(email="approver@cpuc.example.org", password="x")
     access.grant(cpuc_admin, approver, cpuc, "claims.approve")
     a = signed_in(approver)
     assert "double counted" in a.get("/filings/reopen-requests/").content.decode()

@@ -133,7 +133,7 @@ def goal_set(cpuc_admin, make_user):
     from cedars.services.accounts import service as accounts
     from cedars.services.registry import goals
 
-    second = make_user("second@cpuc.ca.gov", "Sam Second")
+    second = make_user("second@cpuc.example.org", "Sam Second")
     accounts.grant(cpuc_admin, second, accounts.cpuc(), perms.SYSTEM_ADMIN, reason="second administrator")
     header = "Utility,Kind,FirstYear,LastYear,ProgramTSB,ProgramGWh,ProgramMW,ProgramMMTherms,CSGWh,CSMW,CSMMTherms\n"
     content = (

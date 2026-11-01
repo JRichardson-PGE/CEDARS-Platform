@@ -127,11 +127,11 @@ def test_pii_needs_the_stewards_grant_and_the_session_the_policy_asks_for(
         service.upload_pii(filer, v, pii_zip(), "pii.zip", "mfa")  # pending until a steward approves
     access.approve_pii(cpuc_admin, g)
     up = service.upload_pii(filer, v, pii_zip(), "pii.zip", "mfa")
-    staff = make_user("analyst@cpuc.ca.gov")
+    staff = make_user("analyst@cpuc.example.org")
     access.grant(cpuc_admin, staff, cpuc, "claims.read")
     with pytest.raises(AccessDenied, match="PII grant"):
         vault.export(staff, pge, up, "mfa")
-    second = make_user("steward2@cpuc.ca.gov")
+    second = make_user("steward2@cpuc.example.org")
     access.grant(cpuc_admin, second, cpuc, perms.STEWARD)
     access.approve_pii(second, access.grant(cpuc_admin, staff, cpuc, perms.PII))
     with zipfile.ZipFile(io.BytesIO(vault.export(staff, pge, up, "mfa", "EM&V sample"))) as z:
@@ -189,7 +189,7 @@ def test_the_pii_section_of_the_page(client, pii_filer, pge, checked, filer):  #
 
 
 def test_without_the_pii_grant_the_page_has_no_pii_section(client, make_user, pge, pge_admin, year, programs):  # noqa: F811
-    u = make_user("claimer@pge.com")
+    u = make_user("claimer@pge.example.org")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, u, pge, p)
     service.upload_claims(u, deadline(), pge, q1(), "q1.zip")

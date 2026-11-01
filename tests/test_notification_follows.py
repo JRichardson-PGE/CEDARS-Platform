@@ -46,7 +46,7 @@ def programs(pge_admin, pge, cpuc_admin, sce):
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("filer@pge.com", "Fi Ler")
+    u = make_user("filer@pge.example.org", "Fi Ler")
     for p in ("budgets.submit", "budgets.confirm", "monthly.submit", "monthly.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -206,7 +206,7 @@ def test_a_programs_change_and_a_document_about_it_reach_its_followers(
     assert n.title == "PGE_Com_Ltg has changed" and n.link == "/programs/PGE_Com_Ltg/"
     assert "Changed: implementer." in n.body and "In effect from 2027-01-01." in n.body and "Reason: new implementer" in n.body
 
-    writer = make_user("writer@pge.com")
+    writer = make_user("writer@pge.example.org")
     for p in ("documents.submit", "documents.confirm"):
         access.grant(pge_admin, writer, pge, p)
     doc_subscriptions.subscribe(u, collection="pa")  # also matches: still one message

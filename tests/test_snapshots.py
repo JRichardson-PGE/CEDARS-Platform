@@ -22,7 +22,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com")
+    u = make_user("analyst@pge.example.org")
     for p in ("claims.submit", "claims.confirm", "budgets.submit", "budgets.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u

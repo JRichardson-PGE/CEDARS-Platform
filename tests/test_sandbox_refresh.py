@@ -30,7 +30,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com")
+    u = make_user("analyst@pge.example.org")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -94,7 +94,7 @@ def test_the_bundle_holds_only_whats_published(tmp_path, cpuc_admin, pge, filer,
     assert [r["fields"]["label"] for r in data["refdata.PackVersion"]] == ["2026 ACC"]
     assert "CPUC" not in [r["fields"]["code"] for r in data["accounts.Organisation"]]
     text = json.dumps(data)
-    assert "admin@cpuc.ca.gov" not in text and "analyst@pge.com" not in text  # no person, anywhere
+    assert "admin@cpuc.example.org" not in text and "analyst@pge.example.org" not in text  # no person, anywhere
     [version] = data["submissions.SubmissionVersion"]
     assert "files" not in version["fields"] and "created_by" not in version["fks"]
     assert (where / f"files/{made['snapshot']}.parquet").read_bytes() == made["bytes"]

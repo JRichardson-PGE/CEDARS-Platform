@@ -37,7 +37,7 @@ def test_start_follow_and_download_a_run(key, release, worker, tmp_path, analyst
     r = start(key, tmp_path)
     assert r.status_code == 201, r.content
     body = r.json()
-    assert body["status"] == "queued" and body["organisation"] == "PGE" and body["owner"] == "analyst@pge.com"
+    assert body["status"] == "queued" and body["organisation"] == "PGE" and body["owner"] == "analyst@pge.example.org"
     assert body["engine"] == {"release": "0.1.78", "calculation": "recet"} and body["acc"] == "2024" and body["measures"] == 3
     assert body["queue_position"] == 1 and body["estimate"]["done_in"] > 0 and body["files"] == []
     assert r["Location"] == body["url"]
@@ -75,7 +75,7 @@ def test_a_token_reaches_only_its_organisation_and_scopes(key, release, tmp_path
     assert start(key, tmp_path).status_code == 201
     pge_run = Run.objects.get()
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    sce_admin, other = make_user("admin@sce.com"), make_user("analyst@sce.com")
+    sce_admin, other = make_user("admin@sce.example.org"), make_user("analyst@sce.example.org")
     access.grant(cpuc_admin, sce_admin, sce, "org.admin", reason="first admin")
     access.grant(sce_admin, other, sce, "calculations.submit")
     sce_key = tokens.create_token(other, sce, name="sce", scopes=["calculations"], days=30)[1]
