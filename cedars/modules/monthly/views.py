@@ -199,8 +199,8 @@ def _tiles(r) -> list[tuple[str, str]]:
     if r.budget:
         out.append(("Share of the operating budget spent", _fmt("share", t.spent_share)))
     out += [
-        ("Rebates and incentives, year to date", _money(t.get("RebatesAndIncentives"))),
-        ("Funds committed, year to date", _money(t.get("YTDCommittedFunds"))),
+        (service.PAID, _money(t.get("RebatesAndIncentives"))),
+        (service.COMMITTED, _money(t.get("YTDCommittedFunds"))),
     ]
     if r.estimated:
         out.append(("Estimated TSB, year to date (unvalidated)", _money(t.estimate("TotalSystemBenefit"))))
@@ -319,16 +319,19 @@ def _version(request, pk) -> SubmissionVersion:
 
 
 COLUMNS = [
+    ("approved", "Approved budget (filed)", "money"),
     ("operating", "Operating budget", "money"),
     ("MonthExpenditures", "Spend this month", "money"),
     ("YTDExpenditures", "Spend, year to date", "money"),
-    ("spent_share", "Share of budget spent", "share"),
-    ("RebatesAndIncentives", "Rebates and incentives, year to date", "money"),
-    ("YTDCommittedFunds", "Funds committed, year to date", "money"),
+    ("spent_share", "Share of the operating budget spent", "share"),
+    ("RebatesAndIncentives", service.PAID, "money"),
+    ("YTDCommittedFunds", service.COMMITTED, "money"),
 ]
 
 
 def _cell(r, key):
+    if key == "approved":
+        return r.approved
     if key == "operating":
         return r.operating
     if key == "spent_share":
@@ -368,6 +371,7 @@ def version(request, pk):
             "commitment_fields": COMMITMENT_FIELDS,
             "cost_fields": PROGRAM_COST_FIELDS,
             "unvalidated": UNVALIDATED,
+            "paid_vs_committed": service.PAID_VS_COMMITTED,
             "letter": ChangeLetter.objects.filter(version=v).first(),
         },
     )
@@ -476,6 +480,14 @@ def year(request, year):
             "rows": rows,
             "latest": latest,
             "inconsistent": [m for m in months if not m.consistent],
+            "headings": [
+                "Spend this month",
+                "Spend, year to date",
+                service.PAID,
+                service.COMMITTED,
+                "Estimated TSB, year to date (unvalidated)",
+            ],
+            "paid_vs_committed": service.PAID_VS_COMMITTED,
             "csv_query": f"?org={org.code}" if org else "",
         },
     )
@@ -620,8 +632,11 @@ def change_letter(request, pk):
             "label": service.label(v.submission.deadline),
             "c": c,
             "estimated": c.get("estimated", {}),
-            "caption": "Each changed program's spend, commitments and estimates before and after the correction, and the difference",
-            "empty": "No program's spend, commitments or estimates changed.",
+            "caption": (
+                "Each changed program's spend, paid and committed incentives and estimates before and after the correction, "
+                "and the difference"
+            ),
+            "empty": "No program's spend, incentives or estimates changed.",
             "unvalidated": UNVALIDATED,
             **letters.program_rows(c, service.LETTER_FIGURES),
         },

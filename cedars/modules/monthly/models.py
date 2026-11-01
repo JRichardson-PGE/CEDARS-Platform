@@ -22,7 +22,7 @@ SPEND_FIELDS = [f for f, _ in PROGRAM_COST_FIELDS] + ["RebatesAndIncentives", "O
 COMMITMENT_FIELDS = [
     ("PriorCommittedFundsBalance", "Committed funds from prior years, balance"),
     ("PriorYTDCommittedExpenditures", "Prior years' commitments spent, year to date"),
-    ("YTDCommittedFunds", "Funds committed, year to date"),
+    ("YTDCommittedFunds", "Funds committed, year to date: incentives committed to be paid in the future, not spend"),
     ("YTDCommittedGrosskWh", "Committed gross kWh, year to date"),
     ("YTDCommittedGrosskW", "Committed gross kW, year to date"),
     ("YTDCommittedGrossTherm", "Committed gross therms, year to date"),

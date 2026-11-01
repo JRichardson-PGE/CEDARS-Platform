@@ -7,6 +7,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 
 from cedars.core import storage
 from cedars.modules.calculations.models import Run
@@ -154,6 +155,30 @@ def test_spend_is_read_from_the_bca_inputs(filer, year, pge, programs):
     assert r.total.get("YTDExpenditures") == 1200 and r.total.get("MonthExpenditures") == 1200  # January: the year to date
     assert r.total.get("RebatesAndIncentives") == 400 and r.total.get("YTDCommittedFunds") == 5000
     assert {f["name"] for f in v.files} == {"report.zip", "job.zip"}
+
+
+def test_paid_and_committed_incentives_are_separate_figures(client, filer, year, pge, programs):
+    """BR-14.6: paid incentives (the measures' rebates and incentives, part of spend) and committed incentives (Commitments, to be paid
+    in the future) are each shown on their own, labeled so neither reads as a share of the other, and never set against each other."""
+    v = service.upload(filer, month(1), pge, report(), "january.zip")
+    sign_in(client, filer)
+    page = client.get(reverse("monthly:version", args=[v.pk])).content.decode()
+    assert service.PAID in page and service.COMMITTED in page and "Approved budget (filed)" in page
+    assert escape(service.PAID_VS_COMMITTED) in page
+    assert "$400" in page and "$5,000" in page and "$1,200" in page  # paid incentives, committed, spend (which includes the $400)
+    year_page = client.get(reverse("monthly:year", args=[2028])).content.decode()
+    assert service.PAID in year_page and service.COMMITTED in year_page and escape(service.PAID_VS_COMMITTED) in year_page
+    for csv in (
+        client.get(reverse("monthly:version_csv", args=[v.pk])).content.decode(),
+        client.get(reverse("monthly:year_csv", args=[2028])).content.decode(),
+    ):
+        header = csv.splitlines()[0].split(",")
+        assert "RebatesAndIncentives" in header and "YTDCommittedFunds" in header and "YTDExpenditures" in header
+    header = client.get(reverse("monthly:version_csv", args=[v.pk])).content.decode().splitlines()[0].split(",")
+    assert header[3:5] == ["ApprovedBudget", "OperatingBudget"]
+    every = page + year_page + "".join(header)
+    for word in ("paid vs", "paid versus", "share of committed", "committed paid", "PaidToCommitted", "CommittedShare"):
+        assert word.lower() not in every.lower()  # no difference, ratio or flag between the two
 
 
 def test_module_checks(filer, year, pge, programs):

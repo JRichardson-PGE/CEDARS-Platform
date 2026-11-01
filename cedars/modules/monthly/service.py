@@ -829,16 +829,30 @@ def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
     return Report(out, total, period.year, bool(budget), any(r.estimated for r in out), month_known)
 
 
+# Paid and committed incentives, reported separately (BR-14.6). Paid incentives are the measures' rebates and incentives in the
+# year-to-date BCA inputs (RebatesAndIncentives: NumUnits x the four unit incentive fields), part of spend. Committed incentives are the
+# Commitments table's YTDCommittedFunds: incentives the PA has committed to pay in the future, not spend. The two are not comparable
+# (Jake, 2026-11-01): neither is a share of the other, so no page or file sets one against the other (no difference, ratio or flag).
+PAID = "Paid incentives, year to date (part of spend)"
+COMMITTED = "Committed incentives, year to date (to be paid later)"
+PAID_VS_COMMITTED = (
+    "Paid incentives are the measures' rebates and incentives in the year-to-date BCA inputs, and are part of spend. Committed "
+    "incentives, from the Commitments table, are what the PA has committed to pay in the future: they are not spend, and they are not "
+    "comparable with paid incentives, so neither is a share of the other."
+)
+
+
 # --- change letters (BR-09.3) and what notifications say (BR-09.2)
 
 
 LETTER_FIGURES = [
     ("YTDExpenditures", "Spend, year to date", "money"),
-    ("YTDCommittedFunds", "Funds committed, year to date", "money"),
+    ("RebatesAndIncentives", PAID, "money"),
+    ("YTDCommittedFunds", COMMITTED, "money"),
     ("TotalSystemBenefit", "Estimated TSB", "money"),
     ("FirstYearNetKWh", "Estimated first-year net kWh", "number"),
 ]
-_REPORTED = {"YTDExpenditures", "YTDCommittedFunds"}
+_REPORTED = {"YTDExpenditures", "RebatesAndIncentives", "YTDCommittedFunds"}
 
 
 def corrected_version(v: SubmissionVersion) -> SubmissionVersion | None:
@@ -862,9 +876,9 @@ def _letter_figures(r: Row) -> dict:
 
 
 def correction_changes(previous: SubmissionVersion, v: SubmissionVersion) -> dict:
-    """What a correction changed against the report it replaces: each program whose reported spend or commitments, or whose estimates,
-    differ (LETTER_FIGURES; the operating budget is left out, as a correction does not change it), before and after (None for a program
-    only one of them reports), and the totals."""
+    """What a correction changed against the report it replaces: each program whose reported spend, paid or committed incentives, or
+    estimates, differ (LETTER_FIGURES; the operating budget is left out, as a correction does not change it), before and after (None for
+    a program only one of them reports), and the totals."""
     rb, ra = report(previous, budget=[]), report(v, budget=[])
     rows_b, rows_a = {r.prg_id: r for r in rb.rows}, {r.prg_id: r for r in ra.rows}
     programs = []
