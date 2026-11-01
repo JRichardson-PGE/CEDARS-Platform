@@ -83,9 +83,9 @@ topics:
           title: Total system benefit by PA for one year
           intro: A script reads each PA's claimed TSB for 2028, then the records behind one PA.
           steps:
-            - "Call GET /api/v1/data/query?dataset=claims&metric=tsb&by=pa&year_from=2028&year_to=2028."
+            - "Call GET /api/v1/data/query with dataset=claims, metric=tsb, by=pa, year_from=2028 and year_to=2028."
             - "Each row has the PA, its tsb and records; totals is over every PA; stamp.release names the release read."
-            - "Call GET /api/v1/data/records?dataset=claims&year_from=2028&year_to=2028&pa=SCE&limit=500 and follow next until it is null."
+            - "Call GET /api/v1/data/records with the same years, pa=SCE and limit=500, and follow next until it is null."
           result: >-
             The totals match the Total system benefit page for the same choices, because both run the same query on the same release.
 
