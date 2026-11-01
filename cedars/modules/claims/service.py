@@ -36,6 +36,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.notifications.service import Concern
+from cedars.services.refdata import profiles as packed_profiles
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
@@ -483,9 +484,12 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     folder = own_f["key"].rsplit("/", 1)[0] + "/"
     compiled = upload.to_zip(comp.tables)
     store.put_bytes(folder + "compiled.zip", compiled)
-    job = job_zip(comp.tables)
+    parents = parent_profiles(comp.tables)
+    job = job_zip(comp.tables, parents)
     if job:
         store.put_bytes(folder + "job.zip", job)
+    if job and parents.file:
+        store.put_bytes(folder + "parent_profiles.parquet", parents.file)
     store.put_bytes(folder + "findings.json", json.dumps([p.__dict__ for p in problems]).encode())
     _replace_lines(v, lines(comp.tables, year))
     _replace_records(v, records(comp.tables))
@@ -499,6 +503,10 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
             "compiled_sha256": hashlib.sha256(compiled).hexdigest(),
             "job_key": folder + "job.zip" if job else "",
             "job_sha256": hashlib.sha256(job).hexdigest() if job else "",
+            "parent_profiles_key": folder + "parent_profiles.parquet" if job and parents.file else "",
+            "parent_profiles_sha256": hashlib.sha256(parents.file).hexdigest() if job and parents.file else "",
+            "true_ups": parents.true_ups[:500],
+            "true_ups_count": len(parents.true_ups),
             "tables": {t: len(own[t].rows) for t in spec.TABLES if t in own},
             "compiled": {t: len(comp.tables[t].rows) for t in spec.TABLES if t in comp.tables},
             "replaced": {t: n for t, n in comp.replaced.items() if n},
@@ -809,15 +817,23 @@ def _quarter_dates(text: str) -> tuple[date, date] | None:
     return date(y, 3 * q - 2, 1), end
 
 
-def job_zip(tables: dict[str, upload.Table]) -> bytes:
+def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = None) -> bytes:
     """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) less the withdrawn claims, and the ProgramCost
-    table. b"" when there are no measures to price."""
+    table. b"" when there are no measures to price. `parents`: the true-ups' parent profiles, written to ReCET's
+    AC_Elec_Impact_Profile_Parent columns (BR-05.6; the columns only when some true-up has one)."""
     m = tables.get("Measure")
     gone = withdrawn(tables)
     rows = [r for r in (m.rows if m else []) if _claim(r) not in gone]
     if not rows:
         return b""
-    measure = upload.Table("Measure", ["CEInputID" if c == "ClaimID" else c for c in m.columns], [_as_ceinput(r) for r in rows])
+    columns = ["CEInputID" if c == "ClaimID" else c for c in m.columns]
+    rows = [_as_ceinput(r) for r in rows]
+    if parents and parents.columns:
+        columns += [c for c in PARENT_COLUMNS if c not in columns]
+        for r in rows:
+            first, second = parents.columns.get(r["CEInputID"].strip().lower(), ("", ""))
+            r[PARENT_COLUMNS[0]], r[PARENT_COLUMNS[1]] = first, second
+    measure = upload.Table("Measure", columns, rows)
     cost = tables.get("ProgramCost") or upload.Table("ProgramCost", spec.columns("ProgramCost"), [])
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
@@ -830,6 +846,169 @@ def _as_ceinput(row: dict) -> dict:
     out = dict(row)
     out["CEInputID"] = out.pop("ClaimID", "")
     return out
+
+
+# --- a true-up priced against its parent's profile (BR-05.6)
+
+# ReCET's Measure columns (0.1.89): a record naming a parent profile is priced again on it, and the run writes the difference
+# (<X>Incremental: ElecBen, ElecSupplyCost, the water-energy streams and every test's benefits) beside its own values.
+PARENT_COLUMNS = ("AC_Elec_Impact_Profile_Parent", "AC_Elec_Impact_Profile_Parent_2nd_Baseline")
+ENGINE_PAS = {"PGE", "SCE", "SDGE", "SCG"}
+INCREMENTAL_SHOWN = [
+    ("TotalSystemBenefitIncremental", "Total system benefit"),
+    ("ElecBenIncremental", "Electric benefit"),
+    ("TRCBenIncremental", "TRC benefits"),
+    ("PACBenIncremental", "PAC benefits"),
+]
+
+
+@dataclass
+class ParentProfiles:
+    """What the job carries for its true-ups: `columns` {compared ClaimID: (parent's 1st-baseline profile, 2nd)} as the engine is given
+    them, `file` the supplied 8,760s of the pinned versions (ReCET's profiles_8760 file, Parquet; b"" when none is needed) and `true_ups`
+    one entry per true-up: claim, parent, the parent's profiles, the versions pinned and the library they were read from."""
+
+    columns: dict[str, tuple[str, str]] = field(default_factory=dict)
+    file: bytes = b""
+    true_ups: list[dict] = field(default_factory=list)
+
+
+def _true_up_parents(tables: dict[str, upload.Table]) -> dict[str, str]:
+    """{true-up's compared ClaimID: its parent's ClaimID} for the NMEC true-ups the tables price."""
+    gone = withdrawn(tables)
+    return {
+        _claim(r): r.get("ParentClaimID", "").strip()
+        for r in tables.get("Claim", upload.Table("Claim", [], [])).rows
+        if _flag(r.get("NMEC_TU_Flag", "")) and r.get("ParentClaimID", "").strip() and _claim(r) not in gone
+    }
+
+
+def parent_profiles(tables: dict[str, upload.Table]) -> ParentProfiles:
+    """Each true-up's parent profile, pinned to the version the parent was priced on (BR-05.6). The parent's Measure record and library
+    are its standing confirmed version's (this year's earlier confirmation or an earlier year's): the profile it names is read back from
+    the impact-profile library that version's run pinned and supplied to the engine as "<profile> (v<version>)", so the true-up is priced
+    against those 8,760s whatever the library holds when it runs. A parent only these tables file (not confirmed yet, priced in the same
+    run) is named as it is: the same run prices both on the same library. A parent priced before libraries were pinned, or one whose
+    profile is not in its library, is named as it is too, and the entry says so."""
+    asks = _true_up_parents(tables)
+    out = ParentProfiles()
+    if not asks:
+        return out
+    own = {_claim(r): r for r in tables.get("Measure", upload.Table("Measure", [], [])).rows}
+    compiled: dict[int, dict[str, dict]] = {}
+    catalogs: dict[int, list] = {}
+    packs: dict[int, PackVersion | None] = {}
+    # {(name, territory): (pack, (name, pa, target sector, catalog row))}: one block per name, whichever library it was read from (a
+    # profile's numbered version never changes, so the same name and version is the same 8,760s in every library that holds it)
+    supplied: dict[tuple[str, str], tuple[PackVersion, tuple]] = {}
+    for cid, parent in sorted(asks.items()):
+        if cid not in own:
+            continue
+        record = find_claim(parent)
+        pack = None
+        if record is not None:
+            v = record.version
+            if v.pk not in compiled:
+                m = compiled_tables(v).get("Measure", upload.Table("Measure", [], []))
+                compiled[v.pk] = {_claim(r): r for r in m.rows}
+                packs[v.pk] = packed_profiles.library_of(v.calculation, v.pack_versions)
+            row, pack = compiled[v.pk].get(parent.lower()), packs[v.pk]
+            source = f"{label(v.submission.deadline)} {v.submission.deadline.period.year}, version {v.number}"
+        else:
+            row, source = own.get(parent.lower()), "filed in these claims"
+        if row is None:
+            continue
+        mine = own[cid]
+        territory = (mine.get("IOU_AC_Territory") or row.get("IOU_AC_Territory") or "").strip()
+        sector = (mine.get("AC_Elec_Target_Sector") or row.get("AC_Elec_Target_Sector") or "").strip()
+        entry = {"claim": mine.get("ClaimID", cid), "parent": parent, "source": source, "library": str(pack) if pack else ""}
+        names = []
+        for i, col in enumerate(("AC_Elec_Impact_Profile", "AC_Elec_Impact_Profile_2nd_Baseline")):
+            profile = (row.get(col) or "").strip()
+            name, version = profile, None
+            if profile and pack is not None:
+                if pack.pk not in catalogs:
+                    catalogs[pack.pk] = packed_profiles.catalog(pack)
+                found = packed_profiles.find(catalogs[pack.pk], profile, territory, sector)
+                if found is not None and found.version is not None and found.shape_id is not None:
+                    version = found.version
+                    name = f"{profile} (v{version})"
+                    sector_only = ""
+                    taken = supplied.get((name.lower(), territory.upper()))
+                    if taken is not None and taken[1][3].target_sector.lower() != found.target_sector.lower():
+                        name, sector_only = f"{profile} / {found.target_sector} (v{version})", found.target_sector  # another sector's
+                    pa_code = territory if territory.upper() in ENGINE_PAS else ""  # the engine's supplied file knows the IOUs only
+                    supplied.setdefault((name.lower(), territory.upper()), (pack, (name, pa_code, sector_only, found)))
+                else:
+                    entry["note"] = f"{profile} is not in {pack}, so it is named as it is (the library in force when priced)."
+            names.append(name)
+            entry["profile" if i == 0 else "profile_2nd"] = profile
+            entry["version" if i == 0 else "version_2nd"] = version
+        if record is None:
+            entry["note"] = "The parent is filed in these claims, so both are priced in the same run on the same profile library."
+        elif pack is None and names[0]:
+            entry["note"] = "The parent was priced before runs pinned their profile library, so its profile is named as it is."
+        out.columns[cid] = (names[0], names[1])
+        out.true_ups.append(entry)
+    by_pack: dict[int, tuple[PackVersion, list]] = {}
+    for pack, block in supplied.values():
+        by_pack.setdefault(pack.pk, (pack, []))[1].append(block)
+    out.file = _join_supplied([packed_profiles.supplied_file(blocks, pack) for pack, blocks in by_pack.values()])
+    return out
+
+
+def true_up_programs(t: "Table") -> list[tuple["Row", dict]]:
+    """The programs of a version's table whose true-ups were priced against a parent profile, with their incremental sums (BR-05.6)."""
+    keys = [k for k, _ in INCREMENTAL_SHOWN]  # a program with no true-up sums to 0 (the group sums skip the blanks)
+    return [(r, {k: r.sums.get(k) for k in keys}) for r in t.rows if any(r.sums.get(k) for k in keys)]
+
+
+def incremental_by_claim(v: SubmissionVersion, claim_ids) -> dict[str, dict]:
+    """{compared ClaimID: {incremental column: value}} for the claims asked for, from the measure-level results of the run the version
+    was priced on (BR-05.6); {} when it has none or wrote no incremental columns (no true-up named a parent profile)."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    key = ((v.calculation or {}).get("results") or {}).get("measure_level")
+    wanted = {c.strip().lower() for c in claim_ids if c}
+    if not key or not wanted or not str(key).endswith(".parquet"):
+        return {}
+    try:
+        f = pq.ParquetFile(pa.BufferReader(storage.store("results").get_bytes(key)))
+    except (storage.StorageError, OSError, pa.ArrowException):
+        return {}
+    columns = [c for c in ["CEInputID", "ParentElecPricingStatus", *(k for k, _ in INCREMENTAL_SHOWN)] if c in f.schema_arrow.names]
+    if "CEInputID" not in columns or len(columns) < 3:
+        return {}
+    out = {}
+    for batch in f.iter_batches(columns=columns, batch_size=50_000):
+        ids = pc.utf8_lower(pc.utf8_trim_whitespace(batch.column("CEInputID").cast(pa.string())))
+        mask = pc.is_in(ids, value_set=pa.array(sorted(wanted)))
+        for row in batch.filter(mask).to_pylist():
+            out[str(row["CEInputID"]).strip().lower()] = {k: val for k, val in row.items() if k != "CEInputID"}
+    return out
+
+
+def true_up_entry(r: ClaimRecord) -> dict | None:
+    """The parent profile a confirmed true-up was priced against, as its version's check recorded it."""
+    cid = r.claim_id.strip().lower()
+    return next((e for e in (r.version.findings or {}).get("true_ups", []) if str(e.get("claim", "")).strip().lower() == cid), None)
+
+
+def _join_supplied(files: list[bytes]) -> bytes:
+    """One supplied 8,760 file from the files read out of each library pack."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    if not files:
+        return b""
+    if len(files) == 1:
+        return files[0]
+    table = pa.concat_tables(pq.read_table(pa.BufferReader(f)) for f in files)
+    buf = io.BytesIO()
+    pq.write_table(table, buf, compression="zstd")
+    return buf.getvalue()
 
 
 # --- the module's checks
@@ -1383,7 +1562,14 @@ def price(actor, v: SubmissionVersion) -> str:
             allocation_version=cy.allocation_version,
             settings={"allocate_statewide": statewide, "acc_purpose": "claims"},
             cost_test_set=cy.cost_test_set,
+            profiles_8760=parent_profiles_file(v),
         )
+
+
+def parent_profiles_file(v: SubmissionVersion) -> bytes | None:
+    """The supplied 8,760s of the version's true-ups' parent profiles (BR-05.6), or None when its job names none."""
+    key = (v.findings or {}).get("parent_profiles_key")
+    return storage.store("uploads").get_bytes(key) if key else None
 
 
 def pricing_run(v: SubmissionVersion) -> str | None:

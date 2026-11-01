@@ -245,6 +245,9 @@ def start(
     name = (name or "").strip() or f"{label} restated on ReCET {release}, {acc_version} ACC{' and others' if by_claim else ''}"
     kw = {"organisation": organisation, "release": release, "allocation_version": cy.allocation_version, "settings": settings,
           "cost_test_set": cy.cost_test_set}  # fmt: skip
+    parents = service.parent_profiles_file(v)
+    if parents:  # the true-ups are priced again against the same pinned parent profiles (BR-05.6)
+        kw["profiles_8760"] = parents
     with transaction.atomic(), tempfile.TemporaryDirectory() as tmp:
         rs = Restatement(
             version=v,

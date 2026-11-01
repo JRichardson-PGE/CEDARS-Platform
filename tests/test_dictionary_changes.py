@@ -21,7 +21,7 @@ from cedars.services.releases import mandates
 from .conftest import page_only
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.87.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.89.json"
 REVIEWS = {
     "reason": "No PA files it and no report reads it.",
     "usage": "Blank on every record filed 2024-2026.",
@@ -62,7 +62,7 @@ def test_retiring_needs_a_system_administrator_and_all_three_reviews(catalog, cp
 
 def test_a_retirement_is_a_new_version_that_keeps_the_field(catalog, cpuc_admin):
     version, f = retire(cpuc_admin, days=30)
-    assert service.current() == version and version.based_on == catalog and version.label == "ReCET 0.1.87 rev 2"
+    assert service.current() == version and version.based_on == catalog and version.label == "ReCET 0.1.89 rev 2"
     assert version.fields.count() == catalog.fields.count()
     assert f.state == Field.State.RETIRED and f.review_regulatory.startswith("The SPM") and f.aliases.count() == 0
     old = catalog.fields.get(name="MeasDescription")
@@ -76,7 +76,7 @@ def test_a_retirement_is_a_new_version_that_keeps_the_field(catalog, cpuc_admin)
     e = AuditEvent.objects.get(action="dictionary.field_retired")
     assert e.reason == REVIEWS["reason"] and e.after["state"] == "retired" and e.after["version"] == version.label
     v3, f3 = changes.reinstate(cpuc_admin, "MeasDescription", reason="The 2029 claims need it again.")
-    assert v3.label == "ReCET 0.1.87 rev 3" and f3.state == Field.State.ACTIVE and f3.retired_from is None
+    assert v3.label == "ReCET 0.1.89 rev 3" and f3.state == Field.State.ACTIVE and f3.retired_from is None
     assert AuditEvent.objects.filter(action="dictionary.field_reinstated").exists()
 
 
