@@ -32,7 +32,7 @@ to every signed-in user.</p>
   <tbody>
   {% for f in c.filings %}
   <tr>
-    <th scope="row"><a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a></th>
+    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a>{% else %}{{ f.deadline.kind }}{% endif %}</th>
     <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date_words }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
     <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
     <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>

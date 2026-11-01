@@ -4,17 +4,19 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>Engine releases</h1>{% page_help "calculations/engines" %}</div>
 <p>The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the ACCs each has. A job asks for
-exactly one release, and the worker refuses any other, so a run's results always name the release that produced them.</p>
+exactly one release, and the worker refuses any other, so a run's results always name the release that produced them. Filings
+(budgets, claims and monthly reports) are priced on the default release, so it needs the ACC of every filing still to come.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">
 <table class="list">
   <caption class="sr-only">Engine releases</caption>
   <thead><tr><th scope="col">Release</th><th scope="col">Calculations and ACCs</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
-  {% for r, calcs in releases %}
+  {% for r, calcs, missing in releases %}
   <tr>
     <th scope="row">ReCET {{ r.release }}{% if r.image %}<br><span class="small muted">{{ r.image }}</span>{% endif %}</th>
     <td><ul class="grants">{% for label, accs in calcs %}<li>{{ label }}: {{ accs }}</li>{% endfor %}</ul></td>
-    <td>{% if not r.active %}Retired{% elif r.default %}Default{% else %}Available{% endif %}</td>
+    <td>{% if not r.active %}Retired{% elif r.default %}Default{% else %}Available{% endif %}
+      {% if missing %}<br><span class="status warn">Cannot price</span> <span class="small">{{ missing }}</span>{% endif %}</td>
     <td>{% if r.active and not r.default %}
       <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="release" value="{{ r.pk }}">
         <button type="submit" name="action" value="default">Make default<span class="sr-only"> ReCET {{ r.release }}</span></button>

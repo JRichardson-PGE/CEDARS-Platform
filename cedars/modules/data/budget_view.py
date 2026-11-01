@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.registry import service as registry
+from cedars.services.registry.models import Program
 
 from . import metrics as catalog
 from . import query as dq
@@ -132,6 +133,8 @@ def compare(view: View) -> Spending:
 
     keys = {k[1] for k in budget} | {k[1] for k in monthly} | {k[1] for cells in actual.values() for k in cells}
     by_program = []
+    # A PrgID filed but not in the program registry has no program page (UAT 2, U06): it is listed without a link.
+    registered = set(Program.objects.filter(prg_id__in=[k for k in keys if k is not None]).values_list("prg_id", flat=True))
     for p in keys:
         row = SpendRow(
             p,
@@ -139,7 +142,7 @@ def compare(view: View) -> Spending:
             monthly=total(monthly, lambda k, p=p: k[1] == p),
             values={s: total(actual[s], lambda k, p=p: k[1] == p) for s in results},
         )
-        if p is not None:
+        if p is not None and p in registered:
             row.drill = f"/programs/{p}/"
         by_program.append(row)
     by_program.sort(key=lambda r: (-(r.budget or 0), str(r.key)))

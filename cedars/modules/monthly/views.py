@@ -91,11 +91,15 @@ def index(request):
     for setup in service.years():
         rows = []
         for d in service.months(setup.year):
-            latest = None
+            latest, can_open = None, True
             if org is not None:
                 sub = Submission.objects.filter(deadline=d, organisation=org).first()
                 latest = submissions.latest(sub) if sub else None
-            rows.append({"deadline": d, "latest": latest, "status": _status(latest), "past_due": submissions.past_due(d)})
+                # The report page refuses a report the user may not read (UAT 2, U03): name it without a link then.
+                can_open = sub is None or service.can_read_submission(request.user, sub)
+            rows.append(
+                {"deadline": d, "latest": latest, "status": _status(latest), "past_due": submissions.past_due(d), "can_open": can_open}
+            )
         years.append({"setup": setup, "months": rows})
     return render(request, "monthly/index.html", {"years": years, "org": org, "sysadmin": access.is_system_admin(request.user)})
 
@@ -362,6 +366,7 @@ def version(request, pk):
         {
             "v": v,
             "label": service.label(v.submission.deadline),
+            "can_open_filing": service.can_read_submission(request.user, v.submission),
             "report": r,
             "rows": rows,
             "columns": [c[1] for c in COLUMNS],

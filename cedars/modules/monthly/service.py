@@ -127,6 +127,14 @@ def change_setup(actor, setup: YearSetup, *, acc_version: str, allocation_versio
     return setup
 
 
+def acc_needs() -> list[tuple[str, str]]:
+    """The years with a monthly report still to come, and the ACC each is priced on (submissions.register_acc_needs)."""
+    years = set(Deadline.objects.filter(module=MODULE, due_at__gte=timezone.now()).values_list("period__year", flat=True))
+    return [
+        (f"{s.year} monthly reports", s.acc_version) for s in YearSetup.objects.filter(year__in=years).order_by("year") if s.acc_version
+    ]
+
+
 def months(year: int):
     """The year's twelve report deadlines, January first."""
     return (
