@@ -128,3 +128,97 @@ releases/edit:
     - heading: Publish
       title: Publish
       text: Publishing tells everyone subscribed to release notes. A shorter notice than usual needs a reason, shown with the note.
+
+releases/mandates:
+  title: CPUC-mandated changes
+  see: getting-started
+  guide:
+    - >-
+      The register of changes to CEDARS' data or calculations that CPUC decisions and resolutions require: the decision or resolution,
+      what it requires, when it takes effect, how far CEDARS has implemented it, and the rule set, dictionary version, value list,
+      field, reference data or release note that carries it.
+    - >-
+      It is published with the specification change log (the data dictionary's Changes page). Everything on it comes from the CPUC's
+      public documents.
+  how:
+    - Search by decision, resolution or words in the requirement, and narrow by implementation status or by what changes, then Apply.
+    - Download the register as CSV.
+  tour:
+    - target: main form.filters
+      title: Search and download
+      text: Find entries by citation or words, by status or by what changes, and download the register as CSV.
+    - target: main table.list
+      title: The register
+      text: Each entry, the latest effective date first, with its status and where CEDARS carries it. Select one for its details and history.
+    - target: main a[href$="/mandates/manage/"]
+      title: Keep the register
+      text: For CPUC system administrators.
+      optional: true
+
+releases/mandate:
+  title: A CPUC-mandated change
+  see: getting-started
+  guide:
+    - >-
+      One entry of the register: the decision or resolution and a link to it, what it requires of CEDARS, when it takes effect, its
+      implementation status, and where CEDARS carries it.
+    - >-
+      Its history lists every change since it was published, with the reason; an entry is never deleted, and one entered in error is
+      marked withdrawn.
+  tour:
+    - target: main dl.facts
+      title: The entry
+      text: Its kind, document, what it changes, when it takes effect and how far it is implemented.
+    - heading: Where CEDARS carries it
+      title: Where CEDARS carries it
+      text: The rule set, dictionary version, value list, field, reference data or release note that carries it out.
+    - heading: History
+      title: History
+      text: Each change since it was published, oldest first, with the reason.
+
+releases/mandates_manage:
+  title: Keep the register of CPUC-mandated changes
+  see: getting-started
+  guide:
+    - >-
+      For CPUC system administrators. Draft an entry for each decision or resolution that changes CEDARS' data or calculations, link
+      where CEDARS carries it, then publish it. Only administrators see drafts.
+    - >-
+      The register is public: enter only what the CPUC's public document says, and link the document on a ca.gov site.
+  how:
+    - Fill in the new entry and save the draft, then open it to link records and publish.
+  tour:
+    - heading: Drafts
+      title: Drafts
+      text: Entries not yet on the register.
+    - heading: New entry
+      title: New entry
+      text: The citation, what it requires, when it takes effect and its status.
+
+releases/mandate_edit:
+  title: An entry of the register
+  see: getting-started
+  guide:
+    - >-
+      For CPUC system administrators. Link the records that carry the change (each must exist and be published), change the entry, and
+      publish a draft or discard it.
+    - >-
+      Once published an entry is never deleted, and every change and link needs a reason, which its public history shows. To take back
+      an entry entered in error, choose the Withdrawn status and say why.
+  how:
+    - Link a record by its number, its address pasted from its page, or for a field its name.
+    - Move the status along as the work goes; Implemented needs the date.
+  tour:
+    - heading: Where CEDARS carries it
+      title: Links
+      text: The records that carry the change, each with a Remove button.
+    - heading: Link a record
+      title: Link a record
+      text: Choose what carries it and which one.
+    - heading: Publish
+      title: Publish
+      text: Puts the draft on the public register.
+      optional: true
+    - target: "#entry-h"
+      title: The entry
+      text: Change any of its details; once published, say why.

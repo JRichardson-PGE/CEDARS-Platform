@@ -11,6 +11,9 @@ class CatalogVersion(models.Model):
     notes = models.TextField(blank=True)
     loaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     loaded_at = models.DateTimeField(auto_now_add=True)
+    based_on = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="The version a retirement copied"
+    )
 
     class Meta:
         ordering = ["-loaded_at", "-pk"]
@@ -20,7 +23,16 @@ class CatalogVersion(models.Model):
 
 
 class Field(models.Model):
-    """A field under its canonical name, with the data-dictionary attributes of BR-08.1."""
+    """A field under its canonical name, with the data-dictionary attributes of BR-08.1.
+
+    A field is retired, never dropped (BR-08.4): after a usage, audience and regulatory review a CPUC system administrator retires it
+    from a date, which makes a new catalog version with the field marked retired and the review kept on it. A retired field stays in
+    the catalog (old files and downloads still name it, and uploads still recognize it), but it leaves the upload templates and
+    schemas from that date. A later catalog version carries the retirement forward (service.load_catalog)."""
+
+    class State(models.TextChoices):
+        ACTIVE = "active", "In use"
+        RETIRED = "retired", "Retired"
 
     class Kind(models.TextChoices):
         INPUT = "input", "Input"
@@ -51,13 +63,31 @@ class Field(models.Model):
     required_by = models.TextField(
         blank=True, help_text="The decision or resolution that requires the field, so a retirement review (BR-08.4) can tell"
     )
+    state = models.CharField(max_length=10, choices=State.choices, default=State.ACTIVE)
+    retired_from = models.DateField(null=True, blank=True, help_text="The day it leaves the upload templates (a retired field only)")
+    retirement_reason = models.TextField("Why it is retired", blank=True)
+    review_usage = models.TextField("Usage review", blank=True, help_text="Who files or reads it, and how often")
+    review_audience = models.TextField("Audience review", blank=True, help_text="Who relies on it in published data")
+    review_regulatory = models.TextField(
+        "Regulatory review", blank=True, help_text="Whether a decision, resolution or the Standard Practice Manual still requires it"
+    )
 
     class Meta:
         ordering = ["kind", "group", "name"]
-        constraints = [models.UniqueConstraint("version", Lower("name"), name="dictionary_one_name_per_version")]
+        constraints = [
+            models.UniqueConstraint("version", Lower("name"), name="dictionary_one_name_per_version"),
+            models.CheckConstraint(
+                condition=models.Q(state="active", retired_from__isnull=True) | models.Q(state="retired", retired_from__isnull=False),
+                name="dictionary_retired_field_has_date",
+            ),
+        ]
 
     def __str__(self):
         return self.name
+
+    def retired_on(self, day) -> bool:
+        """Retired, and the retirement in effect on that day (a field retiring later is still in the templates until then)."""
+        return self.state == self.State.RETIRED and (self.retired_from is None or self.retired_from <= day)
 
 
 class Alias(models.Model):
