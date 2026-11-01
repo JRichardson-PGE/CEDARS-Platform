@@ -11,6 +11,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.core import storage
 from cedars.core import uploads as core_uploads
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry import service as registry
@@ -117,6 +118,9 @@ def comment(request, pk):
         anchor = "#comments"
     else:
         messages.success(request, "Comment posted.")
+        text = accessibility.upload_warning("filing_comment", [a.pk for a in c.attachments.all()])
+        if text:
+            messages.warning(request, text)
         anchor = f"#comment-{c.pk}"
     page = comments.version_page(v)
     return redirect(page + anchor) if page else redirect("core:queue")

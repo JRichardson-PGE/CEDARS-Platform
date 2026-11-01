@@ -246,7 +246,8 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .form-narrow { max-width: 40rem; }
 .inline-form { display: inline; margin: 0; }
 .filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
-.filters > label, .filters > fieldset { min-width: 0; max-width: 100%; }
+.filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }
+.filters select { max-width: 100%; }
 .filters > fieldset { margin: 0; background: none; }
 /* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
 .other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }

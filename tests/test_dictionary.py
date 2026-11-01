@@ -46,6 +46,9 @@ def test_templates_follow_the_catalog(catalog):
     wb = load_workbook(io.BytesIO(service.template_xlsx("calculations", "ProgramCost")))
     assert [c.value for c in wb["ProgramCost"][1]][:2] == ["PrgID", "PrgYear"]
     assert wb["Fields"]["A2"].value == "PrgID"
+    from .test_document_accessibility import assert_accessible
+
+    assert_accessible(service.template_xlsx("calculations", "Measure"))  # BR-10.3
     schema = service.json_schema("calculations", "Measure")
     assert "AC_Climate_Zone" in schema["properties"] and "NumUnits" in schema["required"]
 

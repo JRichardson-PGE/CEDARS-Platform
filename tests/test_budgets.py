@@ -299,6 +299,9 @@ def test_the_appendix_is_built_from_the_version(filer, filing, pge, programs, re
     budget = list(wb["Budget"].iter_rows(values_only=True))
     assert budget[0][:3] == ("PrgID", "Year", "PA") and budget[1][0] == "PGE_Com_Ltg"
     assert dict((r[0], r[1]) for r in wb["About"].iter_rows(values_only=True))["ACC"] == "2026 ACC"
+    from .test_document_accessibility import assert_accessible
+
+    assert_accessible(service.appendix_xlsx(v))  # BR-10.3
 
 
 def test_after_the_due_date_a_correction_is_a_new_version(

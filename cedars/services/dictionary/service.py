@@ -168,29 +168,25 @@ def template_csv(module: str, table: str, version: CatalogVersion | None = None)
     return "|".join(f.name for f, _ in table_fields(module, table, version)) + "\n"
 
 
+def _aliases(f) -> str:
+    return ", ".join(a.name for a in f.aliases.all())
+
+
 def template_xlsx(module: str, table: str, version: CatalogVersion | None = None) -> bytes:
     """A workbook with the table's columns on its first sheet and a Fields sheet defining each one."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
+    from cedars.core import workbooks
 
     version = version or current()
     rows = table_fields(module, table, version)
-    wb = Workbook()
-    ws = wb.active
-    ws.title = table[:31]
-    ws.append([f.name for f, _ in rows])
-    for cell in ws[1]:
-        cell.font = Font(bold=True)
-    ws.freeze_panes = "A2"
-    doc = wb.create_sheet("Fields")
-    doc.append(["Field", "Required", "Type", "Unit", "Definition", "Also accepted as", f"Catalog: {version.label}"])
-    for f, u in rows:
-        doc.append([f.name, "yes" if u.required else "", f.data_type, f.unit, f.definition, ", ".join(a.name for a in f.aliases.all())])
-    for cell in doc[1]:
-        cell.font = Font(bold=True)
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    book = workbooks.Book(f"CEDARS {module} {table} upload template", subject=f"Field catalog {version.label}")
+    book.sheet(table[:31], [f.name for f, _ in rows])
+    book.sheet(
+        "Fields",
+        ["Field", "Required", "Type", "Unit", "Definition", "Also accepted as", "Catalog"],
+        [[f.name, "yes" if u.required else "", f.data_type, f.unit, f.definition, _aliases(f), version.label] for f, u in rows],
+        widths={4: 60},
+    )
+    return book.save()
 
 
 def json_schema(module: str, table: str, version: CatalogVersion | None = None) -> dict:

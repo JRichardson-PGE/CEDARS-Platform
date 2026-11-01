@@ -68,11 +68,13 @@ class Stored:
     sha256: str
     size: int
     content_type: str
+    check: object = None  # what `inspect` returned (the accessibility check, for comments on filings)
 
 
-def store(folder: str, name: str, file, max_mb: int) -> Stored:
+def store(folder: str, name: str, file, max_mb: int, *, inspect=None) -> Stored:
     """Check and keep one file (a Django UploadedFile or any open binary file) in the uploads area at `<folder>/<name>`. Refuses a type
-    not in FILE_TYPES, an empty file and one over max_mb."""
+    not in FILE_TYPES, an empty file and one over max_mb. `inspect(path, name)`, when given, sees the file on local disk before it is
+    kept and may refuse it (raise FileRefused); what it returns is Stored.check."""
     name = clean_name(name)
     kind = content_type(name)
     digest, size = hashlib.sha256(), 0
@@ -89,8 +91,9 @@ def store(folder: str, name: str, file, max_mb: int) -> Stored:
             raise FileRefused(f"{name} is empty.")
         if size > max_mb * 1024 * 1024:
             raise FileRefused(f"{name} is larger than the {max_mb} MB a file may be (see Limits, /limits/).")
+        checked = inspect(Path(tmp.name), name) if inspect else None
         key = f"{folder.rstrip('/')}/{name}"
         storage.store("uploads").put_file(key, Path(tmp.name))
     finally:
         Path(tmp.name).unlink(missing_ok=True)
-    return Stored(name, storage.clean_key(key), digest.hexdigest(), size, kind)
+    return Stored(name, storage.clean_key(key), digest.hexdigest(), size, kind, checked)

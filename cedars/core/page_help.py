@@ -45,6 +45,7 @@ AREAS = {  # the Help index groups the pages by the file they come from, in this
     "administration": "Your account and administration",
     "retention": "Retention",
     "snapshots": "Publication holds",
+    "accessibility": "Document accessibility",
 }
 STEP_KEYS = {"title", "text", "target", "heading", "optional"}
 ENTRY_KEYS = {"title", "guide", "how", "see", "tour", "tour_from"}
