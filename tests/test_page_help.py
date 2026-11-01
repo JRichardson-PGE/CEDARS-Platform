@@ -30,7 +30,7 @@ def test_the_help_loads_and_is_well_formed():
     for key, e in found.items():
         assert e.title and e.guide, key
         assert e.tour or e.tour_from == "front", key
-        assert not e.see or e.see in site_help.BY_SLUG, f"{key}: no guide {e.see!r}"
+        assert e.see in site_help.BY_SLUG, f"{key}: see: names no guide ({e.see!r}); every entry links its user guide (UI review 2, #37)"
         assert e.area in pages.AREAS, f"{key}: add {e.area!r} to page_help.AREAS"
         if e.tour:
             assert e.tour[-1] == pages.LAST_STEP and pages.LAST_STEP not in e.tour[:-1], key
@@ -41,6 +41,9 @@ def test_every_page_heading_has_its_help():
     used = set()
     for path in templates_with_a_heading():
         src = path.read_text(encoding="utf-8")
+        if key_of(path) in pages.WITHOUT_HELP:
+            assert not TAG.search(src), f"{path}: a help page has no (?) of its own"
+            continue
         assert src.count("<h1") == 1, f"{path}: one page heading"
         m = TAG.search(src)
         assert m, f'{path}: the heading needs {{% page_help %}} beside it, in <div class="page-title">'

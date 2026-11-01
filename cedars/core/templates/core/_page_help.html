@@ -12,8 +12,8 @@ never shown: the (?) is a link to the same help on a page of its own.{% endcomme
   </div>
   <ul class="links">
     {% if guide %}<li><a href="{% url 'core:help_guide' guide.slug %}">User guide: {{ guide.title }}</a></li>{% endif %}
-    <li><a href="{{ help_url }}">This help on a page of its own</a></li>
-    <li><a href="{% url 'core:help' %}">All of Help</a></li>
+    <li><a href="{{ help_url }}">Open this help as a page</a></li>
+    <li><a href="{% url 'core:help' %}">Help index</a></li>
   </ul>
 </dialog>
 {% if tour %}{% include "core/_tour.html" %}{% endif %}

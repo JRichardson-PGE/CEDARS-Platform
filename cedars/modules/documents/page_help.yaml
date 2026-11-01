@@ -91,6 +91,9 @@ documents/new:
     - File a document in a collection you manage. Choose the collection first, then its type, the attributes it is filed with and the
       files. It starts unpublished; publish it from its page when it is ready.
     - Uploading for a study fills in the study ID and lists the document on the study's page.
+  how:
+    - Choose the collection, then the type, the attributes and the files, and File the document.
+    - It starts unpublished: publish it from its page.
   see: published-data
   tour:
     - target: main form.filters
@@ -106,6 +109,8 @@ documents/change:
   guide:
     - Change a document's title and attributes. The change is recorded with its reason and what each field was before. The files do not
       change here; add a version to replace them.
+  how:
+    - Change the title or attributes, give the reason, and Save the change. Add a version to replace the files.
   see: published-data
   tour:
     - target: main form
@@ -117,6 +122,8 @@ documents/version_new:
   guide:
     - The new files become the document's next version. Every earlier version stays listed and downloadable from the document's page. For an
       EM&V deliverable, choose the stage, the same one for another draft or a revised final, or a later one.
+  how:
+    - Choose the files and, for an EM&V deliverable, the stage, then Add the version.
   see: published-data
   tour:
     - target: main form
@@ -140,6 +147,8 @@ documents/response_new:
   guide:
     - A PA's response to an EM&V study's recommendations, kept as a version of the deliverable at the stage PA response. Once published it
       is public and never changes; a revised response is a further version with its reason.
+  how:
+    - Choose the response's files and File the response.
   see: published-data
   tour:
     - target: main ul
@@ -155,6 +164,9 @@ documents/lists:
     - The values a document can be filed with, each collection's document types, and the attributes the Public Document Area used for EM&V
       documents. CPUC Energy Division keeps them. A retired value stays on the documents filed with it and in search but is not offered for
       new ones; a value is never deleted.
+  how:
+    - Add a value to a list; Retire one to stop offering it, or Reinstate it.
+    - Correct a value's label with a reason and Save; documents filed with it show the new label.
   see: published-data
   tour:
     - target: main section.card
@@ -167,6 +179,8 @@ documents/subscriptions:
     - Follow a collection, or any value documents are filed with, and you hear when a matching document is published (with its comment
       period, if it has one) and when a published document opens for comment. Studies and work orders are followed from their own pages.
     - Messages land on your notifications page, and by email as you choose.
+  how:
+    - Tick the collections and values to follow, then Save my subscriptions; Stop following ends one.
   see: published-data
   tour:
     - target: "#choose-h"
@@ -220,6 +234,9 @@ documents/study:
       evaluates, its documents (workplans, drafts, finals, responses) and its history of changes.
     - Follow it to hear when its documents are published. Its managers update the study, name the programs it evaluates and upload its
       documents.
+  how:
+    - Follow the study to hear when its status changes and its documents are published.
+    - Its managers Update the study, add or Remove the programs it evaluates, and Upload a document.
   see: published-data
   tour:
     - target: "#facts-h"
@@ -245,6 +262,8 @@ documents/study_form:
     - The study's facts and plans. A new study's ID is made from its first funding cycle's first year, its first sector and its number, as
       the Project Status Report makes it, and never changes. Each change is recorded with its reason; status and budget changes show in the
       history. Everything except the contacts is public.
+  how:
+    - Fill in the facts and plans, give the reason for a change, and save.
   see: published-data
   tour:
     - target: main form
@@ -298,6 +317,8 @@ documents/work_orders:
   guide:
     - Energy Division's contract work orders and their tasks. EM&V documents and studies are filed under them. CPUC Energy Division keeps
       this list.
+  how:
+    - Add the work order (Energy Division); its tasks are added on its page.
   see: published-data
   tour:
     - target: main table.list
@@ -312,6 +333,8 @@ documents/work_order:
   title: A work order
   guide:
     - One work order, its tasks, the studies and the documents filed under it. Follow it to hear when its documents are published.
+  how:
+    - Add the task to the work order. Mark the work order canceled, or reinstate it.
   see: published-data
   tour:
     - target: main .head-row .actions

@@ -34,6 +34,9 @@ administration/request_access:
   guide:
     - Ask an organization's administrators for the permissions you need to act for it, such as filing budgets or claims, running
       calculations or uploading impact profiles. They decide; PII access also needs a CPUC data steward's approval.
+  how:
+    - Choose the organization and the permissions, say why, and Send the request.
+    - Your requests and where each stands are on your account page.
   see: getting-started
   tour:
     - target: main form
@@ -45,6 +48,9 @@ administration/token_created:
   guide:
     - Copy the key now. It is shown only on this page; CEDARS keeps only a fingerprint of it, so if you lose it, revoke the token and make a
       new one. Send it in the Authorization header of each API request.
+  how:
+    - Copy the key into your system's settings, then go Back to your account.
+    - Lost the key? Revoke the token on your account page and make a new one.
   see: getting-started
   tour:
     - target: main p.alert
@@ -53,9 +59,13 @@ administration/token_created:
 
 administration/organisations:
   title: Organizations
+  see: getting-started
   guide:
     - Every organization in CEDARS, its administrators and where its recertification stands. Each organization's administrators manage its
       members; the CPUC assigns only an organization's first administrator.
+  how:
+    - Open an organization for its members, codes, access requests and recertification.
+    - Add an organization (CPUC system administrators) creates one by its CEDARS code and name.
   tour:
     - target: main table.list
       title: The organizations
@@ -67,9 +77,13 @@ administration/organisations:
 
 administration/organisation_new:
   title: Adding an organization
+  see: getting-started
   guide:
     - For CPUC system administrators. Add a program administrator (IOU, REN or CCA) or another organization by its CEDARS code and name, then
       assign its first administrator from its page.
+  how:
+    - Enter the CEDARS code and name, the kind and, for a program administrator, its PA type, then Add.
+    - Then assign its first administrator from the organization's page.
   tour:
     - target: main form
       title: The organization
@@ -83,6 +97,11 @@ administration/organisation:
     - Its administrators grant and revoke permissions, approve or decline requests and certify each grant at recertification. CPUC system
       administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an old code
       can be merged in.
+  how:
+    - Grant gives a member a permission; Revoke takes one away and Remove member takes them out of the organization.
+    - Approve or Decline each access request waiting for a decision.
+    - Start a recertification, then Certify each grant to keep it or Remove it; Reinstate restores a suspended grant.
+    - CPUC system administrators Save details, Rename the code, Record a former code or Merge another organization into this one.
   see: getting-started
   tour:
     - target: "#details-h"
@@ -115,9 +134,13 @@ administration/organisation:
 
 administration/stewardship:
   title: Data stewardship
+  see: getting-started
   guide:
     - For CPUC data stewards. PII access needs a data steward's approval, and changes to the PII rules take one steward to propose and a
       second to confirm.
+  how:
+    - Approve or Decline each request for PII access waiting for a data steward.
+    - Propose the change to the PII rules; a second steward confirms it, and you may Withdraw it until then.
   tour:
     - target: "#pending-h"
       title: Waiting for approval
@@ -131,9 +154,12 @@ administration/stewardship:
 
 administration/settings:
   title: Access settings
+  see: getting-started
   guide:
     - For CPUC system administrators. How often grants are recertified, whether grants not certified by the due date are suspended, and
       whether PII is only for federated organizations and sessions. PII rules themselves are changed by the data stewards. Every change is in the audit log.
+  how:
+    - Change the recertification period and the suspension and PII choices, then Save.
   tour:
     - target: main form
       title: The settings
@@ -141,6 +167,7 @@ administration/settings:
 
 administration/audit:
   title: The audit log
+  see: getting-started
   guide:
     - Every change made in CEDARS, newest first, who made it, for which organization, what changed, why, and the record before and after.
       The log is append-only; nothing in it is changed or deleted.
@@ -158,6 +185,7 @@ administration/audit:
 
 administration/health:
   title: Jobs and health
+  see: calculations
   guide:
     - For CPUC system administrators. Every health check, failing first, background jobs, eTRM syncs, the engine's workers, storage and the
       rest. The checks run every 10 minutes; when one starts failing, every CPUC system administrator is told by notification and email.
@@ -172,10 +200,14 @@ administration/health:
 
 administration/allocations:
   title: Statewide allocation factors
+  see: budgets
   guide:
     - For CPUC system administrators. The share of each statewide program each funding PA carries, by year. Each version is a complete
       table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run that names
       none uses the most recently confirmed version with factors for its program year.
+  how:
+    - Load as a draft takes a factor file; check the draft on its page before it is confirmed.
+    - Open a version for its factors and checks.
   tour:
     - target: main table.list
       title: Versions
@@ -186,9 +218,13 @@ administration/allocations:
 
 administration/allocation:
   title: An allocation version
+  see: budgets
   guide:
     - One version of the statewide allocation factors and its checks (each program's factors add up to 1 each year). A draft is confirmed
       by an administrator, or discarded.
+  how:
+    - Confirm this version once its checks pass, or Discard the draft.
+    - Download the factors gives the CSV in the layout ReCET reads.
   tour:
     - target: main dl.facts
       title: The version
@@ -203,10 +239,14 @@ administration/allocation:
 
 administration/goal_sets:
   title: Energy efficiency goals
+  see: published-data
   guide:
     - The CPUC adopts goals by decision about every two years. Each decision is loaded as a set of goals (cumulative goals for each cycle and
       annual targets, for each IOU). The newest confirmed set replaces the earlier ones for every year it covers; earlier sets stay for the
       years before. The dashboard's Goals page and the front page compare results with them.
+  how:
+    - Load as a draft takes one decision's goal file; a second administrator confirms it on its page.
+    - Open a set for its goals, counting rules and checks.
   tour:
     - target: main table.list
       title: Goal sets
@@ -217,9 +257,13 @@ administration/goal_sets:
 
 administration/goal_set:
   title: A goal set
+  see: published-data
   guide:
     - One decision's goals, the cumulative cycle goals and annual targets for each IOU, the counting rules that say which CCA and REN results
       count toward a territory, and the checks. A draft is confirmed by a second administrator, or discarded.
+  how:
+    - A second administrator chooses Confirm these goals, or Discard the draft.
+    - Download the goals gives the CSV in the goal file layout.
   tour:
     - target: main dl.facts
       title: The decision

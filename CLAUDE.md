@@ -34,9 +34,11 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   at least 24 x 24 px; reflow at 320 px and 200% zoom. Add every new page to `tests/a11y/pages.py`; CI runs axe on it in both schemes.
   ReCET's web templates, CSS and NVDA fixes are the reference (`recet/web`, `tests/screenreader`).
 - **Help on every page** (Jake, 2026-10-31). A new page's heading is `<div class="page-title"><h1>...</h1>{% page_help "<app>/<template>" %}</div>`
-  and its app's `page_help.yaml` gets the entry: a guide to the page and a tour of it, each step pointing at a part of the page by CSS
+  and its app's `page_help.yaml` gets the entry: a guide to the page, its user guide (`see:`, required), a `how:` list when the page has
+  actions, and a tour of it, each step pointing at a part of the page by CSS
   selector or heading text (`cedars/core/page_help.py`). A changed page keeps its help true; the tests fail on a heading without help and on
-  a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have).
+  a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have). The help pages themselves
+  (`page_help.WITHOUT_HELP`: a page's help on a page of its own, and the list of them) have no (?): it would be help about the help.
 - **Same-origin scripts only.** The CSP allows `'self'`; vendor a library with its integrity checked, never load it from a CDN.
 - **PostgreSQL only** (tests too): the design relies on its triggers and ranges.
 - **Secrets from the environment**, never in files. Settings per environment in `cedars/settings/`.

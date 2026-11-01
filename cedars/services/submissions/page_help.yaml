@@ -6,6 +6,9 @@ submissions/calendar:
     - Every filing's due date, soonest first, budgets, claims and monthly reports, with when each opens. Signed in, each row says where your
       organization's filing stands.
     - After a due date a confirmed filing is corrected as a new version, through a request to reopen that a CPUC approver decides.
+  how:
+    - Open a filing's row to go to its page, where your organization files it.
+    - Add (CPUC system administrators) puts a deadline on the calendar by hand.
   see: getting-started
   tour:
     - target: main table.list
@@ -22,9 +25,12 @@ submissions/calendar:
 
 submissions/reopen_requests:
   title: Requests to correct filings
+  see: claims
   guide:
     - After its due date a confirmed filing is corrected as a new version, for that organization and period only, and the version filed
       stays readable. A PA asks to reopen with a reason; a CPUC approver approves or declines it.
+  how:
+    - A CPUC approver chooses Approve reopening or Decline reopening, with a reason.
   tour:
     - heading: Waiting for you
       title: Waiting for you

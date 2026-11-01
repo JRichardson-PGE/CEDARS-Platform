@@ -977,6 +977,20 @@ def test_reflows_at_320px_with_sound_markup(browser, site, scene, name, path, wh
     assert not problems, f"{name}: " + json.dumps(problems, indent=1)
 
 
+@pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
+def test_the_narrow_header_folds_behind_a_menu_button(browser, site, scene, who):
+    """At 320 px the navigation is behind a Menu button, signed in or not (UI review 2, #42), and the button shows and hides it."""
+    context, page = _open(browser, site, scene, "/", who, viewport={"width": 320, "height": 640})
+    btn = page.locator(".menu-btn")
+    assert btn.is_visible() and btn.get_attribute("aria-expanded") == "false"
+    assert not page.locator("#main-nav").is_visible()
+    btn.click()
+    assert btn.get_attribute("aria-expanded") == "true" and page.locator("#main-nav").is_visible()
+    btn.click()
+    assert not page.locator("#main-nav").is_visible()
+    context.close()
+
+
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 @pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
 def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
@@ -1093,6 +1107,10 @@ def test_every_page_has_help_and_its_tour_finds_the_page(browser, site, scene, n
     """The (?) is beside the heading, and every tour step not marked optional finds its part of the page (cedars/core/page_help.py):
     a section renamed or removed fails here rather than leaving a tour that points at nothing."""
     context, page = _open(browser, site, scene, path, who)
+    if name in HELP_ITSELF:  # a page's help on a page of its own has no (?) about itself (UI review 2, #41)
+        assert page.locator(".page-help").count() == 0, f"{name}: a help page with a (?)"
+        context.close()
+        return
     assert page.locator(".page-title > h1 + .page-help").count() == 1, f"{name}: no (?) beside the heading"
     steps = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null")
     context.close()
@@ -1100,6 +1118,8 @@ def test_every_page_has_help_and_its_tour_finds_the_page(browser, site, scene, n
     missing = [s["title"] for s in steps if not s["found"] and not s["optional"]]
     assert not missing, f"{name}: tour steps whose part of the page is missing: {missing}"
 
+
+HELP_ITSELF = {"help-pages", "help-page", "help-page-front"}  # core/help/pages.html and page.html (page_help.WITHOUT_HELP)
 
 HELP_PAGES = [
     ("/data/overview/?by=sector", None),
@@ -1157,6 +1177,39 @@ def test_page_help_without_scripts(browser, site, scene):
     assert page.locator("ol.tour-list > li").count() >= 2
     assert page.locator("a", has_text="Back to the page").get_attribute("href") == "/rules/"
     assert page.locator("a", has_text="Take the tour on the page").get_attribute("href") == "/rules/?tour=1"
+    context.close()
+
+
+def test_the_tour_leaves_disclosures_as_they_were(browser, site, scene):
+    """A step that points at a disclosure opens it and closes it after; every other disclosure stays as the visitor left it
+    (UI review 2, #40)."""
+    opened = "() => Array.from(document.querySelectorAll('main details')).map(d => d.open)"
+
+    def tour(page):
+        states = []
+        page.locator(".page-help").click()
+        page.locator("#page-help [data-tour-start]").click()
+        while True:
+            states.append((page.locator("#tour-title").text_content(), page.evaluate(opened)))
+            nxt = page.locator("[data-tour-next]")
+            if nxt.text_content() == "Finish":
+                nxt.click()
+                return states
+            nxt.click()
+
+    context, page = _open(browser, site, scene, "/admin/organizations/{pge}/", "pge_admin")
+    page.evaluate("() => { document.querySelector('main details').open = true; }")  # a member's disclosure the visitor opened
+    before = page.evaluate(opened)
+    assert all(states == before for _title, states in tour(page))
+    assert page.evaluate(opened) == before
+    context.close()
+
+    context, page = _open(browser, site, scene, "/programs/", None)
+    other = "() => document.querySelector('main details.other-filters').open"
+    assert not page.evaluate(other)
+    states = tour(page)
+    assert any("Other filters" in title and state[0] for title, state in states)  # open while its step is shown
+    assert not page.evaluate(other)  # and closed again after
     context.close()
 
 

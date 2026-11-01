@@ -91,6 +91,9 @@ programs/change:
       changed, with your reason.
     - Locked attributes are listed above the form. A change that touches one goes, with the rest of the change, to a CPUC approver as a
       request, and nothing changes until it is approved.
+  how:
+    - Choose the effective date, change the attributes, give the reason, and Save the change.
+    - A change to a locked attribute goes to a CPUC programs approver as a request.
   see: programs
   tour:
     - target: main form
@@ -116,6 +119,8 @@ programs/request:
   guide:
     - What a change to a program would do, attribute by attribute, before and after, and who asked for it and why. A CPUC programs
       approver approves or declines it with a reason; the PA that asked may withdraw it while it waits.
+  how:
+    - A CPUC programs approver decides the request, with a reason; the PA that asked may Withdraw the request while it waits.
   see: programs
   tour:
     - target: main table.list
@@ -139,6 +144,8 @@ programs/locked:
     - The program attributes a PA changes only through a request that a CPUC programs approver decides. CPUC system administrators and
       programs approvers change them directly; every other attribute stays with the program's administrators.
     - A policy starts today or later and is never edited; the ones before it are kept, so what was locked on any date can be seen.
+  how:
+    - Tick the locked attributes, choose the date the policy starts, give the reason, and Save the policy.
   see: programs
   tour:
     - heading: In force today

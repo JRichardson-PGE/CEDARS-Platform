@@ -2,10 +2,14 @@
 
 notifications/index:
   title: Notifications
+  see: getting-started
   guide:
     - What needs you, a filing to review, an access request, a due date coming up, a run or download that finished, a document published,
       newest first. New ones are marked; the count in the header is how many are unread.
     - The same notices go by email unless you turn that off in the settings.
+  how:
+    - Open a notice to go where it points; Mark all as read clears the count.
+    - Choose what you hear about, and what is emailed, in the settings.
   tour:
     - target: main .page-title + p
       title: Unread and settings
@@ -17,9 +21,12 @@ notifications/index:
 
 notifications/settings:
   title: Notification settings
+  see: getting-started
   guide:
     - Choose what you hear about, and for each whether it is emailed too. Everything you choose appears on your notifications page. Filing
       events reach you only for organizations you belong to.
+  how:
+    - Tick what to hear about and whether each is emailed too, then Save.
   tour:
     - target: main form
       title: What you are sent

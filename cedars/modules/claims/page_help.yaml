@@ -8,6 +8,11 @@ claims/index:
       their headings.
     - The claims template (Excel) lists every table and field. The change log lists every correction to confirmed claims, and Linked
       claims follows NMEC chains, projects and SEM participants across quarters and years.
+  how:
+    - Open a confirmation to see where your organization's claims stand and to file or correct them.
+    - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
+      and years.
+    - Set up a claim year (CPUC system administrators) adds the next year's five confirmations.
   see: claims
   tour:
     - target: main .head-row .actions, main .head-row .button
@@ -26,6 +31,8 @@ claims/year_new:
   guide:
     - For CPUC system administrators. A claim year has five confirmations (four quarters and the annual) due on the dates you set, and is
       priced on the ACC and allocation version chosen on its pricing page.
+  how:
+    - Choose the year and the five due dates, then Set up the claim year. Its ACC and allocation version are chosen on its pricing page.
   see: claims
   tour:
     - target: main form
@@ -37,6 +44,8 @@ claims/setup:
   guide:
     - The ACC and statewide allocation version the year's next pricing uses. Versions already priced keep the ones they were priced with;
       their run records both.
+  how:
+    - Choose the ACC and the allocation version, then Save. The next pricing uses them.
   see: claims
   tour:
     - target: main form

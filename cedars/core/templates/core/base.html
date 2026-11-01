@@ -86,6 +86,8 @@
   {# Signed in with a password only while a second factor is required (mfa_pending): every page but the set-up sends them back to it (RequireMFAMiddleware), so the header offers only Sign out. #}
   <div class="who"><form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form></div>
   {% else %}
+  {# The public header has the same narrow-screen Menu button as the signed-in one (UI review 2, #42). #}
+  <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
   <nav aria-label="Main" id="main-nav">
     <a href="{% url 'data:dashboards' %}" data-tour="nav-dashboard"{% if request.path|slice:":6" == '/data/' and request.path|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
     <a href="{% url 'data:records' %}" data-tour="nav-records"{% if request.path|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a>

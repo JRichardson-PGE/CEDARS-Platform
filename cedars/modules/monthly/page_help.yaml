@@ -27,6 +27,8 @@ monthly/year_new:
   guide:
     - For CPUC system administrators. This adds twelve reports to the filing calendar, one per month. Each opens when its month ends and is
       due on the day chosen here of the month after.
+  how:
+    - Choose the year and the day of the month reports are due, then Set up the year.
   see: monthly-reports
   tour:
     - target: main form
@@ -38,6 +40,8 @@ monthly/setup:
   guide:
     - The ACC and statewide allocation version the next pricing of the year's estimates uses. Reports already priced keep the ones they
       were priced with; their run records both.
+  how:
+    - Choose the ACC and the allocation version, then Save. The next pricing uses them.
   see: monthly-reports
   tour:
     - target: main form
@@ -83,6 +87,8 @@ monthly/version:
     - One version of a PA's monthly report, by program. Spend and commitments are compared with the operating budget; savings, total system
       benefit and ratios are estimated from the year-to-date BCA inputs and labeled so. A month's spend is the change in the year-to-date
       spend, so it is known once the month before is confirmed.
+  how:
+    - Download this report by program (CSV) gives the table as shown.
   see: monthly-reports
   tour:
     - target: dl.tiles, main .tile
@@ -101,6 +107,8 @@ monthly/year:
   guide:
     - Every month of a program year in one place for one PA, totals over its programs. Reports are cumulative, so each month's spend is the
       change in its year-to-date spend. A month that does not add up with the one before it is flagged.
+  how:
+    - Choose the PA and the year and Apply; Download the year (CSV) gives every month.
   see: monthly-reports
   tour:
     - target: main form.filters
@@ -116,6 +124,8 @@ monthly/closing:
   guide:
     - The year's closing report, generated from the PA's confirmed claims for the year, so it always matches them. Each program's
       expenditure is compared with the operating budget, and a program whose claims do not match December's monthly report is flagged.
+  how:
+    - Choose the PA and the year and Apply; Download the 13th-month report (CSV) gives it as a file.
   see: monthly-reports
   tour:
     - target: main form.filters
