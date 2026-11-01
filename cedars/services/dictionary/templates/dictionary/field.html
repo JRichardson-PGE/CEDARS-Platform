@@ -4,6 +4,18 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li></ol></nav>
 <div class="page-title"><h1>{{ f.name }}</h1>{% page_help "dictionary/field" %}</div>
 <p>{{ f.definition|default:"No definition yet." }}</p>
+{% if f.state == "retired" %}
+<section class="card" aria-labelledby="retired-h">
+  <h2 id="retired-h">{% if f.retired_from <= today %}Retired from {{ f.retired_from|date_words }}{% else %}Retiring on {{ f.retired_from|date_words }}{% endif %}</h2>
+  <p>{{ f.retirement_reason|linebreaksbr }}</p>
+  <p>{% if f.retired_from <= today %}It is no longer in the upload templates or schemas.{% else %}It leaves the upload templates and schemas on that day.{% endif %} Uploads that still have the column are read, and the column is ignored; earlier filings and downloads keep it.</p>
+  <dl class="facts">
+    <dt>Usage review</dt><dd>{{ f.review_usage|linebreaksbr }}</dd>
+    <dt>Audience review</dt><dd>{{ f.review_audience|linebreaksbr }}</dd>
+    <dt>Regulatory review</dt><dd>{{ f.review_regulatory|linebreaksbr }}</dd>
+  </dl>
+</section>
+{% endif %}
 <dl class="facts">
   <dt>Kind</dt><dd>{{ f.get_kind_display }}{% if f.group %}, {{ f.group }}{% endif %}</dd>
   <dt>Type</dt><dd>{{ f.data_type }}{% if f.max_length %}, up to {{ f.max_length }} characters{% endif %}</dd>
@@ -21,5 +33,39 @@
   {% if f.usages.all %}<dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}, column {{ u.position|add:1 }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
   {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{{ f.doc_link }} in ReCET</dd>{% endif %}
 </dl>
-<p class="small muted">Catalog version {{ catalog.label }}.</p>
+{% if mandates %}
+<h2 id="mandates-h">Required by</h2>
+<ul class="links">{% for m in mandates %}<li><a href="{% url 'mandates:detail' m.pk %}">{{ m.reference }}: {{ m.title }}</a> ({{ m.get_status_display|lower }})</li>{% endfor %}</ul>
+{% endif %}
+<h2 id="history-h">History</h2>
+{% if history %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="history-h">
+<table class="list">
+  <caption class="sr-only">Each catalog version that added, changed, retired or reinstated this field, newest first</caption>
+  <thead><tr><th scope="col">Catalog version</th><th scope="col">Change</th><th scope="col">Details</th></tr></thead>
+  <tbody>
+  {% for v, c in history %}<tr><th scope="row"><a href="{% url 'dictionary:version_changes' v.pk %}">{{ v.label }}</a><br><span class="small">{{ v.loaded_at|date_words }}</span></th>
+    <td>{{ c.what|capfirst }}</td>
+    <td>{% for attr, before, after in c.details %}{{ attr }}: {% if before %}<del>{{ before|truncatewords:20 }}</del> {% endif %}{% if after %}<ins>{{ after|truncatewords:20 }}</ins>{% else %}(cleared){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if c.note %}{% if c.details %}<br>{% endif %}Why: {{ c.note }}{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No changes recorded.</p>{% endif %}
+{% if can_retire %}
+<section class="card" aria-labelledby="admin-h">
+  <h2 id="admin-h">Retire or reinstate</h2>
+  {% if f.state == "retired" %}
+  <p>Put the field back in use. A new catalog version is made with it in use again, and the change log shows it.</p>
+  <form method="post" action="{% url 'dictionary:reinstate' f.name %}" class="stack form-narrow">{% csrf_token %}
+    <p><label for="reinstate-reason">Why it is back in use</label><textarea id="reinstate-reason" name="reason" rows="2" required></textarea></p>
+    <div class="actions"><button type="submit">Reinstate {{ f.name }}</button></div>
+  </form>
+  {% else %}
+  <p>For CPUC system administrators: retire this field after a usage, audience and regulatory review. It stays in the dictionary, marked retired.</p>
+  <p class="actions"><a class="button" href="{% url 'dictionary:retire' f.name %}">Review and retire {{ f.name }}</a></p>
+  {% endif %}
+</section>
+{% endif %}
+<p class="small muted">Catalog version {{ catalog.label }}. <a href="{% url 'dictionary:changes' %}">Every version's changes</a>.</p>
 {% endblock %}

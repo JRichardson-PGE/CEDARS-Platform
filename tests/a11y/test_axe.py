@@ -330,6 +330,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **monthly,
         **corrections,
         **_releases(cpuc_admin),
+        **_mandates(cpuc_admin, rules),
         **documents,
         **_publication_hold(pge),
         "pack": pack,
@@ -914,6 +915,49 @@ def _releases(cpuc_admin):
     releases.withdraw(cpuc_admin, gone, "Replaced by the 2028 rule set.")
     draft = note("Next release", 45, "0.4.0")
     return {"release_note": coming.pk, "release_done": done.pk, "release_draft": draft.pk}
+
+
+def _mandates(cpuc_admin, rules):
+    """Gaps 33 and 30: a field retiring in 30 days (a new catalog version), and the register of CPUC-mandated changes with a published
+    entry (linked to the rules, the field and the version, changed once so it has a history) and a draft."""
+    from cedars.services.dictionary import changes
+    from cedars.services.releases import mandates
+
+    today = timezone.localdate()
+    version, _ = changes.retire(
+        cpuc_admin,
+        "LevNetBenRIMGas",
+        retired_from=today + timedelta(days=30),
+        reason="No report or dashboard reads it.",
+        usage="Never filed; read by no download in 2025 or 2026.",
+        audience="No published dataset shows it.",
+        regulatory="The Standard Practice Manual does not require it.",
+    )
+    entry = mandates.create_draft(
+        cpuc_admin,
+        reference="Res. E-0000",
+        authority="resolution",
+        title="Tax credits in the TRC",
+        requirement="Count tax credits as a TRC benefit from the 2026 claims.",
+        area="both",
+        effective_on=today - timedelta(days=200),
+        document_url="https://docs.cpuc.ca.gov/example.pdf",
+    )
+    mandates.add_link(cpuc_admin, entry, "rule_set", str(rules.pk))
+    mandates.add_link(cpuc_admin, entry, "field", "TaxCredits")
+    mandates.add_link(cpuc_admin, entry, "catalog", str(version.pk))
+    mandates.publish(cpuc_admin, entry)
+    mandates.update(
+        cpuc_admin, entry, status="implemented", implemented_on=today - timedelta(days=10), status_note="In the 2026 rules.", reason="Done"
+    )
+    draft = mandates.create_draft(
+        cpuc_admin,
+        reference="D.00-00-001",
+        title="A new output",
+        requirement="Report a new output.",
+        effective_on=today + timedelta(days=90),
+    )
+    return {"mandate": entry.pk, "mandate_draft": draft.pk, "catalog_retired": version.pk}
 
 
 def _zip(files: dict[str, str]) -> bytes:

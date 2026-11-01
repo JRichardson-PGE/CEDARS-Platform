@@ -5,6 +5,7 @@ import io
 from dataclasses import dataclass, field
 
 from django.db import transaction
+from django.utils import timezone
 
 from cedars.services import audit
 from cedars.services.accounts import service as access
@@ -24,6 +25,7 @@ ATTRIBUTES = [
     "audience",
     "required_by",
 ]
+RETIREMENT = ["state", "retired_from", "retirement_reason", "review_usage", "review_audience", "review_regulatory"]
 JSON_TYPES = {"text": "string", "number": "number", "boolean": "boolean", "year_quarter": "string"}
 
 
@@ -37,6 +39,12 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator publishes a dictionary version.")
     label = label or payload.get("source") or "catalog"
+    previous = current()
+    retired = (
+        {f.name.lower(): f for f in previous.fields.filter(state=Field.State.RETIRED).prefetch_related("aliases", "usages")}
+        if previous
+        else {}
+    )
     version = CatalogVersion.objects.create(label=label, notes=notes, loaded_by=actor)
     for f in payload["fields"]:
         obj = Field.objects.create(
@@ -58,14 +66,36 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
             years_in_use=f.get("years_in_use", ""),
             audience=f.get("audience", Field.Audience.PUBLIC),
             required_by=f.get("required_by", ""),
+            # a retirement is not undone by a later export that does not know of it (BR-08.4)
+            **({a: getattr(retired[f["name"].lower()], a) for a in RETIREMENT} if f["name"].lower() in retired else {}),
         )
         Alias.objects.bulk_create(Alias(field=obj, name=a["name"], system=a["system"]) for a in f.get("aliases", []))
         Usage.objects.bulk_create(
             Usage(field=obj, module=u["module"], table=u["table"], position=u["position"], required=u.get("required", False))
             for u in f.get("usage", [])
         )
-    audit.record("dictionary.published", obj=version, after={"label": label, "fields": len(payload["fields"])}, actor=actor)
+    given = {f["name"].lower() for f in payload["fields"]}
+    kept = [old for key, old in retired.items() if key not in given]
+    for old in kept:  # a retired field stays in the catalog even when the export leaves it out
+        copy_field(old, version)
+    audit.record(
+        "dictionary.published",
+        obj=version,
+        after={"label": label, "fields": len(payload["fields"]) + len(kept), "retired_kept": [f.name for f in kept]},
+        actor=actor,
+    )
     return version
+
+
+def copy_field(old: Field, version: CatalogVersion, **changes) -> Field:
+    """The field, its other names and its usages, copied into another catalog version with any changes."""
+    values = {f.name: getattr(old, f.name) for f in Field._meta.concrete_fields if f.name not in ("id", "version")}
+    obj = Field.objects.create(version=version, **{**values, **changes})
+    Alias.objects.bulk_create(Alias(field=obj, name=a.name, system=a.system) for a in old.aliases.all())
+    Usage.objects.bulk_create(
+        Usage(field=obj, module=u.module, table=u.table, position=u.position, required=u.required) for u in old.usages.all()
+    )
+    return obj
 
 
 def resolve(name: str, version: CatalogVersion | None = None) -> Field | None:
@@ -79,10 +109,15 @@ def resolve(name: str, version: CatalogVersion | None = None) -> Field | None:
     )
 
 
-def table_fields(module: str, table: str, version: CatalogVersion | None = None) -> list[tuple[Field, Usage]]:
+def table_fields(
+    module: str, table: str, version: CatalogVersion | None = None, *, retired: bool = False, on=None
+) -> list[tuple[Field, Usage]]:
+    """A module table's fields in column order. A field whose retirement is in effect (on `on`, default today) is left out unless
+    `retired` is true: the templates and schemas no longer ask for it."""
     version = version or current()
     usages = Usage.objects.filter(field__version=version, module=module, table=table).select_related("field").order_by("position")
-    return [(u.field, u) for u in usages]
+    day = on or timezone.localdate()
+    return [(u.field, u) for u in usages if retired or not u.field.retired_on(day)]
 
 
 @dataclass
@@ -95,12 +130,16 @@ class HeaderMap:
     renamed: dict[str, str] = field(default_factory=dict)
     unknown: list[str] = field(default_factory=list)
     not_used: list[str] = field(default_factory=list)
+    retired: list[str] = field(default_factory=list)
     missing: list[str] = field(default_factory=list)
 
 
 def map_headers(headers: list[str], module: str, table: str, version: CatalogVersion | None = None) -> HeaderMap:
     version = version or current()
-    wanted = {f.name: u for f, u in table_fields(module, table, version)}
+    every = table_fields(module, table, version, retired=True)
+    day = timezone.localdate()
+    wanted = {f.name: u for f, u in every if not f.retired_on(day)}
+    gone = {f.name for f, _ in every if f.retired_on(day)}
     lookup = {}
     for f in Field.objects.filter(version=version).prefetch_related("aliases"):
         lookup[f.name.lower()] = f.name
@@ -111,6 +150,8 @@ def map_headers(headers: list[str], module: str, table: str, version: CatalogVer
         canonical = lookup.get(str(h).strip().lower())
         if canonical is None:
             out.unknown.append(h)
+        elif canonical in gone:
+            out.retired.append(h)
         elif canonical not in wanted:
             out.not_used.append(h)
         else:
@@ -181,7 +222,10 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
     version = version or current()
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\n")
-    w.writerow(["name", "kind", "group", "definition", "data_type", "max_length", *ATTRIBUTES, "also_known_as", "documentation"])
+    w.writerow(
+        ["name", "kind", "group", "definition", "data_type", "max_length", *ATTRIBUTES, "also_known_as", "documentation", "state"]
+        + ["retired_from"]
+    )
     for f in Field.objects.filter(version=version).prefetch_related("aliases").order_by("kind", "group", "name"):
         w.writerow(
             [
@@ -194,6 +238,8 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
                 *[getattr(f, a) for a in ATTRIBUTES],
                 "; ".join(f"{a.name} ({a.system})" for a in f.aliases.all()),
                 f.doc_link,
+                f.state,
+                f.retired_from or "",
             ]
         )
     return out.getvalue()

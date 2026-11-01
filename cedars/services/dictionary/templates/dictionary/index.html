@@ -7,6 +7,7 @@
   <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>
   <a class="button" href="{% url 'dictionary:crosswalk_csv' %}">Download the name crosswalk (CSV)</a>
   <a class="button" href="{% url 'dictionary:lists' %}">Value lists</a>
+  <a class="button" href="{% url 'dictionary:changes' %}">Changes</a>
 </p>
 <h2>Upload templates</h2>
 <ul>
@@ -21,18 +22,20 @@
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
   <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option><option value="input"{% if kind == "input" %} selected{% endif %}>Inputs</option><option value="output"{% if kind == "output" %} selected{% endif %}>Outputs</option></select></div>
+  <div class="field"><label for="state">State</label><select id="state" name="state"><option value="">In use</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Retired</option><option value="all"{% if state == "all" %} selected{% endif %}>All, retired included</option></select></div>
   <button type="submit">Search</button>
 </form>
-<p>{{ total }} field{{ total|pluralize }}.</p>
+<p>{{ total }} field{{ total|pluralize }}.{% if retired_count and not state %} {{ retired_count }} retired field{{ retired_count|pluralize }} {{ retired_count|pluralize:"is,are" }} not shown: choose State, Retired.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Fields">
 <table class="list">
   <caption class="sr-only">Fields, by kind and group</caption>
-  <thead><tr><th scope="col">Field</th><th scope="col">Kind</th><th scope="col">Group</th><th scope="col">Unit</th><th scope="col">Definition</th></tr></thead>
+  <thead><tr><th scope="col">Field</th><th scope="col">Kind</th><th scope="col">Group</th><th scope="col">Unit</th><th scope="col">Definition</th><th scope="col">State</th></tr></thead>
   <tbody>
   {% for f in page %}
   <tr><th scope="row"><a href="{% url 'dictionary:field' f.name %}">{{ f.name }}</a>{% for a in f.aliases.all %}<br><span class="small muted">also {{ a.name }}</span>{% endfor %}</th>
-    <td>{{ f.get_kind_display }}</td><td>{{ f.group }}</td><td>{{ f.unit }}</td><td>{{ f.definition|truncatewords:40 }}</td></tr>
-  {% empty %}<tr><td colspan="5">No fields match.</td></tr>
+    <td>{{ f.get_kind_display }}</td><td>{{ f.group }}</td><td>{{ f.unit }}</td><td>{{ f.definition|truncatewords:40 }}</td>
+    <td>{% if f.state == "retired" %}{% if f.retired_from <= today %}Retired from {{ f.retired_from|date_words }}{% else %}<strong>Retiring</strong> on {{ f.retired_from|date_words }}{% endif %}{% else %}In use{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="6">No fields match.</td></tr>
   {% endfor %}
   </tbody>
 </table>

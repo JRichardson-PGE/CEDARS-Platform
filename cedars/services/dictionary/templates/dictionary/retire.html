@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}Retire {{ f.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li><li><a href="{% url 'dictionary:field' f.name %}">{{ f.name }}</a></li></ol></nav>
+<div class="page-title"><h1>Retire {{ f.name }}</h1>{% page_help "dictionary/retire" %}</div>
+<p>A field is retired only after a review of who uses it, who relies on it and whether a CPUC decision, resolution or the Standard
+Practice Manual still requires it. Retiring makes a new catalog version with the field marked retired from the date you give: it stays
+in the dictionary and in earlier filings and downloads, uploads that still carry the column are read, and the column leaves the upload
+templates and schemas on that day. Announce it in a <a href="{% url 'releases:index' %}">release note</a> before then.</p>
+{% if held %}
+<p class="alert" role="alert">{{ f.name }} cannot be retired while the register of CPUC-mandated changes says it is required:
+{% for m in held %}<a href="{% url 'mandates:detail' m.pk %}">{{ m.reference }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.
+If the requirement no longer stands, mark that entry superseded or withdrawn first.</p>
+{% endif %}
+<h2 id="facts-h">What to review</h2>
+<dl class="facts">
+  <dt>Kind</dt><dd>{{ f.get_kind_display }}{% if f.group %}, {{ f.group }}{% endif %}</dd>
+  <dt>Audience</dt><dd>{{ f.get_audience_display }}</dd>
+  <dt>Required by</dt><dd>{{ f.required_by|default:"No decision or resolution is recorded in the catalog." }}</dd>
+  <dt>Cost tests</dt><dd>{{ f.cost_tests|default:"None recorded" }}</dd>
+  <dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% empty %}No upload table{% endfor %}</dd>
+</dl>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Retire {{ f.name }}</button> <a href="{% url 'dictionary:field' f.name %}">Cancel</a></div>
+</form>
+{% endblock %}

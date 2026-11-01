@@ -39,3 +39,25 @@ class UploadForm(forms.Form):
 class PublishForm(forms.Form):
     effective_from = forms.DateField(label="Takes effect on", widget=forms.DateInput(attrs={"type": "date"}))
     reason = forms.CharField(label="Why the list changes", max_length=1000, help_text="Kept with the version and shown on the list's page.")
+
+
+class RetireForm(forms.Form):
+    retired_from = forms.DateField(
+        label="Retired from",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Today or later: the day it leaves the upload templates and schemas. Announce it in a release note before then.",
+    )
+    review_usage = forms.CharField(
+        label="Usage review", widget=forms.Textarea(attrs={"rows": 3}), help_text="Who files or reads it, and how often."
+    )
+    review_audience = forms.CharField(
+        label="Audience review", widget=forms.Textarea(attrs={"rows": 3}), help_text="Who relies on it in published data."
+    )
+    review_regulatory = forms.CharField(
+        label="Regulatory review",
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Whether a decision, resolution or the Standard Practice Manual still requires it, and which.",
+    )
+    reason = forms.CharField(
+        label="Why it is retired", widget=forms.Textarea(attrs={"rows": 2}), help_text="Shown with the field and in the change log."
+    )

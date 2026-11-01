@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}{% if published %}Change{% else %}Draft:{% endif %} {{ m.reference }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a></li><li><a href="{% url 'mandates:manage' %}">Keep the register</a></li></ol></nav>
+<div class="page-title"><h1>{% if published %}Change{% else %}Draft:{% endif %} {{ m.reference }}</h1>{% page_help "releases/mandate_edit" %}</div>
+{% if published %}<p>On the register since {{ m.published_at|date_words }}: <a href="{% url 'mandates:detail' m.pk %}">see it as everyone does</a>. Each change needs a reason; the entry's history shows what changed, when and why.</p>
+{% else %}<p>A draft: only CPUC system administrators see it. Link where CEDARS carries it, then publish it.</p>{% endif %}
+
+<h2 id="carried-h">Where CEDARS carries it</h2>
+{% if links %}
+<ul class="links">{% for ln, url in links %}<li>{% if url %}<a href="{{ url }}">{{ ln.label }}</a>{% else %}{{ ln.label }}{% endif %}
+  <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="unlink"><input type="hidden" name="link" value="{{ ln.pk }}">
+    {% if published %}<label for="unlink-{{ ln.pk }}" class="inline">Why remove it<span class="sr-only"> (the link to {{ ln.label }})</span></label> <input type="text" id="unlink-{{ ln.pk }}" name="reason" required>{% endif %}
+    <button type="submit">Remove<span class="sr-only"> the link to {{ ln.label }}</span></button></form></li>{% endfor %}</ul>
+{% else %}<p>Nothing linked yet.</p>{% endif %}
+<section class="card" aria-labelledby="link-h">
+  <h3 id="link-h">Link a record</h3>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}<input type="hidden" name="action" value="link">
+    {% if link_form.non_field_errors %}<div class="alert" role="alert">{{ link_form.non_field_errors }}</div>{% endif %}
+    {% for field in link_form %}{% if published or field.name != "reason" %}{{ field.as_field_group }}{% endif %}{% endfor %}
+    <div class="actions"><button type="submit">Link it</button></div>
+  </form>
+</section>
+
+{% if not published %}
+<section class="card" aria-labelledby="publish-h">
+  <h2 id="publish-h">Publish</h2>
+  <p>Publishing puts the entry on the public register. It is never deleted afterwards: one entered in error is withdrawn, with the reason.</p>
+  <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="action" value="publish"><button type="submit" class="primary">Publish on the register</button></form>
+</section>
+{% endif %}
+
+<section aria-labelledby="entry-h">
+  <h2 id="entry-h">{% if published %}Change the entry{% else %}The entry{% endif %}</h2>
+  {% if published %}<p>To withdraw an entry entered in error, choose the Withdrawn status and say why under About the status.</p>{% endif %}
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}<input type="hidden" name="action" value="save">
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Save</button></div>
+  </form>
+</section>
+{% if not published %}<form method="post" class="actions">{% csrf_token %}<input type="hidden" name="action" value="discard"><button type="submit">Discard this draft</button></form>{% endif %}
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}Changes in {{ v.label }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li><li><a href="{% url 'dictionary:changes' %}">Specification change log</a></li></ol></nav>
+<div class="page-title"><h1>Changes in {{ v.label }}</h1>{% page_help "dictionary/version_changes" %}</div>
+<p>Loaded {{ v.loaded_at|date_words }}{% if v == current %}; the current version{% endif %}. {% if first %}The first version: it brought in all {{ total }} fields.{% else %}Against {{ ch.previous.label }}: {{ ch.counts.added }} added, {{ ch.counts.retired }} retired, {{ ch.counts.reinstated }} reinstated, {{ ch.counts.changed }} changed, {{ ch.counts.dropped }} dropped.{% endif %}</p>
+{% if v.notes %}<p>{{ v.notes|linebreaksbr }}</p>{% endif %}
+{% if mandates %}<p>Carries {% for m in mandates %}<a href="{% url 'mandates:detail' m.pk %}">{{ m.reference }}</a>{% if not forloop.last %}, {% endif %}{% endfor %} from the register of CPUC-mandated changes.</p>{% endif %}
+{% if first %}
+<p><a href="{% url 'dictionary:index' %}?state=all">See every field in the dictionary</a>.</p>
+{% else %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="fields-caption">
+<table class="list">
+  <caption id="fields-caption">Each field this version changed</caption>
+  <thead><tr><th scope="col">Field</th><th scope="col">Change</th><th scope="col">Details</th></tr></thead>
+  <tbody>
+  {% for c in ch.fields %}<tr><th scope="row">{% if c.what == "dropped" %}{{ c.name }}{% else %}<a href="{% url 'dictionary:field' c.name %}">{{ c.name }}</a>{% endif %}</th>
+    <td>{{ c.what|capfirst }}</td>
+    <td>{% for attr, before, after in c.details %}{{ attr }}: {% if before %}<del>{{ before|truncatewords:20 }}</del> {% endif %}{% if after %}<ins>{{ after|truncatewords:20 }}</ins>{% else %}(cleared){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% if c.note %}{% if c.details %}<br>{% endif %}Why: {{ c.note }}{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="3">No field changed.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}
