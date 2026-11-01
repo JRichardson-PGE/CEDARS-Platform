@@ -227,6 +227,7 @@ ul.notices li p { margin: .2rem 0; overflow-wrap: anywhere; }
 /* ---------- Forms, filters ---------- */
 label { display: flex; flex-direction: column; gap: .3rem; font-size: .88rem; font-weight: 600; color: var(--fg-2); }
 label > input, label > select, label > textarea { font-weight: 400; color: var(--fg); }
+.key-name { margin: 0; font-size: .88rem; font-weight: 600; color: var(--fg-2); }   /* a field's name shown without a control (a value chosen for you) */
 input:not([type]), input[type=text], input[type=email], input[type=password], input[type=number], input[type=search], input[type=date], input[type=url], select, textarea {
   font: inherit; font-size: .95rem; padding: .45rem .6rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg); min-height: 36px; max-width: 100%; }
 input[type=file] { min-height: 24px; max-width: 100%; font: inherit; font-size: .95rem; color: var(--fg); }   /* 2.5.8: targets at least 24 x 24 px */

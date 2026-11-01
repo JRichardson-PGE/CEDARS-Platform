@@ -194,7 +194,7 @@ calculations/draft:
       it; add a measure or program cost row, rename or delete the draft.
     - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip.
   how:
-    - Select a row to edit it, or add a measure or a program-cost row.
+    - Select a row to edit it, or add a measure or a program-cost row. Add a measure from eTRM fills a new row from an eTRM permutation.
     - Run these inputs starts a run of the tables as they stand; Download the job zip gives them as a file.
     - Rename the draft, or Delete it.
   see: calculations
@@ -214,6 +214,42 @@ calculations/draft:
     - target: "#change-h"
       title: Change the draft
       text: Add a row, rename the draft, or delete it.
+      optional: true
+
+calculations/draft_etrm:
+  title: Add a measure from eTRM
+  guide:
+    - >-
+      Adds a measure row to the draft filled from one eTRM permutation. Find the measure package by its ID or name (packages in effect
+      in row 1's claim year are listed first; choose Any year for the rest), then choose its offering one key at a time, in the order
+      of eTRM's Measure Detail ID: offering, application type, delivery type, sector, building type, vintage, HVAC, climate zone,
+      net-to-gross ID, GSIA ID and the program administrator. Each list holds only the values left after the choices above it, and a
+      key with one value is chosen for you.
+    - >-
+      Once every key is chosen, the page shows the permutation, the fields it fills and those it leaves for you (eTRM's "Any" means the
+      PA enters the actual value). Enter the number of units and add the measure. The new row opens in the row editor, where every
+      field can be changed and the input check runs as on any row. Rebates, incentives and direct-install costs are the program's own.
+  how:
+    - Search for the package and choose it.
+    - Choose each offering key and select Show the next choice, until the permutation is shown.
+    - Enter the number of units and select Add the measure.
+  see: calculations
+  tour:
+    - target: main p.alert
+      title: No eTRM pack yet
+      text: Until a CPUC system administrator loads eTRM's permutations, measures are added by hand.
+      optional: true
+    - target: "#package-h"
+      title: Measure package
+      text: Search by package ID or name, and the year it must be in effect.
+      optional: true
+    - target: "#offering-h"
+      title: Offering
+      text: One choice at a time; each list holds only what is left.
+      optional: true
+    - target: "#row-h"
+      title: The measure row
+      text: The permutation, what it fills and what is left for you. Enter the units and add the row.
       optional: true
 
 calculations/draft_row:

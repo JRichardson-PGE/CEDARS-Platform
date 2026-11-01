@@ -196,6 +196,16 @@ LIMITS = [
         "the engine (ReCET's editor.MAX_EDIT_ROWS)",
     ),
     Limit(
+        "etrm_packages",
+        "eTRM packages listed per search",
+        RUNS,
+        lambda: settings.ETRM_PACKAGE_LIST,
+        "packages",
+        "The measure packages Add a measure from eTRM lists for one search (Edit inputs).",
+        "The first ones are listed and the page says there are more: narrow the search.",
+        "ETRM_PACKAGE_LIST",
+    ),
+    Limit(
         "download_rows",
         "Rows in a download made while you wait",
         DOWNLOADS,

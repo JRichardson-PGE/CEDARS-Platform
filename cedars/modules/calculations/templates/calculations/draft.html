@@ -55,6 +55,7 @@
   <h2 id="change-h">Change the draft</h2>
   <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="table" value="{{ table }}">
     <button type="submit" name="action" value="add">{% if table == "Measure" %}Add a measure{% else %}Add a program-cost row{% endif %}</button>
+    {% if table == "Measure" %}<a class="button" href="{% url 'calculations:draft_etrm' draft.pk %}">Add a measure from eTRM</a>{% endif %}
   </form>
   <form method="post" class="row-form">{% csrf_token %}<input type="hidden" name="action" value="rename">
     <div class="field"><label for="draft-name">Name</label><input type="text" id="draft-name" name="name" value="{{ draft.name }}" maxlength="200" required></div>

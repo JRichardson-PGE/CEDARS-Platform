@@ -267,6 +267,64 @@ def add_row(actor, draft: InputDraft, table: str, like: int | None = None, *, co
     return len(df) - 1
 
 
+@dataclass
+class EtrmFill:
+    index: int  # the new row's, 0-based
+    filled: dict  # {column: value} taken from the permutation
+    left: list  # [(column, eTRM column, why it was not filled)]
+
+
+def units_value(text: str) -> str:
+    """The number of units as entered, checked: a number above zero."""
+    t = (text or "").strip().replace(",", "")
+    try:
+        ok = float(t) > 0
+    except ValueError:
+        ok = False
+    if not ok:
+        raise AccessDenied("Enter the number of units: a number above zero, in the package's normalized unit.")
+    return t
+
+
+@transaction.atomic
+def add_from_etrm(actor, draft: InputDraft, permutation, units: str) -> EtrmFill:
+    """Add a measure row filled from an eTRM permutation (BR-06.22): the engine's new-row defaults with row 1's program, IOU, zone,
+    sectors and claim quarter, then every field the permutation gives (refdata.etrm.measure_row) and the number of units. Every field
+    stays editable; the cell checks run on it as on any row."""
+    import pandas as pd
+
+    from cedars.services.refdata import etrm
+
+    _require(actor, draft)
+    ed = _editor()
+    df = frame(draft, "Measure")
+    if len(df) >= ed.MAX_EDIT_ROWS:
+        raise AccessDenied(f"Edit inputs takes jobs of up to {ed.MAX_EDIT_ROWS:,} measures.")
+    n = units_value(units)
+    fill, left = etrm.measure_row(permutation, df.columns)
+    for col, v in list(fill.items()):
+        if "|" in v:  # CET files are '|'-delimited
+            del fill[col]
+            left.append((col, "", "the eTRM value holds '|', which a CET file cannot carry"))
+    row = ed.new_measure_row(df.iloc[0].to_dict() if len(df) else None, df["CEInputID"].tolist())
+    row.update(fill)
+    row["NumUnits"] = n
+    df = pd.concat([df, pd.DataFrame([row], columns=df.columns).fillna("")], ignore_index=True)
+    _save_table(draft, "Measure", df)
+    _event(
+        actor,
+        draft,
+        "calculation_draft.row_added",
+        after={
+            "table": "Measure",
+            "row": len(df),
+            "etrm": {"pack": permutation.pack_id, "measure_detail_id": permutation.measure_detail_id, "units": n},
+            "filled": sorted(fill),
+        },
+    )
+    return EtrmFill(len(df) - 1, fill, left)
+
+
 @transaction.atomic
 def delete_row(actor, draft: InputDraft, table: str, index: int) -> None:
     _require(actor, draft)
