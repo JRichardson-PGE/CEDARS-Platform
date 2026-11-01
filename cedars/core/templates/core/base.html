@@ -53,13 +53,14 @@
       </ul>
     </details>
     {% if nav.sysadmin or nav.org_admin or nav.steward %}
-    <details data-tour="nav-admin"{% if '/admin/' in here %} class="current"{% endif %}>
+    <details data-tour="nav-admin"{% if '/admin/' in here or here|slice:":13" == '/publication/' %} class="current"{% endif %}>
       <summary>Administration</summary>
       <ul>
         {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:organisations' %}"{% if '/admin/organizations/' in here %} aria-current="page"{% endif %}>Organizations</a></li>{% endif %}
         {% if nav.steward %}<li><a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a></li>{% endif %}
+        {% if nav.sysadmin %}<li><a href="{% url 'snapshots:holds' %}"{% if '/publication/' in here %} aria-current="page"{% endif %}>Publication holds</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:health' %}"{% if '/admin/health/' in here %} aria-current="page"{% endif %}>Jobs and health</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a></li>{% endif %}
         {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a></li>{% endif %}

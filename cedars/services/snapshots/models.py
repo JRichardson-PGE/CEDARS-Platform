@@ -1,5 +1,6 @@
 import uuid
 
+from django.conf import settings
 from django.db import models
 
 
@@ -50,3 +51,54 @@ class Release(models.Model):
 
     def __str__(self):
         return f"{self.get_dataset_display()} release {self.number}"
+
+
+class ScanSettings(models.Model):
+    """The CPUC's settings for the publication scan (BR-08.5): which patterns run and which columns are left out (keys such as
+    CEInputID that are never personal information). One row; changed on the Publication scan page with a reason, audited."""
+
+    patterns = models.JSONField(default=list, help_text="The codes of the patterns that run (pii.PATTERNS)")
+    exempt_columns = models.JSONField(default=list, help_text="Column names the scan leaves out, compared without case")
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    changed_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return "Publication scan settings"
+
+
+class PIIScan(models.Model):
+    """The publication scan of one snapshot. A snapshot with a scan that is `held` is in no release until a CPUC system administrator
+    releases it with a reason, a scan run again comes back clear, or a newer version replaces it. Snapshots made before the scan existed
+    have none and stand as before. The findings never hold the values found (pii.Finding: masked examples and record IDs only)."""
+
+    class Outcome(models.TextChoices):
+        CLEAR = "clear", "Clear"
+        HELD = "held", "Held"
+        RELEASED = "released", "Released by an administrator"
+
+    snapshot = models.OneToOneField(Snapshot, on_delete=models.CASCADE, related_name="pii_scan")
+    outcome = models.CharField(max_length=10, choices=Outcome.choices)
+    findings = models.JSONField(default=list, blank=True)
+    error = models.TextField(blank=True, help_text="Why the file could not be scanned (the publication is held)")
+    columns = models.JSONField(default=list, blank=True, help_text="The text columns searched")
+    skipped = models.JSONField(default=list, blank=True, help_text="Text columns the settings left out")
+    patterns = models.JSONField(default=list, blank=True, help_text="The patterns that ran")
+    scanned_at = models.DateTimeField()
+    alerted = models.PositiveIntegerField(default=0, help_text="How many people were told of the hold")
+    released_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    released_at = models.DateTimeField(null=True, blank=True)
+    release_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-scanned_at"]
+
+    def __str__(self):
+        return f"Publication scan of {self.snapshot}: {self.get_outcome_display().lower()}"
+
+    @property
+    def held(self) -> bool:
+        return self.outcome == self.Outcome.HELD
+
+    @property
+    def records(self) -> int:
+        return sum(f.get("records", 0) for f in self.findings)

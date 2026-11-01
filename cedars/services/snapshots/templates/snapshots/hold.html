@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+{% block title %}Publication held: {{ label }}{% endblock %}
+{% block content %}
+<p class="small"><a href="{% url 'snapshots:holds' %}">Publication holds</a></p>
+<div class="page-title"><h1>{{ label }}</h1>{% page_help "snapshots/hold" %}</div>
+<p>
+  {% if scan.held and not superseded %}<span class="status warn">Held</span> This filing is confirmed, but its records are not in the public dashboards and record downloads: the publication scan found what may be personal information. The public data keep showing what was published before.
+  {% elif scan.held %}<span class="status">Replaced</span> A newer version of this filing is published, so this one was never released.
+  {% else %}<span class="status ok">Released</span> {{ scan.released_by|person }} released it {{ scan.released_at|date_words }}: {{ scan.release_reason }}{% endif %}
+</p>
+
+<section aria-labelledby="found-h">
+<h2 id="found-h">What the scan found</h2>
+<p class="small muted">Scanned {{ scan.scanned_at|datetime_words }}: {{ scan.columns|length }} text column{{ scan.columns|length|pluralize }} of {{ snap.rows }} record{{ snap.rows|pluralize }}.{% if scan.skipped %} Left out by the settings: {{ scan.skipped|join:", " }}.{% endif %} Examples are masked: only the first character and the punctuation are shown.</p>
+{% if scan.error %}<p>The file could not be scanned, so it was held: {{ scan.error }}</p>{% endif %}
+{% if findings %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Findings">
+<table class="list">
+  <caption class="sr-only">Columns with values that look like personal information</caption>
+  <thead><tr><th scope="col">Column</th><th scope="col">Looks like</th><th scope="col">Records</th><th scope="col">Examples (masked)</th><th scope="col">First records</th></tr></thead>
+  <tbody>{% for f in findings %}<tr>
+    <th scope="row"><code>{{ f.column }}</code></th><td>{{ f.label }}</td><td class="num">{{ f.records }}</td>
+    <td>{% for e in f.examples %}<code>{{ e }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+    <td>{{ f.record_ids|join:", " }}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% elif not scan.error %}<p>Nothing now: the last scan found nothing.</p>{% endif %}
+</section>
+
+{% if scan.held and not superseded %}
+<section aria-labelledby="next-h">
+<h2 id="next-h">What happens next</h2>
+<ul>
+  <li>If these are personal information, the filing's organization corrects the filing: un-confirm it before the due date and upload it again, or request a correction after the due date. The corrected version is scanned in its own right.</li>
+  <li>If they are not (a measure code that looks like an account number, say), a CPUC system administrator releases it with the reason, or changes the <a href="{% url 'snapshots:scan_settings' %}">publication scan settings</a> and scans it again.</li>
+</ul>
+{% if sysadmin %}
+<div class="card">
+  <h3>Release it</h3>
+  <form method="post" class="stack form-narrow">{% csrf_token %}<input type="hidden" name="action" value="release">
+    <p><label for="release-reason">Reason: why what the scan found is not personal information</label><textarea id="release-reason" name="reason" rows="3" required></textarea></p>
+    <div class="actions"><button type="submit" class="primary">Release to the public data</button></div>
+  </form>
+</div>
+<form method="post" class="actions">{% csrf_token %}<input type="hidden" name="action" value="rescan"><button type="submit">Scan again with the current settings</button></form>
+{% endif %}
+</section>
+{% endif %}
+{% endblock %}
