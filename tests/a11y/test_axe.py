@@ -56,7 +56,7 @@ def _impact_profiles(cpuc_admin, pge, pge_admin, make_user):
 
     from ..test_impact_profiles import FIXTURE, leds_series, load_shape_csv, profile_file
 
-    dev = make_user("developer@pge.com", "Dee Veloper")
+    dev = make_user("developer@pge.example.org", "Dee Veloper")
     service.grant(pge_admin, dev, pge, "impact_profiles.submit")
     etrm.sync(cpuc_admin, etrm.FileSource(FIXTURE))
     leds = MeasurePackage.objects.get(measure_version_id="SWLG999-01-draft")
@@ -137,7 +137,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.rename_organisation(cpuc_admin, ava, code="AVA", name="Ava Community Energy", effective=date(2024, 1, 1), reason="renamed")
     twice = service.create_organisation(cpuc_admin, code="AVA2", name="Ava, loaded twice", kind="pa")
     service.merge_organisation(cpuc_admin, twice, into=ava, effective=date(2025, 1, 1), reason="the same party")
-    analyst = make_user("analyst@pge.com", "Ana Lyst")
+    analyst = make_user("analyst@pge.example.org", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
     service.grant(pge_admin, analyst, pge, perms.PII, reason="files claims with contacts")
     community = make_user("community@example.com")
@@ -195,7 +195,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     rules_draft, value_list_draft = _admin_drafts(rules)
     # a filing past its due date with a reopen request waiting for a CPUC claims approver
     service.grant(pge_admin, analyst, pge, "claims.confirm")
-    approver = make_user("approver@cpuc.ca.gov", "Avery Prover")
+    approver = make_user("approver@cpuc.example.org", "Avery Prover")
     service.grant(cpuc_admin, approver, cpuc, "claims.approve")
     quarter = [p for p in registry.ensure_periods(2028) if p.kind == "quarter" and p.number == 1][0]
     deadline = submissions.add_deadline(
@@ -311,7 +311,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     registry.create_program(
         cpuc_admin, prg_id=sw_id, administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="A statewide program"
     )
-    pii_filer = make_user("contacts@pge.com", "Con Tacts")
+    pii_filer = make_user("contacts@pge.example.org", "Con Tacts")
     for p in ("claims.submit", "claims.confirm"):
         service.grant(pge_admin, pii_filer, pge, p)
     service.approve_pii(cpuc_admin, service.grant(pge_admin, pii_filer, pge, perms.PII, reason="keeps the claims' contacts"))
@@ -790,7 +790,7 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
 
     sce = Organisation.objects.get(code="SCE")
     registry.create_program(cpuc_admin, prg_id="SCE_Ind", administrator=sce, valid_from=date(2024, 1, 1), name="Industrial")
-    sce_admin, sce_user = make_user("admin@sce.com", "Addy Min"), make_user("budgets@sce.com", "Sky Edison")
+    sce_admin, sce_user = make_user("admin@sce.example.org", "Addy Min"), make_user("budgets@sce.example.org", "Sky Edison")
     service.grant(cpuc_admin, sce_admin, sce, perms.ORG_ADMIN)
     service.grant(sce_admin, sce_user, sce, "budgets.confirm")
     made = {}

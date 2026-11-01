@@ -63,7 +63,7 @@ def programs(pge_admin, pge, cpuc_admin):
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("monthly@pge.com", "Mo Nthly")
+    u = make_user("monthly@pge.example.org", "Mo Nthly")
     for p in ("monthly.submit", "monthly.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u

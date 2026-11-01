@@ -28,7 +28,7 @@ def days(n):
 @pytest.fixture
 def people(cpuc_admin, cpuc, pge, pge_admin, make_user):
     p = make_people(cpuc_admin, cpuc, pge, pge_admin, make_user)
-    access.grant(User.objects.get(email="admin@dnv.com"), p["evaluator"], p["dnv"], "documents.confirm")
+    access.grant(User.objects.get(email="admin@dnv.example.org"), p["evaluator"], p["dnv"], "documents.confirm")
     p["public"] = make_user("resident@example.org", "Rae Resident")
     return p
 

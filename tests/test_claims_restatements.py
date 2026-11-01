@@ -136,7 +136,7 @@ def test_the_organisations_runs_and_restatement_belong_to_it(filer, year, pge, p
     v = confirmed(filer, pge, q1())
     rs = restatements.start(filer, v, organisation=pge, release="0.1.80", acc_version="2024")
     assert all(run.organisation == pge for run in runs(rs).values())
-    colleague, outsider = make_user("analyst@pge.com", "Ana"), make_user("someone@example.org", "Som")
+    colleague, outsider = make_user("analyst@pge.example.org", "Ana"), make_user("someone@example.org", "Som")
     access.grant(pge_admin, colleague, pge, "calculations.read")
     assert restatements.can_read(colleague, rs) and not restatements.can_read(outsider, rs)
     assert list(restatements.visible(colleague)) == [rs] and not restatements.visible(outsider).exists()

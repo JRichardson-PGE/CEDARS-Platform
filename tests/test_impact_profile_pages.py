@@ -20,7 +20,7 @@ def media(settings, tmp_path):
 
 @pytest.fixture
 def developer(make_user, pge, pge_admin):
-    u = make_user("dev@pge.com", "Dee Veloper")
+    u = make_user("dev@pge.example.org", "Dee Veloper")
     access.grant(pge_admin, u, pge, "impact_profiles.submit")
     return u
 
@@ -84,7 +84,7 @@ def test_a_rejected_upload_lists_its_findings_and_offers_them_as_csv(signed_in, 
 
 def test_another_pas_member_cannot_upload_or_see_the_upload(signed_in, developer, synced, make_user, cpuc_admin):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
-    other, admin = make_user("dev@sce.com"), make_user("admin@sce.com")
+    other, admin = make_user("dev@sce.example.org"), make_user("admin@sce.example.org")
     access.grant(cpuc_admin, admin, sce, "org.admin")
     access.grant(admin, other, sce, "impact_profiles.submit")
     c = signed_in(developer)

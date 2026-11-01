@@ -41,24 +41,24 @@ def make_people(cpuc_admin, cpuc, pge, pge_admin, make_user):
     sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     bayren = access.create_organisation(cpuc_admin, code="BAYREN", name="Bay Area Regional Energy Network", kind="pa", pa_type="REN")
     dnv = access.create_organisation(cpuc_admin, code="DNV", name="DNV Energy Insights", kind="other")
-    pge_writer = make_user("writer@pge.com", "Wren Writer")
+    pge_writer = make_user("writer@pge.example.org", "Wren Writer")
     access.grant(pge_admin, pge_writer, pge, "documents.submit")
     access.grant(pge_admin, pge_writer, pge, "documents.confirm")
-    pge_drafter = make_user("drafter@pge.com", "Dee Drafter")
+    pge_drafter = make_user("drafter@pge.example.org", "Dee Drafter")
     access.grant(pge_admin, pge_drafter, pge, "documents.submit")
-    bay_user = make_user("analyst@bayren.org", "Bay Analyst")
+    bay_user = make_user("analyst@bayren.example.org", "Bay Analyst")
     access.grant(cpuc_admin, bay_user, bayren, perms_org_admin())
-    access.grant(bay_user, make_user("x@bayren.org"), bayren, "documents.read")
-    bay_writer = make_user("writer@bayren.org")
+    access.grant(bay_user, make_user("x@bayren.example.org"), bayren, "documents.read")
+    bay_writer = make_user("writer@bayren.example.org")
     access.grant(bay_user, bay_writer, bayren, "documents.submit")
-    sce_user = make_user("reader@sce.com")
+    sce_user = make_user("reader@sce.example.org")
     access.grant(cpuc_admin, sce_user, sce, perms_org_admin())
-    access.grant(sce_user, make_user("docs@sce.com"), sce, "documents.submit")
-    evaluator = make_user("evaluator@dnv.com", "Eva Luator")
-    dnv_admin = make_user("admin@dnv.com")
+    access.grant(sce_user, make_user("docs@sce.example.org"), sce, "documents.submit")
+    evaluator = make_user("evaluator@dnv.example.org", "Eva Luator")
+    dnv_admin = make_user("admin@dnv.example.org")
     access.grant(cpuc_admin, dnv_admin, dnv, perms_org_admin())
     access.grant(dnv_admin, evaluator, dnv, "documents.submit")
-    ed = make_user("ed@cpuc.ca.gov", "Ed Staff")
+    ed = make_user("ed@cpuc.example.org", "Ed Staff")
     access.grant(cpuc_admin, ed, cpuc, "documents.admin")
     access.grant(cpuc_admin, ed, cpuc, "documents.submit")
     return {
@@ -293,9 +293,9 @@ def test_every_download_is_an_audit_event_and_unpublished_files_stay_private(peo
     assert client.get(draft_file.get_absolute_url()).status_code == 404
     c = signed_in(people["bay_writer"])
     assert c.get(draft_file.get_absolute_url()).status_code == 200
-    assert AuditEvent.objects.filter(object_type="documents.documentfile").order_by("id").last().actor_label == "writer@bayren.org"
+    assert AuditEvent.objects.filter(object_type="documents.documentfile").order_by("id").last().actor_label == "writer@bayren.example.org"
     log = c.get(f"/documents/{jcm.pk}/downloads/").content.decode()
-    assert log.count("public") >= 3 and "writer@bayren.org" in log
+    assert log.count("public") >= 3 and "writer@bayren.example.org" in log
 
 
 def test_the_pages_file_a_document_and_add_a_version(people, pge, signed_in):

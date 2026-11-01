@@ -41,7 +41,7 @@ def test_documents_to_publish_and_responses_owed(people, pge, jcm):  # noqa: F81
 
 
 def test_program_changes_and_access_requests(cpuc_admin, cpuc, pge, pge_admin, make_user):
-    approver = make_user("programs@cpuc.ca.gov", "Pro Grams")
+    approver = make_user("programs@cpuc.example.org", "Pro Grams")
     access.grant(cpuc_admin, approver, cpuc, "programs.approve")
     p = registry.create_program(cpuc_admin, prg_id="PGE_Q1", administrator=pge, valid_from=date(2024, 1, 1), name="Queue test")
     registry.request_change(pge_admin, p, effective=date.today() + timedelta(days=30), reason="a new segment", segment="market_support")

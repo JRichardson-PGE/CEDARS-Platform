@@ -48,7 +48,7 @@ def test_old_notifications_are_purged_and_holds_respected(pge_admin, cpuc_admin)
 
 
 def test_idle_unconfirmed_drafts_expire_and_confirmed_ones_stay(cpuc_admin, pge, pge_admin, make_user):
-    analyst = make_user("a@pge.com")
+    analyst = make_user("a@pge.example.org")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, analyst, pge, p)
     quarters = [p for p in registry.ensure_periods(2028) if p.kind == "quarter"]
@@ -74,7 +74,7 @@ def test_idle_unconfirmed_drafts_expire_and_confirmed_ones_stay(cpuc_admin, pge,
 
 
 def test_a_draft_worked_on_recently_is_kept(cpuc_admin, pge, pge_admin, make_user):
-    analyst = make_user("a@pge.com")
+    analyst = make_user("a@pge.example.org")
     access.grant(pge_admin, analyst, pge, "claims.submit")
     q = [p for p in registry.ensure_periods(2028) if p.kind == "quarter"][0]
     d = submissions.add_deadline(cpuc_admin, module="claims", kind="quarterly claim", period=q, due_at=timezone.now() + timedelta(days=60))

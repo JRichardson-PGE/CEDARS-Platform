@@ -19,7 +19,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def approver(make_user, cpuc, cpuc_admin):
-    u = make_user("approver@cpuc.ca.gov")
+    u = make_user("approver@cpuc.example.org")
     access.grant(cpuc_admin, u, cpuc, "programs.approve")
     return u
 
@@ -81,7 +81,7 @@ def test_a_pa_admin_changes_unlocked_attributes_directly_and_requests_locked_one
 
 def test_a_delegate_decides_and_requests_can_be_declined_or_withdrawn(pge_admin, approver, make_user, programs):  # noqa: F811
     hvac = programs["hvac"]
-    delegate = make_user("delegate@cpuc.ca.gov")
+    delegate = make_user("delegate@cpuc.example.org")
     submissions.delegate(approver, module="programs", delegate_to=delegate, starts=timezone.localdate(), ends=soon(7))
     req = registry.request_change(pge_admin, hvac, effective=soon(), reason="r", exclude_from_ce=True)
     registry.decide_change(delegate, req, False, "needs a resolution first")

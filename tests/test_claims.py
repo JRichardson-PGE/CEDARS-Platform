@@ -133,7 +133,7 @@ def programs(pge_admin, pge, cpuc_admin):
 
 @pytest.fixture
 def filer(make_user, pge, pge_admin):
-    u = make_user("claims@pge.com", "Cly Mant")
+    u = make_user("claims@pge.example.org", "Cly Mant")
     for p in ("claims.submit", "claims.confirm"):
         access.grant(pge_admin, u, pge, p)
     return u
@@ -297,7 +297,7 @@ def test_a_new_upload_replaces_the_last_and_keeps_nothing_superseded(filer, year
 
 
 def test_a_claimer_needs_claims_submit(make_user, pge, pge_admin, year, programs):
-    u = make_user("reader@pge.com")
+    u = make_user("reader@pge.example.org")
     access.grant(pge_admin, u, pge, "claims.read")
     with pytest.raises(AccessDenied, match="claims.submit"):
         service.upload_claims(u, deadline(), pge, q1(), "q1.zip")

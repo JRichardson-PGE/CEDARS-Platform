@@ -242,7 +242,7 @@ def access_grant(people):
     from cedars.services.accounts import service as access
     from cedars.services.accounts.models import User
 
-    access.grant(User.objects.get(email="admin@dnv.com"), people["evaluator"], people["dnv"], "documents.confirm")
+    access.grant(User.objects.get(email="admin@dnv.example.org"), people["evaluator"], people["dnv"], "documents.confirm")
 
 
 def test_the_subscriptions_page_sets_collections_and_values_and_keeps_studies(people, study, client):

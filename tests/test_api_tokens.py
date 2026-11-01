@@ -14,7 +14,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def analyst(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com", "Ana Lyst")
+    u = make_user("analyst@pge.example.org", "Ana Lyst")
     service.grant(pge_admin, u, pge, "calculations.submit")
     service.grant(pge_admin, u, pge, "claims.read")
     return u
@@ -31,7 +31,7 @@ def test_a_token_acts_for_its_organisation_within_its_scopes(analyst, pge):
     r = call(key)
     assert r.status_code == 200
     assert r.json() == {
-        "email": "analyst@pge.com",
+        "email": "analyst@pge.example.org",
         "organisation": "PGE",
         "assurance": "token",
         "token": f"{token.prefix}…",
@@ -139,7 +139,7 @@ def test_an_organisation_admin_sees_and_revokes_members_tokens(signed_in, analys
     token, _ = tokens.create_token(analyst, pge, name="claims system", scopes=["calculations"], days=30)
     c = signed_in(pge_admin)
     html = c.get("/admin/organizations/PGE/").content.decode()
-    assert "analyst@pge.com" in html and f"cedars_{token.prefix}" in html
+    assert "analyst@pge.example.org" in html and f"cedars_{token.prefix}" in html
     r = c.post(f"/account/tokens/{token.pk}/revoke", {"from": "organisation"})
     assert r["Location"] == "/admin/organizations/PGE/"
     assert ApiToken.objects.get().status == "revoked"

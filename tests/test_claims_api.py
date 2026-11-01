@@ -39,8 +39,8 @@ def key(filer, pge):  # noqa: F811
 def outsider(make_user, cpuc_admin, programs):  # noqa: F811
     """A token for SCE's claims reader: it reads PG&E's published versions and nothing else of PG&E's."""
     sce = programs
-    u = make_user("claims@sce.com")
-    admin = make_user("admin@sce.com")
+    u = make_user("claims@sce.example.org")
+    admin = make_user("admin@sce.example.org")
     access.grant(cpuc_admin, admin, sce, "org.admin", reason="first admin")
     access.grant(admin, u, sce, "claims.read")
     return tokens.create_token(u, sce, name="sce", scopes=["claims"], days=30)[1]
@@ -101,7 +101,7 @@ def test_published_versions_are_open_the_rest_to_readers(key, outsider, filer, y
     assert get(outsider, f"/versions/{v1.pk}/files/99").status_code == 404
 
     # CPUC staff with claims.read read every organization's versions and findings; a token without the claims scope reaches nothing
-    staff = make_user("analyst@cpuc.ca.gov")
+    staff = make_user("analyst@cpuc.example.org")
     cpuc = access.cpuc()
     access.grant(cpuc_admin, staff, cpuc, "claims.read")
     cpuc_key = tokens.create_token(staff, cpuc, name="ed", scopes=["claims"], days=30)[1]
@@ -213,7 +213,7 @@ def test_a_pa_uploads_checks_prices_and_confirms_through_the_api(key, outsider, 
     # who may: another organization's token sees no unpublished version; a reader cannot confirm; a token needs the claims scope
     assert post(outsider, f"/versions/{v['id']}/confirm").status_code == 404
     assert upload_file(outsider, q1_deadline, q1()).status_code == 403
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "claims.read")
     reader_key = tokens.create_token(reader, pge, name="r", scopes=["claims"], days=30)[1]
     assert post(reader_key, f"/versions/{v['id']}/confirm").status_code == 403

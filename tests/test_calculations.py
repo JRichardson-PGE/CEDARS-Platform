@@ -50,7 +50,7 @@ def release(cpuc_admin):
 
 @pytest.fixture
 def analyst(make_user, pge, pge_admin):
-    u = make_user("analyst@pge.com", "Ana Lyst")
+    u = make_user("analyst@pge.example.org", "Ana Lyst")
     access.grant(pge_admin, u, pge, "calculations.submit")
     return u
 
@@ -138,7 +138,7 @@ def test_the_request_is_checked_against_the_release(tmp_path, analyst, pge, rele
 
 
 def test_starting_a_run_for_an_organisation_needs_calculations_submit(tmp_path, make_user, pge, pge_admin, release):
-    reader = make_user("reader@pge.com")
+    reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "calculations.read")
     with pytest.raises(AccessDenied, match="calculations.submit in PGE"):
         service.create_run(reader, pge, request(release), job_zip(tmp_path))
@@ -149,10 +149,10 @@ def test_starting_a_run_for_an_organisation_needs_calculations_submit(tmp_path, 
 def test_who_sees_a_run(tmp_path, make_user, analyst, pge, pge_admin, cpuc_admin, release):
     run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
     mine = service.create_run(analyst, None, request(release, name="mine"), job_zip(tmp_path))
-    colleague = make_user("colleague@pge.com")
+    colleague = make_user("colleague@pge.example.org")
     access.grant(pge_admin, colleague, pge, "calculations.read")
     sce = access.create_organisation(cpuc_admin, code="SCE", name="SCE", kind="pa", pa_type="IOU")
-    other = make_user("other@sce.com")
+    other = make_user("other@sce.example.org")
     access.grant(cpuc_admin, other, sce, "org.admin")
     assert set(service.visible_runs(analyst)) == {run, mine}
     assert set(service.visible_runs(colleague)) == {run}
@@ -311,7 +311,7 @@ def test_stopping_a_queued_run_ends_it_and_a_running_one_ends_the_worker(tmp_pat
 
 def test_only_the_owner_or_the_organisations_admins_stop_a_run(tmp_path, make_user, analyst, pge, pge_admin, release):
     run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
-    colleague = make_user("colleague@pge.com")
+    colleague = make_user("colleague@pge.example.org")
     access.grant(pge_admin, colleague, pge, "calculations.submit")
     with pytest.raises(AccessDenied, match="owner"):
         service.cancel_run(colleague, run)
