@@ -24,11 +24,12 @@ trending and are never part of a claim.</p></div>
 
 <section aria-labelledby="programs-h">
 <h2 id="programs-h">By program</h2>
-<p class="small muted">{{ report.rows|length }} program{{ report.rows|length|pluralize }}: those in the report and those with an operating budget for {{ report.year }}. The operating budget is the approved budget plus fund shifts in effect. Spend is read from the year-to-date BCA inputs: program costs plus the measures' rebates and incentives.</p>
+<p class="small muted">{{ report.rows|length }} program{{ report.rows|length|pluralize }}: those in the report and those with an operating budget for {{ report.year }}. The approved budget is the standing budget filing's; the operating budget is the approved budget plus fund shifts in effect. Spend is read from the year-to-date BCA inputs: program costs plus paid incentives.</p>
+<p class="small">{{ paid_vs_committed }}</p>
 <p><a class="button" href="{% url 'monthly:version_csv' v.pk %}">Download this report by program (CSV)</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="money-caption">
 <table class="list data">
-  <caption id="money-caption">Spend and commitments against the operating budget</caption>
+  <caption id="money-caption">Spend, paid incentives and committed incentives against the budgets</caption>
   <thead><tr><th scope="col">Program</th>{% for h in columns %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for row in rows %}{% if not forloop.last %}<tr>
@@ -55,10 +56,10 @@ trending and are never part of a claim.</p></div>
 </div>
 {% endif %}
 <details class="small"><summary>Spend and commitment fields in the CSV</summary>
-  <dl class="facts">{% for f, help in cost_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }} (ProgramCost)</dd>{% endfor %}
-  <dt><code>RebatesAndIncentives</code></dt><dd>The measures' rebates and incentives: NumUnits times the four unit incentive fields</dd>
+  <dl class="facts"><dt><code>ApprovedBudget</code>, <code>OperatingBudget</code></dt><dd>The approved budget (the standing budget filing) and the operating budget (the approved budget plus fund shifts in effect)</dd>{% for f, help in cost_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }} (ProgramCost)</dd>{% endfor %}
+  <dt><code>RebatesAndIncentives</code></dt><dd>Paid incentives, year to date: the measures' rebates and incentives, NumUnits times the four unit incentive fields. Part of spend</dd>
   <dt><code>OnBillFinancing</code></dt><dd>On-bill financing (ProgramCost), kept apart from spend</dd>
-  <dt><code>YTDExpenditures</code></dt><dd>Spend, year to date: the ten program cost fields plus RebatesAndIncentives</dd>
+  <dt><code>YTDExpenditures</code></dt><dd>Spend, year to date: the ten program cost fields plus RebatesAndIncentives (paid incentives)</dd>
   <dt><code>MonthExpenditures</code></dt><dd>Spend this month: YTDExpenditures less the previous month's report's</dd>
   {% for f, help in commitment_fields %}<dt><code>{{ f }}</code></dt><dd>{{ help }} (Commitments)</dd>{% endfor %}</dl></details>
 </section>

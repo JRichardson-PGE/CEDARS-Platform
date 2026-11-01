@@ -4,7 +4,7 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li></ol></nav>
 <div class="page-title"><h1>{{ year }} monthly reports{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "monthly/year" %}</div>
 <p>Every month of the year in one place. Reports are cumulative: each month's spend is read from its year-to-date BCA inputs, so the
-spend this month is the change since the month before, and the year-to-date spend should never fall.{% if published_only %} Only confirmed reports are shown.{% endif %}</p>
+spend this month is the change since the month before, and the year-to-date spend should never fall. {{ paid_vs_committed }}{% if published_only %} Only confirmed reports are shown.{% endif %}</p>
 {% if choices %}
 <form method="get" class="filters" aria-label="Choose the program administrator">
   <label>PA <select name="org">{% for o in choices %}<option value="{{ o.code }}"{% if o == org %} selected{% endif %}>{{ o.code }}</option>{% endfor %}</select></label>
@@ -19,8 +19,7 @@ spend this month is the change since the month before, and the year-to-date spen
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="year-caption">
 <table class="list data">
   <caption id="year-caption">{{ org.code }}'s {{ year }} reports by month, totals over its programs</caption>
-  <thead><tr><th scope="col">Month</th><th scope="col">Report</th><th scope="col">Spend this month</th><th scope="col">Spend, year to date</th>
-    <th scope="col">Rebates and incentives, year to date</th><th scope="col">Funds committed, year to date</th><th scope="col">Estimated TSB, year to date (unvalidated)</th></tr></thead>
+  <thead><tr><th scope="col">Month</th><th scope="col">Report</th>{% for h in headings %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>{% for row in rows %}<tr>
     <th scope="row"><a href="{% url 'monthly:report' row.m.deadline.pk %}?org={{ org.code|urlencode }}">{{ row.m.deadline.period.starts|date:"F" }}</a></th>
     <td>{% if row.m.version %}{% url 'monthly:version' row.m.version.pk as version_url %}{% endif %}{% include "ui/version_status.html" with s=row.status url=version_url %}</td>

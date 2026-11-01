@@ -1,6 +1,6 @@
 """What the program page shows from Monthly reports (BR-07.6), through registry.register_program_records: the program's year-to-date
-spend and commitments in each monthly report. The standing published version of each report is public, as the dashboards show its
-spending; a newer version still being worked on is shown only to those who may read the PA's reports."""
+spend, paid incentives and commitments in each monthly report. The standing published version of each report is public, as the
+dashboards show its spending; a newer version still being worked on is shown only to those who may read the PA's reports."""
 
 from decimal import Decimal, InvalidOperation
 
@@ -24,7 +24,8 @@ def _dollars(values: dict, key: str) -> Decimal | None:
 
 def reports(program, user, year: int | None = None) -> list[dict]:
     """One row per monthly report that has the program in its spend or its commitments: year-to-date spend (program costs plus rebates
-    and incentives) and funds committed. Newest month first."""
+    and incentives), paid incentives (those rebates and incentives, part of spend) and funds committed (incentives to be paid in the
+    future, not spend). Newest month first."""
     lines = ReportLine.objects.filter(prg_id=program.prg_id).select_related(
         "version__submission__deadline__period", "version__submission__organisation"
     )
@@ -63,11 +64,13 @@ def reports(program, user, year: int | None = None) -> list[dict]:
                 "year": period.year,
                 "month": period.number,
                 "ytd": None,
+                "paid": None,
                 "committed": None,
             },
         )
         if ln.table == ReportLine.Table.SPEND:
             row["ytd"] = _dollars(ln.values or {}, "YTDExpenditures")
+            row["paid"] = _dollars(ln.values or {}, "RebatesAndIncentives")
         else:
             row["committed"] = _dollars(ln.values or {}, "YTDCommittedFunds")
     out = list(rows.values())

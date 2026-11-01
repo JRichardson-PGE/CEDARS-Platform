@@ -10,7 +10,14 @@ gives. <a href="{% url 'monthly:index' %}">Monthly reports</a> lists the year's 
   has one row per program with its costs for the year to date; Measure may have no rows.</li>
 </ul>
 <p>Spending is read from the inputs (program costs plus the measures' rebates and incentives) and compared with the operating budget.
-Savings and total system benefit are estimated from the same inputs and are not validated. Fund shifts are made in Budgets, not here.</p>
+Each report shows the approved budget, the operating budget, spend, paid incentives and committed incentives as separate figures for
+each program:</p>
+<ul>
+  <li><strong>Paid incentives</strong> are the measures' rebates and incentives in the year's inputs so far. They are part of spend.</li>
+  <li><strong>Committed incentives</strong> come from the Commitments table: incentives the PA has committed to pay in the future. They
+  are not spend, and they are not comparable with paid incentives, so the reports never set one against the other.</li>
+</ul>
+<p>Savings and total system benefit are estimated from the same inputs and are not validated. Fund shifts are made in Budgets, not here.</p>
 <h2>Filing it</h2>
 <p>Upload, check, price and confirm, as with budgets and claims. Before the due date you can un-confirm; after it, a correction is a new
 version with a reason.</p>
