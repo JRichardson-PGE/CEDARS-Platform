@@ -1,8 +1,11 @@
 from datetime import timedelta
 
 from django import forms
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
+from cedars.services.registry import field_guide
 from cedars.services.registry.importers import parse_sectors
 from cedars.services.registry.models import Program
 
@@ -72,14 +75,13 @@ class ProgramChangeForm(forms.Form):
     )
     name = forms.CharField(label="Program name", max_length=300)
     commercial_name = forms.CharField(label="Commercial name", max_length=300, required=False)
-    status = forms.ChoiceField(label="Status", choices=STATUS_CHOICES, required=False)
-    segment = forms.ChoiceField(label="Segment", choices=[("", "Not given")] + SEGMENT_CHOICES[1:], required=False)
-    primary_sector = forms.CharField(label="Primary sector", max_length=60, required=False)
-    sectors = forms.CharField(
-        label="Budget share by sector", required=False, help_text="e.g. Commercial: 0.9, Industrial: 0.1 (shares add up to 1)"
-    )
-    implementer = forms.CharField(label="Implementer", max_length=200, required=False)
-    category = forms.CharField(label="Category", max_length=200, required=False)
+    # the listed fields offer the program fields guide's values (BR-13.7: registry/program_fields.yaml), set in __init__
+    status = forms.ChoiceField(label="Status", required=False)
+    segment = forms.ChoiceField(label="Segment", required=False)
+    primary_sector = forms.ChoiceField(label="Primary sector", required=False)
+    sectors = forms.CharField(label="Budget share by sector", required=False)
+    implementer = forms.ChoiceField(label="Implementer", required=False)
+    category = forms.ChoiceField(label="Category", required=False)
     implementation_contractor = forms.CharField(label="Implementation contractor", max_length=300, required=False)
     start_year = forms.IntegerField(label="Start year", min_value=1990, max_value=2100, required=False)
     end_year = forms.IntegerField(label="End year", min_value=1990, max_value=2100, required=False)
@@ -118,6 +120,21 @@ class ProgramChangeForm(forms.Form):
             initial["sectors"] = ", ".join(f"{k}: {v:g}" for k, v in (latest.sectors or {}).items())
             initial["effective"] = max(timezone.localdate(), latest.valid_from + timedelta(days=1))
         super().__init__(*args, initial=initial, **kwargs)
+        guide_url = reverse("programs:fields")
+        for name in self.ATTRIBUTES:
+            e = field_guide.entry(name)
+            if e is None:
+                continue
+            if e.values:
+                current = getattr(latest, name, "") if latest is not None else ""
+                self.fields[name].choices = field_guide.choices(name, current=current or "")
+            self.fields[name].help_text = format_html(
+                '{} <a href="{}#{}" target="_blank" rel="noopener">More about {} (opens in a new tab)</a>',
+                e.hint,
+                guide_url,
+                e.anchor,
+                e.label.lower(),
+            )
 
     def clean_sectors(self):
         text = self.cleaned_data.get("sectors", "")

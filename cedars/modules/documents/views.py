@@ -309,7 +309,13 @@ def new_version(request, pk):
     if not service.can_manage(request.user, doc):
         raise Http404
     stages = deliverables.next_stages(request.user, doc)
-    form = forms.VersionForm(request.POST or None, request.FILES or None, can_publish=service.can_publish(request.user, doc), stages=stages)
+    form = forms.VersionForm(
+        request.POST or None,
+        request.FILES or None,
+        can_publish=service.can_publish(request.user, doc),
+        stages=stages,
+        placeholder=service.takes_placeholder(doc.collection, doc.document_type),
+    )
     if request.method == "POST" and form.is_valid():
         try:
             v = service.add_version(
@@ -321,6 +327,7 @@ def new_version(request, pk):
                 publish=form.cleaned_data.get("publish", False),
                 stage=form.cleaned_data.get("stage", ""),
                 comment_period=form.period(),
+                placeholder=form.cleaned_data.get("placeholder", False),
             )
         except (service.DocumentError, AccessDenied) as e:
             form.add_error(None, str(e))

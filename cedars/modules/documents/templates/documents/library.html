@@ -84,7 +84,7 @@ behind the filters are kept by CPUC Energy Division.</p>
     <td>{% for o in doc.pas.all %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}{{ doc.owner.code }}{% endfor %}</td>
     <td class="nowrap">{{ doc.years }}</td>
     <td class="nowrap">{% if doc.published_at %}{{ doc.published_at|date_words }}{% else %}<span class="status">Not published</span>{% endif %}</td>
-    <td>{% if v %}{{ v.number }}{% endif %}{% if stage %}<br><span class="small">{{ stage }}</span>{% endif %}</td>
+    <td>{% if v %}{{ v.number }}{% endif %}{% if stage %}<br><span class="small">{{ stage }}</span>{% endif %}{% if v.placeholder %}<br><span class="status warn">Placeholder</span>{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

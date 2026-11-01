@@ -91,6 +91,9 @@ documents/new:
     - File a document in a collection you manage. Choose the collection first, then its type, the attributes it is filed with and the
       files. It starts unpublished; publish it from its page when it is ready.
     - Uploading for a study fills in the study ID and lists the document on the study's page.
+    - >-
+      An implementation plan filed before the full plan is ready is ticked as a placeholder. The program's page and the document's page
+      then say the full plan is still to come; it arrives as a later version of the same document.
   how:
     - Choose the collection, then the type, the attributes and the files, and File the document.
     - It starts unpublished: publish it from its page.
@@ -122,6 +125,9 @@ documents/version_new:
   guide:
     - The new files become the document's next version. Every earlier version stays listed and downloadable from the document's page. For an
       EM&V deliverable, choose the stage, the same one for another draft or a revised final, or a later one.
+    - >-
+      For an implementation plan, tick This is a placeholder plan only when the full plan is still to come. The version that brings the
+      full plan is left unticked, and the program's page stops showing the plan as a placeholder once it is published.
   how:
     - Choose the files and, for an EM&V deliverable, the stage, then Add the version.
   see: published-data

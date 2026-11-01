@@ -24,22 +24,24 @@
 <h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date_words }}</span>{% endif %}</h2>
 {% if v %}
 <dl class="facts">
-  <dt>Program administrator</dt><dd>{% if p.statewide %}Statewide (SW){% else %}{{ p.administrator.name }} ({{ pa }}){% endif %}</dd>
-  <dt>Status</dt><dd>{{ status }}</dd>
-  {% if v.commercial_name %}<dt>Commercial name</dt><dd>{{ v.commercial_name }}</dd>{% endif %}
-  <dt>Segment</dt><dd>{{ segment|default:"Not given" }}</dd>
-  <dt>Primary sector</dt><dd>{{ v.primary_sector|default:"Not given" }}</dd>
-  <dt>Budget share by sector</dt><dd>{% for name, share in v.sectors.items %}{{ name }} {% widthratio share 1 100 %}%{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
-  <dt>Implementer</dt><dd>{{ v.implementer|default:"Not given" }}</dd>
-  {% if v.category %}<dt>Category</dt><dd>{{ v.category }}</dd>{% endif %}
-  {% if v.implementation_contractor %}<dt>Implementation contractor</dt><dd>{{ v.implementation_contractor }}</dd>{% endif %}
-  <dt>Years</dt><dd>{{ v.start_year|default:"Not given" }} to {{ v.end_year|default:"open" }}</dd>
-  {% if flags %}<dt>Delivery</dt><dd>{{ flags|join:", " }}</dd>{% endif %}
-  {% if v.statewide_program %}<dt>Statewide program it delivers</dt><dd>{{ v.statewide_program }}</dd>{% endif %}
-  {% if v.parent_program %}<dt>Parent program</dt><dd>{{ v.parent_program }}</dd>{% endif %}
-  {% if v.exclude_from_budget or v.exclude_from_ce or v.exclude_from_statewide %}<dt>Excluded from</dt><dd>{% if v.exclude_from_budget %}budget {% endif %}{% if v.exclude_from_ce %}cost-effectiveness {% endif %}{% if v.exclude_from_statewide %}statewide{% endif %}</dd>{% endif %}
-  {% if v.website %}<dt>Website</dt><dd><a href="{{ v.website }}">{{ v.website }}</a></dd>{% endif %}
+  <dt><a href="{{ about.administrator }}">Program administrator</a></dt><dd>{% if p.statewide %}Statewide (SW){% else %}{{ p.administrator.name }} ({{ pa }}){% endif %}</dd>
+  <dt><a href="{{ about.status }}">Status</a></dt><dd>{{ status }}</dd>
+  {% if v.commercial_name %}<dt><a href="{{ about.commercial_name }}">Commercial name</a></dt><dd>{{ v.commercial_name }}</dd>{% endif %}
+  <dt><a href="{{ about.segment }}">Segment</a></dt><dd>{{ segment|default:"Not given" }}</dd>
+  <dt><a href="{{ about.primary_sector }}">Primary sector</a></dt><dd>{{ v.primary_sector|default:"Not given" }}</dd>
+  <dt><a href="{{ about.sectors }}">Budget share by sector</a></dt><dd>{% for name, share in v.sectors.items %}{{ name }} {% widthratio share 1 100 %}%{% if not forloop.last %}, {% endif %}{% empty %}Not given{% endfor %}</dd>
+  <dt><a href="{{ about.implementer }}">Implementer</a></dt><dd>{{ v.implementer|default:"Not given" }}</dd>
+  {% if v.category %}<dt><a href="{{ about.category }}">Category</a></dt><dd>{{ v.category }}</dd>{% endif %}
+  {% if v.implementation_contractor %}<dt><a href="{{ about.implementation_contractor }}">Implementation contractor</a></dt><dd>{{ v.implementation_contractor }}</dd>{% endif %}
+  <dt><a href="{{ about.start_year }}">Years</a></dt><dd>{{ v.start_year|default:"Not given" }} to {{ v.end_year|default:"open" }}</dd>
+  {% if flags %}<dt><a href="{{ about.flags }}">Delivery</a></dt><dd>{{ flags|join:", " }}</dd>{% endif %}
+  {% if v.statewide_program %}<dt><a href="{{ about.statewide_program }}">Statewide program it delivers</a></dt><dd>{{ v.statewide_program }}</dd>{% endif %}
+  {% if v.parent_program %}<dt><a href="{{ about.parent_program }}">Parent program</a></dt><dd>{{ v.parent_program }}</dd>{% endif %}
+  {% if v.exclude_from_budget or v.exclude_from_ce or v.exclude_from_statewide %}<dt><a href="{{ about.exclude_from_budget }}">Excluded from</a></dt><dd>{% if v.exclude_from_budget %}budget {% endif %}{% if v.exclude_from_ce %}cost-effectiveness {% endif %}{% if v.exclude_from_statewide %}statewide{% endif %}</dd>{% endif %}
+  {% if v.website %}<dt><a href="{{ about.website }}">Website</a></dt><dd><a href="{{ v.website }}">{{ v.website }}</a></dd>{% endif %}
 </dl>
+<p class="small">Each field's name links to what it means, how it is filled in and its valid values: see <a href="{% url 'programs:fields' %}">Program fields</a>.</p>
+{% if placeholders %}<p><span class="status warn">Placeholder plan</span> {% if placeholders|length == 1 %}The implementation plan <a href="{{ placeholders.0.url }}">{{ placeholders.0.title }}</a> is a placeholder: the full plan is still to come.{% else %}{{ placeholders|length }} implementation plans are placeholders: the full plans are still to come ({% for r in placeholders %}<a href="{{ r.url }}">{{ r.title }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}).{% endif %}</p>{% endif %}
 {% if upcoming %}<p>A change is already entered to start on {{ upcoming.0.valid_from|date_words }}; see the versions below.</p>{% endif %}
 {% else %}<p>This program has no attributes recorded yet.</p>{% endif %}
 </section>
@@ -237,7 +239,7 @@
 <h3 id="doc-h">Documents</h3>
 {% if records.documents is None %}<p>The document library is not part of this site.</p>
 {% elif records.documents %}
-<p class="small muted">Documents that name this program: implementation plans and other program files, PA documents and EM&amp;V documents.</p>
+<p class="small muted">Documents that name this program: implementation plans and other program files, PA documents and EM&amp;V documents. An implementation plan marked Placeholder stands in for a plan still to come; the full plan replaces it as a new version.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Documents table">
 <table class="list">
   <caption class="sr-only">Documents naming {{ p.prg_id }}, newest first</caption>
@@ -250,7 +252,7 @@
     <td>{{ r.type }}</td>
     <td class="nowrap">{{ r.years|default:"Not given" }}</td>
     <td>{{ r.organisation }}</td>
-    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date_words }}</span>{% endif %}</td>
+    <td><span class="status {% if r.published %}ok{% else %}warn{% endif %}">{{ r.status }}</span>{% if r.published %} <span class="small nowrap">{{ r.when|date_words }}</span>{% endif %}{% if r.placeholder %}<br><span class="status warn">Placeholder</span> <span class="small">the full plan is still to come</span>{% endif %}</td>
   </tr>
   {% endfor %}
   </tbody>

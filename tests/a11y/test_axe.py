@@ -480,6 +480,17 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         documents.Details(opt("pa_report_type", "Joint Cooperation Memo"), "PG&E and BayREN Joint Cooperation Memo 2026", first_year=2026),
         files("jcm_2026.pdf"),
     )
+    documents.create_document(  # a placeholder implementation plan (BR-13.6), shown on the program's page
+        None,
+        pge,
+        "program",
+        documents.Details(
+            opt("program_file_type", "Implementation plan"), "Residential HVAC implementation plan", programs=[hvac], first_year=2028
+        ),
+        files("hvac_ip_placeholder.pdf"),
+        publish=True,
+        placeholder=True,
+    )
     f = report.versions.get(number=1).files.first()
     documents.record_download(None, f)
     documents.record_download(cpuc_admin, f, viewed=True)

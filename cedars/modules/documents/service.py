@@ -163,6 +163,25 @@ def current_version(user, doc: Document) -> DocumentVersion | None:
     return published[0] if published else (versions[0] if versions else None)
 
 
+PLACEHOLDER_TYPES = {"implementation plan"}  # the program file types a placeholder version is for (BR-13.6), by label, any case
+
+
+def takes_placeholder(collection: str, document_type: AttributeOption | None) -> bool:
+    """Whether a document of this collection and type may be filed as a placeholder: an implementation plan among the program files."""
+    return collection == Collection.PROGRAM and document_type is not None and document_type.label.strip().lower() in PLACEHOLDER_TYPES
+
+
+def is_placeholder(user, doc: Document) -> bool:
+    """Whether the version the document's link serves to this user is a placeholder: the full plan is still to come."""
+    v = current_version(user, doc)
+    return bool(v and v.placeholder)
+
+
+def _check_placeholder(collection: str, document_type: AttributeOption | None, placeholder: bool) -> None:
+    if placeholder and not takes_placeholder(collection, document_type):
+        raise DocumentError("Only an implementation plan among the program files is filed as a placeholder.")
+
+
 # --- value lists
 
 
@@ -436,9 +455,11 @@ def create_document(
     deliverable: bool = False,
     stage: str = "",
     comment_period: tuple[date, date] | None = None,
+    placeholder: bool = False,
 ) -> Document:
     """File a document with its first version. A PA's own document names the PA itself among the PAs it applies to. An EM&V deliverable
-    (BR-15.11) belongs to a study and its first version names its revision stage; any version may open a comment period (BR-15.4)."""
+    (BR-15.11) belongs to a study and its first version names its revision stage; any version may open a comment period (BR-15.4). An
+    implementation plan may be filed as a placeholder (BR-13.6), the full plan to come as a later version."""
     from . import deliverables
 
     _require_organisation(actor, organisation, collection)
@@ -451,6 +472,7 @@ def create_document(
             raise DocumentError("Choose the deliverable's stage: draft or final workplan, draft or final study results.")
     elif stage:
         raise DocumentError("Only a deliverable has revision stages.")
+    _check_placeholder(collection, details.document_type, placeholder)
     period = _check_period(comment_period)
     checked = _check_uploads(uploads)
     doc = Document.objects.create(
@@ -474,7 +496,7 @@ def create_document(
     doc.programs.set(details.programs)
     doc.attributes.set(details.attributes)
     audit.record("documents.filed", obj=doc, after=_detail_snapshot(doc), actor=actor, organisation=organisation)
-    version = _new_version(actor, organisation, doc, uploads, checked, reason="", stage=stage, period=period)
+    version = _new_version(actor, organisation, doc, uploads, checked, reason="", stage=stage, period=period, placeholder=placeholder)
     if publish:
         publish_version(actor, version)
         doc.refresh_from_db()
@@ -511,7 +533,17 @@ def change_details(actor, doc: Document, details: Details, *, reason: str) -> Do
 
 
 def _new_version(
-    actor, organisation, doc: Document, uploads, checked, *, reason: str, stage: str = "", responding_pa=None, period=None
+    actor,
+    organisation,
+    doc: Document,
+    uploads,
+    checked,
+    *,
+    reason: str,
+    stage: str = "",
+    responding_pa=None,
+    period=None,
+    placeholder: bool = False,
 ) -> DocumentVersion:
     number = (doc.versions.aggregate(m=Max("number"))["m"] or 0) + 1
     stage_number = None
@@ -529,9 +561,12 @@ def _new_version(
         stage=stage,
         stage_number=stage_number,
         responding_pa=responding_pa,
+        placeholder=placeholder,
     )
     files = _store_files(version, uploads, checked)
     after = {"number": number, "files": [{"name": f.name, "sha256": f.sha256, "size": f.size} for f in files]}
+    if placeholder:
+        after["placeholder"] = True
     if stage:
         after["stage"] = version.stage_label
     if period:
@@ -552,9 +587,11 @@ def add_version(
     publish: bool = False,
     stage: str = "",
     comment_period: tuple[date, date] | None = None,
+    placeholder: bool = False,
 ) -> DocumentVersion:
     """Replace a document's files with a new version; earlier versions stay listed and downloadable (BR-15.1, BR-09.6). A deliverable's
-    version names its stage, which never goes back (deliverables.next_stages)."""
+    version names its stage, which never goes back (deliverables.next_stages). An implementation plan's version may be a placeholder
+    (BR-13.6); the version that brings the full plan is one that is not."""
     from . import deliverables
 
     if not can_manage(actor, doc):
@@ -567,9 +604,20 @@ def add_version(
             raise DocumentError(deliverables.stage_refusal(actor, doc, stage))
     elif stage:
         raise DocumentError("Only a deliverable has revision stages.")
+    _check_placeholder(doc.collection, doc.document_type, placeholder)
     period = _check_period(comment_period)
     checked = _check_uploads(uploads)
-    version = _new_version(actor, organisation or doc.owner, doc, uploads, checked, reason=reason.strip(), stage=stage, period=period)
+    version = _new_version(
+        actor,
+        organisation or doc.owner,
+        doc,
+        uploads,
+        checked,
+        reason=reason.strip(),
+        stage=stage,
+        period=period,
+        placeholder=placeholder,
+    )
     if publish:
         version = publish_version(actor, version)
     return version

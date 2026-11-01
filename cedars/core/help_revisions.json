@@ -29,7 +29,7 @@
   },
   "guide:programs": {
     "release": "0.2.0",
-    "sha256": "2e31d2575340521af47a9f6e312a1c2c64e69c5af13b34eae3d7bbfe1275b360"
+    "sha256": "695e5e0dbd8e2c314d0f72aec01d1629c7873da95e3df0340980ac726f4efc23"
   },
   "guide:published-data": {
     "release": "0.2.0",
