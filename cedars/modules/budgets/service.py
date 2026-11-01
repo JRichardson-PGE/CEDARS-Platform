@@ -9,7 +9,6 @@ programs flagged exclude-from-budget or exclude-from-C/E keep their values and a
 records the allocation version it was priced with, and a later one never changes it (BR-04.8)."""
 
 import hashlib
-import io
 import json
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -1059,34 +1058,37 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
 
 def appendix_xlsx(v: SubmissionVersion) -> bytes:
     """The filing appendix tables generated from the version's data (BR-04.5): budget by program and year with the cost categories,
-    cost-effectiveness by program, savings by program and year, and what the version was priced with."""
-    from openpyxl import Workbook
-    from openpyxl.styles import Font
+    cost-effectiveness by program, savings by program and year, and what the version was priced with. Written accessibly
+    (cedars.core.workbooks: titled, every sheet's header row marked as a table header, no merged cells)."""
+    from cedars.core import workbooks
 
-    wb = Workbook()
-    about = wb.active
-    about.title = "About"
     calc = v.calculation or {}
     deadline = v.submission.deadline
-    info = [
-        ("Filing", label(deadline)),
-        ("Program administrator", v.submission.organisation.code),
-        ("Version", v.number),
-        ("Status", v.get_status_display()),
-        ("Confirmed", v.confirmed_at.isoformat() if v.confirmed_at else ""),
-        ("ACC", f"{calc.get('acc')} ACC" if calc.get("acc") else ""),
-        ("Statewide allocation version", (calc.get("allocation_version") or {}).get("label", "")),
-        ("Engine release", calc.get("release", "")),
-        ("Calculation run", calc.get("run", "")),
-        ("Rule set", (v.findings or {}).get("rule_set", "")),
-    ]
-    for k, val in info:
-        about.append([k, val])
-    about["A1"].font = Font(bold=True)
+    book = workbooks.Book(
+        f"Budget filing appendix: {v.submission.organisation.code}, {label(deadline)}, version {v.number}",
+        subject="CEDARS budget filing appendix (BR-04.5)",
+    )
+    book.sheet(
+        "About",
+        ["Item", "Value"],
+        [
+            ("Filing", label(deadline)),
+            ("Program administrator", v.submission.organisation.code),
+            ("Version", v.number),
+            ("Status", v.get_status_display()),
+            ("Confirmed", v.confirmed_at.isoformat() if v.confirmed_at else ""),
+            ("ACC", f"{calc.get('acc')} ACC" if calc.get("acc") else ""),
+            ("Statewide allocation version", (calc.get("allocation_version") or {}).get("label", "")),
+            ("Engine release", calc.get("release", "")),
+            ("Calculation run", calc.get("run", "")),
+            ("Rule set", (v.findings or {}).get("rule_set", "")),
+        ],
+        widths={0: 30, 1: 50},
+    )
     lines = sorted(v.budget_lines.all(), key=lambda ln: (ln.prg_id, ln.year))
-    ws = wb.create_sheet("Budget")
-    ws.append(
-        ["PrgID", "Year", "PA"] + [f for f, _ in PROGRAM_COST_FIELDS] + ["ProgramCosts", "RebatesandIncents", "Budget", "OnBillFinancing"]
+    ws = book.sheet(
+        "Budget",
+        ["PrgID", "Year", "PA"] + [f for f, _ in PROGRAM_COST_FIELDS] + ["ProgramCosts", "RebatesandIncents", "Budget", "OnBillFinancing"],
     )
     for ln in lines:
         costs = [float(Decimal(ln.program_costs.get(f, "0"))) for f, _ in PROGRAM_COST_FIELDS]
@@ -1103,24 +1105,17 @@ def appendix_xlsx(v: SubmissionVersion) -> bytes:
             ]
         )
     t = table(v)
-    ws = wb.create_sheet("Cost-effectiveness")
-    ws.append(["PrgID", "Program", "Excluded from budget", "Excluded from C/E"] + [m[1] for m in METRICS])
+    ws = book.sheet("Cost-effectiveness", ["PrgID", "Program", "Excluded from budget", "Excluded from C/E"] + [m[1] for m in METRICS])
     for r in t.rows + [t.total]:
         ws.append(
             [r.prg_id, r.name, "yes" if r.excluded_budget else "", "yes" if r.excluded_ce else ""]
             + [None if r.value(k) is None else float(r.value(k)) for k, *_ in METRICS]
         )
-    ws = wb.create_sheet("Savings by year")
     keys = ["FirstYearNetKWh", "FirstYearNetKW", "FirstYearNetThm", "LifecycleNetKWh", "LifecycleNetThm", "TotalSystemBenefit"]
-    ws.append(["PrgID", "Year", "Credited PA"] + keys)
+    ws = book.sheet("Savings by year", ["PrgID", "Year", "Credited PA"] + keys)
     for res in v.budget_results.filter(run=calc.get("run", "")).order_by("prg_id", "year", "pa"):
         ws.append([res.prg_id, res.year or None, res.pa] + [res.values.get(k) for k in keys])
-    for sheet in wb.worksheets[1:]:
-        for c in sheet[1]:
-            c.font = Font(bold=True)
-    out = io.BytesIO()
-    wb.save(out)
-    return out.getvalue()
+    return book.save()
 
 
 def deadline_page(deadline) -> str:

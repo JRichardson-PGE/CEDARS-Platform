@@ -13,6 +13,7 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
 from cedars.core import storage
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts.service import AccessDenied
 
 from . import comments, deliverables, forms, service, subscriptions
@@ -163,6 +164,15 @@ def _document(request, pk) -> Document:
     return doc
 
 
+def warn_inaccessible(request, version) -> None:
+    """Tell the uploader what the accessibility check found in the version's files (BR-10.3), if anything."""
+    if version is None:
+        return
+    text = accessibility.upload_warning("document", version.files.values_list("pk", flat=True))
+    if text:
+        messages.warning(request, text)
+
+
 def document(request, pk):
     """A document's permanent link: its details, the current version's files and every version before it."""
     doc = _document(request, pk)
@@ -183,12 +193,15 @@ def document(request, pk):
     if doc.deliverable:
         requests = [(r, deliverables.status(r), deliverables.responses(r)) for r in doc.response_requests.select_related("pa")]
     is_ed = deliverables.is_ed(request.user) if request.user.is_authenticated else False
+    files = list(current.files.all()) if current else []
+    checked = accessibility.for_refs("document", [f.pk for f in files])
     return render(
         request,
         "documents/document.html",
         {
             "doc": doc,
             "current": current,
+            "current_files": [(f, checked.get(str(f.pk))) for f in files],
             "versions": deliverables.history(versions) if doc.deliverable else versions,
             "stage": deliverables.stage_label(doc, current) if doc.deliverable else "",
             "open_versions": comments.open_versions(versions),
@@ -278,6 +291,7 @@ def new(request):
             form.add_error(None, str(e))
         else:
             messages.success(request, "The document is filed." + ("" if doc.published_at else " It is not published yet."))
+            warn_inaccessible(request, doc.versions.order_by("-number").first())
             return redirect(doc)
     return render(
         request,
@@ -333,6 +347,7 @@ def new_version(request, pk):
             form.add_error(None, str(e))
         else:
             messages.success(request, f"Version {v.number} is added." + ("" if v.published else " It is not published yet."))
+            warn_inaccessible(request, v)
             return redirect(doc)
     latest = doc.versions.order_by("-number").first()
     return render(

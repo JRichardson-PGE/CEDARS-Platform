@@ -10,10 +10,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from cedars.core import storage
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import comments, deliverables, forms, service
+from . import comments, deliverables, forms, service, views
 from .models import Comment, Document, Study, WorkOrder
 from .views import _document, _organisation
 
@@ -69,7 +70,7 @@ def post_comment(request, pk):
         version = next(v for v in versions if str(v.number) == d["version"])
         f = d.get("attachment")
         try:
-            comments.post(
+            posted = comments.post(
                 request.user,
                 _organisation(request),
                 version,
@@ -85,6 +86,10 @@ def post_comment(request, pk):
             form.add_error(None, str(e))
         else:
             messages.success(request, "Your comment is posted. It is public, with your name and organization.")
+            if posted.file_name:
+                text = accessibility.upload_warning("document_comment", [posted.pk])
+                if text:
+                    messages.warning(request, text)
             return redirect("documents:comments", pk=doc.pk)
     return _comment_page(request, doc, form)
 
@@ -241,6 +246,7 @@ def new_response(request, pk):
             messages.success(
                 request, f"{d['pa'].code}'s response is filed as version {v.number}." + ("" if v.published else " It is not published yet.")
             )
+            views.warn_inaccessible(request, v)
             return redirect(doc)
     requests = [(r, deliverables.status(r)) for r in doc.response_requests.filter(pa__in=pas).select_related("pa")]
     return render(request, "documents/response_new.html", {"doc": doc, "form": form, "requests": requests})

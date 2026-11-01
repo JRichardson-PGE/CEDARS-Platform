@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}Accessibility check of {{ fc.file_name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'accessibility:files' %}">Document accessibility</a></li></ol></nav>
+<div class="page-title"><h1>Accessibility check of {{ fc.file_name }}</h1>{% page_help "accessibility/file" %}</div>
+<dl class="facts">
+  <dt>Belongs to</dt><dd>{% if fc.url %}<a href="{{ fc.url }}">{{ fc.title|default:fc.get_source_display }}</a>{% else %}{{ fc.title|default:fc.get_source_display }}{% endif %} ({{ fc.get_source_display|lower }})</dd>
+  <dt>Uploaded</dt><dd>{{ fc.checked_at|datetime_words }}{% if fc.uploaded_by %} by {{ fc.uploaded_by|person }}{% endif %}{% if fc.organisation %} for {{ fc.organisation.code }}{% endif %}{% if fc.imported %}, imported from a legacy site{% endif %}</dd>
+  <dt>File</dt><dd>{% if fc.kind == "pdf" %}PDF{% else %}Workbook{% endif %}, SHA-256 <code class="small">{{ fc.sha256|truncatechars:20 }}</code></dd>
+  <dt>Review</dt><dd>{% if fc.reviewed %}<span class="status ok">Reviewed</span> {{ fc.reviewed_at|date_words }}{% if fc.reviewed_by %} by {{ fc.reviewed_by|person }}{% endif %}{% elif fc.flagged %}<span class="status warn">Needs review</span>{% else %}<span class="muted">None needed</span>{% endif %}</dd>
+</dl>
+<section class="card" aria-labelledby="found-h">
+  <h2 id="found-h">What the check found</h2>
+  {% if findings %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Findings table">
+  <table class="list">
+    <caption class="sr-only">Findings and how to fix each</caption>
+    <thead><tr><th scope="col">Finding</th><th scope="col">Where</th><th scope="col">How to fix it</th><th scope="col">WCAG 2.2</th></tr></thead>
+    <tbody>{% for f, d in findings %}<tr><td>{{ f.label }}</td><td>{{ f.where|default:"The whole file" }}{% if f.count > 1 %} ({{ f.count }}){% endif %}</td><td>{{ f.fix }}</td><td>{{ d.wcag|join:", " }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% elif fc.note %}<p><span class="status info">Not checked</span> {{ fc.note }}</p>
+  {% else %}<p><span class="status ok">Nothing found</span> The file has tagged text, a title and a language, or marked header rows and no merged cells or unlabeled pictures.</p>{% endif %}
+  {% if fc.review_note %}<h3>Review note</h3><p class="prewrap">{{ fc.review_note }}</p>{% endif %}
+</section>
+{% if fc.flagged and not fc.reviewed %}
+<section class="card" aria-labelledby="review-h">
+  <h2 id="review-h">Mark it reviewed</h2>
+  <form method="post" action="{% url 'accessibility:review' fc.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in review_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Mark reviewed</button></div>
+  </form>
+</section>
+{% elif fc.reviewed %}
+<section class="card" aria-labelledby="reopen-h">
+  <h2 id="reopen-h">Reopen it</h2>
+  <form method="post" action="{% url 'accessibility:reopen' fc.pk %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in reopen_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Reopen</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

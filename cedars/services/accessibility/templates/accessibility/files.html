@@ -1,0 +1,43 @@
+{% extends "core/base.html" %}
+{% block title %}Document accessibility{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Document accessibility</h1>{% page_help "accessibility/files" %}</div>
+<p>Every PDF and workbook stored as a document's file, or attached to a comment on a document or a filing, is checked for accessibility as it is stored: tagged PDF text, a title and a language, marked header rows, no merged cells, alternative text. The uploader is warned of what was found. Mark a file reviewed with a note once an accessible version is filed, or say why it stands.</p>
+<p>{% if cfg.block %}<span class="status warn">Blocking on</span> Uploads with {{ cfg.blocking|length }} kind{{ cfg.blocking|length|pluralize }} of finding are refused.{% else %}<span class="status info">Warning only</span> No upload is refused.{% endif %} <a href="{% url 'accessibility:settings' %}">Check settings</a></p>
+<form method="get" class="filters" aria-label="Filter the checked files">
+  <div><label for="state">Show</label>
+  <select id="state" name="state">{% for s, label, n in states %}<option value="{{ s }}"{% if s == state %} selected{% endif %}>{{ label }} ({{ n }})</option>{% endfor %}</select></div>
+  <div><label for="kind">Type</label>
+  <select id="kind" name="kind"><option value="">PDFs and workbooks</option><option value="pdf"{% if kind == "pdf" %} selected{% endif %}>PDFs</option><option value="workbook"{% if kind == "workbook" %} selected{% endif %}>Workbooks</option></select></div>
+  <div><label for="code">Finding</label>
+  <select id="code" name="code"><option value="">Any</option>{% for c, label in codes %}<option value="{{ c }}"{% if c == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <div><label for="source">Where</label>
+  <select id="source" name="source"><option value="">Anywhere</option>{% for s, label in sources %}<option value="{{ s }}"{% if s == source %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Checked files table">
+<table class="list">
+  <caption class="sr-only">Checked files, newest first</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Belongs to</th><th scope="col">Uploaded</th><th scope="col">Found</th><th scope="col">Review</th></tr></thead>
+  <tbody>
+  {% for fc in page %}
+  <tr>
+    <td><a href="{% url 'accessibility:file' fc.pk %}">{{ fc.file_name }}<span class="sr-only">: open its check</span></a></td>
+    <td>{% if fc.url %}<a href="{{ fc.url }}">{{ fc.title|default:fc.get_source_display }}</a>{% else %}{{ fc.title|default:fc.get_source_display }}{% endif %} <span class="small muted">{{ fc.get_source_display }}</span></td>
+    <td class="nowrap">{{ fc.checked_at|date_words }}{% if fc.organisation %} <span class="small muted">{{ fc.organisation.code }}</span>{% endif %}{% if fc.imported %} <span class="small muted">(imported)</span>{% endif %}</td>
+    <td>{% if fc.findings %}{% for f in fc.finding_list %}{{ f.describe }}{% if not forloop.last %}; {% endif %}{% endfor %}{% elif fc.note %}<span class="status info">Not checked</span> {{ fc.note }}{% else %}<span class="status ok">Nothing found</span>{% endif %}</td>
+    <td>{% if fc.reviewed %}<span class="status ok">Reviewed</span> {{ fc.reviewed_at|date_words }}{% elif fc.flagged %}<span class="status warn">Needs review</span>{% else %}<span class="muted">None needed</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5">No files{% if state != "all" %} here{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.has_other_pages %}
+<nav aria-label="Pages of checked files"><p>
+  {% if page.has_previous %}<a href="?{{ query }}&amp;page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  Page {{ page.number }} of {{ page.paginator.num_pages }}
+  {% if page.has_next %}<a href="?{{ query }}&amp;page={{ page.next_page_number }}">Older</a>{% endif %}
+</p></nav>
+{% endif %}
+{% endblock %}

@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "cedars.services.releases",
     "cedars.services.feedback",
     "cedars.services.sandbox",
+    "cedars.services.accessibility",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
     "cedars.modules.monthly",

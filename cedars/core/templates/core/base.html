@@ -61,6 +61,7 @@
         {% if nav.sysadmin %}<li><a href="{% url 'administration:allocations' %}"{% if '/admin/allocations/' in here %} aria-current="page"{% endif %}>Allocation factors</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'snapshots:holds' %}"{% if '/publication/' in here %} aria-current="page"{% endif %}>Publication holds</a></li>{% endif %}
+        {% if nav.sysadmin %}<li><a href="{% url 'accessibility:files' %}"{% if '/admin/document-accessibility/' in here %} aria-current="page"{% endif %}>Document accessibility</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:health' %}"{% if '/admin/health/' in here %} aria-current="page"{% endif %}>Jobs and health</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a></li>{% endif %}
         {% if nav.sysadmin %}<li><a href="{% url 'administration:role_templates' %}"{% if '/admin/role-templates/' in here %} aria-current="page"{% endif %}>Role templates</a></li>{% endif %}

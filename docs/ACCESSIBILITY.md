@@ -1,6 +1,8 @@
 # Accessibility
 
-Target: WCAG 2.2 Level AA on every page and published document (decision K; BRD v0.5 BR-10.3).
+Target: WCAG 2.2 Level AA on every page and published document (decision K; BRD v0.5 BR-10.3). The criterion-by-criterion conformance
+report, with the evidence and the known exceptions, is `ACCESSIBILITY_CONFORMANCE.md`; update it when a page or a document type changes
+how a criterion is met.
 
 ## Checked automatically (CI)
 
@@ -28,3 +30,12 @@ Target: WCAG 2.2 Level AA on every page and published document (decision K; BRD 
   ReCET's NVDA walk-through (`tests/screenreader` in ReCET: Guidepup + Playwright on Windows) is the model for the platform's.
 - 200% zoom, and text spacing overrides, without lost content.
 - Color: any new color checked with a contrast calculator in both schemes before it is used.
+
+## Documents
+
+- Every workbook the platform writes goes through `cedars/core/workbooks.py` (`Book`, `Book.sheet`): never build one with openpyxl
+  directly. A new generated workbook gets an `assert_accessible` test (`tests/test_document_accessibility.py`): no finding from the
+  document accessibility check, a title and a language, each sheet's rows an Excel table with a header row, print titles, no merges.
+- Uploads: a new place that stores a PDF or workbook people upload calls `accessibility.inspect(path, name)` before storing it (it
+  raises `Refused` only when the CPUC turned blocking on) and `accessibility.record(source, ref, result, ...)` after, adds a
+  `FileCheck.Source` for it, and shows `accessibility.upload_warning(...)` on the page the uploader lands on.

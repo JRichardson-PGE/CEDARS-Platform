@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from cedars.core import files, storage
 from cedars.services import audit
+from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -305,6 +306,7 @@ def _store_files(
 ) -> list[DocumentFile]:
     """Store a version's files; legacy_names (a migration) are each file's name in the old site's links, where it differs."""
     store = storage.store("uploads")
+    imported = legacy_names is not None
     legacy_names = legacy_names or [""] * len(uploads)
     rows = []
     for position, (u, (name, content_type), legacy) in enumerate(zip(uploads, checked, legacy_names, strict=True)):
@@ -324,6 +326,10 @@ def _store_files(
                 raise DocumentError(f"{name} is larger than the {settings.DOCUMENTS_MAX_FILE_MB} MB a file may be.")
             if size == 0:
                 raise DocumentError(f"{name} is empty.")
+            try:  # the document accessibility check (BR-10.3): refuses only when the CPUC's settings say so, never an import
+                checked_access = accessibility.inspect(Path(tmp.name), name, enforce=not imported)
+            except accessibility.Refused as e:
+                raise DocumentError(str(e)) from e
             store.put_file(key, Path(tmp.name))
             row = DocumentFile.objects.create(
                 version=version,
@@ -336,6 +342,18 @@ def _store_files(
                 legacy_name=legacy[:300],
             )
             textract.save(row, Path(tmp.name))
+            accessibility.record(
+                "document",
+                row.pk,
+                checked_access,
+                file_name=name,
+                sha256=row.sha256,
+                url=version.document.get_absolute_url(),
+                title=version.document.title,
+                organisation=version.organisation,
+                uploaded_by=version.created_by,
+                imported=imported,
+            )
         finally:
             Path(tmp.name).unlink(missing_ok=True)
         rows.append(row)

@@ -23,6 +23,25 @@ header's links fold behind a <strong>Menu</strong> button on narrow screens.</p>
 <h2>Without scripts</h2>
 <p>Pages are made on the server and work without JavaScript. Scripts only add conveniences, such as the guided tour (its steps are also
 on <a href="{% url 'core:help_tour' %}">one page</a>).</p>
+<h2>Files and downloads</h2>
+<ul>
+  <li>Workbooks CEDARS makes (the budget filing appendix, record and dashboard downloads, upload templates) have a title and a language,
+    a named sheet for each table, and each sheet's first row marked as its header row, as an Excel table, so a screen reader reads each
+    cell with its column. They have no merged cells or pictures.</li>
+  <li>PDFs and workbooks you upload to the document library or attach to a comment are checked as they are stored. If the check finds a
+    problem, you are told what it is and how to fix it, and the file is kept; please file an accessible version. The CPUC can choose to
+    refuse files with some of these problems; if it does, the upload says which problem stopped it and how to fix it.</li>
+  <li>A document whose file may be hard to read says so on its page, with a link to ask for an accessible copy.</li>
+</ul>
+<h3>Making an accessible file</h3>
+<ul>
+  <li><strong>PDF</strong>: export from Word or PowerPoint with "Document structure tags for accessibility" on, after giving the document
+    a title (File, Info, Properties) and its language (Review, Language). A scanned page has no text: run text recognition (OCR) on it,
+    or file the PDF exported from the source document instead.</li>
+  <li><strong>Workbook</strong>: put each table under one header row and format it as a table (Home, Format as Table, "My table has
+    headers"); unmerge merged cells; give pictures and charts alternative text (right-click, View Alt Text); name each sheet for what it
+    holds. Excel's own check is under Review, Check Accessibility.</li>
+</ul>
 <h2>Report a barrier</h2>
 <p>If something cannot be used with your assistive technology, see <a href="{% url 'core:help_contact' %}">getting support</a>: a barrier is
 a defect, and we fix it.</p>
