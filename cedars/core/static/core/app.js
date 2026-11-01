@@ -31,11 +31,18 @@
   }
 
   // The header sticks to the top of a wide, tall enough window (app.css). Its height goes to --header-h, which keeps focused and linked
-  // content clear of it (2.4.11); without this script a fixed allowance is used.
+  // content clear of it (2.4.11); without this script a fixed allowance is used. When its navigation wraps to a second row it is marked
+  // header-wrapped and scrolls away with the page instead of covering a fifth of the window.
   var header = document.querySelector("body > header");
+  var bar = header && header.querySelector(".top");
   if (header && window.ResizeObserver) {
     new ResizeObserver(function () {
       document.documentElement.style.setProperty("--header-h", header.offsetHeight + "px");
+      if (bar) {
+        var brand = bar.querySelector(".brand"), who = bar.querySelector(".who");
+        var wrapped = !!(brand && who) && who.getBoundingClientRect().top - brand.getBoundingClientRect().top > 20;
+        document.documentElement.classList.toggle("header-wrapped", wrapped);
+      }
     }).observe(header);
   }
 
