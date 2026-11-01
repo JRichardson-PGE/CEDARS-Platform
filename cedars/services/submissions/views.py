@@ -3,16 +3,18 @@ from datetime import datetime, time
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import FileResponse, Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from cedars.core import storage
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry import service as registry
 
-from . import service
-from .models import Deadline, ReopenRequest, WorkflowPolicy
+from . import comments, service
+from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
 
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
 
@@ -96,3 +98,40 @@ def decide(request, pk):
     else:
         messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission}.")
     return redirect("submissions:reopen_requests")
+
+
+@login_required
+@require_POST
+def comment(request, pk):
+    """Post a comment, with any files, on a filing version (BR-09.5), then return to the version's page."""
+    v = get_object_or_404(SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation"), pk=pk)
+    if not comments.can_discuss(request.user, v.submission):
+        raise Http404
+    uploads = [(f.name, f) for f in request.FILES.getlist("files")]
+    try:
+        c = comments.post(request.user, v, request.POST.get("text", ""), uploads)
+    except (AccessDenied, comments.CommentRefused) as e:
+        messages.error(request, f"Your comment was not posted: {e}")
+        anchor = "#comments"
+    else:
+        messages.success(request, "Comment posted.")
+        anchor = f"#comment-{c.pk}"
+    page = comments.version_page(v)
+    return redirect(page + anchor) if page else redirect("core:queue")
+
+
+@login_required
+def attachment(request, pk):
+    """A file attached to a comment, for the filing organization and CPUC staff; each download is an audit event on the version."""
+    try:
+        a = comments.attachment_for(request.user, pk)
+    except (Attachment.DoesNotExist, AccessDenied) as e:
+        raise Http404 from e
+    comments.record_download(request.user, a)
+    store = storage.store("uploads")
+    url = store.download_url(a.key, a.name, content_type=a.content_type)
+    if url:
+        return HttpResponseRedirect(url)
+    response = FileResponse(store.open(a.key), as_attachment=True, filename=a.name, content_type=a.content_type)
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

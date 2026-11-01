@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% block title %}My queue{% endblock %}
+{% block content %}
+<div class="page-title"><h1>My queue</h1>{% page_help "core/queue" %}</div>
+<p>The work waiting on you across CEDARS, for every organization you act for. An item leaves the queue when the work is done.</p>
+{% if total %}
+<section aria-labelledby="summary-h">
+<h2 id="summary-h" class="sr-only">Summary</h2>
+<ul class="queue-summary">{% for s in sections %}{% if s.items %}<li><a href="#{{ s.kind.key }}">{{ s.kind.label }}</a>: {{ s.items|length }}</li>{% endif %}{% endfor %}</ul>
+</section>
+{% for s in sections %}{% if s.items %}
+<section aria-labelledby="{{ s.kind.key }}">
+<h2 id="{{ s.kind.key }}" tabindex="-1">{{ s.kind.label }} <span class="small muted">({{ s.items|length }})</span></h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="{{ s.kind.key }}">
+<table class="list">
+  <caption class="sr-only">{{ s.kind.label }}</caption>
+  <thead><tr><th scope="col">What</th><th scope="col">Organization</th><th scope="col">Waiting since</th><th scope="col">Due</th><th scope="col"><span class="sr-only">Action</span></th></tr></thead>
+  <tbody>{% for i in s.items %}<tr>
+    <th scope="row">{{ i.what }}{% if i.note %}<br><span class="small muted">{{ i.note }}</span>{% endif %}</th>
+    <td>{{ i.organisation|default:"—" }}</td>
+    <td class="nowrap">{{ i.since_day|date_words|default:"—" }}</td>
+    <td class="due">{% if i.due_day %}{{ i.due_day|date_words }}{% if i.overdue %} <span class="status bad">Overdue</span>{% endif %}{% else %}—{% endif %}</td>
+    <td>{% if i.url %}<a href="{{ i.url }}">{{ s.kind.action }}<span class="sr-only">: {{ i.what }}</span></a>{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}{% endfor %}
+{% else %}
+<p class="card">Nothing is waiting on you.</p>
+{% endif %}
+<details class="small"><summary>What the queue covers</summary>
+<ul>{% for s in sections %}<li>{{ s.kind.label }}</li>{% endfor %}</ul>
+<p>Each kind shows only the items you may act on: approvers' requests to approvers and their delegates, confirmations to those who may confirm the filing, fund shifts to those who may acknowledge for a co-funding PA, comments to the side whose turn it is to reply. Deadline reminders come by notification (<a href="{% url 'notifications:settings' %}">notification settings</a>).</p>
+</details>
+{% endblock %}

@@ -1,4 +1,5 @@
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.http import Http404, JsonResponse
 from django.shortcuts import render
@@ -6,7 +7,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from . import faq, revisions
+from . import faq, queue, revisions
 from . import help as site_help
 from . import page_help as pages
 
@@ -25,6 +26,14 @@ MODULES = [
 
 def about(request):
     return render(request, "core/about.html", {"modules": MODULES})
+
+
+@login_required
+@require_GET
+def my_queue(request):
+    """The work waiting on the signed-in user across every module (BR-09.5), read live from each module's records (core/queue.py)."""
+    sections = queue.sections(request.user)
+    return render(request, "core/queue.html", {"sections": sections, "total": sum(len(s.items) for s in sections)})
 
 
 @require_GET

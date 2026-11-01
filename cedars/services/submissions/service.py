@@ -595,6 +595,15 @@ def set_policy(actor, module: str, **settings) -> WorkflowPolicy:
     return p
 
 
+def _delete_comment_files(version_ids) -> None:
+    """The files attached to comments on versions being removed (comments.py keeps them under the version)."""
+    from cedars.core import storage
+
+    store = storage.store("uploads")
+    for pk in version_ids:
+        store.delete_prefix(f"submissions/versions/{pk}/")
+
+
 def expired_drafts(cutoff):
     """Versions never confirmed (draft or validated) with no activity since the cutoff (record class "unsubmitted_draft"; the period
     counts from the version's last audited change, so a draft being worked on is never removed). A submission left with no versions
@@ -612,7 +621,9 @@ def expired_drafts(cutoff):
             audit.record(
                 "submission.draft_expired", obj=v, before={"number": v.number, "status": v.status}, organisation=submission.organisation
             )
-            v.delete()
+            pk = v.pk
+            v.delete()  # its comments go with it; so do their files
+            _delete_comment_files([pk])
             if not submission.versions.exists() and not submission.reopen_requests.exists():
                 submission.delete()
 
@@ -630,7 +641,9 @@ def expired_sandbox_filings(cutoff):
         def delete(sub=sub):
             audit.record("submission.sandbox_expired", obj=sub, organisation=sub.organisation)
             sub.reopen_requests.all().delete()
+            ids = list(sub.versions.values_list("pk", flat=True))
             sub.versions.all().delete()
+            _delete_comment_files(ids)
             sub.delete()
 
         yield f"submission:{sub.pk}", delete

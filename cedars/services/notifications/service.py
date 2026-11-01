@@ -59,6 +59,7 @@ EVENTS = [
     EventType("submission.reopened", "A filing is reopened for a correction", "organisation", FILINGS),
     EventType("reopen.requested", "A correction is requested after a due date (for approvers)", "cpuc", FILINGS, narrowed=False),
     EventType("reopen.declined", "A correction request is declined", "organisation", FILINGS),
+    EventType("submission.commented", "A comment is posted on a filing (its organization and CPUC staff)", "organisation", FILINGS),
     EventType("program.changed", "A program's details change (a new version of its record)", "public", "Programs"),
     EventType("allocation_version.confirmed", "Statewide allocation factors are confirmed", "public", "Programs"),
     EventType(
@@ -166,6 +167,14 @@ def _concerns(event) -> Concern:
                 c.title = more.title or c.title
                 c.body = more.body
                 c.key = more.key
+            if event.action == "submission.commented":  # the discussion on a filing (BR-09.5): who wrote what, on the version's page
+                after = event.after or {}
+                text = after.get("text", "")
+                files = [f.get("name", "") for f in after.get("files", [])]
+                c.title = f"Comment on {event.object_repr} from {after.get('side', '')}".strip()
+                c.body = (text[:500] + ("..." if len(text) > 500 else "")) + (f"\nAttached: {', '.join(files)}" if files else "")
+                c.link = f"{c.link or ''}#comment-{after.get('comment', '')}" if c.link else c.link
+                c.key = ""
             return c
         if t == "submissions.reopenrequest":
             from cedars.services.submissions.models import ReopenRequest
