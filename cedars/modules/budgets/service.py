@@ -953,3 +953,10 @@ def appendix_xlsx(v: SubmissionVersion) -> bytes:
     out = io.BytesIO()
     wb.save(out)
     return out.getvalue()
+
+
+def deadline_page(deadline) -> str:
+    """The filing page of a budget filing's deadline, for the filing calendar; "" for a deadline with no budget set-up."""
+    from django.urls import reverse
+
+    return reverse("budgets:filing", args=[deadline.pk]) if FilingSetup.objects.filter(deadline=deadline).exists() else ""

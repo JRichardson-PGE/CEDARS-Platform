@@ -1117,3 +1117,10 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
     if calc.get("receipt_key"):
         out.append(("Estimate run receipt (engine, reference data, outputs)", "results", calc["receipt_key"]))
     return out
+
+
+def deadline_page(deadline) -> str:
+    """The report page of a monthly report's deadline, for the filing calendar; "" for a deadline outside a set-up year."""
+    from django.urls import reverse
+
+    return reverse("monthly:report", args=[deadline.pk]) if setup_for(deadline) is not None else ""

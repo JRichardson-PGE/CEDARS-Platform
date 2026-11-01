@@ -13,11 +13,12 @@ class BudgetsConfig(AppConfig):
     def ready(self):
         from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
-        from cedars.services.submissions.service import register_publisher
+        from cedars.services.submissions.service import register_deadline_page, register_publisher
 
         from . import service, shifts
 
         register_publisher("budgets", service.on_publish, service.on_unpublish)
+        register_deadline_page("budgets", service.deadline_page)  # the filing calendar links each of its deadlines
         register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
         register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
         register_concerns("budgets.fundshift", shifts.notice)

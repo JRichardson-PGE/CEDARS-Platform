@@ -198,7 +198,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.grant(cpuc_admin, approver, cpuc, "claims.approve")
     quarter = [p for p in registry.ensure_periods(2028) if p.kind == "quarter" and p.number == 1][0]
     deadline = submissions.add_deadline(
-        cpuc_admin, module="claims", kind="Q1 claim", period=quarter, due_at=timezone.now() + timedelta(days=10)
+        cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=timezone.now() + timedelta(days=10)
     )
     v = submissions.start(analyst, deadline, pge)
     submissions.attach_files(analyst, v, [{"name": "Measure.csv", "key": "s3://bucket/x", "sha256": "abc", "bytes": 10}])

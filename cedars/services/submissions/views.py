@@ -4,7 +4,6 @@ from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -16,7 +15,6 @@ from . import service
 from .models import Deadline, ReopenRequest, WorkflowPolicy
 
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
-PAGES = {"budgets": "budgets:filing", "claims": "claims:period", "monthly": "monthly:report"}  # each module's page for a deadline
 
 
 class DeadlineForm(forms.Form):
@@ -53,7 +51,7 @@ def calendar(request):
             messages.success(request, "Deadline added.")
         return redirect("submissions:calendar")
     deadlines = [
-        {"d": d, "url": reverse(PAGES[d.module], args=[d.pk]) if d.module in PAGES else ""}
+        {"d": d, "url": service.deadline_page(d)}
         for d in Deadline.objects.select_related("period", "cycle")
         .filter(due_at__gte=timezone.now() - timezone.timedelta(days=400))
         .order_by("due_at", "module", "period__starts", "kind")
