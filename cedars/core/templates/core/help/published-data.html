@@ -35,6 +35,15 @@ ones published for everyone.</p>
   <li><strong>Your default columns</strong>: on the records page, make the columns you chose your default, and the page starts from them
   instead of the key columns whenever a link names none.</li>
 </ul>
+<h2>The open data API</h2>
+<p>Programs can read the same published data as JSON, with no account, from the open data API at <code>/api/v1/data/</code>. It has the
+metric catalog (<code>metrics</code>), the dimensions, filters and exclusions (<code>dimensions</code>), sums of any metrics by any
+dimensions (<code>query</code>, the dashboards' own query and default exclusions) and the measure-level records with the columns you
+choose (<code>columns</code> and <code>records</code>, the record downloads' own query, nothing left out unless asked). Rows come a page at
+a time with a link to the next page; the most a page holds is on the <a href="{% url 'limits:index' %}">limits page</a>. A dashboard's
+query string gives the same numbers in the API, and every answer is stamped like a download: the release, its as-of time, the filings
+read, the filters and what was left out. Only fields the data dictionary marks public are served. The
+<a href="/api/v1/schema">API description</a> (OpenAPI) lists every parameter.</p>
 <h2>Documents</h2>
 <p>The <a href="{% url 'documents:library' %}">document library</a> holds PA documents, CPUC staff guidance, DEER resources, program
 files and EM&amp;V studies, with their earlier versions. Search by words, or filter by collection, type, PA, program and year. Each

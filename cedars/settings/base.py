@@ -259,6 +259,8 @@ DATA_DOWNLOAD_JOBS_PER_USER = int(env("DATA_DOWNLOAD_JOBS_PER_USER", "3"))  # ba
 DATA_DOWNLOAD_INLINE_JOBS = env_bool("DATA_DOWNLOAD_INLINE_JOBS", False)  # development: make a queued download once its request commits
 DATA_SAVED_VIEWS_PER_USER = int(env("DATA_SAVED_VIEWS_PER_USER", "200"))  # saved dashboard and records views one person may keep (BR-07.4)
 DATA_SAVED_VIEW_SHARES = int(env("DATA_SAVED_VIEW_SHARES", "50"))  # people one saved view may be shared with by name
+DATA_API_DEFAULT_ROWS = int(env("DATA_API_DEFAULT_ROWS", "100"))  # rows in a data API page when the call does not say
+DATA_API_MAX_ROWS = int(env("DATA_API_MAX_ROWS", "1000"))  # the most rows one data API page holds (/api/v1/data/query and records)
 
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"

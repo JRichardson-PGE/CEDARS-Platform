@@ -216,6 +216,16 @@ LIMITS = [
         "CEDARS_API_RATE_ANON",
     ),
     Limit(
+        "api_data_rows",
+        "Rows in one page of the data API",
+        API,
+        lambda: settings.DATA_API_MAX_ROWS,
+        "rows",
+        "Aggregated queries and record reads at /api/v1/data (each page; the next page is linked).",
+        "The call gets 400 Bad Request. Ask for fewer rows with limit and read the next page.",
+        "DATA_API_MAX_ROWS",
+    ),
+    Limit(
         "api_token_days",
         "Longest an API token lasts",
         API,

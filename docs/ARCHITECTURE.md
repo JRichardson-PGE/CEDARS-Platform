@@ -88,6 +88,16 @@ how far it is built. Update the Status column in the PR that changes it.
   reaches only its scopes (modules), never more than its user's grants there, and never PII or admin permissions; API views check
   `cedars.core.api.allowed(request, "<module>.<action>")` or use `ModulePermission.of(...)`. `CEDARS_API_TOKEN_MAX_DAYS` (365) caps a
   token's life.
+- The open data API (BR-11.5, decision J; `cedars/modules/data/api.py`, `/api/v1/data`) is public, needs no account and is throttled like
+  every call. It serves the published snapshots through the dashboards' and record downloads' own code, so an answer equals the page
+  and the file for the same query string: `metrics` (the metric catalog), `dimensions` (dimensions, their values from the registry, the
+  PAs by type, the exclusions and their defaults, the forecast filings), `query` (`query.run`: metrics summed by dimension, the
+  dashboards' default exclusions), `columns` and `records` (`records.py`'s query and column choice, read a page at a time in CEInputID
+  order, nothing excluded unless asked). Pages hold up to `DATA_API_MAX_ROWS` (1,000; default `DATA_API_DEFAULT_ROWS`, 100) rows with
+  `next` / `previous` links. Every data answer carries the downloads' stamp (release, as-of time, snapshots and filings read, filters,
+  exclusions, the records each PA holds) and the dictionary version. A column, metric, dimension or exclusion is served only when every
+  field it reads is marked public in the data dictionary in force (a field the dictionary does not have, such as a `Legacy_` column, is
+  not), besides the platform's FiledBy, Filing and CountedPA; anything else is refused with 400, as is an unknown parameter.
 - Pages and the API call one service layer; the API (`/api/v1`, OpenAPI) has its own tests. This keeps the design's aim (the API is never a
   less-tested path) without pages making HTTP calls to their own server.
 - Edit inputs (`calculations/drafts.py`, pages under `/calculations/drafts/`) keeps a small job's tables (up to the engine's 500
