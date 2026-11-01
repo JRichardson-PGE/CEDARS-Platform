@@ -60,7 +60,8 @@ def test_a_restatement_on_another_acc_splits_the_change_and_never_touches_the_fi
     described, state = restatements.refresh(rs)
     assert state == "done" and described["restated"]["succeeded"]
     assert frozen(v) == before  # the filed record is exactly as confirmed
-    actions = set(AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk)).values_list("action", flat=True))
+    events = AuditEvent.objects.filter(object_type="submissions.submissionversion", object_id=str(v.pk))
+    actions = set(events.values_list("action", flat=True))
     assert "submission.restatement_started" in actions and "submission.priced" in actions
 
     c = restatements.comparison(rs)
@@ -174,7 +175,8 @@ def test_the_pages(client, filer, year, pge, programs, release, make_user):  # n
 
 def test_beside_another_claim_year(filer, year, pge, programs, release, cpuc_admin):  # noqa: F811
     now = timezone.now()
-    service.add_year(cpuc_admin, year=2029, acc_version="2024", due={k: now + timedelta(days=30 * (i + 1)) for i, (k, _) in enumerate(service.PERIODS)})
+    due = {k: now + timedelta(days=30 * (i + 1)) for i, (k, _) in enumerate(service.PERIODS)}
+    service.add_year(cpuc_admin, year=2029, acc_version="2024", due=due)
     v28 = confirmed(filer, pge, q1())
     d29 = next(d for d in service.periods(2029) if d.kind == "Q1 claim")
     data = claims_zip(
@@ -191,7 +193,7 @@ def test_beside_another_claim_year(filer, year, pge, programs, release, cpuc_adm
     v29 = service.confirm(filer, v29)
 
     rs = restatements.start(filer, v28, organisation=None, release="0.1.80", acc_version="2024")
-    for role, run in runs(rs).items():
+    for run in runs(rs).values():
         finish_run(run, scale=1.5)
     restatements.refresh(rs)
     assert [y for y, _ in restatements.other_years(rs)] == [2029]
