@@ -11,6 +11,14 @@ class BudgetsConfig(AppConfig):
     verbose_name = "Budgets"
 
     def ready(self):
+        from cedars.services.rules.precheck import register_checker
+
+        from . import service as checks
+
+        register_checker(  # the pre-upload checker runs the rule-set step of a budget filing's validation (BR-03.4)
+            "budgets", checks.RULE_SET, "Budget and application filings", checks.precheck,
+            year_help="Each record is checked as a filing for its own year; give a year to check only that year's records.",
+        )  # fmt: skip
         from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
         from cedars.services.submissions.service import register_deadline_page, register_publisher

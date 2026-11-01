@@ -30,6 +30,11 @@ def _engine():
     return filing_rules, fieldnames
 
 
+def require_engine() -> None:
+    """Raises EngineMissing when the pinned engine is not installed here."""
+    _engine()
+
+
 def suggested_fix(kind: str, field: str, definition: dict, message: str) -> str:
     """A plain-language fix for a finding, from the kind of rule (BR-03.2: every finding says how to fix it)."""
     check = definition.get("check", "")

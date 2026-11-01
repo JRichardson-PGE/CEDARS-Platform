@@ -1,22 +1,31 @@
 {% extends "core/base.html" %}
-{% block title %}Check a file{% endblock %}
+{% block title %}Check a file<section aria-labelledby="other-h">
+<h2 id="other-h">Other ways to check</h2>
+<ul>
+  <li><strong>From your own system, through the API.</strong> <code>POST /api/v1/rules/check</code> with the file, the module (<code>claims</code> or <code>budgets</code>), the table, and optionally the rule set's ID and the filing year returns these findings as JSON or CSV. Use an API token from your <a href="{% url 'administration:account' %}">account page</a>; the <a href="{% url 'api-schema' %}">API description</a> lists the fields.</li>
+  <li><strong>Without sending a file.</strong> Each rule set's page offers its rules as JSON with how each rule is checked and the value lists it reads, for checking files in your own systems. {% for ch in choices %}{% if ch.in_force %}<a href="{% url 'rules:json' ch.in_force.pk %}">{{ ch.checker.label }} rules in force (JSON)</a>{% if not forloop.last %}; {% endif %}{% endif %}{% endfor %}.</li>
+  <li><strong>With ReCET installed.</strong> <code>recet preflight --preflight-only --filing-validation claims --filing-year 2028 --measures Measure.csv</code> (or <code>budget_filing</code>) runs CEDARS' rules as the engine release ships them. When this site's version is newer than the engine's, the page, the API or the JSON give the rules in force here.</li>
+</ul>
+<p class="small muted">The upload also runs the module's checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed claims, the program registry), so a file that passes here can still get findings on upload.</p>
+</section>
+{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'rules:index' %}">Validation rules</a></li></ol></nav>
 <div class="page-title"><h1>Check a file before you file it</h1>{% page_help "rules/check" %}</div>
-<p>Runs the rules in force on your file, exactly as a filing will be checked. Nothing you upload here is kept.</p>
-{% if sets %}
+<p>Runs a filing's validation rules on one table of your file, exactly as the upload runs them: the rules in force, or any other published version. Nothing you upload here is kept.</p>
+{% if choices %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
-  <div class="field"><label for="rule_set">Rules</label><select id="rule_set" name="rule_set">{% for s in sets %}<option value="{{ s.pk }}"{% if s == rs %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="rule_set">Rules</label><select id="rule_set" name="rule_set" aria-describedby="rs-help">{% for ch in choices %}<optgroup label="{{ ch.checker.label }}">{% for v in ch.versions %}<option value="{{ v.pk }}"{% if rs and v == rs or not rs and v == ch.in_force and forloop.parentloop.first %} selected{% endif %}>{{ v }}{% if v == ch.in_force %} (in force){% elif ch.in_force and v.effective_from > ch.in_force.effective_from %} (takes effect later){% endif %}</option>{% endfor %}</optgroup>{% endfor %}</select><span id="rs-help" class="small muted">The version in force is what an upload today is checked against.</span></div>
   <div class="field"><label for="table">Table</label><select id="table" name="table"><option{% if table == "Measure" %} selected{% endif %}>Measure</option><option{% if table == "ProgramCost" %} selected{% endif %}>ProgramCost</option></select></div>
-  <div class="field"><label for="filing_year">Filing year (budget filings)</label><input type="number" id="filing_year" name="filing_year" min="2000" max="2100" aria-describedby="fy-help"><span id="fy-help" class="small muted">Budget filings check that PrgYear and CEInputID name it.</span></div>
-  <div class="field"><label for="file">File (CSV, pipe- or comma-delimited)</label><input type="file" id="file" name="file" accept=".csv,.txt" required></div>
+  <div class="field"><label for="filing_year">Filing year (optional)</label><input type="number" id="filing_year" name="filing_year" min="2000" max="2100" value="{{ filing_year }}" aria-describedby="fy-help"><span id="fy-help" class="small muted">{% for ch in choices %}{{ ch.checker.label }}: {{ ch.checker.year_help }}{% if not forloop.last %} {% endif %}{% endfor %}</span></div>
+  <div class="field"><label for="file">File (CSV, pipe- or comma-delimited)</label><input type="file" id="file" name="file" accept=".csv,.txt" required aria-describedby="file-help"><span id="file-help" class="small muted">One table, up to {{ max_mb }} MB.</span></div>
   <div class="actions"><button type="submit" class="primary">Check</button><button type="submit" name="download" value="1">Check and download every finding (CSV)</button></div>
 </form>
 {% else %}<p>No rule set is in force yet.</p>{% endif %}
 {% if rs %}
 <section aria-labelledby="res-h" tabindex="-1" id="results">
 <h2 id="res-h">Results for {{ filename }}</h2>
-<p>{{ records }} record{{ records|pluralize }} checked against {{ rs }}: <strong>{{ rejected }} would be rejected</strong>, {{ warned }} would get a warning. {{ total }} finding{{ total|pluralize }}{% if total > findings|length %}; the first {{ findings|length }} are below, download them all as CSV{% endif %}.</p>
+<p>{{ records }} record{{ records|pluralize }} checked against {{ rs }} ({{ result.checker.label }}{% if result.filing_year %}, filing year {{ result.filing_year }}{% endif %}): <strong>{{ rejected }} would be rejected</strong>, {{ warned }} would get a warning. {{ total }} finding{{ total|pluralize }}{% if total > findings|length %}; the first {{ findings|length }} are below, download them all as CSV{% endif %}.</p>
 {% if by_rule %}
 <h3>By rule</h3>
 <ul>{% for key, n in by_rule %}<li><strong>{{ key.0 }}</strong> ({{ key.1 }}): {{ key.2 }}: {{ n }}</li>{% endfor %}</ul>
@@ -33,4 +42,13 @@
 {% if notes %}<details><summary>Rules that could not be checked ({{ notes|length }})</summary><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul></details>{% endif %}
 </section>
 {% endif %}
+<section aria-labelledby="other-h">
+<h2 id="other-h">Other ways to check</h2>
+<ul>
+  <li><strong>From your own system, through the API.</strong> <code>POST /api/v1/rules/check</code> with the file, the module (<code>claims</code> or <code>budgets</code>), the table, and optionally the rule set's ID and the filing year returns these findings as JSON or CSV. Use an API token from your <a href="{% url 'administration:account' %}">account page</a>; the <a href="{% url 'api-schema' %}">API description</a> lists the fields.</li>
+  <li><strong>Without sending a file.</strong> Each rule set's page offers its rules as JSON with how each rule is checked and the value lists it reads, for checking files in your own systems. {% for ch in choices %}{% if ch.in_force %}<a href="{% url 'rules:json' ch.in_force.pk %}">{{ ch.checker.label }} rules in force (JSON)</a>{% if not forloop.last %}; {% endif %}{% endif %}{% endfor %}.</li>
+  <li><strong>With ReCET installed.</strong> <code>recet preflight --preflight-only --filing-validation claims --filing-year 2028 --measures Measure.csv</code> (or <code>budget_filing</code>) runs CEDARS' rules as the engine release ships them. When this site's version is newer than the engine's, the page, the API or the JSON give the rules in force here.</li>
+</ul>
+<p class="small muted">The upload also runs the module's checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed claims, the program registry), so a file that passes here can still get findings on upload.</p>
+</section>
 {% endblock %}

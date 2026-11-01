@@ -11,6 +11,14 @@ class ClaimsConfig(AppConfig):
     verbose_name = "Claims"
 
     def ready(self):
+        from cedars.services.rules.precheck import register_checker
+
+        from . import service as checks
+
+        register_checker(  # the pre-upload checker runs the rule-set step of a claims upload's validation (BR-03.4)
+            "claims", checks.RULE_SET, "Quarterly claims", checks.precheck,
+            year_help="The claim year; left blank, the one year the records are for.",
+        )  # fmt: skip
         from cedars.services.submissions.service import register_claims_totals, register_deadline_page, register_publisher
 
         from . import service

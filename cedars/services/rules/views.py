@@ -1,3 +1,4 @@
+import json
 from collections import Counter
 
 from django.contrib import messages
@@ -7,13 +8,13 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from cedars.core import uploads
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import forms, service
+from . import forms, precheck, service
 from .models import Rule, RuleSet
 
-MAX_UPLOAD = 200 * 1024 * 1024
 SHOWN = 200
 
 
@@ -106,51 +107,77 @@ def differences(request):
     return render(request, "rules/differences.html", {"sets": sets, "a": a, "b": b, "diff": diff})
 
 
+def _check_choices():
+    """Each module's published rule-set versions, the one in force first and selected by default."""
+    out = []
+    for c in precheck.checkers():
+        current = service.in_force(c.code)
+        versions = [rs for rs in precheck.versions() if rs.code == c.code]
+        versions.sort(key=lambda rs: (current is None or rs.pk != current.pk, -rs.effective_from.toordinal()))
+        if versions:
+            out.append({"checker": c, "versions": versions, "in_force": current})
+    return out
+
+
 @login_required
 def check(request):
-    """The pre-upload checker (BR-03.4): the rules CEDARS will apply, run on a file before it is filed. Nothing uploaded is kept."""
-    sets = [rs for rs in (service.in_force(c) for c in RuleSet.objects.values_list("code", flat=True).distinct()) if rs]
-    ctx = {"sets": sets}
+    """The pre-upload checker (BR-03.4): the rule-set step of a module's validation, run on a file before it is filed, against the
+    version in force or any other published one (rules.precheck: the same code the upload runs). Nothing uploaded is kept."""
+    choices = _check_choices()
+    ctx = {"choices": choices, "max_mb": uploads.max_mb()}
     if request.method == "POST":
-        rs = next((s for s in sets if str(s.pk) == request.POST.get("rule_set")), None)
+        rs = RuleSet.objects.filter(pk=request.POST.get("rule_set") or 0, status=RuleSet.Status.PUBLISHED).first()
         upload = request.FILES.get("file")
         table = request.POST.get("table", "Measure")
-        year = request.POST.get("filing_year") or None
-        if rs is None or upload is None or table not in ("Measure", "ProgramCost"):
+        year = request.POST.get("filing_year", "").strip()
+        if rs is None or upload is None or table not in precheck.TABLES or (year and not year.isdigit()):
             messages.error(request, "Choose the rules, the table and a file.")
             return redirect("rules:check")
-        if upload.size > MAX_UPLOAD:
-            messages.error(request, "That file is over 200 MB; check it in parts, or with the checker on your own computer.")
+        problem = uploads.too_large(upload.name, upload.size)
+        if problem:
+            messages.error(request, f"{problem} Check the table in parts.")
             return redirect("rules:check")
         try:
-            df = service.read_table(upload.read())
-            findings, notes = service.check(rs, table, df, filing_year=int(year) if year else None)
+            result = precheck.check(None, table, upload.read(), rule_set=rs, filing_year=int(year) if year else None)
         except service.EngineMissing as e:
+            messages.error(request, str(e))
+            return redirect("rules:check")
+        except precheck.CheckError as e:
             messages.error(request, str(e))
             return redirect("rules:check")
         except Exception as e:  # noqa: BLE001 - a file we cannot read is reported, not a server error
             messages.error(request, f"The file could not be read as a {table} table: {e}")
             return redirect("rules:check")
+        findings = result.findings
         if request.POST.get("download"):
             resp = HttpResponse(service.findings_csv(findings), content_type="text/csv; charset=utf-8")
             resp["Content-Disposition"] = f'attachment; filename="findings_{table}.csv"'
             return resp
-        records = len(df)
-        rejected = len({f.record_id or f.row for f in findings if f.severity == "reject"})
-        warned = len({f.record_id or f.row for f in findings if f.severity == "warning"})
         ctx |= {
             "rs": rs,
+            "result": result,
             "table": table,
+            "filing_year": year,
             "findings": findings[:SHOWN],
             "total": len(findings),
-            "notes": notes,
-            "records": records,
-            "rejected": rejected,
-            "warned": warned,
+            "notes": result.notes,
+            "records": result.records,
+            "rejected": result.rejected,
+            "warned": result.warned,
             "by_rule": Counter((f.rule_id, f.severity, f.message.split(", but is")[0]) for f in findings).most_common(20),
             "filename": upload.name,
         }
     return render(request, "rules/check.html", ctx)
+
+
+def rule_set_json(request, pk):
+    """A published rule set as JSON with how each rule is checked: the downloadable form of the pre-upload checker, for systems that
+    check files without CEDARS' code (BR-03.4). Public, as the rule library is."""
+    rs = get_object_or_404(RuleSet, pk=pk, status=RuleSet.Status.PUBLISHED)
+    body = json.dumps(precheck.rule_set_json(rs, request.build_absolute_uri("/").rstrip("/")), indent=1, ensure_ascii=False)
+    resp = HttpResponse(body, content_type="application/json; charset=utf-8")
+    resp["Content-Disposition"] = f'attachment; filename="rules_{rs.code}_{rs.effective_from:%Y%m%d}.json"'
+    return resp
 
 
 def rule(request, pk, rule_id):
