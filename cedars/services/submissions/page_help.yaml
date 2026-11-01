@@ -39,3 +39,106 @@ submissions/reopen_requests:
       title: Decided
       text: Requests already decided, and by whom.
       optional: true
+
+submissions/records:
+  title: Correcting records
+  see: correcting-records
+  guide:
+    - >-
+      Single records of an open draft (a filing not yet confirmed, or the new draft an un-confirm or a reopen leaves) are changed,
+      added or deleted here without uploading the whole file again. A confirmed version never changes.
+    - >-
+      Each change is checked as soon as it is saved: the record itself and the records whose checks it can affect. Every other record
+      keeps its findings. The version is then priced again before it is confirmed, and every change is in the audit trail with the
+      record before and after.
+  how:
+    - Find a record by its key or any value, then open it to change it or delete it.
+    - Add a record to any table of the filing.
+    - Upload a partial correction (only the changed and new records, with a Delete table for records to remove), preview it, then apply it.
+  tour:
+    - heading: Find a record
+      title: Find a record
+      text: Search by key or any value, in one table or every table. Records filed in an earlier confirmation are found too.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: "Found:"
+      title: What was found
+      text: Each record, where it is, and a link to correct it.
+      optional: true
+    - heading: Add a record
+      title: Add a record
+      text: A form for a new record of the table you choose.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: Upload a partial correction
+      title: Partial corrections
+      text: A file of only the changed and new records; you see every change before it is applied.
+      optional: true  # a confirmed version has no editor, only the reason
+    - heading: These records cannot be corrected now
+      title: Why not now
+      text: Corrections need an open draft; this says what to do instead.
+      optional: true
+
+submissions/record:
+  title: One record
+  see: correcting-records
+  guide:
+    - >-
+      The record's fields, with what its last check found beside the fields concerned. Saving checks this record and those whose
+      checks it can affect again, and says what the check found.
+    - >-
+      A record filed in an earlier confirmation is corrected by adding the corrected record to this version, where it stands over the
+      earlier one; its key stays.
+  how:
+    - Change the fields and choose Save and check (or Add and check for a new record).
+    - Delete this record removes it from this version, after you confirm.
+  tour:
+    - heading: Findings on this record
+      title: Findings
+      text: What the last check found on this record, rejects first, each linked to its field.
+      optional: true
+    - heading: Fields
+      title: Fields
+      text: Every field of the table, with its type and description; a field with a finding is marked.
+    - target: "#in-reason"
+      title: Why
+      text: An optional reason, kept with the change in the audit trail.
+
+submissions/record_delete:
+  title: Deleting a record
+  see: correcting-records
+  guide:
+    - >-
+      Deleting a record takes it out of this draft version. The records that refer to it are checked again, and the deletion is in the
+      audit trail with the record as it was. A claim filed in an earlier confirmation is withdrawn instead, never deleted.
+  how:
+    - Choose Delete and check, or Keep it.
+  tour:
+    - target: main table.list
+      title: The record
+      text: Its values, as they stand.
+    - target: "#del-reason"
+      title: Why
+      text: An optional reason, kept in the audit trail.
+
+submissions/correction:
+  title: A partial correction's preview
+  see: correcting-records
+  guide:
+    - >-
+      What applying the file would change, record by record, before anything is changed. Applying it checks the records it changes and
+      those whose checks they affect, and records each change in the audit trail with the file's name and SHA-256.
+    - >-
+      It applies only to the records as they stood when it was previewed: if another correction or upload changed them since, preview
+      it again.
+  how:
+    - Read the changes, or download them all as CSV.
+    - Apply and check, or Do not apply.
+  tour:
+    - heading: What would change
+      title: By table
+      text: How many records each table would have changed, added, deleted or carried in.
+    - heading: Record by record
+      title: Record by record
+      text: Each record, what happens to it, and each field before and after.
+    - heading: Apply it
+      title: Apply it
+      text: Apply the correction, with an optional reason.

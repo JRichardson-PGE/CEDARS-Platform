@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% block title %}Correct records · version {{ v.number }}{% endblock %}
+{% block content %}
+{% include "submissions/_record_crumbs.html" with here_is_records=True %}
+<div class="page-title"><h1>Correct records: {{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }}</h1>{% page_help "submissions/records" %}</div>
+{% if why %}
+<div role="note" class="card"><p><strong>These records cannot be corrected now.</strong> {{ why }}</p>
+{% if back %}<p><a href="{{ back }}">Back to the filing</a></p>{% endif %}</div>
+{% else %}
+<p>Change, add or delete single records of this draft without uploading the whole file again. Each change is checked as soon as it is saved:
+the record itself and the records whose checks it can affect (the same key, the records that refer to it); every other record keeps its findings.
+The version then needs pricing again before it is confirmed. Every change is recorded in the audit trail with the record before and after.</p>
+<dl class="facts">
+  <dt>Status</dt><dd>{{ v.get_status_display }}{% if s.records is not None %}: {{ s.rejected|default:0|floatformat:"0g" }} record{{ s.rejected|default:0|pluralize }} rejected, {{ s.warnings|default:0|floatformat:"0g" }} with warnings only{% endif %}</dd>
+  {% if summary %}<dt>Corrected record by record so far</dt><dd>{{ summary.records|floatformat:"0g" }} record{{ summary.records|pluralize }}: {{ summary.edit|floatformat:"0g" }} changed, {{ summary.add|floatformat:"0g" }} added, {{ summary.delete|floatformat:"0g" }} deleted{% if summary.partial %}, {{ summary.partial }} by partial correction{{ summary.partial|pluralize }}{% endif %}</dd>{% endif %}
+</dl>
+
+<section aria-labelledby="find-h">
+<h2 id="find-h">Find a record</h2>
+<form method="get" action="{% url 'submissions:records' v.pk %}" class="stack form-narrow" role="search" aria-label="Find a record">
+  <div class="field"><label for="find-table">Table</label>
+    <select id="find-table" name="table"><option value="">Every table</option>{% for t in tables %}<option value="{{ t.name }}"{% if t.name == table %} selected{% endif %}>{{ t.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="find-q">Key or any value</label>
+    <input type="search" id="find-q" name="q" value="{{ q }}" aria-describedby="find-q-help" autocomplete="off">
+    <span class="small muted" id="find-q-help">For example a ClaimID, a PrgID or a SiteID. Part of a value finds it too; case does not matter. Blank lists every record of the table.</span></div>
+  <div class="actions"><button type="submit">Find</button></div>
+</form>
+{% if searched %}
+<h3 id="found-h">Found: {{ found_count|floatformat:"0g" }} record{{ found_count|pluralize }}</h3>
+{% if found %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="found-h">
+<table class="list">
+  <caption class="sr-only">Records found{% if q %} for {{ q }}{% endif %}{% if table %} in {{ table }}{% endif %}</caption>
+  <thead><tr><th scope="col">Table</th><th scope="col">Record</th><th scope="col">Where it is</th><th scope="col">Actions</th></tr></thead>
+  <tbody>{% for f, query in found %}<tr>
+    <td>{{ f.table }}</td><th scope="row">{{ f.shown }}</th>
+    <td>{% if f.earlier %}Filed in {{ f.earlier }}{% else %}This version, line {{ f.line }}{% endif %}</td>
+    <td><a href="{% url 'submissions:record' v.pk f.table %}?{{ query }}">{% if f.earlier %}Correct it here<span class="sr-only">: {{ f.table }} {{ f.shown }}</span>{% else %}Open<span class="sr-only"> {{ f.table }} {{ f.shown }}</span>{% endif %}</a></td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if found_count > found|length %}<p class="small">The first {{ list_rows|floatformat:"0g" }} are listed. Name the table or more of the key to narrow the search.</p>{% endif %}
+{% else %}<p>Nothing matches. Check the table and the spelling of the key.</p>{% endif %}
+{% endif %}
+</section>
+
+<section aria-labelledby="add-h">
+<h2 id="add-h">Add a record</h2>
+<ul class="links">{% for t in tables %}<li><a href="{% url 'submissions:record_new' v.pk t.name %}">Add a {{ t.name }} record</a></li>{% endfor %}</ul>
+</section>
+
+<section aria-labelledby="partial-h">
+<h2 id="partial-h">Upload a partial correction</h2>
+<p>A file of only the records that change or are new, in the filing's own format (a .zip of CSV files named after their tables, an Excel
+workbook with a sheet per table, or one table's CSV file named after it). Records are matched on their key: a record already in this version
+is changed, any other is added. A column the file leaves out keeps each record's value; a blank cell makes the value blank. To delete records,
+add a table (a CSV file or sheet) named Delete with a Table column and the key columns of each record to delete. You see what it would change before anything is changed.</p>
+<form method="post" enctype="multipart/form-data" action="{% url 'submissions:correction_upload' v.pk %}" class="stack form-narrow">{% csrf_token %}
+  <div class="field"><label for="partial-file">Correction file</label>
+    <input type="file" id="partial-file" name="file" accept=".zip,.xlsx,.csv,.txt" required aria-describedby="partial-file-help">
+    <span class="small muted" id="partial-file-help">One .zip, .xlsx or .csv file of up to {{ max_mb }} MB, changing at most {{ max_rows|floatformat:"0g" }} records. A larger correction is a new upload of the whole file. See <a href="{% url 'limits:index' %}">Limits</a>.</span></div>
+  <div class="actions"><button type="submit" class="primary">Preview the changes</button></div>
+</form>
+</section>
+{% endif %}
+{% endblock %}

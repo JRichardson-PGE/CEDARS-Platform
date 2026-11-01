@@ -1,0 +1,1 @@
+<nav aria-label="Breadcrumb"><ol class="crumbs">{% if back %}<li><a href="{{ back }}">{{ editor.label }}: {{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}</a></li>{% endif %}{% if not here_is_records %}<li><a href="{% url 'submissions:records' v.pk %}">Correct records</a></li>{% endif %}</ol></nav>

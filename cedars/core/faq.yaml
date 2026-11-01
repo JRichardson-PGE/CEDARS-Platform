@@ -197,6 +197,22 @@ topics:
               - [B, Yes, "Yes, with a corrected quantity", "Q2's record replaces Q1's"]
               - [C, No, Yes, Added]
           result: The year to date is priced and confirmed as A (withdrawn), the new B and C.
+      - id: correct-one-record
+        q: Can I fix one rejected record without uploading the whole file again?
+        a:
+          - >-
+            Yes, on a draft. On the filing's page choose Correct records, find the record by its key, change it and save: it is
+            checked again at once with the records whose checks it affects, and every other record keeps its findings. For many
+            records, upload a partial correction (only the changed and new records, plus a Delete table for records to remove) of at
+            most {limit:correction_rows}; you see every change before it is applied.
+          - >-
+            A confirmed version never changes: un-confirm it before the due date, or ask to reopen it after, and correct the new draft.
+            Every change is in the audit trail with the record before and after, and the version is priced again before it is
+            confirmed.
+        tags: [correct, fix, edit, record, row, partial upload, in place, delete record]
+        guide: correcting-records
+        links:
+          - {text: Current limits, href: /limits/}
       - id: deemed-rejected
         q: Why was a deemed measure rejected?
         a:

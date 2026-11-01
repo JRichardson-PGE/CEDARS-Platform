@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+{% block title %}Partial correction preview · version {{ v.number }}{% endblock %}
+{% block content %}
+{% include "submissions/_record_crumbs.html" %}
+<div class="page-title"><h1>Preview: {{ p.filename }}</h1>{% page_help "submissions/correction" %}</div>
+<p>Nothing has changed yet. Applying it changes {{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }}, as listed here, then checks the records it changes
+and those whose checks they affect.</p>
+<section aria-labelledby="counts-h">
+<h2 id="counts-h">What would change: {{ p.total|floatformat:"0g" }} record{{ p.total|pluralize }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Changes by table">
+<table class="list">
+  <caption class="sr-only">Changes by table</caption>
+  <thead><tr><th scope="col">Table</th><th scope="col">Changed</th><th scope="col">Added</th><th scope="col">Deleted</th><th scope="col">Carried in unchanged</th></tr></thead>
+  <tbody>{% for table, kinds in counts %}<tr><th scope="row">{{ table }}</th><td class="num">{{ kinds.edit|default:0|floatformat:"0g" }}</td><td class="num">{{ kinds.add|default:0|floatformat:"0g" }}</td><td class="num">{{ kinds.delete|default:0|floatformat:"0g" }}</td><td class="num">{{ kinds.carry|default:0|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if p.unchanged %}<p class="small">{{ p.unchanged|floatformat:"0g" }} record{{ p.unchanged|pluralize }} in the file already hold{{ p.unchanged|pluralize:"s," }} its values and {{ p.unchanged|pluralize:"is,are" }} left as {{ p.unchanged|pluralize:"it is,they are" }}.</p>{% endif %}
+{% if carried %}<p class="small">{{ carried|floatformat:"0g" }} record{{ carried|pluralize }} filed earlier come{{ carried|pluralize:"s," }} in unchanged with a corrected record of the same set (a claim's records in a table whose rows for a claim are one set).</p>{% endif %}
+</section>
+
+<section aria-labelledby="changes-h">
+<h2 id="changes-h">Record by record</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Each change">
+<table class="list">
+  <caption class="sr-only">Each change: the record, what happens to it, and each field before and after</caption>
+  <thead><tr><th scope="col">Table</th><th scope="col">Record</th><th scope="col">Change</th><th scope="col">Fields: before, after</th></tr></thead>
+  <tbody>{% for x in shown %}<tr>
+    <td>{{ x.c.table }}</td><th scope="row">{{ x.c.key }}</th>
+    <td>{% if x.c.kind == "edit" %}{% if x.c.earlier %}Corrected (filed in {{ x.c.earlier }}){% else %}Changed{% endif %}{% elif x.c.kind == "add" %}Added{% else %}Deleted{% endif %}</td>
+    <td>{% if x.fields %}<ul class="issues">{% for name, before, after in x.fields %}<li>{{ name }}: {{ before|default:"(blank)" }}, now {{ after|default:"(blank)" }}</li>{% endfor %}</ul>{% elif x.c.kind == "edit" %}No field changes{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if more > 0 %}<p class="small">{{ more|floatformat:"0g" }} more not listed here.</p>{% endif %}
+<p><a href="{% url 'submissions:correction_csv' v.pk p.token %}">Download every change (CSV)</a>: table, record, change, and each field before and after.</p>
+</section>
+
+<form method="post" action="{% url 'submissions:correction_apply' v.pk p.token %}" class="stack form-narrow" aria-labelledby="apply-h">{% csrf_token %}
+  <h2 id="apply-h">Apply it</h2>
+  <input type="hidden" name="state" value="{{ p.state }}">
+  <div class="field"><label for="apply-reason">Why (optional)</label>
+    <textarea id="apply-reason" name="reason" rows="2" aria-describedby="apply-reason-help"></textarea>
+    <span class="small muted" id="apply-reason-help">Kept with each change in the audit trail, with the file's name and SHA-256.</span></div>
+  <div class="actions"><button type="submit" class="primary">Apply and check</button> <a href="{% url 'submissions:records' v.pk %}">Do not apply</a></div>
+</form>
+{% endblock %}

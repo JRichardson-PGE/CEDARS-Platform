@@ -311,6 +311,10 @@ CEDARS_UPLOAD_MAX_MB = int(env("CEDARS_UPLOAD_MAX_MB", "150"))
 CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
 IMPACT_PROFILES_CUSTOM_MAX_MB = int(env("IMPACT_PROFILES_CUSTOM_MAX_MB", "20"))  # a PA's custom impact profile file
 CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version (BR-09.5)
+# Correcting a filing's records in place (BR-02.4): the most records one partial correction may change (a larger one is a new upload),
+# and the most records a correction page lists at once (records found, a preview's changes; the rest are counted and downloadable).
+CEDARS_CORRECTION_MAX_ROWS = int(env("CEDARS_CORRECTION_MAX_ROWS", "5000"))
+CEDARS_CORRECTION_LIST_ROWS = int(env("CEDARS_CORRECTION_LIST_ROWS", "200"))
 # Feedback from every page's footer link (BR-12.4): the most characters in one message, the most messages one sender sends an hour,
 # and an optional team inbox that gets a copy of each (the CPUC system administrators are told of each one either way).
 CEDARS_FEEDBACK_MAX_CHARS = int(env("CEDARS_FEEDBACK_MAX_CHARS", "4000"))

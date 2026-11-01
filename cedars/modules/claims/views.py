@@ -16,6 +16,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 from cedars.services.vault import service as vault
@@ -226,6 +227,7 @@ def period(request, pk):
         if ctx["priced"]:
             ctx["tiles"] = _tiles(service.table(v))
         ctx.update(_pii(request, org, v, acting))
+        ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     return render(request, "claims/period.html", ctx)
 
 
