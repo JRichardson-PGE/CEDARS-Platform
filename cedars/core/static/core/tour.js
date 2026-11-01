@@ -24,6 +24,7 @@
 
   // ---------- the page's help dialog ----------
   if (help && helpButton && typeof help.showModal === "function") {
+    helpButton.setAttribute("role", "button");  // a link without scripts; with them it opens the dialog
     helpButton.setAttribute("aria-haspopup", "dialog");
     helpButton.addEventListener("click", function (e) {
       e.preventDefault();

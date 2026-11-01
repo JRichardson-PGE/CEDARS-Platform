@@ -13,7 +13,7 @@
 <h2>{% if title == "only_a" %}Only in {{ a }}{% elif title == "only_b" %}Only in {{ b }}{% else %}In both, with a recorded difference{% endif %} ({{ rules|length }})</h2>
 {% if rules %}
 <div class="hscroll" tabindex="0" role="region" aria-label="{% if title == 'only_a' %}Only in the first{% elif title == 'only_b' %}Only in the second{% else %}Recorded differences{% endif %}">
-<table class="list"><thead><tr><th scope="col">Rule</th><th scope="col">Table</th><th scope="col">Rule</th></tr></thead>
+<table class="list"><caption class="sr-only">{% if title == 'only_a' %}Rules only in the first set{% elif title == 'only_b' %}Rules only in the second set{% else %}Recorded differences{% endif %}</caption><thead><tr><th scope="col">Rule</th><th scope="col">Table</th><th scope="col">Rule</th></tr></thead>
 <tbody>{% for r in rules %}<tr><th scope="row">{{ r.rule_id }}</th><td>{{ r.table }}</td><td>{{ r.message }}{% if r.difference %} ({{ r.difference }}){% endif %}</td></tr>{% endfor %}</tbody></table>
 </div>
 {% else %}<p>None.</p>{% endif %}

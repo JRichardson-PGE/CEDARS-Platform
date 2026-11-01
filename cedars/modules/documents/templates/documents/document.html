@@ -55,7 +55,7 @@
 <section aria-labelledby="versions-h">
 <h2 id="versions-h">{% if doc.deliverable %}Revision history{% else %}Versions{% endif %}</h2>
 <p class="small muted">{% if doc.deliverable %}Every stage in order, oldest first: each draft with its comment period, each final and its revisions, and the PAs' responses. {% endif %}A replaced file is never deleted: each version keeps its own files{% if not sees_unpublished %}. Only published versions are listed{% endif %}.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="{% if doc.deliverable %}Revision history{% else %}Versions{% endif %}">
+<div class="hscroll" tabindex="0" role="region" aria-label="{% if doc.deliverable %}Revision history{% else %}Versions{% endif %} table">
 <table class="list">
   <caption class="sr-only">{% if doc.deliverable %}Revision history of {{ doc.title }}, oldest first{% else %}Versions of {{ doc.title }}, newest first{% endif %}</caption>
   <thead><tr><th scope="col">Version</th>{% if doc.deliverable %}<th scope="col">Stage</th>{% endif %}<th scope="col">Published</th><th scope="col">Files</th><th scope="col">Why it was added</th><th scope="col">Added by</th><th scope="col">Comments</th></tr></thead>

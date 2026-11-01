@@ -84,6 +84,10 @@
 </dl>{% if totals.percent_note %}<p class="small">{{ totals.percent_note }}</p>{% endif %}{% endif %}
 {% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 
+{# The forecast bars' hatch pattern, defined once for every chart on the page (a pattern id must be unique on the page). #}
+<svg class="chart-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-bg" width="6" height="6"/><line class="hatch-line" x1="0" y1="0" x2="0" y2="6"/></pattern></defs>
+</svg>
 {% for b in blocks %}
 <h2>{{ b.caption|capfirst }}</h2>
 {% if b.kind == "budget" %}

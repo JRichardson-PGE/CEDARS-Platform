@@ -111,6 +111,7 @@
 {% if members %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Members of {{ org.code }}">
 <table class="list">
+  <caption class="sr-only">Members of {{ org.code }} and their permissions</caption>
   <thead><tr><th scope="col">Member</th><th scope="col">Permissions</th><th scope="col"><span class="sr-only">Membership</span></th></tr></thead>
   <tbody>
   {% for m, grants in members %}
@@ -158,6 +159,7 @@
 <p>Open, due {{ campaign.due_at|date:"Y-m-d" }}. Confirm or remove each grant; what is not reviewed by then may be suspended.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Grants to recertify">
 <table class="list">
+  <caption class="sr-only">Grants to recertify</caption>
   <thead><tr><th scope="col">Member</th><th scope="col">Permission</th><th scope="col">Review</th></tr></thead>
   <tbody>
   {% for item, label in items %}
@@ -188,6 +190,7 @@
 {% if tokens %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Active API tokens">
 <table class="list">
+  <caption class="sr-only">Active API tokens</caption>
   <thead><tr><th scope="col">Member</th><th scope="col">Name</th><th scope="col">Modules</th><th scope="col">Expires</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for t in tokens %}

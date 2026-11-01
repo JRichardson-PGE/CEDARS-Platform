@@ -70,6 +70,7 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
 <h2 id="files-h">Files</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Output files">
 <table class="list">
+  <caption class="sr-only">Output files</caption>
   <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
   <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
 </table>

@@ -15,6 +15,7 @@
 {% if issues %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Problems found">
 <table class="list">
+  <caption class="sr-only">Problems found in the factors</caption>
   <thead><tr><th scope="col">Program</th><th scope="col">Year</th><th scope="col">Finding</th><th scope="col">Stops confirmation</th></tr></thead>
   <tbody>{% for i in issues %}<tr><th scope="row">{{ i.program_id }}</th><td>{{ i.year }}</td><td>{{ i.message }}</td><td>{% if i.blocking %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</tbody>
 </table>

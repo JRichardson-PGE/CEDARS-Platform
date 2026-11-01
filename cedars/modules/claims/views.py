@@ -203,7 +203,7 @@ def period(request, pk):
         "opens_later": deadline.opens_at and timezone.now() < deadline.opens_at,
         "can_submit": can["submit"] and acting,
         "can_confirm": can["confirm"] and acting,
-        "upload_form": forms.UploadForm(),
+        "upload_form": forms.UploadForm(auto_id="upload_%s"),
         "pending_reopen": sub.reopen_requests.filter(status=ReopenRequest.Status.PENDING).first() if sub else None,
         "sysadmin": access.is_system_admin(request.user),
         "earlier": earlier,
@@ -237,7 +237,7 @@ def _pii(request, org, v: SubmissionVersion, acting: bool) -> dict:
         "vault": vault.enabled(),
         "pii_upload": acting and vault.can_upload(request.user, org, assurance) and not v.locked,
         "pii_read": vault.can_read(request.user, org, assurance),
-        "pii_form": forms.PIIForm(),
+        "pii_form": forms.PIIForm(auto_id="pii_%s"),
     }
     out["pii_shown"] = out["pii_upload"] or out["pii_read"]
     if out["vault"] and out["pii_shown"]:

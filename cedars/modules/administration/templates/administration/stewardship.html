@@ -7,8 +7,9 @@
 <section aria-labelledby="pending-h">
 <h2 id="pending-h">PII access waiting for approval</h2>
 {% if pending %}
-<div class="hscroll" tabindex="0" role="region" aria-label="PII access waiting for approval">
+<div class="hscroll" tabindex="0" role="region" aria-label="PII access waiting for approval table">
 <table class="list">
+  <caption class="sr-only">PII access waiting for approval</caption>
   <thead><tr><th scope="col">Person</th><th scope="col">Organization</th><th scope="col">Asked by</th><th scope="col">Decision</th></tr></thead>
   <tbody>
   {% for g in pending %}
