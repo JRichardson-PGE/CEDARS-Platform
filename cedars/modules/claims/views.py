@@ -1,5 +1,6 @@
 import csv
 import mimetypes
+from collections import defaultdict
 from decimal import Decimal
 
 from django.contrib import messages
@@ -466,8 +467,27 @@ def version(request, pk):
             "legacy": legacy.imported(v) if v.imported else None,
             "restatements": list(restatements.visible(request.user, v)),
             "restatable": not restatements.restatable(v),
+            "true_ups": _true_ups(v, t),
         },
     )
+
+
+def _true_ups(v, t) -> dict | None:
+    """The version's true-ups priced against their parents' profiles (BR-05.6): each one's pinned parent profile and, once priced, the
+    incremental benefits by program."""
+    entries = (v.findings or {}).get("true_ups") or []
+    if not entries:
+        return None
+    programs = [
+        {"r": r, "cells": [_fmt("money", sums.get(k)) for k, _ in service.INCREMENTAL_SHOWN]} for r, sums in service.true_up_programs(t)
+    ]
+    return {
+        "entries": entries,
+        "count": (v.findings or {}).get("true_ups_count", len(entries)),
+        "head": [h for _, h in service.INCREMENTAL_SHOWN],
+        "programs": programs,
+        "priced": t.priced,
+    }
 
 
 @login_required
@@ -646,8 +666,20 @@ def links(request):
         else:
             rows = [{"r": r} for r in service.participant_claims(q)]
         found = bool(rows)
+    incremental = {}
+    if chain:
+        by_version = defaultdict(list)
+        for row in rows:
+            if row["r"].true_up:
+                by_version[row["r"].version].append(row["r"].claim_id)
+        for ver, ids in by_version.items():
+            incremental.update(service.incremental_by_claim(ver, ids))
     for row in rows:
         r = row["r"]
+        if chain and r.true_up:
+            row["parent_profile"] = service.true_up_entry(r)
+            tsb = incremental.get(r.claim_id.strip().lower(), {}).get("TotalSystemBenefitIncremental")
+            row["incremental_tsb"] = _signed_money(tsb)
         row["net_kwh"] = _fmt("number", r.filed.get("TotalFirstYearNetkWh"))
         row["net_therm"] = _fmt("number", r.filed.get("TotalFirstYearNetTherm"))
         if row.get("change"):
@@ -658,6 +690,14 @@ def links(request):
         "claims/links.html",
         {"kinds": LINK_KINDS, "kind": kind, "q": q, "rows": rows, "chain": chain, "found": found, "kind_label": dict(LINK_KINDS)[kind]},
     )
+
+
+def _signed_money(x) -> str:
+    if x is None or x != x:  # NaN: no parent profile priced
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + _money(abs(x))
 
 
 def _signed(x) -> str:

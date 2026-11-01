@@ -16,14 +16,15 @@ claim of one project (its ProjectID, the project key), or a SEM participant's cl
 <section aria-labelledby="results-h">
 <h2 id="results-h">{% if chain %}NMEC chain of {{ q }}{% elif kind == "project" %}Project {{ q }}{% else %}SEM participant {{ q }}{% endif %}</h2>
 {% if not found %}<p>No confirmed claim matches {{ q }}.</p>{% else %}
-<p class="small muted">{{ rows|length }} claim{{ rows|length|pluralize }}, confirmed claims only{% if chain %}, from the original claim down through its true-ups; each true-up's change is its filed totals less its parent's{% endif %}. Withdrawn claims are listed with their status.</p>
+<p class="small muted">{{ rows|length }} claim{{ rows|length|pluralize }}, confirmed claims only{% if chain %}, from the original claim down through its true-ups; each true-up's change is its filed totals less its parent's, and its benefit change is the total system benefit of its own 8,760 profile less that of the profile its parent was priced on (the same claim priced on both){% endif %}. Withdrawn claims are listed with their status.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="links-caption">
 <table class="list data">
   <caption id="links-caption" class="sr-only">Linked claims for {{ q }}</caption>
   <thead><tr>
     <th scope="col">ClaimID</th>{% if chain %}<th scope="col">Step</th>{% endif %}<th scope="col">Year</th><th scope="col">PA</th><th scope="col">Program</th><th scope="col">MeasImpactType</th>
     <th scope="col">ProjectID</th><th scope="col">ParentClaimID</th><th scope="col">ParticipantID</th><th scope="col">SEM phase</th><th scope="col">Sites</th><th scope="col">Status</th>
-    <th scope="col">Filed first-year net kWh</th><th scope="col">Filed first-year net therms</th>{% if chain %}<th scope="col">Change from parent, net kWh</th><th scope="col">Change from parent, net therms</th>{% endif %}
+    <th scope="col">Filed first-year net kWh</th><th scope="col">Filed first-year net therms</th>{% if chain %}<th scope="col">Change from parent, net kWh</th><th scope="col">Change from parent, net therms</th>
+    <th scope="col">Parent's profile priced against</th><th scope="col">Benefit change from the parent's profile</th>{% endif %}
   </tr></thead>
   <tbody>
   {% for row in rows %}<tr>
@@ -40,7 +41,9 @@ claim of one project (its ProjectID, the project key), or a SEM participant's cl
     <td>{{ row.r.site_id }}{% if row.r.sites %}{% if row.r.site_id %}; {% endif %}{{ row.r.sites|join:"; " }}{% endif %}</td>
     <td>{% if row.r.withdrawn %}Withdrawn{% else %}Active{% endif %}</td>
     <td class="num">{{ row.net_kwh }}</td><td class="num">{{ row.net_therm }}</td>
-    {% if chain %}<td class="num">{{ row.change_kwh }}</td><td class="num">{{ row.change_therm }}</td>{% endif %}
+    {% if chain %}<td class="num">{{ row.change_kwh }}</td><td class="num">{{ row.change_therm }}</td>
+    <td>{% if row.parent_profile.profile %}{{ row.parent_profile.profile }}{% if row.parent_profile.version %}, version {{ row.parent_profile.version }}{% endif %}{% endif %}</td>
+    <td class="num">{{ row.incremental_tsb }}</td>{% endif %}
   </tr>{% endfor %}
   </tbody>
 </table>

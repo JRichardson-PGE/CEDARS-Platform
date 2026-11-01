@@ -23,7 +23,7 @@ from cedars.services.rules.models import RuleSet
 from .conftest import page_only
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.87.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.89.json"
 ENTRY = {
     "reference": "Res. E-5350",
     "authority": "resolution",
