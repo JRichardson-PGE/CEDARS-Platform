@@ -2,9 +2,13 @@
 
 retention/index:
   title: Retention
+  see: getting-started
   guide:
     - For CPUC system administrators. How long each class of record is kept. The retention job runs daily and deletes only classes with a
       period and a deletion step; nothing under a legal hold is deleted. Every change needs a reason and is in the audit log.
+  how:
+    - Change a class's period, give the reason, and Save.
+    - Place the hold keeps a class, or one record, from deletion; Release ends a hold, with a reason.
   tour:
     - heading: Periods
       title: Periods

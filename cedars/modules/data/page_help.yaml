@@ -24,6 +24,10 @@ data/dashboard: &dashboard
     - Select a row's name to drill down one level; Program page opens the program.
     - Download these rows gives the rows you see as CSV, Excel or Parquet; Download the records behind these rows gives the measure-level
       records they add up.
+  how:
+    - Choose a cycle and Apply to change the cards; each card links to its dashboard page.
+    - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
+    - Sign in, or Create an account; the published data need neither.
   see: published-data
   tour: &dashboard_tour
     - target: main nav.subnav
@@ -181,6 +185,8 @@ data/download_job:
       One record download made in the background: its status, how many records it holds, and once done its size and SHA-256 checksum, so
       you can confirm the file arrived whole.
     - A queued download says how many are ahead of it. You can leave the page; you are told when it is ready.
+  how:
+    - Download gets the file once it is ready; compare its SHA-256 with the one shown to check it arrived whole.
   see: published-data
   tour:
     - target: main dl.facts

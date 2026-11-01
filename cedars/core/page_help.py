@@ -9,7 +9,7 @@ An entry:
   title:  what the page is, as the dialog's heading says it ("A budget filing")
   guide:  paragraphs on what the page is for and what you can do on it
   how:    optional list of short how-to items
-  see:    optional slug of the Help guide that goes further (core.help.GUIDES)
+  see:    slug of the Help guide that goes further (core.help.GUIDES); every entry has one
   tour:   steps, each {title, text} and where it points: `target` (a CSS selector) or `heading` (the start of a heading's, legend's,
           summary's or caption's text); a heading's section, fieldset, disclosure or table is what is outlined. `optional: true` marks a
           part that only some people see or that only some states of the page have; the tour leaves out any step whose part is not on
@@ -45,6 +45,8 @@ AREAS = {  # the Help index groups the pages by the file they come from, in this
 }
 STEP_KEYS = {"title", "text", "target", "heading", "optional"}
 ENTRY_KEYS = {"title", "guide", "how", "see", "tour", "tour_from"}
+# The pages that are themselves a page's help have no (?) of their own: it would open help about the help (UI review 2, #41).
+WITHOUT_HELP = {"core/help/page", "core/help/pages"}
 
 
 @dataclass(frozen=True)

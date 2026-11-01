@@ -64,6 +64,8 @@ budgets/filing_new:
   guide:
     - For CPUC system administrators. A filing is due from every PA on one date for a four-year cycle. Choose its kind (application,
       TUAL or MCAL), the cycle, the due date, and the ACC and statewide allocation version it is priced with.
+  how:
+    - Choose the kind, the cycle, the due date, the ACC and the allocation version, then Set up the filing.
   see: budgets
   tour:
     - target: main form
@@ -75,6 +77,8 @@ budgets/setup:
   guide:
     - The ACC and the statewide allocation version the next pricing of this filing uses. Versions already priced keep the ones they were
       priced with; their run records both.
+  how:
+    - Choose the ACC and the allocation version, then Save. The next pricing uses them.
   see: budgets
   tour:
     - target: main form
@@ -158,6 +162,8 @@ budgets/shift_new:
   title: Starting a fund shift
   guide:
     - Name the shift, choose its cycle and say why the money moves. The amounts come next, line by line.
+  how:
+    - Name the shift, choose its cycle and say why, then Start the shift and enter its lines.
   see: budgets
   tour:
     - target: main form
@@ -170,6 +176,9 @@ budgets/shift_lines:
     - One line per program and year. A negative amount moves money out of that program year and a positive one moves it in; the lines must
       add up to zero. Blank lines are ignored.
     - A statewide program's line is the change to the whole program. Each funding PA's portion of it changes by its allocation factor.
+  how:
+    - Enter each program and year with its amount; Save and add more lines keeps the form open for more.
+    - Save when the lines add up to zero, then submit the shift from its page.
   see: budgets
   tour:
     - target: main form
@@ -183,6 +192,9 @@ budgets/shift:
       co-funding PA to acknowledge its portion of any statewide lines, then takes effect.
     - Problems that stop it being submitted are listed above the Submit button; warnings do not block it. The PA that made it may withdraw
       it until it takes effect.
+  how:
+    - While the shift is a draft, enter or change its amounts, then Submit the shift.
+    - A co-funding PA places its portion and acknowledges from here; the PA that made it may Withdraw the shift until it takes effect.
   see: budgets
   tour:
     - target: "#lines-h"
@@ -202,6 +214,8 @@ budgets/shift_acknowledge:
   guide:
     - Another PA's shift changes your portion of a statewide program by your allocation factors. Place your portion among your own
       programs, so your operating budget stays whole, and acknowledge. The shift takes effect once every co-funder has.
+  how:
+    - Spread your portion over your own programs and years, then place your portion and acknowledge.
   see: budgets
   tour:
     - target: main form

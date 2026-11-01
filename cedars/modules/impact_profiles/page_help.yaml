@@ -8,6 +8,9 @@ impact_profiles/library:
       value per hour of the year) spreads one kWh of savings over the year, per climate zone.
     - Profiles are versioned, and runs and claims record the version they used. Search by ID or sector and filter by kind and IOU
       territory; a profile's page shows its versions and its 8,760s by climate zone.
+  how:
+    - Choose what to show and Apply; open a profile for its 8,760 by climate zone.
+    - Add a custom profile uploads one for the organization you act for.
   see: calculations
   tour:
     - target: main form.filters
@@ -30,6 +33,9 @@ impact_profiles/profile:
       with.
     - A custom profile's owner can replace it with a new version or retire it. A retired profile's versions are kept for the runs and claims
       that named them; the next library file leaves it out.
+  how:
+    - Add the new version replaces a custom profile's 8,760s; earlier versions stay.
+    - Retire takes the profile out of use for new measures; runs and claims keep the version they used.
   see: calculations
   tour:
     - target: main dl.facts
@@ -60,6 +66,8 @@ impact_profiles/custom_new:
     - A custom profile belongs to the organization you act for and is visible to everyone signed in. The file holds one 8,760 per climate
       zone (1 to 16, or System for a statewide profile), each adding up to 1, and is checked before the profile is added. The template (CSV)
       is linked above the form.
+  how:
+    - Fill the template (CSV) with one 8,760 per climate zone, choose the file, then Check and add.
   see: calculations
   tour:
     - target: main form
@@ -190,6 +198,8 @@ impact_profiles/sync_history:
   guide:
     - Draft measure packages and their permutations are pulled from eTRM every night. A package with bad data is left out and listed here
       with the reason, so the PA that leads it can fix it in eTRM. A failed sync is retried and raises an alarm if it keeps failing.
+  how:
+    - Choose what to show and Apply. Sync now pulls from eTRM without waiting for the night.
   see: calculations
   tour:
     - target: main dl.facts
@@ -212,6 +222,8 @@ impact_profiles/exports:
     - The catalog written in the engine's format (catalog.parquet and hourly.parquet), with every profile in use at its current version.
       Each write is numbered, kept and registered as a draft data pack; runs name the pack they priced with, and filings use it once it is
       published under Reference data.
+  how:
+    - Write the library now writes a new numbered export; its data pack is published under Reference data.
   see: calculations
   tour:
     - target: main table.list

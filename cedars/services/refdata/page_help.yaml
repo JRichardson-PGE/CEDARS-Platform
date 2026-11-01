@@ -23,6 +23,9 @@ refdata/detail:
       published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests.
     - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed tie-out for each check
       the kind of pack requires.
+  how:
+    - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.
+    - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
   see: calculations
   tour:
     - target: main dl.facts
@@ -52,6 +55,8 @@ refdata/cost_tests:
   guide:
     - A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned to
       one. A filing is priced only on a published set, the one its filing setup names or the one in force for its first program year.
+  how:
+    - Register as a draft takes a set's definition file; publish it from its page.
   see: calculations
   tour:
     - heading: Every set

@@ -79,6 +79,7 @@ account/password_reset_done:
 
 account/logout:
   title: Signing out
+  see: getting-started
   guide:
     - Sign out ends your session on this browser. Anything you uploaded or saved stays; drafts are kept for when you sign in again.
   tour:
@@ -134,6 +135,7 @@ mfa/totp/activate_form:
 
 core/about:
   title: About CEDARS
+  see: getting-started
   guide:
     - What CEDARS is, who files in it, and what the platform holds. The table lists each part of CEDARS and the phase of the build it
       arrives in.
@@ -144,10 +146,14 @@ core/about:
 
 core/help/index:
   title: Help
+  see: getting-started
   guide:
     - The user guides cover each part of CEDARS, from signing in to filing claims and running cost-effectiveness calculations. Each page
       also has its own help, under the question mark beside its heading; Help for each page lists them all.
     - Support and feedback go to the addresses the site has set. The tour walks through the front page and where things are.
+  how:
+    - Start the tour on the front page points at each part of it in turn.
+    - Help for each page lists every page's guide and tour, to read without opening the page.
   tour:
     - heading: User guides
       title: User guides
@@ -164,6 +170,7 @@ core/help/index:
 
 core/help/guide:
   title: A user guide
+  see: getting-started
   guide:
     - Each guide explains one part of CEDARS in more depth than a page's own help. The other guides are listed at the end.
   tour:
@@ -176,6 +183,7 @@ core/help/guide:
 
 core/help/contact:
   title: Getting support
+  see: getting-started
   guide:
     - How to get help with CEDARS, what to put in a message so support can answer it quickly, and how to report an accessibility barrier.
   tour:
@@ -191,9 +199,12 @@ core/help/contact:
 
 core/help/tour:
   title: The tour, written out
+  see: accessibility
   guide:
     - The front page's tour on one page, for anyone who would rather read it or uses CEDARS without scripts. Signed in, it includes the
       parts only signed-in users see.
+  how:
+    - Start the tour on the front page runs the same steps there, pointing at each part of the page.
   tour:
     - target: main .actions a
       title: Start the tour
@@ -201,31 +212,6 @@ core/help/tour:
     - target: ol.tour-list
       title: Every step
       text: The same steps the tour shows, in order, each with a link to try that part of CEDARS.
-
-core/help/pages:
-  title: Help for each page
-  guide:
-    - Every page's own help, the same guide the question mark beside the page's heading opens, grouped by part of CEDARS. Open one to
-      read it; from a page itself you can also take its tour.
-  tour:
-    - target: main ul.links
-      title: The pages
-      text: Each link opens that page's guide and its tour written out.
-
-core/help/page:
-  title: One page's help
-  guide:
-    - The guide to one page and its tour, written out. It is what the question mark beside the page's heading opens. Take the tour on
-      the page goes back to it with the tour running.
-  tour:
-    - target: main .actions a
-      title: Take the tour on the page
-      text: Opens the page the help is for, with its tour running.
-      optional: true
-    - target: ol.tour-list
-      title: The steps
-      text: The tour's steps, in order. Some are for parts of the page only some people see.
-      optional: true
 
 account/security:
   title: Your sign-in and security settings

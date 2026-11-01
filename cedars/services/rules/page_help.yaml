@@ -7,6 +7,9 @@ rules/index:
       by then; every submission and run records the version it was checked against.
     - Check a file before you file it runs the rules in force on your file without filing it. Compare two rule sets shows what changed
       between versions.
+  how:
+    - Check a file before you file it runs the rules in force on your file.
+    - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
   see: published-data
   tour:
     - target: main p.actions

@@ -6,6 +6,9 @@ dictionary/index:
     - Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by (CET's and the E3
       calculators' among them, which uploads may still use). Each field has its definition, type, unit and where it is used.
     - Download the whole catalog as CSV, or the upload templates for each kind of filing.
+  how:
+    - Search by any name a field is known by, or by words in its definition.
+    - Download the catalog (CSV) or the name crosswalk (CSV).
   see: published-data
   tour:
     - target: main p.actions
