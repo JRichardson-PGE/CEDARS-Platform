@@ -39,4 +39,6 @@ regex = '''\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b
 [rules.allowlist]
 regexes = [
   '''^(?:0\.|10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|255\.)''',
+  # RFC 5737 documentation ranges (TEST-NET-1/2/3): never assigned to a host, so tests and examples use them
+  '''^(?:192\.0\.2|198\.51\.100|203\.0\.113)\.''',
 ]

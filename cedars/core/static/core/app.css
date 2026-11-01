@@ -126,11 +126,12 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
 .foot ul.links { display: flex; gap: .3rem 1rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .foot ul.links li { margin: 0; }
 
-/* Mid widths (861-1400 px): tighter navigation and account cluster, so the header with every menu stays on one row at 1280 px. */
+/* Mid widths (861-1400 px): tighter navigation and account cluster, so the header with every menu stays on one row at 1280 px, with a
+   two-digit unread count on Notifications too. */
 @media (min-width: 861px) and (max-width: 1400px) {
-  .top { gap: .6rem; }
-  .top nav > a, .top nav summary { padding: 0 .45rem; font-size: .9rem; }
-  .who { gap: .4rem; font-size: .85rem; }
+  .top { gap: .5rem; }
+  .top nav > a, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
+  .who { gap: .3rem; font-size: .85rem; }
   .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
 }
 /* Narrow screens: the header collapses to brand + Menu; the navigation stacks and the menus open inline. Without scripts the list is simply shown. */

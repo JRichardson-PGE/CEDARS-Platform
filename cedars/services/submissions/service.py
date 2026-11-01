@@ -631,12 +631,17 @@ def expired_drafts(cutoff):
 
 
 def expired_sandbox_filings(cutoff):
-    """In the sandbox only: whole submissions (every version, reopen request) started before the cutoff (record class "sandbox_data")."""
+    """In the sandbox only: whole submissions (every version, reopen request) started before the cutoff (record class "sandbox_data"),
+    except the published filings a sandbox refresh copied from production."""
     from django.conf import settings
 
     if settings.ENVIRONMENT != "sandbox":
         return
-    for sub in Submission.objects.filter(created_at__lt=cutoff).select_related("organisation"):
+    from cedars.services.sandbox import bundle
+
+    subs = list(Submission.objects.filter(created_at__lt=cutoff).select_related("organisation"))
+    copied = bundle.is_copied("submissions.submission", [s.pk for s in subs])  # production's, copied by a refresh (BR-11.2): kept
+    for sub in (s for s in subs if str(s.pk) not in copied):
 
         def delete(sub=sub):
             audit.record("submission.sandbox_expired", obj=sub, organisation=sub.organisation)

@@ -60,6 +60,8 @@ INSTALLED_APPS = [
     "cedars.services.legacy",
     "cedars.services.snapshots",
     "cedars.services.releases",
+    "cedars.services.feedback",
+    "cedars.services.sandbox",
     "cedars.modules.administration",
     "cedars.modules.impact_profiles",
     "cedars.modules.monthly",
@@ -309,6 +311,11 @@ CEDARS_UPLOAD_MAX_MB = int(env("CEDARS_UPLOAD_MAX_MB", "150"))
 CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
 IMPACT_PROFILES_CUSTOM_MAX_MB = int(env("IMPACT_PROFILES_CUSTOM_MAX_MB", "20"))  # a PA's custom impact profile file
 CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version (BR-09.5)
+# Feedback from every page's footer link (BR-12.4): the most characters in one message, the most messages one sender sends an hour,
+# and an optional team inbox that gets a copy of each (the CPUC system administrators are told of each one either way).
+CEDARS_FEEDBACK_MAX_CHARS = int(env("CEDARS_FEEDBACK_MAX_CHARS", "4000"))
+CEDARS_FEEDBACK_PER_HOUR = int(env("CEDARS_FEEDBACK_PER_HOUR", "10"))
+CEDARS_FEEDBACK_EMAIL = env("CEDARS_FEEDBACK_EMAIL", "")
 # Release notes (BR-12.1, cedars/services/releases): a note is published at least this many days before its changes take effect; a
 # shorter notice needs a reason, which the note shows. Notes taking effect within this many days are announced on every page.
 CEDARS_RELEASE_NOTICE_DAYS = int(env("CEDARS_RELEASE_NOTICE_DAYS", "14"))

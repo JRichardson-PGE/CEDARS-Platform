@@ -11,6 +11,7 @@ Who may grant what:
 """
 
 import re
+from dataclasses import dataclass
 from datetime import date
 
 from django.core.exceptions import PermissionDenied
@@ -30,10 +31,21 @@ from .models import (
     PolicyChange,
     RecertificationCampaign,
     RecertificationItem,
+    RoleTemplate,
     User,
 )
 
-GRANT_FIELDS = ["membership", "permission", "status", "expires_at", "approved_by", "suspended_reason", "revoked_by", "revoke_reason"]
+GRANT_FIELDS = [
+    "membership",
+    "permission",
+    "status",
+    "expires_at",
+    "approved_by",
+    "suspended_reason",
+    "revoked_by",
+    "revoke_reason",
+    "role_template",
+]
 
 
 class AccessDenied(PermissionDenied):
@@ -585,7 +597,16 @@ def end_membership(actor: User | None, membership: Membership, reason: str) -> M
 
 
 @transaction.atomic
-def grant(actor: User | None, user: User, organisation: Organisation, permission: str, *, expires_at=None, reason: str = "") -> Grant:
+def grant(
+    actor: User | None,
+    user: User,
+    organisation: Organisation,
+    permission: str,
+    *,
+    expires_at=None,
+    reason: str = "",
+    role_template: RoleTemplate | None = None,
+) -> Grant:
     ok, why = can_grant(actor, user, organisation, permission)
     if not ok:
         raise AccessDenied(why)
@@ -602,6 +623,7 @@ def grant(actor: User | None, user: User, organisation: Organisation, permission
         granted_by=actor,
         grant_reason=reason,
         expires_at=expires_at,
+        role_template=role_template,
     )
     audit.record("grant.created", obj=g, after=audit.snapshot(g, GRANT_FIELDS), reason=reason, actor=actor)
     return g
@@ -669,6 +691,141 @@ def decline_pii(steward: User, g: Grant, reason: str) -> Grant:
         revoked_at=timezone.now(),
         revoke_reason=reason,
     )
+
+
+# --- role templates (BR-01.3)
+
+ROLE_TEMPLATE_FIELDS = ["name", "description", "permissions", "kinds", "active"]
+
+
+def _template_values(name: str, permissions: list[str], kinds: list[str]) -> tuple[str, list[str], list[str]]:
+    """The name, permissions and kinds checked and put in catalog order. A template bundles module permissions only: an organization's
+    first administrator, PII access and the CPUC's own roles each need a decision of their own (D6, decision G), so they are granted
+    one by one."""
+    name = (name or "").strip()
+    if not name:
+        raise AccessDenied("Give the role template a name.")
+    if len(name) > 80:
+        raise AccessDenied("A role template's name has at most 80 characters.")
+    catalog = perms.module_permissions()
+    wrong = sorted(set(permissions) - set(catalog))
+    if wrong:
+        raise AccessDenied(f"A role template bundles module permissions only; {', '.join(wrong)} cannot be in one (grant it on its own).")
+    if not permissions:
+        raise AccessDenied("Choose at least one permission for the role template.")
+    bad_kinds = sorted(set(kinds) - set(Organisation.Kind.values))
+    if bad_kinds:
+        raise AccessDenied(f"Not a kind of organization: {', '.join(bad_kinds)}.")
+    return name, [c for c in catalog if c in set(permissions)], [k for k in Organisation.Kind.values if k in set(kinds)]
+
+
+def _require_template_admin(actor: User | None) -> None:
+    if actor is not None and not is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator can define role templates.")
+
+
+@transaction.atomic
+def create_role_template(
+    actor: User | None, *, name: str, permissions: list[str], description: str = "", kinds: list[str] = (), reason: str = ""
+) -> RoleTemplate:
+    _require_template_admin(actor)
+    name, permissions, kinds = _template_values(name, list(permissions), list(kinds))
+    if RoleTemplate.objects.filter(name__iexact=name).exists():
+        raise AccessDenied(f"There is already a role template named {name}.")
+    t = RoleTemplate.objects.create(name=name, description=description.strip(), permissions=permissions, kinds=kinds, created_by=actor)
+    audit.record("role_template.created", obj=t, after=audit.snapshot(t, ROLE_TEMPLATE_FIELDS), reason=reason, actor=actor)
+    return t
+
+
+@transaction.atomic
+def change_role_template(actor: User | None, t: RoleTemplate, *, reason: str, **changes) -> RoleTemplate:
+    """Change a template's name, description, permissions or kinds, or retire it (active=False) or offer it again, with a reason. The
+    grants it has already made do not change: a member who needs fewer permissions has them revoked one by one."""
+    _require_template_admin(actor)
+    unknown = set(changes) - set(ROLE_TEMPLATE_FIELDS)
+    if unknown:
+        raise AccessDenied(f"{', '.join(sorted(unknown))} cannot be changed here.")
+    if not reason.strip():
+        raise AccessDenied("Give a reason for the change.")
+    t = RoleTemplate.objects.select_for_update().get(pk=t.pk)
+    name, permissions, kinds = _template_values(
+        changes.get("name", t.name), list(changes.get("permissions", t.permissions)), list(changes.get("kinds", t.kinds))
+    )
+    if RoleTemplate.objects.filter(name__iexact=name).exclude(pk=t.pk).exists():
+        raise AccessDenied(f"There is already a role template named {name}.")
+    before = audit.snapshot(t, ROLE_TEMPLATE_FIELDS)
+    t.name, t.permissions, t.kinds = name, permissions, kinds
+    if "description" in changes:
+        t.description = changes["description"].strip()
+    if "active" in changes:
+        t.active = bool(changes["active"])
+    after = audit.snapshot(t, ROLE_TEMPLATE_FIELDS)
+    if after == before:
+        return t
+    t.save()
+    action = "role_template.changed"
+    if before["active"] != after["active"]:
+        action = "role_template.retired" if not t.active else "role_template.reinstated"
+    audit.record(action, obj=t, before=before, after=after, reason=reason, actor=actor)
+    return t
+
+
+def role_templates_for(organisation: Organisation) -> list[RoleTemplate]:
+    """The templates offered when granting in this organization (active, and for its kind)."""
+    return [t for t in RoleTemplate.objects.filter(active=True) if t.offered_for(organisation)]
+
+
+@dataclass
+class TemplateResult:
+    template: RoleTemplate
+    granted: list[Grant]
+    already: list[str]  # permissions the member already held (left as they are)
+
+    @property
+    def pending(self) -> list[Grant]:
+        return [g for g in self.granted if g.status == Grant.Status.PENDING]
+
+
+@transaction.atomic
+def apply_role_template(
+    actor: User | None, user: User, organisation: Organisation, template: RoleTemplate, *, expires_at=None, reason: str = ""
+) -> TemplateResult:
+    """Grant a member every permission of a role template at once (making them a member if they are not one). The actor must be able to
+    grant each one, or nothing is granted; permissions the member already holds are left as they are. One grant per permission, each
+    recording the template, and one role_template.applied event naming them."""
+    template = RoleTemplate.objects.get(pk=template.pk)  # as it stands now, not as the caller last read it
+    if not template.offered_for(organisation):
+        why = "is retired" if not template.active else f"is not offered for {organisation.get_kind_display().lower()} organizations"
+        raise AccessDenied(f"The role template {template.name} {why}.")
+    membership = Membership.objects.filter(user=user, organisation=organisation, ended_at__isnull=True).first()
+    held = set(membership.grants.filter(status__in=Grant.OPEN).values_list("permission", flat=True)) if membership else set()
+    wanted = [p for p in template.permissions if p not in held]
+    refused = []
+    for p in wanted:
+        ok, why = can_grant(actor, user, organisation, p)
+        if not ok:
+            refused.append(why)
+    if refused:
+        raise AccessDenied(" ".join(dict.fromkeys(refused)))
+    if not wanted:
+        raise AccessDenied(f"{user.email} already has every permission of {template.name} in {organisation.code}.")
+    text = reason.strip() or f"role template {template.name}"
+    granted = [grant(actor, user, organisation, p, expires_at=expires_at, reason=text, role_template=template) for p in wanted]
+    membership = granted[0].membership
+    audit.record(
+        "role_template.applied",
+        obj=membership,
+        after={
+            "template": template.name,
+            "template_id": template.pk,
+            "granted": [g.permission for g in granted],
+            "already_held": sorted(held & set(template.permissions)),
+        },
+        reason=reason,
+        organisation=organisation,
+        actor=actor,
+    )
+    return TemplateResult(template, granted, sorted(held & set(template.permissions)))
 
 
 # --- access requests (D6)

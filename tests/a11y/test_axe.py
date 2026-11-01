@@ -145,6 +145,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.open_recertification(pge_admin, pge, timezone.now() + timedelta(days=30))
     tokens.create_token(pge_admin, pge, name="Claims system", scopes=["calculations", "claims"], days=90)
     tokens.create_token(analyst, pge, name="Analyst laptop", scopes=["calculations"], days=30)
+    small_items = _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user)
     factors = (
         (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv")
         .read_bytes()
@@ -356,9 +357,31 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "cpuc": cpuc,
         "allocation": allocation,
         "goal_set": goal_set,
+        **small_items,
         **impact_profiles,
         "sw": sw_id,
     }
+
+
+def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):
+    """BR-01.3 and BR-12.4: the starter role templates (seeded by a migration, which the transactional tests flush, so seeded again),
+    a member granted one, a retired template; a new feedback message from a member and a closed one sent signed out."""
+    import importlib
+
+    from django.apps import apps
+
+    from cedars.services.accounts.models import RoleTemplate
+    from cedars.services.feedback import service as feedback
+
+    importlib.import_module("cedars.services.accounts.migrations.0007_role_templates").add_starters(apps, None)
+    consultant = RoleTemplate.objects.get(name="Consultant")
+    service.apply_role_template(pge_admin, make_user("consultant@example.org", "Con Sultant"), pge, consultant, reason="2028 filing")
+    old = service.create_role_template(cpuc_admin, name="Contractor (old)", kinds=["pa"], permissions=["programs.read"])
+    service.change_role_template(cpuc_admin, old, reason="replaced by Implementer", active=False)
+    new = feedback.submit(page="/budgets/?year=2028", message="The year filter is hard to find on a phone.", user=analyst, organisation=pge)
+    closed = feedback.submit(page="/data/overview/", message="Could the chart show 2027 too?\nThanks!", address="203.0.113.5")
+    feedback.close(cpuc_admin, closed, "Added in the next release.")
+    return {"role_template": consultant.pk, "feedback": new.pk, "feedback_closed": closed.pk}
 
 
 def _admin_drafts(rules):

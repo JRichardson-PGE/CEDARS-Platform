@@ -59,6 +59,11 @@ module "platform" {
   batch_max_vcpus     = 16
   small_run_max_vcpus = 4
   deletion_protection = false
+  # BR-11.2 refresh from production, off by default: the same bundle place as production's, a schedule after production's export
+  # (e.g. "cron(0 7 ? * SUN *)"), and production's refdata bucket ARN, which copied reference packs are read from in place.
+  sandbox_bundle_uri       = ""
+  sandbox_refresh_schedule = ""
+  sandbox_read_bucket_arns = []
 }
 
 output "platform" {

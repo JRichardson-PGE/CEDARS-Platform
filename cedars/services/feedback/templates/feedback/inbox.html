@@ -1,0 +1,40 @@
+{% extends "core/base.html" %}
+{% block title %}Feedback{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Feedback</h1>{% page_help "feedback/inbox" %}</div>
+<p>Messages sent from the Feedback link on every page, newest first. CPUC system administrators are told of each one. Close a message with a note once it has been dealt with; closed messages are deleted when the feedback retention period ends.</p>
+<form method="get" class="filters" aria-label="Filter the feedback">
+  <div><label for="status">Show</label>
+  <select id="status" name="status">
+    <option value="new"{% if status == "new" %} selected{% endif %}>New ({{ counts.new }})</option>
+    <option value="closed"{% if status == "closed" %} selected{% endif %}>Closed ({{ counts.closed }})</option>
+    <option value="all"{% if status == "all" %} selected{% endif %}>All</option>
+  </select></div>
+  <button type="submit">Apply</button>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-label="Feedback messages">
+<table class="list">
+  <caption class="sr-only">Feedback messages, newest first</caption>
+  <thead><tr><th scope="col">Sent</th><th scope="col">From</th><th scope="col">Page</th><th scope="col">Message</th><th scope="col">Status</th></tr></thead>
+  <tbody>
+  {% for fb in page %}
+  <tr>
+    <td class="nowrap"><a href="{% url 'feedback:detail' fb.pk %}">{{ fb.created_at|datetime_words }}<span class="sr-only">: open this message</span></a></td>
+    <td>{% if fb.user %}{{ fb.user|person }}{% if fb.organisation %} <span class="small muted">for {{ fb.organisation.code }}</span>{% endif %}{% else %}<span class="muted">Signed out</span>{% endif %}</td>
+    <td class="small"><code>{{ fb.page }}</code></td>
+    <td>{{ fb.message|truncatechars:160 }}</td>
+    <td><span class="status {% if fb.status == 'new' %}info{% else %}ok{% endif %}">{{ fb.get_status_display }}</span></td>
+  </tr>
+  {% empty %}<tr><td colspan="5">No messages{% if status != "all" %} here{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if page.has_other_pages %}
+<nav aria-label="Pages of feedback"><p>
+  {% if page.has_previous %}<a href="?status={{ status }}&amp;page={{ page.previous_page_number }}">Newer</a>{% endif %}
+  Page {{ page.number }} of {{ page.paginator.num_pages }}
+  {% if page.has_next %}<a href="?status={{ status }}&amp;page={{ page.next_page_number }}">Older</a>{% endif %}
+</p></nav>
+{% endif %}
+{% endblock %}

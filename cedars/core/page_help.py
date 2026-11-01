@@ -41,6 +41,7 @@ AREAS = {  # the Help index groups the pages by the file they come from, in this
     "refdata": "Reference data",
     "releases": "Release notes and limits",
     "notifications": "Notifications",
+    "feedback": "Feedback",
     "administration": "Your account and administration",
     "retention": "Retention",
     "snapshots": "Publication holds",

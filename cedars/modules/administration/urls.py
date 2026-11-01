@@ -19,6 +19,7 @@ urlpatterns = [
     path("admin/organizations/<str:code>/former-code", views.organisation_former_code, name="organisation_former_code"),
     path("admin/organizations/<str:code>/merge", views.organisation_merge, name="organisation_merge"),
     path("admin/organizations/<str:code>/grant", views.grant, name="grant"),
+    path("admin/organizations/<str:code>/grant-template", views.grant_template, name="grant_template"),
     path("admin/organizations/<str:code>/recertification", views.open_recertification, name="open_recertification"),
     # The pages moved to US spelling (2026-10-31); old links still land
     re_path(r"^admin/organisations/(?P<rest>.*)$", RedirectView.as_view(url="/admin/organizations/%(rest)s", query_string=True)),
@@ -32,6 +33,8 @@ urlpatterns = [
     path("admin/stewardship/changes/propose", views.propose_change, name="propose_change"),
     path("admin/stewardship/changes/<int:pk>", views.decide_change, name="decide_change"),
     path("admin/settings/", views.access_settings, name="settings"),
+    path("admin/role-templates/", views.role_templates, name="role_templates"),
+    path("admin/role-templates/<int:pk>/", views.role_template, name="role_template"),
     path("admin/audit/", views.audit_log, name="audit"),
     path("admin/health/", views.health_page, name="health"),
     path("admin/allocations/", views.allocations, name="allocations"),
