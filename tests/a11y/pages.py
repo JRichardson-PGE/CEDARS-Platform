@@ -90,6 +90,12 @@ PAGES = [
     ("organisation-renamed", "/admin/organizations/AVA/", "cpuc_admin"),
     ("organisation-merged", "/admin/organizations/AVA2/", "cpuc_admin"),
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
+    # gap 20: publication holds (BR-08.5); the scene's {held_snapshot} is a held snapshot
+    ("publication-holds", "/publication/holds/", "cpuc_admin"),
+    ("publication-holds-owner", "/publication/holds/", "pge_admin"),
+    ("publication-hold", "/publication/holds/{held_snapshot}/", "cpuc_admin"),
+    ("publication-hold-owner", "/publication/holds/{held_snapshot}/", "pge_admin"),
+    ("publication-scan-settings", "/publication/scan-settings/", "cpuc_admin"),
     ("settings", "/admin/settings/", "cpuc_admin"),
     ("audit", "/admin/audit/", "cpuc_admin"),
     ("health", "/admin/health/", "cpuc_admin"),

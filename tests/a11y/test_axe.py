@@ -331,6 +331,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **corrections,
         **_releases(cpuc_admin),
         **documents,
+        **_publication_hold(pge),
         "pack": pack,
         "published_pack": published,
         "etrm_pack": _etrm(cpuc_admin),
@@ -535,6 +536,34 @@ def _downloads(community):
     jobs.run(jobs._claim())
     queued = jobs.request(community, page, "parquet")
     return {"ready_download": ready.pk, "queued_download": queued.pk}
+
+
+def _publication_hold(pge):
+    """A published filing whose snapshot the scan for personal information held (BR-08.5), for the Publication holds pages. Not
+    released, so the dashboards' releases are unchanged."""
+    from cedars.services.snapshots.models import PIIScan, Snapshot
+    from cedars.services.submissions.models import SubmissionVersion
+
+    version = (
+        SubmissionVersion.objects.filter(status="published", snapshot__isnull=True, submission__organisation=pge)
+        .exclude(origin="imported")
+        .order_by("pk")
+        .first()
+    )
+    snap = Snapshot(dataset="claims", version=version, organisation=pge, rows=6, bytes=1, sha256="ab" * 32)
+    snap.key = f"claims/{snap.id}/results.parquet"
+    snap.save()
+    finding = {"column": "MeasDescription", "pattern": "phone", "records": 1, "examples": ["4**-***-****"], "record_ids": ["M6"]}
+    PIIScan.objects.create(
+        snapshot=snap,
+        outcome="held",
+        findings=[finding],
+        columns=["MeasDescription"],
+        skipped=["CEInputID", "PrgID"],
+        patterns=["email", "phone"],
+        scanned_at=timezone.now(),
+    )
+    return {"held_snapshot": snap.pk}
 
 
 def _dashboard_data(version, pge):

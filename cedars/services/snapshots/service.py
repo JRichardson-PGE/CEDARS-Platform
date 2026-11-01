@@ -10,13 +10,21 @@ What is in force (`rebuild`): the snapshots of each submission's standing publis
 A release is made only when that set changes.
 
 Imported (legacy) versions run no publisher hook and record no run: their loads build a measure-level file from the tables they stored
-and call `publish` with its storage area and key (`legacy.publish_snapshot`), with `release=False`: a load of many PAs makes one release."""
+and call `publish` with its storage area and key (`legacy.publish_snapshot`), with `release=False`: a load of many PAs makes one release.
+
+The scan for personal information (BR-08.5, `pii.py`): every new snapshot's text columns are searched before it can join a release.
+A hit (or a file that cannot be read) holds it: its `PIIScan` says `held`, `in_force` leaves it out (the dataset keeps what was
+published before: an earlier version of the same filing, or for claims and monthly the PA's previous period), and the data owner (the
+filing organization's members who confirm in that module, and whoever confirmed it) and the CPUC system administrators are told. A
+system administrator releases it with a reason (`release_hold`), or runs the scan again after changing the settings (`rescan`);
+a corrected version is scanned in its own right. Every step is audited."""
 
 import logging
 import tempfile
 from pathlib import Path
 
 from django.db import transaction
+from django.utils import timezone
 
 from cedars.core import storage
 from cedars.services import audit
@@ -24,7 +32,8 @@ from cedars.services.accounts import service as access
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
-from .models import Dataset, Release, Snapshot
+from . import pii
+from .models import Dataset, PIIScan, Release, ScanSettings, Snapshot
 
 log = logging.getLogger(__name__)
 
@@ -104,14 +113,221 @@ def _write(v: SubmissionVersion, dataset: str, key: str, area: str = "results") 
         snap.rows = pq.ParquetFile(local).metadata.num_rows
         snap.sha256 = storage.sha256_of(local)
         snap.bytes = storage.store(AREA).put_file(snap.key, local).size
-    snap.save()
-    audit.record(
-        "snapshot.created",
-        obj=snap,
-        after=audit.snapshot(snap, ["dataset", "version", "organisation", "year", "run", "key", "sha256", "rows"]),
-        organisation=v.submission.organisation,
-    )
+        result = _run_scan(local)
+    with transaction.atomic():  # a snapshot never exists without its scan (one without would stand, as the ones made before it)
+        snap.save()
+        scan = _record_scan(snap, result)
+        audit.record(
+            "snapshot.created",
+            obj=snap,
+            after={
+                **audit.snapshot(snap, ["dataset", "version", "organisation", "year", "run", "key", "sha256", "rows"]),
+                "pii_scan": scan.outcome,
+            },
+            organisation=v.submission.organisation,
+        )
+    if scan.held:
+        _hold(snap, scan)
     return snap
+
+
+# --- the scan for personal information (BR-08.5)
+
+
+def scan_settings() -> ScanSettings:
+    return ScanSettings.objects.get_or_create(pk=1, defaults={"patterns": list(pii.BY_CODE), "exempt_columns": list(pii.DEFAULT_EXEMPT)})[0]
+
+
+def _run_scan(path) -> pii.Result:
+    cfg = scan_settings()
+    try:
+        return pii.scan(path, patterns=cfg.patterns, exempt=cfg.exempt_columns)
+    except Exception as e:  # an unreadable file is held, never published unscanned
+        log.exception("publication scan failed for %s", path)
+        return pii.Result([], 0, [], [], list(cfg.patterns), error=f"{type(e).__name__}: {e}"[:500])
+
+
+def _record_scan(snap: Snapshot, result: pii.Result) -> PIIScan:
+    fields = {
+        "outcome": PIIScan.Outcome.CLEAR if result.clear else PIIScan.Outcome.HELD,
+        "findings": [f.as_dict() for f in result.findings],
+        "error": result.error,
+        "columns": result.columns,
+        "skipped": result.skipped,
+        "patterns": result.patterns,
+        "scanned_at": timezone.now(),
+    }
+    scan, _ = PIIScan.objects.update_or_create(snapshot=snap, defaults=fields)
+    return scan
+
+
+def held(snap: Snapshot) -> bool:
+    """Whether the publication scan holds the snapshot (one made before the scan existed has no scan and is not held)."""
+    try:
+        return snap.pii_scan.held
+    except PIIScan.DoesNotExist:
+        return False
+
+
+def module_of(snap: Snapshot) -> str:
+    return snap.version.submission.module
+
+
+def owners(snap: Snapshot):
+    """Who is told of a hold: the filing organization's members who confirm in its module, whoever confirmed the version, and the
+    CPUC system administrators (who release holds)."""
+    from cedars.services.accounts import permissions as perms
+
+    people = {u.pk: u for u in access.holders(snap.organisation, f"{module_of(snap)}.confirm")}
+    if snap.version.confirmed_by_id and snap.version.confirmed_by.is_active:
+        people.setdefault(snap.version.confirmed_by_id, snap.version.confirmed_by)
+    cpuc = access.cpuc()
+    if cpuc is not None:
+        for u in access.holders(cpuc, perms.SYSTEM_ADMIN):
+            people.setdefault(u.pk, u)
+    return list(people.values())
+
+
+def summary(scan: PIIScan) -> str:
+    """One line per finding, with counts and no values (it goes into email)."""
+    if scan.error:
+        return f"The file could not be scanned: {scan.error}"
+    lines = []
+    for f in scan.findings:
+        label = pii.BY_CODE[f["pattern"]].label if f["pattern"] in pii.BY_CODE else f["pattern"]
+        n = f["records"]
+        lines.append(f"{f['column']}: {n:,} record{'' if n == 1 else 's'} with what look like {label}")
+    return "\n".join(lines)
+
+
+def _hold(snap: Snapshot, scan: PIIScan) -> None:
+    from cedars.services.notifications import service as notifications
+
+    audit.record(
+        "snapshot.held",
+        obj=snap,
+        after={"findings": [{k: f[k] for k in ("column", "pattern", "records")} for f in scan.findings], "error": scan.error},
+        reason="The publication scan found what may be personal information" if not scan.error else "The publication scan failed",
+        organisation=snap.organisation,
+        actor=None,
+    )
+    title = f"Publication held: {label(snap.version)}"
+    body = "\n".join(
+        [
+            f"{label(snap.version)} is confirmed, but its records are not on the public dashboards and downloads yet: the publication "
+            "scan found what may be personal information.",
+            summary(scan),
+            "The dashboards and downloads keep showing what was published before. Correct the filing (un-confirm it before the due "
+            "date, or request a correction), or, if these are not personal information, ask a CPUC system administrator to release it.",
+        ]
+    )
+    told = 0
+    for user in owners(snap):
+        told += notifications.notify(user, title, body, f"/publication/holds/{snap.pk}/", key=f"publication-held:{snap.pk}") is not None
+    scan.alerted = told
+    scan.save(update_fields=["alerted"])
+
+
+def _require_admin(actor, what: str) -> None:
+    if actor is not None and not access.is_system_admin(actor):
+        raise access.AccessDenied(f"Only a CPUC system administrator {what}.")
+
+
+@transaction.atomic
+def release_hold(actor, snap: Snapshot, reason: str) -> PIIScan:
+    """Release a held snapshot to the public release, with the reason (e.g. "the 'numbers' are measure codes"). Audited; the data
+    owner is told."""
+    from cedars.services.notifications import service as notifications
+
+    _require_admin(actor, "releases a held publication")
+    if not reason.strip():
+        raise access.AccessDenied("Give the reason for releasing it: why what the scan found is not personal information.")
+    scan = PIIScan.objects.select_for_update().get(snapshot=snap)
+    if not scan.held:
+        raise access.AccessDenied("That publication is not held.")
+    scan.outcome, scan.released_by, scan.released_at, scan.release_reason = PIIScan.Outcome.RELEASED, actor, timezone.now(), reason
+    scan.save()
+    audit.record("snapshot.hold_released", obj=snap, before={"outcome": "held"}, after={"outcome": "released"}, reason=reason, actor=actor)
+    rebuild(snap.dataset, f"{label(snap.version)} released after the publication scan")
+    for user in owners(snap):
+        if user != actor:
+            notifications.notify(
+                user,
+                f"Publication released: {label(snap.version)}",
+                f"A CPUC system administrator released it to the public dashboards and downloads. Reason: {reason}",
+                f"/publication/holds/{snap.pk}/",
+                key=f"publication-released:{snap.pk}",
+            )
+    return scan
+
+
+def rescan(actor, snap: Snapshot) -> PIIScan:
+    """Run the scan again on a held snapshot with the settings as they are now (after a pattern is turned off or a column left out).
+    Clear now: it joins the release. Still finding something: the findings are replaced and it stays held."""
+    _require_admin(actor, "runs the publication scan again")
+    scan = PIIScan.objects.get(snapshot=snap)
+    if not scan.held:
+        raise access.AccessDenied("Only a held publication is scanned again.")
+    with tempfile.TemporaryDirectory() as tmp:
+        local = Path(tmp) / "results.parquet"
+        with storage.store(AREA).open(snap.key) as src, open(local, "wb") as dst:
+            while block := src.read(1 << 22):
+                dst.write(block)
+        result = _run_scan(local)
+    before = {"outcome": scan.outcome, "findings": [{k: f[k] for k in ("column", "pattern", "records")} for f in scan.findings]}
+    with transaction.atomic():
+        scan = _record_scan(snap, result)
+        after = {"outcome": scan.outcome, "findings": [{k: f[k] for k in ("column", "pattern", "records")} for f in scan.findings]}
+        audit.record("snapshot.rescanned", obj=snap, before=before, after=after, actor=actor)
+        if not scan.held:
+            rebuild(snap.dataset, f"{label(snap.version)} cleared by the publication scan")
+    return scan
+
+
+@transaction.atomic
+def set_scan_settings(actor, *, patterns: list[str], exempt_columns: list[str], reason: str) -> ScanSettings:
+    _require_admin(actor, "changes the publication scan")
+    if not reason.strip():
+        raise access.AccessDenied("Give the reason for changing the publication scan.")
+    unknown = [p for p in patterns if p not in pii.BY_CODE]
+    if unknown:
+        raise access.AccessDenied(f"Unknown pattern: {', '.join(unknown)}.")
+    cfg = ScanSettings.objects.select_for_update().get(pk=scan_settings().pk)
+    before = {"patterns": cfg.patterns, "exempt_columns": cfg.exempt_columns}
+    cfg.patterns = [p.code for p in pii.PATTERNS if p.code in patterns]
+    cfg.exempt_columns = list(dict.fromkeys(c.strip() for c in exempt_columns if c.strip()))
+    cfg.changed_by = actor
+    cfg.save()
+    audit.record(
+        "snapshot.scan_settings_changed",
+        obj=cfg,
+        before=before,
+        after={"patterns": cfg.patterns, "exempt_columns": cfg.exempt_columns},
+        reason=reason,
+        actor=actor,
+    )
+    return cfg
+
+
+def holds(user=None):
+    """The scans that held a publication, newest first: every one for a system administrator, else those of the user's
+    organizations (members see their own filings' holds)."""
+    qs = PIIScan.objects.exclude(outcome=PIIScan.Outcome.CLEAR).select_related(
+        "snapshot__organisation", "snapshot__version__submission__deadline__period", "released_by"
+    )
+    if user is not None and not access.is_system_admin(user):
+        qs = qs.filter(snapshot__organisation__in=access.organisations_of(user))
+    return qs
+
+
+def may_see(user, snap: Snapshot) -> bool:
+    return access.is_system_admin(user) or access.organisations_of(user).filter(pk=snap.organisation_id).exists()
+
+
+def superseded(snap: Snapshot) -> bool:
+    """A newer published version of the filing stands, so the held one would not be published anyway."""
+    current = submissions.current(snap.version.submission)
+    return current is not None and current.pk != snap.version_id
 
 
 def withdraw(version_id: int, *, reason: str = "un-confirmed before the due date", release: bool = True) -> None:
@@ -144,13 +360,24 @@ def withdraw(version_id: int, *, reason: str = "un-confirmed before the due date
 def in_force(dataset: str) -> list[Snapshot]:
     """The snapshots that stand now (see the module docstring)."""
     snaps = Snapshot.objects.filter(dataset=dataset, version__status=SubmissionVersion.Status.PUBLISHED).select_related(
-        "version__submission__deadline__period"
+        "version__submission__deadline__period", "pii_scan"
     )
-    standing = []
+    by_submission: dict[int, list[Snapshot]] = {}
     for s in snaps:
-        current = submissions.current(s.version.submission)
-        if current is not None and current.pk == s.version_id:
-            standing.append(s)
+        by_submission.setdefault(s.version.submission_id, []).append(s)
+    standing = []
+    for group in by_submission.values():
+        current = submissions.current(group[0].version.submission)
+        mine = next((s for s in group if current is not None and s.version_id == current.pk), None)
+        if mine is None:
+            continue
+        if not held(mine):
+            standing.append(mine)
+            continue
+        # held by the publication scan: the filing's earlier published version stands until it is released or corrected
+        earlier = [s for s in group if s.version.number < current.number and not held(s)]
+        if earlier:
+            standing.append(max(earlier, key=lambda s: s.version.number))
     if dataset not in YEAR_SLOTS:
         return sorted(standing, key=lambda s: s.created_at)
     best: dict[tuple, Snapshot] = {}

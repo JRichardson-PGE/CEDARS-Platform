@@ -1,0 +1,59 @@
+# Help for each page (cedars/core/page_help.py): publication holds and the publication scan (BR-08.5).
+
+snapshots/holds:
+  title: Publication holds
+  see: published-data
+  guide:
+    - Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may
+      be personal information. A filing with a hit is held, and the public data keep what was published before.
+    - The filing's organization sees its own holds here; CPUC system administrators see every hold and release them.
+  how:
+    - Open a held filing to see which columns matched, how many records, masked examples and the first record IDs.
+    - System administrators change what the scan looks for on the Publication scan settings page.
+  tour:
+    - heading: Waiting
+      title: Waiting
+      text: Filings held by the scan and not yet released or replaced by a corrected version.
+    - heading: Released or replaced
+      title: Released or replaced
+      text: Holds an administrator released, with the reason, and holds a newer version replaced.
+
+snapshots/hold:
+  title: A held publication
+  see: published-data
+  guide:
+    - One confirmed filing whose records the scan for personal information held back from the public dashboards and downloads, what
+      the scan found, and what happens next. Examples are masked; the values themselves are never shown or kept outside the filing.
+  how:
+    - If the values are personal information, the filing's organization corrects the filing (un-confirm it before the due date, or
+      request a correction after it). The corrected version is scanned in its own right.
+    - If they are not, a CPUC system administrator gives the reason and releases it, or changes the scan settings and scans it again.
+  tour:
+    - heading: What the scan found
+      title: What the scan found
+      text: Each column with values that look like personal information, with how many records, masked examples and the first records.
+    - heading: What happens next
+      title: What happens next
+      text: How a held filing is corrected or released.
+      optional: true
+    - heading: Release it
+      title: Release it
+      text: For CPUC system administrators. Give the reason the values are not personal information; the release is audited.
+      optional: true
+
+snapshots/scan_settings:
+  title: Publication scan settings
+  see: published-data
+  guide:
+    - For CPUC system administrators. What the scan for personal information looks for before a filing is published, and the columns
+      it leaves out (keys such as CEInputID that are never personal information). Every change needs a reason and is in the audit log.
+  how:
+    - Tick the patterns to look for, list the columns to leave out one per line, give the reason and Save.
+    - A change applies to the next publication; open a held filing and scan it again to apply it there.
+  tour:
+    - heading: Look for
+      title: Look for
+      text: The kinds of personal information the scan searches for.
+    - target: "#exempt"
+      title: Columns left out
+      text: Columns the scan skips, compared without case.

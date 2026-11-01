@@ -1,0 +1,18 @@
+{% extends "core/base.html" %}
+{% block title %}Publication scan settings{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'snapshots:holds' %}">Publication holds</a></li></ol></nav>
+<div class="page-title"><h1>Publication scan settings</h1>{% page_help "snapshots/scan_settings" %}</div>
+<p>What the scan for personal information looks for before a filing's records are published. A change applies to the next publication, and to a held one when it is scanned again; it needs a reason and is in the audit log.{% if cfg.changed_by %} Last changed {{ cfg.changed_at|date_words }} by {{ cfg.changed_by|person }}.{% endif %}</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  <fieldset>
+    <legend>Look for</legend>
+    {% for p, on in patterns %}<p><label class="check"><input type="checkbox" name="patterns" value="{{ p.code }}"{% if on %} checked{% endif %}> {{ p.label|capfirst }}</label></p>{% endfor %}
+  </fieldset>
+  <p><label for="exempt">Columns left out, one per line</label>
+    <span class="helptext" id="exempt-hint">Keys that are never personal information, such as CEInputID. Names are compared without case.</span>
+    <textarea id="exempt" name="exempt_columns" rows="5" aria-describedby="exempt-hint">{{ exempt }}</textarea></p>
+  <p><label for="reason">Reason</label><input id="reason" name="reason" required></p>
+  <div class="actions"><button type="submit" class="primary">Save</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "core/base.html" %}
+{% block title %}Publication holds{% endblock %}
+{% block content %}
+<div class="page-title"><h1>Publication holds</h1>{% page_help "snapshots/holds" %}</div>
+<p>Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may be personal information: email addresses, phone numbers, street addresses, Social Security numbers and account numbers. A filing with a hit is held: the public data keep what was published before, and the filing's organization and the CPUC system administrators are told.{% if sysadmin %} <a href="{% url 'snapshots:scan_settings' %}">Publication scan settings</a>{% endif %}</p>
+
+<h2>Waiting</h2>
+{% if waiting %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Held publications waiting">
+<table class="list">
+  <caption class="sr-only">Publications held by the scan and not yet released or corrected</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">Held</th><th scope="col">What the scan found</th></tr></thead>
+  <tbody>{% for r in waiting %}<tr>
+    <th scope="row"><a href="{% url 'snapshots:hold' r.snap.pk %}">{{ r.label }}</a></th>
+    <td><span class="status warn">Held</span> <span class="small muted nowrap">{{ r.scan.scanned_at|date_words }}</span></td>
+    <td>{% if r.scan.error %}The file could not be scanned{% else %}{{ r.scan.records }} record{{ r.scan.records|pluralize }} in {{ r.scan.findings|length }} finding{{ r.scan.findings|length|pluralize }}{% endif %}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>Nothing is held.</p>{% endif %}
+
+<h2>Released or replaced</h2>
+{% if past %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Released or replaced holds">
+<table class="list">
+  <caption class="sr-only">Holds that were released by an administrator or replaced by a newer version</caption>
+  <thead><tr><th scope="col">Filing</th><th scope="col">Outcome</th><th scope="col">Reason</th></tr></thead>
+  <tbody>{% for r in past %}<tr>
+    <th scope="row"><a href="{% url 'snapshots:hold' r.snap.pk %}">{{ r.label }}</a></th>
+    <td>{% if r.scan.held %}<span class="status">Replaced by a newer version</span>{% else %}<span class="status ok">Released</span> <span class="small muted nowrap">{{ r.scan.released_at|date_words }}</span>{% endif %}</td>
+    <td>{{ r.scan.release_reason }}</td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>No holds were released or replaced.</p>{% endif %}
+{% endblock %}
