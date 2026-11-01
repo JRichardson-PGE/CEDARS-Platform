@@ -5,6 +5,7 @@
 <nav class="subnav" aria-label="Portfolio dashboard pages">
   {% for p in pages %}<a href="{% url 'data:dashboard' p.slug %}"{% if p.slug == page.slug %} aria-current="page"{% endif %}>{{ p.nav_title }}</a>{% endfor %}
   <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
 </nav>
 <div class="page-title"><h1>{{ page.title }}</h1>{% page_help "data/dashboard" page.slug %}</div>
 <p>{{ page.description }} Confirmed data only; each series shows when its data last changed.</p>
@@ -138,4 +139,5 @@ columns, or to look through the records first, open them on the records page.</p
   </li>{% endfor %}
 </ul>
 {% endif %}
+{% include "data/_saved_views.html" %}
 {% endblock %}

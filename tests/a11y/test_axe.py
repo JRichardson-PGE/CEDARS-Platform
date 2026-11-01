@@ -324,6 +324,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     downloads = _downloads(community)
     return {
         **downloads,
+        **_saved_views(community, cpuc_admin, pge_admin, pge),
         **legacy_years,
         **claims,
         **budgets,
@@ -575,6 +576,21 @@ def _downloads(community):
     jobs.run(jobs._claim())
     queued = jobs.request(community, page, "parquet")
     return {"ready_download": ready.pk, "queued_download": queued.pk}
+
+
+def _saved_views(community, cpuc_admin, pge_admin, pge):
+    """Saved views: one of the community account's, shared by name and asked to be published, with a history; one published; its own
+    default record columns."""
+    from cedars.modules.data import saved
+
+    view = saved.save(community, name="Residential lighting", page="overview", query="by=program&sector=Residential", description="Mine")
+    saved.share_with(community, view, pge_admin.email)
+    saved.request_publication(community, view, "The working group asked for it")
+    shown = saved.save(pge_admin, name="PG&E by sector", page="overview", query="by=sector&pa=PGE")
+    saved.set_organisation(pge_admin, shown, pge)
+    saved.publish(cpuc_admin, shown, "For the quarterly report")
+    saved.set_default_columns(community, ["CEInputID", "PrgID", "TotalSystemBenefit"])
+    return {"saved_view": view.pk, "published_view": shown.pk}
 
 
 def _publication_hold(pge):

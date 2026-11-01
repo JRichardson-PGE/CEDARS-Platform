@@ -4,6 +4,7 @@
 <nav class="subnav" aria-label="Data pages">
   <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
   <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
   <a href="{% url 'data:downloads' %}">Your downloads</a>
 </nav>
 <div class="page-title"><h1>{{ series }} records, {{ job.fmt|upper }}</h1>{% page_help "data/download_job" %}</div>

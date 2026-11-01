@@ -61,6 +61,10 @@ data/dashboard: &dashboard
       text: The measure-level records these rows add up, with the same filters. A large set is made in the background and you are told
         when it is ready.
       optional: true
+    - target: section.saved-views
+      title: Saved views
+      text: Views of this page you can open, yours, shared with you or published. Signed in, save this page's choices under a name to open
+        it again on the data published then, or to share it.
 
 data/dashboard/overview:
   <<: *dashboard
@@ -141,6 +145,7 @@ data/records:
       background once you are signed in; you are told when it is ready and it waits under Your downloads.
   how:
     - Start from a column preset, then open a group to tick its columns. Every column is defined in the data dictionary.
+    - Signed in, make the columns you chose your default, or save the whole choice of records and columns as a view under Saved views.
     - Each file records its release, when its data last changed, the filters, what was left out and the columns under their canonical
       names.
   see: published-data
@@ -160,9 +165,77 @@ data/records:
       title: Download
       text: How many records match, their totals, and the files. A large set is made in the background.
       optional: true
+    - target: form.default-columns
+      title: Your default columns
+      text: Signed in, make the columns you chose your own default, so the page starts from them instead of the key columns.
+      optional: true
     - heading: The records
       title: The records
       text: The chosen columns, a page at a time, so you can check them before you download.
+      optional: true
+    - target: section.saved-views
+      title: Saved views
+      text: Views of the records page you can open. Signed in, save these records and columns under a name to open again or share.
+
+data/views:
+  title: Saved views
+  guide:
+    - Dashboard pages and the records page saved with their choices (years, filters, metric, and for records the columns). A view keeps
+      the choices, not the numbers, so it always opens on the data published now.
+    - Your views are yours to change, share with named people or your organization, or ask the CPUC to publish. Views others shared
+      with you, and views the CPUC published for everyone, are listed too; anyone can open a published view without signing in.
+  how:
+    - Save a view from the Saved views part at the bottom of any dashboard page or the records page.
+    - Select a view's name for its details, sharing and publication; Open goes straight to the page with its choices.
+  see: published-data
+  tour:
+    - target: "#waiting"
+      title: Waiting to be published
+      text: For CPUC system administrators, the views their owners asked to publish. Select one to publish it or decline.
+      optional: true
+    - target: "#yours"
+      title: Your views
+      text: The views you saved, who can open each, and when each last changed.
+      optional: true
+    - target: "#shared"
+      title: Shared with you
+      text: Views others shared with you by name or with your organization. Save a copy to change one.
+      optional: true
+    - target: "#published"
+      title: Published views
+      text: Views the CPUC published for everyone.
+
+data/view:
+  title: A saved view
+  guide:
+    - One saved view: the page it opens and its choices. Open this view shows the page with those choices on the data published now.
+    - Its owner renames it, shares it with named people or with the members of one of their organizations, asks the CPUC to publish it,
+      or deletes it. A CPUC system administrator publishes or unpublishes it with a reason. A published view does not change until it
+      is unpublished. Every change is recorded, and the owner sees the history here.
+  how:
+    - Open this view to see it; Save a copy to your views to keep one of your own to change.
+    - "Owner: Share with takes the email address of a CEDARS account; Stop sharing takes it back."
+    - To change a view's choices, open it, change them, and save over it with "Or replace one of yours".
+  see: published-data
+  tour:
+    - target: main a.button.primary
+      title: Open this view
+      text: The page with the saved choices, on the data published now.
+    - target: main dl.view-facts
+      title: What it holds
+      text: The page and each choice in words. Signed in, also who saved it and who can open it.
+    - target: "#sharing"
+      title: Sharing
+      text: Share it with people by their account's email address, or with your organization's members.
+      optional: true
+    - target: "#publication, #publish-request"
+      title: Publication
+      text: The owner asks the CPUC to publish a view; a CPUC system administrator publishes it, declines, or unpublishes it, with a
+        reason.
+      optional: true
+    - target: "#history"
+      title: History
+      text: Every change to the view, who made it and why.
       optional: true
 
 data/downloads:

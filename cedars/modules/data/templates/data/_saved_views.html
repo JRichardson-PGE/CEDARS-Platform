@@ -1,0 +1,32 @@
+{# Saved views of this page (BR-07.4): the ones this person may open, and the form that saves the page's choices. #}
+<section class="saved-views" aria-labelledby="saved-views-heading">
+<h2 id="saved-views-heading">Saved views</h2>
+{% if saved_views.views %}
+<ul class="links">
+  {% for v, href in saved_views.views %}<li><a href="{{ href }}">{{ v.name }}</a>
+    <span class="small muted">({% if v.published %}published{% elif v.owner_id == user.pk %}yours{% else %}shared with you{% endif %})</span>
+    · <a href="{% url 'data:view' v.pk %}">Details<span class="sr-only"> of the view {{ v.name }}</span></a></li>{% endfor %}
+</ul>
+{% else %}<p>No saved views of this page {% if user.is_authenticated %}that you can open {% endif %}yet.</p>{% endif %}
+<p><a href="{% url 'data:views' %}">All saved views</a>{% if saved_views.more %} (more of this page there){% endif %}</p>
+{% if saved_views.can_save %}
+<form method="post" action="{% url 'data:view_save' %}" class="filters save-view" aria-label="Save this view">
+  {% csrf_token %}
+  <input type="hidden" name="page" value="{{ saved_views.page }}">
+  <input type="hidden" name="query" value="{{ saved_views.query }}">
+  <label>Name <input type="text" name="name" maxlength="80" autocomplete="off" aria-describedby="save-view-help"></label>
+  {% if saved_views.own %}<label>Or replace one of yours
+    <select name="replace">
+      <option value="">No, save a new view</option>
+      {% for v in saved_views.own %}<option value="{{ v.pk }}">{{ v.name }}</option>{% endfor %}
+    </select>
+  </label>{% endif %}
+  <button type="submit">Save this view</button>
+  <span class="helptext" id="save-view-help">Saves this page's choices, not its numbers: the view opens on the data published now. You can
+    share it from its page.</span>
+</form>
+{% elif not user.is_authenticated %}
+<p><a href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">Sign in to save this view</a> (anyone can register) and
+  open it again later, or share it.</p>
+{% endif %}
+</section>

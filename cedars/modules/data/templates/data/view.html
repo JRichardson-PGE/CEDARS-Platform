@@ -1,0 +1,132 @@
+{% extends "core/base.html" %}
+{% block title %}{{ view.name }} · Saved views{% endblock %}
+{% block content %}
+<nav class="subnav" aria-label="Data pages">
+  <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
+  <a href="{% url 'data:records' %}">Record downloads</a>
+  <a href="{% url 'data:views' %}">Saved views</a>
+  {% if user.is_authenticated %}<a href="{% url 'data:downloads' %}">Your downloads</a>{% endif %}
+</nav>
+<div class="page-title"><h1>{{ view.name }}</h1>{% page_help "data/view" %}</div>
+{% if view.description %}<p>{{ view.description }}</p>{% endif %}
+<p><a class="button primary" href="{{ open }}">Open this view</a></p>
+<p class="small muted">It opens {{ page_label }} with these choices, on the data published now.</p>
+
+<dl class="facts view-facts">
+  <dt>Page</dt><dd>{{ page_label }}</dd>
+  <dt>Choices</dt><dd>{% if choices %}<ul class="links">{% for label, value in choices %}<li>{{ label }}: <strong>{{ value }}</strong></li>{% endfor %}</ul>{% else %}The page's own defaults{% endif %}</dd>
+  {% if insider %}<dt>Saved by</dt><dd>{{ view.owner|person }}{% if owner %} (you){% endif %}</dd>
+  <dt>Who can open it</dt><dd>{% include "data/_view_audience.html" with v=view %}</dd>{% endif %}
+  {% if view.published %}<dt>Published</dt><dd>{{ view.published_at|datetime_words }}{% if admin %} by {{ view.published_by|person_name }}: {{ view.publish_reason }}{% endif %}</dd>{% endif %}
+  <dt>Last changed</dt><dd>{{ view.updated_at|datetime_words }}</dd>
+</dl>
+
+{% if user.is_authenticated and not owner %}
+<form method="post" class="filters">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="copy">
+  <button type="submit">Save a copy to your views</button>
+  <span class="helptext">Your copy is yours to change and share; this one stays as it is.</span>
+</form>
+{% endif %}
+
+{% if owner %}
+{% if view.published %}
+<p class="notices">This view is published, so it does not change: to rename, replace or delete it, ask a CPUC system administrator to
+  unpublish it first.</p>
+{% else %}
+<h2 id="name">Name and description</h2>
+<form method="post" class="filters" aria-labelledby="name">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="rename">
+  <label>Name <input type="text" name="name" value="{{ view.name }}" maxlength="80" required></label>
+  <label>Description <textarea name="description" rows="2" maxlength="500">{{ view.description }}</textarea></label>
+  <button type="submit">Save</button>
+</form>
+<p class="small">To change its choices, open it, change them, then save with "Or replace one of yours" set to this view.</p>
+{% endif %}
+
+<h2 id="sharing">Sharing</h2>
+<p>People you share it with can open it and save a copy of their own; only you can change it.</p>
+{% if people %}
+<ul class="links">
+  {% for p in people %}<li>{{ p|person }}
+    <form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="unshare"><input type="hidden" name="person" value="{{ p.pk }}">
+      <button type="submit">Stop sharing<span class="sr-only"> with {{ p|person_name }}</span></button></form></li>{% endfor %}
+</ul>
+{% endif %}
+<form method="post" class="filters" aria-label="Share with a person">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="share">
+  <label>Share with <input type="email" name="email" autocomplete="off" aria-describedby="share-help"></label>
+  <button type="submit">Share</button>
+  <span class="helptext" id="share-help">The email address of their CEDARS account. They are told on their notifications page.</span>
+</form>
+{% if organisations %}
+<form method="post" class="filters" aria-label="Share with your organization">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="organisation">
+  <label>Share with an organization's members
+    <select name="organisation">
+      <option value="">No organization</option>
+      {% for o in organisations %}<option value="{{ o.pk }}"{% if o.pk == view.organisation_id %} selected{% endif %}>{{ o.code }}: {{ o.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit">Save</button>
+</form>
+{% endif %}
+
+{% if not view.published %}
+<h2 id="publish-request">Publish for everyone</h2>
+{% if view.publish_requested_at %}<p>You asked for it to be published {{ view.publish_requested_at|datetime_words }}. A CPUC system
+  administrator decides, and you are told.</p>
+{% else %}
+<form method="post" class="filters" aria-labelledby="publish-request">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="request">
+  <label>Why everyone would want it <span class="muted small">(optional)</span> <textarea name="note" rows="2" maxlength="500"></textarea></label>
+  <button type="submit">Ask the CPUC to publish it</button>
+</form>
+{% endif %}
+{% endif %}
+{% endif %}
+
+{% if admin %}
+<h2 id="publication">Publication</h2>
+{% if view.published %}
+<form method="post" class="filters" aria-labelledby="publication">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="unpublish">
+  <label>Reason <input type="text" name="reason" required maxlength="500"></label>
+  <button type="submit">Unpublish</button>
+</form>
+{% else %}
+{% if view.publish_requested_at %}<p>Its owner asked for it to be published {{ view.publish_requested_at|datetime_words }}{% if view.publish_request_note %}: “{{ view.publish_request_note }}”{% endif %}.</p>{% endif %}
+<form method="post" class="filters" aria-label="Publish or decline">
+  {% csrf_token %}
+  <label>Reason <input type="text" name="reason" required maxlength="500" aria-describedby="publish-help"></label>
+  <button type="submit" name="action" value="publish" class="primary">Publish for everyone</button>
+  {% if view.publish_requested_at %}<button type="submit" name="action" value="decline">Decline</button>{% endif %}
+  <span class="helptext" id="publish-help">Recorded with the change; a declined owner is told it. Published, the view is open to everyone,
+    signed in or not, and does not change until it is unpublished.</span>
+</form>
+{% endif %}
+{% endif %}
+
+{% if owner and not view.published %}
+<h2 id="delete">Delete</h2>
+<form method="post" class="filters" aria-labelledby="delete">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="delete">
+  <button type="submit" class="danger">Delete this view</button>
+  <span class="helptext">The people it is shared with lose it too. Copies they saved stay theirs.</span>
+</form>
+{% endif %}
+
+{% if history %}
+<h2 id="history">History</h2>
+<ul class="links">
+  {% for at, what, who, reason in history %}<li>{{ at|datetime_words }}: {{ what }} by {{ who|person_name }}{% if reason %} (“{{ reason }}”){% endif %}</li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
