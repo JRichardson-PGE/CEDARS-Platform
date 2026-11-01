@@ -80,7 +80,9 @@ def scene(pge, pge_admin, cpuc_admin):
     jan = Deadline.objects.create(module="monthly", kind="Monthly report", period=periods[("month", 1)], due_at=WHEN)
     msub = Submission.objects.create(deadline=jan, organisation=pge)
     m1 = _version(msub, 1, PUBLISHED)
-    ReportLine.objects.create(version=m1, table="Spend", prg_id="PGE_Res_HVAC", values={"YTDExpenditures": "4321.40"})
+    ReportLine.objects.create(
+        version=m1, table="Spend", prg_id="PGE_Res_HVAC", values={"YTDExpenditures": "4321.40", "RebatesAndIncentives": "1234"}
+    )
     ReportLine.objects.create(version=m1, table="Commitments", prg_id="PGE_Res_HVAC", values={"YTDCommittedFunds": "999"})
 
     kind = AttributeOption.objects.filter(attribute_list__collections__contains=["program"]).first() or AttributeOption.objects.first()
@@ -108,7 +110,8 @@ def test_signed_out_sees_only_published_records(client, scene):
     assert f'href="/claims/versions/{scene["claims"].pk}/"' in html  # the standing version of Q1, not the one it replaced
     assert "12,345" in html and "$678" in html and "$10" in html
     assert "/claims/versions/" in html and html.count("/claims/versions/") == 1
-    assert "$4,321" in html and "$999" in html
+    assert "$4,321" in html and "$1,234" in html and "$999" in html  # spend, paid incentives (part of spend), committed
+    assert "Paid incentives, year to date (part of spend)" in html and "Committed incentives, year to date (to be paid later)" in html
     assert "HVAC implementation plan" in html and "unpublished draft" not in html
     assert "sign in" in html
 

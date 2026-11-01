@@ -12,7 +12,7 @@
 
 <section aria-labelledby="programs-h">
 <h2 id="programs-h">Programs whose figures changed</h2>
-<p class="small muted">Before is version {{ letter.previous.number }}, after is version {{ v.number }}. Spend and commitments are as reported; the estimates are priced from the year-to-date inputs ({{ unvalidated|lower }}s, never part of a claim){% if not estimated.before or not estimated.after %}, blank for a version that was not priced{% endif %}.</p>
+<p class="small muted">Before is version {{ letter.previous.number }}, after is version {{ v.number }}. Spend, paid incentives (part of spend) and committed incentives (to be paid later, not spend) are as reported; the estimates are priced from the year-to-date inputs ({{ unvalidated|lower }}s, never part of a claim){% if not estimated.before or not estimated.after %}, blank for a version that was not priced{% endif %}.</p>
 {% include "core/_letter_programs.html" %}
 </section>
 {% endblock %}

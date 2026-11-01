@@ -273,7 +273,7 @@ def _shown(records: dict) -> dict:
             "tsb": _money(r["tsb"]),
         }
     for r in records.get("monthly") or []:
-        r["shown"] = {"ytd": _money(r["ytd"]), "committed": _money(r["committed"])}
+        r["shown"] = {"ytd": _money(r["ytd"]), "paid": _money(r.get("paid")), "committed": _money(r["committed"])}
     return records
 
 
