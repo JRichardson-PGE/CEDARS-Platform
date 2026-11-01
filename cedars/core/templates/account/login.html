@@ -16,7 +16,6 @@
     {% element button type="submit" tags="prominent,login" %}Sign in{% endelement %}
   {% endslot %}
 {% endelement %}
-<p class="small">New to CEDARS? <a href="{{ signup_url }}">Create an account</a>: anyone can, and the public pages need none. To act for a program administrator, ask its administrators for access from your account page once you are signed in.
-{% url 'account_reset_password' as reset_url %}<br><a href="{{ reset_url }}">Forgotten your password?</a></p>
+<p class="small">New to CEDARS? <a href="{{ signup_url }}">Create an account</a>: anyone can, and the public pages need none. To act for a program administrator, ask its administrators for access from your account page once you are signed in.</p>
 {% if SOCIALACCOUNT_ENABLED %}{% include "socialaccount/snippets/login.html" with page_layout="entrance" %}{% endif %}
 {% endblock content %}

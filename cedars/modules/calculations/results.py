@@ -32,7 +32,7 @@ HEADLINE = [
 
 
 def headline_totals(totals: dict, measures: int | None) -> list[dict]:
-    """The run page's tiles from the receipt's portfolio totals, labelled and formatted as the Results page shows them: the measure
+    """The run page's tiles from the receipt's portfolio totals, labeled and formatted as the Results page shows them: the measure
     count, then HEADLINE's columns the run has (whole dollars; ratios to two decimals)."""
     out = [] if measures is None else [{"label": "Measures", "value": f"{int(measures):,}"}]
     for key, label in HEADLINE:
@@ -131,6 +131,9 @@ def load(run: Run):
     if engine() is None:
         raise NoResults("The Results tables need the ReCET engine package installed on this server (engine/README.md).")
     if run.status != Run.Status.SUCCEEDED:
+        ended = {Run.Status.FAILED: "failed", Run.Status.REFUSED: "was refused by the engine", Run.Status.CANCELLED: "was stopped"}
+        if run.status in ended:  # an ended run never will have results (UI review 2, #28)
+            raise NoResults(f"This run {ended[run.status]}, so it has no results. Its page says why.")
         raise NoResults("Results are shown once the run has finished.")
     return _load(str(run.pk), run.finished_at.isoformat() if run.finished_at else "")
 

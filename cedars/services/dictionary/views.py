@@ -33,7 +33,7 @@ def index(request):
     return render(
         request,
         "dictionary/index.html",
-        {"version": v, "page": page, "q": q, "kind": kind, "tables": tables, "query": query.urlencode(), "total": fields.count()},
+        {"catalog": v, "page": page, "q": q, "kind": kind, "tables": tables, "query": query.urlencode(), "total": fields.count()},
     )
 
 
@@ -42,7 +42,7 @@ def detail(request, name):
     f = Field.objects.filter(version=v, name=name).prefetch_related("aliases", "usages").first()
     if f is None:
         raise Http404
-    return render(request, "dictionary/field.html", {"version": v, "f": f})
+    return render(request, "dictionary/field.html", {"catalog": v, "f": f})
 
 
 def _download(content, filename, content_type):

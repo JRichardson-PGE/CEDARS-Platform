@@ -78,6 +78,7 @@
 {% endif %}
 
 {% if first %}
+{% if as_of %}<p class="small muted">{% for name, when in as_of %}{{ name }} data {% if when %}as of {{ when|datetime_words }}{% else %}not published yet{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
 {% if totals %}<dl class="tiles">
   {% for s, label in series_labels %}<div class="tile"><dt>{{ label }}</dt><dd>{{ totals.totals.values|get_item:s|metric_value:metric }}<span class="sr-only"> {{ metric.unit }}</span></dd></div>{% endfor %}
   {% if totals.both and metric.adds_up %}<div class="tile"><dt>% of forecast</dt><dd>{{ totals.totals.percent|percent }}</dd></div>{% endif %}

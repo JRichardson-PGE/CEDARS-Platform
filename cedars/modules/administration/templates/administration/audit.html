@@ -18,17 +18,22 @@
     <th scope="row">{{ e.action }}</th>
     <td>{{ e.object_repr }} <span class="small muted">{{ e.object_type }} {{ e.object_id }}</span></td>
     <td>{{ e.reason }}</td>
-    <td class="small">{% if e.before or e.after %}<details><summary>Before and after<span class="sr-only"> for event {{ e.pk }}</span></summary><pre>{{ e.before|default:"" }}
-{{ e.after|default:"" }}</pre></details>{% endif %}</td>
+    <td class="small change-cell">{% if e.before or e.after %}<details><summary>Before and after<span class="sr-only"> for event {{ e.pk }}</span></summary>
+      <table class="list changes"><caption class="sr-only">Before and after for event {{ e.pk }}</caption>
+        <thead><tr><th scope="col">Field</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
+        <tbody>{% for field, old, new in e|audit_rows %}<tr><th scope="row">{{ field }}</th><td>{% if old %}<pre>{{ old }}</pre>{% else %}{% include "ui/dash.html" %}{% endif %}</td><td>{% if new %}<pre>{{ new }}</pre>{% else %}{% include "ui/dash.html" %}{% endif %}</td></tr>{% endfor %}</tbody>
+      </table></details>{% endif %}</td>
   </tr>
   {% empty %}<tr><td colspan="6">No events match.</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% if page.paginator.num_pages > 1 %}
 <nav class="pager" aria-label="Audit log pages">
   {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Newer</a>{% endif %}
   <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
   {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Older</a>{% endif %}
 </nav>
+{% endif %}
 {% endblock %}

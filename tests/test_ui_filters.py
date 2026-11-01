@@ -83,3 +83,16 @@ def test_templates_use_the_shared_filters():
                 emails.append(f"{path.relative_to(root)}: {line.strip()[:80]}")
     assert not own_dates, own_dates
     assert not emails, emails
+
+
+def test_audit_rows():
+    """An audit event's before and after as one row per field, in US spelling, nested values as JSON (UI review 2, #7)."""
+    from types import SimpleNamespace
+
+    from cedars.core.templatetags.ui import audit_rows
+
+    e = SimpleNamespace(before={"dataset": "forecast", "organisation": 2}, after={"dataset": "claims", "extra": {"b": 1, "a": [2]}})
+    rows = audit_rows(e)
+    assert rows[0] == ("dataset", "forecast", "claims") and rows[1] == ("organization", "2", "")
+    assert rows[2][0] == "extra" and rows[2][1] == "" and '"a"' in rows[2][2]
+    assert audit_rows(SimpleNamespace(before=None, after="published")) == [("value", "", "published")]

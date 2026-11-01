@@ -8,7 +8,7 @@ account/login:
     - The public pages (the portfolio dashboard, record downloads, documents, the data dictionary and the validation rules) need no
       account. Signing in adds Filings, Calculations, notifications and your account.
   how:
-    - Forgotten your password? Use the link under the form; CEDARS emails a link to choose a new one.
+    - Forgot your password? Use the link under the password box; CEDARS emails a link to choose a new one.
     - No account yet? Create one; anyone can. To act for a program administrator, ask its administrators for access from your account
       page once you are signed in.
   see: getting-started
@@ -17,8 +17,8 @@ account/login:
       title: Your email address and password
       text: Enter them and choose Sign in. The next page asks for the code from your authenticator app, or takes you to set one up.
     - target: main p.small
-      title: New accounts and forgotten passwords
-      text: Create an account here, or ask for a link to reset your password.
+      title: New accounts
+      text: Create an account here; anyone can.
 
 account/signup:
   title: Creating an account

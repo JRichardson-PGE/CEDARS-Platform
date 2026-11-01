@@ -13,7 +13,9 @@
 </div>
 <p>Budget filings follow the four-year cycle: a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice letters.
 Each filing is uploaded, checked, priced and confirmed; every confirmed version is kept and can be compared with any other. A
-correction is a new version, published with a change letter in the <a href="{% url 'budgets:changes' %}">change log</a>.</p>
+correction is a new version, published with a change letter in the <a href="{% url 'budgets:changes' %}">change log</a>.
+A cycle's budgets that stand are each PA's most recent confirmed filing in it; confirmed filings, their inputs and results are open
+to every signed-in user.</p>
 {% for c in cycles %}
 {# The newest cycle is open; earlier cycles are collapsed behind their heading with a count, so the page is one screen for most visits. #}
 {% if forloop.first %}<section class="cycle" aria-labelledby="cycle-{{ c.cycle.pk }}">
@@ -42,7 +44,6 @@ correction is a new version, published with a change letter in the <a href="{% u
 </div>
 {% if c.standing %}
 <h3 id="standing-{{ c.cycle.pk }}">Budgets that stand</h3>
-<p class="small muted">Each PA's most recent confirmed filing in the cycle. Confirmed filings, their inputs and results are open to every signed-in user.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Standing budgets of the {{ c.cycle|cycle_label }} cycle">
 <table class="list">
   <caption class="sr-only">Standing budgets of the {{ c.cycle|cycle_label }} cycle, by program administrator</caption>
