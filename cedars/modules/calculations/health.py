@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from cedars.core import health
 
+from . import service
 from .models import Run
 
 
@@ -56,7 +57,7 @@ def stalled() -> health.Result:
 def failed() -> health.Result:
     since = timezone.now() - health.limit("failures")
     runs = Run.objects.filter(status=Run.Status.FAILED, finished_at__gte=since).select_related("organisation").order_by("-finished_at")
-    items = [_item(r, r.finished_at, (r.error or "no error recorded").splitlines()[0][:200]) for r in runs[:50]]
+    items = [_item(r, r.finished_at, service.plain_error(r.error) or "no error recorded") for r in runs[:50]]
     n = runs.count()
     hours = settings_minutes("failures") // 60
     result = health.Result("calculations.failed", "Calculations", "Runs that failed", items=items, link="/calculations/")

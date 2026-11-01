@@ -132,7 +132,7 @@ def dashboard_page(request, slug):
                     "chart": dashboard.chart(c, sec.limit) if sec.chart else None,
                     "caption": caption,
                     "by_label": query.DIMENSIONS[sec.by].label,
-                    "series_labels": [(sr, c.series_label(sr)) for sr in c.results],
+                    "series_labels": [(sr, dashboard.SERIES[sr][0]) for sr in c.results],
                 }
             )
     first = goals or spending or totals
@@ -152,7 +152,9 @@ def dashboard_page(request, slug):
         "sign_in": _sign_in(request),
         "max_rows": settings.DATA_DOWNLOAD_MAX_ROWS,
         "metric": metric,
-        "series_labels": [(sr, first.series_label(sr)) for sr in first.results] if first else [],
+        # the series' names in the tiles and table headers, and when each was published said once above them (UI review 2, #19)
+        "series_labels": [(sr, dashboard.SERIES[sr][0]) for sr in first.results] if first else [],
+        "as_of": [(dashboard.SERIES[sr][0], first.results[sr].as_of) for sr in first.results] if first else [],
         "series_choices": [(code, label) for code, (label, _) in dashboard.SERIES.items()],
         "filings": dashboard.filings(),
         "view_by": [(d, query.DIMENSIONS[d].label) for d in query.VIEW_BY] if page.view_by else [],

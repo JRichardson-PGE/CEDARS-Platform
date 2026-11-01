@@ -43,7 +43,7 @@
   {% if programs %}<dt>Programs</dt><dd>{% for p in programs %}<a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
   {% if doc.years %}<dt>Program years</dt><dd>{{ doc.years }}</dd>{% endif %}
   {% if doc.study %}<dt>Study</dt><dd><a href="{{ doc.study.get_absolute_url }}">{{ doc.study.study_id }}</a>: {{ doc.study.title }}</dd>{% endif %}
-  {% if doc.work_order %}<dt>Work order</dt><dd><a href="{{ doc.work_order.get_absolute_url }}">{{ doc.work_order.number }}</a>{% if doc.task %}, task {{ doc.task.name }}{% endif %}</dd>{% endif %}
+  {% if doc.work_order %}<dt>Work order</dt><dd><a href="{{ doc.work_order.get_absolute_url }}">{{ doc.work_order.number }}</a>{% if doc.task %}, {% if doc.task.name|lower|slice:":5" != "task " %}task {% endif %}{{ doc.task.name }}{% endif %}</dd>{% endif %}
   {% for name, labels in attributes.items %}<dt>{{ name }}</dt><dd>{{ labels|join:", " }}</dd>{% endfor %}
   {% if doc.calmac_id %}<dt>CALMAC ID</dt><dd>{{ doc.calmac_id }}</dd>{% endif %}
   <dt>First published</dt><dd>{{ doc.published_at|date_words|default:"Not yet" }}</dd>

@@ -102,7 +102,8 @@ def test_chart_geometry(both):
 
 def test_the_page(both, client):
     page = client.get("/data/overview/?by=sector").content.decode()
-    assert "Portfolio dashboard pages" in page and "Forecast (as of" in page and "Claimed (as of" in page
+    assert "Portfolio dashboard pages" in page and "Forecast data as of " in page and "; Claimed data as of " in page
+    assert "(as of" not in page  # said once above the tiles, not in every tile and header (UI review 2, #19)
     assert "% of forecast" in page and "50.0%" in page and 'href="?by=program&amp;sector=Residential"' in page
     assert "Left out: Pension and Benefits programs and codes and standards." in page and "/data/download.csv?dataset=claims" in page
     assert client.get("/data/").status_code == 302
@@ -113,7 +114,7 @@ def test_the_page(both, client):
 
 def test_the_page_before_anything_is_published(client, db):
     page = client.get("/data/overview/").content.decode()
-    assert "Nothing has been published in this dataset yet." in page and "nothing published" in page
+    assert "Nothing has been published in this dataset yet." in page and "Claimed data not published yet" in page
 
 
 def test_nothing_hidden_in_the_rows(both):

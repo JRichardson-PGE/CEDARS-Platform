@@ -12,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from cedars.core import storage
+from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
@@ -50,6 +51,7 @@ def status_view(run: Run) -> dict:
     out = {
         "status": run.status,
         "status_label": run.get_status_display(),
+        "tone": status_tone(run.status),
         "ended": run.ended,
         "stage": STAGES.get(p.get("stage"), (p.get("stage") or "").capitalize()),
         "percent": round(100 * fraction) if isinstance(fraction, int | float) else None,
@@ -60,7 +62,9 @@ def status_view(run: Run) -> dict:
         pos = out["queue_position"]
         out["text"] = (
             f"Queued, {'next' if pos == 1 else f'number {pos}'} in line for {run.get_lane_display().lower()}. "
-            f"Starts in {duration(est['starts_in'])}, done in {duration(est['done_in'])} (estimated)."
+            # under a minute to wait reads "Starting now", not "Starts in now" (UI review 2, #27)
+            f"{'Starting now' if (est['starts_in'] or 0) < 60 else 'Starts in ' + duration(est['starts_in'])}, "
+            f"done in {duration(est['done_in'])} (estimated)."
         )
     elif run.status == Run.Status.RUNNING:
         parts = [out["stage"] or "Running"]
@@ -84,7 +88,7 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
     """The run's settings as (label, value); an output template as its name and column count, not the whole list."""
     out = []
     for k, v in sorted(settings.items()):
-        if k == "output_template_name":
+        if k in ("output_template_name", "cost_test_set"):  # the set has its own row, Cost tests, with its version and hash
             continue
         if k == "output_template":
             v = f"{settings.get('output_template_name') or 'unnamed'} ({len(v)} columns)"
@@ -186,6 +190,7 @@ def run(request, pk):
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
             "settings": settings_view(run.settings),
+            "settings_cost_test_set": (run.settings or {}).get("cost_test_set", ""),
             "programs": service.programs_label(run),
             "engine": receipt.get("engine") or {},
             "packs": ((receipt.get("packs") or {}).get("files") or {}),

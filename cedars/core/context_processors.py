@@ -2,7 +2,8 @@ from django.conf import settings
 
 
 def platform(request):
-    ctx = {"version": settings.VERSION, "environment": settings.ENVIRONMENT, "support_email": settings.CEDARS_SUPPORT_EMAIL}
+    # platform_version, not version: a page whose view passes its own "version" (a catalog, a filing) would hide the footer's
+    ctx = {"platform_version": settings.VERSION, "environment": settings.ENVIRONMENT, "support_email": settings.CEDARS_SUPPORT_EMAIL}
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
         from cedars.services.accounts import service

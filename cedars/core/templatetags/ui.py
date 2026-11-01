@@ -14,9 +14,22 @@ register = template.Library()
 
 # Submission version statuses (services.submissions) and the other words pages put in a badge, by tone.
 _TONES = {
-    "ok": {"published", "confirmed", "approved", "accepted", "active", "effective", "complete", "completed", "done", "paid"},
+    "ok": {
+        "succeeded",
+        "finished",
+        "published",
+        "confirmed",
+        "approved",
+        "accepted",
+        "active",
+        "effective",
+        "complete",
+        "completed",
+        "done",
+        "paid",
+    },
     "warn": {"draft", "pending", "waiting", "open", "overdue", "expiring", "late"},
-    "bad": {"rejected", "declined", "failed", "error", "revoked", "withdrawn", "purged"},
+    "bad": {"rejected", "declined", "failed", "refused", "error", "revoked", "withdrawn", "purged"},
     "info": {"validated", "queued", "running", "submitted", "imported", "new", "under review"},
 }
 
@@ -85,3 +98,27 @@ def person(user):
     if name and email:
         return format_html('{} <span class="small muted">{}</span>', name, email)
     return escape(name or email or str(user))
+
+
+@register.filter
+def audit_rows(event) -> list[tuple[str, str, str]]:
+    """An audit event's before and after as rows (field, before, after), one per field either side names, for a small table (UI review
+    2, #7: they printed as Python dict text on one line). Field names read as words, in US spelling ("organization"); a nested value
+    prints as JSON; a field absent on one side is blank there."""
+    import json
+
+    def as_dict(state):
+        if state in (None, "", {}):
+            return {}
+        return state if isinstance(state, dict) else {"value": state}
+
+    def shown(value):
+        if value is None:
+            return ""
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False, indent=1, sort_keys=True, default=str)
+        return str(value)
+
+    before, after = as_dict(event.before), as_dict(event.after)
+    keys = list(before) + [k for k in after if k not in before]
+    return [(str(k).replace("_", " ").replace("organisation", "organization"), shown(before.get(k)), shown(after.get(k))) for k in keys]

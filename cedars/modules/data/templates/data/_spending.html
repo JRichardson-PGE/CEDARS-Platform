@@ -4,7 +4,7 @@
 <table class="list">
   <caption class="sr-only">Budget and spending by year, in nominal dollars</caption>
   <thead><tr><th scope="col">Year</th><th scope="col" class="num">Operating budget</th>
-    {% for s in sp.results %}<th scope="col" class="num">{{ sp|series_label:s }} expenditure</th>{% endfor %}
+    {% for s in sp.results %}<th scope="col" class="num">{{ sp|series_name:s }} expenditure</th>{% endfor %}
     <th scope="col" class="num">Monthly reported (unvalidated)</th>
     {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th><th scope="col" class="num">Claimed, cumulative</th>{% endif %}
     <th scope="col" class="num">Budget, cumulative</th></tr></thead>

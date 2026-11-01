@@ -20,10 +20,10 @@
   <tr>
     <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a><br><span class="small muted">{{ r.created_at|datetime_words }}</span></th>
     <td>{{ r.organisation.code|default:"Only you" }}</td>
-    <td>{% if r.calculation == "recet" %}ReCET{% else %}CET {{ r.calculation|cut:"cet-" }} replica{% endif %} <span class="small muted">{{ r.engine_release }}</span></td>
+    <td class="nowrap">{% if r.calculation == "recet" %}ReCET{% else %}CET {{ r.calculation|cut:"cet-" }} replica{% endif %} <span class="small muted">{{ r.engine_release }}</span></td>
     <td>{{ r.acc_version }}</td>
     <td>{{ r.measure_count|default_if_none:"" }}</td>
-    <td><span data-run-status="{% url 'calculations:run_status' r.pk %}"{% if r.ended %} data-ended="1"{% endif %}>{{ st.text }}</span></td>
+    <td><span class="status {{ r.status|status_tone }}" data-run-badge>{{ r.get_status_display }}</span>{% if not r.ended %}<br><span class="small" data-run-status="{% url 'calculations:run_status' r.pk %}">{{ st.text }}</span>{% endif %}</td>
     <td class="small">{{ r.owner|person }}</td>
   </tr>
   {% endfor %}
@@ -32,7 +32,7 @@
 </div>
 {% else %}
 {% if can_start %}{% url 'calculations:new' as new_url %}{% endif %}
-{% include "ui/empty.html" with title="No runs yet" text="A run prices a measure file on the ReCET engine and keeps its inputs and results here, for you or your organisation." action_url=new_url action="Start a run" action_primary=True %}
+{% include "ui/empty.html" with title="No runs yet" text="A run prices a measure file on the ReCET engine and keeps its inputs and results here, for you or your organization." action_url=new_url action="Start a run" action_primary=True %}
 {% endif %}
 {% if page.paginator.num_pages > 1 %}
 <nav class="pager" aria-label="Run pages">

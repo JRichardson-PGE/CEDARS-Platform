@@ -21,5 +21,5 @@
   {% if f.usages.all %}<dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}, column {{ u.position|add:1 }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
   {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{{ f.doc_link }} in ReCET</dd>{% endif %}
 </dl>
-<p class="small muted">Catalog version {{ version.label }}.</p>
+<p class="small muted">Catalog version {{ catalog.label }}.</p>
 {% endblock %}

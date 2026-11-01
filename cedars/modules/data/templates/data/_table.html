@@ -27,5 +27,5 @@
   </tr></tfoot>{% endif %}
 </table>
 </div>
-{% if comparison.percent_note %}<p class="small">{{ comparison.percent_note }}</p>{% endif %}
+{% if comparison.percent_note and comparison.percent_note != totals.percent_note %}<p class="small">{{ comparison.percent_note }}</p>{% endif %}
 {% endwith %}

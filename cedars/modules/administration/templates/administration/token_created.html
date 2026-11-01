@@ -7,7 +7,7 @@
 revoke the token and make a new one.</p>
 <dl class="facts">
   <dt>Name</dt><dd>{{ token.name }}</dd>
-  <dt>Acting for</dt><dd>{{ token.organisation|default:"your own calculations (no organisation)" }}</dd>
+  <dt>Acting for</dt><dd>{{ token.organisation|default:"your own calculations (no organization)" }}</dd>
   <dt>Modules</dt><dd>{{ token.scopes|join:", " }}</dd>
   <dt>Expires</dt><dd>{{ token.expires_at|date_words }}</dd>
 </dl>

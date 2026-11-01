@@ -5,7 +5,7 @@
   <thead><tr>
     <th scope="col">IOU territory</th><th scope="col">{% if c.period == "cycle" %}Cycle{% else %}Year{% endif %}</th>
     <th scope="col" class="num">Goal ({{ c.metric.unit }})</th>
-    {% for s in c.results %}<th scope="col" class="num">{{ c|series_label:s }}</th><th scope="col" class="num">{{ c|series_name:s }} % of goal</th>{% endfor %}
+    {% for s in c.results %}<th scope="col" class="num">{{ c|series_name:s }}</th><th scope="col" class="num">{{ c|series_name:s }} % of goal</th>{% endfor %}
   </tr></thead>
   <tbody>
   {% for r in c.rows %}

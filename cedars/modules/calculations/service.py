@@ -161,7 +161,7 @@ def visible_runs(user, organisations=None):
 
 
 def can_read(user, run: Run) -> bool:
-    """The owner of their own run, the organisation's readers and submitters, and a CPUC system administrator (who follows the
+    """The owner of their own run, the organization's readers and submitters, and a CPUC system administrator (who follows the
     links on Jobs and health)."""
     if access.is_system_admin(user):
         return True
@@ -732,15 +732,23 @@ _PATH = re.compile(r"(?<![\w.])(?:/[\w.@+-]+){2,}/?|[A-Za-z]:\\(?:[\w.@+ -]+\\)*
 
 
 def plain_error(text: str) -> str:
-    """What a failed run's page tells the person: the engine's last line, with file paths cut to their names and a plain reading of
-    the common failures. The full message stays for administrators (BR-06.2: a failure says why in words a filer can act on)."""
-    text = (text or "").strip()
-    if not text:
+    """What a failed run's page tells the person: the engine's message, whole (UI review 2, #6: it was cut to its last line and 300
+    characters, often mid-sentence), with file paths cut to their names and a plain reading of the common failures. The message is the
+    last exception line and what follows it ("ValueError: ..."), else the last paragraph. The full text stays on the page for the
+    run's owner and administrators (BR-06.2: a failure says why in words a filer can act on)."""
+    lines = [line.rstrip() for line in (text or "").strip().splitlines()]
+    if not lines:
         return ""
-    last = [line for line in text.splitlines() if line.strip()][-1].strip()
-    kind, sep, rest = last.partition(": ")
-    if sep and kind.replace(".", "").replace("_", "").isalnum() and kind[:1].isupper():
-        last = rest
+    starts = [i for i, line in enumerate(lines) if _exception_line(line)]
+    if starts:
+        start = starts[-1]
+    else:
+        blanks = [i for i, line in enumerate(lines) if not line.strip()]
+        start = blanks[-1] + 1 if blanks else 0
+    message = " ".join(line.strip() for line in lines[start:] if line.strip())
+    kind, sep, rest = message.partition(": ")
+    if sep and _exception_line(message):
+        message = rest
         if kind.endswith("FileNotFoundError"):
             names = sorted({m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1] for m in _PATH.finditer(rest)})
             what = f" ({', '.join(names)})" if names else ""
@@ -750,8 +758,18 @@ def plain_error(text: str) -> str:
             )
         if kind.endswith("MemoryError"):
             return "The worker ran out of memory on this job. Split the job, or ask a CPUC system administrator for a larger worker."
-    last = _PATH.sub(lambda m: m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1], last)
-    return (last[:297] + "...") if len(last) > 300 else last
+    message = _PATH.sub(lambda m: m.group(0).rstrip("/").replace("\\", "/").rsplit("/", 1)[-1], message)
+    return (message[:1997] + "...") if len(message) > 2000 else message
+
+
+def _exception_line(line: str) -> bool:
+    """Whether a line starts the way Python writes an exception, unindented: "ValueError: ...", "jobs.InputError: ..."."""
+    kind, sep, _ = line.partition(": ")
+    name = kind.rsplit(".", 1)[-1]
+    return bool(sep) and name[:1].isupper() and kind.replace(".", "").replace("_", "").isalnum() and name.endswith(_EXCEPTION_ENDINGS)
+
+
+_EXCEPTION_ENDINGS = ("Error", "Exception", "Exit", "Warning", "Interrupt")
 
 
 def output_key(run: Run, name: str) -> str | None:

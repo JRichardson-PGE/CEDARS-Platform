@@ -2,7 +2,7 @@
 {% block title %}Data dictionary{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Data dictionary</h1>{% page_help "dictionary/index" %}</div>
-<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by. Catalog version: <strong>{{ version.label }}</strong>.</p>
+<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by. Catalog version: <strong>{{ catalog.label }}</strong>.</p>
 <p class="actions">
   <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>
   <a class="button" href="{% url 'dictionary:crosswalk_csv' %}">Download the name crosswalk (CSV)</a>
@@ -36,9 +36,11 @@
   </tbody>
 </table>
 </div>
+{% if page.paginator.num_pages > 1 %}
 <nav class="pager" aria-label="Field pages">
   {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
   <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
   {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
 </nav>
+{% endif %}
 {% endblock %}

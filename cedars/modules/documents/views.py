@@ -55,6 +55,15 @@ def _attribute_lists():
     return list(AttributeList.objects.filter(type_of="", collections__len__gt=0).prefetch_related("options"))
 
 
+def _in_order(options) -> list:
+    """A list's options in its own order, except a list of years or cycles ("2013-2015", "2021"), which reads oldest first whatever
+    order the PDA held them in (UI review 2, #31)."""
+    options = list(options)
+    if options and all(o.label[:4].isdigit() for o in options):
+        return sorted(options, key=lambda o: o.label)
+    return options
+
+
 def library(request):
     """The library: every published document, and the unpublished ones the user may see, searchable and filterable by any of its
     details, with the result list as a file (BR-15.2). Public: no account needed."""
@@ -81,7 +90,7 @@ def library(request):
             "rows": rows,
             "total": page.paginator.count,
             "query": query.urlencode(),
-            "lists": [(al, [(o, o in chosen) for o in al.options.all()]) for al in _attribute_lists()],
+            "lists": [(al, [(o, o in chosen) for o in _in_order(al.options.all())]) for al in _attribute_lists()],
             "advanced": bool(chosen)
             or any(request.GET.get(k) for k in ("published_from", "published_to", "program", "year", "study", "work_order")),
             "collections": service.collections_for(request.user, getattr(request, "organisation", None))

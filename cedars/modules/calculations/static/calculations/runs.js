@@ -12,6 +12,8 @@
         .then(function (s) {
           if (!s) return;
           c.textContent = s.text;
+          var badge = c.parentNode.querySelector("[data-run-badge]");
+          if (badge) { badge.textContent = s.status_label; badge.className = "status" + (s.tone ? " " + s.tone : ""); }
           if (s.ended) {
             c.dataset.ended = "1";
             var name = c.closest("tr").querySelector("th a");

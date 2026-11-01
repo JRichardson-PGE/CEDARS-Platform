@@ -633,8 +633,9 @@ def test_a_failed_runs_page_says_why_in_plain_words(tmp_path, worker, monkeypatc
     run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
     run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
     html = signed_in(analyst).get(f"/calculations/runs/{run.pk}/").content.decode()
-    assert "no CEInputID column" in html and "What the engine said" not in html
-    assert "What the engine said" in signed_in(cpuc_admin).get(f"/calculations/runs/{run.pk}/").content.decode()
+    # the run's owner sees the engine's whole message too (UI review 2, #6), as an administrator does
+    assert "no CEInputID column" in html and "What the engine said, in full" in html
+    assert "What the engine said, in full" in signed_in(cpuc_admin).get(f"/calculations/runs/{run.pk}/").content.decode()
 
 
 def test_plain_error_keeps_paths_and_private_names_out():
@@ -650,6 +651,16 @@ def test_plain_error_keeps_paths_and_private_names_out():
     )
     assert service.plain_error("recet worker: job refused: engine.release 9.9.9") == "recet worker: job refused: engine.release 9.9.9"
     assert service.plain_error("") == ""
+
+
+def test_plain_error_keeps_the_whole_message():
+    """UI review 2, #6: the message was cut to its last line and 300 characters, often mid-sentence."""
+    long = "This run's cost-test set is not the one in force for 2028, " * 8 + "so these results are not that set's."
+    text = f"Traceback (most recent call last):\n  File x\nValueError: {long[:150]}\n{long[150:]}"
+    assert service.plain_error(text) == long.replace("  ", " ").strip()
+    assert service.plain_error("Note: the worker said\n\nThe job was refused.\nAsk an administrator.") == (
+        "The job was refused. Ask an administrator."
+    )
 
 
 def test_new_run_for_only_me_is_the_users_own(tmp_path, signed_in, analyst, release):

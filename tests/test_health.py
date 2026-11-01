@@ -67,7 +67,7 @@ def test_a_run_queued_too_long_or_running_too_long_fails_the_check(cpuc_admin):
 def test_failed_runs_need_attention(cpuc_admin):
     old_run(cpuc_admin, 5, Run.Status.FAILED, error="worker exited 137\nkilled", finished_at=timezone.now())
     r = by_code()["calculations.failed"]
-    assert r.status == health.ATTENTION and r.items[0].detail == "worker exited 137"
+    assert r.status == health.ATTENTION and r.items[0].detail == "worker exited 137 killed"  # the whole message (UI review 2, #6)
 
 
 def test_a_release_with_queued_runs_and_no_worker_fails_the_check(cpuc_admin, settings):
