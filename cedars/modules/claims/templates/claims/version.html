@@ -66,6 +66,16 @@
 </section>
 {% endif %}
 
+{% if restatable or restatements %}
+<section aria-labelledby="restated-h">
+<h2 id="restated-h">Restated results</h2>
+<p>Price these confirmed claims again on today's engine, on the filed ACC or another, as an analysis that never changes this version. The
+change is split into the effect of the engine and programs and the effect of the ACC (BR-06.17).</p>
+{% if restatable %}<p><a class="button" href="{% url 'claims:restate' v.pk %}">Restate these claims</a></p>{% endif %}
+{% if restatements %}<ul class="links">{% for rs in restatements %}<li><a href="{% url 'claims:restatement' rs.pk %}">{{ rs.name }}</a>, {{ rs.created_at|date_words }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>
 {% if legacy %}<p>The tables this version was loaded as, and its full reconciliation report.</p>

@@ -753,7 +753,9 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     wrong = {"PII_Contact.csv": "ContactID,ContactName,ContactPhoneNumber\nPGE-C9,A. Customer,415-555-0100\n",
              "PII_Site.csv": "SiteID,SiteAddress\nPGE-S1,1 Market St\n"}  # fmt: skip
     claims.upload_pii(pii_filer, q2v, _zip(wrong), "pii.zip", "mfa")
+    restatement = _restatement(analyst, pge, v2, group_sums)
     return {
+        "restatement": restatement,
         "claims_q1": q1,
         "claims_q2": q2,
         "claims_q3": q3,
@@ -761,6 +763,22 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         "claims_corrected": v2,
         "claims_letter": v2.change_letter,
     }
+
+
+def _restatement(analyst, pge, v, group_sums):
+    """The corrected Q1 restated on the 2024 ACC (BR-06.17) for PG&E, both runs finished, so the page shows the split."""
+    from cedars.modules.calculations import service as calculations
+    from cedars.modules.calculations.models import Run
+    from cedars.modules.claims import restatements
+
+    rs = restatements.start(analyst, v, organisation=pge, release="0.1.78", acc_version="2024", reason="The 2024 ACC's effect")
+    for role, scale in (("bridge", 1.1), ("restated", 1.4)):
+        run = Run.objects.get(pk=rs.runs[role])
+        calculations.mark_started(run, worker="scene")
+        storage.store("results").put_bytes(run.storage_prefix + "out/_results/group_sums2_measure_level_run.parquet", group_sums(scale))
+        calculations.finish(run, exit_code=0, receipt={"packs": {"files": {}}})
+    restatements.refresh(rs)
+    return rs
 
 
 def _legacy():

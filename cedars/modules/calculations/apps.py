@@ -21,10 +21,12 @@ class CalculationsConfig(AppConfig):
 
         register_purger("scratch_run", expired_scratch)
 
-        from cedars.services.submissions.service import register_pricer, register_run_state
+        from cedars.services.submissions.service import register_pricer, register_restater, register_run_state
 
         register_pricer(service.price_submission)  # filing modules price their versions through the submissions service
         register_run_state(service.run_state)  # and show whether that run still runs, or ended without pricing them
+        # and re-price a published filing as an analysis run that never touches it (BR-06.17: restated results)
+        register_restater(service.restate_version, service.restate_options, service.describe_run)
 
         from . import health
 

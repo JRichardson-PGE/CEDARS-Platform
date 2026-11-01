@@ -21,7 +21,7 @@ from cedars.services.submissions.models import Deadline, ReopenRequest, Submissi
 from cedars.services.vault import service as vault
 from cedars.services.vault.service import PIIError
 
-from . import forms, service, spec
+from . import forms, restatements, service, spec
 from .models import PROGRAM_COST_FIELDS, ChangeLetter, ClaimYear
 from .upload import UploadError
 from .upload import combine as combine_upload
@@ -462,6 +462,8 @@ def version(request, pk):
             "s": v.findings or {},
             "csv_query": f"?pa={pa}" if pa else "",
             "legacy": legacy.imported(v) if v.imported else None,
+            "restatements": list(restatements.visible(request.user, v)),
+            "restatable": not restatements.restatable(v),
         },
     )
 
@@ -671,3 +673,147 @@ def links_csv(request, pk):
     name = f"{v.submission.organisation.code}_{service.label(v.submission.deadline)}_v{v.number}".replace(" ", "_")
     response["Content-Disposition"] = f'attachment; filename="claim_links_{name}.csv"'
     return response
+
+
+# --- restated results (BR-06.17)
+
+
+def _restatement(request, pk):
+    from .models import Restatement
+
+    rs = get_object_or_404(
+        Restatement.objects.select_related("version__submission__deadline__period", "version__submission__organisation", "organisation"),
+        pk=pk,
+    )
+    if not restatements.can_read(request.user, rs):
+        raise Http404
+    return rs
+
+
+@login_required
+def restate(request, pk):
+    """Restate a confirmed version: choose who the runs are for, the release and the ACC (and an ACC per claim)."""
+
+    v = _version(request, pk)
+    why = restatements.restatable(v)
+    options = submissions.restate_options()
+    orgs = restatements.organisations_for(request.user)
+    filed_acc = str((v.calculation or {}).get("acc", ""))
+    form = forms.RestateForm(request.POST or None, request.FILES or None, organisations=orgs, options=options, filed_acc=filed_acc)
+    if request.method == "POST" and not why and form.is_valid():
+        d = form.cleaned_data
+        org = next((o for o in orgs if o.code == d["organisation"]), None)
+        f = d.get("overrides")
+        try:
+            rs = restatements.start(
+                request.user,
+                v,
+                organisation=org,
+                release=d["release"],
+                acc_version=d["acc_version"],
+                name=d["name"],
+                reason=d["reason"],
+                overrides=f.read() if f else None,
+            )
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, "Restatement started. Its runs are queued; this page fills in as they finish.")
+            return redirect("claims:restatement", rs.pk)
+    return render(
+        request,
+        "claims/restate.html",
+        {
+            "v": v,
+            "label": service.label(v.submission.deadline),
+            "form": form,
+            "why": why or ("" if options else "No engine release offers ReCET's own calculation yet."),
+            "calc": v.calculation or {},
+        },
+    )
+
+
+@login_required
+def restatement(request, pk):
+    """One restatement: what changed between the filing and today's calculation, the filed and restated figures with the change split
+    into the program and engine effect and the ACC effect, by program; and beside another year's confirmed claims."""
+
+    rs = _restatement(request, pk)
+    described, state = restatements.refresh(rs)
+    pa = request.GET.get("pa", "")
+    kinds = {k: kind for k, _, kind in restatements.FIGURES}
+    metric = request.GET.get("metric", "TotalSystemBenefit")
+    if metric not in kinds:
+        metric = "TotalSystemBenefit"
+    ctx = {
+        "rs": rs,
+        "v": rs.version,
+        "label": service.label(rs.version.submission.deadline),
+        "state": state,
+        "pa": pa,
+        "metric": metric,
+        "metrics": [(k, lbl) for k, lbl, _ in restatements.FIGURES],
+        "runs": [],
+        "inputs": restatements.describe_filed_vs_restated(rs, described),
+    }
+    for role, title in (("restated", "Restated run"), ("bridge", "Current engine on the filed ACC")):
+        if rs.runs.get(role):
+            ctx["runs"].append({"role": role, "title": title, "d": described.get(role)})
+    if state == "done":
+        c = restatements.comparison(rs, pa=pa)
+        cols = ("filed", "bridge", "restated", "engine", "acc", "total")
+
+        def cells(p, key):
+            vals = p.values(key)
+            kind = kinds[key]
+            return [_fmt(kind, vals[c]) if c in ("filed", "bridge", "restated") else _signed_fmt(kind, vals[c]) for c in cols]
+
+        ctx["c"] = c
+        ctx["summary"] = [{"label": lbl, "cells": cells(c.total, k)} for k, lbl, _ in restatements.FIGURES]
+        ctx["by_program"] = [{"p": p, "cells": cells(p, metric)} for p in c.programs]
+        ctx["by_program_total"] = cells(c.total, metric)
+        ctx["metric_label"] = dict(ctx["metrics"])[metric]
+        others = restatements.other_years(rs)
+        ctx["others"] = others
+        year = request.GET.get("year", "")
+        other = next((ov for y, ov in others if str(y) == year), None)
+        if other is not None:
+            ctx["year"] = int(year)
+            ctx["other"] = other
+            ctx["other_acc"] = str((other.calculation or {}).get("acc", ""))
+            ctx["other_release"] = (other.calculation or {}).get("release", "")
+            ctx["same_acc"] = set(rs.acc_records) == {ctx["other_acc"]}
+            ctx["years_rows"] = [
+                {**r, "cells": [_fmt(kinds[metric], r["restated"]), _fmt(kinds[metric], r["other"]),
+                                _signed_fmt(kinds[metric], r["change"])]}
+                for r in restatements.year_comparison(rs, other, metric, pa=pa)
+            ]  # fmt: skip
+    return render(request, "claims/restatement.html", ctx)
+
+
+def _signed_fmt(kind: str, x) -> str:
+    if x is None:
+        return ""
+    if not x:
+        return "No change"
+    return ("+" if x > 0 else "-") + _fmt(kind, abs(x)).lstrip("-")
+
+
+@login_required
+def restatement_csv(request, pk):
+
+    rs = _restatement(request, pk)
+    _, state = restatements.refresh(rs)
+    if state != "done":
+        raise Http404
+    response = HttpResponse(restatements.comparison_csv(rs, pa=request.GET.get("pa", "")), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="restatement_{rs.pk}.csv"'
+    return response
+
+
+@login_required
+def restatement_list(request):
+    """The restatements a person can see, newest first."""
+
+    rows = list(restatements.visible(request.user).select_related("owner")[:200])
+    return render(request, "claims/restatements.html", {"rows": [(rs, service.label(rs.version.submission.deadline)) for rs in rows]})

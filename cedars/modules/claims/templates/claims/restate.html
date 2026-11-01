@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}Restate {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li><li><a href="{% url 'claims:version' v.pk %}">{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</a></li></ol></nav>
+<div class="page-title"><h1>Restate {{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}</h1>{% page_help "claims/restate" %}</div>
+<p>A restatement prices these confirmed claims again on today's engine, as an analysis. The filed record never changes: the confirmed
+version, its results and its published files stay exactly as they were confirmed.</p>
+<dl class="facts">
+  <dt>Filed on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release|default:"(release not recorded)" }}</dd>
+</dl>
+<section aria-labelledby="how-h">
+<h2 id="how-h">How the change is split</h2>
+<p>When you choose an ACC other than the filed one, two runs are made on the release you choose, with today's program registry and the
+claim year's allocation version and cost-test set: one on the filed {{ calc.acc }} ACC and one on your ACC. The first shows the effect of
+the engine and the programs' settings; the difference between the two is the effect of the ACC alone. On the filed ACC, one run is made
+and the whole change is the program and engine effect.</p>
+</section>
+{% if why %}<p class="alert" role="alert">{{ why }}</p>
+{% else %}
+<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate aria-labelledby="form-h">{% csrf_token %}
+  <h2 id="form-h">The restatement</h2>
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit" class="primary">Restate</button>
+</form>
+{% endif %}
+{% endblock %}
