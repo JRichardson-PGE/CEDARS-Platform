@@ -1,37 +1,17 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>Starting a run</h2>
-<p>Under Calculations, <a href="{% url 'calculations:new' %}">New run</a> prices a job on the ReCET engine:</p>
+<h2>First steps</h2>
 <ol>
-  <li>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job (or run a draft from
-  Edit inputs).</li>
-  <li>Choose who the run is for: only you, or an organization you belong to (its members can then see it).</li>
-  <li>Choose the engine release and the ACC (named by year, for example "2024 ACC"). <strong>Which ACC applies to my filing?</strong>
-  on the page says which ACC a filing or claim year takes. A CET replica prices a job exactly as that CET release did, its errors
-  included, for comparison only.</li>
-  <li>Choose the options you need (cost-test set, societal tests, emissions, statewide allocation, filing checks, output format and
-  template), then <strong>Start the run</strong>. <strong>Check the inputs only</strong> runs the input checks without pricing.</li>
+  <li>Open <a href="{% url 'calculations:new' %}">New run</a> and upload one .zip with Measure.csv and, optionally, ProgramCost.csv.</li>
+  <li>Choose who the run is for, the engine and the ACC (<strong>Which ACC applies to my filing?</strong> on the page helps).</li>
+  <li>Choose <strong>Start the run</strong>, or <strong>Check the inputs only</strong>. The run's page shows its progress, then its
+  files and results.</li>
 </ol>
-<p>The run is queued; its page shows its progress, then its files and its results.</p>
-<h2>Results and comparisons</h2>
-<p>A finished run's <strong>Results</strong> page sums the outputs by PA, program, sector and year, with the cost-test ratios. From a run's
-page you can <strong>compare</strong> it with another finished run you can see: every total side by side with the difference.</p>
-<h2>Edit inputs</h2>
-<p><a href="{% url 'calculations:drafts' %}">Edit inputs</a> edits a small job's Measure and ProgramCost tables row by row (jobs of up to
-500 measures; edit larger ones offline). Each cell is checked by the engine's own rules as you save, and the draft can be run or
-downloaded as a job zip.</p>
-<p><strong>Add a measure from eTRM</strong> (on a draft's Measure table) fills a new row from one eTRM permutation: find the measure
-package by its ID or name, then choose its offering one key at a time (offering, application type, delivery type, sector, building
-type, vintage, HVAC, climate zone, net-to-gross ID, GSIA ID, program administrator). Each list holds only the values left after the
-choices above it, and a key with a single value is chosen for you. Enter the number of units and add the row: it takes the
-permutation's savings, costs, NTG, life, installation rates, profiles and descriptions, and every field can still be changed. eTRM's
-"Any" (the PA enters the actual value) is left for you, and so are the program's own rebates, incentives and direct-install costs.</p>
-<h2>Output templates</h2>
-<p><a href="{% url 'calculations:templates' %}">Output templates</a> choose which columns, in which order, a run's measure-level file
-holds. The full results are kept either way.</p>
-<h2>Impact profiles</h2>
-<p>The <a href="{% url 'impact_profiles:library' %}">impact profile library</a> holds every hourly profile a measure can name: deemed
-profiles generated from eTRM load shapes, custom profiles PAs upload, and the DEER and TOU profiles carried over from CEDARS. Each
-8,760 spreads one kWh of savings over the year, per climate zone. To add a custom profile, download the template, give one 8,760 per
-climate zone that adds up to 1, and upload it; profiles are versioned and runs record the version they used.</p>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job row by row, or add a measure from eTRM.</li>
+  <li><a href="{% url 'calculations:templates' %}">Output templates</a>: choose the columns a run's file holds.</li>
+  <li><a href="{% url 'impact_profiles:library' %}">Impact profile library</a>: the hourly profiles measures name, and custom uploads.</li>
+  <li>From a finished run's page, compare it with another run.</li>
+</ul>
 {% endblock %}

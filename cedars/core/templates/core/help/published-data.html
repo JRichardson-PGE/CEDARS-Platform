@@ -1,63 +1,22 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>The portfolio dashboard</h2>
-<p>The <a href="{% url 'data:dashboards' %}">portfolio dashboard</a> shows what the PAs forecast in their budget filings beside what they
-claimed, from confirmed filings only. Its pages are Overview, Goals, Total system benefit, Program detail, Measure detail, Budget and
-spending, Cost effectiveness, Energy savings and Environmental impact.</p>
-<ul>
-  <li><strong>Choose the view</strong> with the controls at the top: the years, the metric, view by (PA, PA type, segment, sector,
-  implementer type or measure use category), gross or net, first year or lifecycle, and which series to show. Then choose
-  <strong>Apply</strong>. The page's address holds the whole view, so a copied link shows the same numbers.</li>
-  <li><strong>Filters</strong> narrow the rows (a PA, all RENs, a sector, a program). Each applied filter is listed with a link that takes it
-  off again.</li>
-  <li><strong>Drill down</strong> from any row: a PA's row opens its sectors, a sector's its programs, a program's its measures.</li>
-  <li><strong>What is left out</strong> is always stated on the page: by default pension and benefits programs and codes and standards
-  (and, on the Goals page, Energy Savings Assistance). You can include them.</li>
-  <li><strong>Download</strong> the rows you see as CSV, Excel or Parquet, one file per series. A download is the page's own query, so its
-  totals match the page.</li>
+<p>Everything published is open to everyone, with no account needed. Only confirmed filings are published.</p>
+<h2>First steps</h2>
+<ol>
+  <li>Open the <a href="{% url 'data:dashboards' %}">portfolio dashboard</a>, choose the years, metric and view at the top, then
+  <strong>Apply</strong>. The page's address keeps your choices, so a copied link shows the same numbers.</li>
+  <li>Select a row to drill down (PA, sector, program, measure). What is left out is always stated on the page.</li>
+  <li>Download the rows you see, or the records behind them, as CSV, Excel or Parquet.</li>
+</ol>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'data:records' %}">Record downloads</a>: the published measure-level records, with the columns you choose.</li>
+  <li><a href="{% url 'data:views' %}">Saved views</a>: save, share or ask to publish a dashboard or records view (signed in).</li>
+  <li><a href="{% url 'documents:library' %}">Document library</a>: PA documents, CPUC guidance, DEER resources and EM&amp;V studies.</li>
+  <li><a href="{% url 'dictionary:index' %}">Data dictionary</a> and its <a href="{% url 'dictionary:changes' %}">change log</a>: every field and the name CET used for it.</li>
+  <li><a href="{% url 'rules:index' %}">Validation rules</a>: what each filing is checked against.</li>
+  <li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a>: decisions that change CEDARS' data or calculations.</li>
+  <li><a href="{% url 'data:metrics_csv' %}">Metric catalog</a> (CSV) and the open data API at <code>/api/v1/data/</code>
+  (<a href="/api/v1/schema">API description</a>).</li>
 </ul>
-<p>Every ratio is summed benefits divided by summed costs, never an average of ratios. Each number's definition is in the
-<a href="{% url 'data:metrics_csv' %}">metric catalog</a> (CSV).</p>
-<h2>Record downloads</h2>
-<p><a href="{% url 'data:records' %}">Record downloads</a> gives the published measure-level records for every PA in one file. Choose
-claims or a filing, the years and filters, then the columns (each defined in the data dictionary), and download. A large download is
-made in the background: sign in and CEDARS tells you when it is ready.</p>
-<h2>Saved views</h2>
-<p>Signed in, you can save any dashboard page or the records page with its choices (years, filters, metric and, for records, the
-columns) under a name, from the Saved views part at the bottom of the page. A view keeps the choices, not the numbers, so it always
-opens on the data published now. <a href="{% url 'data:views' %}">Saved views</a> lists your views, the ones shared with you and the
-ones published for everyone.</p>
-<ul>
-  <li><strong>Share</strong> a view with people by their CEDARS account's email address (they are told), or with the members of an
-  organization you belong to. They can open it and save a copy of their own; only you change it.</li>
-  <li><strong>Publish</strong>: ask the CPUC to publish a view, and a CPUC system administrator decides. A published view is open to
-  everyone, signed in or not, and does not change until it is unpublished.</li>
-  <li><strong>Your default columns</strong>: on the records page, make the columns you chose your default, and the page starts from them
-  instead of the key columns whenever a link names none.</li>
-</ul>
-<h2>The open data API</h2>
-<p>Programs can read the same published data as JSON, with no account, from the open data API at <code>/api/v1/data/</code>. It has the
-metric catalog (<code>metrics</code>), the dimensions, filters and exclusions (<code>dimensions</code>), sums of any metrics by any
-dimensions (<code>query</code>, the dashboards' own query and default exclusions) and the measure-level records with the columns you
-choose (<code>columns</code> and <code>records</code>, the record downloads' own query, nothing left out unless asked). Rows come a page at
-a time with a link to the next page; the most a page holds is on the <a href="{% url 'limits:index' %}">limits page</a>. A dashboard's
-query string gives the same numbers in the API, and every answer is stamped like a download: the release, its as-of time, the filings
-read, the filters and what was left out. Only fields the data dictionary marks public are served. The
-<a href="/api/v1/schema">API description</a> (OpenAPI) lists every parameter.</p>
-<h2>Documents</h2>
-<p>The <a href="{% url 'documents:library' %}">document library</a> holds PA documents, CPUC staff guidance, DEER resources, program
-files and EM&amp;V studies, with their earlier versions. Search by words, or filter by collection, type, PA, program and year. Each
-document has a permanent link. Signed in, you can follow a document or a study to be told when it changes, and comment when a draft
-is open for comment.</p>
-<h2>The data dictionary and the rules</h2>
-<p>The <a href="{% url 'dictionary:index' %}">data dictionary</a> defines every field CEDARS takes or produces, with its unit and the
-name CET used for it (both names are accepted on upload). The <a href="{% url 'rules:index' %}">validation rules</a> list what each
-filing is checked against, rule by rule, with the versions in force; you can compare two versions of a rule set.</p>
-<p>Fields are never deleted from the dictionary. A field no longer needed is retired after a review of who uses it, who relies on it
-and whether a CPUC decision still requires it: it stays in the dictionary marked retired, with the reviews, and leaves the upload
-templates from its retirement date (uploads that still have the column are read, and the column ignored). The dictionary's
-<a href="{% url 'dictionary:changes' %}">change log</a> lists what each version changed, field by field, with every published version
-of the value lists and rule sets. The <a href="{% url 'mandates:index' %}">register of CPUC-mandated changes</a> beside it lists each
-decision or resolution that changes CEDARS' data or calculations, what it requires, when it takes effect, how far it is implemented
-and where CEDARS carries it.</p>
 {% endblock %}

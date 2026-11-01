@@ -162,17 +162,14 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
             card.percent = 100 * spent / base
             card.percent_label = f"{card.percent:.0f}% of the {base_words} spent"
         card.lines.append(
-            "Expenditure in claims confirmed so far, against the cycle's "
-            + (
-                "operating budget: the standing budget filings plus the fund shifts in effect."
-                if budget
-                else "budget as the PAs' latest filings forecast it (no operating budget is recorded for these years)."
-            )
+            "Claimed spending against the operating budget (filings plus fund shifts)."
+            if budget
+            else "Claimed spending against the budget in the PAs' latest filings."
         )
         if unclaimed_monthly:
             reported = sum(r.monthly for r in unclaimed_monthly)
             years = span([r.key for r in unclaimed_monthly])
-            card.lines.append(f"Monthly reports add {money(reported)} for {years}, not claimed yet (the PAs' own figures, not validated).")
+            card.lines.append(f"Monthly reports add {money(reported)} for {years}, not yet claimed or validated.")
     out.cards.append(card)
 
     # 2. total system benefit against the goal
@@ -193,17 +190,10 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
         card.percent = 100 * (counted or 0) / goal if goal and (tsb is not None or claimed_years) else None
         if card.percent is not None:
             card.percent_label = f"{card.percent:.0f}% of the goal"
-        card.lines.append(
-            f"{money(counted)} of it counts toward the IOU territories' goals, as the goal decision's counting rules say "
-            "(an IOU's own programs fully, a CCA's or REN's only where a rule names it)."
-        )
+        card.lines.append(f"{money(counted)} counts toward the IOU territories' goals.")
     else:
-        card.lines.append(
-            "No CPUC goal set covering this cycle is loaded yet, so there is no goal to compare with. A CPUC system "
-            "administrator loads the goal decision on the Energy efficiency goals page, and the goal appears here once a second "
-            "administrator confirms it."
-        )
-    card.lines.append("Voluntary programs: codes and standards, Energy Savings Assistance and pension and benefits are left out.")
+        card.lines.append("No CPUC goal is loaded for this cycle yet.")
+    card.lines.append("Leaves out codes and standards, Energy Savings Assistance, and pension and benefits.")
     out.cards.append(card)
 
     # 3. energy saved
@@ -225,10 +215,7 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
                     "detail": f"of {number(f.get(code), decimals)} forecast" if f.get(code) is not None else "",
                 }
             )
-        card.lines.append(
-            f"Net first-year savings, {so_far}, against the latest filings' forecast for {cycle}. Codes and standards "
-            "and pension and benefits are left out."
-        )
+        card.lines.append("Net first-year savings against the latest forecast. Leaves out codes and standards, and pension and benefits.")
     out.cards.append(card)
 
     # 4. cost effectiveness, statewide
@@ -260,8 +247,8 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
                 }
             )
         card.lines.append(
-            f"Statewide: every PA's benefits divided by every PA's costs, {so_far} and as forecast. Programs excluded "
-            "from cost-effectiveness, codes and standards and pension and benefits are left out."
+            "Statewide benefits divided by statewide costs. Leaves out codes and standards, pension and benefits, and "
+            "programs excluded from cost effectiveness."
         )
     out.cards.append(card)
 

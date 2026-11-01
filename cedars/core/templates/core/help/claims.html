@@ -1,34 +1,20 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>Five confirmations a year</h2>
-<p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims.
-<a href="{% url 'claims:index' %}">Claims</a> lists the year's periods and their due dates. The
-<a href="{% url 'claims:template' %}">claims template</a> (Excel) lists every table and field.</p>
-<h2>Filing a quarter</h2>
+<p>Each claim year is confirmed five times: after each quarter, then with the final annual claims.
+<a href="{% url 'claims:index' %}">Claims</a> lists the periods and due dates.</p>
+<h2>First steps</h2>
 <ol>
-  <li><strong>Upload</strong> the records that are new or changed since the last confirmation. CEDARS compiles them over the earlier
-  confirmed quarters: a record with the same key as one confirmed earlier replaces it.</li>
-  <li><strong>Check</strong>: every record is checked against the claims rules, and deemed measures against eTRM. A deemed value that
-  differs from eTRM rejects the record, except the net-to-gross fields, which may vary and only warn. Blanks that eTRM sets are filled
-  in. The findings file says how to fix each finding.</li>
+  <li>Download the <a href="{% url 'claims:template' %}">claims template</a> (Excel) for the tables and fields.</li>
+  <li><strong>Upload</strong> only the records new or changed since the last confirmation; CEDARS compiles them with the earlier quarters.</li>
+  <li><strong>Check</strong>: records are checked against the claims rules and deemed measures against eTRM. Fix and upload again.</li>
   <li><strong>Price</strong> the year to date, then <strong>confirm</strong>. Quarters are confirmed in order.</li>
 </ol>
-<h2>Withdrawing a claim</h2>
-<p>To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload with the reason. Its
-records stay, marked withdrawn, and are no longer priced or counted.</p>
-<h2>NMEC true-ups</h2>
-<p>A NMEC true-up names the claim it adjusts in ParentClaimID, with NMEC_TU_Flag set, and is filed on its revised (metered) 8,760
-profile. When priced, it is also priced on the profile its parent claim was priced on: the same profile version, read from the profile
-library that parent's run used, even when the profile has since been replaced. The difference is shown on the version's page, by
-program, and on the claim's NMEC chain in <a href="{% url 'claims:links' %}">Linked claims</a>. It is reported only: the results,
-ratios and cost tests use each claim's own values.</p>
-<h2>Personal information</h2>
-<p>Contacts and sites (PII_Contact, PII_Site) never go in the claims file. They are uploaded separately on the period's page, checked
-against the claims' ContactIDs and SiteIDs, and kept apart in the PII vault. Uploading or reading them needs the PII permission, which a
-CPUC data steward approves, and every use is recorded with its reason.</p>
-<h2>Corrections and the change log</h2>
-<p>Before a due date you can un-confirm. After it, a correction is a new version: ask to reopen, and the version you correct stays as
-confirmed. A draft's records can be corrected one by one, or by a partial correction file, without uploading the whole file again
-(<a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>). Each new version is published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.
-<a href="{% url 'claims:links' %}">Linked claims</a> shows claims that continue a project across years.</p>
+<p>Contacts and sites never go in the claims file: upload them separately on the period's page (needs the PII permission). To withdraw a
+claim, list its ClaimID in the next upload's Withdrawal table.</p>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>.</li>
+  <li><a href="{% url 'claims:changes' %}">Change log</a>: each new version's change letter.</li>
+  <li><a href="{% url 'claims:links' %}">Linked claims</a>: projects across years and NMEC true-ups.</li>
+</ul>
 {% endblock %}

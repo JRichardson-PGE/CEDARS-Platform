@@ -1,27 +1,19 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>What a monthly report holds</h2>
-<p>Each month a PA reports its commitments and the year's inputs so far, due on the day of the following month that the year's set-up
-gives. <a href="{% url 'monthly:index' %}">Monthly reports</a> lists the year's months. The file has three tables:</p>
-<ul>
-  <li><strong>Commitments</strong>: one row per program with commitments (PA, PrgID, YearMonth, the committed amounts and optional
-  comments).</li>
-  <li><strong>Measure</strong> and <strong>ProgramCost</strong>: the year's inputs so far, as a calculation run takes them. ProgramCost
-  has one row per program with its costs for the year to date; Measure may have no rows.</li>
+<p>Each month a PA reports its commitments and the year's inputs so far. <a href="{% url 'monthly:index' %}">Monthly reports</a> lists
+the year's months and due dates.</p>
+<h2>First steps</h2>
+<ol>
+  <li>Prepare the file's three tables: <strong>Commitments</strong> (one row per program), <strong>Measure</strong> and
+  <strong>ProgramCost</strong> (the year's inputs so far).</li>
+  <li>Upload, check, price and confirm, as with budgets and claims.</li>
+</ol>
+<p>Spending is compared with the operating budget. Committed incentives are not spending. Savings and total system benefit are estimates,
+not validated.</p>
+<h2>Learn more</h2>
+<ul class="links">
+  <li>Each year's page shows every month side by side and the 13th-month report against the final claims.</li>
+  <li><a href="{% url 'budgets:shifts' %}">Fund shifts</a> are made in Budgets.</li>
+  <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>.</li>
 </ul>
-<p>Spending is read from the inputs (program costs plus the measures' rebates and incentives) and compared with the operating budget.
-Each report shows the approved budget, the operating budget, spend, paid incentives and committed incentives as separate figures for
-each program:</p>
-<ul>
-  <li><strong>Paid incentives</strong> are the measures' rebates and incentives in the year's inputs so far. They are part of spend.</li>
-  <li><strong>Committed incentives</strong> come from the Commitments table: incentives the PA has committed to pay in the future. They
-  are not spend, and they are not comparable with paid incentives, so the reports never set one against the other.</li>
-</ul>
-<p>Savings and total system benefit are estimated from the same inputs and are not validated. Fund shifts are made in Budgets, not here.</p>
-<h2>Filing it</h2>
-<p>Upload, check, price and confirm, as with budgets and claims. Before the due date you can un-confirm; after it, a correction is a new
-version with a reason.</p>
-<h2>The year in one view and the 13th-month report</h2>
-<p>Each year has a page with every month side by side, and a 13th-month report that sets the year's monthly figures beside its final
-claims.</p>
 {% endblock %}

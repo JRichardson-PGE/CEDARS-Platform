@@ -1,25 +1,15 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>The program catalog</h2>
-<p>The <a href="{% url 'programs:catalog' %}">program catalog</a> lists every program in the registry, closed programs included.
-Search by name or PrgID, or pick a program year to see the attributes that applied that year. <strong>Other filters</strong> filters on
-any other attribute: choose a field, set what to keep, then <strong>Apply</strong>. The catalog downloads as CSV.</p>
-<h2>A program's page</h2>
-<p>Each program's page shows its status, segment, primary sector, implementer and years, then every version of it, its statewide
-allocation factors in each allocation version, and the EM&amp;V studies that evaluate it. Filings, claims and runs record the program
-and allocation versions they used. An implementation plan marked <strong>Placeholder</strong> stands in for a plan still to come; the
-full plan is filed as a later version of the same document.</p>
-<h2>What each field means</h2>
-<p><a href="{% url 'programs:fields' %}">Program fields</a> describes every field of a program's definition: what it means (the data
-dictionary's definition where it has the field), how to fill it in, and its valid values, with how many programs carry each. Each
-field's name on a program's page links there, and the change form shows how to fill in each field under it. Status, segment, primary
-sector, implementer and category take only the listed values; a retired value stays on the versions that have it.</p>
-<h2>Changing a program</h2>
-<ul>
-  <li>A program's own administrators change most attributes themselves with <strong>Change</strong> on its page. A change starts a new
-  version on its effective date; the version before it ends the day before and is kept as it was.</li>
-  <li>A change to a <a href="{% url 'programs:locked' %}">locked attribute</a> (for example the segment or whether a program is excluded
-  from cost-effectiveness) is a request that a CPUC programs approver decides. Approving it starts the new version on the date asked
-  for. Requests are listed under <a href="{% url 'programs:requests' %}">program change requests</a>.</li>
+<h2>First steps</h2>
+<ol>
+  <li>Find a program in the <a href="{% url 'programs:catalog' %}">program catalog</a> by name or PrgID, or pick a program year.</li>
+  <li>Open it to see its attributes, every version, its statewide allocation factors and the studies that evaluate it.</li>
+  <li>To change it, choose <strong>Change</strong> on its page. A change starts a new version; the earlier one is kept. A
+  <a href="{% url 'programs:locked' %}">locked attribute</a> needs a CPUC programs approver's decision.</li>
+</ol>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'programs:fields' %}">Program fields</a>: what each field means and its valid values.</li>
+  <li><a href="{% url 'programs:requests' %}">Program change requests</a>: requests waiting on the CPUC.</li>
 </ul>
 {% endblock %}

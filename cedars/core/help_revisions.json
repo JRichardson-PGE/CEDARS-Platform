@@ -5,38 +5,38 @@
   },
   "guide:accessibility": {
     "release": "0.2.0",
-    "sha256": "2a381d984c2f9e8ca5fe67286f8da01f3d16c217bb1fa148e0b5880399ac424b"
+    "sha256": "fc7c2b39bb9b8f30e170d8fd67a6d25cf607e5a2767457dce2e23188e857e3e2"
   },
   "guide:budgets": {
     "release": "0.2.0",
-    "sha256": "26bfad4ade444dbc7e950011b372d92c127f829c3933d9828824f576f8410eba"
+    "sha256": "23833e75c31274de285748f1b04744f1d74b1fbc31dc00e792cf655931e0aae3"
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "71a015e98453560683d07dd9e86aa4ee48028d6f5ad987ee124f88ea98227f97"
+    "sha256": "a32bed5626c8db4ad28774a8d0594cf925983c01edb85ac8b0ca7743c7ec2c8f"
   },
   "guide:claims": {
     "release": "0.2.0",
-    "sha256": "590e08a2f15e6d7a5beb83851d26d00e6c51242eca1365198f9db0346cbc6ce6"
+    "sha256": "90cf5ee63abf143bb1c447e985475281756b023f2102f63e60690ead744fbf1d"
   },
   "guide:correcting-records": {
     "release": "0.2.0",
-    "sha256": "3bb1c0c1e799b38a98b07d0850acfb5e237290634c221fdc7eb77d81e81f3dde"
+    "sha256": "f90adb3936e5c75759188ac64152b390ed1708b9248c3cd6ac215d2d30c0b350"
   },
   "guide:getting-started": {
     "release": "0.2.0",
-    "sha256": "8aec68dc6ee8964dc3e8e4e3acf153fda468cf6f9e140ccc6a7237fb6baf9d32"
+    "sha256": "ababb5fc43729f56e353028c49ee885ffd96dc8bf7e7d2b843cfe71f1eac07ca"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
-    "sha256": "b7322a41956170fcbda76ddf1523473f96571e9097e06146a3007c33a7bd7f16"
+    "sha256": "1c563dcb81efdc0341da4c1a6c0a155ffa3f8c1014da64061fc30cf8007832fb"
   },
   "guide:programs": {
     "release": "0.2.0",
-    "sha256": "695e5e0dbd8e2c314d0f72aec01d1629c7873da95e3df0340980ac726f4efc23"
+    "sha256": "68d056a0534e3b33afba1c0e2d0767a130bc0210dc3a8562c28d08a4fe177e8e"
   },
   "guide:published-data": {
     "release": "0.2.0",
-    "sha256": "a4855046fd4dc964566b225b763ae912aa2823e3d76bbae6b1a4b8d30b6a17e3"
+    "sha256": "ace29f59581a8d45af63528e8b78c808c3d9c20d40dc78e1deabeffc5a4d54cf"
   }
 }
