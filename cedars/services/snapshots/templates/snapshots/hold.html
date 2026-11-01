@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Publication held: {{ label }}{% endblock %}
 {% block content %}
-<p class="small"><a href="{% url 'snapshots:holds' %}">Publication holds</a></p>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'snapshots:holds' %}">Publication holds</a></li></ol></nav>
 <div class="page-title"><h1>{{ label }}</h1>{% page_help "snapshots/hold" %}</div>
 <p>
   {% if scan.held and not superseded %}<span class="status warn">Held</span> This filing is confirmed, but its records are not in the public dashboards and record downloads: the publication scan found what may be personal information. The public data keep showing what was published before.
