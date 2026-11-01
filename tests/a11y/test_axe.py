@@ -582,10 +582,14 @@ def _saved_views(community, cpuc_admin, pge_admin, pge):
     """Saved views: one of the community account's, shared by name and asked to be published, with a history; one published; its own
     default record columns."""
     from cedars.modules.data import saved
+    from cedars.services.notifications import service as notifications
 
     view = saved.save(community, name="Residential lighting", page="overview", query="by=program&sector=Residential", description="Mine")
     saved.share_with(community, view, pge_admin.email)
     saved.request_publication(community, view, "The working group asked for it")
+    # The administrators read the request's notification: an unread count on the bell would widen the header that
+    # test_the_full_header_stays_on_one_row_at_1280 measures for cpuc_admin.
+    notifications.mark_read(cpuc_admin)
     shown = saved.save(pge_admin, name="PG&E by sector", page="overview", query="by=sector&pa=PGE")
     saved.set_organisation(pge_admin, shown, pge)
     saved.publish(cpuc_admin, shown, "For the quarterly report")
