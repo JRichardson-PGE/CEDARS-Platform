@@ -113,6 +113,10 @@ how far it is built. Update the Status column in the PR that changes it.
   cost follows the values, not the pack's size), a key with one value is chosen for you, and each step is a plain GET form. The row
   takes the claims maps' Measure fields (`etrm.measure_row`), MeasureID = the Measure Detail ID and the climate zone from the building
   location; eTRM's "Any" is left for the person. `manage.py etrm_lookup_timings [--synthetic N]` times the lookup on a pack.
+  At eTRM's size (2026-11-01, `--synthetic 2100000`: 600 packages, the largest 250,000 permutations, local PostgreSQL 16): one
+  choice 0.6 ms median (1.1 ms 95th percentile), a page view 3 ms (11 ms), package to permutation in 24 ms (42 ms) over 6 to 12
+  page views; a plain SELECT DISTINCT on the largest package takes 340 ms. Loading the 2.1 million rows takes 6 minutes; the
+  offering-key index is 335 MB.
   "Run these inputs" opens New run on the draft (`?draft=`): its job zip is the run's upload. New run's "Check the inputs only" button
   queues a preflight-only run (setting `preflight_only`), from a file or a draft. Drafts are scratch data, purged with scratch runs from their last change.
 - A filing module prices a version through the submissions service (`submissions.price`), which calls the pricer the Calculations
