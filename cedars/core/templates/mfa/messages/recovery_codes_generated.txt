@@ -1,0 +1,1 @@
+{% comment %}Replaces django-allauth's message in the site's words (UAT 2, U11).{% endcomment %}{% if MFA_RECOVERY_CODES_SHOW_ONCE %}New recovery codes are ready. Save them somewhere safe now: they are not shown again.{% else %}New recovery codes are ready; your earlier codes no longer work.{% endif %}

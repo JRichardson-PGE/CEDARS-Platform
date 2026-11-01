@@ -504,11 +504,6 @@ def _ytd_checks(lines: list[dict], previous: SubmissionVersion | None, month: in
 def _summary(found: list, records: int, notes: list[str], key: str) -> dict:
     rejected = {(p.table, p.row, p.record_id) for p in found if p.severity == "reject"}
     warned = {(p.table, p.row, p.record_id) for p in found if p.severity != "reject"} - rejected
-    by_rule = defaultdict(lambda: [0, "", ""])
-    for p in found:
-        by_rule[p.rule_id][0] += 1
-        by_rule[p.rule_id][1:] = [p.severity, p.message]
-    top = sorted(by_rule.items(), key=lambda kv: (kv[1][1] != "reject", -kv[1][0]))
     return {
         "records": records,
         "rejected": len(rejected),
@@ -517,7 +512,7 @@ def _summary(found: list, records: int, notes: list[str], key: str) -> dict:
         "rule_set": "Monthly report checks (MON-*)",
         "findings_key": key,
         "findings": len(found),
-        "by_rule": [{"rule_id": k, "count": c, "severity": s, "example": m} for k, (c, s, m) in top[:20]],
+        "by_rule": rules.by_rule(found),
     }
 
 

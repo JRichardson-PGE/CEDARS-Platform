@@ -637,6 +637,24 @@ def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_col
     return findings, notes
 
 
+def by_rule(problems, limit: int = 20) -> list[dict]:
+    """An upload's findings summed by rule, rejects first, then the rules that touch the most: each rule's records (a column rule's
+    columns; a record a rule flags twice counts once, UAT 2 U08), its severity and one message for example. The unit agrees with the
+    count ("1 record", "9 records")."""
+    touched: dict[str, set] = {}
+    seen: dict[str, tuple[str, str]] = {}
+    for p in problems:
+        column = p.rule_id.endswith("-COL")
+        touched.setdefault(p.rule_id, set()).add((p.table, p.field) if column else (p.table, p.row, p.record_id))
+        seen[p.rule_id] = (p.severity, p.message)
+    top = sorted(touched, key=lambda k: (seen[k][0] != "reject", -len(touched[k]), k))[:limit]
+    out = []
+    for k in top:
+        n, noun = len(touched[k]), "column" if k.endswith("-COL") else "record"
+        out.append({"rule_id": k, "count": n, "severity": seen[k][0], "example": seen[k][1], "unit": noun if n == 1 else noun + "s"})
+    return out
+
+
 def findings_csv(findings: list[Finding]) -> str:
     import csv
 
