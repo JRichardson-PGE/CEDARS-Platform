@@ -46,7 +46,18 @@ def read_upload(data: bytes, filename: str) -> tuple[dict[str, bytes], bytes]:
     """({table: file bytes}, the job .zip) from an uploaded .zip or .xlsx."""
     if filename.lower().endswith(".xlsx"):
         tables = _from_workbook(data)
+        _check_tables(tables, workbook=True)
         return tables, job_zip(tables)
+    tables = read_tables(data, filename)
+    _check_tables(tables)
+    return tables, data
+
+
+def read_tables(data: bytes, filename: str) -> dict[str, bytes]:
+    """{table: file bytes} of the tables a .zip or .xlsx holds, without requiring both or their columns: a partial correction's file
+    (BR-02.4) holds only the records it changes."""
+    if filename.lower().endswith(".xlsx"):
+        return _from_workbook(data)
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
@@ -67,8 +78,7 @@ def read_upload(data: bytes, filename: str) -> tuple[dict[str, bytes], bytes]:
             tables[table] = z.read(info)
     if extra:
         raise JobError(f"The .zip may hold only Measure.csv and ProgramCost.csv; it also has {', '.join(sorted(extra))}.")
-    _check_tables(tables)
-    return tables, data
+    return tables
 
 
 def _from_workbook(data: bytes) -> dict[str, bytes]:
@@ -91,7 +101,6 @@ def _from_workbook(data: bytes) -> dict[str, bytes]:
             w.writerow(["" if c is None else _cell(c) for c in row])
         tables[table] = out.getvalue().encode("utf-8")
     wb.close()
-    _check_tables(tables, workbook=True)
     return tables
 
 

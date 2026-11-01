@@ -209,7 +209,7 @@ topics:
             A confirmed version never changes: un-confirm it before the due date, or ask to reopen it after, and correct the new draft.
             Every change is in the audit trail with the record before and after, and the version is priced again before it is
             confirmed.
-        tags: [correct, fix, edit, record, row, partial upload, in place, delete record]
+        tags: [correct, fix, edit, record, row, partial upload, in place, delete record, budget filing, monthly report]
         guide: correcting-records
         links:
           - {text: Current limits, href: /limits/}

@@ -33,6 +33,7 @@ from cedars.services.notifications.service import Concern
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
 
@@ -529,6 +530,20 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
         raise AccessDenied("This is not a monthly report that has been set up.")
     tables = up.read_upload(data, filename)
     v = submissions.start(actor, deadline, organisation)
+    entry = {"uploaded_as": filename}
+    if sources:
+        entry["sources"] = sources
+    return _store_and_check(actor, v, tables, entry)
+
+
+def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entry: dict, *, corrected: bool = False) -> SubmissionVersion:
+    """Keep the report's tables (report.zip) and its BCA inputs (job.zip) as the version's files, in a folder named by the report's
+    SHA-256, read its lines, run the module's checks and record the result. The checks are all file-wide (a program's one row, its
+    year-to-date spend against last month's) and quick, so a correction in place (BR-02.4, `corrected`) checks every record again."""
+    v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
+    if v.locked:
+        raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
+    deadline, organisation = v.submission.deadline, v.submission.organisation
     prev = previous_month(deadline)
     lines, found, records, notes = derive(tables, organisation, deadline.period, standing(organisation, prev) if prev else None)
     report, job = up.report_zip(tables), up.job_zip(tables)
@@ -543,7 +558,7 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     old = {f["key"].rsplit("/", 1)[0] + "/" for f in v.files or [] if f.get("key", "").startswith(_prefix(v))} - {folder}
     transaction.on_commit(lambda: [store.delete_prefix(o) for o in old])
     files = [
-        {"name": "report.zip", "key": folder + "report.zip", "sha256": sha, "bytes": len(report), "uploaded_as": filename},
+        {**entry, "name": "report.zip", "key": folder + "report.zip", "sha256": sha, "bytes": len(report)},
         {
             "name": "job.zip",
             "key": folder + "job.zip",
@@ -552,11 +567,36 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
             "measures": len(up.rows(tables["Measure"])[1]),
         },
     ]
-    if sources:
-        files[0]["sources"] = sources
     v = submissions.attach_files(actor, v, files)
     _replace_lines(v, lines)
-    return submissions.record_validation(actor, v, None, _summary(found, records, notes, findings_key))
+    summary = _summary(found, records, notes, findings_key)
+    summary["checked_at"] = timezone.now().isoformat()
+    if corrected:
+        summary["checked_again"] = {"records": records, "since": summary["checked_at"]}
+    return submissions.record_validation(actor, v, None, summary)
+
+
+# --- correcting records in place (BR-02.4)
+
+KEYS = {"Commitments": ("PrgID",), "Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
+
+
+@transaction.atomic
+def correct_records(actor, v: SubmissionVersion, tables: dict[str, bytes], scope=None) -> SubmissionVersion:
+    """Keep a correction's tables (corrections.apply's, as CSV) as the report's new files and check it again (the record editor and
+    partial corrections, through the submissions service's corrections)."""
+    f = report_file(v) or {}
+    entry = {"uploaded_as": f.get("uploaded_as", "report.zip"), "corrected": True}
+    return _store_and_check(actor, v, tables, entry, corrected=True)
+
+
+def ensure_checked(v: SubmissionVersion) -> None:
+    """A reopened version (n+1) starts with its predecessor's report, unchecked: check it, so its records can be corrected."""
+    f = report_file(v)
+    if v.locked or v.findings or f is None:
+        return
+    tables = up.read_upload(storage.store("uploads").get_bytes(f["key"]), "report.zip")
+    _store_and_check(None, v, tables, {k: x for k, x in f.items() if k not in ("name", "key", "sha256", "bytes")})
 
 
 def _replace_lines(v: SubmissionVersion, lines: list[dict]) -> None:
@@ -906,6 +946,9 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     if previous is None:
         return None
     changes = correction_changes(previous, v)
+    in_place = corrections.summary(v)
+    if in_place:
+        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     audit.record(
         "monthly.change_letter_published",
@@ -937,7 +980,12 @@ def notice(v: SubmissionVersion, event) -> Concern:
         letter = ChangeLetter.objects.filter(version=v).first()
         if letter is not None:
             c = letter.changes or {}
-            body = "\n".join(x for x in [f"Reason: {letter.reason}" if letter.reason else "", letters.summary(c, LETTER_FIGURES)] if x)
+            parts = [
+                f"Reason: {letter.reason}" if letter.reason else "",
+                corrections.summary_text(c.get("in_place") or {}),
+                letters.summary(c, LETTER_FIGURES),
+            ]
+            body = "\n".join(x for x in parts if x)
             return Concern(
                 programs={p["prg_id"] for p in c.get("programs", [])},
                 link=f"/monthly/changes/{letter.pk}/",

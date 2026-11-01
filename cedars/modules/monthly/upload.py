@@ -65,6 +65,16 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
         tables = _from_workbook(data)
         _check_tables(tables, workbook=True)
         return tables
+    tables = read_tables(data, filename)
+    _check_tables(tables)
+    return tables
+
+
+def read_tables(data: bytes, filename: str) -> dict[str, bytes]:
+    """{table: file bytes} of the tables a .zip or .xlsx holds, without requiring all three or their columns: a partial correction's
+    file (BR-02.4) holds only the records it changes."""
+    if filename.lower().endswith(".xlsx"):
+        return _from_workbook(data)
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
@@ -90,7 +100,6 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
             f"The .zip may hold only {', '.join(t + '.csv' for t in TABLES)}; it also has {', '.join(sorted(extra))}."
             + (" Spend is read from the BCA inputs (ProgramCost and the measures' incentives), so leave Expenditures out." if old else "")
         )
-    _check_tables(tables)
     return tables
 
 

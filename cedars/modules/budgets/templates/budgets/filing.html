@@ -34,7 +34,8 @@
   {% endif %}
   {% endif %}
 
-  {% if v.status == "draft" and file %}<p>Fix the rejected records and upload the file again.</p>{% endif %}
+  {% if v.status == "draft" and file %}<p>Fix the rejected records: correct them one by one, or upload the file again.</p>{% endif %}
+  {% if can_correct %}<p><a class="button" href="{% url 'submissions:records' v.pk %}">Correct records</a> <span class="small muted">Change, add or delete single records, or upload a partial correction, without uploading the whole file again.</span></p>{% endif %}
   {% if v.status == "validated" %}
     {% if priced %}
       <p>Priced: the results below are what confirming signs off on.</p>

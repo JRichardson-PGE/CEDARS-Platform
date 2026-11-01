@@ -14,6 +14,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
@@ -187,6 +188,7 @@ def report(request, pk):
         ctx["file"] = service.report_file(v)
         if ctx["priced"]:
             ctx["tiles"] = _tiles(service.report(v))
+        ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     return render(request, "monthly/report.html", ctx)
 
 

@@ -16,6 +16,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import FilingCycle
+from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
@@ -214,6 +215,7 @@ def filing(request, pk):
         if ctx["priced"]:
             t = service.table(v)
             ctx["tiles"] = _tiles(t)
+        ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     return render(request, "budgets/filing.html", ctx)
 
 

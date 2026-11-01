@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "1cddc0b0bbef3ef8f3b1eadd4dabefa6ce4a66309b6a5f2fd869b0ba27f3517d"
+    "sha256": "3b86a7e7926008026a2fddcf4eed553882f8edef15b9412212f5c0c08b9c9f90"
   },
   "guide:accessibility": {
     "release": "0.2.0",
@@ -21,7 +21,7 @@
   },
   "guide:correcting-records": {
     "release": "0.2.0",
-    "sha256": "3f78966aa1b13491ead3f52e19b41fa83bc4940d29596fdbcb2a3debc6ffb508"
+    "sha256": "3bb1c0c1e799b38a98b07d0850acfb5e237290634c221fdc7eb77d81e81f3dde"
   },
   "guide:getting-started": {
     "release": "0.2.0",

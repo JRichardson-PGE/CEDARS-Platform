@@ -44,3 +44,9 @@ class BudgetsConfig(AppConfig):
 
         # each user's queue (BR-09.5): fund shifts waiting for their PA's acknowledgment
         my_queue.register("fund_shift", "Fund shifts to acknowledge", queue.acknowledgements, action="Acknowledge", order=60)
+
+        from cedars.services.submissions import corrections as record_corrections
+
+        from .corrections import BudgetsEditor
+
+        record_corrections.register(BudgetsEditor())  # records corrected in place on an open draft (BR-02.4)

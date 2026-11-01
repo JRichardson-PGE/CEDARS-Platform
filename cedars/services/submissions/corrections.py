@@ -147,6 +147,130 @@ class Editor:
         return ""
 
 
+TYPE_WORDS = {"number": "Number", "boolean": "0 or 1", "year_quarter": "Year and quarter (e.g. 2028Q1)", "text": "Text"}
+
+
+def file_fields(columns: list[str], *, required=(), numbers=(), descriptions: dict | None = None) -> tuple[FieldDef, ...]:
+    """The fields of a table whose columns are the filed file's own (Budgets, Monthly reports: CET's job tables, whatever columns the
+    file has): the required columns first, then the file's in its order, each described from the data dictionary in force when it names
+    the column, else from `descriptions`."""
+    from django.db.models.functions import Lower
+
+    from cedars.services.dictionary import service as dictionary
+    from cedars.services.dictionary.models import Field
+
+    names: list[str] = []
+    for c in [*required, *columns]:
+        if c and c.lower() not in {n.lower() for n in names}:
+            names.append(c)
+    known: dict = {}
+    catalog = dictionary.current()
+    if catalog is not None:
+        low = [n.lower() for n in names]
+        for f in Field.objects.filter(version=catalog).annotate(low=Lower("name")).filter(low__in=low):
+            known[f.low] = f
+    need = {r.lower() for r in required}
+    num = {n.lower() for n in numbers}
+    out = []
+    for n in names:
+        d = known.get(n.lower())
+        kind = "Number" if n.lower() in num else TYPE_WORDS.get(d.data_type, "Text") if d else "Text"
+        text = (d.definition if d else "") or (descriptions or {}).get(n, "")
+        out.append(FieldDef(n, kind, n.lower() in need, text))
+    return tuple(out)
+
+
+def csv_bytes(columns: list[str], rows: list[dict[str, str]]) -> bytes:
+    """A table written back as a comma-delimited CSV (UTF-8), the columns in order: how a corrected table is kept."""
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(columns)
+    for r in rows:
+        w.writerow([r.get(c, "") for c in columns])
+    return out.getvalue().encode("utf-8")
+
+
+def canonical(columns: list[str], names) -> dict[str, str]:
+    """{a file's column: its canonical name} for the columns that are one of `names` in another case (CET's files vary)."""
+    by_low = {n.lower(): n for n in names}
+    return {c: by_low[c.lower()] for c in columns if c.lower() in by_low and by_low[c.lower()] != c}
+
+
+class FileTables(Editor):
+    """An editor for a module whose records are CSV tables kept whole with each version (Budgets, Monthly reports): the version's own
+    records are its file's, with no earlier records to carry in, and the fields are the file's own columns (CET's job tables carry
+    whatever columns the PA's file has). The module supplies its tables, keys, required and number columns, how it reads its files, and
+    `store`, which keeps the corrected tables and checks them."""
+
+    table_names: tuple[str, ...] = ()
+    keys: dict[str, tuple[str, ...]] = {}
+    required: dict[str, list[str]] = {}
+    numbers: dict[str, list[str]] = {}
+    descriptions: dict[str, dict[str, str]] = {}
+
+    def files(self, v: SubmissionVersion) -> tuple[str, dict[str, bytes]]:
+        """(the filed file's SHA-256, its tables as bytes); ("", {}) when there is none."""
+        raise NotImplementedError
+
+    def parse(self, content: bytes) -> tuple[list[str], list[dict[str, str]]]:
+        """One table's header and rows, as the module reads them."""
+        raise NotImplementedError
+
+    def read_tables(self, data: bytes, filename: str) -> dict[str, bytes]:
+        """The tables a partial correction's file holds (not all need be there)."""
+        raise NotImplementedError
+
+    def store(self, actor, v: SubmissionVersion, tables: dict[str, bytes], scope: Scope) -> SubmissionVersion:
+        raise NotImplementedError
+
+    def _table(self, name: str, content: bytes) -> Rows:
+        header, rows = self.parse(content)
+        known = [*self.keys.get(name, ()), *self.required.get(name, ()), *self.numbers.get(name, ())]
+        ren = canonical(header, known)
+        return Rows(name, [ren.get(c, c) for c in header], [{ren.get(k, k): x for k, x in r.items()} for r in rows])
+
+    def rows(self, v):
+        sha, tables = self.files(v)
+        cached = _parsed.get((self.module, sha)) if sha else None
+        if cached is None:
+            cached = {t: self._table(t, c) for t, c in tables.items()}
+            if sha:
+                _parsed[(self.module, sha)] = cached
+                while len(_parsed) > 4:
+                    _parsed.pop(next(iter(_parsed)))
+        return {t: Rows(t, list(r.columns), [dict(x) for x in r.rows]) for t, r in cached.items()}
+
+    def tables(self, v):
+        own = self.rows(v)
+        return [
+            TableDef(
+                t,
+                self.keys[t],
+                file_fields(
+                    own[t].columns if t in own else [],
+                    required=self.required.get(t, ()),
+                    numbers=self.numbers.get(t, ()),
+                    descriptions=self.descriptions.get(t),
+                ),
+            )
+            for t in self.table_names
+        ]
+
+    def read_upload(self, data, filename):
+        return {t: self._table(t, c) for t, c in self.read_tables(data, filename).items()}
+
+    def save(self, actor, v, tables, scope):
+        own = self.rows(v)
+        out = {}
+        for t in self.table_names:
+            r = tables.get(t) or own.get(t)
+            if r is not None:
+                out[t] = csv_bytes(r.columns, r.rows)
+        return self.store(actor, v, out, scope)
+
+
+_parsed: dict[tuple[str, str], dict[str, Rows]] = {}  # the last few files' tables, by module and SHA-256 (a file never changes)
+
 _editors: dict[str, Editor] = {}
 
 
