@@ -11,7 +11,7 @@
 
 <section aria-labelledby="found-h">
 <h2 id="found-h">What the scan found</h2>
-<p class="small muted">Scanned {{ scan.scanned_at|datetime_words }}: {{ scan.columns|length }} text column{{ scan.columns|length|pluralize }} of {{ snap.rows }} record{{ snap.rows|pluralize }}.{% if scan.skipped %} Left out by the settings: {{ scan.skipped|join:", " }}.{% endif %} Examples are masked: only the first character and the punctuation are shown.</p>
+<p class="small muted">Scanned {{ scan.scanned_at|datetime_words }}: {{ scan.columns|length }} text column{{ scan.columns|length|pluralize }} of {{ snap.rows }} record{{ snap.rows|pluralize }}.{% if scan.skipped %} Left out by the settings: {{ scan.skipped|join:", " }}.{% endif %}{% if scan.numeric %} Read as numbers (plain numbers in them are not searched, anything else is): {{ scan.numeric|join:", " }}.{% endif %} Examples are masked: only the first character and the punctuation are shown.</p>
 {% if scan.error %}<p>The file could not be scanned, so it was held: {{ scan.error }}</p>{% endif %}
 {% if findings %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Findings">
@@ -25,6 +25,7 @@
   </tr>{% endfor %}</tbody>
 </table>
 </div>
+<p id="hold-records"><a class="button" href="{% url 'snapshots:hold_records' snap.pk %}" download>Download the records found (CSV)</a> <span class="small muted">Every record behind these findings: the filing, the record ID (CEInputID), the program, the column and what its value looks like, for the organization to look into. The values themselves are not in it.</span></p>
 {% elif not scan.error %}<p>Nothing now: the last scan found nothing.</p>{% endif %}
 </section>
 

@@ -82,6 +82,9 @@ class PIIScan(models.Model):
     error = models.TextField(blank=True, help_text="Why the file could not be scanned (the publication is held)")
     columns = models.JSONField(default=list, blank=True, help_text="The text columns searched")
     skipped = models.JSONField(default=list, blank=True, help_text="Text columns the settings left out")
+    numeric = models.JSONField(
+        default=list, blank=True, help_text="Columns read as numbers: their plain-number values were not searched (the rest were)"
+    )
     patterns = models.JSONField(default=list, blank=True, help_text="The patterns that ran")
     scanned_at = models.DateTimeField()
     alerted = models.PositiveIntegerField(default=0, help_text="How many people were told of the hold")

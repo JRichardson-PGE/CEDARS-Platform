@@ -25,6 +25,8 @@ snapshots/hold:
     - One confirmed filing whose records the scan for personal information held back from the public dashboards and downloads, what
       the scan found, and what happens next. Examples are masked; the values themselves are never shown or kept outside the filing.
   how:
+    - Download the records found for the list of every record behind the findings (record ID, program, column, what the value looks
+      like; never the value), to look into them in the filing.
     - If the values are personal information, the filing's organization corrects the filing (un-confirm it before the due date, or
       request a correction after it). The corrected version is scanned in its own right.
     - If they are not, a CPUC system administrator gives the reason and releases it, or changes the scan settings and scans it again.
@@ -32,6 +34,10 @@ snapshots/hold:
     - heading: What the scan found
       title: What the scan found
       text: Each column with values that look like personal information, with how many records, masked examples and the first records.
+    - target: "#hold-records"
+      title: Download the records found
+      text: Every record behind the findings as CSV, for the filing's organization to look into. The values are not in it.
+      optional: true
     - heading: What happens next
       title: What happens next
       text: How a held filing is corrected or released.

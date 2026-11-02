@@ -127,6 +127,75 @@ def test_dictionary_columns_and_ids_from_later_row_groups(tmp_path):
     assert f.record_ids == [f"M{len(CLEAN)}"] and f.records == 1
 
 
+# --- numbers (legacy budgets are filed text; "234567.8901" has a phone number's shape)
+
+# Legacy CEDARS amounts as the downloads have them: dollars to four places, whole dollars, negatives, thousands commas, exponents
+BUDGETS = ["234567.8901", "415555.0123", "987654321", "-234567.8901", "1,234,567.25", "2.345678e5", "", "0", "0.0000", ".5"]
+
+
+def test_legacy_budget_amounts_are_numbers_not_phone_or_account_numbers(tmp_path):
+    path = tmp_path / "r.parquet"
+    n = len(BUDGETS)
+    path.write_bytes(table(CLEAN[:1] * n, extra={"Legacy_Budget": BUDGETS, "UnitMeaCost1stBaseline": ["315555.1234"] * n}))
+    before = pii.scan(path)  # no column read as numbers: the old behaviour, which held legacy filings
+    assert {(f.column, f.pattern) for f in before.findings} >= {("Legacy_Budget", "phone"), ("Legacy_Budget", "account_number")}
+    r = pii.scan(path, numeric=["legacy_budget", "UnitMeaCost1stBaseline"])
+    assert r.clear and r.numeric == ["Legacy_Budget", "UnitMeaCost1stBaseline"]
+    assert "Legacy_Budget" in r.columns  # still searched: only its plain numbers are left out
+
+
+def test_text_in_a_numeric_column_and_numbers_in_a_text_column_are_still_searched(tmp_path):
+    path = tmp_path / "r.parquet"
+    budgets = ["234567.8901", f"Call {PHONE}", f"acct {ACCOUNT}", "1,250,000"]
+    path.write_bytes(table([f"acct {ACCOUNT}", "234567.8901", "LED", "x"], extra={"Legacy_Budget": budgets}))
+    r = pii.scan(path, numeric=["Legacy_Budget"])
+    found = {(f.column, f.pattern): f for f in r.findings}
+    assert set(found) == {
+        ("MeasDescription", "phone"),
+        ("MeasDescription", "account_number"),
+        ("Legacy_Budget", "phone"),
+        ("Legacy_Budget", "account_number"),
+    }
+    assert found[("Legacy_Budget", "phone")].record_ids == ["M1"] and found[("Legacy_Budget", "account_number")].record_ids == ["M2"]
+
+
+def test_numeric_columns_come_from_the_dictionary_and_the_legacy_amounts():
+    from cedars.services.dictionary import service as dictionary
+
+    assert "legacy_budget" in snapshots.numeric_columns() and "numunits" not in snapshots.numeric_columns()
+    dictionary.load_catalog(
+        None,
+        {
+            "fields": [
+                {"name": "NumUnits", "kind": "input", "data_type": "number", "aliases": [{"name": "Number of Units", "system": "CET"}]},
+                {"name": "MeasDescription", "kind": "input", "data_type": "text"},
+                {"name": "ClaimYearQuarter", "kind": "input", "data_type": "year_quarter"},
+            ]
+        },
+    )
+    got = snapshots.numeric_columns()
+    assert {"numunits", "number of units", "legacy_budget", "legacy_programcosts"} <= got
+    assert "measdescription" not in got and "claimyearquarter" not in got
+
+
+def test_a_legacy_style_budget_is_published_and_recorded_as_numeric(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    extra = {"Legacy_Budget": ["234567.8901", "415555.0123", "987654321", "1,234,567.25"] * 2}
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, extra=extra), django_capture_on_commit_callbacks)
+    scan = Snapshot.objects.get(version=v).pii_scan
+    assert scan.outcome == "clear" and scan.numeric == ["Legacy_Budget"] and in_release() == {v.pk}
+
+
+def test_a_hold_from_before_the_fix_clears_on_a_new_scan(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # the scan as it was
+    extra = {"Legacy_Budget": ["234567.8901"] * len(CLEAN)}
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, extra=extra), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    assert snap.pii_scan.held and in_release() == set()
+    monkeypatch.undo()
+    scan = snapshots.rescan(cpuc_admin, snap)
+    assert scan.outcome == "clear" and scan.numeric == ["Legacy_Budget"] and in_release() == {v.pk}
+
+
 # --- the hold
 
 
@@ -287,3 +356,59 @@ def test_the_settings_page_saves_with_a_reason(client, cpuc_admin):
     assert (
         cfg.patterns == ["email", "phone"] and cfg.exempt_columns == ["CEInputID", "PrgID", "MeasureCode"] and cfg.changed_by == cpuc_admin
     )
+
+
+# --- the records found, for the filing's organization to look into (never the values)
+
+
+def test_the_owner_downloads_every_record_found_without_the_values(client, filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
+    descriptions = [*CLEAN, f"Call {PHONE}", f"Contact {EMAIL}", "(415) 555 0199", *[f"Call {PHONE}"] * 6]
+    v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, descriptions), django_capture_on_commit_callbacks)
+    snap = Snapshot.objects.get(version=v)
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("snapshots:hold", args=[snap.pk])).content.decode())
+    assert "Download the records found" in page
+    r = client.get(reverse("snapshots:hold_records", args=[snap.pk]))
+    assert r.status_code == 200 and r["Content-Type"].startswith("text/csv") and "attachment" in r["Content-Disposition"]
+    text = r.content.decode()
+    lines = text.strip().splitlines()
+    assert lines[0] == "Filing,Organization,Record (CEInputID),PrgID,Column,Looks like"
+    phone = [ln for ln in lines[1:] if ln.endswith("phone numbers")]
+    assert len(phone) == 8 and len(lines) == 10  # every record, not only the first five the page shows
+    assert all(",PGE," in ln and ",PGE_Res_HVAC,MeasDescription," in ln for ln in lines[1:])
+    assert {ln.split(",")[2] for ln in phone} == {f"M{i}" for i in [8, 10, *range(11, 17)]}
+    assert no_raw(text)
+    event = AuditEvent.objects.get(action="snapshot.hold_records_downloaded")
+    assert event.actor == filer and event.after == {"rows": 9}
+
+
+def test_another_organization_cannot_download_the_records(client, make_user, cpuc_admin, held_snap):
+    sce = access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
+    other = make_user("analyst@sce.example.org")
+    access.ensure_membership(cpuc_admin, other, sce)
+    sign_in(client, other)
+    assert client.get(reverse("snapshots:hold_records", args=[held_snap.pk])).status_code == 404
+    with pytest.raises(AccessDenied):
+        snapshots.hold_records_csv(other, held_snap)
+    sign_in(client, cpuc_admin)
+    assert client.get(reverse("snapshots:hold_records", args=[held_snap.pk])).status_code == 200
+
+
+def test_the_command_rescans_every_hold(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    from django.core.management import call_command
+
+    monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # holds made before the fix
+    budget = {"Legacy_Budget": ["234567.8901"] * len(CLEAN)}
+    a = confirm(
+        filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, run="r1", extra=budget), django_capture_on_commit_callbacks
+    )
+    b = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 2), pge, [f"Call {PHONE}"], run="r2"), django_capture_on_commit_callbacks)
+    monkeypatch.undo()
+    out = io.StringIO()
+    call_command("rescan_publication_holds", by=cpuc_admin.email, dry_run=True, stdout=out)
+    assert "2 held" in out.getvalue() and PIIScan.objects.filter(outcome="held").count() == 2
+    out = io.StringIO()
+    call_command("rescan_publication_holds", by=cpuc_admin.email, stdout=out)
+    assert "2 rescanned, 1 cleared, 1 still held" in out.getvalue()
+    assert Snapshot.objects.get(version=a).pii_scan.outcome == "clear" and Snapshot.objects.get(version=b).pii_scan.held
+    assert AuditEvent.objects.filter(action="snapshot.rescanned", actor=cpuc_admin).count() == 2
