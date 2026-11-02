@@ -6,6 +6,8 @@ Module permissions are "<module>.<action>". Four more are special:
   claims.pii    reaching the PII vault for the organization's claims; any data steward must approve the grant, and the CPUC can require
                 a federated session for it (AccessPolicy.pii_requires_federated, decision F)
   system.admin  a CPUC system administrator (CPUC organization only)
+  allocation.manage  loads, confirms and discards statewide allocation factor versions; only in an organization the CPUC marks as
+                managing statewide allocations (Organisation.manages_allocation; Jake 2026-11-02)
   pii.steward   a data steward (CPUC organization only; decision G): approves PII grants, confirms rule changes; never the last one revoked
 """
 
@@ -32,12 +34,14 @@ ORG_ADMIN = "org.admin"
 PII = "claims.pii"
 SYSTEM_ADMIN = "system.admin"
 STEWARD = "pii.steward"
+ALLOCATION = "allocation.manage"
 
 SPECIAL = {
     ORG_ADMIN: "Organization administrator",
     PII: "Claims PII (vault)",
     SYSTEM_ADMIN: "CPUC system administrator",
     STEWARD: "Data steward",
+    ALLOCATION: "Statewide allocation factors: manage",
 }
 
 CPUC_ONLY = frozenset({SYSTEM_ADMIN, STEWARD})

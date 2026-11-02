@@ -5,7 +5,8 @@
 <div class="page-title"><h1>{{ v.label }}</h1>{% page_help "administration/allocation" %}</div>
 <dl class="facts">
   <dt>For</dt><dd>{{ v.get_purpose_display }}{% if v.filing_cycle %}, cycle {{ v.filing_cycle|cycle_label }}{% endif %}</dd>
-  <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} {{ v.confirmed_at|date_words }} by {{ v.confirmed_by|person|default:"the system" }}{% endif %}</dd>
+  <dt>Status</dt><dd><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} {{ v.confirmed_at|date_words }} by {{ v.confirmed_by|person|default:"the system" }}{% if v.confirmed_organisation %} for {{ v.confirmed_organisation.code }}{% elif v.confirmed_by %} for the CPUC{% endif %}{% endif %}</dd>
+  <dt>Loaded</dt><dd>{{ v.created_at|date_words }}{% if v.created_by %} by {{ v.created_by|person }}{% if v.created_organisation %} for {{ v.created_organisation.code }}{% else %} for the CPUC{% endif %}{% endif %}</dd>
   <dt>Factors</dt><dd>{{ count }} program-years, {% if years %}{{ years|first }} to {{ years|last }}{% endif %}</dd>
   <dt>Source</dt><dd>{{ v.source_name }} <span class="small muted">SHA-256 {{ v.source_sha256|truncatechars:20 }}</span></dd>
   {% if v.notes %}<dt>Notes</dt><dd>{{ v.notes }}</dd>{% endif %}
@@ -24,9 +25,27 @@
 {% else %}<p>Every program-year's factors add up to 1 for each fuel, and every weighted factor matches its electric and gas factors.</p>{% endif %}
 
 {% if v.status == "draft" %}
+{% if can_manage %}
 <form method="post" class="actions">{% csrf_token %}
   <button type="submit" name="action" value="confirm" class="primary">Confirm this version</button>
   <button type="submit" name="action" value="discard">Discard the draft</button>
 </form>
+{% else %}
+<p>This is a draft. A funding PA member with the permission to manage the factors confirms or discards it.</p>
 {% endif %}
+{% endif %}
+
+<h2 id="history-h">History</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="history-h">
+<table class="list">
+  <caption class="sr-only">Who loaded and confirmed this version, oldest first</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Who</th><th scope="col">For</th></tr></thead>
+  <tbody>
+  {% for e in history %}
+  <tr><th scope="row">{{ e.at|date_words }}</th><td>{{ e.action|cut:"allocation_version."|capfirst }}</td><td>{% if e.actor %}{{ e.actor|person }}{% else %}{{ e.actor_label }}{% endif %}</td><td>{% if e.organisation %}{{ e.organisation.code }}{% else %}CPUC{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="4">Nothing recorded.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
 {% endblock %}

@@ -2,27 +2,36 @@
 {% block title %}Statewide allocation factors{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Statewide allocation factors</h1>{% page_help "administration/allocations" %}</div>
-<p>Each version is a complete table of factors. A confirmed version never changes; filings, claims and runs record the version they used,
-and a run that names none uses the most recently confirmed version with factors for its program year.</p>
-<p>The CPUC's energy efficiency goals are kept on <a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a>.</p>
+<p>The share of each statewide program each funding PA carries, by year. Each version is a complete table of factors. A confirmed version
+never changes; filings, claims and runs record the version they used, and a run that names none uses the most recently confirmed version
+with factors for its program year.</p>
+<p>The funding PAs manage the factors: {% for o in managers %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}no organization yet{% endfor %}.
+A member with the "{{ permission }}" permission, granted by their organization's administrator, loads a draft and confirms or discards it.
+The other funding PAs are told when a version is confirmed.{% if nav.sysadmin %} The CPUC's energy efficiency goals are kept on
+<a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a>.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Allocation versions">
 <table class="list">
   <caption class="sr-only">Allocation versions, newest first</caption>
-  <thead><tr><th scope="col">Version</th><th scope="col">For</th><th scope="col">Cycle</th><th scope="col">Status</th><th scope="col">Source file</th></tr></thead>
+  <thead><tr><th scope="col">Version</th><th scope="col">For</th><th scope="col">Cycle</th><th scope="col">Status</th><th scope="col">Loaded by</th><th scope="col">Source file</th></tr></thead>
   <tbody>
   {% for v in versions %}
   <tr><th scope="row"><a href="{% url 'administration:allocation' v.pk %}">{{ v.label }}</a></th><td>{{ v.get_purpose_display }}</td><td>{{ v.filing_cycle|default:"" }}</td>
-    <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} <span class="small muted nowrap">{{ v.confirmed_at|date_words }}</span>{% endif %}</td><td class="small">{{ v.source_name }}</td></tr>
-  {% empty %}<tr><td colspan="5">No versions yet.</td></tr>
+    <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if v.confirmed_at %} <span class="small muted nowrap">{{ v.confirmed_at|date_words }}{% if v.confirmed_organisation %} by {{ v.confirmed_organisation.code }}{% endif %}</span>{% endif %}</td>
+    <td>{% if v.created_organisation %}{{ v.created_organisation.code }}{% else %}CPUC{% endif %}</td>
+    <td class="small">{{ v.source_name }}</td></tr>
+  {% empty %}<tr><td colspan="6">No versions yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% if form %}
 <section class="card" aria-labelledby="up-h">
   <h2 id="up-h">Load a factor file</h2>
+  <p class="small">Loaded for {% if request.organisation and request.organisation.manages_allocation %}{{ request.organisation.code }}{% else %}the CPUC{% endif %}. The file uses the layout CEDARS exports and ReCET reads: Year, ProgramID, ProgramName, PercentElectric, then each funding PA's gas, electric and weighted factors.</p>
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>
   </form>
 </section>
+{% endif %}
 {% endblock %}
