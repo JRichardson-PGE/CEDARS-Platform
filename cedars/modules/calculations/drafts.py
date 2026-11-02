@@ -3,17 +3,22 @@ row, and checked cell by cell with the pinned engine's own editor code (`recet.e
 installs ReCET). The checks are the engine preflight's rules, so what they flag is what a run would; the full input check still runs
 when the job is run.
 
-A draft holds at most the engine's MAX_EDIT_ROWS (500) measures: larger jobs are edited offline. The platform has no impact-profile
-library on the web servers, so end-use names are not matched to profiles here (the run checks them). Every change is an audit event.
-Without the engine installed the pages say so."""
+A draft holds at most the engine's MAX_EDIT_ROWS (500) measures: larger jobs are edited offline. End uses are offered and checked
+against the catalog of the impact-profile library in force (the registered pack's catalog.parquet: the names with 8,760s for each IOU and
+target sector, as ReCET's editor offers them from its own library); without a library pack they are free text and the run checks them.
+"Check with the engine" queues a check-only run of the draft as it stands and marks the cells its input check names (ReCET's Validate
+inputs). Every change is an audit event. Without the engine installed the pages say so."""
 
 from __future__ import annotations
 
+import hashlib
 import io
+import json
 import shutil
 import tempfile
 import zipfile
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from django.db import transaction
@@ -22,6 +27,9 @@ from django.db.models import Q
 from cedars.core import storage
 from cedars.services import audit
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import profiles as packed_profiles
+from cedars.services.refdata import service as refdata
+from cedars.services.refdata.models import PackVersion
 
 from . import jobfiles, service
 from .models import InputDraft, Run
@@ -403,14 +411,76 @@ class Issue:
     message: str
 
 
+# ReCET's editor's words for an end use the library does not hold (recet.editor.ChoiceSource.electric_profile_status)
+NO_PROFILE = "no 8,760 profile for this end use, IOU and target sector: the measure's electric savings will NOT be priced"
+LOOSE_PROFILE = "INFO:matched the library on end use and IOU only (no profile for this target sector)"
+
+
+def library_pack() -> PackVersion | None:
+    """The impact-profile library in force (the newest published pack), whose catalog the end-use lists and checks read."""
+    return refdata.in_force(PackVersion.Kind.IMPACT_PROFILES)
+
+
+@lru_cache(maxsize=4)
+def _library(pack_pk: int, fingerprint: str) -> tuple[dict, dict, frozenset, frozenset]:
+    """A library pack's end uses with 8,760s ({(IOU, SECTOR): [names]}, {IOU: [names]}) and its exact and loose keys, read once per
+    pack (a pack's files never change)."""
+    pack = PackVersion.objects.get(pk=pack_pk)
+    ed = _editor()
+    by_sector: dict[tuple[str, str], set[str]] = {}
+    by_iou: dict[str, set[str]] = {}
+    for e in packed_profiles.catalog(pack):
+        if e.shape_id is None or not e.name:  # a name with no hourly data is not one a run can price
+            continue
+        iou, sector = e.territory.strip().upper(), e.target_sector.strip().upper()
+        by_sector.setdefault((iou, sector), set()).add(e.name)
+        by_iou.setdefault(iou, set()).add(e.name)
+    exact = frozenset((n, iou, sec) for (iou, sec), names in by_sector.items() for n in names)
+    loose = frozenset((n, iou) for iou, names in by_iou.items() for n in names)
+    order = ed._natural  # the editor's own sort, so the lists read as ReCET's do
+    return (
+        {k: sorted(v, key=order) for k, v in by_sector.items()},
+        {k: sorted(v, key=order) for k, v in by_iou.items()},
+        exact,
+        loose,
+    )
+
+
+def _with_library(ed, src, pack: PackVersion):
+    """`src` (a recet.editor.ChoiceSource) offering and checking end uses from a library pack's catalog, as the engine's editor does
+    from its own library: the same per-IOU-and-sector lists, the same exact (end use, IOU, sector) then loose (end use, IOU) match."""
+    by_sector, by_iou, exact, loose = _library(pack.pk, pack.fingerprint or "")
+    src._by_iou_sector, src._by_iou = by_sector, by_iou
+    src.catalog_note = f"{len({n for names in by_iou.values() for n in names}):,} end uses with 8,760 profiles in {pack}"
+    src.library = pack
+
+    def electric_profile_status(end_use: str, iou: str, sector: str) -> str | None:
+        name, iou = str(end_use), str(iou).strip().upper()
+        if (name, iou, str(sector).strip().upper()) in exact:
+            return None
+        return LOOSE_PROFILE if (name, iou) in loose else NO_PROFILE
+
+    src.electric_profile_status = electric_profile_status
+    return src
+
+
 def choices():
     """The engine's dropdown values: the value lists in force (codes active for the claim year, as CPUC administrators keep them:
-    dictionary.value_lists), the IOUs it prices. No profile library."""
+    dictionary.value_lists), the IOUs it prices, and the end uses of the impact-profile library in force (none without a library pack:
+    free text, not checked)."""
     from cedars.services.dictionary import value_lists
 
     ed = _editor()
     value_lists.apply_to_engine()
-    return ed.ChoiceSource()
+    src = ed.ChoiceSource()
+    src.library = None
+    pack = library_pack()
+    if pack is not None:
+        try:
+            _with_library(ed, src, pack)
+        except Exception:  # noqa: BLE001 - an unreadable library must not stop the person editing (the run checks the end uses)
+            src.library = None
+    return src
 
 
 class ChecksFailed(Exception):
@@ -447,6 +517,22 @@ def job_zip_bytes(draft: InputDraft) -> bytes:
     return buf.getvalue()
 
 
+def workbook_bytes(draft: InputDraft) -> bytes:
+    """The draft as ReCET's job workbook: a Measure and a ProgramCost sheet under ReCET's column names, numbers as numbers, as the
+    engine's editor writes it (recet.editor.write_workbook), made the platform's accessible way (cedars.core.workbooks: properties, a
+    header row marked as a table header, BR-10.3). New run and Edit inputs read it back as they read any job workbook."""
+    from cedars.core.workbooks import Book
+
+    ed = _editor()
+    numeric = set(ed.MEASURE_NUMERIC) | set(ed.PROGRAMCOST_NUMERIC) | {"PrgYear"}
+    book = Book(f"{draft.name}: job inputs", subject="ReCET job workbook (Measure and ProgramCost)")
+    for name, df, columns in zip(TABLES, frames(draft), (ed.MEASURE_COLUMNS, ed.PROGRAMCOST_COLUMNS), strict=True):
+        df = ed._clean(ed.conform(df, columns))
+        cols = list(df.columns)
+        book.sheet(name, cols, ([ed._cell_value(c, v, numeric) for c, v in zip(cols, r, strict=True)] for r in df.itertuples(index=False)))
+    return book.save()
+
+
 def start_run(actor, organisation, req: service.RunRequest, draft: InputDraft) -> Run:
     """Run the draft's tables as they stand (New run's "Run these inputs"): its job zip is the run's upload, so the run is the same record,
     spec and checks as one started from a file. The draft stays, to edit and run again."""
@@ -458,6 +544,83 @@ def start_run(actor, organisation, req: service.RunRequest, draft: InputDraft) -
         "calculation_draft.run", obj=draft, organisation=draft.organisation, after={"run": str(run.pk), "name": run.name}, actor=actor
     )
     return run
+
+
+# --- check with the engine (ReCET's Validate inputs)
+
+
+def content_hash(draft: InputDraft) -> str:
+    """The SHA-256 of the draft's tables: a check's findings apply while the tables still have it."""
+    data = json.dumps([draft.measures or {}, draft.programcost or {}], sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(data.encode()).hexdigest()
+
+
+def start_check(actor, draft: InputDraft, req: service.RunRequest) -> Run:
+    """Queue a check-only run of the draft as it stands (the engine's whole input check, impact profiles and CEDARS filing rules
+    included, with nothing priced) for the draft's organization, or the person's own for their own draft; its findings are marked on
+    the cells once it ends (check_findings)."""
+    _require(actor, draft)
+    req.settings = {**(req.settings or {}), "preflight_only": True}
+    run = start_run(actor, draft.organisation, req, draft)
+    draft.check_run, draft.check_hash = run, content_hash(draft)
+    draft.save(update_fields=["check_run", "check_hash"])  # not updated_at: checking is not a change
+    return run
+
+
+@dataclass
+class Check:
+    """The latest engine check of a draft, as the draft page shows it."""
+
+    run: Run
+    ended: bool
+    current: bool  # the tables are still the ones it checked
+    report: dict | None  # the engine's preflight.json, once written
+    cells: list[Issue]  # its findings on the draft's cells (only while current)
+    other: list[dict]  # its findings about the job as a whole, with no cells
+
+    @property
+    def stops(self) -> int:
+        return int((self.report or {}).get("errors") or 0)
+
+
+def _preflight(run: Run) -> dict | None:
+    try:
+        return json.loads(storage.store("results").get_bytes(run.storage_prefix + "out/preflight.json"))
+    except (FileNotFoundError, KeyError, OSError, ValueError):
+        return None
+
+
+def check_findings(draft: InputDraft) -> Check | None:
+    """The draft's latest engine check, its findings mapped back to the draft's rows: row r of the file the run read is the r-th row
+    the job zip kept (recet.editor.kept_rows: entirely blank rows are dropped), and a column filed under CET's name is shown under the
+    draft's (recet.fieldnames.recet_name)."""
+    run = Run.objects.filter(pk=draft.check_run_id).first() if draft.check_run_id else None  # its status as it stands now
+    if run is None:
+        return None
+    ended = run.status in Run.ENDED
+    report = _preflight(run) if ended else None
+    current = draft.check_hash == content_hash(draft)
+    cells, other = [], []
+    if report:
+        from recet import fieldnames
+
+        ed = _editor()
+        kept = {t: ed.kept_rows(df) for t, df in zip(TABLES, frames(draft), strict=True)}
+        columns = {t: set(df.columns) for t, df in zip(TABLES, frames(draft), strict=True)}
+        for i in report.get("issues", []):
+            sev = i.get("severity") if i.get("severity") in ("error", "warning", "info") else "info"
+            found = False
+            for table, row, column in i.get("cells") or []:
+                table = "ProgramCost" if str(table).lower() == "programcost" else "Measure"
+                rows = kept.get(table, [])
+                if not (current and 0 <= int(row) < len(rows)):
+                    continue
+                col = column if column in columns[table] else fieldnames.recet_name(column)
+                cells.append(Issue(table, rows[int(row)], col, sev, f"{i.get('message', '')} (the engine's check: {i.get('code', '')})"))
+                found = True
+            if not found:
+                other.append(i)
+    return Check(run=run, ended=ended, current=current, report=report, cells=cells, other=other)
 
 
 def expired_drafts(cutoff):

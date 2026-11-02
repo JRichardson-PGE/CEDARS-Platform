@@ -50,6 +50,10 @@ class InputDraft(models.Model):
     programcost = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
+    # "Check with the engine" (ReCET's Validate inputs): the latest check-only run of the draft and the hash of the tables it checked,
+    # so its findings are marked on the cells only while the tables are still the ones it checked
+    check_run = models.ForeignKey("Run", null=True, blank=True, on_delete=models.SET_NULL, related_name="checked_drafts")
+    check_hash = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]

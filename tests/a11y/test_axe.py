@@ -333,6 +333,24 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
             "seconds": 9,
         },
     )
+    if drafts.engine() is not None:  # Edit inputs: the engine's check of the draft, ended, with a finding on a cell and one on the job
+        check = drafts.start_check(
+            analyst, draft, calculations.RunRequest(name="x", release=release, calculation="recet", acc_version="2024")
+        )
+        calculations.mark_started(check, worker="scene")
+        report = {
+            "ok": False,
+            "errors": 1,
+            "stats": {},
+            "issues": [
+                {"severity": "error", "code": "not_numeric", "message": "NumUnits is not a number", "count": 1,
+                 "cells": [["Measure", 0, "NumUnits"]]},
+                {"severity": "warning", "code": "measures_without_program_costs", "message": "measures with no program costs", "count": 1,
+                 "examples": ["PGE_X"], "cells": []},
+            ],
+        }  # fmt: skip
+        storage.store("results").put_bytes(check.storage_prefix + "out/preflight.json", json.dumps(report).encode())
+        calculations.finish(check, exit_code=0, receipt={})
     queued = calculations.create_run(
         analyst, pge, calculations.RunRequest(name="2029 budget", release=release, calculation="recet", acc_version="2026"), job
     )
