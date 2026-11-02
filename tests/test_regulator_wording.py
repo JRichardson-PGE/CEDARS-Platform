@@ -63,5 +63,5 @@ def test_a_pa_still_sees_its_own(client, filer, standing, cycle):  # noqa: F811
     sign_in(client, filer)
     assert b"PGE's operating budget" in client.get(reverse("budgets:shifts")).content
     assert b"<h1>PGE operating budget, " in client.get(reverse("budgets:operating", args=[cycle.first_year])).content
-    filing_page = client.get(reverse("budgets:filing", args=[standing.submission.deadline.pk])).content.decode()
+    filing_page = page_only(client.get(reverse("budgets:filing", args=[standing.submission.deadline.pk])).content.decode())
     assert "Choose a program administrator" not in filing_page and ": PGE" in filing_page

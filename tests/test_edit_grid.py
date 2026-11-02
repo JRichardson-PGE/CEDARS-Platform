@@ -141,3 +141,24 @@ def test_the_end_use_list_and_the_page(analyst, pge, tmp_path, web):  # noqa: F8
     # the row-by-row view is the page without the grid, and its links keep it
     rows = web.get(f"/calculations/drafts/{d.pk}/?view=rows").content.decode()
     assert 'id="editor"' not in rows and "edit_grid.js" not in rows and "view=rows" in rows
+
+
+def test_the_grid_marks_the_engine_checks_cells_while_the_check_applies(analyst, pge, release, worker, tmp_path, web):  # noqa: F811
+    from cedars.core import storage
+    from cedars.modules.calculations import dispatch
+
+    d = drafts.create_from_zip(analyst, pge, "Lighting", edit_zip(tmp_path))
+    web.post(f"/calculations/drafts/{d.pk}/", {"action": "check", "acc": "2024", "filing_validation": ""})
+    run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
+    report = {
+        "ok": False, "errors": 1, "stats": {},
+        "issues": [{"severity": "error", "code": "duplicate_id", "message": "CEInputID must be unique", "count": 1, "examples": [],
+                    "cells": [["Measure", 1, "CEInputID"]], "impact": {}}],
+    }  # fmt: skip
+    storage.store("results").put_bytes(run.storage_prefix + "out/preflight.json", json.dumps(report).encode())
+    marked = [i for i in web.get(f"/calculations/drafts/{d.pk}/grid.json").json()["issues"] if i["column"] == "CEInputID"]
+    assert any(i["row"] == 1 and i["severity"] == "error" and "must be unique" in i["message"] for i in marked)
+
+    drafts.set_row(analyst, d, "Measure", 0, {"MeasDescription": "changed"})
+    marked = [i for i in web.get(f"/calculations/drafts/{d.pk}/grid.json").json()["issues"] if i["column"] == "CEInputID"]
+    assert not any("must be unique" in i["message"] for i in marked)  # the tables changed: the check no longer applies

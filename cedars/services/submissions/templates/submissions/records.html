@@ -4,7 +4,7 @@
 {% include "submissions/_record_crumbs.html" with here_is_records=True %}
 <div class="page-title"><h1>Correct records: {{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }}</h1>{% page_help "submissions/records" %}</div>
 {% if why %}
-<div role="note" class="card"><p><strong>These records cannot be corrected now.</strong> {{ why }}</p>
+<div role="note" class="card" id="why-not-now"><p><strong>These records cannot be corrected now.</strong> {{ why }}</p>
 {% if back %}<p><a href="{{ back }}">Back to the filing</a></p>{% endif %}</div>
 {% else %}
 <p>Change, add or delete single records of this draft without uploading the whole file again. Each change is checked as soon as it is saved:

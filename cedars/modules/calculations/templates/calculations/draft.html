@@ -5,7 +5,7 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:drafts' %}">Edit inputs</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ draft.name }}</h1>{% page_help "calculations/draft" %}</div>
-  <div class="actions">{% if can_change %}<a class="button primary" id="run-link" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a></div>
+  <div class="actions">{% if can_change %}<a class="button primary" id="run-link" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a> <a class="button" href="{% url 'calculations:draft_workbook' draft.pk %}">Download as a workbook</a></div>
 </div>
 <p class="small muted">{{ draft.source }}{% if draft.source_run %} (<a href="{% url 'calculations:run' draft.source_run.pk %}">the run</a>){% endif %}. For {{ draft.organisation.code|default:"you only" }}. Changed {{ draft.updated_at|datetime_words }}.</p>
 
@@ -52,13 +52,40 @@
 </section>
 {% endif %}
 
+<section class="card" aria-labelledby="engine-check-h">
+  <h2 id="engine-check-h">Check with the engine</h2>
+  <p>The engine's whole input check, as a run makes it before pricing: the impact profiles, programs, ACCs and, if you choose, CEDARS' filing rules. Nothing is priced. It runs as a check-only run{% if draft.organisation %} for {{ draft.organisation.code }}{% else %} of your own{% endif %}, and its findings are marked on the cells here.</p>
+  {% if check %}
+    {% if not check.ended %}
+    <p><strong>The check is {{ check.run.get_status_display|lower }}.</strong> <a href="{% url 'calculations:run' check.run.pk %}">Follow it on its run page</a>; reload this page when it has ended.</p>
+    {% elif not check.report %}
+    <p><strong>The last check ended without an input check report</strong> ({{ check.run.get_status_display|lower }}). <a href="{% url 'calculations:run' check.run.pk %}">Its run page</a> says why.</p>
+    {% else %}
+    <p>{% if not check.current %}<strong>The tables changed since the last check</strong> ({{ check.run.finished_at|datetime_words }}): its findings are listed, not marked on cells. Check again to see where they stand.{% elif check.stops %}<strong>The engine's check found {{ check.stops }} problem{{ check.stops|pluralize }} that stop{{ check.stops|pluralize:"s," }} the run.</strong>{% else %}<strong>The engine's check found nothing that stops the run.</strong>{% endif %}
+    {% if check.current %}{{ check.cells|length }} cell{{ check.cells|length|pluralize }} marked from it.{% endif %} <a href="{% url 'calculations:run' check.run.pk %}">The check's run page</a> has its full report and findings workbook.</p>
+    {% if check_other %}
+    <details{% if check.stops %} open{% endif %}><summary>Findings about the job as a whole ({{ check_other|length }})</summary>
+      <ul class="issues">{% for f in check_other %}<li><span aria-hidden="true" class="mark">{{ f.symbol }}</span> {{ f.label }}: {{ f.message }}{% if f.count %} ({{ f.count }}){% endif %}{% if f.examples %}, e.g. {{ f.examples }}{% endif %}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% endif %}
+  {% endif %}
+  {% if can_change and check_release %}
+  <form method="post" class="row-form">{% csrf_token %}<input type="hidden" name="table" value="{{ table }}">
+    <div class="field"><label for="check-acc">ACC</label><select id="check-acc" name="acc">{% for a in check_accs %}<option value="{{ a }}"{% if a == check_acc %} selected{% endif %}>{{ a }} ACC</option>{% endfor %}</select></div>
+    <div class="field"><label for="check-filing">CEDARS filing checks</label><select id="check-filing" name="filing_validation">{% for v, label in filing_checks %}<option value="{{ v }}">{{ label }}</option>{% endfor %}</select></div>
+    <button type="submit" name="action" value="check">{% if check %}Check again{% else %}Check with the engine{% endif %}</button>
+  </form>
+  <p class="small muted">On ReCET {{ check_release.release }}.</p>
+  {% elif can_change %}<p>No engine release offers ReCET's own calculation, so the check cannot run.</p>{% endif %}
+</section>
 <div data-without-grid>
 <section class="card" aria-labelledby="check-h">
   <h2 id="check-h">Input check</h2>
   {% if checks_failed %}<p class="alert" role="alert">The engine's cell checks could not run on these tables ({{ checks_failed }}). Look for blank or malformed numbers; the run still checks every input.</p>{% else %}
   {% if counts.error %}<p><strong>{{ counts.error }} cell{{ counts.error|pluralize }} would stop the run.</strong> {% else %}<p><strong>Nothing here stops the run.</strong> {% endif %}
   {{ counts.warning }} warning{{ counts.warning|pluralize }}{% if counts.info %}, {{ counts.info }} note{{ counts.info|pluralize }}{% endif %}.
-  These are the engine's per-cell input rules; the run checks everything again, including the impact profiles (not checked here).</p>
+  These are the engine's per-cell input rules{% if library %}, with end uses checked against {{ library }}{% else %}; no impact-profile library is in force, so end uses are not checked here{% endif %}{% if check and check.current and check.report %}, and the findings of the engine's input check below{% endif %}. The run checks everything again.</p>
   {% endif %}
   {% if issues %}
   <details{% if counts.error %} open{% endif %}><summary>Cells to look at</summary>
@@ -70,6 +97,7 @@
   {% endif %}
 </section>
 {% if not grid %}<p class="small">Row-by-row view. <a href="?table={{ table }}">The spreadsheet view</a> edits both tables in place (it needs scripts).</p>{% endif %}
+
 
 <nav class="subnav" aria-label="Tables">
   {% for t, n in tables %}<a href="?table={{ t }}{% if not grid %}&amp;view=rows{% endif %}"{% if t == table %} aria-current="page"{% endif %}>{{ t }} ({{ n }})</a>{% endfor %}

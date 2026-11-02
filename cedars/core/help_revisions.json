@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "1c853b2a993ac2bf2bb82cf6e3327eb7636853c380937097c00acb9d904cf9a9"
+    "sha256": "32f2b0f4623caf0562d8047511ad5ed470168cb46dfda7e83c5eb23d9f5b4e7e"
   },
   "guide:accessibility": {
     "release": "0.2.0",
@@ -13,7 +13,7 @@
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "205c404aede6dbd9e18dbfb443b079caf47f86e61b5efcd20f74d74d7c15eef1"
+    "sha256": "242cc3a37e26d8bd9f6762ba2e91e872caf9768be087a59adb123b6402988c6d"
   },
   "guide:claims": {
     "release": "0.2.0",
