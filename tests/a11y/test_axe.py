@@ -1387,12 +1387,12 @@ def test_page_help_without_scripts(browser, site, scene):
     """Without scripts the (?) is a link to the page's help on a page of its own, with the tour written out and a way back."""
     context = browser.new_context(java_script_enabled=False)
     page = context.new_page()
-    page.goto(f"{site.url}/rules/")
+    page.goto(f"{site.url}/dictionary/")
     page.locator(".page-help").click()
-    assert page.url.startswith(f"{site.url}/help/pages/rules/index/?from=")
+    assert page.url.startswith(f"{site.url}/help/pages/dictionary/index/?from=")
     assert page.locator("ol.tour-list > li").count() >= 2
-    assert page.locator("a", has_text="Back to the page").get_attribute("href") == "/rules/"
-    assert page.locator("a", has_text="Take the tour on the page").get_attribute("href") == "/rules/?tour=1"
+    assert page.locator("a", has_text="Back to the page").get_attribute("href") == "/dictionary/"
+    assert page.locator("a", has_text="Take the tour on the page").get_attribute("href") == "/dictionary/?tour=1"
     context.close()
 
 
@@ -1434,7 +1434,7 @@ def test_the_tour_leaves_disclosures_as_they_were(browser, site, scene):
 
 def test_a_page_tour_starts_from_its_link(browser, site, scene):
     """The written tour's "Take the tour on the page" opens the page with its tour running."""
-    context, page = _open(browser, site, scene, "/rules/?tour=1", None)
+    context, page = _open(browser, site, scene, "/dictionary/?tour=1", None)
     assert page.locator("#tour").evaluate("d => d.open")
     assert page.evaluate("document.activeElement.id") == "tour-title"
     context.close()

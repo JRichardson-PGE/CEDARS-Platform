@@ -18,9 +18,19 @@ from .models import Rule, RuleSet
 SHOWN = 200
 
 
+def _visible(request):
+    """The rule sets a person may see: every published version, and the drafts too for a CPUC system administrator (a draft is the
+    administrators' work in progress, not yet announced)."""
+    if access.is_system_admin(request.user):
+        return RuleSet.objects.all()
+    return RuleSet.objects.filter(status=RuleSet.Status.PUBLISHED)
+
+
+@login_required
 def index(request):
-    """The rule library, public (CEDARS publishes its rules): every set and version, which one is in force, what differs between them."""
-    sets = RuleSet.objects.all()
+    """The rule library, for signed-in people (Jake, 2026-11-02: not for signed-out visitors): every set and version, which one is in
+    force, what differs between them."""
+    sets = _visible(request)
     in_force = {code: service.in_force(code) for code in sets.values_list("code", flat=True).distinct()}
     return render(
         request,
@@ -28,13 +38,14 @@ def index(request):
         {
             "sets": sets,
             "in_force": {v.pk for v in in_force.values() if v},
-            "sysadmin": request.user.is_authenticated and access.is_system_admin(request.user),
+            "sysadmin": access.is_system_admin(request.user),
         },
     )
 
 
+@login_required
 def detail(request, pk):
-    rs = get_object_or_404(RuleSet, pk=pk)
+    rs = get_object_or_404(_visible(request), pk=pk)
     rules = rs.rules.all()
     severity, table, q = request.GET.get("severity", ""), request.GET.get("table", ""), request.GET.get("q", "").strip()
     if severity:
@@ -67,7 +78,7 @@ def detail(request, pk):
             "severity": severity,
             "table": table,
             "q": q,
-            "sysadmin": request.user.is_authenticated and access.is_system_admin(request.user),
+            "sysadmin": access.is_system_admin(request.user),
             "version_form": forms.NewVersionForm(auto_id="version_%s"),
             "drafts": RuleSet.objects.filter(code=rs.code, status=RuleSet.Status.DRAFT).exclude(pk=rs.pk),
         },
@@ -99,10 +110,12 @@ def publish(request, pk):
     return redirect("rules:detail", pk=rs.pk)
 
 
+@login_required
 def differences(request):
-    sets = list(RuleSet.objects.all())
-    a = RuleSet.objects.filter(pk=request.GET.get("a") or 0).first()
-    b = RuleSet.objects.filter(pk=request.GET.get("b") or 0).first()
+    visible = _visible(request)
+    sets = list(visible)
+    a = visible.filter(pk=request.GET.get("a") or 0).first()
+    b = visible.filter(pk=request.GET.get("b") or 0).first()
     diff = service.differences(a, b) if a and b else None
     return render(request, "rules/differences.html", {"sets": sets, "a": a, "b": b, "diff": diff})
 
@@ -170,9 +183,10 @@ def check(request):
     return render(request, "rules/check.html", ctx)
 
 
+@login_required
 def rule_set_json(request, pk):
     """A published rule set as JSON with how each rule is checked: the downloadable form of the pre-upload checker, for systems that
-    check files without CEDARS' code (BR-03.4). Public, as the rule library is."""
+    check files without CEDARS' code (BR-03.4). Signed in, as the rule library is."""
     rs = get_object_or_404(RuleSet, pk=pk, status=RuleSet.Status.PUBLISHED)
     body = json.dumps(precheck.rule_set_json(rs, request.build_absolute_uri("/").rstrip("/")), indent=1, ensure_ascii=False)
     resp = HttpResponse(body, content_type="application/json; charset=utf-8")
@@ -180,9 +194,10 @@ def rule_set_json(request, pk):
     return resp
 
 
+@login_required
 def rule(request, pk, rule_id):
-    r = get_object_or_404(Rule.objects.select_related("rule_set"), rule_set_id=pk, rule_id=rule_id)
-    sysadmin = request.user.is_authenticated and access.is_system_admin(request.user)
+    r = get_object_or_404(Rule.objects.select_related("rule_set"), rule_set__in=_visible(request), rule_set_id=pk, rule_id=rule_id)
+    sysadmin = access.is_system_admin(request.user)
     replaced = None
     if r.replaces and r.rule_set.based_on_id:
         replaced = Rule.objects.filter(rule_set_id=r.rule_set.based_on_id, rule_id=r.replaces).first()

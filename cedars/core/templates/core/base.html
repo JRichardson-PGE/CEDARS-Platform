@@ -99,7 +99,6 @@
     <a href="{% url 'data:records' %}" data-tour="nav-records"{% if request.path|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a>
     <a href="{% url 'documents:library' %}" data-tour="nav-reference"{% if request.path|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a>
     <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in request.path %} aria-current="page"{% endif %}>Data dictionary</a>
-    <a href="{% url 'rules:index' %}"{% if '/rules/' in request.path %} aria-current="page"{% endif %}>Validation rules</a>
   </nav>
   <div class="who"><a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a> <a class="button primary" href="{% url 'account_login' %}" data-tour="sign-in">Sign in</a></div>
   {% endif %}
@@ -122,7 +121,7 @@
     <li><a href="{% url 'feedback:form' %}?from={{ request.get_full_path|urlencode }}">Feedback on this page</a></li>
     <li><a href="{% url 'documents:library' %}">Documents</a></li>
     <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
-    <li><a href="{% url 'rules:index' %}">Validation rules</a></li>
+    {% if user.is_authenticated %}<li><a href="{% url 'rules:index' %}">Validation rules</a></li>{% endif %}{# signed in only (Jake, 2026-11-02) #}
     <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li>
     <li><a href="{% url 'data:dashboards' %}">Portfolio dashboard</a></li>
     <li><a href="{% url 'data:records' %}">Record downloads</a></li>

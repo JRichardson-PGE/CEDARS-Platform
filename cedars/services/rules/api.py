@@ -3,16 +3,16 @@
 POST check runs a module's rule-set step on one table, exactly as the upload and the /rules/check/ page run it (rules.precheck: the
 module's own code), against the version in force or any other published version, and returns the findings. Nothing sent is kept. It
 needs a signed-in call: a session, or an API token whose scopes include the module checked (claims or budgets); it needs no permission
-in an organization, as the page does not. The rule sets (GET sets, sets/<id>) are public, as the rule library is: a set's JSON is its
-rules with how each kind of rule is checked and the value lists it reads, for systems that check files without sending them."""
+in an organization, as the page does not. The rule sets (GET sets, sets/<id>) need a signed-in call too (a session or any API token), as
+the rule library pages do: a set's JSON is its rules with how each kind of rule is checked and the value lists it reads, for systems that
+check files without sending them."""
 
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers, status
-from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.decorators import api_view, parser_classes
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from cedars.core import api, uploads
@@ -60,11 +60,10 @@ RuleSetSummary = inline_serializer(
     operation_id="rules_sets_list",
     summary="Published rule sets",
     description="Every published version of every module's rules, newest first within each; `in_force` marks the one an upload today "
-    "is checked against. Public.",
+    "is checked against. Needs a session or an API token.",
     responses=inline_serializer("RuleSets", {"results": RuleSetSummary}),
 )
 @api_view(["GET"])
-@permission_classes([AllowAny])
 def sets(request):
     published = RuleSet.objects.filter(status=RuleSet.Status.PUBLISHED)
     in_force = {code: service.in_force(code) for code in set(published.values_list("code", flat=True))}
@@ -76,11 +75,10 @@ def sets(request):
     summary="One rule set, to check files without sending them",
     description="A published rule set as data (format cedars-rule-set, version 1): each rule's test, message and suggested fix, the "
     "specification's columns per table, the value lists its value-list rules read (as in force here) and `how_to_check`, how each kind "
-    "of rule is applied. The same file as the rule set page's JSON download. Public.",
+    "of rule is applied. The same file as the rule set page's JSON download. Needs a session or an API token.",
     responses={200: OpenApiResponse(description="The rule set as JSON"), 404: OpenApiResponse(description="No such published rule set")},
 )
 @api_view(["GET"])
-@permission_classes([AllowAny])
 def rule_set(request, pk):
     rs = RuleSet.objects.filter(pk=pk, status=RuleSet.Status.PUBLISHED).first()
     if rs is None:

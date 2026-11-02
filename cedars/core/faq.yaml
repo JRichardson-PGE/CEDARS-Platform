@@ -14,8 +14,8 @@ topics:
         q: Do I need an account to read or download published data?
         a:
           - >-
-            No. The portfolio dashboard, record downloads, the document library, the data dictionary, the validation rules, the
-            filing calendar, the release notes and the limits are open to everyone. You need an account to file for a program
+            No. The portfolio dashboard, record downloads, the document library, the data dictionary, the filing calendar, the
+            release notes and the limits are open to everyone. You need an account to see the validation rules, to file for a program
             administrator, to review filings for the CPUC, to run cost-effectiveness calculations, or to follow documents.
           - >-
             One thing needs signing in even for published data: a download too large to make while you wait is made in the
