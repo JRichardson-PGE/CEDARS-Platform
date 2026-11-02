@@ -37,6 +37,8 @@ from . import jobfiles, jobspec
 from .models import EngineRelease, Run
 
 RECET = "recet"
+# A job workbook's sheets a CET replica refuses (ReCET cet_versions/job.REFUSED: supplied run parameters, statewide factors and profiles)
+REPLICA_REFUSED_SHEETS = ("RunParameters", "SWAllocation", "GasProfiles", "Profiles8760")
 OUTPUT_FORMATS = {"csv.zip": "CSV in zip files", "parquet": "Parquet", "xlsx": "Excel (up to 50,000 measures)"}
 FILING_CHECKS = {"": "None", "claims": "Claims rules", "budget_filing": "Budget filing rules"}
 # Settings a replica (a past CET release, D13) does not take: ReCET's engine refuses them for replicas (cet_versions/job.REFUSED).
@@ -374,7 +376,7 @@ def pack_files(packs, acc: str) -> dict:
 @transaction.atomic
 def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None) -> Run:
     """Check the request and the upload, put the inputs in storage, write the job spec and queue the run. `job_zip` is a local file
-    (an upload's temporary file); it is copied, never moved."""
+    (an upload's temporary file): a job zip or a job workbook; it is copied, never moved."""
     from . import dispatch
 
     # a filing's run: the submissions service has checked <module>.submit
@@ -393,6 +395,16 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
         raise AccessDenied(str(e)) from None
     if info.records == 0:
         raise AccessDenied("Measure.csv has no records.")
+    if info.kind == jobfiles.WORKBOOK:
+        if submission_version is not None:
+            raise AccessDenied("A filing's run prices the filing's own tables, not a job workbook.")
+        refused = [s for s in info.sheets if s in REPLICA_REFUSED_SHEETS]
+        if refused and req.calculation != RECET:
+            raise AccessDenied(
+                f"A CET replica prices a job on its release's own tables, so it cannot use the workbook's "
+                f"{', '.join(refused)} sheet{'s' if len(refused) > 1 else ''}: remove {'them' if len(refused) > 1 else 'it'}, "
+                "or price the job with ReCET's own calculation."
+            )
     if info.records > max_records():
         raise AccessDenied(f"The job has {info.records:,} measure records; a run takes at most {max_records():,} (BRD v0.5). Split it.")
 
@@ -421,8 +433,10 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
                 raise AccessDenied(str(e)) from None
             key = run.storage_prefix + "cet_outputs.csv"
             inputs["cet_outputs"] = {"key": key, "sha256": storage.sha256_of(cet), "bytes": uploads.put_file(key, cet).size}
-    inputs["job_zip"] = {"key": run.storage_prefix + "job.zip", "sha256": storage.sha256_of(Path(job_zip))}
-    inputs["job_zip"]["bytes"] = uploads.put_file(inputs["job_zip"]["key"], Path(job_zip)).size
+    # the worker's input: "job_zip" (Measure.csv + ProgramCost.csv) or "workbook" (ReCET's job workbook, its sheets read by the engine)
+    name, key = ("workbook", "job.xlsx") if info.kind == jobfiles.WORKBOOK else ("job_zip", "job.zip")
+    inputs[name] = {"key": run.storage_prefix + key, "sha256": storage.sha256_of(Path(job_zip))}
+    inputs[name]["bytes"] = uploads.put_file(inputs[name]["key"], Path(job_zip)).size
     if req.profiles_8760:
         if req.calculation != RECET:
             raise AccessDenied("A CET replica prices each record on its own profile only; supplied 8,760 profiles are ReCET's.")
@@ -501,6 +515,11 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     return run
 
 
+def job_input(run: Run) -> dict:
+    """The run's job file in the uploads store ({key, sha256, bytes}): its job zip, or the job workbook it was uploaded as."""
+    return run.inputs.get("job_zip") or run.inputs.get("workbook") or {}
+
+
 def programs_label(run: Run) -> str:
     """How the run's program table was chosen, for the run page and the audit trail."""
     p = run.inputs.get("programs")
@@ -529,7 +548,7 @@ def local_copy(upload, suffix: str = ""):
 
 def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -> Run:
     """create_run for a Django UploadedFile."""
-    with local_copy(upload, ".zip") as job:
+    with local_copy(upload, Path(getattr(upload, "name", "") or "").suffix or ".zip") as job:
         return create_run(actor, organisation, req, job, **kw)
 
 
@@ -812,8 +831,8 @@ def _record_for_submission(run: Run) -> None:
     packs = {rel: f.get("sha256") for rel, f in ((run.receipt.get("packs") or {}).get("files") or {}).items()}
     out = run.storage_prefix + "out/"
     details = {
-        "job_sha256": run.inputs["job_zip"]["sha256"],
-        "job_key": run.inputs["job_zip"]["key"],
+        "job_sha256": job_input(run)["sha256"],
+        "job_key": job_input(run)["key"],
         "release": run.engine_release,
         "acc": run.acc_version,
         "allocation_version": {"id": run.allocation_version_id, "label": run.allocation_version.label} if run.allocation_version else None,

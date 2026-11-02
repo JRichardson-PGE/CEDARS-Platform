@@ -1,6 +1,8 @@
-"""A job's upload: one .zip holding Measure.csv and, optionally, ProgramCost.csv, as CET and ReCET take a job (ReCET 0.1.35). The
-platform reads it once, streaming, before the job is queued: the files it holds (the same rules as the engine's `web/jobzip.py`, so a
-wrong zip is refused here and not after a wait in the queue), the number of measure records (the queue lane, the estimate, the record
+"""A job's upload: one .zip holding Measure.csv and, optionally, ProgramCost.csv, as CET and ReCET take a job (ReCET 0.1.35), or ReCET's
+job workbook (.xlsx / .xlsm: a Measure sheet and the optional ProgramCost, RunParameters, SWAllocation, GasProfiles, Programs and
+Profiles8760 sheets; ReCET `recet/workbook.py`), which the worker takes as its `workbook` input. The platform reads the upload once,
+streaming, before the job is queued: the files or sheets it holds (the same rules as the engine's `web/jobzip.py` and `workbook.py`, so a
+wrong file is refused here and not after a wait in the queue), the number of measure records (the queue lane, the estimate, the record
 cap) and the earliest claim year (the statewide allocation version a run naming none uses). The engine checks everything else."""
 
 from __future__ import annotations
@@ -8,6 +10,7 @@ from __future__ import annotations
 import codecs
 import csv
 import io
+import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -16,6 +19,11 @@ NAMES = {"measure": "measures", "programcost": "programcost"}
 SUFFIXES = (".csv", ".txt")
 SKIPPED_NAMES = {"thumbs.db", "desktop.ini"}
 YEAR_COLUMNS = ("ClaimYearQuarter",)
+# The job workbook's sheets (ReCET workbook.SHEETS), matched as the engine matches them: ignoring case, spaces and underscores. Any other
+# sheet (Instructions ...) is ignored, and a sheet with a header row but no data rows counts as not given.
+SHEETS = ("Measure", "ProgramCost", "RunParameters", "SWAllocation", "GasProfiles", "Programs", "Profiles8760")
+WORKBOOK = "workbook"
+ZIP = "zip"
 
 
 class JobFileError(ValueError):
@@ -24,10 +32,12 @@ class JobFileError(ValueError):
 
 @dataclass
 class JobInfo:
-    measures: str  # the Measure file's name in the zip
+    measures: str  # the Measure file's name in the zip, or the Measure sheet's name in a workbook
     programcost: str | None
     records: int
     first_year: int | None
+    kind: str = ZIP  # ZIP or WORKBOOK
+    sheets: tuple[str, ...] = ()  # a workbook's sheets with data rows, by their canonical names (SHEETS)
 
 
 def _skipped(name: str) -> bool:
@@ -85,11 +95,92 @@ def scan_measures(stream) -> tuple[int, int | None]:
     return records, first
 
 
+def _sheet_key(name: str) -> str:
+    return re.sub(r"[\s_]", "", name).lower()
+
+
+_SHEET_KEYS = {_sheet_key(n): n for n in SHEETS}
+
+
+def is_workbook(z: zipfile.ZipFile) -> bool:
+    """An Excel workbook (an .xlsx is itself a zip), told by its contents, not its file name."""
+    names = set(z.namelist())
+    return "[Content_Types].xml" in names and "xl/workbook.xml" in names
+
+
+def _cell(v) -> str:
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
+    return str(v)
+
+
+def inspect_workbook(path: Path) -> JobInfo:
+    """A job workbook: its Measure sheet's records and earliest claim year, and which of the engine's sheets have data, read row by row."""
+    from openpyxl import load_workbook
+
+    fh = open(path, "rb")  # a file, not its path: openpyxl refuses a path by its extension, and an upload's temporary file has none
+    try:
+        wb = load_workbook(fh, read_only=True, data_only=True)
+    except Exception:  # openpyxl raises several kinds for a file that is not a workbook
+        fh.close()
+        raise JobFileError("The job file is not a valid Excel workbook (.xlsx).") from None
+    try:
+        found = {}
+        for name in wb.sheetnames:
+            canon = _SHEET_KEYS.get(_sheet_key(name))
+            if canon is None:
+                continue
+            if canon in found:
+                raise JobFileError(f"The workbook has more than one {canon} sheet ({found[canon]!r} and {name!r}).")
+            found[canon] = name
+        if "Measure" not in found:
+            raise JobFileError(
+                "The workbook has no Measure sheet. Name the sheet of measure records Measure, as in the job workbook template."
+            )
+        counts, first = {}, None
+        for canon, name in found.items():
+            rows = wb[name].iter_rows(values_only=True)
+            header = None
+            for r in rows:
+                if r and any(c is not None and str(c).strip() for c in r):
+                    header = [_cell(c).strip() for c in r]
+                    break
+            n = 0
+            at = next((header.index(c) for c in YEAR_COLUMNS if c in header), None) if header and canon == "Measure" else None
+            for r in rows if header else ():
+                if not r or not any(_cell(c) for c in r[: len(header)]):
+                    continue
+                n += 1
+                if at is not None and at < len(r):
+                    y = _year(_cell(r[at]))
+                    if y is not None and (first is None or y < first):
+                        first = y
+            counts[canon] = n
+    finally:
+        wb.close()
+        fh.close()
+    sheets = tuple(c for c in SHEETS if counts.get(c))
+    if "Measure" not in sheets:
+        raise JobFileError(f"The workbook's {found['Measure']} sheet has no records.")
+    return JobInfo(
+        found["Measure"], found.get("ProgramCost") if "ProgramCost" in sheets else None, counts["Measure"], first, WORKBOOK, sheets
+    )
+
+
 def inspect(path: Path) -> JobInfo:
+    """A job zip or a job workbook, told apart by its contents."""
     try:
         z = zipfile.ZipFile(path)
     except (zipfile.BadZipFile, OSError):
-        raise JobFileError("The job file is not a valid .zip. Zip Measure.csv (and ProgramCost.csv) together and upload that.") from None
+        raise JobFileError(
+            "The job file is not a valid .zip or Excel workbook. Zip Measure.csv (and ProgramCost.csv) together, or use the job "
+            "workbook (.xlsx), and upload that."
+        ) from None
+    if is_workbook(z):
+        z.close()
+        return inspect_workbook(path)
     with z:
         found = members(z)
         try:

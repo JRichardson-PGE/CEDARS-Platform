@@ -158,7 +158,10 @@ class NewRun(serializers.Serializer):
     """What New run takes, as form fields. Settings left out take New run's defaults."""
 
     job = serializers.FileField(
-        help_text="Measure.csv and, optionally, ProgramCost.csv, zipped together; at most CEDARS_UPLOAD_MAX_MB (see /limits/)",
+        help_text=(
+            "Measure.csv and, optionally, ProgramCost.csv, zipped together, or ReCET's job workbook (.xlsx); "
+            "at most CEDARS_UPLOAD_MAX_MB (see /limits/)"
+        ),
         validators=[uploads.check_size],
     )
     name = serializers.CharField(max_length=200)
@@ -316,7 +319,7 @@ def engines(request):
     methods=["POST"],
     operation_id="calculations_runs_create",
     summary="Start a run",
-    description="Upload a job zip as multipart form data. The run is queued; follow it at the returned url.",
+    description="Upload a job zip or a job workbook as multipart form data. The run is queued; follow it at the returned url.",
     request={"multipart/form-data": NewRun},
     responses={201: RunDetail},
 )

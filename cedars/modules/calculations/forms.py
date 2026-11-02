@@ -19,8 +19,10 @@ class NewRunForm(forms.Form):
     name = forms.CharField(label="Run name", max_length=200, help_text="e.g. 2028 claims Q1, PG&E")
     run_for = forms.ChoiceField(label="Run for", help_text="An organization's runs are seen by its members and stay with it")
     job = forms.FileField(
-        label="Job file (.zip)",
-        help_text=uploads.limit_text("Measure.csv and, optionally, ProgramCost.csv, zipped together, as CET takes a job.", False),
+        label="Job file (.zip or .xlsx)",
+        help_text=uploads.limit_text(
+            "Measure.csv and, optionally, ProgramCost.csv, zipped together, as CET takes a job, or ReCET's job workbook", False
+        ),
         validators=[uploads.check_size],
     )
     engine = forms.ChoiceField(label="Calculation engine", help_text="ReCET's own, or an exact replica of a past CET release (D13)")

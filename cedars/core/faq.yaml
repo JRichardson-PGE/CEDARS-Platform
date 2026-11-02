@@ -96,7 +96,7 @@ topics:
         q: My upload was refused as too large. What can I do?
         a:
           - >-
-            Each file uploaded to Budgets, Claims or Monthly reports, and a calculation job's .zip, may be at most
+            Each file uploaded to Budgets, Claims or Monthly reports, and a calculation job's .zip or workbook, may be at most
             {limit:upload_mb}. Zip a CSV file before uploading it: CSV files usually zip to a small part of their size. If a zipped table is
             still too large, split it into parts named after the table and upload them together: one filing upload may hold
             {limit:upload_files}.
@@ -127,7 +127,7 @@ topics:
             Yes, in Budgets, Claims and Monthly reports. Choose them all at once: each may be a .zip of tables, an Excel workbook
             with a sheet per table, or one table's .csv. A table may come in parts named after it (Measure_1.csv, Measure (2).csv,
             Measure-part3.csv); the parts must have the same columns, in any order and case. A calculation run always takes one
-            job .zip.
+            job file: a .zip of Measure.csv and ProgramCost.csv, or ReCET's job workbook.
         tags: [multiple files, parts, combine, zip, workbook, excel]
         guide: budgets
       - id: findings
