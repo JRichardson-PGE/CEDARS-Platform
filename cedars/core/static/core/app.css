@@ -457,6 +457,10 @@ dl.figures .detail { display: block; font-size: .85rem; font-weight: 400; color:
 .front-help .cards { gap: 0 1rem; }
 .guide { max-width: 75ch; }
 .guide li { margin: .3rem 0; }
+dl.glossary { margin: .5rem 0 1.25rem; }
+dl.glossary dt { font-weight: 600; margin-top: .9rem; }
+dl.glossary dd { margin: .2rem 0 0 1.25rem; }
+@media (max-width: 480px) { dl.glossary dd { margin-left: 0; } }
 ol.tour-list { padding-left: 1.4rem; max-width: 75ch; }
 ol.tour-list h2, ol.tour-list h3 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
 

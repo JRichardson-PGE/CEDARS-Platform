@@ -23,6 +23,7 @@ PAGES = [
         (f"help-{slug}", f"/help/{slug}/", None)
         for slug in (
             "getting-started",
+            "glossary",
             "published-data",
             "programs",
             "budgets",

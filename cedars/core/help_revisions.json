@@ -25,7 +25,11 @@
   },
   "guide:getting-started": {
     "release": "0.2.0",
-    "sha256": "ababb5fc43729f56e353028c49ee885ffd96dc8bf7e7d2b843cfe71f1eac07ca"
+    "sha256": "e3e23b613b69ab22c8238a8674b6032f2d51e3a06d99dc0dfd14abcc578fc5b9"
+  },
+  "guide:glossary": {
+    "release": "0.2.0",
+    "sha256": "375f5e63ee275550e2ab176f467409366f7c7bc8cb016b6805d03a2163c9e0e0"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
