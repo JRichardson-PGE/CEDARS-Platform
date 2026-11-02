@@ -576,6 +576,11 @@ def can_read_operating(user, organisation) -> bool:
     return service._org_reader(user, organisation) or service._cpuc_reader(user)
 
 
+def can_read_every_operating(user) -> bool:
+    """CPUC staff read every PA's operating budget (the regulator's view: the CPUC has none of its own)."""
+    return service._cpuc_reader(user)
+
+
 NOTICE_LINES = 10  # the shift's lines listed in a notification; the page has every one
 
 

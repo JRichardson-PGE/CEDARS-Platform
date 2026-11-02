@@ -16,6 +16,7 @@ from django.db.models import Prefetch, Q
 from django.utils import timezone
 
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -53,7 +54,7 @@ VERSION_FIELDS = [
     "exclude_from_statewide",
     "website",
 ]
-FUNDING_PAS = ("PGE", "SCE", "SCG", "SDGE")  # the IOUs that fund statewide programs, as the factor files have them
+FUNDING_PAS = access.ALLOCATION_MANAGERS  # the IOUs that fund statewide programs, as the factor files have them
 SUM_TOLERANCE = Decimal("0.0005")
 
 
@@ -555,9 +556,45 @@ class AllocationIssue:
     blocking: bool = True
 
 
-def _require_allocation_admin(actor):
-    if actor is not None and not access.is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator manages statewide allocation versions.")
+# Who manages the factors (Jake, 2026-11-02): the PAs that fund statewide programs, who agree them among themselves. It is a permission
+# of its own, allocation.manage, that an organization's administrator grants to its members, and only in an organization the CPUC has
+# marked as managing statewide allocations (Organisation.manages_allocation: PG&E, SCE, SoCalGas and SDG&E). A holder loads drafts and
+# confirms or discards them alone; the other managing organizations are told. A CPUC system administrator can do all of it. Everyone
+# signed in can read every version.
+
+
+def can_manage_allocation(actor, organisation) -> bool:
+    """Whether actor, acting for organisation, may load, confirm and discard statewide allocation versions."""
+    if actor is None or access.is_system_admin(actor):
+        return True
+    if organisation is None or not organisation.manages_allocation:
+        return False
+    return access.has_permission(actor, organisation, perms.ALLOCATION)
+
+
+def _require_allocation_manager(actor, organisation) -> None:
+    if not can_manage_allocation(actor, organisation):
+        raise AccessDenied(
+            "Changing statewide allocation factors needs the permission to manage them, held in an organization that manages statewide "
+            "allocations, or a CPUC system administrator."
+        )
+
+
+def _acting_for(actor, organisation):
+    """The organization a change is recorded under: the managing organization the actor acted for, or none for the CPUC."""
+    if actor is None or organisation is None or not organisation.manages_allocation:
+        return None
+    return organisation
+
+
+def _tell_managers(version: AllocationVersion, organisation, title: str, body: str) -> None:
+    """Tell the other managing organizations' holders of a change to the factors their budgets and claims are allocated with."""
+    from cedars.services.notifications import service as notifications
+
+    for org in Organisation.objects.filter(manages_allocation=True, active=True).exclude(pk=getattr(organisation, "pk", None)):
+        key = f"allocation-{version.pk}-{version.status}-{org.code}"
+        for user in access.holders(org, perms.ALLOCATION):
+            notifications.notify(user, title, body, f"/allocations/{version.pk}/", key=key)
 
 
 def _dec(value: str, what: str) -> Decimal:
@@ -569,11 +606,22 @@ def _dec(value: str, what: str) -> Decimal:
 
 @transaction.atomic
 def import_allocation_csv(
-    actor, content: bytes, *, label: str, purpose: str, filing_cycle: FilingCycle | None = None, source_name: str = "", notes: str = ""
+    actor,
+    content: bytes,
+    *,
+    label: str,
+    purpose: str,
+    filing_cycle: FilingCycle | None = None,
+    source_name: str = "",
+    notes: str = "",
+    organisation=None,
 ) -> AllocationVersion:
     """A draft version from a factor file in CEDARS' export layout (ReCET's statewide_factors_*.csv): Year, ProgramID, ProgramName,
-    PercentElectric, then <PA>GasFactor, <PA>ElectricFactor, <PA>WeightedFactor for PGE, SDGE, SCE, SCG."""
-    _require_allocation_admin(actor)
+    PercentElectric, then <PA>GasFactor, <PA>ElectricFactor, <PA>WeightedFactor for PGE, SDGE, SCE, SCG. organisation: the
+    organization the actor acts for (one that manages statewide allocations, unless the actor is a CPUC system administrator)."""
+    _require_allocation_manager(actor, organisation)
+    if AllocationVersion.objects.filter(label=label).exists():
+        raise ValueError(f"a version named {label!r} already exists; give this one another name")
     text = content.decode("utf-8-sig")
     rows = list(csv.DictReader(io.StringIO(text)))
     needed = {"Year", "ProgramID", "PercentElectric"} | {f"{pa}{k}Factor" for pa in FUNDING_PAS for k in ("Gas", "Electric", "Weighted")}
@@ -586,6 +634,7 @@ def import_allocation_csv(
         filing_cycle=filing_cycle,
         notes=notes,
         created_by=actor,
+        created_organisation=_acting_for(actor, organisation),
         source_name=source_name,
         source_sha256=hashlib.sha256(content).hexdigest(),
     )
@@ -613,6 +662,7 @@ def import_allocation_csv(
         obj=version,
         after={"label": label, "purpose": purpose, "entries": len(rows), "source": source_name, "sha256": version.source_sha256},
         actor=actor,
+        organisation=_acting_for(actor, organisation),
     )
     return version
 
@@ -639,8 +689,8 @@ def check_allocation(version: AllocationVersion) -> list[AllocationIssue]:
 
 
 @transaction.atomic
-def confirm_allocation(actor, version: AllocationVersion) -> AllocationVersion:
-    _require_allocation_admin(actor)
+def confirm_allocation(actor, version: AllocationVersion, organisation=None) -> AllocationVersion:
+    _require_allocation_manager(actor, organisation)
     version = AllocationVersion.objects.select_for_update().get(pk=version.pk)
     if version.status != AllocationVersion.Status.DRAFT:
         raise AccessDenied("That allocation version is already confirmed.")
@@ -651,20 +701,35 @@ def confirm_allocation(actor, version: AllocationVersion) -> AllocationVersion:
         raise AccessDenied(
             f"{len(blocking)} problems to fix first, e.g. {blocking[0].program_id} {blocking[0].year}: {blocking[0].message}."
         )
+    acting = _acting_for(actor, organisation)
     version.status, version.confirmed_by, version.confirmed_at = AllocationVersion.Status.CONFIRMED, actor, timezone.now()
+    version.confirmed_organisation = acting
     version.save()
-    audit.record("allocation_version.confirmed", obj=version, actor=actor)
+    audit.record("allocation_version.confirmed", obj=version, actor=actor, organisation=acting)
+    who = acting.code if acting is not None else "The CPUC"
+    _tell_managers(
+        version,
+        acting,
+        f"Statewide allocation version confirmed: {version.label}",
+        f"{who} confirmed {version.label} ({version.get_purpose_display().lower()}). Runs that name no version now use it for its years.",
+    )
     return version
 
 
 @transaction.atomic
-def discard_draft(actor, version: AllocationVersion, reason: str = "") -> None:
-    _require_allocation_admin(actor)
+def discard_draft(actor, version: AllocationVersion, reason: str = "", organisation=None) -> None:
+    _require_allocation_manager(actor, organisation)
     version = AllocationVersion.objects.select_for_update().get(pk=version.pk)
     if version.status != AllocationVersion.Status.DRAFT:
         raise AccessDenied("A confirmed allocation version is kept for good.")
-    audit.record("allocation_version.discarded", obj=version, reason=reason, actor=actor)
+    acting = _acting_for(actor, organisation)
+    audit.record("allocation_version.discarded", obj=version, reason=reason, actor=actor, organisation=acting)
     version.delete()
+
+
+def allocation_history(version: AllocationVersion):
+    """Every audit event about the version, oldest first: who loaded and confirmed it, for which organization."""
+    return audit.changes(version).select_related("actor", "organisation")
 
 
 def most_recent_allocation(year: int) -> AllocationVersion | None:

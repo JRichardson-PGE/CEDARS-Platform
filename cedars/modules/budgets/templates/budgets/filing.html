@@ -12,7 +12,7 @@
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if setup.acc_version %} ({{ setup.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}; cost tests: {% if setup.cost_test_set %}{{ setup.cost_test_set }}{% else %}the published set in force for the program year{% endif %}</dd>{% endif %}
 </dl>
-{% if not org %}<p>You are not acting for a program administrator. Confirmed filings are listed on <a href="{% url 'budgets:index' %}">Budgets</a>.</p>{% endif %}
+{% if not org %}{% url 'budgets:index' as back %}{% include "submissions/_choose_pa.html" with what="filing" back=back back_text="Every filing and the budgets that stand" %}{% endif %}
 
 {% if v %}
 <section class="card" aria-labelledby="now-h">

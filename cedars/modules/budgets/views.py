@@ -52,7 +52,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
         if not service.can_read_submission(request.user, sub):
             raise Http404
         return org
-    return request.organisation
+    return request.filing_organisation  # a PA acting for itself; the CPUC and other organizations choose a PA with ?org=
 
 
 def _money(x) -> str:
@@ -87,8 +87,9 @@ def _fmt(kind: str, x) -> str:
 
 @login_required
 def index(request):
-    """Budget filings by cycle: each filing's due date and the acting organization's status, and the budgets that stand for every PA."""
-    org = request.organisation
+    """Budget filings by cycle: each filing's due date and the acting PA's status (none for the CPUC, which files no budget), and the
+    budgets that stand for every PA."""
+    org = request.filing_organisation
     cycles = []
     for cycle in FilingCycle.objects.filter(deadlines__module=service.MODULE).distinct().order_by("-first_year"):
         rows = []
@@ -190,6 +191,7 @@ def filing(request, pk):
     if v is not None:
         service.ensure_lines(v)
     ctx = {
+        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
         "deadline": deadline,
         "label": service.label(deadline),
         "setup": deadline.budget_setup,

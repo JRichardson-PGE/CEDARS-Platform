@@ -150,8 +150,14 @@ class AllocationVersion(models.Model):
     source_name = models.CharField(max_length=255, blank=True, help_text="The file the factors came from")
     source_sha256 = models.CharField(max_length=64, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_organisation = models.ForeignKey(
+        "accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="Loaded for (blank: the CPUC)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    confirmed_organisation = models.ForeignKey(
+        "accounts.Organisation", null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="Confirmed for (blank: CPUC)"
+    )
     confirmed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:

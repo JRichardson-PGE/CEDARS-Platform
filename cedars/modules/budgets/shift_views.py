@@ -28,7 +28,7 @@ def _shift(request, pk) -> FundShift:
 
 @login_required
 def shift_list(request):
-    org = request.organisation
+    org = request.filing_organisation  # the CPUC has no operating budget of its own: it sees every PA's (regulator wording)
     return render(
         request,
         "budgets/shifts.html",
@@ -38,8 +38,9 @@ def shift_list(request):
             "waiting": shifts.waiting_for(org) if org and shifts.access.has_permission(request.user, org, "budgets.confirm") else [],
             "can_submit": shifts.can_submit(request.user, org),
             "cycles": shifts.cycles(),
-            # Only offered to those who may read the acting organization's operating budget (UAT 2, U03).
+            # Only offered to those who may read the acting PA's operating budget (UAT 2, U03), or every PA's (CPUC staff).
             "can_read_operating": org is not None and shifts.can_read_operating(request.user, org),
+            "can_read_every_operating": org is None and shifts.can_read_every_operating(request.user),
         },
     )
 
@@ -223,12 +224,24 @@ def shift_withdraw(request, pk):
 
 
 def _operating(request, first_year):
+    """The operating budget of the PA chosen with ?org=, else the acting PA's; None when neither names a PA (the CPUC's own page, which
+    lists the PAs to choose from)."""
     cycle = get_object_or_404(FilingCycle, first_year=first_year)
     code = request.GET.get("org")
-    org = access.by_code_or_404(code) if code else request.organisation
-    if org is None or not shifts.can_read_operating(request.user, org):
+    org = access.by_code_or_404(code) if code else request.filing_organisation
+    if org is None and not code and shifts.can_read_every_operating(request.user):
+        return cycle, None
+    if org is None or not org.files or not shifts.can_read_operating(request.user, org):
         raise Http404
-    return shifts.operating_budget(org, cycle)
+    return cycle, shifts.operating_budget(org, cycle)
+
+
+def _cycle_pas(cycle):
+    """The PAs with a budget filing or a fund shift in the cycle: the operating budgets there are to choose from."""
+    pas = Organisation.objects.filter(fund_shifts__cycle=cycle) | Organisation.objects.filter(
+        submissions__deadline__module="budgets", submissions__deadline__cycle=cycle
+    )
+    return [o for o in pas.distinct().order_by("code") if o.files]
 
 
 def _year(request, ob) -> int | None:
@@ -238,7 +251,9 @@ def _year(request, ob) -> int | None:
 
 @login_required
 def operating(request, first_year):
-    ob = _operating(request, first_year)
+    cycle, ob = _operating(request, first_year)
+    if ob is None:
+        return render(request, "budgets/operating.html", {"ob": None, "cycle": cycle, "orgs": _cycle_pas(cycle)})
     year = _year(request, ob)
     rows = [r for r in ob.rows if year is None or r.year == year]
     by_year = [(y, ob.total([y])) for y in ob.years]
@@ -251,15 +266,17 @@ def operating(request, first_year):
             "year": year,
             "total": ob.total([year] if year else None),
             "by_year": by_year,
-            "orgs": Organisation.objects.filter(fund_shifts__cycle=ob.cycle).distinct()
-            | Organisation.objects.filter(submissions__deadline__module="budgets", submissions__deadline__cycle=ob.cycle).distinct(),
+            "cycle": ob.cycle,
+            "orgs": _cycle_pas(ob.cycle),
         },
     )
 
 
 @login_required
 def operating_csv(request, first_year):
-    ob = _operating(request, first_year)
+    ob = _operating(request, first_year)[1]
+    if ob is None:
+        raise Http404
     year = _year(request, ob)
     resp = HttpResponse(content_type="text/csv")
     name = f"operating_budget_{ob.organisation.code}_{ob.cycle}{'_' + str(year) if year else ''}.csv"

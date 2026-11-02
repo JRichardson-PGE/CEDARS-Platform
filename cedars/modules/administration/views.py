@@ -196,6 +196,8 @@ def _grantable_codes(user, org) -> list[str]:
     if not service.org_admins(org).exists():
         return [perms.ORG_ADMIN] if service.is_system_admin(user) else []
     codes = perms.module_permissions() + [perms.ORG_ADMIN, perms.PII]
+    if org.manages_allocation:
+        codes.append(perms.ALLOCATION)
     if org.kind == Organisation.Kind.CPUC:
         if service.is_system_admin(user):
             codes += list(perms.CPUC_ONLY)
@@ -240,7 +242,11 @@ def organisation(request, code):
             "campaign": campaign,
             "items": items,
             "recert_form": forms.RecertificationForm(auto_id="recert_%s"),
-            "details_form": forms.OrganisationDetailsForm(org=org, initial={"name": org.name, "pa_type": org.pa_type}, auto_id="details_%s")
+            "details_form": forms.OrganisationDetailsForm(
+                org=org,
+                initial={"name": org.name, "pa_type": org.pa_type, "manages_allocation": org.manages_allocation},
+                auto_id="details_%s",
+            )
             if service.is_system_admin(request.user)
             else None,
             "history": service.code_history(org),
@@ -253,6 +259,7 @@ def organisation(request, code):
             if service.is_system_admin(request.user) and not org.successor_id
             else None,
             "no_admin": not service.org_admins(org).exists(),
+            "allocation_permission": perms.label(perms.ALLOCATION),
             "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
                 "user"
             )
@@ -705,38 +712,56 @@ def _require_sysadmin(request):
         raise Http404
 
 
+def _allocation_manager(request) -> bool:
+    from cedars.services.registry import service as registry
+
+    return registry.can_manage_allocation(request.user, getattr(request, "organisation", None))
+
+
 @login_required
 def allocations(request):
+    """Every statewide allocation version, for everyone signed in; the managing organizations' holders and the CPUC load new ones."""
     from cedars.services.registry.models import AllocationVersion
 
-    _require_sysadmin(request)
-    form = forms.AllocationUploadForm(request.POST or None, request.FILES or None)
-    if request.method == "POST" and form.is_valid():
-        from cedars.services.registry import service as registry
+    can_manage = _allocation_manager(request)
+    form = forms.AllocationUploadForm(request.POST or None, request.FILES or None) if can_manage else None
+    if request.method == "POST":
+        if not can_manage:
+            raise Http404
+        if form.is_valid():
+            from cedars.services.registry import service as registry
 
-        d = form.cleaned_data
-        upload = d["file"]
-        if upload.size > 5 * 1024 * 1024:
-            messages.error(request, "That file is over 5 MB; a factor file is a few hundred rows.")
-            return redirect("administration:allocations")
-        try:
-            v = registry.import_allocation_csv(
-                request.user,
-                upload.read(),
-                label=d["label"],
-                purpose=d["purpose"],
-                source_name=upload.name,
-                notes=d["notes"],
-                filing_cycle=registry.ensure_cycle(d["cycle"]) if d["cycle"] else None,
-            )
-        except (ValueError, KeyError, UnicodeDecodeError) as e:
-            messages.error(request, f"The file could not be read: {e}")
-            return redirect("administration:allocations")
-        except AccessDenied as e:
-            return _refused(request, e, "administration:allocations")
-        return _done(request, f"{v.label} loaded as a draft. Check it, then confirm it.", f"/admin/allocations/{v.pk}/")
-    versions = AllocationVersion.objects.select_related("filing_cycle", "confirmed_by")
-    return render(request, "administration/allocations.html", {"versions": versions, "form": form})
+            d = form.cleaned_data
+            upload = d["file"]
+            if upload.size > 5 * 1024 * 1024:
+                messages.error(request, "That file is over 5 MB; a factor file is a few hundred rows.")
+                return redirect("administration:allocations")
+            try:
+                v = registry.import_allocation_csv(
+                    request.user,
+                    upload.read(),
+                    label=d["label"],
+                    purpose=d["purpose"],
+                    source_name=upload.name,
+                    notes=d["notes"],
+                    filing_cycle=registry.ensure_cycle(d["cycle"]) if d["cycle"] else None,
+                    organisation=request.organisation,
+                )
+            except (ValueError, KeyError, UnicodeDecodeError) as e:
+                messages.error(request, f"The file could not be read: {e}")
+                return redirect("administration:allocations")
+            except AccessDenied as e:
+                return _refused(request, e, "administration:allocations")
+            return _done(request, f"{v.label} loaded as a draft. Check it, then confirm it.", f"/allocations/{v.pk}/")
+    versions = AllocationVersion.objects.select_related(
+        "filing_cycle", "confirmed_by", "confirmed_organisation", "created_by", "created_organisation"
+    )
+    managers = Organisation.objects.filter(manages_allocation=True, active=True).order_by("code")
+    return render(
+        request,
+        "administration/allocations.html",
+        {"versions": versions, "form": form, "can_manage": can_manage, "managers": managers, "permission": perms.label(perms.ALLOCATION)},
+    )
 
 
 @login_required
@@ -744,25 +769,35 @@ def allocation(request, pk):
     from cedars.services.registry import service as registry
     from cedars.services.registry.models import AllocationVersion
 
-    _require_sysadmin(request)
-    v = get_object_or_404(AllocationVersion, pk=pk)
+    v = get_object_or_404(
+        AllocationVersion.objects.select_related("created_by", "created_organisation", "confirmed_by", "confirmed_organisation"), pk=pk
+    )
+    can_manage = _allocation_manager(request)
     if request.method == "POST":
+        if not can_manage:
+            raise Http404
+        org = getattr(request, "organisation", None)
         try:
             if request.POST.get("action") == "confirm":
-                registry.confirm_allocation(request.user, v)
-                return _done(
-                    request, f"{v.label} confirmed. Runs naming no version now use it for its years.", f"/admin/allocations/{v.pk}/"
-                )
+                registry.confirm_allocation(request.user, v, organisation=org)
+                return _done(request, f"{v.label} confirmed. Runs naming no version now use it for its years.", f"/allocations/{v.pk}/")
             if request.POST.get("action") == "discard":
-                registry.discard_draft(request.user, v, request.POST.get("reason", ""))
+                registry.discard_draft(request.user, v, request.POST.get("reason", ""), organisation=org)
                 return _done(request, "Draft discarded.", "administration:allocations")
         except AccessDenied as e:
-            return _refused(request, e, f"/admin/allocations/{v.pk}/")
+            return _refused(request, e, f"/allocations/{v.pk}/")
     years = sorted(set(v.entries.values_list("year", flat=True)))
     return render(
         request,
         "administration/allocation.html",
-        {"v": v, "issues": registry.check_allocation(v), "years": years, "count": v.entries.count()},
+        {
+            "v": v,
+            "issues": registry.check_allocation(v),
+            "years": years,
+            "count": v.entries.count(),
+            "can_manage": can_manage,
+            "history": registry.allocation_history(v),
+        },
     )
 
 
@@ -773,7 +808,6 @@ def allocation_csv(request, pk):
     from cedars.services.registry import service as registry
     from cedars.services.registry.models import AllocationVersion
 
-    _require_sysadmin(request)
     v = get_object_or_404(AllocationVersion, pk=pk)
     response = HttpResponse(registry.allocation_csv(v), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="statewide_factors_{v.pk}.csv"'

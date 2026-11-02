@@ -5,8 +5,8 @@ monthly/index:
   guide:
     - Each month a program administrator reports its commitments and the year's BCA inputs so far. Spend is read from the BCA inputs and
       compared with the operating budget; savings and ratios are estimated from them and labeled as not validated.
-    - Each program year lists its twelve reports with their due dates and where your organization's stand, with the whole year in one
-      view and the 13th-month report generated from the year's confirmed claims.
+    - Each program year lists its twelve reports with their due dates and, when you act for a PA, where its reports stand, with the
+      whole year in one view and the 13th-month report generated from the year's confirmed claims.
   how:
     - The change log lists every correction to a published monthly report, each with a change letter.
   see: monthly-reports

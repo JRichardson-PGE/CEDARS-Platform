@@ -67,6 +67,11 @@ class Organisation(models.Model):
         blank=True,
         help_text="A program administrator's type, for grouping its data (e.g. all RENs); blank for other organizations",
     )
+    manages_allocation = models.BooleanField(
+        "manages statewide allocations",
+        default=False,
+        help_text="Its members may hold the permission to load and confirm statewide allocation factors (the funding PAs)",
+    )
     federated = models.BooleanField(default=False, help_text="Its members sign in through the organization's own directory (decision F)")
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)
@@ -89,6 +94,16 @@ class Organisation(models.Model):
 
     def __str__(self):
         return f"{self.code} ({self.name})"
+
+    @property
+    def files(self) -> bool:
+        """Whether it files budgets, claims and monthly reports and has a portfolio of its own: a program administrator, not the
+        statewide (SW) pseudo-PA, the CPUC or another organization. Pages word their text for the others as the regulator's view
+        (service.filing_organisation)."""
+        return self.kind == self.Kind.PA and self.code != STATEWIDE_CODE
+
+
+STATEWIDE_CODE = "SW"  # the statewide pseudo-PA: statewide programs and the records CEDARS loads under it
 
 
 class CodeRange(Func):

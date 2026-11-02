@@ -4,8 +4,8 @@ budgets/index:
   title: Budgets
   guide:
     - Budget filings follow the four-year program cycle, a business plan application, then true-up (TUAL) and mid-cycle (MCAL) advice
-      letters. This page lists each cycle's filings with their due dates and where your organization's stand, and the budgets that stand
-      for each PA.
+      letters. This page lists each cycle's filings with their due dates, where your PA's filings stand when you act for one, and the
+      budgets that stand for each PA.
     - The newest cycle is open; earlier cycles are folded under their headings. Open a filing to upload, check, price and confirm it.
   how:
     - Compare two versions shows any two budget versions you can read side by side, by program.
@@ -18,7 +18,8 @@ budgets/index:
         administrators set up new filings here too.
     - target: main section.cycle
       title: The current cycle
-      text: Each filing of the cycle with its due date and your organization's status. Select a filing to open it.
+      text: Each filing of the cycle with its due date and, when you act for a PA, its status. Select a filing to open it (CPUC staff
+        then choose the PA).
     - heading: Budgets that stand
       title: Budgets that stand
       text: Each PA's confirmed budget for the cycle, the version every comparison and the operating budget start from.
@@ -148,7 +149,7 @@ budgets/shifts:
       portion goes among its own programs; the shift takes effect once all have.
   how:
     - New fund shift starts one for the organization you act for.
-    - Your organization's operating budget for each cycle is linked under the description.
+    - The operating budget for each cycle is linked under the description: your PA's, or for CPUC staff every PA's to choose from.
   see: budgets
   tour:
     - target: main .head-row .actions
@@ -232,20 +233,29 @@ budgets/operating:
   guide:
     - A PA's operating budget for a cycle, the approved budget (its standing filing) plus the fund shifts in effect, by year and by
       program. Shifts that took effect before the approved budget was confirmed are not added; a later filing is taken to carry them.
+    - The CPUC has no operating budget of its own. CPUC staff first choose the PA whose operating budget to see.
   see: budgets
   tour:
+    - target: "#operating-pas"
+      title: Choose a PA
+      text: The PAs with a budget filing or a fund shift in the cycle. Choose one to see its operating budget.
+      optional: true
     - target: main form.filters
       title: PA and year
       text: Choose the PA (CPUC users) and a program year to see that year by program.
+      optional: true
     - heading: By year
       title: By year
       text: The approved budget, the shifts and the operating budget for each program year.
+      optional: true
     - heading: By program
       title: By program
       text: The same by program, with a CSV of the view.
+      optional: true
     - heading: Shifts in effect
       title: Shifts in effect
       text: The shifts added, each linked to its page.
+      optional: true
 
 budgets/changes:
   title: Budgets change log

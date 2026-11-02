@@ -8,7 +8,7 @@
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   <dt>Estimates priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for {{ setup.year }}{% endif %}</dd>
 </dl>
-{% if not org %}<p>You are not acting for a program administrator. Confirmed reports are in <a href="{% url 'monthly:year' deadline.period.year %}">the year's view</a>.</p>{% endif %}
+{% if not org %}{% url 'monthly:year' deadline.period.year as back %}{% include "submissions/_choose_pa.html" with what="report" back=back back_text="The year's reports in one view" %}{% endif %}
 
 {% if v %}
 <section class="card" aria-labelledby="now-h">

@@ -108,6 +108,11 @@ KNOWN_PA_NAMES = {
 }
 
 
+# The IOUs that fund statewide programs and agree their allocation factors (Jake, 2026-11-02). A new organization with one of these codes
+# starts out managing statewide allocations; the CPUC changes it on the organization's page.
+ALLOCATION_MANAGERS = ("PGE", "SCE", "SCG", "SDGE")
+
+
 def known_pa_name(code: str) -> str:
     """The name CEDARS gives a PA code, or the code itself for one it does not list."""
     c = (code or "").strip().upper()
@@ -417,6 +422,14 @@ def cpuc() -> Organisation | None:
     return Organisation.objects.filter(kind=Organisation.Kind.CPUC).first()
 
 
+def filing_organisation(org: Organisation | None) -> Organisation | None:
+    """The organization a page should speak of as "yours" when it shows a PA's own filings, budgets or reports: the acting organization
+    when it files (Organisation.files), else None. The CPUC, the statewide (SW) pseudo-PA and other organizations have no filings or
+    operating budget of their own, so a page shown to them takes the regulator's view instead (every PA, or the one chosen with ?org=)
+    rather than "CPUC's operating budget". The middleware sets it on every request as request.filing_organisation."""
+    return org if org is not None and org.files else None
+
+
 def _effective(qs, now=None):
     now = now or timezone.now()
     return qs.filter(status=Grant.Status.ACTIVE, membership__ended_at__isnull=True).exclude(expires_at__lte=now)
@@ -490,6 +503,8 @@ def can_grant(actor: User | None, user: User, organisation: Organisation, permis
         return False, f"{user.email}'s account is deactivated."
     if permission in perms.CPUC_ONLY and organisation.kind != Organisation.Kind.CPUC:
         return False, f"{perms.label(permission)} exists only in the CPUC organization."
+    if permission == perms.ALLOCATION and not organisation.manages_allocation:
+        return False, f"{organisation.code} does not manage statewide allocations; the CPUC marks the organizations that do."
     if permission == perms.PII and AccessPolicy.current().pii_requires_federated and not organisation.federated:
         return False, f"PII access needs a federated organization, and {organisation.code} does not federate."
     if actor is None:
@@ -530,19 +545,23 @@ def create_organisation(actor: User | None, *, code: str, name: str, kind: str, 
     code = _check_new_code(code, None)
     if kind == Organisation.Kind.PA and not pa_type:
         pa_type = known_pa_type(code)  # a CEDARS code is typed as CEDARS has it; any other is left for the CPUC to type
-    org = Organisation.objects.create(code=code, name=name.strip(), kind=kind, pa_type=pa_type, federated=federated)
+    manages = kind == Organisation.Kind.PA and code in ALLOCATION_MANAGERS
+    org = Organisation.objects.create(
+        code=code, name=name.strip(), kind=kind, pa_type=pa_type, federated=federated, manages_allocation=manages
+    )
     OrganisationCode.objects.create(organisation=org, code=code, recorded_by=actor)
     audit.record("organisation.created", obj=org, after=audit.snapshot(org), actor=actor)
     return org
 
 
-ORGANISATION_DETAILS = ["name", "pa_type"]
+ORGANISATION_DETAILS = ["name", "pa_type", "manages_allocation"]
 
 
 @transaction.atomic
 def change_organisation(actor: User | None, org: Organisation, *, reason: str, **changes) -> Organisation:
-    """Change an organization's name or PA type (a CPUC system administrator, with a reason). A PA type is required of a program
-    administrator and refused for any other kind of organization."""
+    """Change an organization's name, PA type or whether it manages statewide allocations (a CPUC system administrator, with a
+    reason). A PA type is required of a program administrator and refused for any other kind of organization; only a program
+    administrator manages statewide allocations."""
     if actor is not None and not is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator can change an organization's details.")
     unknown = set(changes) - set(ORGANISATION_DETAILS)
@@ -555,6 +574,8 @@ def change_organisation(actor: User | None, org: Organisation, *, reason: str, *
         raise AccessDenied("A program administrator needs a PA type: IOU, REN or CCA.")
     if org.kind != Organisation.Kind.PA and pa_type:
         raise AccessDenied("Only a program administrator has a PA type.")
+    if changes.get("manages_allocation") and org.kind != Organisation.Kind.PA:
+        raise AccessDenied("Only a program administrator manages statewide allocations.")
     if "name" in changes and not changes["name"].strip():
         raise AccessDenied("The organization needs a name.")
     before = audit.snapshot(org, ORGANISATION_DETAILS)

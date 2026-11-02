@@ -42,3 +42,18 @@ def test_demo_account_refuses_production_and_unknown_or_non_pa_orgs(settings):
     settings.ENVIRONMENT = "prod"
     with pytest.raises(CommandError, match="not in prod"):
         call_command("demo_account", EMAIL, "--password", "p")
+
+
+def test_demo_account_files_for_every_pa_of_a_type():
+    call_command("seed_sandbox", "--year", "2028")
+    service.create_organisation(None, code="SCR", name="SoCalREN", kind="pa", pa_type="REN")
+    service.create_organisation(None, code="TCR", name="3C-REN", kind="pa", pa_type="REN")
+    call_command("demo_account", "rens@example.org", "--pa-type", "REN", "--password", "a demo password 1")
+    user = User.objects.get(email="rens@example.org")
+    assert sorted(user.memberships.values_list("organisation__code", flat=True)) == ["BAY", "SCR", "TCR"]
+    for code in ("BAY", "SCR", "TCR"):
+        assert "claims.submit" in service.effective_permissions(user, Organisation.objects.get(code=code))
+    call_command("demo_account", "two@example.org", "--org", "PGE", "--org", "MCE", "--password", "p")
+    assert sorted(User.objects.get(email="two@example.org").memberships.values_list("organisation__code", flat=True)) == ["MCE", "PGE"]
+    with pytest.raises(CommandError, match="no active program administrator of type XYZ"):
+        call_command("demo_account", EMAIL, "--pa-type", "XYZ", "--password", "p")

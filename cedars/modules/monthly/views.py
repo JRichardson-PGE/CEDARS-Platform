@@ -70,7 +70,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
         if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
             raise Http404
         return org
-    return request.organisation
+    return request.filing_organisation  # a PA acting for itself; the CPUC and other organizations choose a PA with ?org=
 
 
 def _status(v: SubmissionVersion | None) -> dict:
@@ -85,8 +85,8 @@ def _status(v: SubmissionVersion | None) -> dict:
 
 @login_required
 def index(request):
-    """Each program year's twelve reports with their due dates and the acting organization's status."""
-    org = request.organisation
+    """Each program year's twelve reports with their due dates and the acting PA's status (none for the CPUC: it files no reports)."""
+    org = request.filing_organisation
     years = []
     for setup in service.years():
         rows = []
@@ -166,6 +166,7 @@ def report(request, pk):
     can = {a: org is not None and access.has_permission(request.user, org, f"{service.MODULE}.{a}") for a in ("submit", "confirm")}
     acting = org is not None and org == request.organisation
     ctx = {
+        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
         "deadline": deadline,
         "label": service.label(deadline),
         "setup": service.setup_for(deadline),
@@ -450,7 +451,7 @@ def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
     PAs with monthly reports to choose from."""
     choices = list(Organisation.objects.filter(submissions__deadline__module=service.MODULE).distinct().order_by("code"))
     code = request.GET.get("org")
-    org = access.by_code_or_404(code) if code else request.organisation
+    org = access.by_code_or_404(code) if code else request.filing_organisation
     if org is None:
         return None, True, choices
     readable = service._org_reader(request.user, org) or service._cpuc_reader(request.user)

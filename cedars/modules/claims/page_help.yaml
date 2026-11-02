@@ -4,12 +4,12 @@ claims/index:
   title: Claims
   guide:
     - Each claim year is confirmed five times, after each quarter and once more with the final annual claims. This page lists each year's
-      confirmations with their due dates and where your organization's stand. The newest year is open; earlier years are folded under
-      their headings.
+      confirmations with their due dates and, when you act for a PA, where its claims stand. The newest year is open; earlier years are
+      folded under their headings.
     - The claims template (Excel) lists every table and field. The change log lists every correction to confirmed claims, and Linked
       claims follows NMEC chains, projects and SEM participants across quarters and years.
   how:
-    - Open a confirmation to see where your organization's claims stand and to file or correct them.
+    - Open a confirmation to see where your PA's claims stand and to file or correct them. CPUC staff choose the PA there.
     - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
       and years; Restated claims lists confirmed claims priced again on today's engine.
     - Set up a claim year (CPUC system administrators) adds the next year's five confirmations.
@@ -20,7 +20,7 @@ claims/index:
       text: The claims template, every correction made so far, claims that link across years, and restatements. CPUC administrators set up claim years here.
     - target: main section.cycle
       title: The current claim year
-      text: Each confirmation with its due date and your organization's status. Select one to open it.
+      text: Each confirmation with its due date and, when you act for a PA, its status. Select one to open it.
     - target: main details.section
       title: Earlier years
       text: Open a year to see its confirmations.

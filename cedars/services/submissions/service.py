@@ -237,6 +237,13 @@ def past_due(deadline: Deadline, now=None) -> bool:
 # --- reading
 
 
+def filers(deadline: Deadline, can_read: Callable[[Submission], bool]) -> list[Submission]:
+    """The PAs' submissions for a deadline that can_read allows, by PA code: what a page shown to the CPUC (or anyone not acting for a PA)
+    offers to choose from, with ?org=CODE, instead of speaking of the acting organization's own filing."""
+    subs = Submission.objects.filter(deadline=deadline).select_related("organisation").order_by("organisation__code")
+    return [s for s in subs if s.organisation.files and can_read(s)]
+
+
 def latest(submission: Submission) -> SubmissionVersion | None:
     return submission.versions.order_by("-number").first()
 
