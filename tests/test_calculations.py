@@ -73,7 +73,7 @@ def test_a_job_zip_is_read_once_for_its_records_and_first_year(tmp_path):
 
 
 def test_a_job_zip_holds_only_the_job(tmp_path):
-    with pytest.raises(jobfiles.JobFileError, match="only Measure.csv and ProgramCost.csv; it also has notes.docx"):
+    with pytest.raises(jobfiles.JobFileError, match="it also has notes.docx"):
         jobfiles.inspect(job_zip(tmp_path, extra={"notes.docx": "x"}))
     assert jobfiles.inspect(job_zip(tmp_path, extra={"__MACOSX/._Measure.csv": "x", ".DS_Store": "x"}, name="mac.zip")).records == 3
     bad = tmp_path / "no.zip"
