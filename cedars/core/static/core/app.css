@@ -548,3 +548,7 @@ ul.links.columns li { break-inside: avoid; }
 .doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
 .engine-doc { overflow-wrap: break-word; }
 .engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
+.engine-doc figure.diagram { margin: .75rem 0 .25rem; padding: .75rem; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r-lg); }   /* the drawing's own colors are for a light page, in both schemes */
+.engine-doc figure.diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.engine-doc details.diagram-text { margin: 0 0 1rem; }
+.engine-doc details.diagram-text > summary { cursor: pointer; padding: .25rem 0; }   /* keeps its disclosure triangle; 24 px tall (2.5.8) */

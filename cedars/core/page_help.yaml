@@ -232,7 +232,7 @@ core/help/recet_doc:
     - >-
       One of ReCET's own documents, from the engine version CEDARS runs (named under the heading). Links to the other ReCET documents
       stay on CEDARS; links to the engine's code go to GitHub at that version.
-    - Diagrams are shown as their text, which names each box and arrow.
+    - Each diagram is a picture with a text alternative, and Diagram N as text under it opens its source, which names each box and arrow.
   how:
     - On this page lists the document's sections; choose one to jump to it.
     - Wide tables scroll sideways inside their box; with the keyboard, Tab to the table and use the arrow keys.

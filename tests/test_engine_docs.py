@@ -23,6 +23,20 @@ def test_the_shipped_copies_match_the_manifest_and_the_pin():
     assert sorted(p.name for p in engine_docs.DOCS_DIR.glob("*.md")) == sorted(m["documents"])
 
 
+def test_every_diagram_is_drawn_from_the_shipped_source():
+    """A changed diagram fails here until the export draws it again."""
+    m = engine_docs.manifest()
+    expected = {}
+    for doc in engine_docs.DOCS:
+        for n, src in enumerate(engine_docs.mermaid_blocks((engine_docs.DOCS_DIR / doc.file).read_text(encoding="utf-8")), 1):
+            expected[f"{doc.file.removesuffix('.md')}-{n}.svg"] = {"source_sha256": hashlib.sha256(src.encode("utf-8")).hexdigest()}
+    assert m["diagrams"] == expected
+    assert sorted(p.name for p in (engine_docs.DOCS_DIR / "diagrams").glob("*.svg")) == sorted(expected)
+    for name in expected:
+        svg = (engine_docs.DOCS_DIR / "diagrams" / name).read_text(encoding="utf-8")
+        assert "<script" not in svg and "foreignObject" not in svg, name
+
+
 def test_the_shipped_copies_are_the_pinned_engines():
     """When the pinned ReCET is installed, its documents are the shipped ones (re-run scripts/export_recet_docs.py after a pin change)."""
     recet = pytest.importorskip("recet")
@@ -87,6 +101,11 @@ def test_wide_tables_scroll_in_a_named_region_and_diagrams_are_text():
     assert html.count("<table>") == html.count('role="region" aria-label="Table') == html.count('<caption class="sr-only">Table')
     assert engine_docs.render("engine-architecture").diagrams == 7
     assert html.count('class="language-mermaid"') == 7
+    # each drawn by the export and shown as an image (no script, no inline style: the CSP allows neither), its text under it
+    assert html.count('<figure class="diagram"><img src="data:image/svg+xml;base64,') == 7
+    assert html.count('<details class="diagram-text">') == 7
+    for alt in re.findall(r'<img src="data:[^"]*" alt="([^"]*)"', html):
+        assert len(alt) > 40 and alt != "Diagram", alt
     assert html.count("<pre>") == html.count('role="region" aria-label="Code')
 
 

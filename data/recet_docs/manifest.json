@@ -11,5 +11,28 @@
     "COST_TESTS.md": "59316fa03e8a9ef954b1933c1de389f9316dacf6aea593eab83011c591b7cab6",
     "USER_GUIDE.md": "d68a76a3c289349ae64a98554197e4825cab24f1b0c5693d50b81f83133a063f",
     "ARCHITECTURE.md": "bf1ecb1e6a8b7387516cf718aafe1fc005f24647859712229c098eaf635eed69"
+  },
+  "diagrams": {
+    "ARCHITECTURE-1.svg": {
+      "source_sha256": "c7c2f3788f632c38e88589b9bb41cf0bb7526e68f4d90a33a9cbe03df9e241ea"
+    },
+    "ARCHITECTURE-2.svg": {
+      "source_sha256": "4a16fa036483b269c1866009834daa57a66cd90dede38f10a59812389a2b894f"
+    },
+    "ARCHITECTURE-3.svg": {
+      "source_sha256": "9a47925696e94817311460266e8042706d9d14238ede0e0fbd3099574ebf5c3a"
+    },
+    "ARCHITECTURE-4.svg": {
+      "source_sha256": "275702ac284af11a7bb37750a18c4e10d2244cfa01ce48ef7f7e987bd0209060"
+    },
+    "ARCHITECTURE-5.svg": {
+      "source_sha256": "07db247ee3c2e09ed374af6806e300c2a90093b6e1dc06095e73471896ecefb1"
+    },
+    "ARCHITECTURE-6.svg": {
+      "source_sha256": "993b2e70130916833d5492096d4bd5f1bcb1a80ce1d1b4bfb075852cc1eff134"
+    },
+    "ARCHITECTURE-7.svg": {
+      "source_sha256": "453128ac9bc14a1081f89a578e85adbee4091a3b3d67c471f7d686c33ba33324"
+    }
   }
 }

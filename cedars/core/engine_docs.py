@@ -7,12 +7,14 @@ without the engine installed. tests/test_engine_docs.py checks the copies are th
 They are rendered here with Python-Markdown as ReCET's own Docs pages render them (same extensions, so the same heading anchors), then:
 the document's own title becomes the page's h1 (kept out of the body, which starts at h2); links to another document shown here go to its
 page, links to anything else in the ReCET repository go to that file on GitHub at the pinned commit; wide tables and code blocks scroll
-inside a focusable, named region (WCAG 2.1.1); Mermaid diagrams are shown as their source text (scripts are same-origin only and the
-pages work without them; each diagram's accTitle / accDescr says what it shows); and the few British spellings in the engine's prose
+inside a focusable, named region (WCAG 2.1.1); Mermaid diagrams are drawn by the export (scripts are same-origin only and the
+pages work without them; the export draws each one as an SVG, shown as an image whose text alternative is its accTitle / accDescr,
+with its source text under it); and the few British spellings in the engine's prose
 (`US_SPELLING`) are shown in US spelling (CLAUDE.md), in text only: code, anchors and links are left as written.
 
 This module is importable without Django settings (the export script reads DOCS)."""
 
+import base64
 import hashlib
 import json
 import posixpath
@@ -209,17 +211,25 @@ def render(slug: str) -> Rendered:
     html = re.sub(r'href="([^"]*)"', lambda m: f'href="{escape(_href(unescape(m.group(1)), slug))}"', html)
 
     diagrams = 0
+    sources = mermaid_blocks((DOCS_DIR / BY_SLUG[slug].file).read_text(encoding="utf-8"))
 
     def mermaid(m):
         nonlocal diagrams
         diagrams += 1
+        n, text = diagrams, f'<pre><code class="language-mermaid">{m.group(1)}</code></pre>'
+        drawing = DOCS_DIR / "diagrams" / f"{BY_SLUG[slug].file.removesuffix('.md')}-{n}.svg"
+        if not drawing.exists():  # not drawn (the export draws every one): its text only
+            hint = f"Diagram {n}, as its source text (Mermaid): each line after accTitle and accDescr is a box or an arrow."
+            return f'<p class="hint">{hint}</p>{text}'
+        data = base64.b64encode(drawing.read_bytes()).decode("ascii")
+        alt = escape(_us(diagram_alt(sources[n - 1]) if n <= len(sources) else f"Diagram {n}"))
         return (
-            f'<p class="hint" id="diagram-{diagrams}">Diagram {diagrams}, as its source text (Mermaid): the accTitle and accDescr '
-            f"lines say what it shows, and each line after them is a box or an arrow.</p>"
-            f'<pre><code class="language-mermaid">'
+            f'<figure class="diagram"><img src="data:image/svg+xml;base64,{data}" alt="{alt}"></figure>'
+            f'<details class="diagram-text"><summary>Diagram {n} as text</summary><p class="hint">The diagram\'s source (Mermaid): each '
+            f"line after accTitle and accDescr is a box or an arrow.</p>{text}</details>"
         )
 
-    html = re.sub(r'<pre><code class="language-mermaid">', mermaid, html)
+    html = re.sub(r'<pre><code class="language-mermaid">(.*?)</code></pre>', mermaid, html, flags=re.S)
 
     heading, counts = ["the document's start"], {}
 
@@ -239,6 +249,19 @@ def render(slug: str) -> Rendered:
     html = html.replace("</table>", "</table></div>").replace("</pre>", "</pre></div>")
     html = _text_only(html, _us)
     return Rendered(_us(title), html, _toc(tokens), diagrams)
+
+
+def mermaid_blocks(text: str) -> list[str]:
+    """The source of each ```mermaid block of a document's Markdown, in order."""
+    return re.findall(r"^```mermaid[ \t]*\n(.*?)^```[ \t]*$", text, flags=re.M | re.S)
+
+
+def diagram_alt(source: str) -> str:
+    """A diagram's text alternative: its accTitle and accDescr (one line, or a { } block)."""
+    title = re.search(r"^\s*accTitle\s*:\s*(.+?)\s*$", source, re.M)
+    descr = re.search(r"^\s*accDescr\s*:\s*(.+?)\s*$", source, re.M) or re.search(r"^\s*accDescr\s*\{(.*?)\}", source, re.M | re.S)
+    parts = [title.group(1) if title else "", " ".join(descr.group(1).split()) if descr else ""]
+    return ". ".join(p.rstrip(".") for p in parts if p) + "." if any(parts) else "Diagram"
 
 
 def file_sha256(doc: Doc) -> str:
