@@ -1585,7 +1585,8 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     context, page = _open(browser, site, scene, "/data/overview/?series=forecast", None)
     page.evaluate("document.querySelectorAll('details.dash-filters').forEach(d => d.open = true)")
     summary = page.locator(".pa-menu > summary")
-    assert summary.inner_text().endswith("All PAs and statewide programs")
+    assert summary.inner_text().endswith("All PAs")  # no statewide programs choice on a dashboard (Jake, 2026-11-02)
+    assert page.locator("[data-pa-statewide]").count() == 0
     summary.focus()
     page.keyboard.press("Enter")
     assert page.evaluate("document.querySelector('.pa-menu').open")
@@ -1601,7 +1602,6 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     assert page.evaluate("document.querySelector('[data-pa-all]').indeterminate")
     every.focus()
     page.keyboard.press("Space")  # All PAs: half ticked -> ticked
-    page.locator("[data-pa-statewide]").uncheck()
     page.locator("input[name='pa_type'][value='CCA']").uncheck()
     assert "CCAs" not in summary.inner_text() and "All IOUs" in summary.inner_text()
     page.keyboard.press("Escape")
@@ -1612,3 +1612,10 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     types = sorted(v for k, v in sent if k == "pa_type")
     assert types == ["IOU"], sent
     assert ["pa", "SW"] not in sent and not any(k == "pa" and v in ("PGE", "SCE") for k, v in sent), sent  # a whole type goes as itself
+    # the records page keeps statewide programs as their own choice
+    context, page = _open(browser, site, scene, "/data/records/", None)
+    page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+    summary = page.locator(".pa-menu > summary")
+    assert summary.inner_text().endswith("All PAs and statewide programs")
+    assert page.locator("[data-pa-statewide]").count() == 1
+    context.close()

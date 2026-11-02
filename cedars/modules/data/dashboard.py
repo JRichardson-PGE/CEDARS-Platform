@@ -70,7 +70,6 @@ PAGES = {
             "Forecast and claimed results against the CPUC's energy efficiency goals for each IOU territory, by year or by cycle. CCA "
             "and REN results count toward a territory as the goal decision's counting rules say.",
             ("tsb", "cs_gwh", "cs_mw", "cs_mmtherms"),
-            exclude=("pension", "esa", "cs"),
             kind="goals",
         ),
         Page(
@@ -491,11 +490,13 @@ def filter_options() -> dict[str, list[str]]:
     }
 
 
-def pa_picker(selected: dict) -> dict:
-    """The PA picker for a query's filter map (accounts.service.pa_picker: All PAs > PA types > PAs, then statewide programs)."""
+def pa_picker(selected: dict, *, statewide: bool = True) -> dict:
+    """The PA picker for a query's filter map (accounts.service.pa_picker: All PAs > PA types > PAs, then statewide programs). The
+    dashboard pages pass statewide=False: statewide programs are offered on the records page only (Jake, 2026-11-02), since the
+    dashboards' totals count statewide programs through each funding PA's allocated rows and a statewide choice there only confuses."""
     from cedars.services.accounts import service as access
 
-    return access.pa_picker(selected.get("pa", ()), selected.get("pa_type", ()))
+    return access.pa_picker(selected.get("pa", ()), selected.get("pa_type", ()), hide_statewide=not statewide)
 
 
 def filings() -> list[tuple[str, str]]:

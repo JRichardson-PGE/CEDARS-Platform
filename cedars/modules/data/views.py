@@ -224,7 +224,7 @@ def dashboard_page(request, slug):
             for d in dashboard.FILTERS
             if d not in query.PA_SELECTION
         ],
-        "pa_picker": dashboard.pa_picker(selected),
+        "pa_picker": dashboard.pa_picker(selected, statewide=False),
     }
     context |= saved_pages.page_context(request, page.slug, None if error else urlencode(view.params, doseq=True))
     return render(request, "data/dashboard.html", context)
