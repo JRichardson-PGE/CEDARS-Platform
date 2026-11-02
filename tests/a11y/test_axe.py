@@ -1793,6 +1793,7 @@ def test_the_edit_inputs_grid_by_keyboard(browser, axe_source, site, scene, sche
     line follows, typing edits and the change is saved by itself, Tab leaves the grid (no keyboard trap, 2.1.2), the tabs follow the
     ARIA tabs pattern, and axe finds nothing with a cell being edited."""
     context, page = _open(browser, site, scene, "/calculations/drafts/{draft}/", "analyst", color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#editor").count(), f"no grid at {page.url}: {page.title()}: {page.inner_text('main')[:800]}"
     assert page.get_attribute("#editor", "data-ready") == "1", page.inner_text("#save-status")
     assert not page.is_visible("#table-h") and page.is_visible("#grid-Measure .tabulator-cell")
     assert page.get_attribute("#grid-Measure", "aria-label") == "Measure table"
