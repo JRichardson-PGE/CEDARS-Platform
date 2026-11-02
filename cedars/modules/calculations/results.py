@@ -237,3 +237,64 @@ def filter_rows(table, text: str):
         return table
     hit = table[textual].astype(str).apply(lambda col: col.str.lower().str.contains(text, regex=False)).any(axis=1)
     return table[hit]
+
+
+# --- the run page's input check and log (ReCET's own run page shows both: recet/web/app.py check_summary and the Log card)
+
+# Findings that leave measures unpriced, listed first on the card (ReCET web app.UNPRICED_CODES)
+UNPRICED_CODES = ("no_electric_profile", "no_electric_profile_2nd", "no_water_profile", "no_gas_profile")
+SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
+SEVERITY_WORDS = {"error": "Stops the run", "warning": "Warning", "info": "Note"}
+LOG_NAME = "log.txt"  # the worker's log, sent beside progress.json while the run runs and kept with its outputs (ReCET 0.1.90)
+LOG_PAGE_BYTES = 200_000  # the page shows the log's last 200 KB; the whole log is a download
+
+
+def _out(run: Run, name: str) -> bytes | None:
+    key = run.storage_prefix + "out/" + name
+    store = storage.store("results")
+    return store.get_bytes(key) if store.exists(key) else None
+
+
+def input_check(run: Run) -> dict | None:
+    """The engine's input check (preflight.json) as the run page shows it: counts by severity, the findings that leave measures
+    unpriced, the ACC check, the stats and every finding, errors first. None before the check has run."""
+    import json
+
+    raw = _out(run, "preflight.json")
+    if not raw:
+        return None
+    try:
+        report = json.loads(raw)
+    except ValueError:
+        return None
+    issues = sorted(report.get("issues") or [], key=lambda i: SEVERITY_ORDER.get(i.get("severity"), 3))
+    for i in issues:
+        # the energy the finding's records carry: "12,346 first-year net kWh"
+        i["impact_text"] = "; ".join(f"{v:,.0f} {k}" for k, v in (i.get("impact") or {}).items() if isinstance(v, int | float))
+        i["severity_words"] = SEVERITY_WORDS.get(i.get("severity"), (i.get("severity") or "").capitalize())
+        i["examples"] = [str(e) for e in (i.get("examples") or [])][:5]
+    n = {k: sum(1 for i in issues if i.get("severity") == k) for k in SEVERITY_ORDER}
+    acc = report.get("acc_check") or None
+    if acc:
+        flagged = [r for r in acc.get("by_acc_and_year") or [] if r.get("status") == "flagged"]
+        acc = {**acc, "flagged_rows": flagged} if acc.get("flagged") else None
+    return {
+        "n": n,
+        "issues": issues,
+        "unpriced": [i for i in issues if i.get("code") in UNPRICED_CODES and i.get("count")],
+        "acc": acc,
+        "stats": [(str(k).strip(), v) for k, v in (report.get("stats") or {}).items()],
+        "has_findings_file": storage.store("results").exists(run.storage_prefix + "out/preflight_findings.xlsx"),
+    }
+
+
+def run_log(run: Run, limit: int | None = LOG_PAGE_BYTES) -> tuple[str, bool]:
+    """The run's log (its last `limit` bytes, cut at a line) and whether it was cut. ("", False) when the worker has sent none."""
+    raw = _out(run, LOG_NAME)
+    if not raw:
+        return "", False
+    cut = limit is not None and len(raw) > limit
+    if cut:
+        raw = raw[-limit:]
+        raw = raw[raw.find(b"\n") + 1 :]
+    return raw.decode("utf-8", "replace"), cut

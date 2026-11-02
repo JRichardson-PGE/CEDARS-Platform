@@ -68,19 +68,26 @@ calculations/run:
   guide:
     - One cost-effectiveness run, its status while it is queued and running, then its settings, portfolio totals, files, and the record of
       what produced the results (the engine release, the ACC and every input's checksum), so anyone can reproduce them.
+    - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
+      every other finding. The log is what the engine printed, updated while the run runs.
     - A finished run opens its Results and can be compared with another run. A small job's inputs can be opened in Edit inputs to change
       and run again.
   how:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
     - Stop the run ends a queued or running run. Edit inputs and rerun opens a small job's tables to change and run again.
+    - Download every file (.zip) takes all the run's files at once; the inputs download as they were given.
   see: calculations
   tour:
     - target: "#status-h"
       title: Status
       text: Queued, running (with its progress), finished or failed, and what to do about a failure.
+    - target: "#check-h"
+      title: Input check
+      text: What the engine's check before pricing found, what stopped the run and what it could not price.
+      optional: true
     - target: "#settings-h"
       title: Settings
-      text: What the run was asked to do.
+      text: What the run was asked to do, and its inputs to download.
     - target: main .head-row .actions
       title: Results and compare
       text: The results by portfolio, PA, program and measure, and a comparison with any other finished run.
@@ -92,6 +99,10 @@ calculations/run:
     - target: "#files-h"
       title: Files
       text: Every file the run wrote, to download.
+      optional: true
+    - target: "#log-h"
+      title: Log
+      text: What the engine printed while it ran.
       optional: true
     - target: "#receipt-h"
       title: What produced these results
