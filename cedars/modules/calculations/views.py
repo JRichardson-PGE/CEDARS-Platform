@@ -1,5 +1,5 @@
 import mimetypes
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 from django.contrib import messages
@@ -136,8 +136,9 @@ def new_run(request):
     if not releases:
         return render(request, "calculations/new.html", {"form": None})
     draft = _draft_for(request)
+    rerun = _rerun_for(request) if draft is None else None
     orgs = _submittable(request.user, request.user_organisations)
-    first = draft.organisation if draft is not None else request.organisation
+    first = draft.organisation if draft is not None else rerun.organisation if rerun is not None else request.organisation
     if first in orgs:
         orgs.remove(first)
         orgs.insert(0, first)
@@ -145,13 +146,24 @@ def new_run(request):
     initial = {"engine": f"{default.release}|recet", "acc_version": "2024", "include_societal": True, "emissions": True}
     if draft is not None:
         initial |= {"name": draft.name, "run_for": draft.organisation.code if draft.organisation else ""}
+    if rerun is not None:
+        initial |= forms.rerun_initial(rerun)
     form = forms.NewRunForm(
-        request.POST or None, request.FILES or None, releases=releases, organisations=orgs, user=request.user, draft=draft, initial=initial
+        request.POST or None,
+        request.FILES or None,
+        releases=releases,
+        organisations=orgs,
+        user=request.user,
+        draft=draft,
+        rerun=rerun,
+        initial=initial,
     )
     if request.method == "POST" and form.is_valid():
         try:
             if draft is not None:
                 run = drafts.start_run(request.user, form.cleaned_data["organisation"], form.run_request(), draft)
+            elif rerun is not None:
+                run = _start_rerun(request, form, rerun)
             else:
                 run = service.create_run_from_upload(
                     request.user, form.cleaned_data["organisation"], form.run_request(), form.cleaned_data["job"]
@@ -169,6 +181,7 @@ def new_run(request):
             "releases": releases,
             "service": service,
             "draft": draft,
+            "rerun": rerun,
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
             "input_templates": _input_template_links(releases),
@@ -218,6 +231,35 @@ def input_template(request, kind):
     return FileResponse(open(f, "rb"), as_attachment=True, filename=name)
 
 
+def _rerun_for(request):
+    """The run New run starts again with different settings (?from= on the page, a hidden field when it is sent), or None. Anyone who
+    can see the run can rerun it as a run of their own choosing."""
+    pk = request.POST.get("from") or request.GET.get("from")
+    if not pk:
+        return None
+    try:
+        return _run_or_404(request, pk)
+    except ValidationError:
+        raise Http404 from None
+
+
+def _start_rerun(request, form, rerun):
+    """Queue the rerun: the run's stored inputs New run keeps (form.reused()), with any uploaded in their place."""
+    req = form.run_request()
+    reused = form.reused()
+    with service.reused_inputs(rerun, reused) as stored:
+        job = form.cleaned_data.get("job") or stored.get("job_zip") or stored.get("workbook")
+        if job is None:
+            raise AccessDenied("The run's job file is no longer stored; upload the job file.")
+        req.supplied = {**{n: p for n, p in stored.items() if n in forms.SUPPLIED_FIELDS}, **(req.supplied or {})}
+        if req.cet_outputs is None and "cet_outputs" in stored:
+            req.cet_outputs = stored["cet_outputs"]
+        organisation = form.cleaned_data["organisation"]
+        if isinstance(job, Path):
+            return service.create_run(request.user, organisation, req, job)
+        return service.create_run_from_upload(request.user, organisation, req, job)
+
+
 def _draft_for(request):
     """The Edit inputs draft New run runs (?draft= on the page, a hidden field when it is sent), or None."""
     pk = request.POST.get("draft") or request.GET.get("draft")
@@ -260,6 +302,11 @@ def run(request, pk):
             "notes": receipt.get("notes") or [],
             "input_notes": ((run.spec or {}).get("context") or {}).get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
+            "can_rerun": bool(service.job_input(run)),
+            "can_delete": run.organisation_id is None
+            and run.owner_id == request.user.pk
+            and run.ended
+            and run.submission_version_id is None,
             "cet_comparison": results_mod.cet_comparison(run, files),
             "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
             "log": log,
@@ -289,6 +336,24 @@ def _can_edit_inputs(user, run: Run) -> bool:
 @login_required
 def run_status(request, pk):
     return JsonResponse(status_view(_run_or_404(request, pk)))
+
+
+@login_required
+@require_POST
+def delete(request, pk):
+    """Delete one's own ("Only me") ended run and its files (R9); audited."""
+    run = _run_or_404(request, pk)
+    if not request.POST.get("sure"):
+        messages.error(request, "Tick the box to say the run and its files go for good.")
+        return redirect("calculations:run", pk=run.pk)
+    name = run.name
+    try:
+        service.delete_run(request.user, run)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect("calculations:run", pk=run.pk)
+    messages.success(request, f"Deleted the run {name} and its files.")
+    return redirect("calculations:runs")
 
 
 @login_required
