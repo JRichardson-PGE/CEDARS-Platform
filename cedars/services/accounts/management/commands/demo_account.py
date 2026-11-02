@@ -16,27 +16,36 @@ SUBMITTER = [f"{m}.{a}" for m in perms.MODULES for a in ("read", "submit", "conf
 
 class Command(BaseCommand):
     help = (
-        "Sandbox or developer database only: create (or refresh) a test account that signs in with a password, a member of one "
-        "program administrator with read, submit and confirm in every module. Re-runnable: resets the password and adds missing grants. "
-        "Audited as the system."
+        "Sandbox or developer database only: create (or refresh) a test account that signs in with a password, a member of one or more "
+        "program administrators (--org, repeatable, or every active PA of a --pa-type) with read, submit and confirm in every module. "
+        "Re-runnable: resets the password and adds missing grants. Audited as the system."
     )
 
     def add_arguments(self, parser):
         parser.add_argument("email")
-        parser.add_argument("--org", default="PGE", help="the program administrator's code (default PGE)")
+        parser.add_argument("--org", action="append", default=[], help="a program administrator's code; repeat for several (default PGE)")
+        parser.add_argument("--pa-type", default="", help="also every active program administrator of this type (IOU, REN or CCA)")
         parser.add_argument("--name", default="", help="the account's full name")
         parser.add_argument("--password", default="", help="the sign-in password (asked for when left out)")
-        parser.add_argument("--org-admin", action="store_true", help="also make the account the organization's administrator")
+        parser.add_argument("--org-admin", action="store_true", help="also make the account each organization's administrator")
 
     @transaction.atomic
-    def handle(self, email, org, name, password, org_admin, **opts):
+    def handle(self, email, org, pa_type, name, password, org_admin, **opts):
         if settings.ENVIRONMENT not in ("sandbox", "dev", "test"):
             raise CommandError(f"demo_account runs only in the sandbox or a developer database, not in {settings.ENVIRONMENT}.")
-        organisation = service.by_code(org)
-        if organisation is None:
-            raise CommandError(f"There is no organization {org}. Run `manage.py seed_sandbox` first.")
-        if organisation.kind != Organisation.Kind.PA:
-            raise CommandError(f"{organisation.code} is not a program administrator.")
+        organisations = []
+        for code in org or ([] if pa_type else ["PGE"]):
+            organisation = service.by_code(code)
+            if organisation is None:
+                raise CommandError(f"There is no organization {code}. Run `manage.py seed_sandbox` first.")
+            if organisation.kind != Organisation.Kind.PA:
+                raise CommandError(f"{organisation.code} is not a program administrator.")
+            organisations.append(organisation)
+        if pa_type:
+            typed = Organisation.objects.filter(kind=Organisation.Kind.PA, pa_type=pa_type.upper(), active=True).order_by("code")
+            if not typed:
+                raise CommandError(f"There is no active program administrator of type {pa_type}.")
+            organisations += [o for o in typed if o not in organisations]
         if not password:
             password = getpass.getpass(f"Password for {email}: ")
         if not password:
@@ -52,12 +61,15 @@ class Command(BaseCommand):
         user.save()
         EmailAddress.objects.update_or_create(user=user, email=user.email, defaults={"verified": True, "primary": True})
 
-        held = service.effective_permissions(user, organisation)
         wanted = SUBMITTER + ([perms.ORG_ADMIN] if org_admin else [])
-        added = [p for p in wanted if p not in held]
-        for code in added:
-            service.grant(None, user, organisation, code, reason="demo account")
+        added = 0
+        for organisation in organisations:
+            held = service.effective_permissions(user, organisation)
+            for code in wanted:
+                if code not in held:
+                    service.grant(None, user, organisation, code, reason="demo account")
+                    added += 1
         self.stdout.write(
-            f"{user.email}: {'created' if created else 'password reset'}, a member of {organisation.code} "
-            f"({len(added)} permission{'s' if len(added) != 1 else ''} added). Sign in with the password given."
+            f"{user.email}: {'created' if created else 'password reset'}, a member of {', '.join(o.code for o in organisations)} "
+            f"({added} permission{'s' if added != 1 else ''} added). Sign in with the password given."
         )
