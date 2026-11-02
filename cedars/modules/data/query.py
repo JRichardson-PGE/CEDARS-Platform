@@ -6,7 +6,9 @@ A query sums the metric catalog's fields by the dimensions asked for, over the r
 plain GET parameters (`from_params` / `Query.params`), so a link reproduces the view.
 
 Datasets: claims (each PA's latest year-to-date claim per year), forecast (budget filings; the filing selector picks one kind, or by
-default each PA's latest filing in each cycle) and monthly (each PA's latest year-to-date report per year)."""
+default each PA's latest filing for each program year: a true-up or mid-cycle filing that covers only some of its cycle's years stands
+for those years, and the years it leaves out keep the earlier filing's forecast) and monthly (each PA's latest year-to-date report per
+year)."""
 
 import json
 from collections import Counter
@@ -266,7 +268,11 @@ class Result:
             "as_of": self.as_of.isoformat() if self.as_of else None,
             "snapshots": [f["snapshot"] for f in self.files_used],
             "filings": sorted(
-                {f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}" for f in self.files_used}
+                {
+                    f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}"
+                    + (f" (years {years_label(f)})" if years_label(f) else "")
+                    for f in self.files_used
+                }
             ),
             "metrics": {
                 m.code: {"label": m.label, "unit": m.unit, "numerator": m.numerator, "denominator": m.denominator} for m in self.metric_list
@@ -291,7 +297,10 @@ def _release(q: Query) -> Release | None:
 
 def pick_files(q: Query, files: list[dict]) -> list[dict]:
     """The release's snapshots a query reads. Claims and monthly: all of them (one per PA and year already). Forecast: the filing
-    asked for, else each PA's latest filing (by its due date) in each cycle."""
+    asked for, else for each PA and program year the latest filing (by its due date, then version) that holds that year. A file then
+    carries `years`: the program years it is read for, or None for all of its rows. Legacy CEDARS' 2024-2027 cycle shows why: its
+    2024-2025 true-up holds 2024 and 2025 only and the 2026-2027 mid-cycle filing 2026 and 2027 only, so each PA's latest filing in the
+    cycle alone would leave 2024 and 2025 with no forecast."""
     if q.dataset != Dataset.FORECAST:
         return files
     if q.filing:
@@ -299,10 +308,66 @@ def pick_files(q: Query, files: list[dict]) -> list[dict]:
         return [f for f in files if f["kind"].lower() == kind.lower() and (not cycle or f["cycle"] == cycle)]
     latest: dict[tuple, dict] = {}
     for f in files:
-        slot = (f["organisation"], f["cycle"])
-        if slot not in latest or (f["due_at"], f["version"]) > (latest[slot]["due_at"], latest[slot]["version"]):
-            latest[slot] = f
-    return sorted(latest.values(), key=lambda f: (f["organisation"], f["cycle"]))
+        for y in file_years(f):
+            slot = (f["organisation"], y)
+            if slot not in latest or (f["due_at"], f["version"]) > (latest[slot]["due_at"], latest[slot]["version"]):
+                latest[slot] = f
+    chosen: dict[str, tuple[dict, set]] = {}
+    for (_org, y), f in latest.items():
+        chosen.setdefault(f["snapshot"], (f, set()))[1].add(y)
+    out = []
+    for f, years in chosen.values():
+        out.append({**f, "years": None if years == set(file_years(f)) else tuple(sorted(years, key=_year_order))})
+    return sorted(out, key=lambda f: (f["organisation"], f["cycle"], f["due_at"], f["version"]))
+
+
+YEAR_OF_ROW = 'try_cast(CAST("Used_Year" AS VARCHAR) AS INTEGER)'  # as the year dimension reads it (the rows' Used_Year as text)
+_FILE_YEARS: dict[str, tuple] = {}
+
+
+def _year_order(y):
+    return (y is None, y or 0)
+
+
+def file_years(f: dict) -> tuple:
+    """The program years a snapshot's rows hold (None for rows without one), read once per file: a snapshot never changes, so they are
+    kept by its SHA-256."""
+    key = f.get("sha256") or str(f["uri"])
+    if key not in _FILE_YEARS:
+        import pyarrow.parquet as pq
+
+        path = local_path(f)
+        if "Used_Year" not in pq.read_schema(path).names:
+            years = (None,)
+        else:
+            _, rows = _fetch(f"SELECT DISTINCT {YEAR_OF_ROW} FROM read_parquet({_literal(str(path))})", [])
+            years = tuple(sorted({r[0] for r in rows}, key=_year_order))
+        _FILE_YEARS[key] = years
+    return _FILE_YEARS[key]
+
+
+def file_where(f: dict) -> str:
+    """The WHERE clause that keeps a picked file's rows to the program years it is read for (`pick_files`); blank for all of them."""
+    years = f.get("years")
+    if years is None:
+        return ""
+    terms = []
+    numbers = [int(y) for y in years if y is not None]
+    if numbers:
+        terms.append(f"{YEAR_OF_ROW} IN ({', '.join(str(y) for y in numbers)})")
+    if None in years:
+        terms.append(f"{YEAR_OF_ROW} IS NULL")
+    return f" WHERE {' OR '.join(terms)}" if terms else " WHERE false"
+
+
+def years_label(f: dict) -> str:
+    """The years a picked file is read for, for the stamp ("2024-2025", "2024, 2026"); blank when it is read whole."""
+    years = [y for y in (f.get("years") or ()) if y is not None]
+    if not years:
+        return ""
+    if years == list(range(years[0], years[-1] + 1)) and len(years) > 1:
+        return f"{years[0]}-{years[-1]}"
+    return ", ".join(str(y) for y in years)
 
 
 def local_path(f: dict) -> Path:
@@ -367,7 +432,7 @@ def _source(q: Query, files: list[dict], numbers: list[str], extra_texts: list[s
         cols += [f"CAST({_ident(c)} AS VARCHAR) AS {_ident(c)}" if c in names else f"CAST(NULL AS VARCHAR) AS {_ident(c)}" for c in texts]
         cols += [f"{_literal(f['organisation'])} AS _organisation", f"{_literal(filing_label(f))} AS _filing"]
         cols += [f"{_literal(str(f['snapshot']))} AS _snapshot"]
-        selects.append(f"SELECT {', '.join(cols)} FROM read_parquet({_literal(str(local_path(f)))})")
+        selects.append(f"SELECT {', '.join(cols)} FROM read_parquet({_literal(str(local_path(f)))}){file_where(f)}")
     where, args = where_terms(q)
     source = f"WITH data AS ({' UNION ALL '.join(selects)}) "
     return source, where, args

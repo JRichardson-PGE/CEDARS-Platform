@@ -273,7 +273,7 @@ def _data(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str], *, k
     ident, literal = dq._ident, dq._literal
     raw = " UNION ALL BY NAME ".join(
         f"SELECT *, {literal(f['organisation'])} AS _organisation, {literal(dq.filing_label(f))} AS _filing, {i} AS _file "
-        f"FROM read_parquet({literal(str(dq.local_path(f)))}{', file_row_number=true' if keys_only else ''})"
+        f"FROM read_parquet({literal(str(dq.local_path(f)))}{', file_row_number=true' if keys_only else ''}){dq.file_where(f)}"
         for i, f in enumerate(files)
     )
     texts = dq.text_columns(q, ["CEInputID"])
