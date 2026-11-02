@@ -83,9 +83,12 @@ def test_an_aggregated_query_equals_the_dashboards_query(published):
     assert body["totals"]["records"] == 5 and "pa" not in body["totals"]
     stamp = body["stamp"]
     assert stamp["release"] == 2 and stamp["dataset"] == "claims" and stamp["dictionary"] == "test dictionary"
-    assert stamp["excluded"] == ["Pension and Benefits programs", "Codes and standards"] and len(stamp["snapshots"]) == 2
+    assert (
+        stamp["excluded"] == ["Pension and Benefits programs", "Energy Savings Assistance programs", "Codes and standards"]
+        and len(stamp["snapshots"]) == 2
+    )
     assert stamp["query"] == expected.query.query_string() and stamp["notes"]
-    included = get("/api/v1/data/query", dataset="claims", cs="include", pension="include").json()
+    included = get("/api/v1/data/query", dataset="claims", cs="include", pension="include", esa="include").json()
     assert included["totals"]["tsb"] == 1187 + 33 and included["stamp"]["excluded"] == []
 
 
@@ -166,7 +169,7 @@ def test_the_catalog_and_dimensions(published):
     assert by_code["pa"]["view_by"] and by_code["pa"]["values"] == ["PGE", "SCE"] and not by_code["program"]["view_by"]
     assert by_code["measure_type"]["values"] == ["Energy efficiency", "Fuel substitution"]
     exclusions = {e["code"]: e for e in dims["exclusions"]}
-    assert exclusions["cs"]["excluded_by_default_in_query"] and not exclusions["esa"]["excluded_by_default_in_query"]
+    assert exclusions["cs"]["excluded_by_default_in_query"] and exclusions["esa"]["excluded_by_default_in_query"]
     assert not exclusions["cs"]["excluded_by_default_in_records"]
     assert [g["type"] for g in dims["pas"]] == ["IOU"] and {p["code"] for p in dims["pas"][0]["pas"]} == {"PGE", "SCE"}
 

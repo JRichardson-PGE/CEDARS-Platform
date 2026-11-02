@@ -26,7 +26,8 @@ data/dashboard: &dashboard
     - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
       then Apply.
     - Narrow to PAs, sectors, programs or measures under Filters. Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs)
-      or single PAs inside one, and statewide programs. Applied filters show as chips; Remove takes one off.
+      or single PAs inside one. Statewide programs count under the PAs that fund them; the records page has them on their own. Applied
+      filters show as chips; Remove takes one off.
     - Point at a chart's row to see its values. With the keyboard, Tab to the chart and use the up and down arrow keys; Escape hides
       the values. The table under each chart lists them all.
     - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
@@ -126,8 +127,8 @@ data/dashboard/cost-effectiveness:
   guide:
     - Cost-test ratios (TRC, PAC, RIM and the societal tests) by sector, year and program. Each ratio is summed benefits over summed costs,
       never an average of ratios. Without admin leaves administration costs out of the cost.
-    - Programs flagged as excluded from cost effectiveness, codes and standards and pension and benefits are left out unless you include
-      them.
+    - Programs flagged as excluded from cost effectiveness, codes and standards, Energy Savings Assistance and pension and benefits are
+      left out unless you include them.
 
 data/dashboard/energy-savings:
   <<: *dashboard

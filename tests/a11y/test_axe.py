@@ -1172,6 +1172,25 @@ def test_the_full_header_stays_on_one_row_at_1280(browser, site, scene):
     assert top_h <= 64 and abs(who - first) < 20, f"header row {top_h:.0f} px tall; account cluster {who - first:.0f} px below the brand"
 
 
+def test_wide_pages_use_the_window_and_prose_keeps_its_measure(browser, site, scene):
+    """At 1920 px a filing's program table (wider than the old 1,200 px page) fits without scrolling, the page spans the window like
+    the header, and a paragraph still stops at a readable measure (DESIGN.md, App shell)."""
+    context, page = _open(browser, site, scene, "/claims/versions/{claims_version}/", "community", viewport={"width": 1920, "height": 1000})
+    sizes = page.evaluate(
+        """() => {
+          const main = document.querySelector('main.page').getBoundingClientRect().width;
+          const box = document.querySelector('main .hscroll');
+          const prose = [...document.querySelectorAll('main.page p:not([class])')].map(p => p.getBoundingClientRect().width);
+          const font = parseFloat(getComputedStyle(document.body).fontSize);
+          return {main, scrolls: box.scrollWidth - box.clientWidth, prose: Math.max(...prose), font};
+        }"""
+    )
+    context.close()
+    assert sizes["main"] == 1920, f"the page is {sizes['main']:.0f} px wide in a 1920 px window"
+    assert sizes["scrolls"] <= 0, f"the program table scrolls by {sizes['scrolls']} px at 1920 px"
+    assert sizes["prose"] <= 50 * sizes["font"], f"a paragraph runs {sizes['prose']:.0f} px wide"
+
+
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
 def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
     context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)
@@ -1685,7 +1704,8 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     context, page = _open(browser, site, scene, "/data/overview/?series=forecast", None)
     page.evaluate("document.querySelectorAll('details.dash-filters').forEach(d => d.open = true)")
     summary = page.locator(".pa-menu > summary")
-    assert summary.inner_text().endswith("All PAs and statewide programs")
+    assert summary.inner_text().endswith("All PAs")  # no statewide programs choice on a dashboard (Jake, 2026-11-02)
+    assert page.locator("[data-pa-statewide]").count() == 0
     summary.focus()
     page.keyboard.press("Enter")
     assert page.evaluate("document.querySelector('.pa-menu').open")
@@ -1701,7 +1721,6 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     assert page.evaluate("document.querySelector('[data-pa-all]').indeterminate")
     every.focus()
     page.keyboard.press("Space")  # All PAs: half ticked -> ticked
-    page.locator("[data-pa-statewide]").uncheck()
     page.locator("input[name='pa_type'][value='CCA']").uncheck()
     page.locator("input[name='pa_type'][value='REN']").uncheck()  # the RENs of the scene's REN filer (_role_filers)
     assert "CCAs" not in summary.inner_text() and "RENs" not in summary.inner_text() and "All IOUs" in summary.inner_text()
@@ -1713,3 +1732,10 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     types = sorted(v for k, v in sent if k == "pa_type")
     assert types == ["IOU"], sent
     assert ["pa", "SW"] not in sent and not any(k == "pa" and v in ("PGE", "SCE") for k, v in sent), sent  # a whole type goes as itself
+    # the records page keeps statewide programs as their own choice
+    context, page = _open(browser, site, scene, "/data/records/", None)
+    page.evaluate("document.querySelectorAll('details').forEach(d => d.open = true)")
+    summary = page.locator(".pa-menu > summary")
+    assert summary.inner_text().endswith("All PAs and statewide programs")
+    assert page.locator("[data-pa-statewide]").count() == 1
+    context.close()

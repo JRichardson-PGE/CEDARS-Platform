@@ -4,6 +4,9 @@
 #   RECET_SOURCE=/path/to/ReCET scripts/build_engine_wheel.sh (a local checkout, at the pinned commit)
 set -eu
 cd "$(dirname "$0")/.."
+# uv's installer puts uvx in ~/.local/bin, which a non-interactive shell (ssh host "command") does not have on its PATH
+PATH="$PATH:$HOME/.local/bin:$HOME/.cargo/bin"
+command -v uvx >/dev/null || { echo "uvx not found: install uv (https://docs.astral.sh/uv/)" >&2; exit 1; }
 commit=$(cat engine/recet-commit)
 rm -rf engine/wheels && mkdir -p engine/wheels
 if [ -n "${RECET_SOURCE:-}" ]; then
