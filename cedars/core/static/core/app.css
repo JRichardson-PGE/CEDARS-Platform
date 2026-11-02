@@ -533,3 +533,7 @@ dialog.page-help-dialog ul.links { margin-bottom: 0; }
 .measure { max-width: 75ch; }
 ul.links.columns { columns: 18rem; column-gap: 2rem; }
 ul.links.columns li { break-inside: avoid; }
+
+/* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
+   schemes with a white margin (the quiet zone scanners need). */
+.qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }

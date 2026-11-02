@@ -217,6 +217,7 @@ def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_
         'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
     )
     assert 'data-copy="authenticator_secret"' in html
+    assert '<img class="qr-code"' in html and 'width="200" height="200"' in html  # a fixed size, not the whole page width
     assert 'id="main-nav"' not in html  # no module menu yet
     r = client.post("/accounts/2fa/totp/activate/", {"code": _totp_code(client.session["mfa.totp.secret"])})
     assert r.status_code == 302 and "reauthenticate" not in r["Location"]

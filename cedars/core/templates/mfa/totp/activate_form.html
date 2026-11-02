@@ -8,7 +8,8 @@
 {% url 'mfa_activate_totp' as action_url %}
 {% element form form=form method="post" action=action_url %}
   {% slot body %}
-    {% element img src=totp_svg_data_uri alt="QR code holding the authenticator key below" tags="mfa,totp,qr" %}{% endelement %}
+    {# Sized here: the SVG has only a viewBox, so a bare <img> filled the page width (Jake, demo server, 2026-11-02). #}
+    <img class="qr-code" src="{{ totp_svg_data_uri }}" alt="QR code holding the authenticator key below" width="200" height="200">
     {% csrf_token %}
     {% element field id="authenticator_secret" type="text" value=form.secret readonly=True %}
       {% slot label %}Authenticator key{% endslot %}
