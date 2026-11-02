@@ -75,6 +75,9 @@ EVENTS = [
     EventType("documents.version_published", "A document filed by or about a PA, or about a program, is published", "public", "Documents"),
     EventType("deadline.created", "A deadline is added to the filing calendar", "public", "Filing calendar"),
     EventType("deadline.moved", "A deadline moves", "public", "Filing calendar"),
+    EventType("deadline.changed", "A deadline's opening date or notes change", "public", "Filing calendar"),
+    EventType("deadline.retired", "A deadline is taken off the filing calendar", "public", "Filing calendar"),
+    EventType("deadline.restored", "A retired deadline is put back on the filing calendar", "public", "Filing calendar"),
     EventType("pack.published", "Reference data is published (ACC, impact profiles, DEER, value lists ...)", "public", "Reference data"),
     EventType("pack.withdrawn", "Reference data is withdrawn", "public", "Reference data"),
     EventType(
@@ -186,7 +189,7 @@ def _concerns(event) -> Concern:
         if t == "submissions.deadline":
             from cedars.services.submissions.models import Deadline
 
-            return Concern(set(), Deadline.objects.get(pk=oid).module, "/filings/calendar/")
+            return Concern(set(), Deadline.objects.get(pk=oid).module, f"/filings/calendar/{oid}/")
         if t == "registry.program":
             return _program_concern(event)
         if t == "registry.programchangerequest":
@@ -413,8 +416,10 @@ def send_deadline_reminders(today=None) -> int:
     if not reminders:
         return 0
     horizon = max(r.days_before for rs in reminders.values() for r in rs)
-    deadlines = Deadline.objects.filter(due_at__date__gte=today, due_at__date__lte=today + timedelta(days=horizon)).select_related(
-        "period", "cycle"
+    deadlines = (
+        Deadline.objects.active()
+        .filter(due_at__date__gte=today, due_at__date__lte=today + timedelta(days=horizon))
+        .select_related("period", "cycle")
     )
     sent = 0
     for d in deadlines:

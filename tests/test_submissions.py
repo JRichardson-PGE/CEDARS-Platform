@@ -255,3 +255,117 @@ def test_calendar_filters_by_type_and_due_date(client):
     assert shown == {"old report"} and f'value="{start}"' in html
     shown, html = rows("/filings/calendar/?type=monthly")
     assert shown == set() and "No deadlines match these filters." in html
+
+
+# --- changing, retiring and restoring deadlines (CPUC system administrators)
+
+
+def _hand_added(cpuc_admin, days=30):
+    period = [p for p in registry.ensure_periods(2028) if p.kind == "month" and p.number == 3][0]
+    return service.add_deadline(
+        cpuc_admin, module="monthly", kind="monthly report", period=period, due_at=timezone.now() + timedelta(days=days)
+    )
+
+
+def test_a_deadline_changes_with_a_reason_and_each_change_is_audited(cpuc_admin, pge_admin, deadline):
+    with pytest.raises(AccessDenied, match="filing calendar"):
+        service.change_deadline(pge_admin, deadline, due_at=deadline.due_at, notes="x", reason="r")
+    with pytest.raises(AccessDenied, match="reason"):
+        service.change_deadline(cpuc_admin, deadline, due_at=deadline.due_at, notes="x", reason=" ")
+    later = deadline.due_at + timedelta(days=7)
+    with pytest.raises(AccessDenied, match="opens before"):
+        service.change_deadline(cpuc_admin, deadline, due_at=later, opens_at=later, reason="r")
+    service.change_deadline(cpuc_admin, deadline, due_at=later, reason="Decision moved the date")
+    e = AuditEvent.objects.filter(action="deadline.moved").latest("id")
+    assert e.reason == "Decision moved the date" and set(e.after) == {"due_at"}
+    service.change_deadline(cpuc_admin, deadline, due_at=later, notes="File through the API", reason="Guidance")
+    e = AuditEvent.objects.filter(action="deadline.changed").latest("id")
+    assert e.before == {"notes": ""} and e.after == {"notes": "File through the API"}
+    n = AuditEvent.objects.count()
+    service.change_deadline(cpuc_admin, deadline, due_at=later, notes="File through the API", reason="no change")
+    assert AuditEvent.objects.count() == n  # nothing changed, nothing recorded
+
+
+def test_a_deadline_is_retired_only_when_no_filing_started_and_no_module_set_it_up(cpuc_admin, analyst, deadline, pge):
+    service.start(analyst, deadline, pge)
+    with pytest.raises(AccessDenied, match="1 organization has started"):
+        service.retire_deadline(cpuc_admin, deadline, "mistake")
+    from cedars.modules.claims import service as claims
+
+    claims.add_year(cpuc_admin, year=2030, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
+    with pytest.raises(AccessDenied, match="module's set-up"):
+        service.retire_deadline(cpuc_admin, claims.periods(2030)[0], "mistake")
+    d = _hand_added(cpuc_admin)
+    with pytest.raises(AccessDenied, match="reason"):
+        service.retire_deadline(cpuc_admin, d, "")
+    service.retire_deadline(cpuc_admin, d, "Added for the wrong month")
+    d.refresh_from_db()
+    assert d.retired_at and d.retired_reason == "Added for the wrong month"
+    from cedars.services.submissions.models import Deadline
+
+    assert d not in Deadline.objects.active()
+    with pytest.raises(AccessDenied, match="taken off"):
+        service.start(analyst, d, pge)
+    with pytest.raises(AccessDenied, match="retired"):
+        service.change_deadline(cpuc_admin, d, due_at=d.due_at, reason="r")
+    with pytest.raises(AccessDenied, match="restore it"):
+        _hand_added(cpuc_admin)  # the same deadline again: restore it instead
+    service.restore_deadline(cpuc_admin, d, "It was right after all")
+    d.refresh_from_db()
+    assert d.retired_at is None and d in Deadline.objects.active()
+    assert [e.action for e in AuditEvent.objects.filter(object_id=str(d.pk), object_type="submissions.deadline").order_by("id")] == [
+        "deadline.created",
+        "deadline.retired",
+        "deadline.restored",
+    ]
+
+
+def test_the_deadline_page(client, signed_in, cpuc_admin, pge_admin, deadline):
+    url = f"/filings/calendar/{deadline.pk}/"
+    page = client.get(url).content.decode()  # public: the deadline and its history, no forms
+    assert "Added to the calendar" in page and 'id="change-h"' not in page and 'name="reason"' not in page
+    assert client.post(url, {"action": "change", "due": "2028-05-15", "reason": "x"}).status_code == 404
+    signed_in(pge_admin)
+    assert client.post(url, {"action": "retire", "reason": "x"}).status_code == 404
+    c = signed_in(cpuc_admin)
+    page = c.get(url).content.decode()
+    assert 'id="change-h"' in page and 'id="retire-h"' in page
+    due_time = timezone.localtime(deadline.due_at).time()
+    r = c.post(url, {"action": "change", "due": "2028-05-15", "opens": "2028-04-01", "notes": "Bring the summary", "reason": "D.26-01-001"})
+    assert r.status_code == 302 and r.url == url
+    deadline.refresh_from_db()
+    due = timezone.localtime(deadline.due_at)
+    assert due.date() == date(2028, 5, 15) and due.time() == due_time  # the time of day is kept
+    assert timezone.localtime(deadline.opens_at).date() == date(2028, 4, 1) and deadline.notes == "Bring the summary"
+    page = c.get(url).content.decode()
+    assert "Due date moved" in page and "D.26-01-001" in page and "to 2028-05-15" in page and "Opens: none to 2028-04-01" in page
+    assert "Reason for the change" in c.post(url, {"action": "change", "due": "2028-05-16", "reason": ""}).content.decode()
+    deadline.refresh_from_db()
+    assert timezone.localtime(deadline.due_at).date() == date(2028, 5, 15)  # no reason, no change
+    r = c.post(url, {"action": "retire", "reason": "Wrong period"})
+    assert r.status_code == 302 and 'id="restore-h"' in c.get(url).content.decode()
+    cal = c.get("/filings/calendar/?range=all").content.decode()
+    assert f'href="{url}"' not in cal and "Show retired deadlines (1)" in cal
+    cal = c.get("/filings/calendar/?range=all&retired=1").content.decode()
+    assert f'href="{url}"' in cal and "Retired</strong>" in cal and "Hide retired deadlines" in cal
+
+
+def test_the_public_calendar_hides_retired_deadlines(client, cpuc_admin, deadline):
+    d = _hand_added(cpuc_admin)
+    service.retire_deadline(cpuc_admin, d, "mistake")
+    page = client.get("/filings/calendar/?range=all&retired=1").content.decode()
+    assert f'href="/filings/calendar/{d.pk}/"' not in page and f'href="/filings/calendar/{deadline.pk}/"' in page
+    assert 'id="retired-toggle"' not in page
+
+
+def test_reminders_skip_retired_deadlines_and_follow_a_moved_one(cpuc_admin, make_user, deadline):
+    from cedars.services.notifications import service as notifications
+    from cedars.services.notifications.models import Notification
+
+    u = make_user("follower@example.org")
+    notifications.set_reminders(u, [(30, "", "in_app")])
+    d = _hand_added(cpuc_admin, days=20)
+    service.retire_deadline(cpuc_admin, d, "mistake")
+    notifications.send_deadline_reminders()
+    titles = list(Notification.objects.filter(user=u).values_list("title", flat=True))
+    assert any("quarterly claim" in t for t in titles) and not any("monthly report" in t for t in titles)

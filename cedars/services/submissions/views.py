@@ -33,6 +33,69 @@ class DeadlineForm(forms.Form):
         choices=[("year", "The year")] + [(f"q{q}", f"Quarter {q}") for q in range(1, 5)] + [(f"m{m}", f"Month {m}") for m in range(1, 13)],
     )
     due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
+    opens = forms.DateField(
+        label="Opens (optional)",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="The first day filings can start. Blank: open now.",
+    )
+    notes = forms.CharField(label="Notes (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+    def clean(self):
+        d = super().clean()
+        if d.get("opens") and d.get("due") and d["opens"] > d["due"]:
+            self.add_error("opens", "A filing opens on or before its due date.")
+        return d
+
+
+class DeadlineChangeForm(forms.Form):
+    """A deadline's due date, opening date and notes, with the reason for the change (what is due and its period never change)."""
+
+    due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
+    opens = forms.DateField(
+        label="Opens (optional)",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="The first day filings can start. Blank: open now.",
+    )
+    notes = forms.CharField(
+        label="Notes (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Shown with the deadline and in reminders.",
+    )
+    reason = forms.CharField(
+        label="Reason for the change",
+        max_length=500,
+        help_text="Kept in the deadline's history and sent to those who follow the filing calendar.",
+    )
+
+    def clean(self):
+        d = super().clean()
+        if d.get("opens") and d.get("due") and d["opens"] > d["due"]:
+            self.add_error("opens", "A filing opens on or before its due date.")
+        return d
+
+
+class RetireForm(forms.Form):
+    reason = forms.CharField(label="Reason", max_length=500, help_text="Kept in the deadline's history.")
+
+
+def _due_at(day: date, keep=None):
+    """The deadline's due moment on `day`: the time of day it already had (`keep`), else the end of the day."""
+    if keep is not None and timezone.localtime(keep).date() == day:
+        return keep
+    at = timezone.localtime(keep).time() if keep is not None else time(23, 59, 59)
+    return timezone.make_aware(datetime.combine(day, at))
+
+
+def _opens_at(day: date | None, keep=None):
+    """When filings open on `day` (its start), or the moment it already had when the day is unchanged; None for blank."""
+    if day is None:
+        return None
+    if keep is not None and timezone.localtime(keep).date() == day:
+        return keep
+    return timezone.make_aware(datetime.combine(day, time.min))
 
 
 def _period(year: int, code: str):
@@ -100,26 +163,37 @@ def calendar_filters(params, today: date) -> dict:
     }
 
 
-def _calendar_link(types, rng, start=None, end=None) -> str:
-    """The calendar's URL for these filters, leaving out the defaults (every type, the last 3 and next 9 months)."""
+def _calendar_link(types, rng, start=None, end=None, retired=False) -> str:
+    """The calendar's URL for these filters, leaving out the defaults (every type, the last 3 and next 9 months, retired deadlines
+    left out)."""
     query = [("type", code) for code, _ in MODULES if code in types]
     if rng != "window":
         query.append(("range", rng))
     if rng == "custom":
         query += [(k, v.isoformat()) for k, v in (("from", start), ("to", end)) if v]
+    if retired:
+        query.append(("retired", "1"))
     return reverse("submissions:calendar") + (f"?{urlencode(query)}" if query else "")
 
 
 def calendar(request):
     """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5); a CPUC system administrator adds deadlines
-    here. Filtered by filing type and due date (last 3 and next 9 months by default), the filters kept in the URL."""
+    here and opens each one's page to change or retire it. Filtered by filing type and due date (last 3 and next 9 months by default),
+    the filters kept in the URL; retired deadlines are shown only to administrators who ask (`retired=1`)."""
     sysadmin = access.is_system_admin(request.user)
     form = DeadlineForm(request.POST or None)
     if request.method == "POST" and sysadmin and form.is_valid():
         d = form.cleaned_data
-        due = timezone.make_aware(datetime.combine(d["due"], time(23, 59, 59)))
         try:
-            service.add_deadline(request.user, module=d["module"], kind=d["kind"], period=_period(d["year"], d["period"]), due_at=due)
+            service.add_deadline(
+                request.user,
+                module=d["module"],
+                kind=d["kind"],
+                period=_period(d["year"], d["period"]),
+                due_at=_due_at(d["due"]),
+                opens_at=_opens_at(d["opens"]),
+                notes=d["notes"],
+            )
         except AccessDenied as e:
             messages.error(request, str(e))
         else:
@@ -127,7 +201,10 @@ def calendar(request):
         return HttpResponseRedirect(request.get_full_path())
     f = calendar_filters(request.GET, timezone.localdate())
     types, rng, start, end = f["types"], f["range"], f["start"], f["end"]
+    retired = sysadmin and request.GET.get("retired") == "1"
     query = Deadline.objects.select_related("period", "cycle")
+    if not retired:
+        query = query.active()
     if types:
         query = query.filter(module__in=types)
     tz = timezone.get_current_timezone()
@@ -137,15 +214,15 @@ def calendar(request):
         query = query.filter(due_at__lt=datetime.combine(end + timedelta(days=1), time.min, tzinfo=tz))
     deadlines = [{"d": d, "url": service.deadline_page(d)} for d in query.order_by("due_at", "module", "period__starts", "kind")]
     labels = dict(MODULES)
-    type_chips = [{"label": "All types", "url": _calendar_link([], rng, start, end), "on": not types}] + [
+    type_chips = [{"label": "All types", "url": _calendar_link([], rng, start, end, retired), "on": not types}] + [
         {
             "label": label,
-            "url": _calendar_link([t for t in types if t != code] if code in types else types + [code], rng, start, end),
+            "url": _calendar_link([t for t in types if t != code] if code in types else types + [code], rng, start, end, retired),
             "on": code in types,
         }
         for code, label in MODULES
     ]
-    range_chips = [{"label": label, "url": _calendar_link(types, code), "on": rng == code} for code, label in RANGES]
+    range_chips = [{"label": label, "url": _calendar_link(types, code, retired=retired), "on": rng == code} for code, label in RANGES]
     if start and end:
         when = f"due {start.isoformat()} to {end.isoformat()}"
     elif start:
@@ -164,11 +241,113 @@ def calendar(request):
             "filters": f,
             "type_chips": type_chips,
             "range_chips": range_chips,
-            "showing": f"{len(deadlines)} deadline{'' if len(deadlines) == 1 else 's'} for {what}, {when}",
+            "showing": f"{len(deadlines)} deadline{'' if len(deadlines) == 1 else 's'} for {what}, {when}"
+            + (", retired ones included" if retired else ""),
             "filtered": bool(types) or rng != "all",
-            "all_url": _calendar_link([], "all"),
+            "all_url": _calendar_link([], "all", retired=retired),
             "form": form if sysadmin else None,
+            "sysadmin": sysadmin,
+            "retired": retired,
+            "retired_count": Deadline.objects.filter(retired_at__isnull=False).count() if sysadmin else 0,
+            "retired_url": _calendar_link(types, rng, start, end, not retired),
             "policies": [(code, label, policies.get(code)) for code, label in MODULES],
+        },
+    )
+
+
+FIELD_LABELS = {"due_at": "Due date", "opens_at": "Opens", "notes": "Notes"}
+EVENT_LABELS = {
+    "deadline.created": "Added to the calendar",
+    "deadline.moved": "Due date moved",
+    "deadline.changed": "Changed",
+    "deadline.retired": "Retired (taken off the calendar)",
+    "deadline.restored": "Restored to the calendar",
+}
+
+
+def _shown(field: str, value) -> str:
+    if value in (None, ""):
+        return "none" if field != "notes" else "(blank)"
+    if field in ("due_at", "opens_at"):
+        try:
+            return f"{timezone.localtime(datetime.fromisoformat(value)):%Y-%m-%d}"
+        except (TypeError, ValueError):
+            return str(value)
+    return str(value)
+
+
+def deadline_history(d: Deadline) -> list[dict]:
+    """Every audit event about the deadline, oldest first, in words: what changed from what to what, why, when and who."""
+    from cedars.services import audit
+
+    out = []
+    for e in audit.changes(d):
+        before, after = e.before or {}, e.after or {}
+        if e.action == "deadline.created":
+            changes = [f"due {_shown('due_at', after.get('due_at'))}"]
+            if after.get("opens_at"):
+                changes.append(f"opens {_shown('opens_at', after['opens_at'])}")
+        else:
+            changes = [
+                f"{FIELD_LABELS[k]}: {_shown(k, before.get(k))} to {_shown(k, after.get(k))}"
+                for k in FIELD_LABELS
+                if k in before or k in after
+            ]
+        out.append({"e": e, "what": EVENT_LABELS.get(e.action, e.action), "changes": changes})
+    return out
+
+
+def deadline(request, pk):
+    """One deadline: when it opens and is due, its notes and its history (public, as the calendar is). A CPUC system administrator
+    changes its dates and notes here with a reason, and retires or restores it (submissions.service.change_deadline and friends)."""
+    d = get_object_or_404(Deadline.objects.select_related("period", "cycle"), pk=pk)
+    sysadmin = access.is_system_admin(request.user)
+    local = {k: timezone.localtime(getattr(d, k)).date() if getattr(d, k) else None for k in ("due_at", "opens_at")}
+    initial = {"due": local["due_at"], "opens": local["opens_at"], "notes": d.notes}
+    action = request.POST.get("action", "") if request.method == "POST" else ""
+    change_form = DeadlineChangeForm(request.POST if action == "change" else None, initial=initial, auto_id="change_%s")
+    retire_form = RetireForm(request.POST if action in ("retire", "restore") else None, auto_id="retire_%s")
+    if action and not sysadmin:
+        raise Http404
+    if action == "change" and change_form.is_valid():
+        c = change_form.cleaned_data
+        try:
+            service.change_deadline(
+                request.user,
+                d,
+                due_at=_due_at(c["due"], d.due_at),
+                opens_at=_opens_at(c["opens"], d.opens_at),
+                notes=c["notes"],
+                reason=c["reason"],
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Deadline changed. Those who follow the filing calendar are told.")
+            return redirect("submissions:deadline", pk=d.pk)
+    elif action in ("retire", "restore") and retire_form.is_valid():
+        do = service.retire_deadline if action == "retire" else service.restore_deadline
+        try:
+            do(request.user, d, retire_form.cleaned_data["reason"])
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, "Deadline retired." if action == "retire" else "Deadline restored to the calendar.")
+            return redirect("submissions:deadline", pk=d.pk)
+    started = d.submissions.count()
+    page = service.deadline_page(d)
+    return render(
+        request,
+        "submissions/deadline.html",
+        {
+            "d": d,
+            "page": page,
+            "sysadmin": sysadmin,
+            "change_form": change_form,
+            "retire_form": retire_form,
+            "started": started,
+            "can_retire": not page and not started,
+            "history": deadline_history(d),
         },
     )
 

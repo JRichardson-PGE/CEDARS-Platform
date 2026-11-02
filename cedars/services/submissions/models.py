@@ -3,8 +3,16 @@ from django.db import models
 from django.db.models import Q
 
 
+class DeadlineQuerySet(models.QuerySet):
+    def active(self):
+        """The deadlines on the calendar: every one a CPUC system administrator has not retired."""
+        return self.filter(retired_at__isnull=True)
+
+
 class Deadline(models.Model):
-    """One entry in the filing calendar: what a module expects, for which period or cycle, and when it is due (BR-09.4)."""
+    """One entry in the filing calendar: what a module expects, for which period or cycle, and when it is due (BR-09.4). A CPUC system
+    administrator changes its dates and notes with a reason, and retires one no organization has started filing for (it stays, with
+    its history, and can be restored); what is due and its period never change (submissions.service)."""
 
     module = models.CharField(max_length=40)
     kind = models.CharField(max_length=80, help_text="e.g. Q1 claim, TUAL, monthly report")
@@ -13,6 +21,12 @@ class Deadline(models.Model):
     opens_at = models.DateTimeField(null=True, blank=True)
     due_at = models.DateTimeField()
     notes = models.TextField(blank=True)
+    retired_at = models.DateTimeField(
+        null=True, blank=True, help_text="Taken off the calendar by a CPUC system administrator (blank: on the calendar)"
+    )
+    retired_reason = models.TextField(blank=True)
+
+    objects = DeadlineQuerySet.as_manager()
 
     class Meta:
         ordering = ["due_at"]

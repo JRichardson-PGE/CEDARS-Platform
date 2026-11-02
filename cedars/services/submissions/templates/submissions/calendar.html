@@ -27,14 +27,14 @@
   </form>
 </section>
 {% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
-<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}</p>
+<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide retired deadlines{% else %}Show retired deadlines ({{ retired_count }}){% endif %}</a>{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Deadlines">
 <table class="list">
   <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
-  <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th></tr></thead>
+  <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th><th scope="col">{% if sysadmin %}Change{% else %}History{% endif %}</th></tr></thead>
   <tbody>
-  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.kind }}</a>{% else %}{{ d.kind }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</td></tr>{% endwith %}
-  {% empty %}<tr><td colspan="4">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
+  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.kind }}</a>{% else %}{{ d.kind }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Retired</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.kind }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
+  {% empty %}<tr><td colspan="5">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
@@ -43,6 +43,7 @@
 {% if form %}
 <section class="card" aria-labelledby="add-h">
   <h2 id="add-h">Add a deadline</h2>
+  <p>To change or retire a deadline, select Change on its row.</p>
   <form method="post" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Add</button></div>

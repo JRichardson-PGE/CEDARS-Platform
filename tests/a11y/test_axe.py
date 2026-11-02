@@ -208,6 +208,11 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     submissions.confirm(analyst, v, "h1")
     submissions.move_deadline(cpuc_admin, deadline, timezone.now() - timedelta(minutes=1), "close-out for the scene")
     submissions.request_reopen(analyst, v.submission, "Two measures were counted twice")
+    # a deadline added by hand by mistake and retired, for its page's Restore form
+    retired_deadline = submissions.add_deadline(
+        cpuc_admin, module="monthly", kind="monthly report", period=quarter, due_at=timezone.now() + timedelta(days=20)
+    )
+    submissions.retire_deadline(cpuc_admin, retired_deadline, "Added for the wrong period")
     manifest = {
         "hourly/electric_2026.parquet": {"sha256": "ab" * 32, "bytes": 912_000_000},
         "README.md": {"sha256": "cd" * 32, "bytes": 2048},
@@ -347,6 +352,8 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "draft": draft,
         "rules": rules,
         "rules_draft": rules_draft,
+        "deadline": deadline.pk,
+        "retired_deadline": retired_deadline.pk,
         "list_code": value_list_draft,
         "cpuc_admin": cpuc_admin,
         "approver": approver,
