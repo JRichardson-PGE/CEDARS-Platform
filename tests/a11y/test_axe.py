@@ -1792,6 +1792,10 @@ def test_the_edit_inputs_grid_by_keyboard(browser, axe_source, site, scene, sche
     """The spreadsheet replaces the paged table once drawn; it is one tab stop with the focus on a cell, the arrows move it and the help
     line follows, typing edits and the change is saved by itself, Tab leaves the grid (no keyboard trap, 2.1.2), the tabs follow the
     ARIA tabs pattern, and axe finds nothing with a cell being edited."""
+    from cedars.modules.calculations import drafts
+
+    if drafts.engine() is None:
+        pytest.skip("Edit inputs needs the ReCET engine package (the page says so instead of drawing the grid)")
     context, page = _open(browser, site, scene, "/calculations/drafts/{draft}/", "analyst", color_scheme=scheme, bypass_csp=True)
     assert page.locator("#editor").count(), f"no grid at {page.url}: {page.title()}: {page.inner_text('main')[:800]}"
     assert page.get_attribute("#editor", "data-ready") == "1", page.inner_text("#save-status")
