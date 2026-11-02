@@ -40,6 +40,11 @@ notifications with the unread count, account, sign out), then `main`, then a foo
 Below 860 px the navigation stacks behind a Menu button that `app.js` adds; without scripts the list is simply shown. The open group is
 marked with `.current` and the page inside it with `aria-current="page"`.
 
+`main.page` takes the full window width, less the gutter, as the header and footer do: no fixed maximum, so a wide table scrolls in its
+`.hscroll` box only when it is wider than the window (1920 px gives it 1,872 px, not 1,152). Prose keeps a readable measure on its own:
+paragraphs, hints and plain lists in `main.page` stop at 80 characters (`.guide`, `.measure` and page descriptions are narrower still),
+while tables, charts, filter bars, tiles and card grids use the width. A form that should stay narrow says so (`.form-narrow`).
+
 ## Components (by class)
 
 | Class | What it is | Notes |
