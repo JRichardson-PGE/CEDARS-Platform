@@ -595,12 +595,7 @@ def record_list(request):
         return _refusal(e)
     rows: list[list] = []
     if result.files and result.totals.get("_rows") and columns:
-        sql, args = records._sql(rq.query, result.files, cat, columns)
-        con = dq.connect()
-        try:
-            rows = [list(r) for r in con.execute(sql + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()]
-        finally:
-            con.close()
+        rows = records.rows(rq.query, result.files, cat, columns, limit=limit, offset=offset)
     page = records.Page(result, cat, columns, [], rows, offset, limit)
     stamp = records.stamp(page)
     stamp |= {"dictionary": version, "generated_at": timezone.now()}
