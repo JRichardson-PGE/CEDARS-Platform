@@ -24,23 +24,36 @@ calculations/new:
   title: Starting a run
   guide:
     - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or as ReCET's job workbook (.xlsx), or run a
-      draft you are editing in Edit inputs. A workbook's Programs and SWAllocation sheets are not used (the program registry and the
-      allocation version take their place), and a CET replica cannot use its RunParameters, SWAllocation, GasProfiles or Profiles8760
-      sheets.
+      draft you are editing in Edit inputs.
+    - >-
+      ReCET's optional input files (run parameters, 8,760 electric profiles, gas monthly profiles) can be uploaded under Optional input
+      files, put in the job zip (RunParameters.csv, Profiles8760.csv, GasProfiles.csv, or .parquet), or given as sheets of the workbook; a
+      file uploaded on its own wins over the same table in the zip or workbook. A job's own program metadata (Programs) and statewide
+      factors (SWAllocation) are not used: the program registry and the allocation version take their place, and the run's page says
+      so. A CET replica takes none of the optional files.
       Choose the engine release and the ACC; the run is queued, the run page shows its progress, and its files and results when it ends.
     - A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history only. It is never used
       for a filing.
   how:
+    - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
     - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on.
   see: calculations
   tour:
+    - target: "#input-templates"
+      title: Templates
+      text: The engine's own templates for the job workbook, Measure.csv and the optional input files.
+      optional: true
     - target: main form
       title: The job
       text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
     - heading: Pricing
       title: Pricing
       text: The engine release and the ACC. The page says when no worker is running a release.
+    - heading: Optional input files
+      title: Optional input files
+      text: ReCET's run parameters, 8,760 electric profiles and gas monthly profiles, each a file of its own. Their columns are in ReCET's Input fields, section 4.
+      optional: true
     - heading: Statewide programs
       title: Statewide programs
       text: Whether and how statewide programs are allocated to the funding PAs.
@@ -174,7 +187,8 @@ calculations/drafts:
     - Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to a set number of measures (edit larger jobs
       offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.
   how:
-    - Start a draft from a job's .zip or job workbook (its Measure and ProgramCost sheets), or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
+    - Start a draft from a job's .zip or job workbook (its Measure and ProgramCost tables; a draft does not keep the job's optional
+      input files, so upload them again on New run), or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
   see: calculations
   tour:
     - target: main p.alert

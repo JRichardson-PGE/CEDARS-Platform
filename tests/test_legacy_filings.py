@@ -219,3 +219,83 @@ def test_the_pages_show_a_legacy_filing_as_imported_and_read_only(downloads, sig
     )
     index = client.get("/budgets/").content.decode()
     assert "Imported from legacy CEDARS" in index and "imported from legacy CEDARS" in index
+
+
+def test_each_program_year_reads_the_latest_filing_that_covers_it(tmp_path):
+    """Legacy CEDARS' 2024-2027 cycle: the application holds 2024-2027, the 2024-2025 true-up only 2024 and 2025, the 2026-2027 mid-cycle
+    filing only 2026 and 2027. The forecast and the operating budget read the true-up for 2024-2025 and the mid-cycle filing for
+    2026-2027 (the latest filing in the cycle alone left 2024 and 2025 with nothing)."""
+    from cedars.modules.budgets import shifts
+    from cedars.modules.data import query as dq
+
+    folder = tmp_path / "d"
+
+    def rows(years, tsb, admin):
+        return [
+            filing_row(f"{pa}-{y}-{pa}_1", pa, f"{pa}_1", y, admin=admin, **{"Total System Benefit": str(tsb)})
+            for pa in ("PGE", "BAY")
+            for y in years
+        ]
+
+    files = [
+        ("filings_archive", "2024_2027", "filings_2024_2027", rows((2024, 2025, 2026, 2027), 1.0, 1000.0)),
+        ("filings", "2024_to_2025", "filings", rows((2024, 2025), 10.0, 200.0)),
+        ("filings", "2026_to_2027", "filings", rows((2026, 2027), 100.0, 300.0)),
+    ]
+    manifest = []
+    for dataset, year, layout, rs in files:
+        z = write_zip(folder / f"{dataset}/{year}/all_{year}.zip", {f"f_{year}.csv": csv_text(layout, rs)})
+        manifest.append(manifest_row(dataset, year, "all", z))
+    staging.stage(None, manifest_text(manifest), folder)
+    for key in ("2024-2027-application", "2024-2025-true-up", "2026-2027-mid-cycle"):
+        assert legacy.load(legacy.BY_KEY[key]).published == ["BAY", "PGE"]
+
+    result = dq.run(dq.Query("forecast", ("tsb",), by=("pa", "year"), exclude=()))
+    tsb = {(r["pa"], r["year"]): r["tsb"] for r in result.rows}
+    assert tsb == {(pa, y): (10.0 if y < 2026 else 100.0) for pa in ("PGE", "BAY") for y in (2024, 2025, 2026, 2027)}
+    used = {(f["organisation"], f["kind"], f["years"]) for f in result.files}
+    assert ("PGE", "True-up advice letter (TUAL)", None) in used and ("PGE", "Mid-cycle advice letter (MCAL)", None) in used
+    assert not any(f["kind"] == "Business plan application" for f in result.files)
+    assert not any("(years" in s for s in result.stamp()["filings"])
+    # the records behind the forecast are the same rows
+    from cedars.modules.data import records
+
+    page = records.page(
+        records.RecordQuery(dq.Query("forecast", ("tsb",), exclude=()), {"columns": ["none"], "col": ["TotalSystemBenefit"]})
+    )
+    i = page.columns.index("TotalSystemBenefit")
+    assert sorted(float(r[i]) for r in page.rows) == [10.0] * 4 + [100.0] * 4
+
+    pge = Organisation.objects.get(code="PGE")
+    cycle = _version("PGE", kind="Mid-cycle advice letter (MCAL)").submission.deadline.cycle
+    ob = shifts.operating_budget(pge, cycle)
+    approved = {r.year: r.approved for r in ob.rows}
+    assert approved == {2024: Decimal("270.00"), 2025: Decimal("270.00"), 2026: Decimal("370.00"), 2027: Decimal("370.00")}
+    assert [ys for _, ys in ob.standing_years] == [[2024, 2025], [2026, 2027]]
+
+
+def test_a_later_filing_for_some_years_leaves_the_others_on_the_earlier_one(tmp_path):
+    """The application read for the years no later filing covers."""
+    from cedars.modules.data import query as dq
+
+    folder = tmp_path / "d"
+    app = [filing_row(f"SCE-{y}", "SCE", "SCE_1", y, **{"Total System Benefit": "1"}) for y in (2024, 2025, 2026, 2027)]
+    mcal = [filing_row(f"SCE-{y}", "SCE", "SCE_1", y, **{"Total System Benefit": "5"}) for y in (2026, 2027)]
+    manifest = []
+    for dataset, year, layout, rs in (
+        ("filings_archive", "2024_2027", "filings_2024_2027", app),
+        ("filings", "2026_to_2027", "filings", mcal),
+    ):
+        z = write_zip(folder / f"{dataset}/{year}/all_{year}.zip", {f"f_{year}.csv": csv_text(layout, rs)})
+        manifest.append(manifest_row(dataset, year, "all", z))
+    staging.stage(None, manifest_text(manifest), folder)
+    legacy.load(legacy.BY_KEY["2024-2027-application"])
+    legacy.load(legacy.BY_KEY["2026-2027-mid-cycle"])
+    result = dq.run(dq.Query("forecast", ("tsb",), by=("year",), exclude=()))
+    assert {r["year"]: r["tsb"] for r in result.rows} == {2024: 1.0, 2025: 1.0, 2026: 5.0, 2027: 5.0}
+    app_file = next(f for f in result.files if f["kind"] == "Business plan application")
+    assert app_file["years"] == (2024, 2025)
+    assert any("(years 2024-2025)" in s for s in result.stamp()["filings"])
+    # the filing asked for is read whole
+    asked = dq.run(dq.Query("forecast", ("tsb",), filing="2024-2027|Business plan application", exclude=()))
+    assert asked.totals["tsb"] == 4.0

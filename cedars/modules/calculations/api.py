@@ -159,7 +159,8 @@ class NewRun(serializers.Serializer):
 
     job = serializers.FileField(
         help_text=(
-            "Measure.csv and, optionally, ProgramCost.csv, zipped together, or ReCET's job workbook (.xlsx); "
+            "Measure.csv and, optionally, ProgramCost.csv and ReCET's optional input files, zipped together, or ReCET's job workbook "
+            "(.xlsx); "
             "at most CEDARS_UPLOAD_MAX_MB (see /limits/)"
         ),
         validators=[uploads.check_size],
@@ -186,6 +187,21 @@ class NewRun(serializers.Serializer):
     preflight_only = serializers.BooleanField(default=False, help_text="Check the inputs only")
     cet_outputs = serializers.FileField(
         required=False, help_text="A parallel run: the outputs CSV of the same job run in CET, compared measure by measure (ReCET only)"
+    )
+    run_parameters = serializers.FileField(
+        required=False,
+        help_text="ReCET's optional run parameters file (.csv, .parquet or .xlsx; ReCET only)",
+        validators=[uploads.check_size],
+    )
+    profiles_8760 = serializers.FileField(
+        required=False,
+        help_text="ReCET's optional 8,760 electric profiles (.csv, .parquet or .xlsx; ReCET only)",
+        validators=[uploads.check_size],
+    )
+    profiles_gas = serializers.FileField(
+        required=False,
+        help_text="ReCET's optional gas monthly profiles (.csv, .parquet or .xlsx; ReCET only)",
+        validators=[uploads.check_size],
     )
     output_template = serializers.CharField(
         required=False,
@@ -263,6 +279,7 @@ def _request(data: dict, user) -> service.RunRequest:
         settings=settings,
         allocation_version=allocation,
         cet_outputs=data.get("cet_outputs"),
+        supplied={n: data[n] for n in ("run_parameters", "profiles_8760", "profiles_gas") if data.get(n)},
     )
 
 

@@ -33,8 +33,11 @@ def index(request):
     fields = Field.objects.filter(version=v).prefetch_related("aliases")
     if q:
         fields = fields.filter(Q(name__icontains=q) | Q(definition__icontains=q) | Q(aliases__name__icontains=q)).distinct()
-    if kind in ("input", "output"):
+    if kind in Field.Kind.values:
         fields = fields.filter(kind=kind)
+    group = request.GET.get("group", "")
+    if group:
+        fields = fields.filter(group=group)
     if state == "retired":
         fields = fields.filter(state=Field.State.RETIRED)
     elif state != "all":  # in use, and those retiring later (BR-08.4: retired fields stay, shown on request)
@@ -51,6 +54,11 @@ def index(request):
             "page": page,
             "q": q,
             "kind": kind,
+            "kinds": Field.Kind.choices,
+            "group": group,
+            "groups": list(
+                Field.objects.filter(version=v, kind=Field.Kind.RECORD).order_by("group").values_list("group", flat=True).distinct()
+            ),
             "state": state,
             "tables": tables,
             "query": query.urlencode(),
@@ -75,6 +83,19 @@ def _field_values(request, f: Field) -> dict | None:
         return None
 
 
+def _record_table(f: Field) -> dict | None:
+    """For a platform record's column: its table (`<app>.<Model>`) and what the table holds. None for the engine's fields."""
+    if f.kind != Field.Kind.RECORD or f.name.count(".") != 2:
+        return None
+    from . import platform
+
+    name = f.name.rsplit(".", 1)[0]
+    try:
+        return {"name": name, "definition": platform.us(platform.table_definition(name))}
+    except LookupError:  # a table a later release dropped: the catalog still describes it
+        return {"name": name, "definition": ""}
+
+
 def detail(request, name):
     v = _version_or_404()
     f = Field.objects.filter(version=v, name=name).prefetch_related("aliases", "usages").first()
@@ -95,6 +116,7 @@ def detail(request, name):
         {
             "catalog": v,
             "f": f,
+            "table": _record_table(f),
             "values": values,
             "today": timezone.localdate(),
             "history": changelog.history(f.name),

@@ -178,6 +178,8 @@ def _extract(zip_path: Path, folder: Path) -> tuple[Path, Path | None]:
             raise AccessDenied(str(e)) from None
         out = {}
         for key, info in found.items():
+            if key not in ("measures", "programcost"):  # ReCET's optional input files are not part of a draft (its tables only)
+                continue
             dest = folder / f"{key}.csv"
             with z.open(info) as src, open(dest, "wb") as f:
                 shutil.copyfileobj(src, f)

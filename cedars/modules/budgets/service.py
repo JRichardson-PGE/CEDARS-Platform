@@ -171,6 +171,31 @@ def standing(organisation, cycle) -> SubmissionVersion | None:
     )
 
 
+def standing_by_year(organisation, cycle) -> dict[int, SubmissionVersion]:
+    """The budget that stands for each program year of a PA's cycle: the published version of the latest filing (BR-04.2) whose budget
+    lines hold that year. A filing that covers only some of the cycle's years (legacy CEDARS' 2024-2025 true-up and 2026-2027 mid-cycle
+    filing, or a true-up of the later years) stands for those; the years it leaves out keep the earlier filing's budget."""
+    out: dict[int, SubmissionVersion] = {}
+    years = set(range(cycle.first_year, cycle.last_year + 1)) if cycle is not None else set()
+    versions = (
+        SubmissionVersion.objects.filter(
+            submission__organisation=organisation,
+            submission__deadline__module=MODULE,
+            submission__deadline__cycle=cycle,
+            status=SubmissionVersion.Status.PUBLISHED,
+        )
+        .select_related("submission__deadline__cycle", "submission__organisation")
+        .order_by("-submission__deadline__due_at", "-number")
+    )
+    for v in versions:
+        if years and years <= set(out):
+            break
+        ensure_lines(v)
+        for y in set(v.budget_lines.values_list("year", flat=True)):
+            out.setdefault(y, v)
+    return out
+
+
 # --- the upload and its checks
 
 
