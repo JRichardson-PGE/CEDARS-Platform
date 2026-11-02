@@ -4,13 +4,20 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:shifts' %}">Fund shifts</a></li><li><a href="{% url 'budgets:shift' s.pk %}">{{ s.title }}</a></li></ol></nav>
 <div class="page-title"><h1>Acknowledge for {{ org.code }}: {{ s.title }}</h1>{% page_help "budgets/shift_acknowledge" %}</div>
-<p>{{ s.organisation.code }}'s shift changes {{ org.code }}'s portion of these statewide programs, by {{ org.code }}'s allocation factors:</p>
-<ul>{% for item, amount in items %}<li>{{ item }}: {{ amount|money:2 }}</li>{% endfor %}</ul>
-<p><strong>{{ org.code }}'s portion changes by {{ portion|money:2 }}.</strong>
-{% if portion %}Choose where it {% if portion > 0 %}comes from{% else %}goes{% endif %} among {{ org.code }}'s own programs: its lines must
-add up to {{ owed|money:2 }} (a negative amount moves money out of a program, a positive one into it).{% else %}Rounded to cents it is zero,
-so no lines are needed.{% endif %}
-The shift takes effect once every co-funder has acknowledged it.</p>
+<p>{{ s.organisation.code }}'s shift changes {{ org.code }}'s portion of these statewide programs, by {{ org.code }}'s weighted allocation
+factors:</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Your portions">
+<table class="list">
+  <caption class="sr-only">Each statewide line, its whole amount, your factor and your portion</caption>
+  <thead><tr><th scope="col">Statewide program-year</th><th scope="col">Whole change</th><th scope="col">{{ org.code }}'s factor</th><th scope="col">{{ org.code }}'s portion</th></tr></thead>
+  <tbody>{% for p in part.portions %}<tr><th scope="row">{{ p.item }}</th><td class="num">{{ p.amount|money:2 }}</td><td class="num">{{ p.factor }}</td><td class="num">{{ p.portion|money:2 }}</td></tr>{% endfor %}</tbody>
+  <tfoot><tr><th scope="row">Net</th><td></td><td></td><td class="num">{{ portion|money:2 }}</td></tr></tfoot>
+</table>
+</div>
+<p><strong>{{ org.code }}'s portion changes by {{ portion|money:2 }} net.</strong>
+Choose where it {% if portion > 0 %}comes from{% else %}goes{% endif %} among {{ org.code }}'s own programs: its lines must
+add up to {{ owed|money:2 }} (a negative amount moves money out of a program, a positive one into it). No line may take a program's
+operating budget below zero. The shift takes effect once every co-funder has acknowledged it.</p>
 <form method="post" class="stack">{% csrf_token %}
   {% include "budgets/_shift_lines_table.html" %}
   <div class="field form-narrow"><label for="ack-note">Note (optional)</label><textarea id="ack-note" name="note" rows="2">{{ note }}</textarea></div>

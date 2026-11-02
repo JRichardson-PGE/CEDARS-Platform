@@ -155,8 +155,15 @@ how far it is built. Update the Status column in the PR that changes it.
   so the same ID would price no difference. The version comes from the parent's standing confirmed version (its run's pinned library),
   and its 8,760s go to the engine as a supplied file under a versioned name, so a later run or a restatement prices the same shapes.
   The engine prices the difference with the true-up's own quantities on both profiles (the effect of the shape alone; ReCET C21).
-- A statewide fund shift changes every funding PA's operating budget (Jake, 2026-10-30): each co-funder decides where its portion
-  comes from in its own portfolio. A filing confirmed after a shift took effect is taken to carry it in its own numbers, so the
+- A statewide fund shift changes every funding PA's operating budget (Jake, 2026-10-30): the shift's PA enters the change to the
+  whole statewide budget, Budgets splits it by the weighted allocation factors of the version the PA's standing filing pins (else the
+  newest confirmed one), rounding's cents going to the shift's PA, and each co-funder decides where its net gap comes from in its own
+  portfolio (Jake, 2026-11-02). Two statewide lines move money between statewide programs; with different rates each funder's portions
+  net to its gap, and a funder whose portions cancel out is informed and does not hold the shift. No fund shift may take a
+  program-year's operating budget below zero (Jake, 2026-11-02): `shifts.shortfalls` rejects a line or portion that would, at
+  submission for every PA's part and again when a co-funder places its lines, counting the lines of shifts still waiting as spent. A
+  statewide program's operating-budget row is each PA's portion (its factor of the whole budget the lead PA filed), so Monthly
+  reports and dashboards compare a PA's statewide spend with what it funds. A filing confirmed after a shift took effect is taken to carry it in its own numbers, so the
   operating budget adds only the shifts in effect since the standing filing was confirmed; the shift, operating budget and filing pages
   say so. Monthly reports, Claims and dashboards read the operating budget through the registry service
   (`registry.service.operating_budget(organisation, cycle)`), which Budgets fills (`register_operating_budget`), so they never import it.

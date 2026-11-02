@@ -11,7 +11,8 @@ since it was confirmed. Choose a PA to see its operating budget by year and prog
 {% else %}<p>No program administrator has a budget filing or a fund shift in this cycle yet.</p>{% endif %}
 {% else %}
 <p>The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.kind }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date_words }}{% else %}not filed yet (taken as zero){% endif %}.
-The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.</p>
+The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.
+A statewide program's row is {{ ob.organisation.code }}'s portion throughout: its weighted allocation factor of the whole program's approved budget, as its lead PA filed it.</p>
 <div class="card" role="note">
   <p><strong>Shifts before a later filing are not added.</strong> Once {{ ob.organisation.code }} confirms a later budget filing for the
   cycle, that filing is taken to include every shift in effect before it, and those shifts stop adding to the operating budget.
@@ -43,7 +44,7 @@ The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|
   <caption class="sr-only">Approved budget, fund shifts and operating budget by program and year</caption>
   <thead><tr><th scope="col">Program</th><th scope="col">Year</th><th scope="col">Approved</th><th scope="col">Fund shifts</th><th scope="col">Operating</th></tr></thead>
   <tbody>{% for r in rows %}<tr>
-    <th scope="row">{{ r.prg_id }}{% if r.name %}<br><span class="small">{{ r.name }}</span>{% endif %}</th>
+    <th scope="row">{{ r.prg_id }}{% if r.name %}<br><span class="small">{{ r.name }}</span>{% endif %}{% if r.statewide %}<br><span class="small">Statewide: {{ ob.organisation.code }}'s portion at factor {{ r.factor }} of {{ r.statewide_total|money }}</span>{% endif %}</th>
     <td>{{ r.year }}</td><td class="num">{{ r.approved|money }}</td><td class="num">{{ r.shifted|money }}</td><td class="num">{{ r.operating|money }}</td>
   </tr>{% endfor %}</tbody>
   <tfoot><tr><th scope="row">Total</th><td></td><td class="num">{{ total.approved|money }}</td><td class="num">{{ total.shifted|money }}</td><td class="num">{{ total.operating|money }}</td></tr></tfoot>
