@@ -1,4 +1,6 @@
-"""A job's upload: one .zip holding Measure.csv and, optionally, ProgramCost.csv, as CET and ReCET take a job (ReCET 0.1.35), or ReCET's
+"""A job's upload: one .zip holding Measure.csv and, optionally, ProgramCost.csv, as CET and ReCET take a job (ReCET 0.1.35), and any of
+ReCET's optional input files (`OPTIONAL`: run parameters, statewide allocation factors, program metadata, 8,760 electric profiles, gas
+monthly profiles; ReCET INPUT_FIELDS section 4), or ReCET's
 job workbook (.xlsx / .xlsm: a Measure sheet and the optional ProgramCost, RunParameters, SWAllocation, GasProfiles, Programs and
 Profiles8760 sheets; ReCET `recet/workbook.py`), which the worker takes as its `workbook` input. The platform reads the upload once,
 streaming, before the job is queued: the files or sheets it holds (the same rules as the engine's `web/jobzip.py` and `workbook.py`, so a
@@ -24,6 +26,33 @@ YEAR_COLUMNS = ("ClaimYearQuarter",)
 SHEETS = ("Measure", "ProgramCost", "RunParameters", "SWAllocation", "GasProfiles", "Programs", "Profiles8760")
 WORKBOOK = "workbook"
 ZIP = "zip"
+# ReCET's optional input files (its New run's uploads and job spec inputs, ReCET `recet/jobspec.py` FILE_INPUTS): the job spec input name
+# -> (the workbook sheet that carries the same table, its label, the ReCET INPUT_FIELDS section). In a job zip each is found by its
+# file name, matched like a sheet name (case, spaces, underscores and dashes ignored; a "template" prefix, as ReCET's template files have,
+# also ignored): the sheet's name or the file name ReCET writes for that sheet.
+OPTIONAL = {
+    "run_parameters": ("RunParameters", "Run parameters", "45-run-parameters-csv-parquet-or-xlsx"),
+    "sw_factors": ("SWAllocation", "Statewide allocation factors", "46-sw-allocation-factors-csv-parquet-or-xlsx"),
+    "programs": ("Programs", "Program metadata", "48-program-metadata-csv-or-xlsx"),
+    "profiles_8760": ("Profiles8760", "8,760 electric profiles", "41-8760-hour-electric-profiles-csv-or-parquet-long-format"),
+    "profiles_gas": ("GasProfiles", "Gas monthly profiles", "42-gas-monthly-profiles-csv-or-parquet"),
+}
+OPTIONAL_FILE_NAMES = {  # normalized file stem -> input name
+    "runparameters": "run_parameters",
+    "swallocation": "sw_factors",
+    "swallocationfactors": "sw_factors",
+    "swfactors": "sw_factors",
+    "programs": "programs",
+    "programmetadata": "programs",
+    "profiles8760": "profiles_8760",
+    "electric8760profiles": "profiles_8760",
+    "gasprofiles": "profiles_gas",
+    "gasmonthlyprofiles": "profiles_gas",
+}
+OPTIONAL_SUFFIXES = (".csv", ".txt", ".parquet")  # in a zip; an upload of its own may also be .xlsx (ReCET reads each by its extension)
+UPLOAD_SUFFIXES = (".csv", ".txt", ".parquet", ".xlsx")
+SHEET_INPUT = {sheet: name for name, (sheet, _label, _doc) in OPTIONAL.items()}  # workbook sheet -> input name
+MAX_MEMBER_BYTES = 1024 * 1024 * 1024  # an optional file's unzipped size, as the engine caps a job zip's (RECET_WEB_MAX_UNZIPPED_MB)
 
 
 class JobFileError(ValueError):
@@ -38,6 +67,16 @@ class JobInfo:
     first_year: int | None
     kind: str = ZIP  # ZIP or WORKBOOK
     sheets: tuple[str, ...] = ()  # a workbook's sheets with data rows, by their canonical names (SHEETS)
+    optional: dict[str, str] | None = None  # a zip's optional input files: input name -> its file name in the zip
+
+
+def optional_name(filename: str) -> str | None:
+    """The optional input a file is, by its name (None when it is not one)."""
+    p = PurePosixPath(filename.replace("\\", "/"))
+    stem = re.sub(r"[\s_\-]", "", p.stem).lower()
+    if stem.startswith("template"):
+        stem = stem.removeprefix("template")
+    return OPTIONAL_FILE_NAMES.get(stem)
 
 
 def _skipped(name: str) -> bool:
@@ -53,20 +92,62 @@ def members(z: zipfile.ZipFile) -> dict[str, zipfile.ZipInfo]:
             continue
         p = PurePosixPath(info.filename.replace("\\", "/"))
         key = NAMES.get(p.stem.lower()) if p.suffix.lower() in SUFFIXES else None
+        if key is None and p.suffix.lower() in OPTIONAL_SUFFIXES:
+            key = optional_name(info.filename)
         if key is None or len(p.parts) > 2:
             other.append(info.filename)
             continue
         if key in found:
-            raise JobFileError(f"The zip has more than one {'Measure' if key == 'measures' else 'ProgramCost'} file.")
+            label = {"measures": "Measure", "programcost": "ProgramCost"}.get(key) or OPTIONAL[key][1]
+            raise JobFileError(f"The zip has more than one {label} file ({found[key].filename} and {info.filename}).")
+        if key in OPTIONAL and info.file_size > MAX_MEMBER_BYTES:
+            raise JobFileError(f"{info.filename} is larger than {MAX_MEMBER_BYTES // 1024**2:,} MB unzipped.")
         found[key] = info
     if other:
         shown = ", ".join(other[:5]) + (f" and {len(other) - 5} more" if len(other) > 5 else "")
-        raise JobFileError(f"The zip may hold only Measure.csv and ProgramCost.csv; it also has {shown}.")
+        raise JobFileError(
+            f"The zip may hold only Measure.csv, ProgramCost.csv and ReCET's optional input files ({optional_file_list()}); "
+            f"it also has {shown}."
+        )
     if "measures" not in found:
         raise JobFileError("The zip has no Measure.csv.")
     if any(i.flag_bits & 0x1 for i in found.values()):
         raise JobFileError("The zip is password-protected; upload it without a password.")
     return found
+
+
+def optional_file_list() -> str:
+    return "RunParameters.csv, SWAllocation.csv, Programs.csv, Profiles8760.csv or GasProfiles.csv, or .parquet"
+
+
+def extract_optional(path: Path, info: JobInfo, folder: Path) -> dict[str, Path]:
+    """A zip's optional files copied out to `folder` under fixed names (the member's own path is never used): {input name: file}."""
+    out = {}
+    with zipfile.ZipFile(path) as z:
+        for name, member in (info.optional or {}).items():
+            suffix = PurePosixPath(member.replace("\\", "/")).suffix.lower()
+            dest = folder / f"{name}{'.csv' if suffix == '.txt' else suffix}"
+            written = 0
+            with z.open(member) as src, open(dest, "wb") as f:
+                while chunk := src.read(1 << 20):
+                    written += len(chunk)
+                    if written > MAX_MEMBER_BYTES:
+                        raise JobFileError(f"{member} is larger than {MAX_MEMBER_BYTES // 1024**2:,} MB unzipped.")
+                    f.write(chunk)
+            out[name] = dest
+    return out
+
+
+def job_only_zip(path: Path, info: JobInfo, dest: Path) -> Path:
+    """The job zip the worker takes (Measure.csv and ProgramCost.csv only; ReCET's jobzip refuses any other file): the upload's two
+    members copied into a new zip, byte for byte."""
+    with zipfile.ZipFile(path) as z, zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as out:
+        for member, name in ((info.measures, "Measure.csv"), (info.programcost, "ProgramCost.csv")):
+            if member:
+                with z.open(member) as src, out.open(name, "w", force_zip64=True) as f:
+                    while chunk := src.read(1 << 20):
+                        f.write(chunk)
+    return dest
 
 
 def _year(value: str) -> int | None:
@@ -188,7 +269,14 @@ def inspect(path: Path) -> JobInfo:
                 records, first = scan_measures(f)
         except (zipfile.BadZipFile, EOFError, NotImplementedError, csv.Error) as e:
             raise JobFileError(f"Measure.csv could not be read: {e}") from None
-    return JobInfo(found["measures"].filename, found["programcost"].filename if "programcost" in found else None, records, first)
+    optional = {k: v.filename for k, v in found.items() if k in OPTIONAL}
+    return JobInfo(
+        found["measures"].filename,
+        found["programcost"].filename if "programcost" in found else None,
+        records,
+        first,
+        optional=optional,
+    )
 
 
 def check_cet_outputs(path: Path) -> None:

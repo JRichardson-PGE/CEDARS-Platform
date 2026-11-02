@@ -12,9 +12,18 @@ as they stand now; the draft stays, to edit and run again. The run is queued and
 {% else %}
 <p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or as ReCET's job
 workbook (.xlsx: a Measure sheet and, optionally, ProgramCost and ReCET's other sheets), or run a job you are editing in
-<a href="{% url 'calculations:drafts' %}">Edit inputs</a>. A workbook's Programs and SWAllocation sheets are not used: the program
-registry and the allocation version you choose take their place. The run is queued and priced by the engine release you choose;
+<a href="{% url 'calculations:drafts' %}">Edit inputs</a>. ReCET's optional input files can go in the zip, as sheets of the workbook,
+or under <strong>Optional input files</strong> below. The run is queued and priced by the engine release you choose;
 the run page shows its progress, and its files when it ends.</p>
+{% endif %}
+{% if input_templates %}
+<details id="input-templates">
+  <summary>Templates to download</summary>
+  <p class="small">The installed ReCET engine's own templates, as standalone ReCET gives them. The workbook's RunParameters sheet and the run
+  parameters file hold the chosen ACC's built-in values. Each file's columns are in ReCET's
+  <a href="{% url 'core:recet_doc' 'input-fields' %}">Input fields</a>.</p>
+  <ul>{% for t in input_templates %}<li>{{ t.label }}: {% for text, url in t.links %}<a href="{{ url }}" download>{{ text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}</ul>
+</details>
 {% endif %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
@@ -35,6 +44,19 @@ the run page shows its progress, and its files when it ends.</p>
     {{ form.cost_test_set.as_field_group }}
     {{ form.include_societal.as_field_group }}
     {{ form.emissions.as_field_group }}
+    </div>
+  </fieldset>
+  <fieldset><legend>Optional input files</legend>
+    <div class="stack">
+    <p class="small">ReCET's own calculation can take these, as standalone ReCET does. Each may also be a file in the job zip or a sheet of the
+    job workbook (a file uploaded here wins over the same table in the zip or workbook). Their columns are in ReCET's
+    <a href="{% url 'core:recet_doc' 'input-fields' %}#4-supplied-input-files">Input fields, section 4</a>. A CET replica takes none of them.</p>
+    {{ form.run_parameters.as_field_group }}
+    {{ form.profiles_8760.as_field_group }}
+    {{ form.profiles_gas.as_field_group }}
+    <p class="small">Two of ReCET's optional files are not used here: the <a href="{% url 'programs:catalog' %}">program registry</a> is every
+    run's program metadata, and statewide programs are allocated with the allocation version chosen below. A job zip's or workbook's
+    own Programs or SWAllocation table is noted on the run's page as not used.</p>
     </div>
   </fieldset>
   <fieldset><legend>Statewide programs</legend>
