@@ -55,8 +55,25 @@ def help_guide(request, slug):
             "support": site_help.support(),
             "questions": faq.for_guide(slug),
             "revision": _revision(guide),
+            **({"pa_codes": _pa_codes()} if slug == "glossary" else {}),
         },
     )
+
+
+def _pa_codes() -> list[tuple[str, str, str]]:
+    """The glossary's program administrator codes: each code CEDARS knows (accounts.KNOWN_PA_TYPES, former codes included), its name
+    and its type, IOUs first, then RENs and CCAs."""
+    from cedars.services.accounts import service as accounts
+
+    order = {"IOU": 0, "REN": 1, "CCA": 2}
+    rows = []
+    for code, kind in accounts.KNOWN_PA_TYPES.items():
+        name = accounts.known_pa_name(code)
+        if code in accounts.KNOWN_RENAMES:  # a former code: say what it became and when
+            new_code, new_name, start, _ = accounts.KNOWN_RENAMES[code]
+            name = f"{name} (before {start.year}; now {new_name}, {new_code})"
+        rows.append((code, name, kind))
+    return sorted(rows, key=lambda r: (order.get(r[2], 9), r[0]))
 
 
 def _revision(guide) -> dict:
