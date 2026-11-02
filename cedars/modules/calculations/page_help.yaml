@@ -23,6 +23,8 @@ calculations/runs:
 calculations/new:
   title: Starting a run
   guide:
+    - From a run's page, Rerun with different settings opens this page filled in from that run, using its job file and the optional input
+      files you keep ticked unless you upload others.
     - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or as ReCET's job workbook (.xlsx), or run a
       draft you are editing in Edit inputs.
     - >-
@@ -79,11 +81,15 @@ calculations/run:
       what produced the results (the engine release, the ACC and every input's checksum), so anyone can reproduce them.
     - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
       every other finding. The log is what the engine printed, updated while the run runs.
-    - A finished run opens its Results and can be compared with another run. A small job's inputs can be opened in Edit inputs to change
+    - A finished run opens its Results and can be compared with another run. Rerun with different settings starts it again as a new run,
+      with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit inputs to change
       and run again.
+    - Your own runs (for Only me) can be deleted with their files once they end; an organization's runs stay until retention removes them.
   how:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
     - Stop the run ends a queued or running run. Edit inputs and rerun opens a small job's tables to change and run again.
+    - Rerun with different settings opens New run filled in from this run.
+    - Delete the run, at the end of one of your own ended runs, removes it and its files for good once you tick the box.
     - Download every file (.zip) takes all the run's files at once; the inputs download as they were given.
   see: calculations
   tour:
@@ -116,6 +122,10 @@ calculations/run:
     - target: "#receipt-h"
       title: What produced these results
       text: The engine release, the ACC and the checksums of the inputs and reference data.
+      optional: true
+    - target: "#delete-h"
+      title: Delete the run
+      text: Your own ended run, and its files, removed for good.
       optional: true
 
 calculations/results:

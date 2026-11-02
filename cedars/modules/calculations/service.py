@@ -638,6 +638,66 @@ def _optional_inputs(req: RunRequest, info, files: dict, st: dict, prefix: str, 
     return out
 
 
+# a run's inputs a rerun may take again (New run "Rerun with different settings"): its job file, ReCET's optional input files and
+# a parallel run's CET outputs. Program metadata, statewide factors, cost-test sets and true-up profiles are the new run's own.
+REUSABLE = ("job_zip", "workbook", "run_parameters", "profiles_8760", "profiles_gas", "cet_outputs")
+
+
+@contextmanager
+def reused_inputs(run: Run, names=REUSABLE):
+    """Local copies of a run's stored inputs ({name: path}, each under its stored file name), for a rerun that takes them again; the
+    copies go when the block ends. Only the inputs the run has and `names` asks for; a true-up's parent profiles (a filing's
+    profiles_8760 written by the platform, not uploaded) are not offered."""
+    uploads = storage.store("uploads")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = {}
+        for n in names:
+            meta = (run.inputs or {}).get(n)
+            if not meta or not meta.get("key"):
+                continue
+            dest = Path(tmp) / n / Path(meta["key"]).name
+            dest.parent.mkdir()
+            with uploads.open(meta["key"]) as src, open(dest, "wb") as f:
+                shutil.copyfileobj(src, f, 1 << 20)
+            out[n] = dest
+        yield out
+
+
+def reusable_inputs(run: Run) -> list[tuple[str, str]]:
+    """The optional inputs of a run a rerun can keep: [(input name, what it is)] (its job file is always offered)."""
+    labels = {n: jobfiles.OPTIONAL[n][1] for n in jobfiles.OPTIONAL} | {"cet_outputs": "CET outputs to compare with"}
+    if run.submission_version_id is not None:  # a filing's 8,760 profiles are its true-ups' parents', written by the platform
+        labels.pop("profiles_8760", None)
+    return [(n, labels.get(n, n)) for n in REUSABLE[2:] if (run.inputs or {}).get(n) and n in labels]
+
+
+def delete_run(actor, run: Run) -> None:
+    """Delete a person's own run ("Only me") with its files, before retention would (R9): only its owner, only once it has ended,
+    never one a filing was priced with or one under a legal hold. Organization runs stay until retention removes them."""
+    from cedars.services.retention import service as retention
+    from cedars.services.submissions.models import SubmissionVersion
+
+    if run.organisation_id is not None or run.owner_id != actor.pk:
+        raise AccessDenied("Only your own runs (for Only me) can be deleted; an organization's runs stay until retention removes them.")
+    if run.status not in Run.ENDED:
+        raise AccessDenied("Stop the run first: a run is deleted once it has ended.")
+    cited = SubmissionVersion.objects.filter(calculation__run=str(run.pk)).exists()
+    if run.submission_version_id is not None or cited:
+        raise AccessDenied("A filing was priced with this run, so it is kept with the filing.")
+    if retention.held("scratch_run", f"calculation_run:{run.pk}"):
+        raise AccessDenied("This run is under a legal hold, so it cannot be deleted.")
+    audit.record(
+        "calculation_run.deleted",
+        obj=run,
+        organisation=None,
+        before={"name": run.name, "status": run.status, "input_hash": run.input_hash},
+        actor=actor,
+    )
+    prefix = run.storage_prefix
+    run.delete()
+    transaction.on_commit(lambda: [storage.store(a).delete_prefix(prefix) for a in ("uploads", "results")])
+
+
 def job_input(run: Run) -> dict:
     """The run's job file in the uploads store ({key, sha256, bytes}): its job zip, or the job workbook it was uploaded as."""
     return run.inputs.get("job_zip") or run.inputs.get("workbook") or {}
