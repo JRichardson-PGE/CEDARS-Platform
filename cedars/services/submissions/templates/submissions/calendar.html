@@ -2,13 +2,39 @@
 {% block title %}Filing calendar{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Filing calendar</h1>{% page_help "submissions/calendar" %}</div>
+<p>Choose the filing types and due dates to show. The address of the page keeps your choice, so a link to it shows the same view.</p>
+<section class="filters calendar-filters" aria-label="Filters">
+  <div role="group" aria-labelledby="types-label" class="chip-group" id="type-filter">
+    <span id="types-label" class="chip-label">Filing types</span>
+    <ul class="toggle-chips">{% for c in type_chips %}
+      <li><a href="{{ c.url }}"{% if c.on %} aria-current="true"{% endif %}>{% if c.on %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ c.label }}</a></li>{% endfor %}
+    </ul>
+    <p class="helptext">Select a type to add it or take it away. All types shows every filing.</p>
+  </div>
+  <div role="group" aria-labelledby="dates-label" class="chip-group" id="date-filter">
+    <span id="dates-label" class="chip-label">Due dates</span>
+    <ul class="toggle-chips">{% for c in range_chips %}
+      <li><a href="{{ c.url }}"{% if c.on %} aria-current="true"{% endif %}>{% if c.on %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ c.label }}</a></li>{% endfor %}
+    </ul>
+  </div>
+  <form method="get" class="row-form custom-range" id="custom-range" aria-labelledby="custom-label">
+    <span id="custom-label" class="chip-label">{% if filters.range == "custom" %}<span aria-hidden="true">&#10003; </span>{% endif %}Custom dates</span>
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    <input type="hidden" name="range" value="custom">
+    <label>From <input type="date" name="from" value="{{ filters.from }}"></label>
+    <label>To <input type="date" name="to" value="{{ filters.to }}"></label>
+    <button type="submit">Show these dates</button>
+  </form>
+</section>
+{% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
+<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Deadlines">
 <table class="list">
-  <caption class="sr-only">Deadlines, soonest first</caption>
+  <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
   <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th></tr></thead>
   <tbody>
   {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.kind }}</a>{% else %}{{ d.kind }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</td></tr>{% endwith %}
-  {% empty %}<tr><td colspan="4">No deadlines yet.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="4">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
