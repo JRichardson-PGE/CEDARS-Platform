@@ -12,11 +12,12 @@ A release is made only when that set changes.
 Imported (legacy) versions run no publisher hook and record no run: their loads build a measure-level file from the tables they stored
 and call `publish` with its storage area and key (`legacy.publish_snapshot`), with `release=False`: a load of many PAs makes one release.
 
-The scan for personal information (BR-08.5, `pii.py`): every new snapshot's text columns are searched before it can join a release.
-A hit (or a file that cannot be read) holds it: its `PIIScan` says `held`, `in_force` leaves it out (the dataset keeps what was
-published before: an earlier version of the same filing, or for claims and monthly the PA's previous period), and the data owner (the
-filing organization's members who confirm in that module, and whoever confirmed it) and the CPUC system administrators are told. A
-system administrator releases it with a reason (`release_hold`), or runs the scan again after changing the settings (`rescan`);
+The scan for personal information (BR-08.5, `pii.py`): every new snapshot's text columns are searched before it can join a release. Columns
+that hold numbers (the dictionary's number fields, legacy amounts kept as text) have their plain-number values left out, so a budget is
+never read as a phone number. A hit (or a file that cannot be read) holds it: its `PIIScan` says `held`, `in_force` leaves it out (the
+dataset keeps what was published before: an earlier version of the same filing, or for claims and monthly the PA's previous period), and
+the data owner (the filing organization's members who confirm in that module, and whoever confirmed it) and the CPUC system administrators
+are told. A system administrator releases it with a reason (`release_hold`), or runs the scan again after changing the settings (`rescan`);
 a corrected version is scanned in its own right. Every step is audited."""
 
 import logging
@@ -138,10 +139,26 @@ def scan_settings() -> ScanSettings:
     return ScanSettings.objects.get_or_create(pk=1, defaults={"patterns": list(pii.BY_CODE), "exempt_columns": list(pii.DEFAULT_EXEMPT)})[0]
 
 
+def numeric_columns() -> set[str]:
+    """The column names the scan reads as numbers (lower case): every field the data dictionary in force types as a number, under its
+    name and its other names, and the legacy amounts kept as filed text (Legacy_Budget ...)."""
+    from cedars.services.dictionary import legacy as crosswalk
+    from cedars.services.dictionary import service as dictionary
+    from cedars.services.dictionary.models import Alias, Field
+
+    names = {n.lower() for n in crosswalk.NUMERIC_LEGACY}
+    catalog = dictionary.current()
+    if catalog is not None:
+        number = Field.objects.filter(version=catalog, data_type="number")
+        names |= {n.lower() for n in number.values_list("name", flat=True)}
+        names |= {n.lower() for n in Alias.objects.filter(field__in=number).values_list("name", flat=True)}
+    return names
+
+
 def _run_scan(path) -> pii.Result:
     cfg = scan_settings()
     try:
-        return pii.scan(path, patterns=cfg.patterns, exempt=cfg.exempt_columns)
+        return pii.scan(path, patterns=cfg.patterns, exempt=cfg.exempt_columns, numeric=numeric_columns())
     except Exception as e:  # an unreadable file is held, never published unscanned
         log.exception("publication scan failed for %s", path)
         return pii.Result([], 0, [], [], list(cfg.patterns), error=f"{type(e).__name__}: {e}"[:500])
@@ -154,6 +171,7 @@ def _record_scan(snap: Snapshot, result: pii.Result) -> PIIScan:
         "error": result.error,
         "columns": result.columns,
         "skipped": result.skipped,
+        "numeric": result.numeric,
         "patterns": result.patterns,
         "scanned_at": timezone.now(),
     }
@@ -318,6 +336,37 @@ def holds(user=None):
     if user is not None and not access.is_system_admin(user):
         qs = qs.filter(snapshot__organisation__in=access.organisations_of(user))
     return qs
+
+
+HOLD_RECORDS_HEADER = ["Filing", "Organization", "Record (CEInputID)", "PrgID", "Column", "Looks like"]
+
+
+def hold_records_csv(user, snap: Snapshot) -> str:
+    """The records behind a scan's findings as CSV, for the filing's organization to look into (and the CPUC system administrators):
+    one row per record and column with what its value looks like, never the value (BR-08.5). Read from the stored snapshot with the
+    findings' columns and patterns, so it lists what the hold page counts. Audited."""
+    import csv
+    import io
+
+    if not may_see(user, snap):
+        raise access.AccessDenied("Only the filing's organization and the CPUC system administrators see its held records.")
+    scan = PIIScan.objects.get(snapshot=snap)
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\r\n")
+    w.writerow(HOLD_RECORDS_HEADER)
+    rows = 0
+    if scan.findings:
+        with tempfile.TemporaryDirectory() as tmp:
+            local = Path(tmp) / "results.parquet"
+            with storage.store(AREA).open(snap.key) as src, open(local, "wb") as dst:
+                while block := src.read(1 << 22):
+                    dst.write(block)
+            numeric = scan.numeric or numeric_columns()
+            for r in pii.records(local, scan.findings, numeric=numeric):
+                w.writerow([label(snap.version), snap.organisation.code, r["record"], r["program"], r["column"], r["looks_like"]])
+                rows += 1
+    audit.record("snapshot.hold_records_downloaded", obj=snap, after={"rows": rows}, actor=user, organisation=snap.organisation)
+    return out.getvalue()
 
 
 def may_see(user, snap: Snapshot) -> bool:

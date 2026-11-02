@@ -5,7 +5,7 @@ the scan found (masked examples and record IDs only)."""
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from cedars.services.accounts import service as access
@@ -75,6 +75,17 @@ def hold(request, pk):
             "module": service.module_of(snap),
         },
     )
+
+
+@login_required
+def hold_records(request, pk):
+    """The records behind a hold's findings as CSV: record IDs, columns and what the values look like, never the values."""
+    snap = get_object_or_404(Snapshot.objects.select_related("organisation", "version__submission__deadline__period"), pk=pk)
+    if not service.may_see(request.user, snap) or not PIIScan.objects.filter(snapshot=snap).exists():
+        raise Http404
+    response = HttpResponse(service.hold_records_csv(request.user, snap), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="publication_hold_{snap.organisation.code}_{snap.pk}.csv"'
+    return response
 
 
 @login_required

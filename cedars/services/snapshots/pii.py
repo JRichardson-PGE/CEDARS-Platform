@@ -9,9 +9,15 @@ The scan reads the Parquet file a row group at a time, matches each column's DIS
 rows only for the values that matched, so a million-row file costs a few seconds. What it keeps never holds the values themselves:
 the main database must not hold personal information (it belongs in the vault), so a finding names the column, the pattern, how many
 records, up to `RECORDS` record IDs (CEInputID, else the row number) and up to `EXAMPLES` examples masked to their first character
-and their punctuation ("j***@e******.c**")."""
+and their punctuation ("j***@e******.c**").
+
+Numeric columns (fields the data dictionary types as numbers, and the legacy amounts kept as filed text, such as Legacy_Budget) are
+stored as text in some snapshots, and a budget such as "234567.8901" has the shape of a phone number. In those columns a value that is a
+plain number (`NUMBER`: a sign, digits with or without thousands commas, a decimal part, an exponent) is read as the number it is and
+not searched; any other value in them (text where a number belongs) is still searched. Text columns are searched in full."""
 
 import re
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -49,6 +55,8 @@ PATTERNS = (
     Pattern("account_number", "account numbers (9 or more digits)", _B + r"(?:[0-9]{9,19}|[0-9]{4}[ -][0-9]{4}[ -][0-9]{4,7})" + _E),
 )
 BY_CODE = {p.code: p for p in PATTERNS}
+# A plain number, the whole value: what a numeric column's values are, so they are not read as phone, SSN or account numbers.
+NUMBER = r"^\s*[+-]?\$?(?:(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\s*$"
 DEFAULT_EXEMPT = ("CEInputID", "PrgID")  # keys the platform assigns or registers; never personal information
 
 
@@ -83,6 +91,7 @@ class Result:
     skipped: list[str]  # text columns left out by the settings
     patterns: list[str]
     error: str = ""
+    numeric: list[str] = field(default_factory=list)  # searched columns read as numbers: their plain-number values are not searched
 
     @property
     def clear(self) -> bool:
@@ -120,9 +129,10 @@ def _text_columns(schema) -> list[str]:
     return out
 
 
-def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[str] | None = None) -> Result:
-    """Search the file's text columns. `patterns`: the codes that run (default all); `exempt`: column names left out (compared without
-    case). Raises on an unreadable file; the caller holds the publication then."""
+def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[str] | None = None, numeric: Iterable[str] = ()) -> Result:
+    """Search the file's text columns. `patterns`: the codes that run (default all); `exempt`: column names left out; `numeric`: column
+    names whose plain-number values are not searched (both compared without case). Raises on an unreadable file; the caller holds the
+    publication then."""
     import pyarrow as pa
     import pyarrow.compute as pc
     import pyarrow.parquet as pq
@@ -133,6 +143,8 @@ def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[st
     text = _text_columns(pf.schema_arrow)
     columns = [c for c in text if c.lower() not in left_out]
     skipped = [c for c in text if c.lower() in left_out]
+    numbers = {c.strip().lower() for c in numeric if c and c.strip()}
+    as_numbers = [c for c in columns if c.lower() in numbers]
     has_id = ID_COLUMN in pf.schema_arrow.names
     findings: dict[tuple[str, str], Finding] = {}
     offset = 0
@@ -146,6 +158,8 @@ def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[st
                 if pa.types.is_dictionary(arr.type):
                     arr = arr.cast(pa.large_string())
                 distinct = pc.unique(arr).drop_null()
+                if col in as_numbers and len(distinct):
+                    distinct = distinct.filter(pc.invert(pc.match_substring_regex(distinct, NUMBER)))
                 if len(distinct) == 0:
                     continue
                 for p in chosen:
@@ -167,4 +181,44 @@ def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[st
             offset += t.num_rows
     order = {p.code: i for i, p in enumerate(PATTERNS)}
     out = sorted(findings.values(), key=lambda f: (columns.index(f.column), order[f.pattern]))
-    return Result(out, pf.metadata.num_rows, columns, skipped, [p.code for p in chosen])
+    return Result(out, pf.metadata.num_rows, columns, skipped, [p.code for p in chosen], numeric=as_numbers)
+
+
+def records(path: Path | str, findings: list[dict], *, numeric: Iterable[str] = ()) -> Iterator[dict]:
+    """Every record behind a scan's findings, for the filing's organization to look into: the record ID (CEInputID, else the row
+    number), the program, the column and what its value looks like. Never the value itself. Only the (column, pattern) pairs of
+    `findings` are matched, so the list is the one the hold page counts; `numeric` as the scan had it."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    pairs = [(f["column"], BY_CODE[f["pattern"]]) for f in findings if f.get("pattern") in BY_CODE]
+    pf = pq.ParquetFile(path)
+    names = set(pf.schema_arrow.names)
+    pairs = [(c, p) for c, p in pairs if c in names]
+    if not pairs:
+        return
+    numbers = {c.strip().lower() for c in numeric if c and c.strip()}
+    keys = [k for k in (ID_COLUMN, "PrgID") if k in names]
+    read = list(dict.fromkeys([c for c, _ in pairs] + keys))
+    offset = 0
+    for rg in range(pf.num_row_groups):
+        t = pf.read_row_group(rg, columns=read)
+        for col, p in pairs:
+            arr = t.column(col).combine_chunks()
+            if pa.types.is_dictionary(arr.type):
+                arr = arr.cast(pa.large_string())
+            distinct = pc.unique(arr).drop_null()
+            if col.lower() in numbers and len(distinct):
+                distinct = distinct.filter(pc.invert(pc.match_substring_regex(distinct, NUMBER)))
+            hits = distinct.filter(pc.match_substring_regex(distinct, p.regex, ignore_case=p.ignore_case)) if len(distinct) else distinct
+            if len(hits) == 0:
+                continue
+            for i in pc.indices_nonzero(pc.is_in(arr, value_set=hits)).to_pylist():
+                yield {
+                    "record": str(t.column(ID_COLUMN)[i].as_py()) if ID_COLUMN in keys else f"row {offset + i + 1}",
+                    "program": str(t.column("PrgID")[i].as_py() or "") if "PrgID" in keys else "",
+                    "column": col,
+                    "looks_like": p.label,
+                }
+        offset += t.num_rows

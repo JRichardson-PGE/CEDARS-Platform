@@ -77,6 +77,21 @@ NUMERIC_MEASURE = frozenset(
 )
 
 
+# The Legacy_ columns that hold numbers (budgets, costs, savings) though they are stored as filed text: the publication scan reads a
+# plain number in them as a number, never as a phone or account number (snapshots.pii); anything else in them is still searched.
+NUMERIC_LEGACY = frozenset(
+    {
+        "Legacy_LocationCostAdjustment",
+        "Legacy_LaborRate",
+        "Legacy_GrossMeasureCostER",
+        "Legacy_Budget",
+        "Legacy_Benefits",
+        "Legacy_WeightedSavings",
+        "Legacy_ProgramCosts",
+    }
+)
+
+
 class LayoutError(ValueError):
     """A file's header is not one of the published layouts; the message says how it differs from the nearest one."""
 

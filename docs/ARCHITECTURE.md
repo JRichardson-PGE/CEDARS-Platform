@@ -226,8 +226,15 @@ how far it is built. Update the Status column in the PR that changes it.
   `/publication/scan-settings/`, a reason and an audit event for every change). It matches each row group's distinct values with
   pyarrow's RE2 matcher, so the cost grows with the distinct text, not the rows. A file it cannot read is held. Nothing it finds is
   stored: a finding keeps the column, the pattern, the record count, up to five CEInputIDs and up to three examples masked to their
-  shape ("4**-***-****"), so the core database never holds personal information. Snapshots made before the scan have no scan and
-  stand. Audit actions: `snapshot.held`, `snapshot.hold_released`, `snapshot.rescanned`, `snapshot.scan_settings_changed`.
+  shape ("4**-***-****"), so the core database never holds personal information. Numeric columns kept as text (the fields the
+  dictionary in force types as numbers, under any of their names, and the legacy amounts such as `Legacy_Budget`,
+  `dictionary.legacy.NUMERIC_LEGACY`; `snapshots.numeric_columns`) have their plain-number values left out (`pii.NUMBER`), so a
+  budget such as "234567.8901" is not a phone number; anything else in them is still searched, and the scan records them
+  (`PIIScan.numeric`). The hold page offers the records behind the findings as CSV (`/publication/holds/<id>/records.csv`: filing,
+  organization, CEInputID, PrgID, column, what the value looks like; never the value), to the filing's organization and the CPUC
+  system administrators, read again from the snapshot and audited. Snapshots made before the scan have no scan and
+  stand. Audit actions: `snapshot.held`, `snapshot.hold_released`, `snapshot.rescanned`, `snapshot.scan_settings_changed`,
+  `snapshot.hold_records_downloaded`.
 - The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
   subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it, `demo_account` for a test filer for one or more
   program administrators (`--org`, `--pa-type`) (read, submit and confirm in every module; sandbox and developer databases only), and `refresh_sandbox` to add production's

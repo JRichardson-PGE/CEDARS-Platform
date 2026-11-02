@@ -6,5 +6,6 @@ app_name = "snapshots"
 urlpatterns = [
     path("holds/", views.holds, name="holds"),
     path("holds/<uuid:pk>/", views.hold, name="hold"),
+    path("holds/<uuid:pk>/records.csv", views.hold_records, name="hold_records"),
     path("scan-settings/", views.scan_settings, name="scan_settings"),
 ]
