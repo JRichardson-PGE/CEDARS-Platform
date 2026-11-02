@@ -16,7 +16,7 @@ calculations/runs:
     - target: main .head-row .actions
       title: New run and output templates
       text: Start a run, or choose the columns runs write with an output template.
-    - target: main table.list
+    - target: main table.list, main .empty
       title: The runs
       text: Each run's name, who it is for, the engine and ACC, and its status. Select a name to open its page.
 
