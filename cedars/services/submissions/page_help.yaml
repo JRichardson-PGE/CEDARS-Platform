@@ -5,12 +5,29 @@ submissions/calendar:
   guide:
     - Every filing's due date, soonest first, budgets, claims and monthly reports, with when each opens. Signed in, each row says where your
       organization's filing stands.
+    - >-
+      The calendar opens on the last 3 and next 9 months of every filing type. Choose filing types and due dates above the table; the
+      line above the table says what is shown, and the page's address keeps your choice, so a copied link shows the same view.
     - After a due date a confirmed filing is corrected as a new version, through a request to reopen that a CPUC approver decides.
   how:
+    - Select Budgets, Claims or Monthly reports to show only those filings; select a chosen type again to take it away, or All types for every filing.
+    - Select Last 3 and next 9 months, This year or All for the due dates, or enter From and To dates and select Show these dates.
     - Open a filing's row to go to its page, where your organization files it.
     - Add (CPUC system administrators) puts a deadline on the calendar by hand.
   see: getting-started
   tour:
+    - target: "#type-filter"
+      title: Filing types
+      text: Show one filing type or several. The chosen ones are filled and checked; select one again to take it away.
+    - target: "#date-filter"
+      title: Due dates
+      text: The last 3 and next 9 months (the default), this calendar year, or every date.
+    - target: "#custom-range"
+      title: Custom dates
+      text: Any range of due dates. Leave From or To blank to leave that end open.
+    - target: main p.showing
+      title: What is shown
+      text: How many deadlines match, for which types and dates, with a link back to every deadline.
     - target: main table.list
       title: Deadlines
       text: Each filing, when it opens and when it is due. Select one to open it.

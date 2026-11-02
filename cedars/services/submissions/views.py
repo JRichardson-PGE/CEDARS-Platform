@@ -1,4 +1,6 @@
-from datetime import datetime, time
+from calendar import monthrange
+from datetime import date, datetime, time, timedelta
+from urllib.parse import urlencode
 
 from django import forms
 from django.contrib import messages
@@ -40,9 +42,77 @@ def _period(year: int, code: str):
     return periods[("quarter" if code[0] == "q" else "month", int(code[1:]))]
 
 
+RANGES = [  # the due-date choices on the filing calendar, in the order shown; the first is the default
+    ("window", "Last 3 and next 9 months"),
+    ("year", "This year"),
+    ("all", "All"),
+]
+
+
+def _add_months(day: date, months: int) -> date:
+    """The same day of the month `months` later (or earlier), on the month's last day when it has no such day."""
+    y, m = divmod(day.month - 1 + months, 12)
+    year, month = day.year + y, m + 1
+    return date(year, month, min(day.day, monthrange(year, month)[1]))
+
+
+def _parse_day(value: str) -> date | None:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def calendar_filters(params, today: date) -> dict:
+    """The filing calendar's filters from its query string, so any view of it is a link that can be shared: `type` (repeated, one per
+    module; none = every type), `range` (window, year, all or custom) and, for a custom range, `from` and `to` (YYYY-MM-DD, either may be
+    left open). Unknown values fall back to the defaults; a custom range with a date that does not parse is an error and shows the
+    default range."""
+    codes = [code for code, _ in MODULES]
+    types = [code for code in codes if code in params.getlist("type")]
+    rng = params.get("range") or "window"
+    start = end = None
+    error = ""
+    raw_from, raw_to = (params.get("from") or "").strip(), (params.get("to") or "").strip()
+    if rng == "custom":
+        start, end = _parse_day(raw_from) if raw_from else None, _parse_day(raw_to) if raw_to else None
+        if (raw_from and start is None) or (raw_to and end is None):
+            error = "Enter dates as YYYY-MM-DD. Showing the last 3 and next 9 months instead."
+            rng, start, end = "window", None, None
+        elif start and end and start > end:
+            start, end = end, start
+        elif not raw_from and not raw_to:
+            rng = "all"
+    elif rng not in {code for code, _ in RANGES}:
+        rng = "window"
+    if rng == "window":
+        start, end = _add_months(today, -3), _add_months(today, 9)
+    elif rng == "year":
+        start, end = date(today.year, 1, 1), date(today.year, 12, 31)
+    return {
+        "types": types,
+        "range": rng,
+        "start": start,
+        "end": end,
+        "error": error,
+        "from": start.isoformat() if rng == "custom" and start else raw_from if rng == "custom" else "",
+        "to": end.isoformat() if rng == "custom" and end else raw_to if rng == "custom" else "",
+    }
+
+
+def _calendar_link(types, rng, start=None, end=None) -> str:
+    """The calendar's URL for these filters, leaving out the defaults (every type, the last 3 and next 9 months)."""
+    query = [("type", code) for code, _ in MODULES if code in types]
+    if rng != "window":
+        query.append(("range", rng))
+    if rng == "custom":
+        query += [(k, v.isoformat()) for k, v in (("from", start), ("to", end)) if v]
+    return reverse("submissions:calendar") + (f"?{urlencode(query)}" if query else "")
+
+
 def calendar(request):
     """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5); a CPUC system administrator adds deadlines
-    here."""
+    here. Filtered by filing type and due date (last 3 and next 9 months by default), the filters kept in the URL."""
     sysadmin = access.is_system_admin(request.user)
     form = DeadlineForm(request.POST or None)
     if request.method == "POST" and sysadmin and form.is_valid():
@@ -54,19 +124,49 @@ def calendar(request):
             messages.error(request, str(e))
         else:
             messages.success(request, "Deadline added.")
-        return redirect("submissions:calendar")
-    deadlines = [
-        {"d": d, "url": service.deadline_page(d)}
-        for d in Deadline.objects.select_related("period", "cycle")
-        .filter(due_at__gte=timezone.now() - timezone.timedelta(days=400))
-        .order_by("due_at", "module", "period__starts", "kind")
+        return HttpResponseRedirect(request.get_full_path())
+    f = calendar_filters(request.GET, timezone.localdate())
+    types, rng, start, end = f["types"], f["range"], f["start"], f["end"]
+    query = Deadline.objects.select_related("period", "cycle")
+    if types:
+        query = query.filter(module__in=types)
+    tz = timezone.get_current_timezone()
+    if start:
+        query = query.filter(due_at__gte=datetime.combine(start, time.min, tzinfo=tz))
+    if end:
+        query = query.filter(due_at__lt=datetime.combine(end + timedelta(days=1), time.min, tzinfo=tz))
+    deadlines = [{"d": d, "url": service.deadline_page(d)} for d in query.order_by("due_at", "module", "period__starts", "kind")]
+    labels = dict(MODULES)
+    type_chips = [{"label": "All types", "url": _calendar_link([], rng, start, end), "on": not types}] + [
+        {
+            "label": label,
+            "url": _calendar_link([t for t in types if t != code] if code in types else types + [code], rng, start, end),
+            "on": code in types,
+        }
+        for code, label in MODULES
     ]
+    range_chips = [{"label": label, "url": _calendar_link(types, code), "on": rng == code} for code, label in RANGES]
+    if start and end:
+        when = f"due {start.isoformat()} to {end.isoformat()}"
+    elif start:
+        when = f"due on or after {start.isoformat()}"
+    elif end:
+        when = f"due on or before {end.isoformat()}"
+    else:
+        when = "of every date"
+    what = " and ".join(labels[t] for t in types) if types else "every filing type"
     policies = {p.module: p for p in WorkflowPolicy.objects.all()}
     return render(
         request,
         "submissions/calendar.html",
         {
             "deadlines": deadlines,
+            "filters": f,
+            "type_chips": type_chips,
+            "range_chips": range_chips,
+            "showing": f"{len(deadlines)} deadline{'' if len(deadlines) == 1 else 's'} for {what}, {when}",
+            "filtered": bool(types) or rng != "all",
+            "all_url": _calendar_link([], "all"),
             "form": form if sysadmin else None,
             "policies": [(code, label, policies.get(code)) for code, label in MODULES],
         },

@@ -172,8 +172,11 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     assert f'<a href="/claims/periods/{q1.pk}/">Q1 claim</a>' in page  # each row links to the filing's page
     assert c.get(f"/claims/periods/{q1.pk}/").status_code == 200
     assert 'class="due"><time datetime="' in page and "Due in 1" in page  # the date with its urgency in words
-    c.post("/filings/calendar/", {"module": "monthly", "kind": "monthly report", "year": 2028, "period": "m1", "due": "2028-02-15"})
-    assert "monthly report" in c.get("/filings/calendar/").content.decode()
+    r = c.post(
+        "/filings/calendar/?range=all", {"module": "monthly", "kind": "monthly report", "year": 2028, "period": "m1", "due": "2028-02-15"}
+    )
+    assert r.url == "/filings/calendar/?range=all"  # back to the view the deadline was added from
+    assert '<th scope="row">monthly report</th>' in c.get(r.url).content.decode()
     v1 = service.confirm(analyst, _priced(analyst, deadline, pge), "h1")
     service.move_deadline(cpuc_admin, deadline, timezone.now() - timedelta(minutes=1), "passes")
     req = service.request_reopen(analyst, v1.submission, "double counted")
@@ -192,3 +195,63 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
 def test_the_filing_calendar_is_public(client, deadline):
     html = client.get("/filings/calendar/").content.decode()
     assert deadline.kind in html and 'name="module"' not in html  # anyone reads it; only a CPUC system administrator sees the add form
+
+
+def test_calendar_filters_from_the_query_string():
+    from django.http import QueryDict
+
+    from cedars.services.submissions.views import _add_months, calendar_filters
+
+    today = date(2026, 11, 30)
+    f = calendar_filters(QueryDict(""), today)
+    assert (f["types"], f["range"], f["start"], f["end"]) == ([], "window", date(2026, 8, 30), date(2027, 8, 30))
+    assert _add_months(date(2026, 5, 31), -3) == date(2026, 2, 28)  # a month without the day ends on its last day
+    f = calendar_filters(QueryDict("type=monthly&type=claims&type=nonsense&range=year"), today)
+    assert f["types"] == ["claims", "monthly"] and (f["start"], f["end"]) == (date(2026, 1, 1), date(2026, 12, 31))
+    assert calendar_filters(QueryDict("range=all"), today)["start"] is None
+    assert calendar_filters(QueryDict("range=bogus"), today)["range"] == "window"
+    f = calendar_filters(QueryDict("range=custom&from=2027-03-01&to=2026-01-01"), today)
+    assert (f["range"], f["start"], f["end"]) == ("custom", date(2026, 1, 1), date(2027, 3, 1))  # swapped into order
+    f = calendar_filters(QueryDict("range=custom&from=2027-03-01"), today)
+    assert (f["start"], f["end"], f["to"]) == (date(2027, 3, 1), None, "")  # an open end
+    f = calendar_filters(QueryDict("range=custom&from=March"), today)
+    assert f["range"] == "window" and "YYYY-MM-DD" in f["error"]
+    assert calendar_filters(QueryDict("range=custom"), today)["range"] == "all"
+
+
+def test_calendar_filters_by_type_and_due_date(client):
+    from cedars.services.submissions.models import Deadline
+
+    def add(module, kind, days):
+        period = [p for p in registry.ensure_periods(2027) if p.kind == "year"][0]
+        Deadline.objects.create(module=module, kind=kind, period=period, due_at=timezone.now() + timedelta(days=days))
+
+    add("claims", "soon claim", 30)
+    add("budgets", "soon budget", 60)
+    add("monthly", "old report", -200)
+    add("claims", "far claim", 400)
+
+    def rows(url):
+        html = client.get(url).content.decode()
+        return {k for k in ("soon claim", "soon budget", "old report", "far claim") if f">{k}<" in html}, html
+
+    shown, html = rows("/filings/calendar/")  # the default: the last 3 and next 9 months, every type
+    assert shown == {"soon claim", "soon budget"}
+    assert "Showing 2 deadlines for every filing type, due " in html
+    assert '<a href="/filings/calendar/?type=claims">Claims</a>' in html  # each chip is a link to the view with that type added
+    assert 'aria-current="true"><span aria-hidden="true">&#10003; </span>Last 3 and next 9 months</a>' in html
+    shown, html = rows("/filings/calendar/?type=claims")
+    assert shown == {"soon claim"} and "for Claims," in html
+    assert (
+        '<a href="/filings/calendar/" aria-current="true"><span aria-hidden="true">&#10003; </span>Claims</a>' in html
+    )  # select again: away
+    assert '<a href="/filings/calendar/?type=budgets&amp;type=claims">Budgets</a>' in html
+    assert '<input type="hidden" name="type" value="claims">' in html  # the custom range keeps the chosen types
+    assert rows("/filings/calendar/?type=claims&range=all")[0] == {"soon claim", "far claim"}
+    assert rows("/filings/calendar/?range=all")[0] == {"soon claim", "soon budget", "old report", "far claim"}
+    start = (timezone.localdate() - timedelta(days=250)).isoformat()
+    end = (timezone.localdate() - timedelta(days=100)).isoformat()
+    shown, html = rows(f"/filings/calendar/?range=custom&from={start}&to={end}")
+    assert shown == {"old report"} and f'value="{start}"' in html
+    shown, html = rows("/filings/calendar/?type=monthly")
+    assert shown == set() and "No deadlines match these filters." in html

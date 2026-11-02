@@ -259,6 +259,22 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }
 .filters select { max-width: 100%; }
 .filters > fieldset { margin: 0; background: none; }
+/* Filing calendar: filing-type and due-date chips are links (one select, no script, the view in the URL); the chosen ones are filled,
+   with a check mark and aria-current, never color alone. */
+.calendar-filters { flex-direction: column; align-items: stretch; gap: .8rem; }
+.calendar-filters > form { min-width: 0; max-width: 100%; }
+.chip-group { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; }
+.chip-group .helptext { flex-basis: 100%; margin: 0; }
+.chip-label { font-weight: 600; font-size: .92rem; min-width: 7.5rem; }
+ul.toggle-chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+ul.toggle-chips a { display: inline-flex; align-items: center; min-height: 32px; padding: .2rem .85rem; border: 1px solid var(--control); border-radius: 999px; background: var(--surface); color: var(--link); text-decoration: none; font-size: .92rem; }
+ul.toggle-chips a:hover { text-decoration: underline; }
+ul.toggle-chips a > span[aria-hidden], .chip-label > span[aria-hidden] { margin-right: .3rem; }
+ul.toggle-chips a[aria-current] { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
+.custom-range { align-items: center; }
+.custom-range label { flex-direction: row; align-items: center; gap: .4rem; }
+.custom-range input[type=date] { max-width: 100%; }
+p.showing { margin: 0 0 .6rem; }
 /* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
 .other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
 .other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }
