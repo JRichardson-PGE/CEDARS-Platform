@@ -21,7 +21,12 @@ SUPPLIED_FIELDS = ("run_parameters", "profiles_8760", "profiles_gas")
 class NewRunForm(forms.Form):
     """New run (BR-06.1, 06.4, 06.5, 06.7): the job zip and the settings a person picks. The API takes the same fields."""
 
-    name = forms.CharField(label="Run name", max_length=200, help_text="e.g. 2028 claims Q1, PG&E")
+    name = forms.CharField(
+        label="Run name",
+        max_length=200,
+        required=False,
+        help_text="e.g. 2028 claims Q1, PG&E. Left blank, the run is named after the job file and its ACC",
+    )
     run_for = forms.ChoiceField(label="Run for", help_text="An organization's runs are seen by its members and stay with it")
     job = forms.FileField(
         label="Job file (.zip or .xlsx)",
@@ -51,6 +56,13 @@ class NewRunForm(forms.Form):
         queryset=PackVersion.objects.filter(kind=PackVersion.Kind.COST_TESTS).exclude(status=PackVersion.Status.WITHDRAWN),
         empty_label="The set in force for the job's first program year",
         help_text="The cost tests it is priced on (ReCET's own calculation). A draft set is for analysis runs only",
+    )
+    cost_tests_file = forms.FileField(
+        label="Your own cost-test set (.yaml, optional)",
+        required=False,
+        help_text="A cost-test set file of your own, in ReCET's format, for an analysis run only (not with filing checks, Priced for or a "
+        "registered set above). The run records the file's SHA-256",
+        validators=[uploads.check_size],
     )
     filing_validation = forms.ChoiceField(label="CEDARS filing checks", required=False, choices=list(service.FILING_CHECKS.items()))
     filing_year = forms.IntegerField(label="Filing year (optional)", required=False, min_value=2000, max_value=2100)
@@ -130,7 +142,7 @@ class NewRunForm(forms.Form):
             **output_templates.settings_for(d.get("output_template")),
         }
         return service.RunRequest(
-            name=d["name"],
+            name=d.get("name") or "",
             release=d["release"],
             calculation=d["calculation"],
             acc_version=d["acc_version"],
@@ -139,6 +151,7 @@ class NewRunForm(forms.Form):
             allocation_version=d.get("allocation_version"),
             cet_outputs=d.get("cet_outputs"),
             cost_test_set=d.get("cost_test_set"),
+            cost_tests_file=d.get("cost_tests_file"),
             supplied={n: d.get(n) for n in SUPPLIED_FIELDS if d.get(n)},
         )
 

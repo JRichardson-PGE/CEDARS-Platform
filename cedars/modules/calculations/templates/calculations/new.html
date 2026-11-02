@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% block title %}New run{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
@@ -25,7 +26,7 @@ the run page shows its progress, and its files when it ends.</p>
   <ul>{% for t in input_templates %}<li>{{ t.label }}: {% for text, url in t.links %}<a href="{{ url }}" download>{{ text }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}</ul>
 </details>
 {% endif %}
-<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate data-upload-progress>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.name.as_field_group }}
   {{ form.run_for.as_field_group }}
@@ -42,6 +43,22 @@ the run page shows its progress, and its files when it ends.</p>
     </details>
     {{ form.acc_purpose.as_field_group }}
     {{ form.cost_test_set.as_field_group }}
+    {% if cost_test_sets %}
+    <details id="cost-test-sets">
+      <summary>What each cost-test set prices</summary>
+      <div class="hscroll" tabindex="0" role="region" aria-label="Cost-test sets">
+      <table class="list">
+        <caption class="sr-only">Registered cost-test sets and the tests each writes</caption>
+        <thead><tr><th scope="col">Set</th><th scope="col">Status</th><th scope="col">Program years</th><th scope="col">Tests (headline in bold)</th></tr></thead>
+        <tbody>{% for c in cost_test_sets %}<tr><th scope="row">{{ c.id }} {{ c.version }}<br><span class="small muted">{{ c.label }}</span></th><td>{{ c.status }}</td><td>{{ c.years }}</td><td>{% for t in c.tests %}{% if t.headline %}<strong>{{ t.id }}</strong>{% else %}{{ t.id }}{% endif %} <span class="small muted">({{ t.label }})</span>{% if not forloop.last %}, {% endif %}{% endfor %}</td></tr>{% endfor %}</tbody>
+      </table>
+      </div>
+      <p class="small">Each test writes its benefits, costs and ratio columns (with and without admin costs). A draft set is for analysis
+      runs only; a filing, or a run with filing checks or priced for a filing, takes a published set. The sets' files are on
+      <a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>.</p>
+    </details>
+    {% endif %}
+    {{ form.cost_tests_file.as_field_group }}
     {{ form.include_societal.as_field_group }}
     {{ form.emissions.as_field_group }}
     </div>
@@ -80,6 +97,11 @@ the run page shows its progress, and its files when it ends.</p>
   <div class="actions"><button type="submit" class="primary">Start the run</button>
     <button type="submit" name="preflight_only" value="1" aria-describedby="check-only-help">Check the inputs only</button>
     <a href="{% if draft %}{% url 'calculations:draft' draft.pk %}{% else %}{% url 'calculations:runs' %}{% endif %}">Cancel</a></div>
+  <div id="upload-progress" class="upload-progress" hidden>
+    <progress max="100" value="0" aria-label="Upload">0%</progress>
+    <p class="small" data-upload-text></p>
+  </div>
 </form>
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if form %}<script src="{% static 'calculations/new_run.js' %}" defer></script>{% endif %}{% endblock %}

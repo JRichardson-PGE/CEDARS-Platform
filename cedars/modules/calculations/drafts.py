@@ -453,7 +453,7 @@ def start_run(actor, organisation, req: service.RunRequest, draft: InputDraft) -
     with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
         tmp.write(job_zip_bytes(draft))
         tmp.flush()
-        run = service.create_run(actor, organisation, req, Path(tmp.name))
+        run = service.create_run(actor, organisation, req, Path(tmp.name), job_name=draft.name)
     audit.record(
         "calculation_draft.run", obj=draft, organisation=draft.organisation, after={"run": str(run.pk), "name": run.name}, actor=actor
     )

@@ -165,7 +165,9 @@ class NewRun(serializers.Serializer):
         ),
         validators=[uploads.check_size],
     )
-    name = serializers.CharField(max_length=200)
+    name = serializers.CharField(
+        max_length=200, required=False, allow_blank=True, help_text="Left out, the job file's name and the ACC, e.g. claims · 2024 ACC"
+    )
     personal = serializers.BooleanField(default=False, help_text="The caller's own run, not the organization's")
     release = serializers.CharField(required=False, help_text="A ReCET release from /engines; the default release when left out")
     calculation = serializers.CharField(default=service.RECET, help_text="recet, or a CET replica such as cet-25.1 (D13)")
@@ -179,6 +181,12 @@ class NewRun(serializers.Serializer):
         allow_blank=True,
         help_text="A registered cost-test set's id, e.g. EE-2026 (its published version, else its draft); the set in force for the job's "
         "first program year when left out",
+    )
+    cost_tests_file = serializers.FileField(
+        required=False,
+        help_text="An analysis run's own cost-test set file (.yaml, ReCET's format; not with cost_test_set, filing checks or "
+        "acc_purpose); recorded with its SHA-256",
+        validators=[uploads.check_size],
     )
     filing_validation = serializers.ChoiceField(choices=list(service.FILING_CHECKS), required=False, allow_blank=True)
     filing_year = serializers.IntegerField(required=False, min_value=2000, max_value=2100)
@@ -271,7 +279,7 @@ def _request(data: dict, user) -> service.RunRequest:
         **_template_settings(data, user),
     }
     return service.RunRequest(
-        name=data["name"],
+        name=data.get("name") or "",
         release=_release(data.get("release")),
         calculation=data["calculation"],
         acc_version=data["acc_version"],
@@ -279,6 +287,7 @@ def _request(data: dict, user) -> service.RunRequest:
         settings=settings,
         allocation_version=allocation,
         cet_outputs=data.get("cet_outputs"),
+        cost_tests_file=data.get("cost_tests_file"),
         supplied={n: data[n] for n in ("run_parameters", "profiles_8760", "profiles_gas") if data.get(n)},
     )
 

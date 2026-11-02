@@ -228,6 +228,7 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
 .doc-toc li { margin: .3rem 0; }
 .doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+#input-templates li { overflow-wrap: anywhere; }   /* template file names (template_electric_8760_profiles.csv) wrap at 320 px */
 .engine-doc { overflow-wrap: break-word; }
 .engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
 .engine-doc figure.diagram { margin: .75rem 0 .25rem; padding: .75rem; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r-lg); }   /* the drawing's own colors are for a light page, in both schemes */

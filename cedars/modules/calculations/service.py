@@ -14,7 +14,8 @@ import re
 import shutil
 import tempfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -214,6 +215,40 @@ class RunRequest:
     # ReCET's optional input files uploaded on their own (New run, the API): {input name (jobfiles.OPTIONAL): a local path or an
     # UploadedFile}. They win over the same table in the job zip or workbook, as a file given separately wins over its sheet in ReCET.
     supplied: dict | None = None
+    # an analysis run's own cost-test set file (a local path or an UploadedFile; ReCET's --cost-tests FILE): never a filing's, which
+    # takes a published set. Sent as inputs.cost_tests with its SHA-256, which the receipt must repeat.
+    cost_tests_file: object = None
+
+
+def run_name(job_name: str, acc_version: str) -> str:
+    """The name a run left unnamed gets, as ReCET's web app names one: the job file's (or draft's) name, then its ACC."""
+    stem = (job_name or "").strip()
+    if Path(stem).suffix.lower() in (".zip", ".xlsx"):
+        stem = Path(stem).stem.strip()
+    return f"{stem or 'Job'} · {acc_version} ACC"[:200]
+
+
+def custom_cost_tests(req: RunRequest, st: dict, *, filing: bool) -> tuple[bytes, dict] | None:
+    """The request's own cost-test set file and its header, checked (None when it has none). Refused for a replica, a filing, a run
+    with CEDARS filing checks or priced for a filing (each takes a published set), and beside a named set."""
+    if req.cost_tests_file is None:
+        return None
+    if req.calculation != RECET:
+        raise AccessDenied("A CET replica prices on its release's own cost tests; a cost-test set file is for ReCET's own calculation.")
+    if filing or st.get("filing_validation") or st.get("acc_purpose"):
+        raise AccessDenied(
+            "A cost-test set file of your own is for analysis runs only: a filing, or a run with CEDARS filing checks or priced for a "
+            "filing, takes a published cost-test set."
+        )
+    if req.cost_test_set is not None or st.get("cost_test_set"):
+        raise AccessDenied("Choose a registered cost-test set or upload a file of your own, not both.")
+    with local_copy(req.cost_tests_file, ".yaml") as f:
+        data = Path(f).read_bytes()
+    try:
+        head = cost_tests.read(data)
+    except cost_tests.SetError as e:
+        raise AccessDenied(f"The cost-test set file: {e}") from None
+    return data, head
 
 
 def _check(req: RunRequest) -> dict:
@@ -378,17 +413,21 @@ def pack_files(packs, acc: str) -> dict:
 
 
 @transaction.atomic
-def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None) -> Run:
+def create_run(
+    actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None, job_name: str = ""
+) -> Run:
     """Check the request and the upload, put the inputs in storage, write the job spec and queue the run. `job_zip` is a local file
-    (an upload's temporary file): a job zip or a job workbook; it is copied, never moved."""
+    (an upload's temporary file): a job zip or a job workbook; it is copied, never moved. A run with no name is named after
+    `job_name` (the uploaded file's or the draft's name) and its ACC."""
     from . import dispatch
 
     # a filing's run: the submissions service has checked <module>.submit
     if submission_version is None and not can_submit(actor, organisation):
         raise AccessDenied(f"You need calculations.submit in {organisation.code} to start a run for it.")
     if not req.name.strip():
-        raise AccessDenied("Give the run a name.")
+        req = replace(req, name=run_name(job_name, req.acc_version))
     st = _check(req)
+    custom = custom_cost_tests(req, st, filing=submission_version is not None)
     if submission_version is not None and req.calculation != RECET:
         raise AccessDenied("A filing is priced only with ReCET's own calculation (D13: replicas are never a filing's engine).")
     if req.cet_outputs is not None and req.calculation != RECET:
@@ -513,7 +552,11 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
         "programs": programs.programs,
     }
     packs = packs_for(req, filing=submission_version is not None)
-    cset = cost_test_pack(req, st, info.first_year, filing=submission_version is not None)
+    cset = None if custom else cost_test_pack(req, st, info.first_year, filing=submission_version is not None)
+    if custom:  # an analysis run's own file, pinned like any input (N12)
+        data = custom[0]
+        key = run.storage_prefix + "cost_tests.yaml"
+        inputs["cost_tests"] = {"key": key, "sha256": hashlib.sha256(data).hexdigest(), "bytes": uploads.put_bytes(key, data).size}
     if cset is not None:
         packs.append(cset)
         if cset.status == PackVersion.Status.PUBLISHED:  # by its id: the engine prices its built-in set and records the file's SHA-256
@@ -533,6 +576,14 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
     if cset is not None:
         run.spec["context"]["cost_tests"] = cost_tests_record(cset)
+    if custom:
+        run.spec["context"]["cost_tests"] = {
+            "id": custom[1]["id"],
+            "version": custom[1]["version"],
+            "status": "custom",
+            "sha256": inputs["cost_tests"]["sha256"],
+            "file": Path(getattr(req.cost_tests_file, "name", None) or str(req.cost_tests_file)).name[:200],
+        }
     if notes:  # echoed into the receipt with the rest of the context, and shown on the run page
         run.spec["context"]["notes"] = notes
     run.save()
@@ -633,7 +684,7 @@ def local_copy(upload, suffix: str = ""):
 def create_run_from_upload(actor, organisation, req: RunRequest, upload, **kw) -> Run:
     """create_run for a Django UploadedFile."""
     with local_copy(upload, Path(getattr(upload, "name", "") or "").suffix or ".zip") as job:
-        return create_run(actor, organisation, req, job, **kw)
+        return create_run(actor, organisation, req, job, **{"job_name": getattr(upload, "name", "") or "", **kw})
 
 
 # --- the run's life (the worker side: dispatch.py and the worker command)
@@ -734,6 +785,38 @@ def _notify_owner(run: Run) -> None:
         reverse("calculations:run", args=[run.pk]),
         key=f"run:{run.pk}:{run.status}",
     )
+
+
+def deletion_dates(runs) -> dict:
+    """When retention (decision M) deletes each run, as the run page and the runs list say it: {run pk: text}. A run that has not ended
+    gets nothing yet (its period runs from its end); a run a filing was priced with is kept with the filing; a run under a legal hold
+    is kept while the hold stands; a class with no period is kept for good; otherwise the day its period ends (the daily purge
+    deletes it on or after that day)."""
+    from cedars.services.retention.models import LegalHold, RetentionPolicy
+    from cedars.services.submissions.models import SubmissionVersion
+
+    runs = list(runs)
+    if not runs:
+        return {}
+    policies = {p.record_class: p for p in RetentionPolicy.objects.filter(record_class__in={r.record_class for r in runs})}
+    holds = LegalHold.objects.filter(record_class__in=policies, released_at__isnull=True).values_list("record_class", "object_ref")
+    whole = {c for c, ref in holds if not ref}
+    one = {(c, ref) for c, ref in holds if ref}
+    ids = {str(r.pk) for r in runs}
+    cited = {str(r) for r in SubmissionVersion.objects.exclude(calculation={}).values_list("calculation__run", flat=True) if str(r) in ids}
+    out = {}
+    for r in runs:
+        policy = policies.get(r.record_class)
+        if r.submission_version_id or str(r.pk) in cited:
+            out[r.pk] = "Kept with the filing it priced"
+        elif r.record_class in whole or (r.record_class, f"calculation_run:{r.pk}") in one:
+            out[r.pk] = "Kept while a legal hold stands"
+        elif policy is None or policy.keep_days is None:
+            out[r.pk] = "Kept permanently"
+        elif r.ended and r.finished_at:
+            day = timezone.localdate(r.finished_at + timedelta(days=policy.keep_days))
+            out[r.pk] = f"Deleted on or after {day:%Y-%m-%d} ({policy.period} after it ended)"
+    return out
 
 
 def expired_runs(cutoff):

@@ -11,6 +11,9 @@ calculations/runs:
   how:
     - New run starts one: upload the job zip or workbook, choose the ACC and who the run is for.
     - Output templates choose the columns a run writes. Open a run for its status, files and results.
+    - Under each run's name are its settings (what differs from New run's defaults, the cost-test set and the output format) and,
+      once it has ended, the day retention deletes it. An input check (Check the inputs only) is tagged so. Run time is how long the
+      engine took.
   see: calculations
   tour:
     - target: main .head-row .actions
@@ -18,7 +21,7 @@ calculations/runs:
       text: Start a run, or choose the columns runs write with an output template.
     - target: main table.list, main .empty
       title: The runs
-      text: Each run's name, who it is for, the engine and ACC, and its status. Select a name to open its page.
+      text: Each run's name with its settings and deletion date, who it is for, the engine and ACC, its status and run time. Select a name to open its page.
 
 calculations/new:
   title: Starting a run
@@ -38,6 +41,9 @@ calculations/new:
     - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
     - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on.
+    - What each cost-test set prices, under Pricing, lists the registered sets, their program years and the tests each writes. An
+      analysis run may instead take a cost-test set file of your own (never a filing, or a run with filing checks or Priced for).
+    - Left blank, the run's name is the job file's (or draft's) name and its ACC. A large upload shows how much has been sent.
   see: calculations
   tour:
     - target: "#input-templates"
@@ -49,7 +55,7 @@ calculations/new:
       text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
     - heading: Pricing
       title: Pricing
-      text: The engine release and the ACC. The page says when no worker is running a release.
+      text: The engine release, the ACC and the cost-test set (or a file of your own for an analysis run). The page says when no worker is running a release.
     - heading: Optional input files
       title: Optional input files
       text: ReCET's run parameters, 8,760 electric profiles and gas monthly profiles, each a file of its own. Their columns are in ReCET's Input fields, section 4.
@@ -80,7 +86,7 @@ calculations/run:
   tour:
     - target: "#status-h"
       title: Status
-      text: Queued, running (with its progress), finished or failed, and what to do about a failure.
+      text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
     - target: "#check-h"
       title: Input check
       text: What the engine's check before pricing found, what stopped the run and what it could not price.
@@ -94,7 +100,7 @@ calculations/run:
       optional: true
     - target: "#totals-h"
       title: Portfolio totals
-      text: The headline totals and every other total in the receipt.
+      text: The headline totals, what each number is, and every other total in the receipt.
       optional: true
     - target: "#files-h"
       title: Files
