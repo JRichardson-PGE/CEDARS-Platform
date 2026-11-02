@@ -88,11 +88,23 @@ class NewRunForm(forms.Form):
         help_text="The measure-level file's columns, in order; the Results tables still use every column",
     )
 
-    def __init__(self, *args, releases=(), organisations=(), user=None, draft=None, **kwargs):
+    def __init__(self, *args, releases=(), organisations=(), user=None, draft=None, rerun=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.draft = draft
+        self.rerun = rerun
+        self.kept = []  # a rerun's stored optional inputs offered again: [(name, label, keep field name)]
         if draft is not None:
             del self.fields["job"]  # the draft's tables are the job
+        if rerun is not None:  # "Rerun with different settings": the run's own inputs unless others are uploaded
+            self.fields["job"].required = False
+            self.fields["job"].label = "Another job file (optional)"
+            self.fields["job"].help_text = "Leave it empty to run the same job file again"
+            for name, label in service.reusable_inputs(rerun):
+                field = f"keep_{name}"
+                self.fields[field] = forms.BooleanField(
+                    label=f"Use the run's {label[:1].lower()}{label[1:]} again", required=False, initial=True
+                )
+                self.kept.append((name, label, field))
         if user is not None:
             self.fields["output_template"].queryset = output_templates.visible(user)
             self.fields["output_template"].initial = output_templates.default_for(user)
@@ -141,6 +153,34 @@ class NewRunForm(forms.Form):
             cost_test_set=d.get("cost_test_set"),
             supplied={n: d.get(n) for n in SUPPLIED_FIELDS if d.get(n)},
         )
+
+    def reused(self) -> list[str]:
+        """The rerun's stored inputs to use again: its job file unless another is uploaded, and each optional input kept (ticked) and
+        not replaced by an upload."""
+        if self.rerun is None:
+            return []
+        d = self.cleaned_data
+        out = [] if d.get("job") else ["job_zip", "workbook"]
+        return out + [n for n, _, field in self.kept if d.get(field) and not d.get(n)]
+
+
+def rerun_initial(run) -> dict:
+    """New run's fields as `run` had them, for "Rerun with different settings" (the run's name marked as a rerun)."""
+    st = run.settings or {}
+    initial = {
+        "name": f"{run.name} (rerun)"[:200],
+        "run_for": run.organisation.code if run.organisation else "",
+        "engine": f"{run.engine_release}|{run.calculation}",
+        "acc_version": run.acc_version,
+        "output_format": run.output_format,
+        "include_societal": st.get("include_societal", True),
+        "emissions": st.get("emissions", True),
+        "allocation_version": run.allocation_version_id,
+    }
+    for k in ("acc_purpose", "allocate_statewide", "filing_validation", "filing_year"):
+        if st.get(k) is not None:
+            initial[k] = st[k]
+    return initial
 
 
 class OutputTemplateForm(forms.Form):

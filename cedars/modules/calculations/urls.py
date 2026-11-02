@@ -19,6 +19,7 @@ urlpatterns = [
     path("drafts/<uuid:pk>/<str:table>/<int:number>/", draft_views.draft_row, name="draft_row"),
     path("runs/<uuid:pk>/edit-inputs", draft_views.draft_from_run, name="draft_from_run"),
     path("runs/<uuid:pk>/stop", views.stop, name="stop"),
+    path("runs/<uuid:pk>/delete", views.delete, name="delete"),
     path("runs/<uuid:pk>/files/<path:name>", views.run_file, name="run_file"),
     path("runs/<uuid:pk>/results/", views.results, name="results"),
     path("runs/<uuid:pk>/results.csv", views.results_csv, name="results_csv"),

@@ -206,6 +206,7 @@ PAGES = [
     ("output-templates", "/calculations/templates/", "analyst"),
     ("output-template-new", "/calculations/templates/new/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),
+    ("new-run-rerun", "/calculations/new/?from={finished_run}", "analyst"),
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("edit-inputs", "/calculations/drafts/", "analyst"),
     ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
