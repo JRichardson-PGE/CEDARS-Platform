@@ -40,10 +40,11 @@ def test_the_shipped_templates_are_offered_to_everyone(analyst, catalog):  # noq
 
 def test_columns_are_checked_against_the_catalog_under_their_canonical_names(catalog):
     ok, bad = output_templates.check(
-        ["E3ClimateZone", "POC_ACC", "trcratio", "ElecValue_Energy", "TRCRatio", "NotAColumn", "AdminCostsOverhead"]
+        ["E3ClimateZone", "NetElecCO2", "trcratio", "ElecValue_Energy", "TRCRatio", "NotAColumn", "AdminCostsOverhead", "POC_ACC"]
     )
-    assert ok == ["AC_Climate_Zone", "Used_ACCVersion", "TRCRatio", "ElecValue_Energy"]  # CET / old names, case, repeats
-    assert bad == ["NotAColumn", "AdminCostsOverhead"]  # a ProgramCost input is not a measure-level column
+    assert ok == ["AC_Climate_Zone", "FirstYearNetElecCO2", "TRCRatio", "ElecValue_Energy"]  # CET input / output names, case, repeats
+    # a ProgramCost input is not a measure-level column; an earlier ReCET name is not in the crosswalk (legacy CEDARS names only)
+    assert bad == ["NotAColumn", "AdminCostsOverhead", "POC_ACC"]
     groups = [g for g, _ in output_templates.catalog().groups]
     assert groups[0] == output_templates.INPUT_GROUP and "Benefit-cost ratios" in groups and "Program metadata" in groups
 
