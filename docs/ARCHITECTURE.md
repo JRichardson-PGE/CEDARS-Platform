@@ -196,7 +196,10 @@ how far it is built. Update the Status column in the PR that changes it.
   `CEDARS_STORAGE_ROOT` locally. Downloads from S3 are pre-signed URLs; nothing large passes through a page.
 - A run's Results and Compare pages (`calculations/results.py`) call the pinned engine's `recet.results_view` unchanged (Jake, 2026-10-30:
   the web app installs ReCET) over the group sums the worker keeps in `out/_results/`, copied once into `CALCULATIONS_RESULTS_CACHE`; the
-  measure level reads the kept measure-level parquet for runs of up to 50,000 measures. Without the engine the pages say so.
+  measure level reads the kept measure-level parquet for runs of up to 50,000 measures. Without the engine the pages say so. Both pages
+  share one column picker (`_column_picker.html`, `views._picker`: Find over names and definitions, Clear, Default) and a person's saved
+  views (`ResultView`, `calculations/result_views.py`: named lists of Results column keys, their owner's own, offered for every run,
+  audited as `result_view.added` / `.changed` / `.deleted`); Compare also filters rows and lists the column definitions.
 - Documents (BR-15): a document's files live in the uploads area under `documents/<id>/v<n>/<position>/<name>`, at the permanent
   address `/documents/files/<file id>/<name>`; PDFs, text and images open in the browser with `?view=1` (served with their stored type
   and `nosniff`), everything else downloads, and executables and web pages are refused at upload. Who may do what is in

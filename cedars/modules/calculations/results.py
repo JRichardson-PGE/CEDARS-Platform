@@ -209,12 +209,17 @@ def sector_bars(res, pa: str, years=None, limit: int = 12) -> dict | None:
     return {"title": "Total system benefit by program sector", "bars": bars}
 
 
+def definition(key: str, column) -> str:
+    """A Results column's definition: the engine's, else what the column is."""
+    return column.help or f"Output column {key}, summed over the measures in each row."
+
+
 def picker_groups(cat) -> list[tuple[str, list]]:
     """The column picker's groups in the engine's order: [(group, [(key, label, help)])]."""
     rv = engine()
     out: dict[str, list] = {g: [] for g in rv.GROUP_ORDER}
     for k, c in cat.items():
-        out[rv.column_group(c)].append((k, rv.display_label(c), c.help or f"Output column {k}, summed over the measures in each row."))
+        out[rv.column_group(c)].append((k, rv.display_label(c), definition(k, c)))
     return [(g, items) for g, items in out.items() if items]
 
 

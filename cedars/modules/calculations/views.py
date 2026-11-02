@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
@@ -17,7 +18,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, input_templates, service
+from . import dispatch, drafts, forms, input_templates, result_views, service
 from . import results as results_mod
 from .models import EngineRelease, InputDraft, Run
 
@@ -367,6 +368,9 @@ def _table_params(request, rv, cat, levels):
     level = request.GET.get("level", "portfolio")
     level = level if level in {k for k, _ in levels} else "portfolio"
     picked = request.GET.getlist("col") or [k for k in request.GET.get("columns", "").split(",") if k]
+    if not picked and request.GET.get("view"):
+        view = result_views.get(request.user, request.GET["view"])
+        picked = list(view.columns) if view else []
     keys = [k for k in picked if k in cat] or [k for k in rv.DEFAULT_VIEW if k in cat]
     return level, keys, rv.parse_years(request.GET.getlist("years")), request.GET.get("sort", ""), request.GET.get("desc") == "1"
 
@@ -380,6 +384,37 @@ def _query(**kw) -> str:
     from urllib.parse import urlencode
 
     return urlencode([(k, x) for k, v in kw.items() for x in (v if isinstance(v, list) else [v]) if x not in (None, "")])
+
+
+def _picker(request, cat, keys, state: dict) -> dict:
+    """The column picker's context, shared by Results and Compare: the groups (narrowed by Find over names and definitions), which
+    boxes are ticked (none after Clear), the ticked columns Find hides (kept as hidden fields so Show keeps them), the person's saved
+    views, and the query that rebuilds the page without the picker's own parameters."""
+    find = request.GET.get("find", "").strip()[:80]
+    clear = request.GET.get("clear") == "1"
+    groups = results_mod.picker_groups(cat)
+    if find:
+        f = find.lower()
+        groups = [(g, [i for i in items if f in i[0].lower() or f in i[1].lower() or f in (i[2] or "").lower()]) for g, items in groups]
+        groups = [(g, items) for g, items in groups if items]
+    shown = {k for _, items in groups for k, _, _ in items}
+    ticked = [] if clear else list(keys)
+    views = list(result_views.visible(request.user))
+    chosen = request.GET.get("view", "")
+    return {
+        "groups": groups,
+        "ticked": ticked,
+        "hidden_keys": [k for k in ticked if k not in shown],
+        "find": find,
+        "clear": clear,
+        "open": bool(request.GET.get("col") or find or clear or request.GET.get("picker")),
+        "views": views,
+        "view": next((v for v in views if str(v.pk) == chosen), None),
+        "state": [(k, x) for k, v in state.items() for x in (v if isinstance(v, list) else [v]) if x not in (None, "")],
+        "base": "?" + _query(**state),
+        "columns": ",".join(keys),
+        "count": len(keys),
+    }
 
 
 def _cell(rv, cat, column, v):
@@ -461,7 +496,7 @@ def results(request, pk):
             "all_years": all_years,
             "years": years,
             "keys": keys,
-            "groups": results_mod.picker_groups(cat),
+            "picker": _picker(request, cat, keys, {"level": level, "pa": pa, "years": years}),
             "default_keys": [k for k in rv.DEFAULT_VIEW if k in cat],
             "tiles": results_mod.tiles(res, pa, years),
             "chart": results_mod.sector_bars(res, pa, years),
@@ -537,6 +572,9 @@ def compare(request, pk):
     known = sorted(set(ra.years()) | set(rb.years()))
     years = _years(rv, years, known)
     table = rv.compare(ra, rb, level, keys, years=years)
+    shown_rows = len(table)
+    text = request.GET.get("q", "")
+    table = results_mod.filter_rows(table, text)
     labels = {k: rv.display_label(c) for k, c in cat.items()}
     ids = [c for c in table.columns if "__" not in c]
     values = ["Measures"] + [k for k in keys if k in cat]
@@ -552,6 +590,10 @@ def compare(request, pk):
     state = {"with": str(b.pk), "level": level, "years": years, "columns": ",".join(keys)}
     ctx.update(
         {
+            "picker": _picker(request, cat, keys, {"with": str(b.pk), "level": level, "years": years}),
+            "text": text,
+            "filtered_from": shown_rows if text else None,
+            "definitions": [(labels[k], results_mod.definition(k, cat[k])) for k in keys if k in cat],
             "level": level,
             "levels": [{"key": k, "label": label, "href": "?" + _query(**{**state, "level": k})} for k, label in rv.COMPARE_LEVELS],
             "all_years": known,
@@ -560,7 +602,7 @@ def compare(request, pk):
             "ids": ids,
             "values": [(k, labels.get(k, k), cat[k].help if k in cat else "") for k in values],
             "rows": rows,
-            "csv": "?" + _query(**state),
+            "csv": "?" + _query(**state, q=text),
             "calc_a": service.calculation_label(a.calculation),
             "calc_b": service.calculation_label(b.calculation),
             "match": "PrgID" if level == "program" else "name",
@@ -582,7 +624,7 @@ def compare_csv(request, pk):
     cat = {**rb.catalog(), **ra.catalog()}
     level, keys, years, _sort, _desc = _table_params(request, rv, cat, rv.COMPARE_LEVELS)
     years = _years(rv, years, sorted(set(ra.years()) | set(rb.years())))
-    table = rv.compare(ra, rb, level, keys, years=years)
+    table = results_mod.filter_rows(rv.compare(ra, rb, level, keys, years=years), request.GET.get("q", ""))
     side = {"a": f"A: {a.name}", "b": f"B: {b.name}", "diff": "difference", "pct": "% change"}
 
     def name(c: str) -> str:
@@ -590,3 +632,38 @@ def compare_csv(request, pk):
         return f"{cat[k].label if k in cat else k} ({side[part]})" if k and part in side else c
 
     return _csv_response(table.rename(columns=name), f"cedars_compare_{a.pk}_{b.pk}_{level}.csv")
+
+
+def _back(request, fallback):
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    nxt = request.POST.get("next", "")
+    ok = url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    return nxt if ok and nxt.startswith("/") else fallback
+
+
+@login_required
+@require_POST
+def result_view_save(request):
+    """Save the columns shown on Results or Compare as one of the person's views, then go back to the page."""
+    back = _back(request, reverse("calculations:runs"))
+    columns = [c for c in request.POST.get("columns", "").split(",") if c]
+    try:
+        view = result_views.save(request.user, request.POST.get("name", ""), columns)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect(back)
+    messages.success(request, f'Saved the view "{view.name}" ({len(view.columns)} column{"s" if len(view.columns) != 1 else ""}).')
+    return redirect(back)
+
+
+@login_required
+@require_POST
+def result_view_delete(request, pk):
+    view = result_views.get(request.user, pk)
+    if view is None:
+        raise Http404
+    name = view.name
+    result_views.delete(request.user, view)
+    messages.success(request, f'Deleted the view "{name}".')
+    return redirect(_back(request, reverse("calculations:runs")))

@@ -351,6 +351,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pii_filer": pii_filer,
         "queued_run": queued,
         "finished_run": finished,
+        "result_view": _result_view(analyst),
         "draft": draft,
         "rules": rules,
         "rules_draft": rules_draft,
@@ -1057,6 +1058,13 @@ def _session_cookie(user, method, site):
     s["account_authentication_methods_user"] = str(user.pk)
     s.create()
     return {"name": settings.SESSION_COOKIE_NAME, "value": s.session_key, "url": site.url}
+
+
+def _result_view(analyst):
+    """The analyst's saved Results view, so Results and Compare show the views list and its delete."""
+    from cedars.modules.calculations import result_views
+
+    return result_views.save(analyst, "Benefits and ratios", ["TotalSystemBenefit", "TRC_ratio"])
 
 
 def _open(browser, site, scene, path, who, **context_args):

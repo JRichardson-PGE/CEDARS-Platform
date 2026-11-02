@@ -49,25 +49,7 @@
 </section>
 {% endif %}
 
-<details class="card"{% if request.GET.col %} open{% endif %}>
-  <summary>Choose columns ({{ keys|length }} shown)</summary>
-  <form method="get">
-    <input type="hidden" name="level" value="{{ level }}"><input type="hidden" name="pa" value="{{ pa }}">
-    {% for y in years %}<input type="hidden" name="years" value="{{ y }}">{% endfor %}
-    {% for group, items in groups %}
-    <fieldset>
-      <legend>{{ group }}</legend>
-      <div class="checks">
-      {% for key, label, help in items %}<label><input type="checkbox" name="col" value="{{ key }}" aria-describedby="col-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"{% if key in keys %} checked{% endif %}> {{ label }}<span class="sr-only" id="col-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">{{ help }}</span></label>{% endfor %}
-      </div>
-    </fieldset>
-    {% endfor %}
-    <div class="actions">
-      <button type="submit" class="primary">Show these columns</button>
-      <a href="?level={{ level }}&amp;pa={{ pa|urlencode }}{% for y in years %}&amp;years={{ y }}{% endfor %}">Default columns</a>
-    </div>
-  </form>
-</details>
+{% include "calculations/_column_picker.html" %}
 
 <nav class="subnav" aria-label="Level">
   {% for l in levels %}
