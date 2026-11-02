@@ -142,8 +142,8 @@ def test_a_run_names_its_output_template_or_columns(key, release, tmp_path, anal
     assert r.json()["settings"]["output_template"] == ["CEInputID", "TRCRatio"] and r.json()["settings"]["output_template_name"] == "Mine"
     output_templates.set_default(analyst, mine)
     assert start(key, tmp_path, output_template="default").json()["settings"]["output_template_name"] == "Mine"
-    r = start(key, tmp_path, output_columns="CEInputID, E3ClimateZone\nPOC_ACC")
-    assert r.json()["settings"]["output_template"] == ["CEInputID", "AC_Climate_Zone", "Used_ACCVersion"]  # canonical names
+    r = start(key, tmp_path, output_columns="CEInputID, E3ClimateZone\nNetElecCO2")
+    assert r.json()["settings"]["output_template"] == ["CEInputID", "AC_Climate_Zone", "FirstYearNetElecCO2"]  # canonical names
 
     for fields, message in (
         ({"output_template": theirs.pk}, f"No output template {theirs.pk}."),

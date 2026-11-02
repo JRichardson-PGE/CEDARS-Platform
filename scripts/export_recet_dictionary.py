@@ -4,8 +4,8 @@
 
 Writes recet-<version>.json: every Measure and ProgramCost input field and every measure-level output column, with its definition, unit,
 source, cost-test treatment, time basis, aggregation, rounding and years in use (ReCET's field_docs and field_attributes), its type and
-length from CEDARS' own claims specification where CEDARS has the field, the names it is also known by (CET's E3 names, earlier ReCET
-output names), and the templates that use it (the Calculations module's Measure and ProgramCost files, in CET's column order).
+length from CEDARS' own claims specification where CEDARS has the field, the names legacy CEDARS knows it by (CET's E3 input names and
+CET's output names), and the templates that use it (the Calculations module's Measure and ProgramCost files, in CET's column order).
 Load it with `manage.py load_dictionary`."""
 
 import json
@@ -49,8 +49,10 @@ def main(out_dir: Path) -> Path:
     aliases: dict[str, list[dict]] = {}
     for old, new in fieldnames.LEGACY_TO_RECET.items():
         aliases.setdefault(new, []).append({"name": old, "system": "CET"})
-    for old, new in fieldnames.OUTPUT_RENAMES.items():
-        aliases.setdefault(new, []).append({"name": old, "system": "ReCET before 0.1.50"})
+    # Only legacy CEDARS names (Jake, 2026-11-02): ReCET is new until its production release, so its own renames between versions
+    # (fieldnames.OUTPUT_RENAMES' poc_ / AC_kWh_ / _sct names) are not part of the crosswalk.
+    for new, old in fieldnames.OUTPUT_TO_CET.items():
+        aliases.setdefault(new, []).append({"name": old, "system": "CET"})
 
     fields, seen = [], set()
 
