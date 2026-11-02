@@ -75,7 +75,8 @@ def test_module_filter(cpuc_admin, pge_admin, quarter):
     submissions.add_deadline(cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=timezone.now())
     assert not Notification.objects.exists()
     submissions.add_deadline(cpuc_admin, module="budgets", kind="TUAL", period=quarter, due_at=timezone.now())
-    assert Notification.objects.get().link == "/filings/calendar/"
+    n = Notification.objects.get()
+    assert n.link == f"/filings/calendar/{n.event.object_id}/"  # the deadline's own page, with its history
 
 
 def test_a_rolled_back_change_notifies_nobody(cpuc_admin, pge_admin):

@@ -268,23 +268,116 @@ def standing_numbers(submission_ids) -> dict[int, tuple[int | None, int]]:
 # --- calendar
 
 
+CALENDAR_ONLY = "Only a CPUC system administrator sets the filing calendar."
+
+
+def _calendar_admin(actor) -> None:
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied(CALENDAR_ONLY)
+
+
+def _when(value) -> str | None:
+    return value.isoformat() if value else None
+
+
+def deadline_fields(deadline: Deadline) -> dict:
+    """What a CPUC system administrator changes on a deadline, as its audit events record it."""
+    return {"due_at": _when(deadline.due_at), "opens_at": _when(deadline.opens_at), "notes": deadline.notes}
+
+
 @transaction.atomic
 def add_deadline(actor, *, module: str, kind: str, due_at, period=None, cycle=None, opens_at=None, notes: str = "") -> Deadline:
-    if actor is not None and not access.is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator sets the filing calendar.")
+    _calendar_admin(actor)
+    same = Deadline.objects.filter(module=module, kind=kind, period=period, cycle=cycle).first()
+    if same is not None:
+        if same.retired_at:
+            raise AccessDenied(f"{same} was retired; restore it from its page instead of adding it again.")
+        raise AccessDenied(f"The calendar already has {same}; change its dates on its page.")
     d = Deadline.objects.create(module=module, kind=kind, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes)
-    audit.record("deadline.created", obj=d, after={"module": module, "kind": kind, "due_at": due_at.isoformat()}, actor=actor)
+    audit.record(
+        "deadline.created",
+        obj=d,
+        after={"module": module, "kind": kind, "due_at": due_at.isoformat(), "opens_at": _when(opens_at), "notes": notes},
+        actor=actor,
+    )
     return d
 
 
 @transaction.atomic
 def move_deadline(actor, deadline: Deadline, due_at, reason: str) -> Deadline:
-    if actor is not None and not access.is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator sets the filing calendar.")
-    before = {"due_at": deadline.due_at.isoformat()}
-    deadline.due_at = due_at
+    """Move a deadline's due date (change_deadline with its other values kept)."""
+    return change_deadline(actor, deadline, due_at=due_at, opens_at=deadline.opens_at, notes=deadline.notes, reason=reason)
+
+
+@transaction.atomic
+def change_deadline(actor, deadline: Deadline, *, due_at, opens_at=None, notes: str = "", reason: str) -> Deadline:
+    """Change a deadline's due date, opening date or notes, with a reason. A new due date is the audit event deadline.moved (so its
+    subscribers hear of it and reminders are sent again for the new date); any other change is deadline.changed. What is due and its
+    period never change: retire the deadline and add the right one."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for the change.")
+    deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
+    if deadline.retired_at:
+        raise AccessDenied("This deadline is retired; restore it before changing it.")
+    if opens_at and opens_at >= due_at:
+        raise AccessDenied("A filing opens before it is due: choose an opening date before the due date.")
+    before = deadline_fields(deadline)
+    moved = deadline.due_at != due_at
+    deadline.due_at, deadline.opens_at, deadline.notes = due_at, opens_at, notes or ""
+    after = deadline_fields(deadline)
+    if before == after:
+        return deadline
     deadline.save()
-    audit.record("deadline.moved", obj=deadline, before=before, after={"due_at": due_at.isoformat()}, reason=reason, actor=actor)
+    changed = [k for k in after if before[k] != after[k]]
+    audit.record(
+        "deadline.moved" if moved else "deadline.changed",
+        obj=deadline,
+        before={k: before[k] for k in changed},
+        after={k: after[k] for k in changed},
+        reason=reason.strip(),
+        actor=actor,
+    )
+    return deadline
+
+
+@transaction.atomic
+def retire_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
+    """Take a deadline off the calendar, with a reason: one added by hand by mistake, or for a period the CPUC no longer asks for. Only
+    a deadline no module set up (one with no module page, deadline_page: a claim year's, a monthly reports year's and a budget filing's
+    are part of that set-up and are moved, not retired), and only while no organization has started a filing for it. The deadline
+    stays, with its history, and no filing can start for it until it is restored."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for retiring the deadline.")
+    deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
+    if deadline.retired_at:
+        return deadline
+    if deadline_page(deadline):
+        raise AccessDenied("This deadline is part of its module's set-up, so it cannot be retired; change its due date instead.")
+    started = deadline.submissions.count()
+    if started:
+        orgs = "organization has" if started == 1 else "organizations have"
+        raise AccessDenied(f"{started} {orgs} started filing for this deadline, so it cannot be retired; change its due date instead.")
+    deadline.retired_at, deadline.retired_reason = timezone.now(), reason.strip()
+    deadline.save(update_fields=["retired_at", "retired_reason"])
+    audit.record("deadline.retired", obj=deadline, after={"retired_at": _when(deadline.retired_at)}, reason=reason.strip(), actor=actor)
+    return deadline
+
+
+@transaction.atomic
+def restore_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
+    """Put a retired deadline back on the calendar, with a reason."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for restoring the deadline.")
+    deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
+    if not deadline.retired_at:
+        return deadline
+    before = {"retired_at": _when(deadline.retired_at)}
+    deadline.retired_at, deadline.retired_reason = None, ""
+    deadline.save(update_fields=["retired_at", "retired_reason"])
+    audit.record("deadline.restored", obj=deadline, before=before, reason=reason.strip(), actor=actor)
     return deadline
 
 
@@ -294,6 +387,8 @@ def move_deadline(actor, deadline: Deadline, due_at, reason: str) -> Deadline:
 @transaction.atomic
 def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVersion:
     """Open a submission for the organization (version 1, draft). Starting again returns the open draft."""
+    if deadline.retired_at:
+        raise AccessDenied("This deadline was taken off the filing calendar, so no filing starts for it.")
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
     _refuse_imported(submission)
