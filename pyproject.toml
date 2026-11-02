@@ -20,6 +20,7 @@ dependencies = [
     "pypdf>=5.1",                # the text of PDF documents, for search (BR-15.2)
     "duckdb>=1.1",               # dashboard queries over the publication snapshots (decision I)
     "pyyaml>=6.0",               # cost-test definition sets (ReCET's YAML), read for their header
+    "markdown>=3.7",             # the pinned engine's documents shown under Help (data/recet_docs/)
 ]
 
 [dependency-groups]
@@ -54,6 +55,7 @@ addopts = "-m 'not a11y'"
 [tool.ruff]
 line-length = 140
 target-version = "py312"
+extend-exclude = ["data/recet_docs"]  # the engine's documents, copied unchanged (scripts/export_recet_docs.py)
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "DJ"]

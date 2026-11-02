@@ -2,8 +2,9 @@
 
 `recet-commit` names the ReCET commit the platform is built and tested against (`JRichardson-PGE/ReCET`, public under MIT). The platform
 imports the engine unchanged and never copies its code. To move the pin: change the commit, install it, re-export the field catalog
-(`uv run python scripts/export_recet_dictionary.py data/dictionary/`) and run the tests; `tests/test_dictionary.py` checks the shipped
-catalog is the pinned engine's.
+(`uv run python scripts/export_recet_dictionary.py data/dictionary/`) and the engine's documents shown under Help
+(`uv run python scripts/export_recet_docs.py data/recet_docs/`), and run the tests; `tests/test_dictionary.py` and `tests/test_engine_docs.py`
+check the shipped catalog and documents are the pinned engine's.
 
 Install it locally:
 

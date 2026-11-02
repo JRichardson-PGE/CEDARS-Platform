@@ -16,6 +16,8 @@ urlpatterns = [
     path("help/faq/", views.help_faq, name="help_faq"),
     path("help/pages/", views.help_pages, name="help_pages"),
     path("help/pages/<path:key>/", views.help_page, name="help_page"),
+    path("help/recet/", views.recet_docs, name="recet_docs"),
+    path("help/recet/<slug:slug>/", views.recet_doc, name="recet_doc"),
     path("help/<slug:slug>/", views.help_guide, name="help_guide"),
     path("healthz", views.healthz, name="healthz"),
 ]

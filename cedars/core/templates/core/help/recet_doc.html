@@ -1,0 +1,27 @@
+{% extends "core/base.html" %}
+{% block title %}{{ doc.title }} (ReCET){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li><li><a href="{% url 'core:recet_docs' %}">ReCET documents</a></li></ol></nav>
+<div class="page-title"><h1>{{ doc.title }}</h1>{% page_help "core/help/recet_doc" %}</div>
+<p>{{ doc.summary }}</p>
+<p class="small muted">ReCET's own document, from ReCET {{ engine.version }} (commit <span class="mono">{{ engine.short }}</span>), the
+engine version CEDARS runs. Where it describes ReCET's own web site or desktop window, the CEDARS Calculations pages do the same things but
+may look different. <a href="{{ source }}">This document on GitHub</a>.</p>
+{% if page.toc %}
+<details class="doc-toc">
+  <summary>On this page</summary>
+  <nav aria-label="On this page">
+    <ul>{% for h in page.toc %}<li><a href="#{{ h.id }}">{{ h.name }}</a>{% if h.children %}
+      <ul>{% for c in h.children %}<li><a href="#{{ c.id }}">{{ c.name }}</a></li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>
+  </nav>
+</details>
+{% endif %}
+<div class="engine-doc">
+{{ page.html|safe }}
+</div>
+<h2>Other ReCET documents</h2>
+<ul class="links">
+  {% for d in docs %}{% if d.slug != doc.slug %}<li><a href="{% url 'core:recet_doc' d.slug %}">{{ d.title }}</a></li>{% endif %}{% endfor %}
+  <li><a href="{% url 'core:recet_docs' %}">All ReCET documents</a></li>
+</ul>
+{% endblock %}

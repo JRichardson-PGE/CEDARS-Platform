@@ -33,6 +33,20 @@ PAGES = [
             "accessibility",
         )
     ],
+    # ReCET's own documents, from the pinned engine (core/engine_docs.py)
+    ("recet-docs", "/help/recet/", None),
+    *[
+        (f"recet-doc-{slug}", f"/help/recet/{slug}/", None)
+        for slug in (
+            "input-formats",
+            "input-fields",
+            "output-fields",
+            "calculations",
+            "cost-tests",
+            "desktop-and-command-line",
+            "engine-architecture",
+        )
+    ],
     ("about", "/about/", None),
     # release notes, limits and the FAQ (gap 9); the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
     ("releases", "/releases/", None),

@@ -533,3 +533,18 @@ dialog.page-help-dialog ul.links { margin-bottom: 0; }
 .measure { max-width: 75ch; }
 ul.links.columns { columns: 18rem; column-gap: 2rem; }
 ul.links.columns li { break-inside: avoid; }
+
+/* ---------- ReCET's own documents under Help (core/engine_docs.py) ---------- */
+.engine-doc { max-width: 72rem; min-width: 0; }
+.engine-doc :is(h2, h3, h4, h5, h6) { scroll-margin-top: 5rem; }   /* an anchor lands below the sticky header */
+.engine-doc table { border-collapse: collapse; background: var(--surface); font-size: .9rem; }
+.engine-doc th, .engine-doc td { border: 1px solid var(--line); padding: .35rem .6rem; text-align: left; vertical-align: top; }
+.engine-doc thead th { background: var(--surface-2); }
+.engine-doc pre { margin: 0; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
+.doc-toc { margin: 1rem 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 0 1rem; }
+.doc-toc > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
+.doc-toc li { margin: .3rem 0; }
+.doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+.engine-doc { overflow-wrap: break-word; }
+.engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
