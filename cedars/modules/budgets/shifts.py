@@ -418,7 +418,7 @@ def service_money(x: Decimal) -> str:
 def allocation_for(organisation, cycle: FilingCycle, year: int):
     """The allocation factors a PA's statewide portions are read against: its standing filing's pinned version, else the most recent
     confirmed one for the year (as a run naming none)."""
-    v = service.standing(organisation, cycle)
+    v = service.standing_by_year(organisation, cycle).get(year) or service.standing(organisation, cycle)
     setup = getattr(v.submission.deadline, "budget_setup", None) if v else None
     pinned = setup.allocation_version if setup else None
     if pinned is not None and pinned.entries.filter(year=year).exists():
@@ -619,6 +619,7 @@ class OperatingBudget:
     rows: list[OperatingRow]
     shifts: list[FundShift]
     earlier: list[FundShift] = field(default_factory=list)
+    standing_years: list[tuple] = field(default_factory=list)  # (version, its years) when the cycle's years stand on different filings
 
     def total(self, years=None) -> OperatingRow:
         t = OperatingRow("Total", 0)
@@ -648,16 +649,24 @@ def statewide_filed(cycle: FilingCycle) -> dict[tuple[str, int], Decimal]:
     out: dict[tuple[str, int], Decimal] = defaultdict(Decimal)
     orgs = Organisation.objects.filter(submissions__deadline__module=MODULE, submissions__deadline__cycle=cycle).distinct()
     for org in orgs:
-        v = service.standing(org, cycle)
-        if v is None:
-            continue
-        service.ensure_lines(v)
-        lines = list(v.budget_lines.all())
+        lines = standing_lines(org, cycle)
         sw = statewide_ids(ln.prg_id for ln in lines)
         for ln in lines:
             if ln.prg_id in sw:
                 out[(ln.prg_id, ln.year)] += _line_budget(ln)
     return dict(out)
+
+
+def standing_lines(organisation, cycle: FilingCycle, by_year: dict | None = None) -> list:
+    """The PA's approved budget lines in the cycle: each year's lines from the filing that stands for that year
+    (`service.standing_by_year`)."""
+    by_year = service.standing_by_year(organisation, cycle) if by_year is None else by_year
+    years_of: dict[int, list[int]] = defaultdict(list)
+    versions = {}
+    for y, v in by_year.items():
+        years_of[v.pk].append(y)
+        versions[v.pk] = v
+    return [ln for pk, v in versions.items() for ln in v.budget_lines.filter(year__in=years_of[pk])]
 
 
 def _factor(organisation, cycle: FilingCycle, prg_id: str, year: int) -> Decimal | None:
@@ -678,16 +687,15 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
     approved budget (filed by the lead PA; the row keeps the whole as `statewide_total`), so a co-funder's row shows what it funds and
     the lead's does not show the other funders' money. A shift in effect before the standing filing was confirmed is taken to be in
     that filing's numbers. Without a standing filing, every shift in effect counts against an approved budget of zero."""
+    by_year = service.standing_by_year(organisation, cycle)
     v = service.standing(organisation, cycle)
     rows: dict[tuple[str, int], OperatingRow] = {}
-    if v is not None:
-        service.ensure_lines(v)
-        own_lines = list(v.budget_lines.all())
-        sw_filed = statewide_ids(ln.prg_id for ln in own_lines)
-        for ln in own_lines:
-            if ln.prg_id in sw_filed:
-                continue
-            rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year)).approved += _line_budget(ln)
+    own_lines = standing_lines(organisation, cycle, by_year)
+    sw_filed = statewide_ids(ln.prg_id for ln in own_lines)
+    for ln in own_lines:
+        if ln.prg_id in sw_filed:
+            continue
+        rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year)).approved += _line_budget(ln)
     for (prg, year), whole in statewide_filed(cycle).items():
         factor = _factor(organisation, cycle, prg, year)
         if not factor:
@@ -701,15 +709,27 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
         .select_related("organisation")
         .prefetch_related("lines")
     )
-    since = v.confirmed_at if v is not None else None
-    applied = [s for s in effective if since is None or s.effective_at >= since]
+    # a shift in effect before the filing that stands for a year was confirmed is taken to be in that filing's numbers for the year
+    latest_since = v.confirmed_at if v is not None else None
+    since = {y: sv.confirmed_at for y, sv in by_year.items()}
+
+    def counts(s, year):
+        start = since.get(year, latest_since)
+        return start is None or s.effective_at >= start
+
+    def shift_years(s):
+        return {ln.year for ln in s.lines.all()} | {_key(i)[1] for i in (s.shares or {}).get(organisation.code, {})}
+
+    applied = [s for s in effective if any(counts(s, y) for y in shift_years(s) or {None})]
     earlier = [s for s in effective if s not in applied]
     sw = statewide_ids(ln.prg_id for s in applied for ln in s.lines.all())
     for s in applied:
         for ln in s.lines.all():
-            if ln.pa == organisation.code and ln.prg_id not in sw:
+            if ln.pa == organisation.code and ln.prg_id not in sw and counts(s, ln.year):
                 rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year)).shifted += ln.amount
         for item, amount in (s.shares or {}).get(organisation.code, {}).items():
+            if not counts(s, _key(item)[1]):
+                continue
             r = rows.setdefault(_key(item), OperatingRow(*_key(item)))
             r.shifted += Decimal(amount)
             if r.statewide_total is None:
@@ -721,7 +741,12 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
         names[p.prg_id] = {y: pv.name for y in range(cycle.first_year, cycle.last_year + 1) if (pv := registry._for_year(versions, y))}
     for r in rows.values():
         r.name = names.get(r.prg_id, {}).get(r.year, "")
-    return OperatingBudget(organisation, cycle, v, sorted(rows.values(), key=lambda r: (r.prg_id, r.year)), applied, earlier)
+    stands: dict[int, tuple] = {}
+    for y, sv in sorted(by_year.items()):
+        stands.setdefault(sv.pk, (sv, []))[1].append(y)
+    return OperatingBudget(
+        organisation, cycle, v, sorted(rows.values(), key=lambda r: (r.prg_id, r.year)), applied, earlier, list(stands.values())
+    )
 
 
 def operating_rows(organisation, cycle: FilingCycle) -> list[dict]:
