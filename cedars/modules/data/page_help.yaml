@@ -29,8 +29,8 @@ data/dashboard: &dashboard
       the values. The table under each chart lists them all.
     - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
     - Select a row's name to drill down one level; Program page opens the program.
-    - Download these rows gives the rows you see as CSV, Excel or Parquet; Download the records behind these rows gives the measure-level
-      records they add up.
+    - Download these rows gives the rows you see as CSV, Excel or Parquet, forecast and claimed together in one file when both are
+      shown; Download the records behind these rows gives the measure-level records they add up, one download per series.
   see: published-data
   tour: &dashboard_tour
     - target: main nav.subnav
@@ -59,7 +59,8 @@ data/dashboard: &dashboard
       optional: true
     - heading: Download these rows
       title: Download these rows
-      text: Exactly the rows you see, as CSV, Excel or Parquet, each file saying which release and filters it came from.
+      text: Exactly the rows you see, as CSV, Excel or Parquet, each file saying which release and filters it came from. With forecast
+        and claimed both shown, one file holds both, with a Series column.
       optional: true
     - target: "#record-downloads"
       title: The records behind them

@@ -60,13 +60,9 @@ class GoalComparison:
         return f"{SERIES[s][0]} (as of {as_of:%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
 
     def downloads(self) -> list[dict]:
-        out = []
-        for s in self.results:
-            qs = self.results[s].query.query_string(self.view.page.exclude)
-            out.append(
-                {"series": SERIES[s][0], "links": [(fmt.upper(), f"/data/download.{fmt}?{qs}") for fmt in ("csv", "xlsx", "parquet")]}
-            )
-        return out
+        from . import downloads
+
+        return downloads.links([r.query for r in self.results.values()], self.view.page.exclude)
 
 
 def shares(rules, applies_to: str) -> dict[str, list[tuple[str, float]]]:

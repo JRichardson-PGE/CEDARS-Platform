@@ -328,14 +328,11 @@ class Comparison:
         return f"{SERIES[s][0]} (as of {timezone.localtime(as_of):%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
 
     def downloads(self) -> list[dict]:
-        """One download per series, each the series' own query (BR-07.2)."""
-        out = []
-        for s in self.results:
-            qs = replace(self.view.for_series(s), by=(self.by or self.view.by,)).query_string(self.view.page.exclude)
-            out.append(
-                {"series": SERIES[s][0], "links": [(fmt.upper(), f"/data/download.{fmt}?{qs}") for fmt in ("csv", "xlsx", "parquet")]}
-            )
-        return out
+        """The rows as shown, every series in one file (BR-07.2; Jake, 2026-11-02)."""
+        from . import downloads
+
+        by = (self.by or self.view.by,)
+        return downloads.links([replace(self.view.for_series(s), by=by) for s in self.results], self.view.page.exclude)
 
 
 def compare(view: View, by: str | None = None, drill: tuple[str, str] = ("", "")) -> Comparison:

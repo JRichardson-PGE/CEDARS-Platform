@@ -59,13 +59,9 @@ class Spending:
         return f"{SERIES[s][0]} (as of {as_of:%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
 
     def downloads(self) -> list[dict]:
-        out = []
-        for s, r in self.results.items():
-            qs = r.query.query_string(self.view.page.exclude)
-            out.append(
-                {"series": SERIES[s][0], "links": [(fmt.upper(), f"/data/download.{fmt}?{qs}") for fmt in ("csv", "xlsx", "parquet")]}
-            )
-        return out
+        from . import downloads
+
+        return downloads.links([r.query for r in self.results.values()], self.view.page.exclude)
 
 
 ELEMENTS = ("incentives", "direct_implementation", "admin_overhead", "admin_other", "marketing", "emv", "costs_recovered")

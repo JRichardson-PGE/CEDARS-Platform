@@ -55,9 +55,46 @@ def test_forecast_and_claims_side_by_side(both):
     assert c.totals.values == {"forecast": 360, "claims": 180} and c.totals.percent == 50
     assert res.drill == "?by=program&sector=Residential"
     assert "as of" in c.series_label("claims")
-    [f, cl] = c.downloads()
-    assert f["series"] == "Forecast" and "dataset=forecast" in f["links"][0][1] and "by=sector" in f["links"][0][1]
-    assert "dataset=claims" in cl["links"][0][1]
+    [both_series] = c.downloads()  # one file for both series (Jake, 2026-11-02)
+    href = both_series["links"][0][1]
+    assert both_series["series"] == "Forecast and claimed" and "dataset=forecast&dataset=claims" in href and "by=sector" in href
+    [claims_only] = dashboard.compare(view(by="sector", series="claims")).downloads()
+    assert (
+        claims_only["series"] == "Claimed"
+        and "dataset=claims" in claims_only["links"][0][1]
+        and "forecast" not in claims_only["links"][0][1]
+    )
+
+
+def test_download_these_rows_holds_both_series(both, client):
+    """With forecast and claimed both shown, "Download these rows" is one file: a Series column first, each series' rows and total,
+    each series' stamp; the records behind the rows stay one download per series."""
+    page = client.get("/data/overview/?by=sector").content.decode()
+    assert "Forecast and claimed: <a" in page and page.count("/data/records/download.csv?") == 2
+    [d] = dashboard.compare(view(by="sector")).downloads()
+    response = client.get(d["links"][0][1])
+    assert response.status_code == 200 and "cedars_forecast_claims_release" in response["Content-Disposition"]
+    text = response.content.decode()
+    lines = [line for line in text.splitlines() if not line.startswith("#")]
+    assert lines[0].startswith("Series,Primary sector,")
+    rows = [line.split(",") for line in lines[1:]]
+    assert [r[:2] for r in rows] == [
+        ["Forecast", "Commercial"],
+        ["Forecast", "Residential"],
+        ["Forecast", "Total"],
+        ["Claimed", "Commercial"],
+        ["Claimed", "Residential"],
+        ["Claimed", "Total"],
+    ]
+    assert "# Forecast release:" in text and "# Claimed release:" in text
+    for fmt in ("xlsx", "parquet"):
+        assert client.get(d["links"][0][1].replace("download.csv", f"download.{fmt}")).status_code == 200
+    import io
+
+    import pyarrow.parquet as pq
+
+    t = pq.read_table(io.BytesIO(client.get(d["links"][2][1]).content))
+    assert t.column_names[0] == "Series" and set(t.column("Series").to_pylist()) == {"Forecast", "Claimed"}
 
 
 def test_one_series_alone(both):
@@ -131,7 +168,10 @@ def test_the_page(both, client):
     assert "Portfolio dashboard pages" in page and "Forecast data as of " in page and "; Claimed data as of " in page
     assert "(as of" not in page  # said once above the tiles, not in every tile and header (UI review 2, #19)
     assert "% of forecast" in page and "50.0%" in page and 'href="?by=program&amp;sector=Residential"' in page
-    assert "Left out: Pension and Benefits programs and codes and standards." in page and "/data/download.csv?dataset=claims" in page
+    assert (
+        "Left out: Pension and Benefits programs and codes and standards." in page
+        and "/data/download.csv?dataset=forecast&amp;dataset=claims" in page
+    )
     assert client.get("/data/").status_code == 302
     assert client.get("/data/nope/").status_code == 404
     bad = client.get("/data/overview/?by=colour")
