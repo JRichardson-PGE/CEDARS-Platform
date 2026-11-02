@@ -16,20 +16,30 @@ from . import dashboard, downloads, metrics, query
 def download(request, fmt):
     if fmt not in downloads.FORMATS:
         raise Http404
+    # several "dataset" values = one file holding each series (a dashboard showing forecast and claims together)
+    datasets = list(dict.fromkeys(d.strip() for d in request.GET.getlist("dataset") if d.strip()))
     try:
         q = query.from_params(request.GET)
-        result = query.run(q)
+        if len(datasets) > 1:
+            results = [query.run(downloads.for_dataset(q, d)) for d in datasets]
+        else:
+            results = [query.run(q)]
     except query.QueryError as e:
         return HttpResponse(f"That download could not be made: {e}", status=400, content_type="text/plain; charset=utf-8")
-    if len(result.rows) > settings.DATA_DOWNLOAD_MAX_ROWS:
+    count = sum(len(r.rows) for r in results)
+    if count > settings.DATA_DOWNLOAD_MAX_ROWS:
         return HttpResponse(
-            f"That download has {len(result.rows):,} rows, more than the {settings.DATA_DOWNLOAD_MAX_ROWS:,} a download holds for now. "
+            f"That download has {count:,} rows, more than the {settings.DATA_DOWNLOAD_MAX_ROWS:,} a download holds for now. "
             "Narrow the filters or group by fewer dimensions.",
             status=413,
             content_type="text/plain; charset=utf-8",
         )
-    response = HttpResponse(downloads.render(result, fmt), content_type=downloads.FORMATS[fmt])
-    response["Content-Disposition"] = f'attachment; filename="{downloads.filename(result, fmt)}"'
+    if len(results) > 1:
+        body, name = downloads.render_combined(results, fmt), downloads.combined_filename(results, fmt)
+    else:
+        body, name = downloads.render(results[0], fmt), downloads.filename(results[0], fmt)
+    response = HttpResponse(body, content_type=downloads.FORMATS[fmt])
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
     return response
 
 

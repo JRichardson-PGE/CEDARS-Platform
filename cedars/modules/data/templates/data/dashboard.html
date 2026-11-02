@@ -118,6 +118,7 @@
 <ul class="downloads">
   {% for d in downloads %}<li>{{ d.series }}: {% for fmt, href in d.links %}<a href="{{ href }}" download>{{ fmt }}<span class="sr-only"> of the {{ d.series|lower }} rows</span></a>{% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endfor %}
 </ul>
+{% if downloads|length == 1 and series_labels|length > 1 %}<p class="small muted">One file holds every series shown, with a Series column first and each series' rows and total in turn.</p>{% endif %}
 <p class="small muted">Each file records its release, when its data last changed, the snapshots it was read from, the filters and the
 canonical field names. <a href="{% url 'data:metrics_csv' %}">How each metric is defined</a>.</p>
 
