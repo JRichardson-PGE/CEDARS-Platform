@@ -33,6 +33,28 @@
   {% if f.usages.all %}<dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}, column {{ u.position|add:1 }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
   {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{{ f.doc_link }} in ReCET</dd>{% endif %}
 </dl>
+{% if values %}
+<section aria-labelledby="values-h">
+<h2 id="values-h">Value list</h2>
+<p>The codes this field may hold, from the value list <a href="{% url 'dictionary:list' values.vl.name %}">{{ values.vl.name }}</a>.
+{% if values.current %}In force: version {{ values.current.number }}, from {{ values.current.effective_from|date_words }}.{% else %}No version is published here yet, so the list shipped with the engine{% if values.release %} (ReCET {{ values.release }}){% endif %} is in force.{% endif %}
+A retired code stays in the list with the last claim year it is accepted for.</p>
+<p id="values-showing"><strong>Showing {% if values.shown %}version {{ values.shown.number }}{% if values.shown == values.current %} (in force){% endif %}{% else %}the list as shipped with the engine{% endif %}.</strong></p>
+<form method="get" action="#values-h" class="filters" role="search" aria-label="Value list codes">
+  <div class="field"><label for="values-version">Version</label><select id="values-version" name="version">
+    {% for v in values.versions %}<option value="{{ v.number }}"{% if v == values.shown %} selected{% endif %}>Version {{ v.number }}, from {{ v.effective_from|date_words }}{% if v == values.current %} (in force){% endif %}</option>{% endfor %}
+    <option value="shipped"{% if not values.shown %} selected{% endif %}>As shipped with the engine</option></select></div>
+  <div class="field"><label for="values-q">Code or description</label><input type="search" id="values-q" name="q" value="{{ values.q }}"></div>
+  <div class="field"><label for="values-year">Claim year</label><input type="text" inputmode="numeric" id="values-year" name="year" value="{{ values.year }}" size="6" aria-describedby="values-year-help"><div class="helptext" id="values-year-help">For which codes are accepted that year.</div></div>
+  <div class="field"><label for="values-state">Codes</label><select id="values-state" name="state"><option value="">All</option><option value="active"{% if values.state == "active" %} selected{% endif %}>Accepted</option><option value="retired"{% if values.state == "retired" %} selected{% endif %}>Not accepted (retired or not yet started)</option></select></div>
+  <button type="submit">Apply</button>
+  <button type="submit" name="format" value="csv">Download these codes (CSV)</button>
+  <button type="submit" name="format" value="xlsx">Download these codes (Excel)</button>
+</form>
+<p>{{ values.total }} code{{ values.total|pluralize }}{% if values.page.paginator.num_pages > 1 %}, {{ values.page.paginator.per_page }} a page{% endif %}.</p>
+{% include "dictionary/_codes.html" with editable=False page=values.page query=values.query anchor="values-h" codes_label="Value list codes" %}
+</section>
+{% endif %}
 {% if mandates %}
 <h2 id="mandates-h">Required by</h2>
 <ul class="links">{% for m in mandates %}<li><a href="{% url 'mandates:detail' m.pk %}">{{ m.reference }}: {{ m.title }}</a> ({{ m.get_status_display|lower }})</li>{% endfor %}</ul>

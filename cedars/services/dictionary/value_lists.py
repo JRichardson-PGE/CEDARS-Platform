@@ -119,11 +119,37 @@ def shipped(name: str) -> list[dict]:
     return out
 
 
+def engine_columns() -> dict[str, str]:
+    """The input columns the engine checks against a value list, {column: list} (the input editor's own map), or {} without the engine."""
+    try:
+        editor, _ = _engine()
+    except EngineMissing:
+        return {}
+    return {
+        c: n
+        for c, n in {**getattr(editor, "VALUE_LISTS", {}), **getattr(editor, "PROGRAMCOST_VALUE_LISTS", {})}.items()
+        if n not in NOT_EDITED_HERE
+    }
+
+
+def list_for_field(field) -> str | None:
+    """The value list a dictionary field's codes come from: the list the engine checks the column (or one of its other names) against,
+    else a list kept here under the field's name. None when the field has no list."""
+    names = {field.name.lower(), *(a.name.lower() for a in field.aliases.all())}
+    for column, name in engine_columns().items():
+        if column.lower() in names:
+            return name
+    vl = ValueList.objects.filter(label__iexact=field.name).first()
+    return vl.name if vl else None
+
+
 def label_for(name: str) -> str:
-    """The field a list fills, by the data dictionary (its names and aliases, any case), else the list's own name."""
+    """The field a list fills, by the data dictionary (its names and aliases, any case; the engine's column for the list first, so
+    `eul` is EUL_ID), else the list's own name."""
     from . import service
 
-    f = service.resolve(name)
+    column = next((c for c, n in engine_columns().items() if n == name), None)
+    f = (service.resolve(column) if column else None) or service.resolve(name)
     return f.name if f is not None else name
 
 
@@ -457,6 +483,24 @@ def discard_draft(actor, draft: ValueListVersion, reason: str = "") -> None:
         actor=actor,
     )
     draft.delete()
+
+
+def _get(r, k):
+    return r.get(k) if isinstance(r, dict) else getattr(r, k)
+
+
+def codes_xlsx(rows, *, title: str) -> bytes:
+    """The codes as an accessible workbook (core/workbooks.py): one sheet under the CSV's header, so a copy can be uploaded to a draft."""
+    from cedars.core import workbooks
+
+    book = workbooks.Book(title, subject="The codes of a CEDARS value list and the claim years each is accepted for")
+    book.sheet(
+        "Codes",
+        CSV_COLUMNS,
+        ([_get(r, "code"), _get(r, "description") or "", _get(r, "start_year"), _get(r, "end_year")] for r in rows),
+        widths={0: 30, 1: 60},
+    )
+    return book.save()
 
 
 def codes_csv(rows) -> str:
