@@ -13,6 +13,11 @@ ACC_PURPOSES = [
 ]
 
 
+# ReCET's optional input files New run takes as uploads of their own (jobfiles.OPTIONAL). Program metadata and statewide factors are not
+# offered: the program registry and the allocation version are every run's (a job zip's or workbook's own are noted as not used).
+SUPPLIED_FIELDS = ("run_parameters", "profiles_8760", "profiles_gas")
+
+
 class NewRunForm(forms.Form):
     """New run (BR-06.1, 06.4, 06.5, 06.7): the job zip and the settings a person picks. The API takes the same fields."""
 
@@ -56,6 +61,24 @@ class NewRunForm(forms.Form):
         label="CET outputs to compare with (.csv, optional)",
         required=False,
         help_text="A parallel run: CET's outputs CSV for this job, compared measure by measure on CET_ID (ReCET's own calculation only)",
+    )
+    run_parameters = forms.FileField(
+        label="Run parameters (optional)",
+        required=False,
+        help_text="Discount rates, base year and gas CO2 for the PAs it lists (.csv, .parquet or .xlsx; ReCET's own calculation)",
+        validators=[uploads.check_size],
+    )
+    profiles_8760 = forms.FileField(
+        label="8,760 electric profiles (optional)",
+        required=False,
+        help_text="Hourly profiles the measures name, in ReCET's long format (.csv, .parquet or .xlsx; ReCET's own calculation)",
+        validators=[uploads.check_size],
+    )
+    profiles_gas = forms.FileField(
+        label="Gas monthly profiles (optional)",
+        required=False,
+        help_text="Monthly gas profiles the measures name (.csv, .parquet or .xlsx; ReCET's own calculation)",
+        validators=[uploads.check_size],
     )
     output_template = forms.ModelChoiceField(
         label="Output template",
@@ -116,6 +139,7 @@ class NewRunForm(forms.Form):
             allocation_version=d.get("allocation_version"),
             cet_outputs=d.get("cet_outputs"),
             cost_test_set=d.get("cost_test_set"),
+            supplied={n: d.get(n) for n in SUPPLIED_FIELDS if d.get(n)},
         )
 
 
