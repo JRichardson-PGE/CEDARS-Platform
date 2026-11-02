@@ -9,7 +9,7 @@
   },
   "guide:budgets": {
     "release": "0.2.0",
-    "sha256": "23833e75c31274de285748f1b04744f1d74b1fbc31dc00e792cf655931e0aae3"
+    "sha256": "3f5b2393a74a10a2f5a3541041dd635ceb8b24ccf3115bb33479ea51dff2febd"
   },
   "guide:calculations": {
     "release": "0.2.0",

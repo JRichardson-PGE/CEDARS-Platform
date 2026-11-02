@@ -118,6 +118,11 @@ class FundShift(models.Model):
         blank=True,
         help_text="Set on submission: {funding PA: {'PrgID year': its portion of the statewide line}}",
     )
+    factors = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Set on submission: {funding PA: {'PrgID year': the weighted allocation factor its portion was split by}}",
+    )
     withdrawn_reason = models.TextField(blank=True)
 
     class Meta:
@@ -127,9 +132,25 @@ class FundShift(models.Model):
         return f"{self.organisation.code} fund shift {self.pk}: {self.title}"
 
     @property
+    def funders(self) -> list[str]:
+        """Every funding PA with a portion of the shift's statewide lines, the shift's own PA included, in code order."""
+        return sorted(self.shares or {})
+
+    def net_of(self, code: str):
+        from decimal import Decimal
+
+        return sum((Decimal(v) for v in (self.shares or {}).get(code, {}).values()), Decimal(0))
+
+    @property
     def cofunders(self) -> list[str]:
-        """The other funding PAs whose portion changes, in code order."""
-        return sorted(c for c in (self.shares or {}) if c != self.organisation.code)
+        """The other funding PAs with a net gap to cover: those whose portions do not add up to zero. They acknowledge the shift. A
+        funder whose portions cancel out (money moved between statewide programs it funds at the same rate) is only informed."""
+        return [c for c in self.funders if c != self.organisation.code and self.net_of(c) != 0]
+
+    @property
+    def informed(self) -> list[str]:
+        """The other funding PAs whose portions cancel out: told of the shift, nothing to place or acknowledge."""
+        return [c for c in self.funders if c != self.organisation.code and self.net_of(c) == 0]
 
 
 class FundShiftLine(models.Model):

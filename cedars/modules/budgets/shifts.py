@@ -4,10 +4,17 @@ A fund shift moves dollars between a PA's programs within a filing cycle, across
 budget filing and has no cost-effectiveness run. Each PA's part of it must add up to zero: an unbalanced shift is rejected when
 submitted and stays a draft.
 
-Money moved into or out of a statewide program changes every funding PA's portion of it, by its weighted allocation factor for that
-program and year (the standing filing's pinned allocation version, else the most recent confirmed one). The submitting PA balances its
-own portion with its own lines. Each other funding PA (a co-funder) is notified, chooses where its portion comes from or goes among its
-own programs, and acknowledges; the shift takes effect when the last one has (Jake, 2026-10-30).
+Money moved into or out of a statewide program is entered as the change to the whole program; it changes every funding PA's portion
+of it, by its weighted allocation factor for that program and year (the standing filing's pinned allocation version, else the most
+recent confirmed one; the cents left by rounding go to the shift's own PA). The submitting PA balances its own portion with its own
+lines. Each other funding PA with a net gap (a co-funder) is notified, chooses where its portion comes from or goes among its own
+programs, and acknowledges; the shift takes effect when the last one has (Jake, 2026-10-30 and 2026-11-02). Money moved between two
+statewide programs with different allocation rates leaves each funder a net gap, which it covers the same way; a funder whose
+portions cancel out is informed and has nothing to acknowledge.
+
+No fund shift may leave a program-year's operating budget below zero (Jake, 2026-11-02): a line or a portion that would is rejected,
+at submission for every PA's lines and portions and again when a co-funder places its lines. The lines of shifts still waiting for
+co-funders count as spent.
 
     draft (lines edited) -> submitted -> waiting for co-funders -> in effect
                                        \\-> in effect (no co-funders)
@@ -61,7 +68,7 @@ def can_read(user, shift: FundShift) -> bool:
         return True
     if shift.status == FundShift.Status.DRAFT:
         return False
-    codes = set(shift.cofunders)
+    codes = set(shift.funders)
     return any(o.code in codes and service._org_reader(user, o) for o in access.organisations_of(user))
 
 
@@ -79,12 +86,13 @@ def waiting_for(organisation):
     """Shifts waiting for the organization's acknowledgment."""
     if organisation is None:
         return []
-    return list(
+    qs = (
         FundShift.objects.filter(status=FundShift.Status.WAITING, shares__has_key=organisation.code)
         .exclude(organisation=organisation)
         .exclude(acknowledgements__organisation=organisation)
         .select_related("organisation", "cycle")
     )
+    return [s for s in qs if organisation.code in s.cofunders]
 
 
 def cycles():
@@ -195,13 +203,25 @@ def statewide_ids(prg_ids) -> set[str]:
 
 
 @dataclass
+class Portion:
+    """One funder's portion of one statewide line: the program-year, the whole line's amount, the funder's factor and its portion."""
+
+    item: str
+    amount: Decimal
+    factor: Decimal
+    portion: Decimal
+
+
+@dataclass
 class Part:
-    """One PA's part of a shift: its own lines (statewide lines aside) and its portion of the statewide lines."""
+    """One PA's part of a shift: its own lines (statewide lines aside) and its portions of the statewide lines, whose sum is the net
+    gap it covers from its own programs."""
 
     pa: str
     moved_in: Decimal = Decimal(0)
     moved_out: Decimal = Decimal(0)
     portion: Decimal = Decimal(0)
+    portions: list[Portion] = field(default_factory=list)
     lines: list = field(default_factory=list)
 
     @property
@@ -209,50 +229,95 @@ class Part:
         return self.moved_in + self.moved_out + self.portion
 
 
-def compute_shares(shift: FundShift) -> tuple[dict[str, dict[str, Decimal]], list[str]]:
-    """{funding PA: {'PrgID year': its portion}} of the shift's statewide lines, by weighted allocation factor (rounded to cents),
-    and the statewide lines that have no factors to split them by."""
+@dataclass
+class Split:
+    """How the statewide lines split: {funding PA: {'PrgID year': portion}}, the factors used the same way, and the statewide lines
+    that have no factors to split them by."""
+
+    shares: dict[str, dict[str, Decimal]] = field(default_factory=dict)
+    factors: dict[str, dict[str, Decimal]] = field(default_factory=dict)
+    problems: list[str] = field(default_factory=list)
+
+    @property
+    def amounts(self) -> dict[str, Decimal]:
+        """{'PrgID year': the whole statewide line} for every split line."""
+        return {k: sum((items[k] for items in self.shares.values() if k in items), Decimal(0)) for k in self._items()}
+
+    def _items(self):
+        return sorted({k for items in self.shares.values() for k in items}, key=_key)
+
+
+CENT = Decimal("0.01")
+
+
+def compute_shares(shift: FundShift) -> Split:
+    """Each funding PA's portion of the shift's statewide lines, by weighted allocation factor, rounded to cents. The portions of a
+    line always add up to the line: the cents rounding leaves over go to the shift's own PA, or to the largest funder when the shift's
+    PA does not fund the program."""
+    out = Split()
     shares: dict[str, dict[str, Decimal]] = defaultdict(dict)
-    problems = []
+    factors: dict[str, dict[str, Decimal]] = defaultdict(dict)
     own = [ln for ln in shift.lines.all() if ln.pa == shift.organisation.code]
     sw = statewide_ids(ln.prg_id for ln in own)
     for ln in own:
         if ln.prg_id not in sw:
             continue
-        version = _allocation_for(shift, ln.year)
+        version = allocation_for(shift.organisation, shift.cycle, ln.year)
         rows = (
             list(
-                AllocationShare.objects.filter(entry__version=version, entry__year=ln.year, entry__program_id=ln.prg_id).exclude(weighted=0)
+                AllocationShare.objects.filter(entry__version=version, entry__year=ln.year, entry__program_id=ln.prg_id)
+                .exclude(weighted=0)
+                .order_by("-weighted", "funding_pa")
             )
             if version
             else []
         )
         if not rows:
             where = f"in {version.label}" if version else "in any confirmed allocation version"
-            problems.append(f"{ln.prg_id} {ln.year} has no allocation factors {where}, so its funding PAs' portions are unknown.")
+            out.problems.append(f"{ln.prg_id} {ln.year} has no allocation factors {where}, so its funding PAs' portions are unknown.")
             continue
+        item = f"{ln.prg_id} {ln.year}"
         for r in rows:
-            shares[r.funding_pa][f"{ln.prg_id} {ln.year}"] = (ln.amount * r.weighted).quantize(Decimal("0.01"))
-    return {k: dict(v) for k, v in sorted(shares.items())}, problems
+            shares[r.funding_pa][item] = (ln.amount * r.weighted).quantize(CENT)
+            factors[r.funding_pa][item] = r.weighted
+        left = ln.amount - sum((shares[r.funding_pa][item] for r in rows), Decimal(0))
+        if left:
+            mine = shift.organisation.code
+            to = mine if item in shares.get(mine, {}) else rows[0].funding_pa
+            shares[to][item] += left
+    out.shares = {k: dict(v) for k, v in sorted(shares.items())}
+    out.factors = {k: dict(v) for k, v in sorted(factors.items())}
+    return out
+
+
+def frozen(shift: FundShift) -> Split:
+    """The split recorded at submission, or for a draft the one it would have now."""
+    if shift.status == FundShift.Status.DRAFT:
+        return compute_shares(shift)
+    dec = lambda table: {pa: {k: Decimal(v) for k, v in items.items()} for pa, items in (table or {}).items()}  # noqa: E731
+    return Split(dec(shift.shares), dec(shift.factors))
 
 
 def frozen_shares(shift: FundShift) -> dict[str, dict[str, Decimal]]:
     """The shares recorded at submission, or for a draft the ones it would have now."""
-    if shift.status == FundShift.Status.DRAFT:
-        return compute_shares(shift)[0]
-    return {pa: {k: Decimal(v) for k, v in items.items()} for pa, items in (shift.shares or {}).items()}
+    return frozen(shift).shares
 
 
 def parts(shift: FundShift) -> list[Part]:
-    """Each PA's part: the shift's PA first, then each co-funder."""
-    shares = frozen_shares(shift)
+    """Each PA's part: the shift's PA first, then each other funder."""
+    split = frozen(shift)
+    amounts = split.amounts
     lines = list(shift.lines.all())
     sw = statewide_ids(ln.prg_id for ln in lines)
     out = {shift.organisation.code: Part(shift.organisation.code)}
-    for code in sorted(shares):
+    for code in sorted(split.shares):
         out.setdefault(code, Part(code))
-    for code, items in shares.items():
+    for code, items in split.shares.items():
         out[code].portion = sum(items.values(), Decimal(0))
+        factors = split.factors.get(code, {})
+        out[code].portions = [
+            Portion(k, amounts[k], factors.get(k, Decimal(0)), v) for k, v in sorted(items.items(), key=lambda kv: _key(kv[0]))
+        ]
     for ln in lines:
         part = out.setdefault(ln.pa, Part(ln.pa))
         part.lines.append(ln)
@@ -275,44 +340,85 @@ def _unbalanced(part: Part, organisation_code: str) -> str:
 
 
 def problems(shift: FundShift) -> list[str]:
-    """Why the shift cannot be submitted: fewer than two lines, statewide lines with no factors, or the shift's PA's part not adding up
-    to zero with its portion of the statewide lines (BR-14.4)."""
+    """Why the shift cannot be submitted: fewer than two lines, statewide lines with no factors, the shift's PA's part not adding up
+    to zero with its portion of the statewide lines (BR-14.4), or a line or portion that would leave a program-year's operating
+    budget below zero, for the shift's PA or for any other funder."""
     own = [ln for ln in shift.lines.all() if ln.pa == shift.organisation.code]
     out = []
     if len(own) < 2:
         out.append("A fund shift moves money from at least one program-year to another: it needs two lines or more.")
-    _, missing = compute_shares(shift)
-    out += missing
+    out += compute_shares(shift).problems
     mine = parts(shift)[0]
     if mine.net != 0:
         out.append(_unbalanced(mine, shift.organisation.code))
+    for part in parts(shift):
+        org = shift.organisation if part.pa == shift.organisation.code else access.by_code(part.pa)
+        if org is not None:
+            out += shortfalls(org, shift, _changes(part))
     return out
 
 
-def warnings(shift: FundShift, organisation=None) -> list[str]:
-    """The PA's lines that move more out of a program-year than its operating budget holds (not blocking: the approved budget may be
-    filed later, or the PA may mean it)."""
-    organisation = organisation or shift.organisation
+def _changes(part: Part, lines=None) -> dict[tuple[str, int], Decimal]:
+    """{(PrgID, year): the change} a PA's part makes to its operating budget: its own lines and its portions of the statewide lines."""
+    out: dict[tuple[str, int], Decimal] = defaultdict(Decimal)
+    own = [ln for ln in part.lines if ln.pa == part.pa] if lines is None else []
+    sw = statewide_ids(ln.prg_id for ln in own)
+    for ln in own:
+        if ln.prg_id not in sw:  # a statewide line's effect on the PA is its portion
+            out[(ln.prg_id, ln.year)] += ln.amount
+    for p, y, a in lines or []:
+        out[(p, y)] += a
+    for p in part.portions:
+        out[_key(p.item)] += p.portion
+    return dict(out)
+
+
+def shortfalls(organisation, shift: FundShift, changes: dict[tuple[str, int], Decimal]) -> list[str]:
+    """The changes that would leave one of the PA's program-years below zero (Jake, 2026-11-02: no fund shift may). What a
+    program-year holds is its operating budget (a statewide program: the PA's portion of it) less what the PA's lines and portions in
+    other shifts still waiting for co-funders already take out."""
     ob = operating_budget(organisation, shift.cycle)
     have = {(r.prg_id, r.year): r.operating for r in ob.rows}
+    for key, amount in pending_changes(organisation, shift).items():
+        have[key] = have.get(key, Decimal(0)) + amount
     out = []
-    for ln in shift.lines.filter(pa=organisation.code):
-        if ln.amount < 0 and have.get((ln.prg_id, ln.year), Decimal(0)) + ln.amount < 0:
+    for (prg, year), change in sorted(changes.items(), key=lambda kv: (kv[0][1], kv[0][0])):
+        held = have.get((prg, year), Decimal(0))
+        if change < 0 and held + change < 0:
             out.append(
-                f"{ln.prg_id} {ln.year}: moves {service_money(-ln.amount)} out of an operating budget of "
-                f"{service_money(have.get((ln.prg_id, ln.year), Decimal(0)))}."
+                f"{organisation.code} {prg} {year}: moves {service_money(-change)} out of an operating budget of {service_money(held)}, "
+                f"which would leave it at {service_money(held + change)}. No fund shift may take a program's operating budget below zero."
             )
     return out
+
+
+def pending_changes(organisation, shift: FundShift) -> dict[tuple[str, int], Decimal]:
+    """The PA's lines and portions in the cycle's other shifts still waiting for co-funders: committed, though not in effect."""
+    out: dict[tuple[str, int], Decimal] = defaultdict(Decimal)
+    waiting = (
+        FundShift.objects.filter(Q(organisation=organisation) | Q(shares__has_key=organisation.code), cycle=shift.cycle)
+        .filter(status=FundShift.Status.WAITING)
+        .exclude(pk=shift.pk)
+        .prefetch_related("lines")
+    )
+    sw = statewide_ids(ln.prg_id for s in waiting for ln in s.lines.all())
+    for s in waiting:
+        for ln in s.lines.all():
+            if ln.pa == organisation.code and ln.prg_id not in sw:
+                out[(ln.prg_id, ln.year)] += ln.amount
+        for item, amount in (s.shares or {}).get(organisation.code, {}).items():
+            out[_key(item)] += Decimal(amount)
+    return dict(out)
 
 
 def service_money(x: Decimal) -> str:
     return f"-${-x:,.2f}" if x < 0 else f"${x:,.2f}"
 
 
-def _allocation_for(shift: FundShift, year: int):
-    """The allocation factors a statewide line is read against: the standing filing's pinned version, else the most recent confirmed
-    one for the year (as a run naming none)."""
-    v = service.standing(shift.organisation, shift.cycle)
+def allocation_for(organisation, cycle: FilingCycle, year: int):
+    """The allocation factors a PA's statewide portions are read against: its standing filing's pinned version, else the most recent
+    confirmed one for the year (as a run naming none)."""
+    v = service.standing(organisation, cycle)
     setup = getattr(v.submission.deadline, "budget_setup", None) if v else None
     pinned = setup.allocation_version if setup else None
     if pinned is not None and pinned.entries.filter(year=year).exists():
@@ -349,7 +455,9 @@ def _submit(actor, shift: FundShift) -> FundShift:
     if problems(shift):  # changed since the check
         raise ShiftInvalid(problems(shift))
     before = _fields(shift)
-    shift.shares = {pa: {k: str(v) for k, v in items.items()} for pa, items in compute_shares(shift)[0].items()}
+    split = compute_shares(shift)
+    shift.shares = {pa: {k: str(v) for k, v in items.items()} for pa, items in split.shares.items()}
+    shift.factors = {pa: {k: str(v) for k, v in items.items()} for pa, items in split.factors.items()}
     shift.submitted_by, shift.submitted_at = actor, timezone.now()
     if shift.cofunders:
         shift.status = FundShift.Status.WAITING
@@ -360,26 +468,35 @@ def _submit(actor, shift: FundShift) -> FundShift:
         "fund_shift.submitted",
         obj=shift,
         before=before,
-        after={**_fields(shift), "shares": shift.shares},
+        after={**_fields(shift), "shares": shift.shares, "factors": shift.factors},
         actor=actor,
         organisation=shift.organisation,
     )
     if shift.status == FundShift.Status.EFFECTIVE:  # no co-funder: in effect at once (what subscribers hear, BR-09.2)
         audit.record("fund_shift.effective", obj=shift, after=_fields(shift), actor=actor, organisation=shift.organisation)
-    if shift.status == FundShift.Status.WAITING:
-        for code in shift.cofunders:
-            org = access.by_code(code)
-            items = shift.shares[code]
-            portion = sum((Decimal(v) for v in items.values()), Decimal(0))
-            if org is not None:
-                _notify(
-                    org,
-                    f"{MODULE}.confirm",
-                    f"{shift.organisation.code} fund shift waiting for {code}",
-                    f"{shift.title}. It changes {code}'s portion of {', '.join(items)} by {service_money(portion)}. Choose where that "
-                    f"comes from or goes among {code}'s programs and acknowledge it; it takes effect once every co-funder has.",
-                    shift,
-                )
+    for code in shift.cofunders:
+        org = access.by_code(code)
+        items = shift.shares[code]
+        if org is not None:
+            _notify(
+                org,
+                f"{MODULE}.confirm",
+                f"{shift.organisation.code} fund shift waiting for {code}",
+                f"{shift.title}. It changes {code}'s portion of {', '.join(items)} by {service_money(shift.net_of(code))} net. Choose "
+                f"where that comes from or goes among {code}'s programs and acknowledge it; it takes effect once every co-funder has.",
+                shift,
+            )
+    for code in shift.informed:
+        org = access.by_code(code)
+        if org is not None:
+            _notify(
+                org,
+                f"{MODULE}.confirm",
+                f"{shift.organisation.code} fund shift: no change to {code}'s total",
+                f"{shift.title}. It moves {code}'s portion between {', '.join(shift.shares[code])}, and the portions add up to zero, so "
+                f"{code} has nothing to place or acknowledge.",
+                shift,
+            )
     return shift
 
 
@@ -419,6 +536,9 @@ def acknowledge(actor, shift: FundShift, organisation, entered: list[LineIn] = (
             f"{organisation.code}'s portion changes by {service_money(owed)}: its lines must add up to {service_money(-owed)} "
             f"(they add up to {service_money(placed)})."
         )
+    if not found:
+        mine = next(p for p in parts(shift) if p.pa == organisation.code)
+        found = shortfalls(organisation, shift, _changes(mine, lines))
     if found:
         raise ShiftInvalid(found)
     _replace_lines(shift, organisation.code, lines)
@@ -479,10 +599,16 @@ class OperatingRow:
     name: str = ""
     approved: Decimal = Decimal(0)
     shifted: Decimal = Decimal(0)
+    statewide_total: Decimal | None = None  # a statewide program: the whole program's approved budget, as filed by its lead PA
+    factor: Decimal | None = None  # a statewide program: the PA's weighted allocation factor, by which `approved` is its portion
 
     @property
     def operating(self) -> Decimal:
         return self.approved + self.shifted
+
+    @property
+    def statewide(self) -> bool:
+        return self.statewide_total is not None
 
 
 @dataclass
@@ -512,18 +638,62 @@ def _key(item: str) -> tuple[str, int]:
     return prg, int(year)
 
 
+def _line_budget(ln) -> Decimal:
+    return sum((Decimal(x) for x in (ln.program_costs or {}).values()), Decimal(0)) + ln.rebates_and_incentives
+
+
+def statewide_filed(cycle: FilingCycle) -> dict[tuple[str, int], Decimal]:
+    """{(statewide PrgID, year): the whole program's approved budget}: the statewide lines of every PA's standing filing in the cycle
+    (a statewide program is filed whole, by the PA that leads it)."""
+    out: dict[tuple[str, int], Decimal] = defaultdict(Decimal)
+    orgs = Organisation.objects.filter(submissions__deadline__module=MODULE, submissions__deadline__cycle=cycle).distinct()
+    for org in orgs:
+        v = service.standing(org, cycle)
+        if v is None:
+            continue
+        service.ensure_lines(v)
+        lines = list(v.budget_lines.all())
+        sw = statewide_ids(ln.prg_id for ln in lines)
+        for ln in lines:
+            if ln.prg_id in sw:
+                out[(ln.prg_id, ln.year)] += _line_budget(ln)
+    return dict(out)
+
+
+def _factor(organisation, cycle: FilingCycle, prg_id: str, year: int) -> Decimal | None:
+    """The PA's weighted allocation factor for a statewide program-year, from the version its portions are read against."""
+    version = allocation_for(organisation, cycle, year)
+    if version is None:
+        return None
+    share = AllocationShare.objects.filter(
+        entry__version=version, entry__year=year, entry__program_id=prg_id, funding_pa=organisation.code
+    ).first()
+    return share.weighted if share is not None else Decimal(0)
+
+
 def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
     """The PA's operating budget by program and year (BR-04.7): its standing filing's budget lines (approved), plus its part of the
     shifts in effect since that filing was confirmed: its own lines, and its portion of each statewide line (by allocation factor) on
-    the statewide program's row. A shift in effect before the standing filing was confirmed is taken to be in that filing's numbers.
-    Without a standing filing, every shift in effect counts against an approved budget of zero."""
+    the statewide program's row. A statewide program's row is the PA's portion throughout: its weighted factor of the whole program's
+    approved budget (filed by the lead PA; the row keeps the whole as `statewide_total`), so a co-funder's row shows what it funds and
+    the lead's does not show the other funders' money. A shift in effect before the standing filing was confirmed is taken to be in
+    that filing's numbers. Without a standing filing, every shift in effect counts against an approved budget of zero."""
     v = service.standing(organisation, cycle)
     rows: dict[tuple[str, int], OperatingRow] = {}
     if v is not None:
         service.ensure_lines(v)
-        for ln in v.budget_lines.all():
-            r = rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year))
-            r.approved += sum((Decimal(x) for x in (ln.program_costs or {}).values()), Decimal(0)) + ln.rebates_and_incentives
+        own_lines = list(v.budget_lines.all())
+        sw_filed = statewide_ids(ln.prg_id for ln in own_lines)
+        for ln in own_lines:
+            if ln.prg_id in sw_filed:
+                continue
+            rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year)).approved += _line_budget(ln)
+    for (prg, year), whole in statewide_filed(cycle).items():
+        factor = _factor(organisation, cycle, prg, year)
+        if not factor:
+            continue
+        r = rows.setdefault((prg, year), OperatingRow(prg, year))
+        r.approved, r.statewide_total, r.factor = (whole * factor).quantize(CENT), whole, factor
     effective = list(
         FundShift.objects.filter(Q(organisation=organisation) | Q(shares__has_key=organisation.code), cycle=cycle)
         .filter(status=FundShift.Status.EFFECTIVE)
@@ -540,7 +710,11 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
             if ln.pa == organisation.code and ln.prg_id not in sw:
                 rows.setdefault((ln.prg_id, ln.year), OperatingRow(ln.prg_id, ln.year)).shifted += ln.amount
         for item, amount in (s.shares or {}).get(organisation.code, {}).items():
-            rows.setdefault(_key(item), OperatingRow(*_key(item))).shifted += Decimal(amount)
+            r = rows.setdefault(_key(item), OperatingRow(*_key(item)))
+            r.shifted += Decimal(amount)
+            if r.statewide_total is None:
+                r.statewide_total = Decimal(0)
+                r.factor = Decimal(s.factors.get(organisation.code, {}).get(item, 0)) or None
     names = {}
     for p in Program.objects.filter(prg_id__in={k[0] for k in rows}).prefetch_related("versions"):
         versions = sorted(p.versions.all(), key=lambda x: x.valid_from, reverse=True)
@@ -553,7 +727,16 @@ def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
 def operating_rows(organisation, cycle: FilingCycle) -> list[dict]:
     """The operating budget as plain rows, for the registry service's hook (registry.operating_budget): other modules read it there."""
     return [
-        {"prg_id": r.prg_id, "year": r.year, "name": r.name, "approved": r.approved, "shifted": r.shifted, "operating": r.operating}
+        {
+            "prg_id": r.prg_id,
+            "year": r.year,
+            "name": r.name,
+            "approved": r.approved,
+            "shifted": r.shifted,
+            "operating": r.operating,
+            "statewide_total": r.statewide_total,
+            "factor": r.factor,
+        }
         for r in operating_budget(organisation, cycle).rows
     ]
 
