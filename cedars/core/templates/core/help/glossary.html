@@ -1,0 +1,230 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>The short forms and terms you meet on CEDARS pages, in filings and in downloads. Each entry has its own link, so you can send
+someone straight to it. A field's exact definition, unit and valid values are in the <a href="{% url 'dictionary:index' %}">data
+dictionary</a>.</p>
+<nav aria-label="Glossary sections">
+<ul class="links">
+  <li><a href="#acronyms">Acronyms and abbreviations</a></li>
+  <li><a href="#pa-codes">Program administrator codes</a></li>
+  <li><a href="#terms">Terms</a></li>
+</ul>
+</nav>
+
+<h2 id="acronyms">Acronyms and abbreviations</h2>
+<dl class="glossary">
+  <dt id="acc">ACC</dt>
+  <dd><strong>Avoided Cost Calculator.</strong> The CPUC's model of what the electric and gas systems save, hour by hour and year by year,
+  when energy use goes down. Benefits are priced with it. CEDARS names each one by its year, for example "2024 ACC".</dd>
+  <dt id="api">API</dt>
+  <dd><strong>Application programming interface.</strong> The way another system files, checks or reads data in CEDARS without the
+  pages, using an API token from your account.</dd>
+  <dt id="cs">C&amp;S</dt>
+  <dd><strong>Codes and standards.</strong> Programs that support building codes and appliance standards. Their savings are reported
+  with the portfolio but are often left out of goal and cost-effectiveness totals.</dd>
+  <dt id="cca">CCA</dt>
+  <dd><strong>Community choice aggregator.</strong> A local public agency that buys electricity for the customers in its area. Some
+  CCAs run energy-efficiency programs and file in CEDARS as program administrators.</dd>
+  <dt id="cedars">CEDARS</dt>
+  <dd><strong>California Energy Data and Reporting System.</strong> This site.</dd>
+  <dt id="cet">CET</dt>
+  <dd><strong>Cost Effectiveness Tool.</strong> The calculation in the earlier CEDARS that priced filings. <a href="#recet">ReCET</a>
+  replaces it here.</dd>
+  <dt id="co2">CO2, NOx, PM10</dt>
+  <dd>Carbon dioxide, nitrogen oxides and fine particulate matter: the emissions reported for a measure's savings.</dd>
+  <dt id="cpuc">CPUC</dt>
+  <dd><strong>California Public Utilities Commission.</strong> It sets the rules for the programs, reviews the filings and publishes
+  the data. Its Energy Division runs CEDARS.</dd>
+  <dt id="csv">CSV</dt>
+  <dd><strong>Comma-separated values.</strong> A plain-text table file. CEDARS also reads the pipe-separated files the earlier CEDARS
+  used.</dd>
+  <dt id="deer">DEER</dt>
+  <dd><strong>Database for Energy Efficient Resources.</strong> The CPUC's database of savings, costs and useful lives for common
+  measures, and the load shapes that go with them.</dd>
+  <dt id="di">DI</dt>
+  <dd><strong>Direct install.</strong> A delivery method where the program installs the measure for the customer.</dd>
+  <dt id="ee">EE</dt>
+  <dd><strong>Energy efficiency.</strong></dd>
+  <dt id="emv">EM&amp;V</dt>
+  <dd><strong>Evaluation, measurement and verification.</strong> Independent studies of what programs actually saved. Their workplans,
+  drafts, comments and final reports are kept under Documents.</dd>
+  <dt id="esa">ESA</dt>
+  <dd><strong>Energy Savings Assistance.</strong> The IOUs' no-cost program for income-qualified households. Older published totals
+  include it; it is not part of cost-effectiveness results.</dd>
+  <dt id="etrm">eTRM</dt>
+  <dd><strong>California electronic Technical Reference Manual.</strong> The published record of every deemed measure: its savings,
+  costs, useful life and impact profiles. Deemed claims are checked against it.</dd>
+  <dt id="eul">EUL</dt>
+  <dd><strong>Effective useful life.</strong> How many years a measure keeps saving energy.</dd>
+  <dt id="ghg">GHG</dt>
+  <dd><strong>Greenhouse gas.</strong></dd>
+  <dt id="iou">IOU</dt>
+  <dd><strong>Investor-owned utility.</strong> PG&amp;E, SCE, SoCalGas and SDG&amp;E. They are program administrators and fund the
+  statewide programs.</dd>
+  <dt id="ir">IR</dt>
+  <dd><strong>Installation rate.</strong> The share of measures paid for that are actually installed and working.</dd>
+  <dt id="kwh">kW, kWh, MW, MWh, GWh</dt>
+  <dd>Kilowatt and megawatt (demand: power at one moment); kilowatt-hour, megawatt-hour and gigawatt-hour (energy over time). 1 MWh is
+  1,000 kWh.</dd>
+  <dt id="me">ME</dt>
+  <dd><strong>Market effects.</strong> Savings outside the program that it causes by changing the market, added as a share of net
+  savings.</dd>
+  <dt id="mfa">MFA</dt>
+  <dd><strong>Multi-factor authentication.</strong> The second factor (an authenticator app or a security key) every account uses to
+  sign in.</dd>
+  <dt id="nmec">NMEC</dt>
+  <dd><strong>Normalized metered energy consumption.</strong> Savings measured from a site's meter data, adjusted for weather and other
+  changes, instead of deemed values.</dd>
+  <dt id="ntg">NTG, NTGR</dt>
+  <dd><strong>Net-to-gross ratio.</strong> The share of gross savings caused by the program, leaving out customers who would have done
+  it anyway.</dd>
+  <dt id="pa">PA</dt>
+  <dd><strong>Program administrator.</strong> An organization that runs energy-efficiency programs with ratepayer funds and files them
+  in CEDARS: an IOU, a REN or a CCA. Each has a <a href="#pa-codes">code</a>.</dd>
+  <dt id="pac">PAC</dt>
+  <dd><strong>Program Administrator Cost test.</strong> Benefits against the costs the program administrator pays: program costs and
+  incentives.</dd>
+  <dt id="pct">PCT</dt>
+  <dd><strong>Participant Cost Test.</strong> The benefits and costs seen by the customer who takes part, such as bill savings and
+  incentives against what they pay.</dd>
+  <dt id="pda">PDA, PSR</dt>
+  <dd><strong>Public Documents Area</strong> and <strong>Project Status Report.</strong> The Energy Division's EM&amp;V websites, whose
+  documents and study records move into CEDARS' Documents.</dd>
+  <dt id="pii">PII</dt>
+  <dd><strong>Personally identifiable information.</strong> Customer contacts and sites filed with claims. CEDARS keeps them apart from
+  everything else, and reading them needs a data steward's approval.</dd>
+  <dt id="prgid">PrgID</dt>
+  <dd><strong>Program ID.</strong> A program's code, starting with its PA's code, for example PGE21001.</dd>
+  <dt id="pv">PV</dt>
+  <dd><strong>Present value.</strong> Future amounts discounted to today's dollars at the PA's discount rate.</dd>
+  <dt id="recet">ReCET</dt>
+  <dd>The calculation engine CEDARS uses for cost-effectiveness runs: a rebuild of the <a href="#cet">CET</a> that prices each hour on
+  the ACC.</dd>
+  <dt id="ren">REN</dt>
+  <dd><strong>Regional energy network.</strong> A group of local governments that runs energy-efficiency programs for its region and
+  files in CEDARS as a program administrator.</dd>
+  <dt id="rim">RIM</dt>
+  <dd><strong>Ratepayer Impact Measure.</strong> A test of the program's effect on rates paid by all customers, counting the utility's
+  lost revenue as a cost.</dd>
+  <dt id="rr">RR</dt>
+  <dd><strong>Realization rate.</strong> The share of estimated savings that evaluation confirms.</dd>
+  <dt id="rul">RUL</dt>
+  <dd><strong>Remaining useful life.</strong> How many more years the equipment being replaced would have lasted. A measure with an RUL
+  has a <a href="#first-baseline">second baseline</a>.</dd>
+  <dt id="sct">SCT</dt>
+  <dd><strong>Societal Cost Test.</strong> Like the TRC, with society's values for avoided emissions and a societal discount rate.
+  CEDARS shows it in two versions, SCB and SCH, on the ACC's base and high societal values.</dd>
+  <dt id="sw">SW</dt>
+  <dd><strong>Statewide.</strong> Programs run for the whole state, led by one IOU and funded by all four. Their costs and results are
+  shared among the IOUs by <a href="#allocation-factor">allocation factors</a>. SW is also the code their filings use.</dd>
+  <dt id="therm">Therm, MMBtu, MMTherms</dt>
+  <dd>Units of natural gas. 1 therm is 100,000 Btu; 1 MMBtu is 10 therms; MMTherms is millions of therms.</dd>
+  <dt id="trc">TRC</dt>
+  <dd><strong>Total Resource Cost test.</strong> The CPUC's main cost-effectiveness test: the avoided-cost benefits against the
+  program's costs and the measures' added costs, whoever pays them. A ratio above 1 means benefits exceed costs.</dd>
+  <dt id="tsb">TSB</dt>
+  <dd><strong>Total system benefit.</strong> The lifecycle value, in dollars, of a portfolio's savings to the electric and gas systems,
+  priced on the ACC. The CPUC sets the portfolio goals in TSB.</dd>
+  <dt id="wcag">WCAG</dt>
+  <dd><strong>Web Content Accessibility Guidelines.</strong> CEDARS meets version 2.2 at Level AA. See <a href="{% url 'core:help_guide' 'accessibility' %}">keyboard
+  and screen reader use</a>.</dd>
+</dl>
+
+<h2 id="pa-codes">Program administrator codes</h2>
+<p>The codes CEDARS uses for each program administrator, in filings, PrgIDs, filters and downloads. A PA that changes its name keeps
+its filings under the new code, and the filters show its former codes beside it.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Program administrator codes">
+<table class="list">
+  <caption class="sr-only">Program administrator codes, with each one's name and type</caption>
+  <thead><tr><th scope="col">Code</th><th scope="col">Program administrator</th><th scope="col">Type</th></tr></thead>
+  <tbody>
+  {% for code, name, kind in pa_codes %}<tr><th scope="row">{{ code }}</th><td>{{ name }}</td><td>{{ kind }}</td></tr>{% endfor %}
+  <tr><th scope="row">SW</th><td>Statewide programs (not an organization)</td><td>Statewide</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="terms">Terms</h2>
+<dl class="glossary">
+  <dt id="acting-for">Acting for</dt>
+  <dd>The organization you are working for at the moment, shown in the header. Everything you file or run is recorded under it.</dd>
+  <dt id="allocation-factor">Allocation factor</dt>
+  <dd>The share of a statewide program's costs and results counted for each funding IOU. The funding IOUs load and confirm them under
+  Reference.</dd>
+  <dt id="avoided-cost">Avoided cost</dt>
+  <dd>What the electric or gas system no longer has to spend (energy, capacity, transmission, emissions and more) because energy use
+  went down. Benefits in the cost tests are avoided costs.</dd>
+  <dt id="benefit-cost-ratio">Benefit-cost ratio</dt>
+  <dd>A cost test's benefits divided by its costs, both in present value. "No admin" ratios leave out program administration
+  costs.</dd>
+  <dt id="budget-filing">Budget filing</dt>
+  <dd>A PA's forecast of its programs for a <a href="#program-cycle">program cycle</a>: the measures it expects to install and what it
+  expects to spend. Each confirmed version is kept.</dd>
+  <dt id="claim">Claim</dt>
+  <dd>A PA's report of the measures actually installed and the money spent, filed after each quarter and confirmed once more as the
+  final claims for the year.</dd>
+  <dt id="climate-zone">Climate zone</dt>
+  <dd>One of California's 16 building climate zones. A measure's savings shape and avoided costs depend on its zone.</dd>
+  <dt id="cost-test">Cost test</dt>
+  <dd>A way of weighing a program's benefits against its costs from one point of view: <a href="#trc">TRC</a>,
+  <a href="#pac">PAC</a>, <a href="#rim">RIM</a>, <a href="#pct">PCT</a> or <a href="#sct">SCT</a>. A cost-test set is the version of
+  these definitions in force for a program year.</dd>
+  <dt id="custom">Custom measure</dt>
+  <dd>A measure whose savings are calculated for the project itself, not taken from a deemed value.</dd>
+  <dt id="data-dictionary">Data dictionary</dt>
+  <dd>Every field CEDARS holds, with its definition, unit, valid values and the years it is used.</dd>
+  <dt id="data-steward">Data steward</dt>
+  <dd>A CPUC role that approves access to personal information.</dd>
+  <dt id="deemed">Deemed measure</dt>
+  <dd>A measure whose savings, costs and life are fixed in advance in eTRM or DEER, so every installation of it claims the same values
+  per unit.</dd>
+  <dt id="end-use">End use</dt>
+  <dd>What the energy is used for, such as lighting, cooling or water heating. It picks the savings shape when the measure names
+  none.</dd>
+  <dt id="first-baseline">First and second baseline</dt>
+  <dd>What savings are measured against. The first baseline is the equipment in place, for its <a href="#rul">remaining useful
+  life</a>; the second is what would have been installed after that, for the rest of the measure's life.</dd>
+  <dt id="first-year">First-year and lifecycle savings</dt>
+  <dd>First-year savings are a measure's savings in its first year; lifecycle savings add them up over its useful life.</dd>
+  <dt id="fuel-substitution">Fuel substitution</dt>
+  <dd>A measure that replaces one fuel with another, usually gas with electricity, so one fuel's use goes up as the other's goes
+  down.</dd>
+  <dt id="fund-shift">Fund shift</dt>
+  <dd>Moving budget between programs during the cycle, without a new budget filing.</dd>
+  <dt id="gross-net">Gross and net savings</dt>
+  <dd>Gross savings are all the savings of the installed measures; net savings are the part the program caused (gross times the
+  <a href="#ntg">NTG</a>).</dd>
+  <dt id="impact-profile">Impact profile (load shape)</dt>
+  <dd>How a measure's yearly savings spread over the 8,760 hours of a year. Pricing multiplies each hour's savings by that hour's
+  avoided cost.</dd>
+  <dt id="measure">Measure, measure record</dt>
+  <dd>A piece of equipment or an action that saves energy, such as an LED fixture or a heat pump. A measure record is one row of a
+  filing's Measure table: one measure, its quantity and its values.</dd>
+  <dt id="monthly-report">Monthly report</dt>
+  <dd>A PA's spending and commitments so far in the year, compared with its operating budget. The 13th-month report closes the year
+  against the final claims.</dd>
+  <dt id="operating-budget">Operating budget</dt>
+  <dd>The standing budget filing plus the fund shifts in effect: what a PA is authorized to spend now.</dd>
+  <dt id="program">Program</dt>
+  <dd>A PA's offering to customers, with its own PrgID, sector and budget. A program has versions; closed programs stay in the
+  catalog.</dd>
+  <dt id="program-cycle">Program cycle, program year</dt>
+  <dd>Budgets are filed for a four-year program cycle (for example 2028-2031); results are reported by program year.</dd>
+  <dt id="programcost">ProgramCost table</dt>
+  <dd>The table of a filing that holds each program's costs that are not tied to one measure, such as administration and
+  marketing.</dd>
+  <dt id="run">Run</dt>
+  <dd>One cost-effectiveness calculation of a job on the ReCET engine, with a chosen ACC and engine release.</dd>
+  <dt id="sector">Sector</dt>
+  <dd>The kind of customer: residential, commercial, industrial, agricultural or public.</dd>
+  <dt id="true-up">True-up</dt>
+  <dd>A correction to an earlier filing or claim, such as a budget true-up advice letter, or a claim record priced against its
+  parent's impact profile.</dd>
+  <dt id="validation-rule">Validation rule</dt>
+  <dd>A check every filing goes through. A reject stops the filing until it is fixed; a warning is shown but lets it through.</dd>
+  <dt id="value-list">Value list</dt>
+  <dd>The allowed codes for a field. Retired codes are kept with an end date, so older filings stay valid.</dd>
+  <dt id="version">Version</dt>
+  <dd>Each confirmed filing is kept as a version and never changed. A correction is a new version with a reason.</dd>
+</dl>
+{% endblock %}

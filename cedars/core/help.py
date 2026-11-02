@@ -37,6 +37,12 @@ GUIDES = [
         ("accounts", "api"),
     ),
     Guide(
+        "glossary",
+        "Glossary",
+        "The acronyms, program administrator codes and terms used on CEDARS pages, in filings and in downloads.",
+        "Everyone",
+    ),
+    Guide(
         "published-data",
         "Finding published data",
         "The portfolio dashboard, record downloads, the document library, the data dictionary and the validation rules. No account needed.",

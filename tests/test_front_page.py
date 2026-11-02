@@ -1,6 +1,7 @@
 """The front page (Jake, 2026-10-31): what CEDARS is, the program cycle at a glance from the published data, and Help with its guides,
 support and the guided tour."""
 
+import re
 from datetime import timedelta
 
 import pytest
@@ -178,3 +179,22 @@ def test_help_is_open_to_a_password_only_session(signed_in, make_user):
     c = signed_in(make_user("new@example.com"), "password")
     assert c.get("/help/").status_code == 200 and c.get("/help/getting-started/").status_code == 200
     assert c.get("/").status_code == 302  # the front page waits for the second factor, as every other page does
+
+
+def test_the_glossary(client):
+    """The glossary guide (Jake, 2026-11-02): acronyms, every PA code CEDARS knows with its name and type, and terms, each with a link."""
+    from django.utils.html import escape
+
+    from cedars.services.accounts import service as accounts
+
+    assert "glossary" in site_help.BY_SLUG
+    page = client.get("/help/glossary/").content.decode()
+    for anchor in ("acronyms", "pa-codes", "terms", "tsb", "iou", "ren", "cca", "sw", "cet", "deer", "pa", "operating-budget"):
+        assert f'id="{anchor}"' in page
+    for code in accounts.KNOWN_PA_TYPES:
+        assert f'<tr><th scope="row">{code}</th><td>{escape(accounts.known_pa_name(code))}' in page
+    assert "East Bay Community Energy (before 2024; now Ava Community Energy, AVA)" in page
+    # every in-page link lands on an entry
+    ids = set(re.findall(r'id="([^"]+)"', page))
+    assert {t for t in re.findall(r'href="#([^"]+)"', page)} <= ids
+    assert 'href="/help/glossary/"' in client.get("/").content.decode()
