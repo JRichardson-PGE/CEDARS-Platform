@@ -7,7 +7,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from . import faq, queue, revisions
+from . import engine_docs, faq, queue, revisions
 from . import help as site_help
 from . import page_help as pages
 
@@ -38,7 +38,35 @@ def my_queue(request):
 
 @require_GET
 def help_index(request):
-    return render(request, "core/help/index.html", {"guides": site_help.GUIDES, "support": site_help.support()})
+    return render(
+        request,
+        "core/help/index.html",
+        {"guides": site_help.GUIDES, "support": site_help.support(), "engine_docs": engine_docs.DOCS},
+    )
+
+
+@require_GET
+def recet_docs(request):
+    """ReCET's own documents, from the pinned engine (core/engine_docs.py). Public, as they are in the engine's public repository."""
+    return render(request, "core/help/recet_docs.html", {"docs": engine_docs.DOCS, "engine": engine_docs.engine()})
+
+
+@require_GET
+def recet_doc(request, slug):
+    doc = engine_docs.BY_SLUG.get(slug)
+    if doc is None:
+        raise Http404
+    return render(
+        request,
+        "core/help/recet_doc.html",
+        {
+            "doc": doc,
+            "docs": engine_docs.DOCS,
+            "page": engine_docs.render(slug),
+            "engine": engine_docs.engine(),
+            "source": engine_docs.source_url(doc),
+        },
+    )
 
 
 @require_GET

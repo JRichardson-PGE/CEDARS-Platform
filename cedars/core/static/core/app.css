@@ -211,6 +211,26 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 table.data thead th a { color: inherit; display: inline-block; min-height: 24px; }   /* sort links: 24 px targets (2.5.8) */
 .hscroll { overflow-x: auto; position: relative; margin: .25rem 0 1rem; }   /* wide tables scroll inside their box at 320 px (1.4.10); relative so .sr-only text inside stays inside */
 .hscroll:focus-visible { outline: 3px solid var(--focus); }
+
+/* ---------- ReCET's own documents under Help (core/engine_docs.py) ---------- */
+.engine-doc { max-width: 72rem; min-width: 0; }
+.engine-doc :is(h2, h3, h4, h5, h6) { scroll-margin-top: 5rem; }   /* an anchor lands below the sticky header */
+.engine-doc table { border-collapse: collapse; background: var(--surface); font-size: .9rem; }
+.engine-doc th, .engine-doc td { border: 1px solid var(--line); padding: .35rem .6rem; text-align: left; vertical-align: top; }
+.engine-doc thead th { background: var(--surface-2); }
+.engine-doc pre { margin: 0; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
+.doc-toc { margin: 1rem 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); padding: 0 1rem; }
+.doc-toc > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; }
+.doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
+.doc-toc li { margin: .3rem 0; }
+.doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+.engine-doc { overflow-wrap: break-word; }
+.engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
+.engine-doc figure.diagram { margin: .75rem 0 .25rem; padding: .75rem; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r-lg); }   /* the drawing's own colors are for a light page, in both schemes */
+.engine-doc figure.diagram img { display: block; max-width: 100%; height: auto; margin: 0 auto; }
+.engine-doc details.diagram-text { margin: 0 0 1rem; }
+.engine-doc details.diagram-text > summary { cursor: pointer; padding: .25rem 0; }   /* keeps its disclosure triangle; 24 px tall (2.5.8) */
+
 .pager { display: flex; gap: 1rem; align-items: center; margin: .9rem 0; font-size: .92rem; color: var(--fg-2); }
 .pager a { padding: .3rem .2rem; min-height: 24px; display: inline-block; }
 .status { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; padding: .1rem .55rem .1rem .45rem; border-radius: 999px; white-space: nowrap;

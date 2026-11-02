@@ -1,0 +1,28 @@
+{% extends "core/base.html" %}
+{% block title %}ReCET documents{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li></ol></nav>
+<div class="page-title"><h1>ReCET documents</h1>{% page_help "core/help/recet_docs" %}</div>
+<p>The full reference for ReCET, the cost-effectiveness engine behind <a href="{% url 'calculations:runs' %}">Calculations</a>: every input
+format and field, every output column with its formula, the method, and how the cost tests are defined. For first steps on CEDARS, read
+the <a href="{% url 'core:help_guide' 'calculations' %}">Calculations guide</a>.</p>
+<p class="small muted">These are the engine's own documents, from ReCET {{ engine.version }} (commit <span class="mono">{{ engine.short }}</span>),
+the version CEDARS runs, so they change only when CEDARS moves to a new engine version. Where they describe ReCET's own web site or desktop
+window, the CEDARS Calculations pages do the same things but may look different.
+<a href="{{ engine.url }}">The documents on GitHub</a>.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="ReCET documents">
+<table class="list">
+  <caption class="sr-only">ReCET documents, with what each covers</caption>
+  <thead><tr><th scope="col">Document</th><th scope="col">Read it to learn</th></tr></thead>
+  <tbody>
+  {% for d in docs %}<tr><th scope="row"><a href="{% url 'core:recet_doc' d.slug %}">{{ d.title }}</a></th><td>{{ d.summary }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<h2>Tracing a number</h2>
+<p>Find its column in <a href="{% url 'core:recet_doc' 'output-fields' %}">Output fields</a>: the entry gives the complete formula,
+defines every symbol in it, lists the input fields it uses (described in <a href="{% url 'core:recet_doc' 'input-fields' %}">Input
+fields</a>) and has a worked number you can reproduce. <a href="{% url 'core:recet_doc' 'calculations' %}">Calculations</a> explains why
+the method is what it is. The <a href="{% url 'dictionary:index' %}">data dictionary</a> has each field's definition and unit as CEDARS
+files it.</p>
+{% endblock %}

@@ -14,5 +14,9 @@
   <li><a href="{% url 'calculations:templates' %}">Output templates</a>: choose the columns a run's file holds.</li>
   <li><a href="{% url 'impact_profiles:library' %}">Impact profile library</a>: the hourly profiles measures name, and custom uploads.</li>
   <li>From a finished run's page, compare it with another run.</li>
+  <li><a href="{% url 'core:recet_docs' %}">ReCET documents</a>: the engine's full reference: <a href="{% url 'core:recet_doc' 'input-formats' %}">input
+  formats</a>, <a href="{% url 'core:recet_doc' 'input-fields' %}">input fields</a>, <a href="{% url 'core:recet_doc' 'output-fields' %}">output
+  fields</a> with every formula, the <a href="{% url 'core:recet_doc' 'calculations' %}">method</a> and the
+  <a href="{% url 'core:recet_doc' 'cost-tests' %}">cost tests</a>.</li>
 </ul>
 {% endblock %}

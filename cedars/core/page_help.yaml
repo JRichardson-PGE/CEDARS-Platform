@@ -191,7 +191,9 @@ core/help/index:
       text: A step-by-step tour of the front page and the main parts of CEDARS, or the same steps on one page.
     - heading: More reference
       title: More reference
-      text: Help for each page, About CEDARS, the data dictionary, the validation rules, the filing calendar and the API description.
+      text: >-
+        Help for each page, ReCET's own documents, About CEDARS, the data dictionary, the validation rules, the filing calendar and the
+        API description.
 
 core/help/guide:
   title: A user guide
@@ -205,6 +207,45 @@ core/help/guide:
     - heading: Other guides
       title: Other guides
       text: The rest of the user guides, and All of Help.
+
+core/help/recet_docs:
+  title: ReCET documents
+  see: calculations
+  guide:
+    - >-
+      The full reference for ReCET, the engine Calculations runs on: input formats and fields, every output column with its formula,
+      the method, and how the cost tests are defined. They are the engine's own documents, from the version CEDARS runs.
+  how:
+    - Pick a document by its title. Output fields is where to start to trace a number back to the inputs.
+  tour:
+    - target: main table.list
+      title: The documents
+      text: Each document and what it covers.
+    - heading: Tracing a number
+      title: Tracing a number
+      text: Which document to read to follow a result back to its inputs.
+
+core/help/recet_doc:
+  title: A ReCET document
+  see: calculations
+  guide:
+    - >-
+      One of ReCET's own documents, from the engine version CEDARS runs (named under the heading). Links to the other ReCET documents
+      stay on CEDARS; links to the engine's code go to GitHub at that version.
+    - Each diagram is a picture with a text alternative, and Diagram N as text under it opens its source, which names each box and arrow.
+  how:
+    - On this page lists the document's sections; choose one to jump to it.
+    - Wide tables scroll sideways inside their box; with the keyboard, Tab to the table and use the arrow keys.
+  tour:
+    - target: details.doc-toc
+      title: On this page
+      text: The document's sections and their subsections.
+    - target: main .engine-doc
+      title: The document
+      text: The document itself, as the engine ships it.
+    - heading: Other ReCET documents
+      title: Other ReCET documents
+      text: The rest of the ReCET documents, and the list of them all.
 
 core/help/contact:
   title: Getting support

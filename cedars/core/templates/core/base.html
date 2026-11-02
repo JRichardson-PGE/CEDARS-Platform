@@ -39,6 +39,7 @@
         <li><a href="{% url 'calculations:drafts' %}"{% if '/calculations/drafts/' in here %} aria-current="page"{% endif %}>Edit inputs</a></li>
         <li><a href="{% url 'calculations:templates' %}"{% if '/calculations/templates/' in here %} aria-current="page"{% endif %}>Output templates</a></li>
         <li><a href="{% url 'impact_profiles:library' %}"{% if '/impact-profiles/' in here %} aria-current="page"{% endif %}>Impact profiles</a></li>
+        <li><a href="{% url 'core:recet_docs' %}"{% if '/help/recet/' in here %} aria-current="page"{% endif %}>ReCET documents</a></li>
         {% if nav.sysadmin %}<li><a href="{% url 'calculations:engines' %}"{% if '/calculations/engines/' in here %} aria-current="page"{% endif %}>Engine releases</a></li>{% endif %}
       </ul>
     </details>
