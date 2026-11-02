@@ -1761,3 +1761,41 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     assert summary.inner_text().endswith("All PAs and statewide programs")
     assert page.locator("[data-pa-statewide]").count() == 1
     context.close()
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene, scheme):
+    """The output template page's two lists (ReCET's Templates page): a field added with Enter, moved with Alt+Up, removed with Delete,
+    the Columns box kept in step, each change announced, and the page clean under axe. Without scripts: the text box and tick boxes."""
+    context, page = _open(browser, site, scene, "/calculations/templates/new/", "analyst", color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#field-picker").is_visible() and page.locator("[data-without-picker]").is_hidden()
+    page.fill("#pick-find", "CEInputID")
+    page.locator("#pick-available").focus()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    page.fill("#pick-find", "")
+    page.locator("#pick-available").focus()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    cols = page.locator("#id_columns").input_value().split()
+    assert cols[0] == "CEInputID" and len(cols) == 2
+    page.locator("#pick-selected").focus()
+    page.locator("#pick-selected").select_option(cols[1])
+    page.keyboard.press("Alt+ArrowUp")
+    assert page.locator("#id_columns").input_value().split() == [cols[1], "CEInputID"]
+    page.wait_for_selector("#announcer:has-text('position 1 of 2')", state="attached")
+    page.keyboard.press("Delete")
+    assert page.locator("#id_columns").input_value().split() == ["CEInputID"]
+    page.locator("#pick-selected").select_option("CEInputID")
+    page.locator("#pick-selected").dispatch_event("change")
+    assert page.locator("#pick-def a", has_text="CEInputID").is_visible()
+    page.add_script_tag(content=axe_source)
+    assert _run_axe(page, within="main") == []
+    context.close()  # the Columns box is what the form sends (saving is tests/test_output_templates.py's)
+
+    context = browser.new_context(java_script_enabled=False)
+    context.add_cookies([_session_cookie(scene["analyst"], "mfa", site)])
+    page = context.new_page()
+    page.goto(f"{site.url}/calculations/templates/new/")
+    assert page.locator("#field-picker").is_hidden() and page.locator("[data-without-picker]").is_visible()
+    context.close()

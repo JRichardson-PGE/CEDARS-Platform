@@ -29,6 +29,25 @@ def templates(request):
     return render(request, "calculations/templates.html", {"rows": rows, "default": default})
 
 
+def picker_fields(cat) -> list[dict]:
+    """The field picker's catalog (template_picker.js): each field's name, group, kind (input, program or output field), definition
+    and data dictionary page, in the order a run writes them."""
+    out = []
+    for group, fields in cat.groups:
+        for f in fields:
+            kind = "input" if group == output_templates.INPUT_GROUP else "program" if f.name.startswith("Prg_") else "output"
+            out.append(
+                {
+                    "c": f.name,
+                    "g": group,
+                    "k": kind,
+                    "d": (f.definition or "").strip(),
+                    "l": reverse("dictionary:field", args=[f.name]),
+                }
+            )
+    return out
+
+
 @login_required
 def template(request, pk=None):
     """New template (optionally a copy: ?from=<id>), or change one the person may change."""
@@ -87,5 +106,7 @@ def template(request, pk=None):
             "count": len(known),
             "unknown": unknown,
             "ticked": set(form.data.getlist("add")) if form.is_bound else set(),
+            "picker_fields": picker_fields(cat) if cat else [],
+            "output_groups": [g for g, _f in cat.groups if g != output_templates.INPUT_GROUP] if cat else [],
         },
     )

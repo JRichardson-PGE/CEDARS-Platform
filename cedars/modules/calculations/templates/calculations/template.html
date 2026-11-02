@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% block title %}{% if template %}Change {{ template.name }}{% else %}New output template{% endif %}{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:templates' %}">Output templates</a></li></ol></nav>
@@ -6,18 +7,60 @@
 {% if not catalog %}
 <p class="alert" role="alert">No field catalog is published yet, so a template's columns cannot be checked. A CPUC system administrator publishes one on the data dictionary.</p>
 {% else %}
-<p>Write the columns in the order the file should have them, one per line, or tick them below: ticked columns are added at the end when
-you save. Every field's definition is in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+<p>Pick the columns in the order the file should have them: add fields from the list on the left, then put the template's columns in
+order on the right. You can also write or paste them, one per line. Every field's definition is in the
+<a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
 <form method="post" class="stack" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   <div class="form-narrow stack">
     {{ form.name.as_field_group }}
+  </div>
+  <div class="picker" id="field-picker" hidden>
+    <div class="picker-side">
+      <label for="pick-kind">Show</label>
+      <select id="pick-kind">
+        <option value="">All fields</option>
+        <option value="k:input">Input fields</option>
+        <option value="k:program">Program fields (Prg_)</option>
+        <option value="k:output">Output fields</option>
+        <optgroup label="Output field groups">{% for g in output_groups %}<option value="g:{{ g }}">{{ g }}</option>{% endfor %}</optgroup>
+      </select>
+      <label for="pick-find">Search names and definitions</label>
+      <input type="search" id="pick-find">
+      <label for="pick-available">Fields you can add</label>
+      <select id="pick-available" multiple size="14" aria-describedby="pick-count pick-keys"></select>
+      <p class="small" id="pick-count"></p>
+    </div>
+    <div class="picker-moves" role="group" aria-label="Add and remove">
+      <button type="button" id="pick-add">Add the selected fields</button>
+      <button type="button" id="pick-add-all">Add every field shown</button>
+      <button type="button" id="pick-remove">Remove the selected columns</button>
+      <button type="button" id="pick-clear">Remove every column</button>
+    </div>
+    <div class="picker-side">
+      <label for="pick-find-sel">Find in the template</label>
+      <input type="search" id="pick-find-sel">
+      <label for="pick-selected">Template columns, in file order</label>
+      <select id="pick-selected" multiple size="14" aria-describedby="pick-sel-count pick-keys"></select>
+      <p class="small" id="pick-sel-count"></p>
+    </div>
+    <div class="picker-moves" role="group" aria-label="Order">
+      <button type="button" id="pick-top">Move to the top</button>
+      <button type="button" id="pick-up">Move up</button>
+      <button type="button" id="pick-down">Move down</button>
+      <button type="button" id="pick-bottom">Move to the bottom</button>
+    </div>
+    <p class="picker-keys small" id="pick-keys">Keys: in either list, select fields (Shift or Ctrl with the arrows or a click selects several).
+    Enter adds the selected fields; Delete removes the selected columns; Alt+Up and Alt+Down move them.</p>
+    <div class="picker-def" id="pick-def"><span class="muted">Select a field to see its definition here.</span></div>
+  </div>
+  <div class="form-narrow stack">
     {{ form.columns.as_field_group }}
     <p class="small" id="columns-count">{{ count }} column{{ count|pluralize }} in the template{% if unknown %}; not measure-level columns: {{ unknown|join:", " }}{% endif %}.</p>
     {% if form.shared %}{{ form.shared.as_field_group }}{% endif %}
     {{ form.make_default.as_field_group }}
   </div>
-  <fieldset><legend>Add columns</legend>
+  <fieldset data-without-picker><legend>Add columns</legend>
     <p class="small">Grouped as the field catalog groups them, inputs first. Columns already in the template are marked.</p>
     {% for group, fields in catalog.groups %}
     <details class="column-group">
@@ -36,5 +79,7 @@ you save. Every field's definition is in the <a href="{% url 'dictionary:index' 
     <a href="{% url 'calculations:templates' %}">Cancel</a>
   </div>
 </form>
+{{ picker_fields|json_script:"field-catalog" }}
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if catalog %}<script src="{% static 'calculations/template_picker.js' %}" defer></script>{% endif %}{% endblock %}
