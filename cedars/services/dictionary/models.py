@@ -37,6 +37,7 @@ class Field(models.Model):
     class Kind(models.TextChoices):
         INPUT = "input", "Input"
         OUTPUT = "output", "Output"
+        RECORD = "record", "Platform record"
 
     class Audience(models.TextChoices):
         PUBLIC = "public", "Public"
@@ -49,7 +50,11 @@ class Field(models.Model):
     group = models.CharField(max_length=200, blank=True)
     definition = models.TextField(blank=True)
     doc_link = models.CharField(max_length=400, blank=True, help_text="The ReCET documentation entry, e.g. OUTPUT_FIELDS.md#elecben")
-    data_type = models.CharField(max_length=20, default="text", help_text="text, number, boolean or year_quarter")
+    data_type = models.CharField(
+        max_length=20,
+        default="text",
+        help_text="text, number, boolean or year_quarter; a platform record's column also date, datetime, json or reference",
+    )
     max_length = models.PositiveIntegerField(null=True, blank=True)
     unit = models.TextField(blank=True)
     source = models.TextField(blank=True)
@@ -60,6 +65,11 @@ class Field(models.Model):
     rounding = models.TextField(blank=True)
     years_in_use = models.TextField(blank=True)
     audience = models.CharField(max_length=12, choices=Audience.choices, default=Audience.PUBLIC)
+    values = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="[[code, label], ...]: the codes a platform record's column may hold (its choices)",
+    )
     required_by = models.TextField(
         blank=True, help_text="The decision or resolution that requires the field, so a retirement review (BR-08.4) can tell"
     )
