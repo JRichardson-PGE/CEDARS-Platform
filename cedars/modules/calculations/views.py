@@ -6,12 +6,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import storage, zipstream
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
@@ -227,6 +227,7 @@ def run(request, pk):
     run = _run_or_404(request, pk)
     receipt = run.receipt or {}
     files = service.output_files(run) if run.status != Run.Status.QUEUED else []
+    log, log_cut = results_mod.run_log(run) if run.status != Run.Status.QUEUED else ("", False)
     return render(
         request,
         "calculations/run.html",
@@ -253,8 +254,21 @@ def run(request, pk):
             "input_notes": ((run.spec or {}).get("context") or {}).get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
             "cet_comparison": results_mod.cet_comparison(run, files),
+            "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
+            "log": log,
+            "log_cut": log_cut,
+            "inputs": _input_files(run),
         },
     )
+
+
+def _input_files(run: Run) -> list[dict]:
+    """The run's inputs as given (job zip or workbook, supplied files, the registry's programs, the allocation table), to download."""
+    return [
+        {"name": name, "filename": PurePosixPath(f["key"]).name, "sha256": f.get("sha256", "")}
+        for name, f in sorted((run.inputs or {}).items())
+        if f.get("key")
+    ]
 
 
 def _can_edit_inputs(user, run: Run) -> bool:
@@ -297,6 +311,74 @@ def run_file(request, pk, name):
         return HttpResponseRedirect(url)
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
+
+
+@never_cache
+@login_required
+def run_log(request, pk):
+    """The run's whole log as text: the run page's Log reads it while the run runs, and it opens or downloads as a file."""
+    run = _run_or_404(request, pk)
+    text, _cut = results_mod.run_log(run, limit=None)
+    if not text and run.ended:
+        raise Http404("This run kept no log.")
+    resp = HttpResponse(text, content_type="text/plain; charset=utf-8")
+    if request.GET.get("download"):
+        resp["Content-Disposition"] = f'attachment; filename="{run.job_id}_log.txt"'
+    return resp
+
+
+def _zip_name(run: Run, what: str) -> str:
+    return f"{run.job_id}_{what}.zip"
+
+
+@login_required
+def run_zip(request, pk):
+    """Every output file of an ended run in one zip, written as it is sent (never built in memory or on the server's disk)."""
+    run = _run_or_404(request, pk)
+    if not run.ended:
+        raise Http404("The files are ready to download together once the run has ended.")
+    files = service.output_files(run)
+    if not files:
+        raise Http404("This run wrote no files.")
+    store = storage.store("results")
+    entries = [(f["name"], lambda k=run.storage_prefix + "out/" + f["name"]: store.open(k)) for f in files]
+    resp = StreamingHttpResponse(zipstream.stream(entries), content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{_zip_name(run, "files")}"'
+    return resp
+
+
+@login_required
+def run_input(request, pk, name):
+    """One of the run's inputs, as it was given."""
+    run = _run_or_404(request, pk)
+    f = next((i for i in _input_files(run) if i["name"] == name), None)
+    if f is None:
+        raise Http404
+    key = run.inputs[name]["key"]
+    store = storage.store("uploads")
+    url = store.download_url(key, f["filename"])
+    if url:
+        return HttpResponseRedirect(url)
+    content_type = mimetypes.guess_type(f["filename"])[0] or "application/octet-stream"
+    return FileResponse(store.open(key), as_attachment=True, filename=f["filename"], content_type=content_type)
+
+
+@login_required
+def run_inputs_zip(request, pk):
+    """Every input of the run in one zip, each under its own file name, as it was given."""
+    run = _run_or_404(request, pk)
+    inputs = _input_files(run)
+    if not inputs:
+        raise Http404
+    store = storage.store("uploads")
+    seen, entries = set(), []
+    for f in inputs:
+        arc = f["filename"] if f["filename"] not in seen else f"{f['name']}_{f['filename']}"
+        seen.add(arc)
+        entries.append((arc, lambda k=run.inputs[f["name"]]["key"]: store.open(k)))
+    resp = StreamingHttpResponse(zipstream.stream(entries), content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{_zip_name(run, "inputs")}"'
+    return resp
 
 
 def _needs(missing: list[tuple[str, str]]) -> str:

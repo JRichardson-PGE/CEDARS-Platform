@@ -337,6 +337,7 @@ td.cell-info { outline: 1px dashed var(--control); outline-offset: -2px; }
 .mark { font-weight: 700; }
 ul.issues { margin: .3rem 0; padding-left: 1.1rem; }
 .issue-error, .issue-warning { color: var(--bad); }
+pre.log { max-height: 28rem; overflow: auto; background: var(--surface-2); padding: .6rem .8rem; border-radius: var(--r-lg); }
 
 /* ---------- Comments, bars, grants and other content blocks ---------- */
 article.comment { border-top: 1px solid var(--line); padding: .7rem 0; }

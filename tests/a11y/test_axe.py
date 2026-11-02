@@ -273,6 +273,28 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     out = finished.storage_prefix + "out/"
     storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
     storage.store("results").put_bytes(out + "receipt.json", b"{}")
+    preflight = {  # the run page's Input check (every part of it: unpriced, the ACC check, stats and findings)
+        "stats": {"Measures": "2"},
+        "acc_check": {
+            "label": "Claims",
+            "measures": 2,
+            "flagged": 1,
+            "by_acc_and_year": [{"acc": "2024", "program_year": 2028, "measures": 1, "status": "flagged"}],
+        },
+        "issues": [
+            {
+                "severity": "warning",
+                "code": "no_gas_profile",
+                "message": "No gas profile",
+                "count": 1,
+                "examples": ["M2"],
+                "impact": {"first-year net therms": -12},
+            },
+            {"severity": "info", "code": "note", "message": "A note", "count": 0},
+        ],
+    }
+    storage.store("results").put_bytes(out + "preflight.json", json.dumps(preflight).encode())
+    storage.store("results").put_bytes(out + "log.txt", b"10:00:01 recet worker 0.1.90: job x\n10:00:09 succeeded\n")
     storage.store("results").put_bytes(
         out + "cet_comparison_summary_run.csv", b"metric,POC,CET,POC/CET\nTRCCost,1200,1000,1.2\nGasBen,5,0,\n"
     )

@@ -25,7 +25,24 @@
     return false;
   }
 
+  // The log updates in place while the run runs (never announced: the status line says what changed). It stays at its end when the
+  // reader was there, else where they scrolled to.
+  var logEl = document.getElementById("run-log");
+  function pollLog() {
+    if (!logEl || !logEl.dataset.live) return;
+    fetch(logEl.dataset.url, { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (t) {
+        if (!t || t === logEl.textContent) return;
+        var atEnd = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 4;
+        logEl.textContent = t.length > 200000 ? t.slice(t.indexOf("\n", t.length - 200000) + 1) : t;
+        if (atEnd) logEl.scrollTop = logEl.scrollHeight;
+      })
+      .catch(function () {});
+  }
+
   function poll() {
+    pollLog();
     fetch(el.dataset.url, { credentials: "same-origin", headers: { Accept: "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (s) { if (!s || !update(s)) window.setTimeout(poll, 5000); })
