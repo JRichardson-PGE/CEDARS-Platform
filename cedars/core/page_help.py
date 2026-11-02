@@ -84,15 +84,6 @@ class PageHelp:
         return AREAS.get(self.area, self.area)
 
 
-# Every tour ends on the button that opened it, so the way back is learned once.
-LAST_STEP = TourStep(
-    "Help on every page",
-    "The question mark beside a page's heading opens this page's guide and its tour. All of Help, with the user guides and how to get "
-    "support, is in the header.",
-    target=".page-help",
-)
-
-
 class PageHelpError(ValueError):
     pass
 
@@ -154,7 +145,7 @@ def entries() -> dict[str, PageHelp]:
                 tuple(_para(g) for g in guide),
                 tuple(_para(h) for h in e.get("how") or []),
                 e.get("see", ""),
-                tour + (LAST_STEP,) if tour else (),
+                tour,
                 e.get("tour_from", ""),
             )
     return out

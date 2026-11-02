@@ -6,12 +6,12 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404, HttpResponseRedirect, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import storage, zipstream
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
@@ -96,7 +96,13 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
         elif k == "filing_validation":  # the choice's words, not its code (UAT 2, U10)
             v = service.FILING_CHECKS.get(v, v)
         elif k == "acc_purpose":
-            v = dict(forms.ACC_PURPOSES).get(v, v)
+            v = dict(service.acc_purposes()).get(v, v)
+        elif k == "market_effects":
+            v = f"{float(v):.0%}"
+        elif k == "compare_with":
+            v = f"{v} ACC"
+        elif k == "profile_years":
+            v = ", ".join(str(y) for y in v)
         out.append((service.jobspec.SETTINGS.get(k, k), v))
     return out
 
@@ -179,6 +185,7 @@ def new_run(request):
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
             "input_templates": _input_template_links(releases),
+            "acc_table": service.acc_table(releases),
         },
     )
 
@@ -269,6 +276,7 @@ def run(request, pk):
     run = _run_or_404(request, pk)
     receipt = run.receipt or {}
     files = service.output_files(run) if run.status != Run.Status.QUEUED else []
+    log, log_cut = results_mod.run_log(run) if run.status != Run.Status.QUEUED else ("", False)
     return render(
         request,
         "calculations/run.html",
@@ -300,8 +308,21 @@ def run(request, pk):
             and run.ended
             and run.submission_version_id is None,
             "cet_comparison": results_mod.cet_comparison(run, files),
+            "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
+            "log": log,
+            "log_cut": log_cut,
+            "inputs": _input_files(run),
         },
     )
+
+
+def _input_files(run: Run) -> list[dict]:
+    """The run's inputs as given (job zip or workbook, supplied files, the registry's programs, the allocation table), to download."""
+    return [
+        {"name": name, "filename": PurePosixPath(f["key"]).name, "sha256": f.get("sha256", "")}
+        for name, f in sorted((run.inputs or {}).items())
+        if f.get("key")
+    ]
 
 
 def _can_edit_inputs(user, run: Run) -> bool:
@@ -362,6 +383,74 @@ def run_file(request, pk, name):
         return HttpResponseRedirect(url)
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
+
+
+@never_cache
+@login_required
+def run_log(request, pk):
+    """The run's whole log as text: the run page's Log reads it while the run runs, and it opens or downloads as a file."""
+    run = _run_or_404(request, pk)
+    text, _cut = results_mod.run_log(run, limit=None)
+    if not text and run.ended:
+        raise Http404("This run kept no log.")
+    resp = HttpResponse(text, content_type="text/plain; charset=utf-8")
+    if request.GET.get("download"):
+        resp["Content-Disposition"] = f'attachment; filename="{run.job_id}_log.txt"'
+    return resp
+
+
+def _zip_name(run: Run, what: str) -> str:
+    return f"{run.job_id}_{what}.zip"
+
+
+@login_required
+def run_zip(request, pk):
+    """Every output file of an ended run in one zip, written as it is sent (never built in memory or on the server's disk)."""
+    run = _run_or_404(request, pk)
+    if not run.ended:
+        raise Http404("The files are ready to download together once the run has ended.")
+    files = service.output_files(run)
+    if not files:
+        raise Http404("This run wrote no files.")
+    store = storage.store("results")
+    entries = [(f["name"], lambda k=run.storage_prefix + "out/" + f["name"]: store.open(k)) for f in files]
+    resp = StreamingHttpResponse(zipstream.stream(entries), content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{_zip_name(run, "files")}"'
+    return resp
+
+
+@login_required
+def run_input(request, pk, name):
+    """One of the run's inputs, as it was given."""
+    run = _run_or_404(request, pk)
+    f = next((i for i in _input_files(run) if i["name"] == name), None)
+    if f is None:
+        raise Http404
+    key = run.inputs[name]["key"]
+    store = storage.store("uploads")
+    url = store.download_url(key, f["filename"])
+    if url:
+        return HttpResponseRedirect(url)
+    content_type = mimetypes.guess_type(f["filename"])[0] or "application/octet-stream"
+    return FileResponse(store.open(key), as_attachment=True, filename=f["filename"], content_type=content_type)
+
+
+@login_required
+def run_inputs_zip(request, pk):
+    """Every input of the run in one zip, each under its own file name, as it was given."""
+    run = _run_or_404(request, pk)
+    inputs = _input_files(run)
+    if not inputs:
+        raise Http404
+    store = storage.store("uploads")
+    seen, entries = set(), []
+    for f in inputs:
+        arc = f["filename"] if f["filename"] not in seen else f"{f['name']}_{f['filename']}"
+        seen.add(arc)
+        entries.append((arc, lambda k=run.inputs[f["name"]]["key"]: store.open(k)))
+    resp = StreamingHttpResponse(zipstream.stream(entries), content_type="application/zip")
+    resp["Content-Disposition"] = f'attachment; filename="{_zip_name(run, "inputs")}"'
+    return resp
 
 
 def _needs(missing: list[tuple[str, str]]) -> str:
@@ -458,12 +547,39 @@ def _rows(rv, cat, table):
     return [[(_cell(rv, cat, c, v), c in numeric) for c, v in zip(table.columns, r, strict=True)] for r in table.itertuples(index=False)]
 
 
+def _acc_tabs(run: Run, acc: str) -> list[dict]:
+    """A comparison run's tabs on Results: each ACC's tables, then the comparison of the two."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return []
+    tabs = [{"key": a, "label": f"{a} ACC" + (" (the run's own)" if a == run.acc_version else ""), "href": f"?acc={a}"} for a in parts]
+    tabs.append({"key": "comparison", "label": "Comparison of the two", "href": "?acc=comparison"})
+    for t in tabs:
+        t["on"] = t["key"] == acc
+    return tabs
+
+
+def _results_acc(request, run: Run) -> str:
+    """The ACC tab asked for (?acc=), the run's own when it names none or one the run does not have; "" for a run with one ACC."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return ""
+    asked = request.GET.get("acc", "")
+    return asked if asked in parts or asked == "comparison" else parts[0]
+
+
 @login_required
 def results(request, pk):
     run = _run_or_404(request, pk)
-    ctx = {"run": run}
+    acc = _results_acc(request, run)
+    ctx = {"run": run, "acc": acc, "acc_tabs": _acc_tabs(run, acc)}
+    if acc == "comparison":
+        ctx["comparison"] = results_mod.acc_comparison(run)
+        if ctx["comparison"] is None:
+            ctx["note"] = "This run's comparison of the two ACCs is not available (the run has not finished, or wrote none)."
+        return render(request, "calculations/results.html", ctx)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults as e:
         return render(request, "calculations/results.html", {**ctx, "note": str(e)})
     rv = results_mod.engine()
@@ -490,7 +606,7 @@ def results(request, pk):
             results_mod.with_measure_rows(run, res)
         table = res.table(level, pa, keys, years)
     text = request.GET.get("q", "")
-    state = {"level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
+    state = {"acc": acc, "level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
     labels = {k: rv.display_label(c) for k, c in cat.items()}
     head = []
     if table is not None:
@@ -555,8 +671,9 @@ def _csv_response(table, name):
 @login_required
 def results_csv(request, pk):
     run = _run_or_404(request, pk)
+    acc = _results_acc(request, run)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults:
         raise Http404 from None
     rv = results_mod.engine()
@@ -569,7 +686,7 @@ def results_csv(request, pk):
             raise Http404
         results_mod.with_measure_rows(run, res)
     t = res.table(level, pa, keys, years).rename(columns={k: c.label for k, c in cat.items()})
-    return _csv_response(t, f"cedars_run_{run.pk}_{level}.csv")
+    return _csv_response(t, f"cedars_run_{run.pk}_{level}{f'_acc{acc}' if acc else ''}.csv")
 
 
 def _compare_candidates(user, run):

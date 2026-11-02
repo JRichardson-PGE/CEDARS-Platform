@@ -83,7 +83,7 @@ def test_sums_by_dimension_with_the_default_exclusions(claims):
     assert by["Residential"]["trc"] == 1.0 and by["Commercial"]["trc"] == 2.0
     assert r.totals["tsb"] == 180 and r.totals["_rows"] == 3
     assert r.totals["trc"] == pytest.approx(240 / 220)  # from summed benefits and costs, never an average of ratios
-    assert r.notes == ["Left out: Pension and Benefits programs and codes and standards."]
+    assert r.notes == ["Left out: Pension and Benefits programs, Energy Savings Assistance programs and codes and standards."]
 
 
 def test_a_value_spelled_two_ways_is_one_group(filer, cpuc_admin, pge, django_capture_on_commit_callbacks):  # noqa: F811
@@ -192,7 +192,7 @@ def test_downloads_carry_the_same_totals_and_a_stamp(claims):
     text = downloads.render(r, "csv").decode()
     stamp = {line[2:].split(": ", 1)[0]: line[2:].split(": ", 1)[1] for line in text.splitlines() if line.startswith("# ")}
     assert stamp["release"] == "1" and json.loads(stamp["snapshots"]) == [r.files[0]["snapshot"]]
-    assert json.loads(stamp["excluded"]) == ["Pension and Benefits programs", "Codes and standards"]
+    assert json.loads(stamp["excluded"]) == ["Pension and Benefits programs", "Energy Savings Assistance programs", "Codes and standards"]
     assert json.loads(stamp["metrics"])["trc"]["denominator"] == ["TRCCost"]
     rows = list(csv.reader(line for line in text.splitlines() if not line.startswith("# ")))
     assert rows[0][:4] == [
@@ -242,7 +242,7 @@ def test_metric_fields_are_canonical_output_fields():
     """Every field a metric sums is in the field dictionary the platform ships (decision L)."""
     from pathlib import Path
 
-    catalog = json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.89.json").read_text())
+    catalog = json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.90.json").read_text())
     names = {f["name"] for f in catalog["fields"]}
     missing = {f for m in metrics.CATALOG.values() for f in m.fields} - names
     assert not missing

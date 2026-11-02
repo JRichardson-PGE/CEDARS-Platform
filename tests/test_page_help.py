@@ -32,8 +32,9 @@ def test_the_help_loads_and_is_well_formed():
         assert e.tour or e.tour_from == "front", key
         assert e.see in site_help.BY_SLUG, f"{key}: see: names no guide ({e.see!r}); every entry links its user guide (UI review 2, #37)"
         assert e.area in pages.AREAS, f"{key}: add {e.area!r} to page_help.AREAS"
-        if e.tour:
-            assert e.tour[-1] == pages.LAST_STEP and pages.LAST_STEP not in e.tour[:-1], key
+        # A page's tour is started from its (?), so it does not point at it; the front page's tour teaches the (?) once (Jake, 2026-11-02).
+        assert not any("page-help" in s.target for s in e.tour), key
+    assert site_help.PAGE_HELP_STEP in site_help.tour_steps(False) and site_help.PAGE_HELP_STEP in site_help.tour_steps(True)
 
 
 def test_every_page_heading_has_its_help():
@@ -70,7 +71,7 @@ def test_the_tag_needs_an_entry():
 def test_the_button_and_the_dialog(client):
     page = client.get("/help/contact/").content.decode()
     assert (
-        '<a class="page-help" href="/help/pages/core/help/contact/?from=%2Fhelp%2Fcontact%2F" data-page-help '
+        '<a class="page-help" href="/help/pages/core/help/contact/?from=%2Fhelp%2Fcontact%2F" data-page-help data-tour="page-help" '
         'aria-label="Help with this page: a guide and a tour"><span aria-hidden="true">?</span></a>'
     ) in page
     assert '<dialog id="page-help"' in page and "Getting support</h2>" in page

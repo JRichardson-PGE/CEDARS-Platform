@@ -92,7 +92,7 @@ submissions/records:
       title: Partial corrections
       text: A file of only the changed and new records; you see every change before it is applied.
       optional: true  # a confirmed version has no editor, only the reason
-    - heading: These records cannot be corrected now
+    - target: '#why-not-now'
       title: Why not now
       text: Corrections need an open draft; this says what to do instead.
       optional: true

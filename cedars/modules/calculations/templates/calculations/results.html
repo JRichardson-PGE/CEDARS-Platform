@@ -9,10 +9,26 @@
     {% if res %}<a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}
   </div>
 </div>
-{% if not res %}
+{% if acc_tabs %}
+<nav class="subnav" aria-label="ACCs of this comparison">
+  {% for t in acc_tabs %}<a href="{{ t.href }}"{% if t.on %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+</nav>
+{% endif %}
+{% if comparison %}
+<h2 id="comparison-h">Comparison of the two ACCs</h2>
+<p class="small">The portfolio priced on each ACC, from <a href="{% url 'calculations:run_file' run.pk comparison.file %}">{{ comparison.file }}</a>; each measure's comparison is in the run's files.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="comparison-h">
+<table class="list data">
+  <caption class="sr-only">The portfolio priced on each ACC, side by side</caption>
+  <thead><tr>{% for c in comparison.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+  <tbody>{% for r in comparison.rows %}<tr>{% for v, num in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td{% if num %} class="num"{% endif %}>{{ v }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+</table>
+</div>
+{% elif not res %}
 <p>{{ note }}</p>
 {% else %}
 <form method="get" class="filters" aria-label="What to show">
+  {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
   <input type="hidden" name="level" value="{{ level }}">
   <input type="hidden" name="columns" value="{{ keys|join:',' }}">
   <label>PA <select name="pa">{% for p in pas %}<option{% if p == pa %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
@@ -52,6 +68,7 @@
 <details class="card"{% if request.GET.col %} open{% endif %}>
   <summary>Choose columns ({{ keys|length }} shown)</summary>
   <form method="get">
+    {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
     <input type="hidden" name="level" value="{{ level }}"><input type="hidden" name="pa" value="{{ pa }}">
     {% for y in years %}<input type="hidden" name="years" value="{{ y }}">{% endfor %}
     {% for group, items in groups %}
@@ -64,7 +81,7 @@
     {% endfor %}
     <div class="actions">
       <button type="submit" class="primary">Show these columns</button>
-      <a href="?level={{ level }}&amp;pa={{ pa|urlencode }}{% for y in years %}&amp;years={{ y }}{% endfor %}">Default columns</a>
+      <a href="?{% if acc %}acc={{ acc }}&amp;{% endif %}level={{ level }}&amp;pa={{ pa|urlencode }}{% for y in years %}&amp;years={{ y }}{% endfor %}">Default columns</a>
     </div>
   </form>
 </details>
@@ -79,6 +96,7 @@
 
 {% if table is not None %}
 <form method="get" class="row-form" aria-label="Filter rows">
+  {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
   <input type="hidden" name="level" value="{{ level }}"><input type="hidden" name="pa" value="{{ pa }}"><input type="hidden" name="columns" value="{{ keys|join:',' }}">
   {% for y in years %}<input type="hidden" name="years" value="{{ y }}">{% endfor %}
   <label>Filter rows <input type="search" name="q" value="{{ text }}" placeholder="program, PA, text"></label>

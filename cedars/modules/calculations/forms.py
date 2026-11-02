@@ -11,6 +11,17 @@ ACC_PURPOSES = [
     ("", "Any filing"),
     ("claims", "Claims"),
 ]
+MARKET_EFFECTS = [("0", "0%"), ("0.05", "5% (benefits and costs)")]
+
+
+def parse_years(text: str) -> list[int]:
+    """'2028, 2029' or '2028 2029' as [2028, 2029]; raises ValidationError on anything else."""
+    out = []
+    for part in (text or "").replace(",", " ").split():
+        if not part.isdigit() or not 2000 <= int(part) <= 2100:
+            raise forms.ValidationError(f"Write the years as four-digit numbers, e.g. 2028, 2029 (got {part!r}).")
+        out.append(int(part))
+    return sorted(set(out))
 
 
 # ReCET's optional input files New run takes as uploads of their own (jobfiles.OPTIONAL). Program metadata and statewide factors are not
@@ -32,11 +43,32 @@ class NewRunForm(forms.Form):
     )
     engine = forms.ChoiceField(label="Calculation engine", help_text="ReCET's own, or an exact replica of a past CET release (D13)")
     acc_version = forms.ChoiceField(label="ACC")
+    compare_with = forms.ChoiceField(
+        label="Compare with another ACC (optional)",
+        required=False,
+        help_text="Prices the job on this ACC too and writes the per-measure comparison; Results has a tab for each ACC",
+    )
+    base_year = forms.IntegerField(
+        label="First Year (optional)",
+        required=False,
+        min_value=2000,
+        max_value=2100,
+        help_text="The year benefits and costs are discounted to; blank is the earliest claim year in the job",
+    )
+    market_effects = forms.TypedChoiceField(
+        label="Market effects",
+        choices=MARKET_EFFECTS,
+        coerce=float,
+        required=False,
+        empty_value=None,
+        initial="0",
+        help_text="CET's market effects, on benefits and costs",
+    )
     acc_purpose = forms.ChoiceField(
         label="Priced for",
         required=False,
         choices=ACC_PURPOSES,
-        help_text="Records on an ACC that does not apply to their program year are flagged",
+        help_text="Records on an ACC that does not apply to their program year are flagged, not stopped",
     )
     allocate_statewide = forms.BooleanField(label="Allocate statewide programs to the IOUs", required=False)
     allocation_version = forms.ModelChoiceField(
@@ -55,7 +87,28 @@ class NewRunForm(forms.Form):
     filing_validation = forms.ChoiceField(label="CEDARS filing checks", required=False, choices=list(service.FILING_CHECKS.items()))
     filing_year = forms.IntegerField(label="Filing year (optional)", required=False, min_value=2000, max_value=2100)
     include_societal = forms.BooleanField(label="Societal cost test (SCB and SCH)", required=False, initial=True)
+    components = forms.BooleanField(
+        label="Price each ACC component separately",
+        required=False,
+        help_text="Adds each component's value per measure and a components summary (ReCET's own calculation)",
+    )
     emissions = forms.BooleanField(label="Emissions", required=False, initial=True)
+    apply_exclude_from_ce = forms.BooleanField(
+        label="Leave Exclude_From_CE programs out of the portfolio summary",
+        required=False,
+        help_text="They are still priced and in the measure-level file",
+    )
+    portfolio_8760 = forms.BooleanField(
+        label="Combined 8,760 electric load profile",
+        required=False,
+        help_text="The portfolio's hourly net kWh by PA and climate zone, with its peak hours (ReCET's own calculation)",
+    )
+    profile_years = forms.CharField(
+        label="Years of the combined profile (optional)",
+        required=False,
+        max_length=60,
+        help_text="e.g. 2028, 2029; blank is the First Year",
+    )
     output_format = forms.ChoiceField(label="Output files", choices=list(service.OUTPUT_FORMATS.items()), initial="csv.zip")
     cet_outputs = forms.FileField(
         label="CET outputs to compare with (.csv, optional)",
@@ -118,6 +171,9 @@ class NewRunForm(forms.Form):
                 accs.update(service.accs_for(r, calc))
         self.fields["engine"].choices = engines
         self.fields["acc_version"].choices = [(a, f"{a} ACC") for a in sorted(accs, reverse=True)]
+        recet_accs = sorted({a for r in releases for a in service.accs_for(r, service.RECET)}, reverse=True)
+        self.fields["compare_with"].choices = [("", "No comparison")] + [(a, f"{a} ACC") for a in recet_accs]
+        self.fields["acc_purpose"].choices = service.acc_purposes()
         self.releases = {r.release: r for r in releases}
 
     def clean(self):
@@ -127,6 +183,14 @@ class NewRunForm(forms.Form):
         data["release"] = self.releases.get(release)
         data["calculation"] = calc
         data["organisation"] = self.organisations.get(data.get("run_for") or "")
+        if data.get("compare_with") and data.get("compare_with") == data.get("acc_version"):
+            self.add_error("compare_with", "Choose an ACC other than the run's own, or no comparison.")
+        try:
+            data["profile_years"] = parse_years(data.get("profile_years", ""))
+        except forms.ValidationError as e:
+            self.add_error("profile_years", e)
+        if data.get("profile_years") and not data.get("portfolio_8760"):
+            self.add_error("profile_years", "Tick Combined 8,760 electric load profile to choose its years.")
         return data
 
     def run_request(self) -> service.RunRequest:
@@ -138,6 +202,13 @@ class NewRunForm(forms.Form):
             "filing_year": d.get("filing_year"),
             "include_societal": bool(d.get("include_societal")),
             "emissions": bool(d.get("emissions")),
+            "compare_with": d.get("compare_with") or None,
+            "base_year": d.get("base_year"),
+            "market_effects": d.get("market_effects") or None,  # 0% is the engine's default: not sent
+            "components": d.get("components") or None,
+            "apply_exclude_from_ce": d.get("apply_exclude_from_ce") or None,
+            "portfolio_8760": d.get("portfolio_8760") or None,
+            "profile_years": d.get("profile_years") or None,
             "preflight_only": bool(self.data.get("preflight_only")) or None,  # the "Check the inputs only" button
             **output_templates.settings_for(d.get("output_template")),
         }

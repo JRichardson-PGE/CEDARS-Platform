@@ -99,10 +99,10 @@ EXCLUSIONS = {
         ),
     ]
 }
-# As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages, ESA out on
-# the goals page only; programs flagged Exclude_From_CE out of the cost-effectiveness page (Jake, 2026-10-31). A page passes its own
-# defaults to from_params; the page and the download say what was left out.
-DEFAULT_EXCLUDE = ("pension", "cs")
+# As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages; programs
+# flagged Exclude_From_CE out of the cost-effectiveness page (Jake, 2026-10-31). ESA out on every dashboard page (Jake, 2026-11-02; it
+# was the goals page only). A page passes its own defaults to from_params; the page and the download say what was left out.
+DEFAULT_EXCLUDE = ("pension", "esa", "cs")
 
 
 class QueryError(ValueError):

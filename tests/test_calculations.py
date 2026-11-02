@@ -21,14 +21,18 @@ FAKE_WORKER = Path(__file__).parent / "fake_recet_worker.py"
 HEADER = "CEInputID|PrgID|ClaimYearQuarter|NumUnits"
 
 
+ZIP_DATE = (2026, 1, 1, 0, 0, 0)
+
+
 def job_zip(tmp_path, rows=3, year=2028, extra: dict | None = None, name="job.zip", sep="|") -> Path:
     lines = [HEADER.replace("|", sep)] + [sep.join([f"M{i}", "PGE_Res_HVAC", f"{year + (i % 2)}Q1", "1"]) for i in range(rows)]
     path = tmp_path / name
+    # each member dated the same: zipfile otherwise dates it by the clock, and two zips made either side of a two-second step differ
     with zipfile.ZipFile(path, "w") as z:
-        z.writestr("Measure.csv", "\n".join(lines) + "\n")
-        z.writestr("ProgramCost.csv", "PrgID|Year|AdminCostsOverhead\nPGE_Res_HVAC|2028|1000\n")
+        z.writestr(zipfile.ZipInfo("Measure.csv", ZIP_DATE), "\n".join(lines) + "\n")
+        z.writestr(zipfile.ZipInfo("ProgramCost.csv", ZIP_DATE), "PrgID|Year|AdminCostsOverhead\nPGE_Res_HVAC|2028|1000\n")
         for k, v in (extra or {}).items():
-            z.writestr(k, v)
+            z.writestr(zipfile.ZipInfo(k, ZIP_DATE), v)
     return path
 
 

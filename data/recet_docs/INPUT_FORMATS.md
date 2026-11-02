@@ -35,7 +35,7 @@ ReCET renames seven fields from their E3-calculator names, and **a file may use 
     UnitMeaCost1stBaseline UnitMeaCost2ndBaseline UnitIncentiveToOthers UnitEndUserRebate UnitDirectInstallLab UnitDirectInstallMat
     MeasInflation UnitGasInfraBens UnitRefrigCosts UnitRefrigBens UnitMiscCosts UnitMiscBens UnitTaxCredits
 
-Optional but used when present: `FuelID`, `MeasImpactType` (fuel-substitution measures are recognised from them), `CombustionType` (gas NOx),
+Optional but used when present: `FuelID`, `MeasImpactType` (fuel-substitution measures are recognized from them), `CombustionType` (gas NOx),
 `UnitkWhIOUWater1stBaseline` / `UnitkWhIOUWater2ndBaseline` (water energy: the IOU-supplied kWh embedded in the water a measure saves, or uses if negative). All other CET
 columns are carried into the output unchanged.
 
