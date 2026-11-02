@@ -209,10 +209,15 @@ calculations/draft:
   guide:
     - One job's tables being edited. The input check runs on every save and lists the cells to look at, errors first. Select a row to edit
       it; add a measure or program cost row, rename or delete the draft.
-    - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip.
+    - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip
+      or the job workbook.
+    - End uses are checked against the impact-profile library in force, as a run matches them. Check with the engine runs the engine's
+      whole input check on the tables (impact profiles, programs, ACCs, and CEDARS' filing rules if you choose) without pricing, and marks
+      the cells it names here; once the tables change, its findings are listed until you check again.
   how:
     - Select a row to edit it, or add a measure or a program-cost row. Add a measure from eTRM fills a new row from an eTRM permutation.
-    - Run these inputs starts a run of the tables as they stand; Download the job zip gives them as a file.
+    - Run these inputs starts a run of the tables as they stand; Download the job zip or Download as a workbook gives them as a file.
+    - Check with the engine, choosing the ACC and the filing checks, queues a check-only run; reload the page when it ends.
     - Rename the draft, or Delete it.
   see: calculations
   tour:
@@ -222,6 +227,9 @@ calculations/draft:
     - target: "#check-h"
       title: Input check
       text: What the engine's input rules found. Cells to look at lists each one, with a link to its row.
+    - target: "#engine-check-h"
+      title: Check with the engine
+      text: The engine's whole input check of the tables, as a run makes it, with nothing priced. Its findings are marked on the cells.
     - target: main nav.subnav
       title: Tables
       text: Measure and ProgramCost.
@@ -274,6 +282,8 @@ calculations/draft_row:
   guide:
     - One row of a draft's table, its fields grouped as the input templates group them. Save the row and the input check runs again; the
       row's own findings are listed above the form. Copy the row to start a similar one, or delete it.
+    - An end use's box offers the end uses the impact-profile library in force has an 8,760 for, for the row's IOU and target sector; any
+      name can still be typed, and the check says when the library has no profile for it.
   how:
     - Change the fields and Save the row; the input check runs again.
     - Copy the row to start a similar one, or Delete the row.
