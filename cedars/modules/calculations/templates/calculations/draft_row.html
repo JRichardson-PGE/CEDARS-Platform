@@ -17,6 +17,7 @@
 {% else %}
 <p>Nothing in this row stops the run or needs a look.</p>
 {% endif %}
+<p class="small">{% if library %}End uses offered are those with 8,760 profiles in {{ library }} for the row's IOU and target sector; save the row after changing either to see its list.{% else %}No impact-profile library is in force, so end uses are free text and the run checks them.{% endif %}</p>
 <form method="post" class="stack" novalidate>{% csrf_token %}
   {% for group, fields in groups %}
   <fieldset><legend>{{ group }}</legend>
@@ -30,7 +31,8 @@
           {% for c in f.choices %}<option value="{{ c }}"{% if c == f.value %} selected{% endif %}>{{ c }}</option>{% endfor %}
         </select>
         {% else %}
-        <input type="text" id="{{ f.id }}" name="{{ f.name }}" value="{{ f.value }}" aria-describedby="{{ f.id }}-help"{% if f.issues %} aria-invalid="true"{% endif %}{% if not can_change %} readonly{% endif %}>
+        <input type="text" id="{{ f.id }}" name="{{ f.name }}" value="{{ f.value }}" aria-describedby="{{ f.id }}-help"{% if f.suggestions %} list="{{ f.id }}-list" autocomplete="off"{% endif %}{% if f.issues %} aria-invalid="true"{% endif %}{% if not can_change %} readonly{% endif %}>
+        {% if f.suggestions %}<datalist id="{{ f.id }}-list">{% for c in f.suggestions %}<option value="{{ c }}"></option>{% endfor %}</datalist>{% endif %}
         {% endif %}
         <span class="helptext" id="{{ f.id }}-help">{% for i in f.issues %}<strong class="issue-{{ i.severity }}"><span aria-hidden="true">{{ i.symbol }}</span> {{ i.label }}: {{ i.message }}</strong><br>{% endfor %}{{ f.effect }}{% if f.how %} {{ f.how }}{% endif %}</span>
       </div>

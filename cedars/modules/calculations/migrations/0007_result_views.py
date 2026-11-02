@@ -8,7 +8,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("calculations", "0005_workers"),
+        ("calculations", "0006_draft_engine_check"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

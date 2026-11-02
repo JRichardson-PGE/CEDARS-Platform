@@ -18,6 +18,32 @@
   {% if run.status == "succeeded" and run.error %}<p class="alert" role="alert">{{ run.error }}</p>{% endif %}
 </section>
 
+{% if check %}
+<section aria-labelledby="check-h">
+<h2 id="check-h">Input check</h2>
+{% if check.acc_part %}<p class="small">The inputs were checked once for each ACC of the comparison; this is the check on the {{ check.acc_part }} ACC.</p>{% endif %}
+<p id="check-verdict">{% if check.n.error %}<strong>{{ check.n.error }} problem{{ check.n.error|pluralize }} stopped the run.</strong>{% elif check.n.warning %}<strong>{{ check.n.warning }} warning{{ check.n.warning|pluralize }}</strong>; nothing stopped the run.{% else %}<strong>No problems found.</strong>{% endif %}{% if check.n.info %} {{ check.n.info }} note{{ check.n.info|pluralize }}.{% endif %}</p>
+{% if check.unpriced %}
+<p><strong>Not priced:</strong></p>
+<ul>{% for i in check.unpriced %}<li>{{ i.count|floatformat:"0g" }} measure{{ i.count|pluralize }}{% if i.impact_text %} ({{ i.impact_text }}){% endif %}: {{ i.message }}</li>{% endfor %}</ul>
+{% endif %}
+{% if check.acc %}
+<p><strong>ACC check ({{ check.acc.label }}):</strong> {{ check.acc.flagged|floatformat:"0g" }} of {{ check.acc.measures|floatformat:"0g" }} measures are priced on an ACC that does not normally apply to their program year
+({% for r in check.acc.flagged_rows %}{{ r.acc }} ACC for {{ r.program_year }}: {{ r.measures|floatformat:"0g" }}{% if not forloop.last %}; {% endif %}{% endfor %}). They are still priced.</p>
+{% endif %}
+<details id="check-details"{% if check.n.error or check.unpriced or run.settings.preflight_only %} open{% endif %}>
+  <summary>Every finding and the check's statistics ({{ check.issues|length }} finding{{ check.issues|length|pluralize }})</summary>
+  {% if check.stats %}<dl class="facts">{% for k, v in check.stats %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}</dl>{% endif %}
+  {% if check.issues %}
+  <ul class="issues">
+  {% for i in check.issues %}<li><strong class="issue-{{ i.severity }}">{{ i.severity_words }}:</strong> {{ i.message }}{% if i.count %} ({{ i.count|floatformat:"0g" }}{% if i.impact_text %}; {{ i.impact_text }}{% endif %}){% endif %} <code class="small">{{ i.code }}</code>{% if i.examples %}<br><span class="small">For example: {{ i.examples|join:", " }}</span>{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</details>
+<p class="small">{% if check.findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk check.findings_file %}">{{ check.findings_file }}</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
+</section>
+{% endif %}
+
 <section aria-labelledby="settings-h">
 <h2 id="settings-h">Settings</h2>
 <dl class="facts">
@@ -32,9 +58,11 @@
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
   {% if run.calculation == "recet" %}<dt>Cost tests</dt><dd>{% if run.cost_tests %}{{ run.cost_tests.id }} {{ run.cost_tests.version }}{% if run.cost_tests.status == "draft" %} (draft){% endif %}{% if run.cost_tests.sha256 %} <span class="small muted">SHA-256 {{ run.cost_tests.sha256|truncatechars:14 }}</span>{% endif %}{% elif settings_cost_test_set %}{{ settings_cost_test_set }}{% else %}The engine's default set (no cost-test set registered){% endif %}</dd>{% endif %}
   <dt>Reference data</dt><dd>{% for p in reference_packs %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
-  <dt>Inputs</dt><dd>{% for name, f in run.inputs.items %}{{ name }} <span class="small muted">SHA-256 {{ f.sha256|truncatechars:20 }}</span>{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
+  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}, SHA-256 {{ f.sha256|truncatechars:20 }})</span><br>{% endfor %}
+    {% if inputs|length > 1 %}<a href="{% url 'calculations:run_inputs_zip' run.pk %}">Download every input (.zip)</a>{% endif %}</dd>
 </dl>
 {% if input_notes %}<ul class="small">{% for n in input_notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if can_rerun %}<p class="actions"><a class="button" href="{% url 'calculations:new' %}?from={{ run.pk }}">Rerun with different settings</a> <span class="small muted">New run with this run's settings and its stored inputs, to change and start as a new run.</span></p>{% endif %}
 {% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
 </section>
 
@@ -69,6 +97,7 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
 {% if files %}
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>
+{% if run.ended %}<p><a class="button" href="{% url 'calculations:run_zip' run.pk %}">Download every file (.zip)</a></p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Output files">
 <table class="list">
   <caption class="sr-only">Output files</caption>
@@ -76,6 +105,17 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
 </table>
 </div>
+</section>
+{% endif %}
+
+{% if log or not run.ended and run.status != "queued" %}
+<section aria-labelledby="log-h">
+<h2 id="log-h">Log</h2>
+<details id="log-details"{% if not run.ended or run.status == "failed" %} open{% endif %}>
+  <summary>What the engine printed{% if log_cut %} (the last part; the whole log is a download){% endif %}</summary>
+  <pre id="run-log" class="log" tabindex="0" role="region" aria-label="Run log" data-url="{% url 'calculations:run_log' run.pk %}"{% if not run.ended %} data-live="1"{% endif %}>{{ log|default:"Nothing yet." }}</pre>
+</details>
+{% if log %}<p class="small"><a href="{% url 'calculations:run_log' run.pk %}?download=1">Download the log</a></p>{% endif %}
 </section>
 {% endif %}
 
@@ -89,6 +129,16 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
 </dl>
 {% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% if can_delete %}
+<section class="card" aria-labelledby="delete-h">
+  <h2 id="delete-h">Delete the run</h2>
+  <p>This run is your own, so you can delete it and its files now rather than wait for retention to remove it. A deleted run cannot be brought back.</p>
+  <form method="post" action="{% url 'calculations:delete' run.pk %}" class="stack">{% csrf_token %}
+    <label class="inline"><input type="checkbox" name="sure" value="1" required> Delete this run and its files for good</label>
+    <div class="actions"><button type="submit">Delete the run</button></div>
+  </form>
 </section>
 {% endif %}
 {% endblock %}

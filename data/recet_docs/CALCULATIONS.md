@@ -187,7 +187,7 @@ Gen(y, i)  = AC(y, i) - TD(y, i)                                                
    rate - by **one** utility: SCE where the ACC file has SCE's own rows for that zone, otherwise PG&E where it has PG&E's, otherwise SCE (with the fallbacks below).
    SCE's CZ5 stand-in (item 2) does not count as SCE data, so SCG CZ5 is PG&E. On the 2024 and 2026 ACCs: SCE in 6, 8, 9, 10, 13, 14, 15, 16; PG&E in 1, 2, 3A, 3B, 4, 5,
    11, 12.
-2. The zone is `"CZ" + AC_Climate_Zone`. Three (utility, zone) pairs that the ACC model does not export are stood in for by a documented neighbour: SCE CZ5 uses SCE CZ9;
+2. The zone is `"CZ" + AC_Climate_Zone`. Three (utility, zone) pairs that the ACC model does not export are stood in for by a documented neighbor: SCE CZ5 uses SCE CZ9;
    SDG&E CZ6 and CZ8 use SDG&E CZ7.
 3. `AC_Climate_Zone = System` is first replaced by the profile's System zone (C4.4), so a System measure is priced on a real zone's rows. A zone that is still not in the
    file for that utility (a System measure none of whose zones can be priced) uses the unweighted mean across the utility's zones in the file.
@@ -759,7 +759,7 @@ GasCO2    = fg * CO2Gas(PA) * G          GasNOx = fg * NOxfactor * G          NO
    G_lifecycle = rul*Th1 + (eul - rul)*Th2 if rul > 0;   eul*Th1 otherwise
 ```
 
-The Emissions table covers only a slice of the (PA, sector, end use, zone) keys, so NOx and PM10 are 0 for most electric measures (this is CET's own behaviour). Output columns: `FirstYearNetElecCO2`, `FirstYearNetElecNOx`, `FirstYearNetElecPM10`, `FirstYearNetGasCO2`, `FirstYearNetGasNOx`,
+The Emissions table covers only a slice of the (PA, sector, end use, zone) keys, so NOx and PM10 are 0 for most electric measures (this is CET's own behavior). Output columns: `FirstYearNetElecCO2`, `FirstYearNetElecNOx`, `FirstYearNetElecPM10`, `FirstYearNetGasCO2`, `FirstYearNetGasNOx`,
 the five `FirstYearGross...` counterparts, and the ten `Lifecycle...` columns (`LifecycleNet...`, `LifecycleGross...`).
 
 ---------------------------------------------------------------------------------------------------------------------------------
@@ -780,7 +780,7 @@ The factors are the built-in table, with the rows of a supplied SW allocation fa
 For every IOU with a non-zero factor, one row is made with `<IOU>_` prepended to `CEInputID` and `PrgID` (program-cost `PA` is set to that IOU). A measure is still priced on its own `IOU_AC_Territory`; a program's costs are shared
 only among that IOU's measures and discounted at that IOU's rate. Without the option, statewide rows are priced as filed (the way the four real CET runs treated them). `CreditedPA` is the `PA` of each measure's program in `ProgramCost.csv`: with the option, the IOU each statewide share was allocated to; without it, the filed `PA` (`SW` for a statewide program).
 
-The run writes `statewide_reconciliation_acc<version>` (OUTPUT_FIELDS 2.13): each allocated field of each statewide program and year, totalled before
+The run writes `statewide_reconciliation_acc<version>` (OUTPUT_FIELDS 2.13): each allocated field of each statewide program and year, totaled before
 allocation and over each IOU's share, with the difference. Factors that sum to 1 make every field reconcile; a fuel whose factors are all 0 for a program
 (gas on an all-electric program) drops that fuel's quantities from every share, and the table and the run log say so.
 
@@ -1055,7 +1055,7 @@ CET's as the benefits do (C17).
 
 ReCET's own calculation is the one described in C0-C19: hourly, on the ACC, with the corrections of C17. For evaluation and for re-running history,
 `recet cet-version run` (module `recet/cet_versions`) prices a job **exactly as a prior CET release's RunCET does**, on that release's own quarterly
-avoided-cost tables, **CET's errors included** (Jake, 2026-10-29: "exact replicas, labelled"). A replica's outputs are CET's four tables (`SavedCE`,
+avoided-cost tables, **CET's errors included** (Jake, 2026-10-29: "exact replicas, labeled"). A replica's outputs are CET's four tables (`SavedCE`,
 `SavedSavings`, `SavedEmissions`, `SavedCost`) with that release's columns in its order, and `run.json` names the release as "CET <release> replica".
 The replica shares no code with ReCET's engine, so nothing in C0-C19 changes when a release is added.
 
