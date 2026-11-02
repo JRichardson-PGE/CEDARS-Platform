@@ -343,8 +343,7 @@ topics:
         a:
           - >-
             The dashboard counts confirmed filings only, and says on every page what it leaves out: by default pension and benefits
-            programs and codes and standards (and, on the Goals page, Energy Savings Assistance). Include them with the controls at
-            the top. A download is the page's own query, so its totals match the page.
+            programs, Energy Savings Assistance programs, and codes and standards. Include them with the controls at the top. A download is the page's own query, so its totals match the page.
         tags: [totals, exclusions, codes and standards, esa, confirmed, differ]
         guide: published-data
 

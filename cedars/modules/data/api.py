@@ -432,8 +432,9 @@ def dimension_list(request):
     description="The dashboards' query: the metrics asked for, summed by the dimensions in `by` over the records the filters, years and "
     "exclusions keep, from the dataset's release. The same query on a dashboard page or its download gives the same numbers. Rows are "
     "ordered by the dimensions and paged; `totals` are over every row. Each row and the totals carry each metric as shown (scaled to "
-    "its unit), `sums` (each canonical field's sum, unscaled) and `records`. By default pension and benefits programs and codes and "
-    "standards are left out, as on the dashboards; `stamp.excluded` says what was. `metric` may repeat; it defaults to tsb.",
+    "its unit), `sums` (each canonical field's sum, unscaled) and `records`. By default pension and benefits programs, Energy Savings "
+    "Assistance programs and codes and standards are left out, as on the dashboards; `stamp.excluded` says what was. `metric` may "
+    "repeat; it defaults to tsb.",
     parameters=[
         _p("metric", "Metric codes (GET /api/v1/data/metrics) or bases; default tsb", many=True),
         _p("by", "Dimension codes to group by, in order; none = one total row", many=True),

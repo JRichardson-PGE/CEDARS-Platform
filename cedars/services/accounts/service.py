@@ -245,14 +245,15 @@ UNTYPED_GROUP = "No PA type"
 STATEWIDE_LABEL = "Statewide programs"
 
 
-def pa_picker(pas=(), types=(), *, statewide: bool = False) -> dict:
+def pa_picker(pas=(), types=(), *, statewide: bool = False, hide_statewide: bool = False) -> dict:
     """The PA picker's tree (Jake, 2026-11-02): "All PAs" holding a group per PA type (its "all" choice is the pa_type filter, which
     keeps PAs given that type later too) with the type's PAs (the pa filter) and any PA with no type yet; the statewide (SW) pseudo-PA
     as its own top-level choice beside it. Groups come from each organization's PA type, not a list in code. A PA is offered once,
     under its current code with its former codes in its label (BAY and BAYREN, EBCE and AVA); an organization merged into another is
     not offered on its own. `pas` and `types` (the pa and pa_type filters) are the values chosen (any case, former codes allowed).
     Also gives `summary`, the words the closed picker shows, and `filtered`, whether anything is chosen (nothing chosen: every PA).
-    Statewide programs are offered when the SW organization exists, or always with `statewide` (a page whose data has them)."""
+    Statewide programs are offered when the SW organization exists, or always with `statewide` (a page whose data has them), and
+    never with `hide_statewide` (the portfolio dashboards, Jake 2026-11-02: their totals hold no statewide rows of their own)."""
     mapping = code_map()
     former: dict[str, list[str]] = {}
     for old, new in sorted(mapping.items()):
@@ -281,7 +282,7 @@ def pa_picker(pas=(), types=(), *, statewide: bool = False) -> dict:
         g["some"] = not g["full"] and any(ticked)
     sw = next((o for o in orgs if o.code == STATEWIDE_CODE), None)
     sw_choice = None
-    if sw is not None or statewide:
+    if (sw is not None or statewide) and not hide_statewide:
         code = sw.code if sw is not None else STATEWIDE_CODE
         sw_choice = {"code": code, "label": STATEWIDE_LABEL, "checked": code in picked, "former": former.get(code, [])}
     filtered = bool(picked or picked_types)

@@ -41,10 +41,26 @@ def _qd(params):
 def test_defaults(both, monkeypatch):
     v = view()
     assert v.series == ("forecast", "claims") and v.by == "pa" and v.metric.code == "tsb"
-    assert v.query.exclude == ("pension", "cs")
+    assert v.query.exclude == ("pension", "esa", "cs")
     monkeypatch.setattr(dashboard, "current_cycle", lambda: FilingCycle.objects.get())
     assert (view().query.year_from, view().query.year_to) == (2028, 2031)  # the current cycle
     assert view(year_from="2029").query.year_from == 2029
+
+
+def test_every_page_leaves_esa_out_unless_included():
+    """ESA is out by default on every dashboard page, not only Goals (Jake, 2026-11-02); its control puts it back."""
+    for page in dashboard.PAGES.values():
+        assert "esa" in dashboard.parse(page, _qd({})).query.exclude, page.slug
+        assert "esa" not in dashboard.parse(page, _qd({"esa": "include"})).query.exclude, page.slug
+    assert "esa=include" in view(esa="include").query.query_string(OVERVIEW.exclude)
+    assert "esa" not in view().query.query_string(OVERVIEW.exclude)  # the default needs no parameter
+
+
+def test_the_esa_control_shows_excluded_by_default(both, client):
+    page = client.get("/data/overview/").content.decode()
+    i = page.index('name="esa"')
+    assert '<option value="exclude" selected>Excluded</option>' in page[i : page.index("</select>", i)]
+    assert "Energy Savings Assistance" in page
 
 
 def test_forecast_and_claims_side_by_side(both):
@@ -169,7 +185,7 @@ def test_the_page(both, client):
     assert "(as of" not in page  # said once above the tiles, not in every tile and header (UI review 2, #19)
     assert "% of forecast" in page and "50.0%" in page and 'href="?by=program&amp;sector=Residential"' in page
     assert (
-        "Left out: Pension and Benefits programs and codes and standards." in page
+        "Left out: Pension and Benefits programs, Energy Savings Assistance programs and codes and standards." in page
         and "/data/download.csv?dataset=forecast&amp;dataset=claims" in page
     )
     assert client.get("/data/").status_code == 302
@@ -288,7 +304,7 @@ def test_the_cost_effectiveness_page(both, client):
     c = d.compare(d.parse(page, _qd({"no_ce": "include"})), "sector")
     assert {r.key: r.values["claims"] for r in c.rows} == {"Residential": 1.0, "Commercial": 2.0}
     assert c.totals.values["claims"] == pytest.approx(240 / 220)  # from sums, not the mean of 1.0 and 2.0
-    assert view().query.exclude == ("pension", "cs")  # other pages count them
+    assert view().query.exclude == ("pension", "esa", "cs")  # other pages count them
     html = client.get("/data/cost-effectiveness/?metric=pac").content.decode()
     assert "PAC ratio" in html and "% of forecast" not in html and "Claimed less forecast" in html  # no % of a ratio
     assert client.get("/data/cost-effectiveness/?metric=tsb").status_code == 200  # refused in words, not an error page
