@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.db import connection
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
@@ -172,6 +172,20 @@ def help_page(request, key):
         "core/help/page.html",
         {"entry": entry, "steps": steps, "back": back, "tour_link": tour_link, "guide": site_help.BY_SLUG.get(entry.see)},
     )
+
+
+# Paths no crawler needs: each record page and download runs a query over the published records, and a crawler following every
+# dashboard row's link to its records kept a small server busy (2026-11-02).
+ROBOTS_DISALLOW = ("/data/records/", "/data/download", "/api/", "/accounts/", "/feedback/")
+
+
+@require_GET
+def robots_txt(request):
+    """What crawlers may read: nothing at all where ROBOTS_DISALLOW_ALL is set (the sandbox and demos), else everything but the
+    query-heavy record and download paths, the API and the sign-in pages."""
+    paths = ("/",) if settings.ROBOTS_DISALLOW_ALL else ROBOTS_DISALLOW
+    body = "User-agent: *\n" + "".join(f"Disallow: {p}\n" for p in paths)
+    return HttpResponse(body, content_type="text/plain; charset=utf-8")
 
 
 @never_cache

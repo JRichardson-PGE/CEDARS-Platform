@@ -67,6 +67,7 @@ DATASETS = {"claims": "Claimed", "forecast": "Forecast", "monthly": "Monthly rep
 FORMAT_LABELS = {"csv": "CSV", "xlsx": "Excel (XLSX)", "parquet": "Parquet"}
 XLSX_MAX_ROWS = 1_048_575  # a worksheet's rows, less the header
 BATCH_ROWS = 50_000
+CHUNK_CELLS = 2_000_000  # values (records x columns) read at a time for a download; see _chunk_rows
 
 
 @dataclass(frozen=True)
@@ -265,27 +266,148 @@ def behind(result: dq.Result, label: str, *, max_rows: int) -> dict:
     }
 
 
-def _sql(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> tuple[str, list]:
-    """One SELECT over the release's files: the chosen columns under their own names, in their own types (the files are unioned by
-    name, a column missing from a file reading as blank), the rows the query's WHERE terms keep, in CEInputID order."""
+def _data(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str], *, keys_only: bool) -> tuple[str, list[str], list]:
+    """The release's files unioned by name (a column missing from a file reads as blank), as `data`: the columns the WHERE terms read
+    as text, each record's filer and filing, and either its place (`_file`: the snapshot's index in `files`, `_row`: its row in that
+    file) or the chosen columns under `o:<name>`. The WHERE terms are the query's."""
     ident, literal = dq._ident, dq._literal
     raw = " UNION ALL BY NAME ".join(
-        f"SELECT *, {literal(f['organisation'])} AS _organisation, {literal(dq.filing_label(f))} AS _filing "
-        f"FROM read_parquet({literal(str(dq.local_path(f)))})"
-        for f in files
+        f"SELECT *, {literal(f['organisation'])} AS _organisation, {literal(dq.filing_label(f))} AS _filing, {i} AS _file "
+        f"FROM read_parquet({literal(str(dq.local_path(f)))}{', file_row_number=true' if keys_only else ''})"
+        for i, f in enumerate(files)
     )
     texts = dq.text_columns(q, ["CEInputID"])
     cols = [f"CAST({ident(c)} AS VARCHAR) AS {ident(c)}" if c in cat.present else f"CAST(NULL AS VARCHAR) AS {ident(c)}" for c in texts]
-    cols += ["_organisation", "_filing"] + [f"{ident(c)} AS {ident('o:' + c)}" for c in columns if c not in SOURCE_COLUMNS]
+    cols += ["_organisation", "_filing"]
+    if keys_only:
+        cols += ["_file", "file_row_number AS _row"]
+    else:
+        cols += [f"{ident(c)} AS {ident('o:' + c)}" for c in columns if c not in SOURCE_COLUMNS]
+    where, args = dq.where_terms(q)
+    return f"WITH raw AS ({raw}), data AS (SELECT {', '.join(cols)} FROM raw)", where, args
+
+
+def _sql(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> tuple[str, list]:
+    """One SELECT over the release's files: the chosen columns under their own names, in their own types, the rows the query's WHERE
+    terms keep, in CEInputID order. Only for its column types (`_types`): sorting every chosen column of every record at once runs
+    past the query memory limit once the columns are many (`_keys` and `_fetch` page and stream instead)."""
+    ident = dq._ident
+    head, where, args = _data(q, files, cat, columns, keys_only=False)
     source = {FILED_BY: "_organisation", FILING: "_filing", COUNTED_PA: dq.pa_expression()}
     out = [f"{source[c]} AS {ident(c)}" if c in source else f"{ident('o:' + c)} AS {ident(c)}" for c in columns]
-    where, args = dq.where_terms(q)
     sql = (
-        f"WITH raw AS ({raw}), data AS (SELECT {', '.join(cols)} FROM raw) SELECT {', '.join(out)} FROM data"
+        f"{head} SELECT {', '.join(out)} FROM data"
         + (f" WHERE {' AND '.join(where)}" if where else "")
         + ' ORDER BY "CEInputID" NULLS LAST, _organisation, _filing'
     )
     return sql, args
+
+
+def _types(con, q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> dict[str, str]:
+    """Each chosen column's type in the files unioned by name (read from the files' schemas; no rows are read)."""
+    sql, args = _sql(q, files, cat, columns)
+    return {c[0]: c[1] for c in con.execute(f"DESCRIBE {sql}", args).fetchall()}
+
+
+def _keys(con, q: dq.Query, files: list[dict], cat: Catalog, *, limit: int | None = None, offset: int = 0):
+    """The matching records' places, in CEInputID order (an Arrow table: `_file`, `_row` and the source columns). Only the sort keys
+    and the WHERE terms' columns are read, so it costs the same whatever columns are chosen."""
+    ident = dq._ident
+    head, where, args = _data(q, files, cat, [], keys_only=True)
+    source = [f"_organisation AS {ident(FILED_BY)}", f"_filing AS {ident(FILING)}", f"{dq.pa_expression()} AS {ident(COUNTED_PA)}"]
+    sql = (
+        f"{head} SELECT _file, _row, {', '.join(source)} FROM data"
+        + (f" WHERE {' AND '.join(where)}" if where else "")
+        + ' ORDER BY "CEInputID" NULLS LAST, _organisation, _filing, _file, _row'
+    )
+    if limit is not None:
+        sql += " LIMIT ? OFFSET ?"
+        args = [*args, limit, offset]
+    return con.sql(sql, params=args).to_arrow_table()
+
+
+def _fetch(con, files: list[dict], cat: Catalog, columns: list[str], types: dict[str, str], keys):
+    """The chosen columns of the records at `keys` (from `_keys`), in their order, as one Arrow table. Each file is read on its own,
+    for its own rows only, so no query ever holds more than one file's reader and these rows."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    ident, literal = dq._ident, dq._literal
+    keys = keys.append_column("_ord", pa.array(range(keys.num_rows), pa.int64()))
+    parts = []
+    for i in pc.unique(keys["_file"]).to_pylist():
+        mine = keys.filter(pc.equal(keys["_file"], i)).select(["_ord", "_row", FILED_BY, FILING, COUNTED_PA])
+        path = str(dq.local_path(files[i]))
+        own = set(pq.read_schema(path).names)
+        out = ["k._ord"]
+        for c in columns:
+            if c in SOURCE_COLUMNS:
+                out.append(f"k.{ident(c)}")
+            elif c in own:
+                out.append(f"CAST(d.{ident(c)} AS {types[c]}) AS {ident(c)}")
+            else:
+                out.append(f"CAST(NULL AS {types[c]}) AS {ident(c)}")
+        con.register("_keys", mine)
+        try:
+            parts.append(
+                con.sql(
+                    f"SELECT {', '.join(out)} FROM read_parquet({literal(path)}, file_row_number=true) d "
+                    "JOIN _keys k ON d.file_row_number = k._row"
+                ).to_arrow_table()
+            )
+        finally:
+            con.unregister("_keys")
+    table = pa.concat_tables(parts) if len(parts) > 1 else parts[0]
+    return table.take(pc.sort_indices(table["_ord"])).drop_columns(["_ord"])
+
+
+def _chunk_rows(columns: list[str]) -> int:
+    """Records fetched at a time for a file: about CHUNK_CELLS values, so a wide choice of columns stays within the query memory."""
+    return max(1_000, min(BATCH_ROWS, CHUNK_CELLS // max(1, len(columns))))
+
+
+def rows(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str], *, limit: int, offset: int = 0) -> list[list]:
+    """One page of the matching records (`limit` from `offset`, in CEInputID order) with the chosen columns."""
+    con = dq.connect()
+    try:
+        keys = _keys(con, q, files, cat, limit=limit, offset=offset)
+        if not keys.num_rows:
+            return []
+        table = _fetch(con, files, cat, columns, _types(con, q, files, cat, columns), keys)
+    finally:
+        con.close()
+    return [list(r.values()) for r in table.to_pylist()]
+
+
+def batches(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]):
+    """Every matching record with the chosen columns, in CEInputID order: the Arrow schema and an iterator of record batches. The
+    records' places are sorted first (narrow), then their columns are read a chunk at a time, so neither the sort nor a chunk ever
+    holds every column of every record."""
+    import pyarrow as pa
+
+    con = dq.connect()
+    try:
+        types = _types(con, q, files, cat, columns)
+        keys = _keys(con, q, files, cat)
+        step = _chunk_rows(columns)
+        first = _fetch(con, files, cat, columns, types, keys.slice(0, step)) if keys.num_rows else None
+    except BaseException:
+        con.close()
+        raise
+    schema = first.schema if first is not None else pa.schema([(c, pa.string()) for c in columns])
+
+    def gen():
+        try:
+            if first is None:
+                return
+            yield from first.to_batches()
+            for start in range(step, keys.num_rows, step):
+                yield from _fetch(con, files, cat, columns, types, keys.slice(start, step)).cast(schema).to_batches()
+        finally:
+            con.close()
+
+    return schema, gen()
 
 
 @dataclass
@@ -309,15 +431,11 @@ def page(rq: RecordQuery, *, limit: int = 100, offset: int = 0) -> Page:
     result = dq.run(rq.query)
     cat = catalog(result.files)
     columns, unknown = chosen(cat, rq.params)
-    rows: list[list] = []
     if limit and result.files and result.totals["_rows"] and columns:
-        sql, args = _sql(rq.query, result.files, cat, columns)
-        con = dq.connect()
-        try:
-            rows = [list(r) for r in con.execute(sql + " LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()]
-        finally:
-            con.close()
-    return Page(result, cat, columns, unknown, rows, offset, limit)
+        found = rows(rq.query, result.files, cat, columns, limit=limit, offset=offset)
+    else:
+        found = []
+    return Page(result, cat, columns, unknown, found, offset, limit)
 
 
 # --- files
@@ -362,14 +480,11 @@ def write(p: Page, fmt: str, out) -> int:
 
         empty = pa.table({c: pa.array([], pa.string()) for c in p.columns}) if p.columns else pa.table({})
         return _writers[fmt](iter(empty.to_batches()), empty.schema, meta, out)
-    sql, args = _sql(p.result.query, p.result.files, p.catalog, p.columns)
-    con = dq.connect()
+    schema, stream = batches(p.result.query, p.result.files, p.catalog, p.columns)
     try:
-        rel = con.sql(sql, params=args)
-        reader = (rel.to_arrow_reader if hasattr(rel, "to_arrow_reader") else rel.record_batch)(BATCH_ROWS)  # DuckDB 2 / 1: streamed
-        return _writers[fmt](reader, reader.schema, meta, out)
+        return _writers[fmt](stream, schema, meta, out)
     finally:
-        con.close()
+        stream.close()
 
 
 def _stamp_lines(meta: dict) -> list[tuple[str, str]]:

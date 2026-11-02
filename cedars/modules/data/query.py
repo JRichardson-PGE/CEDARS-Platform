@@ -427,9 +427,13 @@ def filing_label(f: dict) -> str:
 
 def connect():
     """A DuckDB connection of the request's own, within the query limits (it spills to disk beyond the memory limit)."""
+    import tempfile
+
     import duckdb
 
-    return duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
+    spill = settings.DATA_QUERY_SPILL or str(Path(tempfile.gettempdir()) / "cedars-duckdb")
+    config = {"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY, "temp_directory": spill}
+    return duckdb.connect(config=config)
 
 
 def _fetch(sql: str, args: list) -> tuple[list[str], list[tuple]]:
