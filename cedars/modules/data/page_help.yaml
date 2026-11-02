@@ -8,6 +8,7 @@ data/front:
     - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
   how:
     - Choose a cycle and Apply to change the cards; each card links to its dashboard page.
+    - Portfolio Dashboard, just above the cards, opens the full dashboard, where the published numbers break down by PA, sector, program and year.
     - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
     - Sign in, or Create an account; the published data need neither.
   see: published-data

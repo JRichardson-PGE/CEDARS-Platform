@@ -34,6 +34,7 @@
   {% if summary.cycle %}
   <p class="muted small">Statewide totals from published filings{% if summary.as_of %}, as of {{ summary.as_of|date_words }}{% endif %}.
     {% if summary.claimed_span %}Claims cover {{ summary.claimed_span }} so far.{% else %}No claims are published for this cycle yet.{% endif %}</p>
+  <p class="front-dive">Dive in deeper in the <a href="{% url 'data:dashboards' %}">Portfolio Dashboard</a>.</p>
   <div class="front-cards">
     {% for card in summary.cards %}
     <article class="card front-card" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
