@@ -385,8 +385,9 @@ def metric_list(request):
 def dimension_list(request):
     public, version = public_fields()
     options = dashboard.filter_options()
-    groups = dashboard.pa_groups({})
-    pa_values = [p["code"] for g in groups for p in g["pas"]]
+    picker = dashboard.pa_picker({})
+    groups = picker["groups"]
+    pa_values = [p["code"] for g in groups for p in g["pas"]] + ([picker["statewide"]["code"]] if picker["statewide"] else [])
     values = options | {"pa": pa_values, "pa_type": [g["type"] for g in groups if g["type"]]}
     dims = [
         {

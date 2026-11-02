@@ -22,6 +22,7 @@ from cedars.services import audit
 
 from . import permissions as perms
 from .models import (
+    STATEWIDE_CODE,
     AccessPolicy,
     AccessRequest,
     Grant,
@@ -231,6 +232,101 @@ def current_code(code: str, mapping: dict[str, str] | None = None) -> str:
     """A code as its party's current code (EBCE -> AVA); any other code as given (stripped)."""
     mapping = code_map() if mapping is None else mapping
     return mapping.get(_norm(code), (code or "").strip())
+
+
+# --- the PA picker (one filter for every page that filters by PA)
+
+PA_GROUP_LABELS = {
+    "IOU": ("IOUs", "investor-owned utilities"),
+    "REN": ("RENs", "regional energy networks"),
+    "CCA": ("CCAs", "community choice aggregators"),
+}
+UNTYPED_GROUP = "No PA type"
+STATEWIDE_LABEL = "Statewide programs"
+
+
+def pa_picker(pas=(), types=(), *, statewide: bool = False) -> dict:
+    """The PA picker's tree (Jake, 2026-11-02): "All PAs" holding a group per PA type (its "all" choice is the pa_type filter, which
+    keeps PAs given that type later too) with the type's PAs (the pa filter) and any PA with no type yet; the statewide (SW) pseudo-PA
+    as its own top-level choice beside it. Groups come from each organization's PA type, not a list in code. A PA is offered once,
+    under its current code with its former codes in its label (BAY and BAYREN, EBCE and AVA); an organization merged into another is
+    not offered on its own. `pas` and `types` (the pa and pa_type filters) are the values chosen (any case, former codes allowed).
+    Also gives `summary`, the words the closed picker shows, and `filtered`, whether anything is chosen (nothing chosen: every PA).
+    Statewide programs are offered when the SW organization exists, or always with `statewide` (a page whose data has them)."""
+    mapping = code_map()
+    former: dict[str, list[str]] = {}
+    for old, new in sorted(mapping.items()):
+        former.setdefault(new, []).append(old)
+    picked = {current_code(v, mapping).upper() for v in pas if (v or "").strip()}
+    picked_types = {(v or "").strip().upper() for v in types if (v or "").strip()}
+    orgs = list(Organisation.objects.filter(kind=Organisation.Kind.PA, successor__isnull=True).order_by("code"))
+
+    def choice(o):
+        name = o.name if o.name and o.name.strip().upper() != o.code.upper() else ""
+        return {"code": o.code, "name": name, "checked": o.code.upper() in picked, "former": former.get(o.code, [])}
+
+    groups = []
+    for code in Organisation.PAType.values:
+        members = [o for o in orgs if o.pa_type == code and o.code != STATEWIDE_CODE]
+        if members:
+            label, description = PA_GROUP_LABELS[code]
+            on = code in picked_types
+            groups.append({"type": code, "label": label, "description": description, "all": on, "pas": [choice(o) for o in members]})
+    untyped = [o for o in orgs if o.pa_type not in Organisation.PAType.values and o.code != STATEWIDE_CODE]
+    if untyped:
+        groups.append({"type": "", "label": UNTYPED_GROUP, "description": "", "all": False, "pas": [choice(o) for o in untyped]})
+    for g in groups:
+        ticked = [p["checked"] for p in g["pas"]]
+        g["full"] = g["all"] or all(ticked)  # every PA of it kept (all(): the group has at least one PA)
+        g["some"] = not g["full"] and any(ticked)
+    sw = next((o for o in orgs if o.code == STATEWIDE_CODE), None)
+    sw_choice = None
+    if sw is not None or statewide:
+        code = sw.code if sw is not None else STATEWIDE_CODE
+        sw_choice = {"code": code, "label": STATEWIDE_LABEL, "checked": code in picked, "former": former.get(code, [])}
+    filtered = bool(picked or picked_types)
+    return {
+        "groups": groups,
+        "statewide": sw_choice,
+        "filtered": filtered,
+        "summary": _picker_summary(groups, sw_choice, filtered),
+    }
+
+
+def _picker_summary(groups, statewide, filtered) -> str:
+    """What the closed picker says it keeps: whole groups by name, single PAs by code, at most three items and a count of the rest.
+    pa_picker.js words it the same way as boxes are ticked."""
+    if not filtered:
+        return "All PAs and statewide programs" if statewide else "All PAs"
+    parts = []
+    if groups and all(g["full"] for g in groups):
+        parts.append("All PAs")
+    else:
+        for g in groups:
+            if g["full"]:
+                parts.append(f"All {g['label']}" if g["type"] else g["label"])
+            else:
+                parts += [p["code"] for p in g["pas"] if p["checked"]]
+    if statewide and statewide["checked"]:
+        parts.append("Statewide")
+    if not parts:
+        return "All PAs"
+    shown = ", ".join(parts[:3])
+    return shown if len(parts) <= 3 else f"{shown} and {len(parts) - 3} more"
+
+
+def picked_pa_codes(pas=(), types=()) -> set[str] | None:
+    """The current PA codes a picker choice keeps (its PAs, former codes read as current ones, and every PA of its types); None when
+    nothing is chosen (every PA)."""
+    pas = [v for v in pas if (v or "").strip()]
+    types = {(v or "").strip().upper() for v in types if (v or "").strip()}
+    if not pas and not types:
+        return None
+    mapping = code_map()
+    codes = {current_code(v, mapping).upper() for v in pas}
+    if types:
+        codes |= {c.upper() for c, t in pa_types().items() if t in types}
+    return codes
 
 
 def code_history(org: Organisation) -> list[OrganisationCode]:

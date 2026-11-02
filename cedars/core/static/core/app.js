@@ -84,4 +84,93 @@
     mq.addEventListener("change", apply);
     apply();
   }
+
+  // The PA picker (core/_pa_picker.html). Without this script it is a list of plain checkboxes in a <details>. With it: the All PAs and
+  // group boxes are tri-state (half ticked when some of their PAs are), ticking one ticks everything under it, each level shows and hides
+  // with a button, the closed picker names what it keeps, Escape closes it, and on submit a whole PA type goes as its pa_type (it keeps
+  // PAs typed later too), everything ticked as no PA filter at all and nothing ticked likewise (every PA).
+  document.querySelectorAll("[data-pa-picker]").forEach(function (picker) {
+    document.documentElement.classList.add("js-pa");
+    var menu = picker.querySelector(".pa-menu");
+    var all = picker.querySelector("[data-pa-all]");
+    var sw = picker.querySelector("[data-pa-statewide]");
+    var summary = picker.querySelector("[data-pa-summary]");
+    var groups = Array.prototype.map.call(picker.querySelectorAll("[data-pa-group]"), function (li) {
+      return {
+        li: li, label: li.getAttribute("data-label"), type: li.getAttribute("data-type"),
+        box: li.querySelector("[data-pa-group-box]"),
+        members: Array.prototype.slice.call(li.querySelectorAll("input[name='pa']")),
+      };
+    });
+    picker.querySelectorAll("[data-pa-all], [data-pa-group-box], .pa-twisty").forEach(function (el) { el.hidden = false; });
+
+    var full = function (g) { return g.members.length > 0 && g.members.every(function (m) { return m.checked; }); };
+    var some = function (g) { return g.members.some(function (m) { return m.checked; }); };
+    var words = function () {
+      var picked = groups.some(some) || (sw && sw.checked);
+      if (!picked || (groups.every(full) && (!sw || sw.checked))) return sw ? "All PAs and statewide programs" : "All PAs";
+      var parts = [];
+      if (groups.every(full)) parts.push("All PAs");
+      else groups.forEach(function (g) {
+        if (full(g)) parts.push(g.type ? "All " + g.label : g.label);
+        else g.members.forEach(function (m) { if (m.checked) parts.push(m.value); });
+      });
+      if (sw && sw.checked) parts.push("Statewide");
+      var shown = parts.slice(0, 3).join(", ");
+      return parts.length <= 3 ? shown : shown + " and " + (parts.length - 3) + " more";
+    };
+    var sync = function () {
+      groups.forEach(function (g) {
+        g.box.checked = full(g);
+        g.box.indeterminate = !g.box.checked && some(g);
+      });
+      all.checked = groups.length > 0 && groups.every(full);
+      all.indeterminate = !all.checked && groups.some(some);
+      summary.textContent = words();
+    };
+
+    // A ticked group ticks its PAs; nothing ticked at all means every PA, so it opens with everything ticked.
+    groups.forEach(function (g) { if (g.box.checked) g.members.forEach(function (m) { m.checked = true; }); });
+    if (!picker.querySelector("input[type='checkbox']:checked")) {
+      groups.forEach(function (g) { g.members.forEach(function (m) { m.checked = true; }); });
+      if (sw) sw.checked = true;
+    }
+    sync();
+
+    picker.addEventListener("change", function (e) {
+      var t = e.target;
+      if (t === all) groups.forEach(function (g) { g.members.forEach(function (m) { m.checked = all.checked; }); });
+      groups.forEach(function (g) {
+        if (t === g.box) g.members.forEach(function (m) { m.checked = g.box.checked; });
+      });
+      sync();
+    });
+
+    // Show and hide: All PAs starts open; a group starts closed unless only some of its PAs are ticked.
+    picker.querySelectorAll(".pa-twisty").forEach(function (b) {
+      var list = document.getElementById(b.getAttribute("aria-controls"));
+      var set = function (open) { b.setAttribute("aria-expanded", open ? "true" : "false"); list.hidden = !open; };
+      var g = groups.filter(function (x) { return x.li.contains(b) && x.li.querySelector(".pa-twisty") === b; })[0];
+      set(!g || (some(g) && !full(g)));
+      b.addEventListener("click", function () { set(b.getAttribute("aria-expanded") !== "true"); });
+    });
+
+    picker.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && menu.open) { e.stopPropagation(); menu.open = false; menu.querySelector("summary").focus(); }
+    });
+    document.addEventListener("click", function (e) { if (menu.open && !picker.contains(e.target)) menu.open = false; });
+
+    var form = picker.closest("form");
+    if (form) form.addEventListener("formdata", function (e) {
+      var fd = e.formData;
+      fd.delete("pa");
+      fd.delete("pa_type");
+      if (groups.every(full) && (!sw || sw.checked)) return;  // everything: no PA filter
+      groups.forEach(function (g) {
+        if (full(g) && g.type) fd.append("pa_type", g.type);
+        else g.members.forEach(function (m) { if (m.checked) fd.append("pa", m.value); });
+      });
+      if (sw && sw.checked) fd.append("pa", sw.value);
+    });
+  });
 })();

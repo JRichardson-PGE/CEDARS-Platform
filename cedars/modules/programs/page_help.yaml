@@ -5,7 +5,8 @@ programs/catalog:
   guide:
     - Every program in the registry, closed ones included, one row per PrgID with its current definition. The catalog is public;
       signed in, the same filters apply.
-    - Filter by text, PA, sector, status and years, or pick any other attribute under Other filters. A program's ID opens its page,
+    - Filter by text, PA, sector, status and years, or pick any other attribute under Other filters. The PA list opens to All PAs,
+      its IOUs, RENs and CCAs, and statewide programs; tick whole groups or single PAs. A program's ID opens its page,
       with its versions, allocation factors, evaluations and filings.
   how:
     - Applied filters show as chips; Remove takes one off and Reset all clears them.

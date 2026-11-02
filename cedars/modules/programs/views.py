@@ -64,7 +64,9 @@ def _filtered(form: forms.CatalogFilter, query) -> tuple[list, list, dict, list[
     panel offers their values); the other filters applied; and a note for each value that could not be read."""
     f = form.cleaned_data if form.is_valid() else {}
     q = (f.get("q") or "").strip().lower()
-    pa, state, segment = f.get("pa") or "", f.get("state") or "", f.get("segment") or ""
+    state, segment = f.get("state") or "", f.get("segment") or ""
+    pas = access.picked_pa_codes(query.getlist("pa"), query.getlist("pa_type"))
+    mapping = access.code_map() if pas is not None else {}
     other, notes = filters.parse(query)
     base = []
     for p, v in registry.catalog(f.get("year")):
@@ -72,7 +74,7 @@ def _filtered(form: forms.CatalogFilter, query) -> tuple[list, list, dict, list[
             continue
         if q and q not in p.prg_id.lower() and q not in v.name.lower() and q not in v.commercial_name.lower():
             continue
-        if pa and pa_code(p) != pa:
+        if pas is not None and access.current_code(pa_code(p), mapping).upper() not in pas:
             continue
         if state == "open" and v.status == "closed" or state == "closed" and v.status != "closed":
             continue
@@ -83,11 +85,16 @@ def _filtered(form: forms.CatalogFilter, query) -> tuple[list, list, dict, list[
     return rows, base, other, notes
 
 
-def _main_chips(form: forms.CatalogFilter) -> list[tuple[str, str, str]]:
-    """(parameter, label, value shown) for each main filter applied."""
+PA_TYPE_WORDS = {code: label for code, (label, _) in access.PA_GROUP_LABELS.items()}
+
+
+def _main_chips(form: forms.CatalogFilter, query) -> list[tuple]:
+    """(parameter, label, value shown[, value]) for each main filter applied: the PA picker's choices one chip each (the value, when
+    given, is the one its Remove link takes away), then the form's fields."""
+    out = [("pa_type", "PA", f"All {PA_TYPE_WORDS.get(t.upper(), t)}", t) for t in query.getlist("pa_type") if t.strip()]
+    out += [("pa", "PA", "Statewide programs" if c.upper() == "SW" else c, c) for c in query.getlist("pa") if c.strip()]
     if not form.is_valid():
-        return []
-    out = []
+        return out
     for name, field in form.fields.items():
         value = form.cleaned_data.get(name)
         if value in (None, ""):
@@ -114,7 +121,10 @@ def catalog(request):
             "rows": [(p, v, pa_code(p), status_label(v.status), segment_label(v.segment)) for p, v in page.object_list],
             "total": len(rows),
             "query": query.urlencode(),
-            "applied": filters.chips(request.GET, _main_chips(form), other),
+            "applied": filters.chips(request.GET, _main_chips(form, request.GET), other),
+            "pa_picker": access.pa_picker(
+                request.GET.getlist("pa"), request.GET.getlist("pa_type"), statewide=Program.objects.filter(statewide=True).exists()
+            ),
             "other": filters.panel(request.GET, other, base),
             "notes": notes,
         },
