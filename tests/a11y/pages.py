@@ -209,7 +209,7 @@ PAGES = [
     ("run-queued", "/calculations/runs/{queued_run}/", "analyst"),
     ("edit-inputs", "/calculations/drafts/", "analyst"),
     ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
-    ("edit-inputs-program-costs", "/calculations/drafts/{draft}/?table=ProgramCost", "analyst"),
+    ("edit-inputs-row-by-row", "/calculations/drafts/{draft}/?view=rows&table=ProgramCost", "analyst"),
     ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
     # gap 25 (BR-06.22): add a measure from the eTRM pack: packages, the offering's open choice, the permutation and its row
     ("edit-inputs-etrm", "/calculations/drafts/{draft}/etrm/?year=all", "analyst"),

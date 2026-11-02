@@ -13,7 +13,7 @@
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "8b711d19be70bd7e6763a393ccb0a134638e0a9ff82368ed9e924154cb91faf6"
+    "sha256": "205c404aede6dbd9e18dbfb443b079caf47f86e61b5efcd20f74d74d7c15eef1"
   },
   "guide:claims": {
     "release": "0.2.0",
