@@ -44,6 +44,7 @@ COMPARED = {
     "audience": "Audience",
     "required_by": "Required by",
     "doc_link": "Calculation documentation",
+    "values": "Allowed values",
     "retired_from": "Retired from",
 }
 REVIEWS = ["review_usage", "review_audience", "review_regulatory"]
@@ -207,6 +208,8 @@ def _text(value) -> str:
         return ""
     if isinstance(value, date):
         return f"{value:%Y-%m-%d}"
+    if isinstance(value, list):  # allowed values: [[code, label], ...]
+        return ", ".join(str(v[0]) if isinstance(v, list | tuple) else str(v) for v in value)
     return str(value)
 
 

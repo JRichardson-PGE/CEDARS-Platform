@@ -112,7 +112,7 @@ def _cache_key(cycle: FilingCycle) -> str:
     releases = [snapshots.current_release(d) for d in ("claims", "forecast", "monthly")]
     numbers = "-".join(str(r.pk) if r else "0" for r in releases)
     sets = "-".join(str(pk) for pk in goal_sets._confirmed().values_list("pk", flat=True)[:5])
-    return f"front:{cycle.first_year}-{cycle.last_year}:{numbers}:{sets}"
+    return f"front:{'-'.join(dq.DEFAULT_EXCLUDE)}:{cycle.first_year}-{cycle.last_year}:{numbers}:{sets}"
 
 
 def summary(choice: str = "") -> Summary:
@@ -215,7 +215,10 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
                     "detail": f"of {number(f.get(code), decimals)} forecast" if f.get(code) is not None else "",
                 }
             )
-        card.lines.append("Net first-year savings against the latest forecast. Leaves out codes and standards, and pension and benefits.")
+        card.lines.append(
+            "Net first-year savings against the latest forecast. Leaves out codes and standards, Energy Savings Assistance, "
+            "and pension and benefits."
+        )
     out.cards.append(card)
 
     # 4. cost effectiveness, statewide
@@ -247,8 +250,8 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
                 }
             )
         card.lines.append(
-            "Statewide benefits divided by statewide costs. Leaves out codes and standards, pension and benefits, and "
-            "programs excluded from cost effectiveness."
+            "Statewide benefits divided by statewide costs. Leaves out codes and standards, Energy Savings Assistance, pension "
+            "and benefits, and programs excluded from cost effectiveness."
         )
     out.cards.append(card)
 
