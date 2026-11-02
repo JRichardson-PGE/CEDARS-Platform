@@ -4,20 +4,23 @@ from django.conf import settings
 from django.shortcuts import redirect
 
 from .assurance import MFA, PASSWORD, session_assurance
-from .service import organisations_of
+from .service import filing_organisation, organisations_of
 
 ORG_SESSION_KEY = "cedars_organisation"
 
 
 class ActiveOrganisationMiddleware:
     """request.organisation: the organization the user is acting for, switched in the session (BR-01.1), always one they are an active
-    member of (None for a community account). request.assurance: how the session was established (assurance.py)."""
+    member of (None for a community account). request.filing_organisation: the same when it files (a PA), else None, for the pages
+    that show "your" filings, budgets and reports (service.filing_organisation). request.assurance: how the session was established
+    (assurance.py)."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         request.organisation = None
+        request.filing_organisation = None
         request.assurance = ""
         request.user_organisations = []
         user = getattr(request, "user", None)
@@ -27,6 +30,7 @@ class ActiveOrganisationMiddleware:
             chosen = request.session.get(ORG_SESSION_KEY)
             request.organisation = next((o for o in orgs if o.pk == chosen), orgs[0] if orgs else None)
             request.user_organisations = orgs
+            request.filing_organisation = filing_organisation(request.organisation)
         return self.get_response(request)
 
 

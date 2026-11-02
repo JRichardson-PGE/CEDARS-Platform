@@ -417,6 +417,14 @@ def cpuc() -> Organisation | None:
     return Organisation.objects.filter(kind=Organisation.Kind.CPUC).first()
 
 
+def filing_organisation(org: Organisation | None) -> Organisation | None:
+    """The organization a page should speak of as "yours" when it shows a PA's own filings, budgets or reports: the acting organization
+    when it files (Organisation.files), else None. The CPUC, the statewide (SW) pseudo-PA and other organizations have no filings or
+    operating budget of their own, so a page shown to them takes the regulator's view instead (every PA, or the one chosen with ?org=)
+    rather than "CPUC's operating budget". The middleware sets it on every request as request.filing_organisation."""
+    return org if org is not None and org.files else None
+
+
 def _effective(qs, now=None):
     now = now or timezone.now()
     return qs.filter(status=Grant.Status.ACTIVE, membership__ended_at__isnull=True).exclude(expires_at__lte=now)

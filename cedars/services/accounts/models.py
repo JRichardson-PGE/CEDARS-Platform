@@ -90,6 +90,16 @@ class Organisation(models.Model):
     def __str__(self):
         return f"{self.code} ({self.name})"
 
+    @property
+    def files(self) -> bool:
+        """Whether it files budgets, claims and monthly reports and has a portfolio of its own: a program administrator, not the
+        statewide (SW) pseudo-PA, the CPUC or another organization. Pages word their text for the others as the regulator's view
+        (service.filing_organisation)."""
+        return self.kind == self.Kind.PA and self.code != STATEWIDE_CODE
+
+
+STATEWIDE_CODE = "SW"  # the statewide pseudo-PA: statewide programs and the records CEDARS loads under it
+
 
 class CodeRange(Func):
     """daterange(valid_from, valid_to): when a code was in use, from valid_from (NULL: from the start) up to but not including
