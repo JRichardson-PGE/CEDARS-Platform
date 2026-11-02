@@ -99,10 +99,10 @@ EXCLUSIONS = {
         ),
     ]
 }
-# As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages, ESA out on
-# the goals page only; programs flagged Exclude_From_CE out of the cost-effectiveness page (Jake, 2026-10-31). A page passes its own
-# defaults to from_params; the page and the download say what was left out.
-DEFAULT_EXCLUDE = ("pension", "cs")
+# As the Power BI and CEDARS' pages have them (Jake, 2026-10-31): Pension and Benefits always out, C&S out on most pages; programs
+# flagged Exclude_From_CE out of the cost-effectiveness page (Jake, 2026-10-31). ESA out on every dashboard page (Jake, 2026-11-02; it
+# was the goals page only). A page passes its own defaults to from_params; the page and the download say what was left out.
+DEFAULT_EXCLUDE = ("pension", "esa", "cs")
 
 
 class QueryError(ValueError):
@@ -492,9 +492,13 @@ def filing_label(f: dict) -> str:
 
 def connect():
     """A DuckDB connection of the request's own, within the query limits (it spills to disk beyond the memory limit)."""
+    import tempfile
+
     import duckdb
 
-    return duckdb.connect(config={"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY})
+    spill = settings.DATA_QUERY_SPILL or str(Path(tempfile.gettempdir()) / "cedars-duckdb")
+    config = {"threads": settings.DATA_QUERY_THREADS, "memory_limit": settings.DATA_QUERY_MEMORY, "temp_directory": spill}
+    return duckdb.connect(config=config)
 
 
 def _fetch(sql: str, args: list) -> tuple[list[str], list[tuple]]:

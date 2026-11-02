@@ -43,6 +43,19 @@ budgets/filing:
     - By program and year opens the priced version, with the excluded programs and the reconciliation.
   see: budgets
   tour:
+    - target: main dl.facts
+      title: Due date and pricing
+      text: When this filing is due, and the ACC, allocation version and cost tests it is priced on.
+    - target: "#choose-pa-h"
+      title: Choose a program administrator
+      text: >-
+        Each PA files its own filing. CPUC staff, and anyone not acting for a PA, choose one here to see its filing; others' published
+        versions are open to everyone signed in.
+      optional: true  # only when you are not acting for a PA
+    - target: "#nothing-yet"
+      title: Not started yet
+      text: The PA has not started this filing, and you cannot upload it; its filers do that here.
+      optional: true
     - target: "#now-h"
       title: The version in progress
       text: Its status, the file it holds, the findings by rule (rejects first), and the next step, which is price, confirm, un-confirm or ask to reopen.

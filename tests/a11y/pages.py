@@ -70,6 +70,8 @@ PAGES = [
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
     ("dictionary-field-codes-paged", "/dictionary/fields/AC_Elec_Impact_Profile/?page=2", None),
+    ("dictionary-records", "/dictionary/?kind=record&group=Budgets%3A+fund+shift+lines", None),
+    ("dictionary-field-record", "/dictionary/fields/submissions.SubmissionVersion.status/", None),
     # gap 33: retired fields and the change log (BR-08.4); the scene's {catalog_retired} retires LevNetBenRIMGas in 30 days
     ("dictionary-retired", "/dictionary/?state=all&q=LevNetBen", None),
     ("dictionary-field-retiring", "/dictionary/fields/LevNetBenRIMGas/", None),

@@ -9,6 +9,7 @@
   <dt>Estimates priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for {{ setup.year }}{% endif %}</dd>
 </dl>
 {% if not org %}{% url 'monthly:year' deadline.period.year as back %}{% include "submissions/_choose_pa.html" with what="report" back=back back_text="The year's reports in one view" %}{% endif %}
+{% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this report yet. Its filers upload it here.</p>{% endif %}
 
 {% if v %}
 <section class="card" aria-labelledby="now-h">

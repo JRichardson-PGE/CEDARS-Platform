@@ -22,7 +22,7 @@
   </form>
 </section>
 {% elif request.organisation.code != pkg.pa_lead %}
-<p>Load shapes for this package are uploaded by members of {{ pkg.pa_lead }} with the Impact profiles: submit permission.</p>
+<p id="who-uploads">Load shapes for this package are uploaded by members of {{ pkg.pa_lead }} with the Impact profiles: submit permission.</p>
 {% endif %}
 
 <h2>Load shapes</h2>

@@ -118,6 +118,10 @@ impact_profiles/package:
       title: Upload load shapes
       text: For the lead PA's members.
       optional: true
+    - target: "#who-uploads"
+      title: Who uploads
+      text: Anyone else is told which PA's members upload this package's load shapes.
+      optional: true
     - heading: Load shapes
       title: Load shapes
       text: The package's shapes, each linked to its months and versions.
@@ -130,6 +134,7 @@ impact_profiles/package:
     - heading: Uploads for this package
       title: Uploads
       text: Every upload, with its result.
+      optional: true  # only the lead PA's members see the uploads
     - heading: Permutations
       title: Permutations
       text: The package's permutations as synced from eTRM, with their UECs.

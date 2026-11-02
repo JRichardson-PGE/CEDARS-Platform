@@ -67,6 +67,19 @@ claims/period:
     - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
   see: claims
   tour:
+    - target: main dl.facts
+      title: Due date and pricing
+      text: When this claim is due, which quarters it may carry, and the ACC, allocation version and cost tests it is priced on.
+    - target: "#choose-pa-h"
+      title: Choose a program administrator
+      text: >-
+        Each PA files its own claim. CPUC staff, and anyone not acting for a PA, choose one here to see its claim; others' published
+        versions are open to everyone signed in.
+      optional: true  # only when you are not acting for a PA
+    - target: "#nothing-yet"
+      title: Not started yet
+      text: The PA has not started this claim, and you cannot upload it; its filers do that here.
+      optional: true
     - target: "#earlier-h"
       title: Earlier confirmations
       text: This year's confirmed quarters, which this upload is compiled over.

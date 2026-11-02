@@ -2,7 +2,7 @@
 {% block title %}Data dictionary{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Data dictionary</h1>{% page_help "dictionary/index" %}</div>
-<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by. Catalog version: <strong>{{ catalog.label }}</strong>.</p>
+<p>Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by, and every column of the records the platform keeps (programs, the filing calendar, filings, budgets, fund shifts, claims, monthly reports, publication, documents and more), named <code>module.Table.column</code>. Catalog version: <strong>{{ catalog.label }}</strong>.</p>
 <p class="actions">
   <a class="button" href="{% url 'dictionary:catalog_csv' %}">Download the catalog (CSV)</a>
   <a class="button" href="{% url 'dictionary:crosswalk_csv' %}">Download the name crosswalk (CSV)</a>
@@ -21,7 +21,8 @@
 <h2>Fields</h2>
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
-  <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option><option value="input"{% if kind == "input" %} selected{% endif %}>Inputs</option><option value="output"{% if kind == "output" %} selected{% endif %}>Outputs</option></select></div>
+  <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option>{% for value, text in kinds %}<option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ text }}s</option>{% endfor %}</select></div>
+  {% if groups %}<div class="field"><label for="group">Platform table</label><select id="group" name="group"><option value="">All</option>{% for g in groups %}<option value="{{ g }}"{% if group == g %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></div>{% endif %}
   <div class="field"><label for="state">State</label><select id="state" name="state"><option value="">In use</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Retired</option><option value="all"{% if state == "all" %} selected{% endif %}>All, retired included</option></select></div>
   <button type="submit">Search</button>
 </form>
