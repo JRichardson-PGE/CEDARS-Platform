@@ -13,6 +13,7 @@
   {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}; cost tests: {% if setup.cost_test_set %}{{ setup.cost_test_set }}{% else %}the published set in force for the program year{% endif %}</dd>{% endif %}
 </dl>
 {% if not org %}{% url 'budgets:index' as back %}{% include "submissions/_choose_pa.html" with what="filing" back=back back_text="Every filing and the budgets that stand" %}{% endif %}
+{% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this filing yet. Its filers upload it here.</p>{% endif %}
 
 {% if v %}
 <section class="card" aria-labelledby="now-h">

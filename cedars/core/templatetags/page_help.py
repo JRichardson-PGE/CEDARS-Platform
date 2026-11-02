@@ -31,7 +31,7 @@ def page_help(context, key, variant=""):
     if request is not None:
         request.page_help = entry
     return format_html(
-        '<a class="page-help" href="{}" data-page-help aria-label="Help with this page: a guide and a tour">'
+        '<a class="page-help" href="{}" data-page-help data-tour="page-help" aria-label="Help with this page: a guide and a tour">'
         '<span aria-hidden="true">?</span></a>',
         help_url(entry.key, request),
     )

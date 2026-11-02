@@ -129,6 +129,25 @@ def local_storage(django_db_blocker):
         yield
 
 
+def _role_filers():
+    """A filer of each kind of program administrator, made as the demo site makes them (manage.py demo_account): PG&E's, one who files
+    for every REN (two of them, so the header has the organization switcher) and one for a CCA. The tours are walked as each."""
+    service.create_organisation(None, code="BAYREN", name="Bay Area Regional Energy Network", kind="pa", pa_type="REN")
+    service.create_organisation(None, code="SOCALREN", name="Southern California Regional Energy Network", kind="pa", pa_type="REN")
+    service.create_organisation(None, code="MCE", name="Marin Clean Energy", kind="pa", pa_type="CCA")
+    from cedars.services.accounts.models import User
+
+    made = {}
+    for key, email, how in (
+        ("iou_filer", "filer@pge.example.org", ["--org", "PGE"]),
+        ("ren_filer", "filer@ren.example.org", ["--pa-type", "REN"]),
+        ("cca_filer", "filer@cca.example.org", ["--pa-type", "CCA"]),
+    ):
+        call_command("demo_account", email, *how, "--password", "correct horse battery staple", stdout=io.StringIO())
+        made[key] = User.objects.get(email=email)
+    return made
+
+
 def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
@@ -137,6 +156,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.rename_organisation(cpuc_admin, ava, code="AVA", name="Ava Community Energy", effective=date(2024, 1, 1), reason="renamed")
     twice = service.create_organisation(cpuc_admin, code="AVA2", name="Ava, loaded twice", kind="pa")
     service.merge_organisation(cpuc_admin, twice, into=ava, effective=date(2025, 1, 1), reason="the same party")
+    role_filers = _role_filers()
     analyst = make_user("analyst@pge.example.org", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
     service.grant(pge_admin, analyst, pge, perms.PII, reason="files claims with contacts")
@@ -384,6 +404,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "change_request": change_request.pk,
         "pge_admin": pge_admin,
         "community": community,
+        **role_filers,
         "password": community,
         "pge": pge,
         "cpuc": cpuc,
@@ -1385,6 +1406,104 @@ def test_every_page_has_help_and_its_tour_finds_the_page(browser, site, scene, n
     assert not missing, f"{name}: tour steps whose part of the page is missing: {missing}"
 
 
+# Each kind of person the tours are walked as (Jake, 2026-11-02: "parts of them don't work right depending on the profile type logged in").
+ROLES = {
+    "signed-out": None,
+    "cpuc-system-admin": "cpuc_admin",
+    "cpuc-approver": "approver",
+    "iou-filer": "iou_filer",
+    "ren-filer": "ren_filer",
+    "cca-filer": "cca_filer",
+    "org-admin": "pge_admin",
+}
+
+# Clicks Next through the tour, recording each step: its title, whether the part it points at is outlined, seen and inside the window.
+WALK_TOUR = """async () => {
+  const wait = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const start = document.querySelector('#page-help [data-tour-start]') || document.querySelector('[data-tour-start]');
+  if (!start) return null;
+  start.click();
+  const dialog = document.getElementById('tour'), out = [];
+  for (let k = 0; k < 60 && dialog.open; k++) {
+    await wait();
+    const lit = document.querySelector('.tour-target'), r = lit && lit.getBoundingClientRect();
+    out.push({
+      title: document.querySelector('#tour-title').textContent,
+      lit: !!lit,
+      seen: !!lit && r.width > 0 && r.height > 0,
+      focus: document.activeElement && document.activeElement.id,
+      many: document.querySelectorAll('.tour-target').length,
+    });
+    document.querySelector('[data-tour-next]').click();
+  }
+  await wait();  // the dialog's close event comes in a task of its own
+  return {steps: out, closed: !dialog.open, touring: document.documentElement.classList.contains('touring')};
+}"""
+
+
+def _role_pages():
+    seen, out = set(), []
+    for name, path, who in PAGES:
+        if who == "password" or name in HELP_ITSELF or path in seen:
+            continue
+        seen.add(path)
+        out.append((name, path))
+    return out
+
+
+@pytest.mark.parametrize("role", list(ROLES))
+def test_every_tour_for_each_kind_of_user(browser, site, scene, role):
+    """Every page's tour, walked as each kind of person who can open the page: signed out, a CPUC system administrator, a CPUC approver,
+    filers for an IOU, the RENs and a CCA (made with manage.py demo_account) and an organization administrator. A page they cannot open
+    (sent to sign in, refused, or another organization's) is left out. On each page they can: every step not marked optional finds its
+    part of the page, and Next goes through every step found, each outlining exactly one part that is seen, with the focus on the step's
+    heading, until Finish closes the tour."""
+    from cedars.services.accounts.models import Organisation
+
+    who = ROLES[role]
+    context = browser.new_context()
+    if who is not None:
+        context.add_cookies([_session_cookie(scene[who], "mfa", site)])
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    ids = {k: (v.code if isinstance(v, Organisation) else getattr(v, "pk", v)) for k, v in scene.items()}
+    problems, walked = {}, 0
+    for name, path in _role_pages():
+        url = site.url + path.format(**ids)
+        response = page.goto(url)
+        if response is None or response.status != 200 or page.url.split("?")[0] != url.split("?")[0]:
+            continue  # not theirs to open (or sent elsewhere, such as to sign in)
+        if page.locator(".page-title > h1 + .page-help").count() != 1:
+            continue
+        found = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null") or []
+        missing = [s["title"] for s in found if not s["found"] and not s["optional"]]
+        walk = page.evaluate(WALK_TOUR)
+        walked += 1
+        bad = []
+        if missing:
+            bad.append({"not found": missing})
+        if walk is None or not walk["steps"]:
+            bad.append("the tour did not start")
+        else:
+            shown = [s for s in found if s["found"]]
+            if len(walk["steps"]) != len(shown):
+                bad.append(f"{len(walk['steps'])} steps shown of {len(shown)} found")
+            for s in walk["steps"]:
+                if s["focus"] != "tour-title" or s["many"] > 1 or (s["lit"] and not s["seen"]):
+                    bad.append(s)
+            if not walk["closed"] or walk["touring"]:
+                bad.append("Finish did not close the tour")
+        if errors:
+            bad.append({"script errors": errors[:]})
+            errors.clear()
+        if bad:
+            problems[f"{name} {path}"] = bad
+    context.close()
+    assert walked > 10, f"{role}: only {walked} pages walked"
+    assert not problems, f"{role}: " + json.dumps(problems, indent=1)
+
+
 HELP_ITSELF = {"help-pages", "help-page", "help-page-front"}  # core/help/pages.html and page.html (page_help.WITHOUT_HELP)
 
 HELP_PAGES = [
@@ -1625,7 +1744,8 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     every.focus()
     page.keyboard.press("Space")  # All PAs: half ticked -> ticked
     page.locator("input[name='pa_type'][value='CCA']").uncheck()
-    assert "CCAs" not in summary.inner_text() and "All IOUs" in summary.inner_text()
+    page.locator("input[name='pa_type'][value='REN']").uncheck()  # the RENs of the scene's REN filer (_role_filers)
+    assert "CCAs" not in summary.inner_text() and "RENs" not in summary.inner_text() and "All IOUs" in summary.inner_text()
     page.keyboard.press("Escape")
     assert not page.evaluate("document.querySelector('.pa-menu').open")
     assert page.evaluate("document.activeElement === document.querySelector('.pa-menu > summary')")

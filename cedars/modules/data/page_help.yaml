@@ -256,11 +256,10 @@ data/downloads:
       email when it is ready, and the file is kept here for a set number of days.
   see: published-data
   tour:
-    - target: main table.list
+    - target: main table.list, main p.none-yet
       title: Your downloads
       text: When you asked for each, how many records, the format and its status. Download the file once it is done; select the date for
         its details.
-      optional: true
 
 data/download_job:
   title: A background download
