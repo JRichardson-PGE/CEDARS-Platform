@@ -365,7 +365,8 @@ def test_moving_between_statewide_programs_leaves_each_funder_its_net_gap(
         Decimal("0.6"),
     )
     assert (sce_rows[("SW_X", 2028)].approved, sce_rows[("SW_X", 2028)].factor) == (800, Decimal("0.4"))
-    assert shifts.operating_budget(pge, cycle).total().approved == 1200 + 400 + 2000  # its portion, not the $2,000 it filed
+    # its portion, not the $2,000 it filed (2028: the MCAL holds 2028 only, so 2029 keeps the earlier filing's budget)
+    assert shifts.operating_budget(pge, cycle).total(years=[2028]).approved == 1200 + 400 + 2000
     shifts.set_lines(filer, s, L(("SW_X", 2028, -1000), ("SW_Y", 2028, 1000), ("PGE_Com_Ltg", 2028, 300)))
     assert shifts.problems(s) == []
     s = shifts.submit(filer, s)
@@ -375,7 +376,7 @@ def test_moving_between_statewide_programs_leaves_each_funder_its_net_gap(
         shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -200)))
     s = shifts.acknowledge(sce_confirmer, s, sce, L(("SCE_Ind", 2028, -300)))
     assert s.status == FundShift.Status.EFFECTIVE
-    pge_rows = {(r.prg_id, r.year): r.operating for r in shifts.operating_budget(pge, cycle).rows}
+    pge_rows = {(r.prg_id, r.year): r.operating for r in shifts.operating_budget(pge, cycle).rows if r.year == 2028}
     sce_rows = {(r.prg_id, r.year): r.operating for r in shifts.operating_budget(sce, cycle).rows}
     assert pge_rows == {("SW_X", 2028): 600, ("SW_Y", 2028): 300, ("PGE_Com_Ltg", 2028): 700, ("PGE_Res_HVAC", 2028): 2000}
     assert sce_rows == {("SW_X", 2028): 400, ("SW_Y", 2028): 700, ("SCE_Ind", 2028): 700}
