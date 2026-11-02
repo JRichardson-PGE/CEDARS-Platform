@@ -103,9 +103,11 @@ def index(request):
             rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d), "can_open": can_open})
         standing = []
         for o in Organisation.objects.filter(submissions__deadline__module=service.MODULE, submissions__deadline__cycle=cycle).distinct():
+            stands = list({v.pk: v for v in service.standing_by_year(o, cycle).values()}.values())
             v = service.standing(o, cycle)
-            if v is not None:
-                standing.append(v)
+            if v is not None and v not in stands:
+                stands.insert(0, v)
+            standing += sorted(stands, key=lambda v: (v.submission.deadline.due_at, v.number), reverse=True)
         imported = legacy.imported_deadlines(r["deadline"] for r in rows)
         for r in rows:
             r["legacy"] = r["deadline"].pk in imported
