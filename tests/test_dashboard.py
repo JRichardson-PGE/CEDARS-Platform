@@ -92,12 +92,38 @@ def test_chart_geometry(both):
     g = dashboard.chart(c)
     assert [s["code"] for s in g["series"]] == ["forecast", "claims"] and not g["negative"]
     [res, com] = g["groups"]
-    assert res["bars"][0] == {"series": "forecast", "x": 0.0, "w": 100.0, "y": 0, "missing": False}
+    assert res["bars"][0] == {"series": "forecast", "x": 0.0, "w": 100.0, "y": 0, "missing": False, "value": 300.0}
     assert res["bars"][1]["w"] == 50.0 and res["bars"][1]["y"] == 14
     rows = [dashboard.Row("a", {"claims": -50}), dashboard.Row("b", {"claims": 150})]
     neg = dashboard.chart(dashboard.Comparison(c.view, {"claims": None}, rows, dashboard.Row("Total", {})))
     assert neg["negative"] and neg["zero"] == 25.0
     assert neg["groups"][0]["bars"][0]["x"] == 0.0 and neg["groups"][0]["bars"][0]["w"] == 25.0
+
+
+def test_chart_values_in_words(both):
+    """Each chart row's values as the pointer and keyboard show them and a screen reader reads them: every series, "none" where a
+    series has no value (blank is not zero), and the marker (goal, operating budget) when the row has one."""
+    c = dashboard.compare(view(by="sector"))
+    g = dashboard.describe(dashboard.chart(c), lambda v: f"{v:,.0f} kWh")
+    assert g["groups"][0]["tip"] == [("forecast", "Forecast", "300 kWh"), ("claims", "Claimed", "150 kWh")]
+    rows = [dashboard.Row("a", {"claims": 5})]
+    one = dashboard.chart(dashboard.Comparison(c.view, {"forecast": None, "claims": None}, rows, dashboard.Row("Total", {})))
+    assert dashboard.describe(one, str)["groups"][0]["tip"] == [("forecast", "Forecast", "none"), ("claims", "Claimed", "5")]
+    marked = {"series": one["series"], "goal": "Goal", "groups": [{"bars": one["groups"][0]["bars"], "goal_value": 7}]}
+    assert dashboard.describe(marked, str)["groups"][0]["tip"][-1] == ("goal", "Goal", "7")
+
+
+def test_charts_and_sections_on_the_page(both, client):
+    """Hover values and folding sections (Jake 2026-11-01): without scripts the chart stays one image with the table as its text
+    alternative and every section is open; each row carries its values for dashboard.js to show, and each section a key to remember."""
+    page = client.get("/data/overview/?by=sector").content.decode()
+    assert 'role="img"' in page and "data-chart" in page and "data/dashboard.js" in page
+    assert '<span class="chart-tip sr-only"><strong class="tip-label">Residential</strong>' in page
+    for key in ('data-part="filters"', 'data-part="overview:s1:chart"', 'data-part="overview:s1:table"'):
+        assert key in page
+    assert page.count('<details class="section dash-part" open') == 3
+    assert "data-keep-open" not in page
+    assert "data-keep-open" in client.get("/data/overview/?by=colour").content.decode()
 
 
 def test_the_page(both, client):

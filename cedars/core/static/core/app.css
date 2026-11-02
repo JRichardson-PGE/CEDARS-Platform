@@ -384,6 +384,24 @@ ul.column-list label.check { display: inline-flex; gap: .4rem; align-items: cent
 .zero { stroke: var(--fg); stroke-width: 1; }
 @media (max-width: 480px) { .chart-rows li { grid-template-columns: 1fr; } }
 .goal { stroke: var(--fg); stroke-width: 3; stroke-dasharray: 3 2; }   /* the goal marker: dashed, in the text colour (above 3:1 in both schemes) */
+/* Chart values (data/dashboard.js): the row under the pointer or with the focus shows its values beside its bars. They stay while the
+   pointer rests on them (they sit inside the row) and Escape hides them (1.4.13). Without the script they are only the table below. */
+.chart-rows li { position: relative; }
+.chart-rows li[tabindex] { cursor: default; border-radius: var(--r); }
+.chart-rows li[tabindex]:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.chart-rows li.chart-active { background: var(--surface-2); }
+.chart-tip.shown { position: absolute; top: calc(100% - .2rem); z-index: 5; display: flex; flex-direction: column; gap: .15rem; min-width: 12rem;
+  max-width: min(22rem, 100%); padding: .5rem .7rem; background: var(--surface); color: var(--fg); border: 1px solid var(--control);
+  border-radius: var(--r); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); font-size: .88rem; line-height: 1.35; }
+.chart-tip .tip-label { font-weight: 600; overflow-wrap: anywhere; }
+.chart-tip .tip-row { display: flex; align-items: center; gap: .4rem; font-variant-numeric: tabular-nums; }
+.chart-tip .tip-row svg { flex: none; }
+.chart-tip .tip-row.hot { font-weight: 700; }
+/* Sections that fold away (Filters and view, each chart, each table): the shared details.section, its heading a step smaller under a block's h2 */
+details.dash-part { margin: .75rem 0 0; }
+details.dash-part > summary h3 { margin: 0; font-size: 1rem; }
+details.dash-part > .section-body > .chart { margin-bottom: 0; border: 0; padding: .25rem 0 0; }
+details.dash-part > .section-body .dash-controls { margin: 0; }
 
 /* ---------- Front page (data/front.html): the introduction, the program cycle's cards, Help ---------- */
 .front-intro { max-width: 72ch; margin-bottom: 1.5rem; }

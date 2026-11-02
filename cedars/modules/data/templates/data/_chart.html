@@ -1,18 +1,24 @@
-{% load data_tags %}{# A server-rendered bar chart: one group per row, one bar per series. The table below is its text alternative. #}
-<div class="chart" role="img" aria-label="{{ caption }}. Bar chart; the values are in the table below.">
+{% load data_tags %}{% comment %}A server-rendered bar chart: one group per row, one bar per series. The table below is its text alternative.
+Without scripts the chart is one image; data/dashboard.js makes its rows a list to move through with the arrow keys, each showing and
+saying its values (`tip`), and shows the same values when the pointer is over a row.{% endcomment %}
+<div class="chart" data-chart role="img" aria-label="{{ caption }}. Bar chart; the values are in the table below." data-name="{{ caption }}. Bar chart">
   <ul class="chart-legend" aria-hidden="true">
     {% for s in chart.series %}<li><svg width="18" height="12" focusable="false"><rect class="bar bar-{{ s.code }}" width="18" height="12"/></svg> {{ s.label }}</li>{% endfor %}
     {% if chart.goal %}<li><svg width="18" height="12" focusable="false"><line class="goal" x1="9" x2="9" y1="0" y2="12"/></svg> {{ chart.goal }}</li>{% endif %}
   </ul>
+  {% if chart.groups %}<p class="chart-hint small muted" hidden>Point at a row, or select the chart and use the up and down arrow keys, to see its values. Escape hides them.</p>{% endif %}
   <ol class="chart-rows" aria-hidden="true">
     {% for g in chart.groups %}
     <li>
-      <span class="chart-label">{{ g.label|default_if_none:"(blank)" }}</span>
-      <svg class="chart-bars" width="100%" height="{{ chart.height }}" focusable="false">
-        {% for b in g.bars %}{% if not b.missing %}<rect class="bar bar-{{ b.series }}" x="{{ b.x }}%" y="{{ b.y }}" width="{{ b.w }}%" height="12"/>{% endif %}{% endfor %}
-        {% if g.goal is not None %}<line class="goal" x1="{{ g.goal }}%" x2="{{ g.goal }}%" y1="0" y2="100%"/>{% endif %}
+      <span class="chart-label" aria-hidden="true">{{ g.label|default_if_none:"(blank)" }}</span>
+      <svg class="chart-bars" width="100%" height="{{ chart.height }}" focusable="false" aria-hidden="true">
+        {% for b in g.bars %}{% if not b.missing %}<rect class="bar bar-{{ b.series }}" data-series="{{ b.series }}" x="{{ b.x }}%" y="{{ b.y }}" width="{{ b.w }}%" height="12"/>{% endif %}{% endfor %}
+        {% if g.goal is not None %}<line class="goal" data-series="goal" x1="{{ g.goal }}%" x2="{{ g.goal }}%" y1="0" y2="100%"/>{% endif %}
         {% if chart.negative %}<line class="zero" x1="{{ chart.zero }}%" x2="{{ chart.zero }}%" y1="0" y2="100%"/>{% endif %}
       </svg>
+      {% if g.tip %}<span class="chart-tip sr-only"><strong class="tip-label">{{ g.label|default_if_none:"(blank)" }}</strong>{% for code, label, text in g.tip %}
+        <span class="tip-row" data-series="{{ code }}"><svg width="14" height="10" focusable="false" aria-hidden="true">{% if code == "goal" %}<line class="goal" x1="7" x2="7" y1="0" y2="10"/>{% else %}<rect class="bar bar-{{ code }}" width="14" height="10"/>{% endif %}</svg> {{ label }}: {{ text }}{% if not forloop.last %}<span class="sr-only">;</span>{% endif %}</span>{% endfor %}
+      </span>{% endif %}
     </li>
     {% empty %}<li class="chart-empty">Nothing to show for this choice.</li>
     {% endfor %}

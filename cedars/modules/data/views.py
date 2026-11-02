@@ -66,6 +66,25 @@ def front_page(request):
     )
 
 
+def _metric_format(metric):
+    """A chart value in words as the table shows it, with the metric's unit ($ before the number, others after)."""
+    if metric.unit == "$":
+        return lambda v: f"{'-' if v < 0 else ''}${abs(v):,.{metric.decimals}f}"
+    unit = f" {metric.unit}" if metric.unit else ""
+    return lambda v: f"{v:,.{metric.decimals}f}{unit}"
+
+
+def _dollars(v):
+    return f"{'-' if v < 0 else ''}${abs(v):,.0f}"
+
+
+def _goal_format(goal_metric):
+    """A goal-page chart value as its table shows it (`data_tags.number`): whole dollars for TSB, two decimals for savings."""
+    if goal_metric.unit == "$":
+        return lambda v: f"{'-' if v < 0 else ''}${abs(v):,.0f}"
+    return lambda v: f"{v:,.2f} {goal_metric.unit}"
+
+
 DASHBOARD_HELP = {
     "use_category": "Measure use categories, separated by commas.",
     "program": "PrgIDs, separated by commas.",
@@ -106,23 +125,38 @@ def dashboard_page(request, slug):
         blocks.append(
             {
                 "kind": "budget",
+                "part": "budget",
                 "s": spending,
-                "chart": budget_view.chart(spending),
+                "chart": dashboard.describe(budget_view.chart(spending), _dollars),
                 "caption": "Expenditure against the operating budget, by year ($ nominal)",
             }
         )
     elif page.kind == "goals":
         period = "cycle" if request.GET.get("period") == "cycle" else "annual"
         goals = goal_view.compare(view, period)
-        blocks.append({"kind": "goals", "comparison": goals, "chart": goal_view.chart(goals), "caption": _goal_caption(goals)})
+        blocks.append(
+            {
+                "kind": "goals",
+                "part": "goals",
+                "comparison": goals,
+                "chart": dashboard.describe(goal_view.chart(goals), _goal_format(goals.metric)),
+                "caption": _goal_caption(goals),
+            }
+        )
     else:
         sections = page.sections or (dashboard.Section(view.by, f"by {query.DIMENSIONS[view.by].in_sentence}"),)
-        for sec in sections:
+        for n, sec in enumerate(sections, 1):
             caption = f"{metric.label}{unit} {sec.title}"
             if sec.columns:
                 m = dashboard.matrix(view, sec.by, sec.columns)
                 blocks.append(
-                    {"kind": "matrix", "matrix": m, "caption": f"{caption}, {m.label.lower()}", "by_label": query.DIMENSIONS[sec.by].label}
+                    {
+                        "kind": "matrix",
+                        "part": f"s{n}",
+                        "matrix": m,
+                        "caption": f"{caption}, {m.label.lower()}",
+                        "by_label": query.DIMENSIONS[sec.by].label,
+                    }
                 )
                 continue
             c = dashboard.compare(view, sec.by, sec.drill)
@@ -130,8 +164,9 @@ def dashboard_page(request, slug):
             blocks.append(
                 {
                     "kind": "compare",
+                    "part": f"s{n}",
                     "comparison": c,
-                    "chart": dashboard.chart(c, sec.limit) if sec.chart else None,
+                    "chart": dashboard.describe(dashboard.chart(c, sec.limit), _metric_format(metric)) if sec.chart else None,
                     "caption": caption,
                     "by_label": query.DIMENSIONS[sec.by].label,
                     "series_labels": [(sr, dashboard.SERIES[sr][0]) for sr in c.results],

@@ -163,7 +163,7 @@ def chart(c: GoalComparison) -> dict:
         for i, s in enumerate(series):
             v = r.values.get(s)
             if v is None:
-                bars.append({"series": s, "x": zero, "w": 0, "y": 14 * i, "missing": True})
+                bars.append({"series": s, "x": zero, "w": 0, "y": 14 * i, "missing": True, "value": None})
             else:
                 bars.append(
                     {
@@ -172,10 +172,11 @@ def chart(c: GoalComparison) -> dict:
                         "w": round(100 * abs(v) / span, 3),
                         "y": 14 * i,
                         "missing": False,
+                        "value": v,
                     }
                 )
         goal = None if r.goal is None else round(100 * (r.goal - low) / span, 3)
-        groups.append({"label": r.key, "bars": bars, "goal": goal})
+        groups.append({"label": r.key, "bars": bars, "goal": goal, "goal_value": r.goal})
     return {
         "series": [{"code": s, "label": SERIES[s][0]} for s in series],
         "groups": groups,

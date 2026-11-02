@@ -1,0 +1,22 @@
+{% load data_tags %}
+<p class="small muted">PAs: {{ sp.organisations|join:", "|default:"none" }}. The budget lines follow the PA and program filters only.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by year">
+<table class="list">
+  <caption class="sr-only">Budget and spending by year, in nominal dollars</caption>
+  <thead><tr><th scope="col">Year</th><th scope="col" class="num">Operating budget</th>
+    {% for s in sp.results %}<th scope="col" class="num">{{ sp|series_name:s }} expenditure</th>{% endfor %}
+    <th scope="col" class="num">Monthly reported (unvalidated)</th>
+    {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th><th scope="col" class="num">Claimed, cumulative</th>{% endif %}
+    <th scope="col" class="num">Budget, cumulative</th></tr></thead>
+  <tbody>
+  {% for r in sp.by_year %}
+  <tr><th scope="row">{{ r.key }}</th><td class="num">{{ r.budget|money }}</td>
+    {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
+    <td class="num">{{ r.monthly|money }}{% if r.through %}<br><span class="small muted">through {{ r.through }}</span>{% endif %}</td>
+    {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td><td class="num">{{ r.cumulative_claims|money }}</td>{% endif %}
+    <td class="num">{{ r.cumulative_budget|money }}</td></tr>
+  {% empty %}<tr><td colspan="8">No years to show: choose a year range.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

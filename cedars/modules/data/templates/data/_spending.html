@@ -1,27 +1,8 @@
 {% load data_tags %}
-<p class="small muted">PAs: {{ sp.organisations|join:", "|default:"none" }}. The budget lines follow the PA and program filters only.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by year">
-<table class="list">
-  <caption class="sr-only">Budget and spending by year, in nominal dollars</caption>
-  <thead><tr><th scope="col">Year</th><th scope="col" class="num">Operating budget</th>
-    {% for s in sp.results %}<th scope="col" class="num">{{ sp|series_name:s }} expenditure</th>{% endfor %}
-    <th scope="col" class="num">Monthly reported (unvalidated)</th>
-    {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th><th scope="col" class="num">Claimed, cumulative</th>{% endif %}
-    <th scope="col" class="num">Budget, cumulative</th></tr></thead>
-  <tbody>
-  {% for r in sp.by_year %}
-  <tr><th scope="row">{{ r.key }}</th><td class="num">{{ r.budget|money }}</td>
-    {% for s in sp.results %}<td class="num">{{ r.values|get_item:s|money }}</td>{% endfor %}
-    <td class="num">{{ r.monthly|money }}{% if r.through %}<br><span class="small muted">through {{ r.through }}</span>{% endif %}</td>
-    {% if "claims" in sp.results %}<td class="num">{{ r.claimed_share|percent }}</td><td class="num">{{ r.cumulative_claims|money }}</td>{% endif %}
-    <td class="num">{{ r.cumulative_budget|money }}</td></tr>
-  {% empty %}<tr><td colspan="8">No years to show: choose a year range.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
-</div>
-
-<h2>Cost elements by primary sector{% if sp.elements %}, {{ sp.elements.query.dataset|series_word }}{% endif %} ($ nominal)</h2>
+{# Each table is a section that folds away; dashboard.js remembers which are folded (dashboard.html). #}
+<details class="section dash-part" open data-part="{{ page.slug }}:elements">
+<summary><h2>Cost elements by primary sector{% if sp.elements %}, {{ sp.elements.query.dataset|series_word }}{% endif %} ($ nominal)</h2></summary>
+<div class="section-body">
 {% if sp.elements %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Cost elements by primary sector">
 <table class="list">
@@ -36,9 +17,13 @@
   {% if sp.elements.rows %}<tfoot><tr><th scope="row">Total</th>{% for m in elements %}<td class="num">{{ sp.elements.totals|get_item:m.code|money }}</td>{% endfor %}<td class="num">{{ sp.elements.totals.expenditure|money }}</td></tr></tfoot>{% endif %}
 </table>
 </div>
-{% endif %}
+{% else %}<p>No cost elements for these choices.</p>{% endif %}
+</div>
+</details>
 
-<h2>Budget and spending by program ($ nominal)</h2>
+<details class="section dash-part" open data-part="{{ page.slug }}:programs">
+<summary><h2>Budget and spending by program ($ nominal)</h2></summary>
+<div class="section-body">
 <div class="hscroll" tabindex="0" role="region" aria-label="Budget and spending by program">
 <table class="list">
   <caption class="sr-only">Budget and spending by program, in nominal dollars</caption>
@@ -57,3 +42,5 @@
   </tbody>
 </table>
 </div>
+</div>
+</details>
