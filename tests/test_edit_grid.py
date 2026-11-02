@@ -21,7 +21,9 @@ pytestmark = pytest.mark.django_db
 VENDOR = Path(__file__).resolve().parents[1] / "cedars/modules/calculations/static/calculations/vendor/tabulator-6.3.1"
 SHA256 = {
     "tabulator.min.js": "e952272c3b2afa4ebb60cef5db8cbe9cbaabaa52b50c3cd3d22993ca5215a6ff",
+    "tabulator.min.js.map": "5cf6cc2cc16a120e00c888bec012cd39a750fee6b83cde161e6fa4ccf15194db",
     "tabulator_simple.min.css": "8a7431ff86fa6aa02943b70470df77fa7094e7eac9f2420b6780c6970c7345eb",
+    "tabulator_simple.min.css.map": "1513412aa3ce621f6d7cd9bde252172a0de4fb569dc80291561b7a31c8a6263a",
     "LICENSE": "6031e51b8450fa6047887f018951c8cf1456d98a5a08291774410c13696de18e",
 }
 
