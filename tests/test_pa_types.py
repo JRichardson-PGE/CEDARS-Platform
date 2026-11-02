@@ -225,6 +225,18 @@ def test_the_pages_offer_whole_groups(mixed, client):
     assert 'type="hidden" name="pa_type"' not in records  # in the form itself, not carried as a hidden field
 
 
+def test_statewide_programs_are_a_choice_on_the_records_page_only(mixed, cpuc_admin, client):
+    """The dashboards count statewide programs under the PAs that fund them, so only the records page offers them (Jake, 2026-11-02)."""
+    access.create_organisation(cpuc_admin, code="SW", name="Statewide", kind="pa")
+    assert dashboard.pa_picker({}, statewide=False)["statewide"] is None
+    assert dashboard.pa_picker({}, statewide=False)["summary"] == "All PAs"
+    for slug in dashboard.PAGES:
+        page = client.get(f"/data/{slug}/?series=claims").content.decode()
+        assert "data-pa-statewide" not in page and 'name="pa" value="SW"' not in page, slug
+    records = client.get("/data/records/").content.decode()
+    assert "data-pa-statewide" in records and 'name="pa" value="SW"' in records
+
+
 def test_spending_reads_every_pa_of_the_chosen_types(mixed):
     pick = lambda **p: [o.code for o in budget_view.organisations(dashboard.parse(dashboard.PAGES["budget"], _qd(**p)))]  # noqa: E731
     assert pick() == ["BAY", "MCE", "NEWPA", "PGE"]

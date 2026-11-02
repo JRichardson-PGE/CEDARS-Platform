@@ -184,6 +184,7 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         welcome += "This tour shows where things are. Use Next and Back to move, or Escape to leave at any time."
     steps = [
         Step("intro", "Welcome to CEDARS", welcome),
+        PAGE_HELP_STEP,
         Step(
             "cycle",
             "This program cycle at a glance",
@@ -355,6 +356,15 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
     ]
     return steps
 
+
+# The (?) is taught here, once, on the front page (Jake, 2026-11-02): a page's own tour is started from that button, so it does not
+# end on it.
+PAGE_HELP_STEP = Step(
+    "page-help",
+    "Help on every page",
+    "The question mark beside this heading, and beside every page's heading, opens a guide to that page and a tour of just that page. "
+    "Use it whenever you land somewhere new.",
+)
 
 HELP_STEP = Step(
     "help",

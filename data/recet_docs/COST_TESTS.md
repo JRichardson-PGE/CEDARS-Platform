@@ -97,7 +97,7 @@ Filings use the CPUC's set, which users cannot edit; anyone running ReCET by its
 * A run with CEDARS filing checks (`filing_validation`) or priced for a filing (`acc_purpose`) accepts only a **published built-in** set: a supplied
   file or a draft set is refused before anything is priced, with a message naming the built-in sets.
 * Any other run may name a set file. Its `Used_CostTestSet` names the file, and its SHA-256 is in run_settings.json, so the run says exactly what it priced.
-* A draft built-in set is labelled `(draft)` in every output and noted, as a draft ACC is (BR-11.8).
+* A draft built-in set is labeled `(draft)` in every output and noted, as a draft ACC is (BR-11.8).
 
 ## 6. What stays in code
 

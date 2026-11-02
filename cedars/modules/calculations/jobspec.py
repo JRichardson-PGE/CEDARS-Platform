@@ -20,6 +20,11 @@ SETTINGS = {
     "base_year": "First year",
     "output_template": "Output template",
     "output_template_name": "Output template name",
+    "compare_with": "Compared with the ACC",
+    "components": "ACC components priced separately",
+    "portfolio_8760": "Combined 8,760 profile",
+    "profile_years": "Years of the combined 8,760 profile",
+    "apply_exclude_from_ce": "Exclude_From_CE programs left out of the summary",
     "cost_test_set": "Cost-test set",  # a published set's id; a draft goes as inputs.cost_tests (service.cost_test_pack)
 }
 
