@@ -96,7 +96,13 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
         elif k == "filing_validation":  # the choice's words, not its code (UAT 2, U10)
             v = service.FILING_CHECKS.get(v, v)
         elif k == "acc_purpose":
-            v = dict(forms.ACC_PURPOSES).get(v, v)
+            v = dict(service.acc_purposes()).get(v, v)
+        elif k == "market_effects":
+            v = f"{float(v):.0%}"
+        elif k == "compare_with":
+            v = f"{v} ACC"
+        elif k == "profile_years":
+            v = ", ".join(str(y) for y in v)
         out.append((service.jobspec.SETTINGS.get(k, k), v))
     return out
 
@@ -166,6 +172,7 @@ def new_run(request):
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
             "input_templates": _input_template_links(releases),
+            "acc_table": service.acc_table(releases),
         },
     )
 
@@ -475,12 +482,39 @@ def _rows(rv, cat, table):
     return [[(_cell(rv, cat, c, v), c in numeric) for c, v in zip(table.columns, r, strict=True)] for r in table.itertuples(index=False)]
 
 
+def _acc_tabs(run: Run, acc: str) -> list[dict]:
+    """A comparison run's tabs on Results: each ACC's tables, then the comparison of the two."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return []
+    tabs = [{"key": a, "label": f"{a} ACC" + (" (the run's own)" if a == run.acc_version else ""), "href": f"?acc={a}"} for a in parts]
+    tabs.append({"key": "comparison", "label": "Comparison of the two", "href": "?acc=comparison"})
+    for t in tabs:
+        t["on"] = t["key"] == acc
+    return tabs
+
+
+def _results_acc(request, run: Run) -> str:
+    """The ACC tab asked for (?acc=), the run's own when it names none or one the run does not have; "" for a run with one ACC."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return ""
+    asked = request.GET.get("acc", "")
+    return asked if asked in parts or asked == "comparison" else parts[0]
+
+
 @login_required
 def results(request, pk):
     run = _run_or_404(request, pk)
-    ctx = {"run": run}
+    acc = _results_acc(request, run)
+    ctx = {"run": run, "acc": acc, "acc_tabs": _acc_tabs(run, acc)}
+    if acc == "comparison":
+        ctx["comparison"] = results_mod.acc_comparison(run)
+        if ctx["comparison"] is None:
+            ctx["note"] = "This run's comparison of the two ACCs is not available (the run has not finished, or wrote none)."
+        return render(request, "calculations/results.html", ctx)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults as e:
         return render(request, "calculations/results.html", {**ctx, "note": str(e)})
     rv = results_mod.engine()
@@ -507,7 +541,7 @@ def results(request, pk):
             results_mod.with_measure_rows(run, res)
         table = res.table(level, pa, keys, years)
     text = request.GET.get("q", "")
-    state = {"level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
+    state = {"acc": acc, "level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
     labels = {k: rv.display_label(c) for k, c in cat.items()}
     head = []
     if table is not None:
@@ -572,8 +606,9 @@ def _csv_response(table, name):
 @login_required
 def results_csv(request, pk):
     run = _run_or_404(request, pk)
+    acc = _results_acc(request, run)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults:
         raise Http404 from None
     rv = results_mod.engine()
@@ -586,7 +621,7 @@ def results_csv(request, pk):
             raise Http404
         results_mod.with_measure_rows(run, res)
     t = res.table(level, pa, keys, years).rename(columns={k: c.label for k, c in cat.items()})
-    return _csv_response(t, f"cedars_run_{run.pk}_{level}.csv")
+    return _csv_response(t, f"cedars_run_{run.pk}_{level}{f'_acc{acc}' if acc else ''}.csv")
 
 
 def _compare_candidates(user, run):

@@ -101,7 +101,18 @@ def main(argv):
     if code == 0:
         (out / "measure_level_run.csv").write_text("CEInputID,TRCRatio\nM1,1.5\n")
         (out / "run_log.txt").write_text("priced 1 measure\n")
-        write_results(out, 1.1 if spec["settings"].get("acc_version") == "2026" else 1.0)
+        settings = spec["settings"]
+        other = settings.get("compare_with")
+        if other:  # ReCET's jobs.run_compare: each ACC priced in its own folder, then the comparison of the two
+            for acc in (settings["acc_version"], other):
+                (out / f"run_acc{acc}").mkdir(exist_ok=True)
+                write_results(out / f"run_acc{acc}", 1.1 if acc == "2026" else 1.0)
+            a, b = settings["acc_version"], other
+            (out / f"comparison_summary_acc{a}_vs_acc{b}.csv").write_text(
+                f"metric,acc{a},acc{b},diff\nTotalSystemBenefit,23100.0,25410.0,2310.0\nTRCRatio,1.37,1.51,0.14\n"
+            )
+        else:
+            write_results(out, 1.1 if settings.get("acc_version") == "2026" else 1.0)
     for p in sorted(out.rglob("*")):
         if p.is_file() and p.name not in ("receipt.json", "progress.json"):
             rel = p.relative_to(out).as_posix()

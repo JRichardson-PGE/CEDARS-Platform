@@ -72,6 +72,16 @@ def test_the_input_check_is_on_the_run_page(tmp_path, signed_in, analyst, pge, r
     assert "preflight_findings.xlsx</a>" in html
 
 
+def test_a_comparison_runs_check_is_its_own_accs(tmp_path, signed_in, analyst, pge, release):  # noqa: F811
+    run = ended(service.create_run(analyst, pge, request(release, settings={"compare_with": "2026"}), job_zip(tmp_path)))
+    put(run, "run_acc2024/preflight.json", json.dumps(PREFLIGHT).encode())
+    put(run, "run_acc2024/preflight_findings.xlsx", b"x")
+    put(run, "run_acc2026/preflight.json", json.dumps({**PREFLIGHT, "errors": 0, "issues": []}).encode())
+    html = signed_in(analyst).get(f"/calculations/runs/{run.pk}/").content.decode()
+    assert "this is the check on the 2024 ACC" in html and "1 problem stopped the run." in html
+    assert "run_acc2024/preflight_findings.xlsx</a>" in html
+
+
 def test_no_check_card_before_the_check_has_run(tmp_path, signed_in, analyst, pge, release):  # noqa: F811
     run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
     put(run, "preflight.json", json.dumps(PREFLIGHT).encode())  # queued: not read

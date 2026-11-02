@@ -21,6 +21,7 @@
 {% if check %}
 <section aria-labelledby="check-h">
 <h2 id="check-h">Input check</h2>
+{% if check.acc_part %}<p class="small">The inputs were checked once for each ACC of the comparison; this is the check on the {{ check.acc_part }} ACC.</p>{% endif %}
 <p id="check-verdict">{% if check.n.error %}<strong>{{ check.n.error }} problem{{ check.n.error|pluralize }} stopped the run.</strong>{% elif check.n.warning %}<strong>{{ check.n.warning }} warning{{ check.n.warning|pluralize }}</strong>; nothing stopped the run.{% else %}<strong>No problems found.</strong>{% endif %}{% if check.n.info %} {{ check.n.info }} note{{ check.n.info|pluralize }}.{% endif %}</p>
 {% if check.unpriced %}
 <p><strong>Not priced:</strong></p>
@@ -39,7 +40,7 @@
   </ul>
   {% endif %}
 </details>
-<p class="small">{% if check.has_findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk 'preflight_findings.xlsx' %}">preflight_findings.xlsx</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
+<p class="small">{% if check.findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk check.findings_file %}">{{ check.findings_file }}</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
 </section>
 {% endif %}
 

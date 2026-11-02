@@ -173,7 +173,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     )
     dictionary.load_catalog(
         None,
-        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.89.json").read_text()),
+        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.90.json").read_text()),
         platform=True,
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show

@@ -57,6 +57,7 @@ p { margin: .5rem 0 .9rem; }
 main h1 + p, main .page-title + p { max-width: 64ch; color: var(--fg-2); margin-top: 0; }   /* a page's description reads at a measure, in the secondary colour */
 code, pre, kbd, .mono, input.key { font-family: var(--mono); }
 code { font-size: .88em; overflow-wrap: anywhere; background: var(--surface-2); padding: .05em .3em; border-radius: 3px; }
+#input-templates a { overflow-wrap: anywhere; }   /* long template file names wrap at 320 px (1.4.10) */
 pre { white-space: pre-wrap; word-break: break-word; font-size: .82rem; margin: .3rem 0; }
 pre code { background: none; padding: 0; }
 table.changes { margin-top: .4rem; }
