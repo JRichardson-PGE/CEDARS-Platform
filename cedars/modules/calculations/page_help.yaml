@@ -37,7 +37,12 @@ calculations/new:
   how:
     - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
-    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on.
+    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on. Which ACC applies to my filing? lists each ACC's
+      budget filings and the program years whose claims use it.
+    - Compare with another ACC prices the job on a second ACC too; the run's Results then has a tab for each ACC and one comparing the two.
+    - First Year and Market effects are CET's own settings; Price each ACC component separately and Combined 8,760 electric load profile add
+      ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
+    - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.
   see: calculations
   tour:
     - target: "#input-templates"
@@ -50,6 +55,10 @@ calculations/new:
     - heading: Pricing
       title: Pricing
       text: The engine release and the ACC. The page says when no worker is running a release.
+    - target: "#acc-help"
+      title: Which ACC applies
+      text: Each ACC's budget filings and the program years whose claims use it; dimmed ACCs are not offered here.
+      optional: true
     - heading: Optional input files
       title: Optional input files
       text: ReCET's run parameters, 8,760 electric profiles and gas monthly profiles, each a file of its own. Their columns are in ReCET's Input fields, section 4.
@@ -108,11 +117,16 @@ calculations/results:
     - Choose the level, program years and PAs, then Apply. Show these columns picks the columns.
     - Filter narrows the rows; Download this table (CSV) gives what you see.
     - Compare with another run, or go back to the Run page and files.
+    - A run priced on two ACCs has a tab for each ACC's tables and one for the comparison of the two portfolios.
   see: calculations
   tour:
     - target: main .head-row .actions
       title: The run and comparisons
       text: The run's page with its files, and a comparison with another finished run.
+    - target: nav.subnav[aria-label="ACCs of this comparison"]
+      title: The two ACCs
+      text: A run compared with another ACC has each ACC's tables, and the comparison of the two.
+      optional: true
     - target: main form.filters
       title: What to show
       text: The PA and the program years. Choose, then Apply.

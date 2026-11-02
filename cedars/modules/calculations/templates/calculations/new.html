@@ -38,12 +38,28 @@ the run page shows its progress, and its files when it ends.</p>
     <details>
       <summary>Which ACCs each engine has</summary>
       <ul>{% for r in releases %}{% for calc in r.calculations %}<li>{% if calc == "recet" %}ReCET{% else %}CET {{ calc|cut:"cet-" }} replica{% endif %} (ReCET {{ r.release }}): {% for c, accs in r.accs.items %}{% if c == calc %}{{ accs|join:", " }}{% endif %}{% endfor %}</li>{% endfor %}{% endfor %}</ul>
-      <p class="small">A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history. It is never used for a filing and does not take statewide allocation or filing checks.</p>
+      <p class="small">A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history. It is never used for a filing and does not take statewide allocation, filing checks, a comparison with another ACC, ACC components or the combined 8,760 profile.</p>
     </details>
+    {% if acc_table %}
+    <details id="acc-help">
+      <summary>Which ACC applies to my filing?</summary>
+      <div class="hscroll" tabindex="0" role="region" aria-label="Which ACC applies to each filing">
+      <table class="list">
+        <caption class="sr-only">Each ACC, the budget filings priced on it and the program years whose claims use it</caption>
+        <thead><tr><th scope="col">ACC</th><th scope="col">Budget filings</th><th scope="col">Claims (program years)</th></tr></thead>
+        <tbody>{% for r in acc_table %}<tr><th scope="row" class="nowrap">{{ r.acc }} ACC{% if not r.available %} <span class="small">(not offered here yet)</span>{% endif %}</th><td>{{ r.filings|join:"; " }}</td><td>{{ r.claims|default:"None" }}</td></tr>{% endfor %}</tbody>
+      </table>
+      </div>
+      <p class="small">Claims use the ACC of the program year's final budget filing. From the engine's own filing table.</p>
+    </details>
+    {% endif %}
+    {{ form.compare_with.as_field_group }}
+    {{ form.base_year.as_field_group }}
+    {{ form.market_effects.as_field_group }}
     {{ form.acc_purpose.as_field_group }}
     {{ form.cost_test_set.as_field_group }}
     {{ form.include_societal.as_field_group }}
-    {{ form.emissions.as_field_group }}
+    {{ form.components.as_field_group }}
     </div>
   </fieldset>
   <fieldset><legend>Optional input files</legend>
@@ -69,6 +85,10 @@ the run page shows its progress, and its files when it ends.</p>
     <div class="stack">
     {{ form.filing_validation.as_field_group }}
     {{ form.filing_year.as_field_group }}
+    {{ form.emissions.as_field_group }}
+    {{ form.apply_exclude_from_ce.as_field_group }}
+    {{ form.portfolio_8760.as_field_group }}
+    {{ form.profile_years.as_field_group }}
     {{ form.output_format.as_field_group }}
     {{ form.cet_outputs.as_field_group }}
     {{ form.output_template.as_field_group }}

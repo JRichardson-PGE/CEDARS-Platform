@@ -75,15 +75,33 @@ def _cache_root() -> Path:
     return Path(getattr(settings, "CALCULATIONS_RESULTS_CACHE", "var/cache/results"))
 
 
-def _files(run: Run) -> dict[str, str]:
-    """{name under out/: storage key} of the run's kept results files (out/_results/...)."""
+def acc_parts(run: Run) -> list[str]:
+    """The ACCs of a run compared with another ACC (settings compare_with): the run's own first, then the other. Each was priced in
+    its own folder, out/run_acc<ACC>/, with its own Results tables (ReCET jobs.run_compare). [] for any other run."""
+    other = (run.settings or {}).get("compare_with")
+    return [run.acc_version, str(other)] if other else []
+
+
+def _part(run: Run, acc: str | None) -> str:
+    """The folder under out/ whose Results to read: "" for a plain run, run_acc<ACC>/ for one ACC of a comparison (the run's own by
+    default)."""
+    parts = acc_parts(run)
+    if not parts:
+        return ""
+    return f"run_acc{acc if acc in parts else parts[0]}/"
+
+
+def _files(run: Run, part: str = "") -> dict[str, str]:
+    """{name under out/: storage key} of the run's kept results files (out/[run_acc<ACC>/]_results/...)."""
     prefix = run.storage_prefix + "out/"
-    return {f.key[len(prefix) :]: f.key for f in storage.store("results").list(prefix + RESULTS_DIR)}
+    return {f.key[len(prefix) :]: f.key for f in storage.store("results").list(prefix + part + RESULTS_DIR)}
 
 
 def _fetch(run: Run, key: str) -> Path:
-    """A local copy of one of the run's files (downloaded once; an ended run's files never change)."""
-    dest = _cache_root() / str(run.pk) / PurePosixPath(key).name
+    """A local copy of one of the run's files (downloaded once; an ended run's files never change). Kept under its path in the run's
+    folder: the two ACCs of a comparison have files of the same name."""
+    rel = key[len(run.storage_prefix) :] if key.startswith(run.storage_prefix) else PurePosixPath(key).name
+    dest = _cache_root() / str(run.pk) / PurePosixPath(rel)
     if dest.is_file():
         return dest
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -98,10 +116,10 @@ def _fetch(run: Run, key: str) -> Path:
     return dest
 
 
-def sources(run: Run) -> dict[str, str | None]:
+def sources(run: Run, part: str = "") -> dict[str, str | None]:
     """The storage keys of the run's group sums and its measure-level parquet (None when it has none)."""
     rv = engine()
-    files = _files(run)
+    files = _files(run, part)
     sums = next((k for n, k in sorted(files.items()) if PurePosixPath(n).name.startswith(f"group_sums{rv.CUBE_VERSION}_")), None)
     measures = next(
         (k for n, k in sorted(files.items()) if PurePosixPath(n).name.startswith("measure_level_") and n.endswith(".parquet")), None
@@ -110,12 +128,12 @@ def sources(run: Run) -> dict[str, str | None]:
 
 
 @lru_cache(maxsize=16)
-def _load(run_pk: str, finished_at: str):
+def _load(run_pk: str, finished_at: str, part: str = ""):
     import pandas as pd
 
     rv = engine()
     run = Run.objects.get(pk=run_pk)
-    src = sources(run)
+    src = sources(run, part)
     if src["sums"]:
         res = rv.RunResults(pd.read_parquet(_fetch(run, src["sums"])))
     elif src["measures"]:
@@ -126,8 +144,9 @@ def _load(run_pk: str, finished_at: str):
     return res
 
 
-def load(run: Run):
-    """The run's recet.results_view.RunResults. Raises NoResults with the reason when there are none to show."""
+def load(run: Run, acc: str | None = None):
+    """The run's recet.results_view.RunResults (for a comparison with another ACC, `acc`'s, the run's own by default). Raises
+    NoResults with the reason when there are none to show."""
     if engine() is None:
         raise NoResults("The Results tables need the ReCET engine package installed on this server (engine/README.md).")
     if run.status != Run.Status.SUCCEEDED:
@@ -135,7 +154,35 @@ def load(run: Run):
         if run.status in ended:  # an ended run never will have results (UI review 2, #28)
             raise NoResults(f"This run {ended[run.status]}, so it has no results. Its page says why.")
         raise NoResults("Results are shown once the run has finished.")
-    return _load(str(run.pk), run.finished_at.isoformat() if run.finished_at else "")
+    return _load(str(run.pk), run.finished_at.isoformat() if run.finished_at else "", _part(run, acc))
+
+
+def acc_comparison(run: Run) -> dict | None:
+    """A comparison run's portfolio comparison (the engine's comparison_summary_acc<A>_vs_acc<B> table) as text cells: {columns,
+    rows}. None when the run has none or the engine is not installed here."""
+    if not acc_parts(run) or run.status != Run.Status.SUCCEEDED:
+        return None
+    a, b = acc_parts(run)
+    prefix = run.storage_prefix + "out/"
+    stem = f"{prefix}comparison_summary_acc{a}_vs_acc{b}."  # list() takes a folder: the summary sits at the top of out/
+    key = next((f.key for f in storage.store("results").list(prefix) if f.key.startswith(stem)), None)
+    if key is None:
+        return None
+    try:
+        from recet import outputs
+    except ImportError:
+        return None
+    t = outputs.read_table(_fetch(run, key))
+    rows = []
+    for r in t.itertuples(index=False):
+        cells = []
+        for v in r:
+            if isinstance(v, int | float) and not isinstance(v, bool):
+                cells.append(("" if v != v else (f"{v:,.4f}" if abs(v) < 100 else f"{v:,.0f}"), True))
+            else:
+                cells.append(("" if v is None else str(v), False))
+        rows.append(cells)
+    return {"columns": [str(c) for c in t.columns], "rows": rows, "file": key[len(prefix) :]}
 
 
 def with_measure_rows(run: Run, res):

@@ -43,7 +43,33 @@ REPLICA_REFUSED_SHEETS = ("RunParameters", "SWAllocation", "GasProfiles", "Profi
 OUTPUT_FORMATS = {"csv.zip": "CSV in zip files", "parquet": "Parquet", "xlsx": "Excel (up to 50,000 measures)"}
 FILING_CHECKS = {"": "None", "claims": "Claims rules", "budget_filing": "Budget filing rules"}
 # Settings a replica (a past CET release, D13) does not take: ReCET's engine refuses them for replicas (cet_versions/job.REFUSED).
-REPLICA_REFUSES = ("allocate_statewide", "filing_validation", "preflight_only")
+REPLICA_REFUSES = ("allocate_statewide", "filing_validation", "preflight_only", "compare_with", "components", "portfolio_8760")
+MARKET_EFFECTS = (0.0, 0.05)  # CET's Market Effects: none, or 5% of benefits and costs (ReCET RunConfig.market_effects)
+
+
+def acc_purposes() -> list[tuple[str, str]]:
+    """New run's "Priced for" choices: any filing, claims, or one budget filing, from the engine's filing table (recet.versions) when it
+    is installed here; any filing or claims otherwise."""
+    try:
+        from recet import versions
+    except ImportError:
+        return [("", "Any filing"), ("claims", "Claims")]
+    named = [(k, v) for k, v in versions.acc_purposes() if k not in ("", "claims")]
+    return [("", "Any filing"), ("claims", "Claims")] + named  # the platform's own words for these two (UAT 2, U10)
+
+
+def acc_table(releases) -> list[dict]:
+    """ "Which ACC applies to my filing?": one row per ACC from the engine's table (recet.versions.acc_summary: its budget filings and
+    the program years whose claims use it), `available` when an active release prices ReCET's own calculation on it. [] without the
+    engine installed here."""
+    try:
+        from recet import versions
+    except ImportError:
+        return []
+    have = {a for r in releases for a in accs_for(r, RECET)}
+    return [{**row, "available": str(row["acc"]) in have} for row in versions.acc_summary()]
+
+
 # Seconds per 1,000,000 measures (server, 2026-10-28/29: ReCET 392 s with SCT; a replica 427 s on the laptop), before calibration.
 SECONDS_PER_MILLION = {RECET: 400, "replica": 430}
 BASE_SECONDS = 10
@@ -251,6 +277,17 @@ def _check(req: RunRequest) -> dict:
                 f"A CET replica does not take {', '.join(jobspec.SETTINGS[k] for k in refused).lower()}: it prices the job as that CET "
                 "release did. Use ReCET's own calculation for these."
             )
+    if st.get("compare_with"):
+        other = str(st["compare_with"])
+        if other == req.acc_version:
+            raise AccessDenied("Compare with names the run's own ACC; choose another ACC, or no comparison.")
+        if req.calculation == RECET and other not in accs_for(req.release, RECET):
+            raise AccessDenied(f"ReCET {req.release.release} has no {other} ACC to compare with.")
+        st["compare_with"] = other
+    if st.get("market_effects") is not None and float(st["market_effects"]) not in MARKET_EFFECTS:
+        raise AccessDenied("Market effects are 0% or 5%.")
+    if st.get("profile_years") and not st.get("portfolio_8760"):
+        raise AccessDenied("Years of the combined 8,760 profile apply only when the combined profile is asked for.")
     if st.get("filing_validation") and st["filing_validation"] not in FILING_CHECKS:
         raise AccessDenied(f"Filing checks {st['filing_validation']} are not offered.")
     if req.allocation_version is not None:
@@ -314,7 +351,9 @@ def record_acc_packs(req: RunRequest, *, filing: bool) -> list[PackVersion]:
     if req.calculation != RECET:
         return []
     out = []
-    for acc in sorted(set(req.record_accs) - {req.acc_version}):
+    # an ACC comparison (settings compare_with) prices the job on that ACC too, so its pack is pinned like a record's
+    compare = {str((req.settings or {}).get("compare_with") or "")} - {""}
+    for acc in sorted((set(req.record_accs) | compare) - {req.acc_version}):
         if not acc.isdigit():
             continue
         packs = PackVersion.objects.filter(kind=PackVersion.Kind.ACC_ELECTRIC, acc_year=int(acc))
@@ -966,7 +1005,8 @@ def output_files(run: Run) -> list[dict]:
     names = sorted(set(listed) | set(outputs) | ({"receipt.json"} if "receipt.json" in listed else set()))
     out = []
     for name in names:
-        if name == "progress.json" or name.startswith("_results/") or name not in listed:  # _results: what the Results pages read
+        # _results (also each compared ACC's run_acc<ACC>/_results): what the Results pages read
+        if name == "progress.json" or name.startswith("_results/") or "/_results/" in name or name not in listed:
             continue
         sha = (outputs.get(name) or {}).get("sha256", "")
         if not sha and name == "receipt.json":  # the receipt lists the other files' hashes; its own is computed here
