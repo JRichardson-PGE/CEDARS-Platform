@@ -79,7 +79,6 @@ def shift(request, pk):
             "parts": parts,
             "has_lines": any(p.lines for p in parts),
             "problems": shifts.problems(s) if s.status == FundShift.Status.DRAFT else [],
-            "warnings": shifts.warnings(s) if s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING) else [],
             "editable": editable,
             "can_read_operating": shifts.can_read_operating(request.user, s.organisation),
             "can_withdraw": s.status in (FundShift.Status.DRAFT, FundShift.Status.WAITING)
@@ -87,9 +86,11 @@ def shift(request, pk):
             and org == s.organisation,
             "can_acknowledge": shifts.can_acknowledge(request.user, s, org),
             "shares": [
-                (code, sorted(items.items()), sum(items.values()), acks.get(code), code == s.organisation.code)
-                for code, items in shares.items()
+                (p.pa, p.portions, p.portion, acks.get(p.pa), p.pa == s.organisation.code, p.pa in s.informed)
+                for p in parts
+                if p.pa in shares
             ],
+            "amounts": sorted(shifts.frozen(s).amounts.items(), key=lambda kv: shifts._key(kv[0])),
             "org": org,
         },
     )
@@ -172,14 +173,14 @@ def shift_acknowledge(request, pk):
             s.refresh_from_db()
             messages.success(request, "Acknowledged." + (" The shift is now in effect." if s.status == FundShift.Status.EFFECTIVE else ""))
             return redirect("budgets:shift", pk)
-    items = sorted((s.shares or {}).get(org.code, {}).items())
+    part = next(p for p in shifts.parts(s) if p.pa == org.code)
     return render(
         request,
         "budgets/shift_acknowledge.html",
         {
             "s": s,
             "org": org,
-            "items": items,
+            "part": part,
             "portion": shifts.portion(s, org.code),
             "owed": -shifts.portion(s, org.code),
             "rows": _rows(request, entered, []),
@@ -282,10 +283,25 @@ def operating_csv(request, first_year):
     name = f"operating_budget_{ob.organisation.code}_{ob.cycle}{'_' + str(year) if year else ''}.csv"
     resp["Content-Disposition"] = f'attachment; filename="{name}"'
     w = csv.writer(resp)
-    w.writerow(["PA", "PrgID", "Program", "Year", "Approved budget", "Fund shifts", "Operating budget"])
+    w.writerow(
+        [
+            "PA",
+            "PrgID",
+            "Program",
+            "Year",
+            "Approved budget",
+            "Fund shifts",
+            "Operating budget",
+            "Statewide program budget",
+            "Allocation factor",
+        ]
+    )
     for r in ob.rows:
         if year is None or r.year == year:
-            w.writerow([ob.organisation.code, r.prg_id, r.name, r.year, r.approved, r.shifted, r.operating])
+            w.writerow(
+                [ob.organisation.code, r.prg_id, r.name, r.year, r.approved, r.shifted, r.operating]
+                + ([r.statewide_total, r.factor] if r.statewide else ["", ""])
+            )
     t = ob.total([year] if year else None)
-    w.writerow([ob.organisation.code, "Total", "", year or "", t.approved, t.shifted, t.operating])
+    w.writerow([ob.organisation.code, "Total", "", year or "", t.approved, t.shifted, t.operating, "", ""])
     return resp

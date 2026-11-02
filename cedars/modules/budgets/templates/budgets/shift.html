@@ -29,8 +29,9 @@
 
 {% if has_lines %}
 <h3>Each PA's part</h3>
-<p class="small">A statewide program's line changes every funding PA's portion of it by its allocation factor. Each PA's own lines
-and its portion must add up to zero.</p>
+<p class="small">A statewide program's line is the change to the whole program; it changes every funding PA's portion of it by its
+allocation factor. Each PA's own lines and its portions must add up to zero, and no line or portion may take a program's operating
+budget below zero.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="parts-caption">
 <table class="list">
   <caption id="parts-caption" class="sr-only">Each PA's part: into and out of its own programs, its portion of the statewide lines, and the net</caption>
@@ -40,22 +41,24 @@ and its portion must add up to zero.</p>
 </div>
 {% endif %}
 {% if problems %}<div class="alert"><p>Before it can be submitted:</p><ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul></div>{% endif %}
-{% if warnings %}<p>Warning, not blocking:</p><ul>{% for w in warnings %}<li>{{ w }}</li>{% endfor %}</ul>{% endif %}
 </section>
 
 {% if shares %}
 <section aria-labelledby="shares-h">
-<h2 id="shares-h">Statewide portions</h2>
-<p>{% if s.status == "draft" %}On submission these are recorded from the allocation factors and each{% else %}Each{% endif %} other funding PA is asked to place its portion among its own programs and acknowledge the shift. It takes effect once all have.</p>
+<h2 id="shares-h">How the statewide amounts split</h2>
+<p>{% if s.status == "draft" %}On submission these are recorded from the allocation factors{% if amounts|length > 1 %} and each{% else %}; each{% endif %}{% else %}Each{% endif %}
+funding PA's portions add up to its net: the gap it covers from its own programs. {{ s.organisation.code }} covers its net with its own
+lines above; each other funder with a net is asked to place it among its own programs and acknowledge the shift, which takes effect
+once all have. A funder whose portions cancel out is told and has nothing to do.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="shares-caption">
 <table class="list">
-  <caption id="shares-caption" class="sr-only">Each funding PA's portion of the statewide lines and its acknowledgment</caption>
-  <thead><tr><th scope="col">PA</th><th scope="col">Statewide program-years</th><th scope="col">Portion</th><th scope="col">Acknowledged</th></tr></thead>
-  <tbody>{% for code, items, total, a, own in shares %}<tr>
+  <caption id="shares-caption" class="sr-only">Each funding PA's factor and portion of every statewide line, its net, and its acknowledgment</caption>
+  <thead><tr><th scope="col">Funding PA</th>{% for item, amount in amounts %}<th scope="col">{{ item }}<br><span class="small">{{ amount|money:2 }} in all</span></th>{% endfor %}<th scope="col">Net to cover</th><th scope="col">Acknowledged</th></tr></thead>
+  <tbody>{% for code, portions, total, a, own, informed in shares %}<tr>
     <th scope="row">{{ code }}</th>
-    <td>{% for item, amount in items %}{{ item }}: {{ amount|money:2 }}{% if not forloop.last %}; {% endif %}{% endfor %}</td>
+    {% for item, amount in amounts %}<td class="num">{% for p in portions %}{% if p.item == item %}{{ p.portion|money:2 }}<br><span class="small">factor {{ p.factor }}</span>{% endif %}{% endfor %}</td>{% endfor %}
     <td class="num">{{ total|money:2 }}</td>
-    <td>{% if own %}Yes (the shift's PA){% elif a %}Yes, {{ a.acknowledged_at|date_words }} by {{ a.acknowledged_by|person }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}<span class="muted">Not yet</span>{% endif %}</td>
+    <td>{% if own %}Yes (the shift's PA){% elif informed %}Not needed: its portions add up to zero{% elif a %}Yes, {{ a.acknowledged_at|date_words }} by {{ a.acknowledged_by|person }}{% if a.note %}: {{ a.note }}{% endif %}{% else %}<span class="muted">Not yet</span>{% endif %}</td>
   </tr>{% endfor %}</tbody>
 </table>
 </div>

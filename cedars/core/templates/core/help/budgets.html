@@ -12,7 +12,9 @@
 </ol>
 <h2>Learn more</h2>
 <ul class="links">
-  <li><a href="{% url 'budgets:shifts' %}">Fund shifts</a>: move budget between programs within the cycle.</li>
+  <li><a href="{% url 'budgets:shifts' %}">Fund shifts</a>: move budget between programs within the cycle. A statewide program's amount
+    is entered whole and split among its funding PAs by their allocation factors; each funder places its net in its own programs. No shift
+    may take a program's operating budget below zero.</li>
   <li><a href="{% url 'budgets:compare' %}">Compare two versions</a> of a filing.</li>
   <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a>: every due date.</li>
   <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>.</li>

@@ -12,7 +12,7 @@ from cedars.services.registry import service as registry
 
 from .test_budgets import filer, filing, programs, release  # noqa: F401 (fixtures)
 from .test_documents import details, jcm, people, upload  # noqa: F401 (fixtures)
-from .test_fund_shifts import L, cycle, sce_confirmer, statewide  # noqa: F401 (fixtures)
+from .test_fund_shifts import L, cycle, sce_confirmer, sce_standing, standing, statewide  # noqa: F401 (fixtures)
 
 pytestmark = pytest.mark.django_db
 
@@ -21,7 +21,7 @@ def items(user, kind):
     return {s.kind.key: s.items for s in queue.sections(user)}[kind]
 
 
-def test_a_cofunder_acknowledges_from_the_queue(filer, pge, cycle, statewide, sce_confirmer, programs):  # noqa: F811
+def test_a_cofunder_acknowledges_from_the_queue(filer, pge, cycle, standing, statewide, sce_confirmer, sce_standing, programs):  # noqa: F811
     s = shifts.create(filer, pge, cycle, title="Into SW X", reason="r")
     shifts.set_lines(filer, s, L((statewide, 2028, 500), ("PGE_Com_Ltg", 2028, -300)))
     s = shifts.submit(filer, s)

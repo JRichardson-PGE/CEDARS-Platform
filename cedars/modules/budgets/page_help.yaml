@@ -145,8 +145,9 @@ budgets/shifts:
   guide:
     - A fund shift moves dollars between programs within a cycle, across its program years if need be. It is not a budget filing; the
       standing filing plus the shifts in effect is the operating budget.
-    - A shift that touches a statewide program changes each co-funding PA's portion too. Each co-funder acknowledges it and says where its
-      portion goes among its own programs; the shift takes effect once all have.
+    - A shift that touches a statewide program is entered as the change to the whole statewide budget; CEDARS splits it among the funding
+      PAs by their allocation factors. Each funder with a net gap says where it comes from or goes among its own programs and acknowledges;
+      the shift takes effect once all have. No shift may take a program's operating budget below zero.
   how:
     - New fund shift starts one for the organization you act for.
     - The operating budget for each cycle is linked under the description: your PA's, or for CPUC staff every PA's to choose from.
@@ -182,6 +183,8 @@ budgets/shift_lines:
     - One line per program and year. A negative amount moves money out of that program year and a positive one moves it in; the lines must
       add up to zero. Blank lines are ignored.
     - A statewide program's line is the change to the whole program. Each funding PA's portion of it changes by its allocation factor.
+      Two statewide lines move money between statewide programs; where their rates differ, each funder covers its net gap from its own programs.
+    - No line may take a program's operating budget below zero; a shift that would is rejected.
   how:
     - Enter each program and year with its amount; Save and add more lines keeps the form open for more.
     - Save when the lines add up to zero, then submit the shift from its page.
@@ -195,7 +198,7 @@ budgets/shift:
   title: A fund shift
   guide:
     - What a fund shift moves, each PA's part, and where it stands. A draft can be changed and submitted; a submitted shift waits for each
-      co-funding PA to acknowledge its portion of any statewide lines, then takes effect.
+      co-funding PA with a net gap to place it and acknowledge, then takes effect. The split table shows every funder's factor, portion and net.
     - Problems that stop it being submitted are listed above the Submit button; warnings do not block it. The PA that made it may withdraw
       it until it takes effect.
   how:
@@ -207,8 +210,8 @@ budgets/shift:
       title: What it moves
       text: The lines by PA, program and year, and each PA's part.
     - target: "#shares-h"
-      title: Statewide portions
-      text: Each funding PA's portion of the statewide lines and whether it has acknowledged.
+      title: How the statewide amounts split
+      text: Each funding PA's factor and portion of every statewide line, the net it covers, and whether it has acknowledged.
       optional: true
     - target: main form.actions, main a.button.primary
       title: Submit or acknowledge
@@ -218,8 +221,9 @@ budgets/shift:
 budgets/shift_acknowledge:
   title: Acknowledging a fund shift
   guide:
-    - Another PA's shift changes your portion of a statewide program by your allocation factors. Place your portion among your own
-      programs, so your operating budget stays whole, and acknowledge. The shift takes effect once every co-funder has.
+    - Another PA's shift changes your portion of a statewide program by your allocation factors. The table shows each statewide line, your
+      factor, your portion and the net. Place the net among your own programs, so your operating budget stays whole, and acknowledge; no
+      line may take a program below zero. The shift takes effect once every co-funder has.
   how:
     - Spread your portion over your own programs and years, then place your portion and acknowledge.
   see: budgets
@@ -233,6 +237,8 @@ budgets/operating:
   guide:
     - A PA's operating budget for a cycle, the approved budget (its standing filing) plus the fund shifts in effect, by year and by
       program. Shifts that took effect before the approved budget was confirmed are not added; a later filing is taken to carry them.
+    - A statewide program's row is the PA's portion, its weighted allocation factor of the whole program's approved budget as the lead PA
+      filed it, with the fund shifts' portions added.
     - The CPUC has no operating budget of its own. CPUC staff first choose the PA whose operating budget to see.
   see: budgets
   tour:

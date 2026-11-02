@@ -45,7 +45,7 @@ GUIDES = [
     Guide(
         "published-data",
         "Finding published data",
-        "The portfolio dashboard, record downloads, the document library, the data dictionary and the validation rules. No account needed.",
+        "The portfolio dashboard, record downloads, the document library and the data dictionary. No account needed.",
         "Everyone",
         ("data", "documents", "reference"),
     ),
@@ -211,9 +211,8 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             ),
             Step(
                 "nav-reference",
-                "Documents, data dictionary and rules",
-                "PA documents, CPUC guidance, DEER resources and EM&V studies; every field's definition; and the validation rules "
-                "every filing is checked against. All open without an account.",
+                "Documents and data dictionary",
+                "PA documents, CPUC guidance, DEER resources and EM&V studies, and every field's definition. Both open without an account.",
                 "/documents/",
                 "Open the document library",
             ),
@@ -222,7 +221,8 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
                 "Sign in",
                 "Program administrators and CPUC staff sign in to file and review, and anyone can sign in to run cost-effectiveness "
                 "calculations or follow documents. Anyone can create an account; every account uses a second factor, set up the "
-                "first time you sign in. Signed in, the header adds Filings, Calculations, notifications and your account.",
+                "first time you sign in. Signed in, the header adds Filings, Calculations, the validation rules, notifications and your "
+                "account.",
                 "/accounts/login/",
                 "Sign in",
             ),
@@ -287,7 +287,7 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         Step(
             "nav-reference",
             "Reference",
-            "Record downloads, documents, the data dictionary and the validation rules, as for everyone, plus the reference data "
+            "Record downloads, documents and the data dictionary, as for everyone, plus the validation rules, the reference data "
             "every filing is checked and priced with (ACCs, cost-test sets, eTRM packs) and the statewide allocation factors, "
             "which the funding PAs load and confirm. Large record downloads are made in the background and listed under your "
             "downloads.",

@@ -74,8 +74,9 @@ def test_differences_between_sets(cpuc_admin, claims):
     assert shared  # a rule in both keeps its ID
 
 
-def test_rule_pages_and_checker(client, signed_in, cpuc_admin, claims):
+def test_rule_pages_and_checker(client, signed_in, cpuc_admin, pge_admin, claims):
     service.publish(cpuc_admin, claims)
+    signed_in(pge_admin)
     assert "in force" in client.get("/rules/").content.decode()
     page = client.get(f"/rules/{claims.pk}/?severity=reject").content.decode()
     assert "Rejects the record" in page
@@ -87,6 +88,43 @@ def test_rule_pages_and_checker(client, signed_in, cpuc_admin, claims):
     upload = SimpleUploadedFile("m.csv", _measure_csv([{"CEInputID": "M1", "NumUnits": "abc"}]))
     r = c.post("/rules/check/", {"rule_set": claims.pk, "table": "Measure", "file": upload, "download": "1"})
     assert r["Content-Type"].startswith("text/csv") and b"M1" in r.content
+
+
+def test_signed_out_visitors_do_not_see_the_rules(client, signed_in, cpuc_admin, pge_admin, claims):
+    """Jake, 2026-11-02: the rule library is for signed-in people, so it is not in the signed-out header or footer, and its pages and
+    the API's rule sets ask for a sign-in. The pre-upload checker always needed one."""
+    service.publish(cpuc_admin, claims)
+    rule_id = claims.rules.first().rule_id
+    home = client.get("/").content.decode()
+    assert 'href="/rules/"' not in home.split('<dialog id="page-help"', 1)[0]
+    for path in (
+        "/rules/",
+        f"/rules/{claims.pk}/",
+        f"/rules/{claims.pk}/{rule_id}/",
+        "/rules/differences/",
+        "/rules/check/",
+        f"/rules/{claims.pk}/rules.json",
+    ):
+        r = client.get(path)
+        assert r.status_code == 302 and "/accounts/login/" in r["Location"], path
+    assert client.get("/api/v1/rules/sets").status_code in (401, 403)
+    signed_in(pge_admin)
+    assert 'href="/rules/"' in client.get("/").content.decode()
+    assert client.get("/rules/").status_code == 200
+
+
+def test_drafts_are_shown_only_to_system_administrators(client, signed_in, cpuc_admin, pge_admin, claims):
+    """A draft rule set is the administrators' work in progress: a signed-in PA sees only published versions."""
+    service.publish(cpuc_admin, claims)
+    draft = service.import_from_engine(cpuc_admin, "budget_filing")
+    rule_id = draft.rules.first().rule_id
+    signed_in(pge_admin)
+    assert f"/rules/{draft.pk}/" not in client.get("/rules/").content.decode()
+    assert client.get(f"/rules/{draft.pk}/").status_code == 404
+    assert client.get(f"/rules/{draft.pk}/{rule_id}/").status_code == 404
+    signed_in(cpuc_admin)
+    assert f"/rules/{draft.pk}/" in client.get("/rules/").content.decode()
+    assert client.get(f"/rules/{draft.pk}/{rule_id}/").status_code == 200
 
 
 def test_import_page_for_admins(signed_in, cpuc_admin):
