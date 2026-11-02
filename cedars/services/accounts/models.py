@@ -67,6 +67,11 @@ class Organisation(models.Model):
         blank=True,
         help_text="A program administrator's type, for grouping its data (e.g. all RENs); blank for other organizations",
     )
+    manages_allocation = models.BooleanField(
+        "manages statewide allocations",
+        default=False,
+        help_text="Its members may hold the permission to load and confirm statewide allocation factors (the funding PAs)",
+    )
     federated = models.BooleanField(default=False, help_text="Its members sign in through the organization's own directory (decision F)")
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)

@@ -251,40 +251,46 @@ administration/allocations:
   title: Statewide allocation factors
   see: budgets
   guide:
-    - For CPUC system administrators. The share of each statewide program each funding PA carries, by year. Each version is a complete
-      table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run that names
-      none uses the most recently confirmed version with factors for its program year.
+    - The share of each statewide program each funding PA carries, by year. Everyone signed in can read every version. Each version is a
+      complete table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run
+      that names none uses the most recently confirmed version with factors for its program year.
+    - The funding PAs manage the factors. Their organization administrators grant the permission to manage them to members; a member
+      with it loads a draft and confirms or discards it, and the other funding PAs are told. The CPUC can do the same.
   how:
-    - Load as a draft takes a factor file; check the draft on its page before it is confirmed.
-    - Open a version for its factors and checks.
+    - Open a version for its factors, checks and history, or to download it.
+    - With the permission to manage the factors, Load as a draft takes a factor file; check the draft on its page before you confirm it.
   tour:
     - target: main table.list
       title: Versions
-      text: Each version, newest first, its purpose and status. Select one to check it.
+      text: Each version, newest first, its purpose, status and who loaded it. Select one to check it.
     - target: "#up-h"
       title: Load a factor file
       text: A new version starts as a draft until it is confirmed.
+      optional: true
 
 administration/allocation:
   title: An allocation version
   see: budgets
   guide:
-    - One version of the statewide allocation factors and its checks (each program's factors add up to 1 each year). A draft is confirmed
-      by an administrator, or discarded.
+    - One version of the statewide allocation factors, its checks (each program's factors add up to 1 each year) and its history. A
+      funding PA member with the permission to manage the factors, or the CPUC, confirms a draft or discards it.
   how:
     - Confirm this version once its checks pass, or Discard the draft.
     - Download the factors gives the CSV in the layout ReCET reads.
   tour:
     - target: main dl.facts
       title: The version
-      text: What it is for and its cycle.
+      text: What it is for, its cycle and who loaded and confirmed it, for which organization.
     - heading: Checks
       title: Checks
       text: Whether every program's factors add up.
     - target: main form.actions
       title: Confirm or discard
-      text: For a draft.
+      text: For a draft, with the permission to manage the factors.
       optional: true
+    - heading: History
+      title: History
+      text: Every step taken on the version, who took it and for which organization.
 
 administration/goal_sets:
   title: Energy efficiency goals

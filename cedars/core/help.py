@@ -282,8 +282,9 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             "nav-reference",
             "Reference",
             "Record downloads, documents, the data dictionary and the validation rules, as for everyone, plus the reference data "
-            "every filing is checked and priced with (ACCs, cost-test sets, eTRM packs). Large record downloads are made in the "
-            "background and listed under your downloads.",
+            "every filing is checked and priced with (ACCs, cost-test sets, eTRM packs) and the statewide allocation factors, "
+            "which the funding PAs load and confirm. Large record downloads are made in the background and listed under your "
+            "downloads.",
             "/reference-data/",
             "Open reference data",
         ),
@@ -292,7 +293,7 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         parts = []
         if who.sysadmin:
             parts.append(
-                "as a CPUC system administrator: organizations, allocation factors, energy efficiency goals, retention, jobs and "
+                "as a CPUC system administrator: organizations, energy efficiency goals, retention, jobs and "
                 "health, site settings and the audit log"
             )
         if who.org_admin:

@@ -102,7 +102,11 @@ def test_a_system_admin_changes_the_pa_type_with_a_reason(cpuc_admin, pge, pge_a
     new.refresh_from_db()
     assert (new.pa_type, new.name) == ("REN", "New Regional Energy Network")
     [e] = AuditEvent.objects.filter(action="organisation.changed", object_id=str(new.pk))
-    assert e.before == {"name": "New", "pa_type": ""} and e.after["pa_type"] == "REN" and e.reason == "D.26-01-001 approved it"
+    assert (
+        e.before == {"name": "New", "pa_type": "", "manages_allocation": False}
+        and e.after["pa_type"] == "REN"
+        and e.reason == "D.26-01-001 approved it"
+    )
     access.change_organisation(cpuc_admin, new, pa_type="REN", reason="no change")
     assert AuditEvent.objects.filter(action="organisation.changed", object_id=str(new.pk)).count() == 1  # nothing changed, nothing recorded
 
@@ -113,7 +117,7 @@ def test_the_organisation_pages(signed_in, cpuc_admin, pge, pge_admin):
     listing = c.get("/admin/organizations/").content.decode()
     assert '<th scope="col">PA type</th>' in listing and "Not set" in listing
     page = c.get("/admin/organizations/NEWPA/").content.decode()
-    assert "PA type" in page and "Not set" in page and "Change the name or PA type" in page
+    assert "PA type" in page and "Not set" in page and "Change the name, PA type or statewide allocations" in page
     r = c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "CCA", "reason": "a CCA"})
     assert r.status_code == 302 and Organisation.objects.get(code="NEWPA").pa_type == "CCA"
     c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "", "reason": "blank"})
@@ -124,7 +128,7 @@ def test_the_organisation_pages(signed_in, cpuc_admin, pge, pge_admin):
     r = c.post("/admin/organizations/new/", {"code": "EVAL", "name": "Evaluator", "kind": "other", "pa_type": "IOU"})
     assert r.status_code == 200 and "Only a program administrator has a PA type" in r.content.decode()
     pa = signed_in(pge_admin)  # the same client, now signed in as PG&E's administrator: no details form, no changes
-    assert "Change the name or PA type" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
+    assert "Change the name, PA type or statewide allocations" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert pa.post("/admin/organizations/NEWPA/details", {"name": "x", "pa_type": "IOU", "reason": "x"}).status_code == 404
 
 

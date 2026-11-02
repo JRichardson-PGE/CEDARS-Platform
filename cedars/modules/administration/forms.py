@@ -95,10 +95,16 @@ class OrganisationForm(forms.ModelForm):
 
 
 class OrganisationDetailsForm(forms.Form):
-    """A CPUC system administrator's change to an organization's name or PA type, with a reason (audited)."""
+    """A CPUC system administrator's change to an organization's name, PA type or whether it manages statewide allocations, with a
+    reason (audited)."""
 
     name = forms.CharField(label="Name", max_length=200)
     pa_type = forms.ChoiceField(label="PA type", choices=Organisation.PAType.choices, required=False)
+    manages_allocation = forms.BooleanField(
+        label="Manages statewide allocations",
+        required=False,
+        help_text="Its administrators can grant members the permission to load and confirm statewide allocation factors.",
+    )
     reason = forms.CharField(label="Reason for the change", max_length=500)
 
     def __init__(self, *args, org: Organisation, **kwargs):
@@ -108,6 +114,7 @@ class OrganisationDetailsForm(forms.Form):
             self.fields["pa_type"].required = True
         else:
             del self.fields["pa_type"]
+            del self.fields["manages_allocation"]
 
 
 DATE = forms.DateInput(attrs={"type": "date"})

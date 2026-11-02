@@ -10,11 +10,12 @@
   <h2 id="details-h">Details</h2>
   <dl class="facts">
     <dt>Kind</dt><dd>{{ org.get_kind_display }}{% if org.federated %}, federated{% endif %}</dd>
-    {% if org.kind == "pa" %}<dt>PA type</dt><dd>{% if org.pa_type %}{{ org.pa_type }} ({{ org.get_pa_type_display|lower }}){% else %}<span class="status warn">Not set</span> The dashboards cannot group this PA's data until it has a type.{% endif %}</dd>{% endif %}
+    {% if org.kind == "pa" %}<dt>PA type</dt><dd>{% if org.pa_type %}{{ org.pa_type }} ({{ org.get_pa_type_display|lower }}){% else %}<span class="status warn">Not set</span> The dashboards cannot group this PA's data until it has a type.{% endif %}</dd>
+    <dt>Statewide allocations</dt><dd>{% if org.manages_allocation %}Manages them: its administrators can grant "{{ allocation_permission }}" to members.{% else %}Does not manage them.{% endif %} <a href="{% url 'administration:allocations' %}">Statewide allocation factors</a></dd>{% endif %}
   </dl>
   {% if details_form %}
   <details{% if org.kind == "pa" and not org.pa_type %} open{% endif %}>
-    <summary>Change the name or PA type</summary>
+    <summary>Change the name, PA type or statewide allocations</summary>
     <form method="post" action="{% url 'administration:organisation_details' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in details_form %}{{ field.as_field_group }}{% endfor %}
       <div class="actions"><button type="submit" class="primary">Save details</button></div>
