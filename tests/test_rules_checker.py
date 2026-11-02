@@ -110,7 +110,7 @@ def test_any_published_version_can_be_named(cpuc_admin, claims_rules, key):
     rules.publish(cpuc_admin, later)
     body = post(key, rule_set=later.pk, table="Measure", filing_year=2028, content=content).json()
     assert body["rule_set"]["id"] == later.pk and not body["rule_set"]["in_force"] and body["module"] == "claims"
-    listed = Client().get(f"{API}/sets").json()["results"]  # public
+    listed = Client().get(f"{API}/sets", **bearer(key)).json()["results"]  # any signed-in call
     assert {s["id"] for s in listed} >= {claims_rules.pk, later.pk}
     assert [s for s in listed if s["id"] == claims_rules.pk][0]["in_force"]
 
@@ -143,8 +143,10 @@ def test_the_page_checks_against_any_published_version(signed_in, pge_admin, cla
     assert "would be rejected" in page.content.decode() and "Quarterly claims, filing year 2028" in page.content.decode()
 
 
-def test_the_rule_set_downloads_as_json_with_how_to_check_it(client, claims_rules):
-    r = client.get(f"/rules/{claims_rules.pk}/rules.json")  # public, as the rule library is
+def test_the_rule_set_downloads_as_json_with_how_to_check_it(client, signed_in, filer, key, claims_rules):  # noqa: F811
+    assert client.get(f"/rules/{claims_rules.pk}/rules.json").status_code == 302  # signed in only, as the rule library is
+    signed_in(filer)
+    r = client.get(f"/rules/{claims_rules.pk}/rules.json")
     assert r["Content-Type"].startswith("application/json") and "attachment" in r["Content-Disposition"]
     d = json.loads(r.content)
     assert d["format"] == precheck.FORMAT and d["format_version"] == 1
@@ -165,11 +167,13 @@ def test_the_rule_set_downloads_as_json_with_how_to_check_it(client, claims_rule
     assert set(some[0]) == {"code", "description", "start_year", "end_year"}
     assert d["tables"]["Measure"]["columns"] == rules.spec_columns(claims_rules, "Measure")
     # the API serves the same file; drafts are not offered
-    api = Client().get(f"{API}/sets/{claims_rules.pk}").json()
+    assert Client().get(f"{API}/sets/{claims_rules.pk}").status_code in (401, 403)
+    assert Client().get(f"{API}/sets").status_code in (401, 403)
+    api = Client().get(f"{API}/sets/{claims_rules.pk}", **bearer(key)).json()
     assert api["rules"] == d["rules"] and api["how_to_check"] == d["how_to_check"]
     draft = rules.import_from_engine(claims_rules.created_by, "budget_filing")
     assert client.get(f"/rules/{draft.pk}/rules.json").status_code == 404
-    assert Client().get(f"{API}/sets/{draft.pk}").status_code == 404
+    assert Client().get(f"{API}/sets/{draft.pk}", **bearer(key)).status_code == 404
     assert "rules.json" in client.get(f"/rules/{claims_rules.pk}/").content.decode()
 
 
