@@ -1151,6 +1151,25 @@ def test_the_full_header_stays_on_one_row_at_1280(browser, site, scene):
     assert top_h <= 64 and abs(who - first) < 20, f"header row {top_h:.0f} px tall; account cluster {who - first:.0f} px below the brand"
 
 
+def test_wide_pages_use_the_window_and_prose_keeps_its_measure(browser, site, scene):
+    """At 1920 px a filing's program table (wider than the old 1,200 px page) fits without scrolling, the page spans the window like
+    the header, and a paragraph still stops at a readable measure (DESIGN.md, App shell)."""
+    context, page = _open(browser, site, scene, "/claims/versions/{claims_version}/", "community", viewport={"width": 1920, "height": 1000})
+    sizes = page.evaluate(
+        """() => {
+          const main = document.querySelector('main.page').getBoundingClientRect().width;
+          const box = document.querySelector('main .hscroll');
+          const prose = [...document.querySelectorAll('main.page p:not([class])')].map(p => p.getBoundingClientRect().width);
+          const font = parseFloat(getComputedStyle(document.body).fontSize);
+          return {main, scrolls: box.scrollWidth - box.clientWidth, prose: Math.max(...prose), font};
+        }"""
+    )
+    context.close()
+    assert sizes["main"] == 1920, f"the page is {sizes['main']:.0f} px wide in a 1920 px window"
+    assert sizes["scrolls"] <= 0, f"the program table scrolls by {sizes['scrolls']} px at 1920 px"
+    assert sizes["prose"] <= 50 * sizes["font"], f"a paragraph runs {sizes['prose']:.0f} px wide"
+
+
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
 def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
     context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)
