@@ -62,7 +62,7 @@ def test_jobs_too_large_or_not_a_job_are_refused(analyst, pge, tmp_path):  # noq
     bad.write_bytes(b"not a zip")
     with pytest.raises(AccessDenied, match="not a valid .zip"):
         drafts.create_from_zip(analyst, pge, "Bad", bad)
-    with pytest.raises(AccessDenied, match="only Measure.csv and ProgramCost.csv"):
+    with pytest.raises(AccessDenied, match="it also has notes.txt"):
         drafts.create_from_zip(analyst, pge, "Extra", edit_zip(tmp_path, extra={"notes.txt": "x"}, name="extra.zip"))
 
 

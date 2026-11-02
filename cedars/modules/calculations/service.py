@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -210,6 +211,9 @@ class RunRequest:
     record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column (BR-06.5), pinned like the run's
     # a supplied 8,760-profile file (ReCET's profiles_8760, Parquet): the profile versions true-ups are priced against (BR-05.6)
     profiles_8760: bytes | None = None
+    # ReCET's optional input files uploaded on their own (New run, the API): {input name (jobfiles.OPTIONAL): a local path or an
+    # UploadedFile}. They win over the same table in the job zip or workbook, as a file given separately wins over its sheet in ReCET.
+    supplied: dict | None = None
 
 
 def _check(req: RunRequest) -> dict:
@@ -405,6 +409,17 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
                 f"{', '.join(refused)} sheet{'s' if len(refused) > 1 else ''}: remove {'them' if len(refused) > 1 else 'it'}, "
                 "or price the job with ReCET's own calculation."
             )
+    supplied = {k: v for k, v in (req.supplied or {}).items() if v}
+    unknown = sorted(set(supplied) - set(jobfiles.OPTIONAL))
+    if unknown:
+        raise AccessDenied(f"Not optional input files: {', '.join(unknown)}.")
+    if (supplied or info.optional) and submission_version is not None:
+        raise AccessDenied("A filing's run prices the filing's own tables; it takes no optional input files.")
+    twice = sorted(set(supplied) & set(info.optional or {}))
+    if twice:
+        raise AccessDenied(
+            f"{', '.join(jobfiles.OPTIONAL[n][1] for n in twice)} given twice, in the job zip and as a file of its own: keep one."
+        )
     if info.records > max_records():
         raise AccessDenied(f"The job has {info.records:,} measure records; a run takes at most {max_records():,} (BRD v0.5). Split it.")
 
@@ -433,11 +448,37 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
                 raise AccessDenied(str(e)) from None
             key = run.storage_prefix + "cet_outputs.csv"
             inputs["cet_outputs"] = {"key": key, "sha256": storage.sha256_of(cet), "bytes": uploads.put_file(key, cet).size}
-    # the worker's input: "job_zip" (Measure.csv + ProgramCost.csv) or "workbook" (ReCET's job workbook, its sheets read by the engine)
-    name, key = ("workbook", "job.xlsx") if info.kind == jobfiles.WORKBOOK else ("job_zip", "job.zip")
-    inputs[name] = {"key": run.storage_prefix + key, "sha256": storage.sha256_of(Path(job_zip))}
-    inputs[name]["bytes"] = uploads.put_file(inputs[name]["key"], Path(job_zip)).size
+    notes: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        files = {}
+        if info.optional:
+            try:
+                files = jobfiles.extract_optional(Path(job_zip), info, Path(tmp))
+            except jobfiles.JobFileError as e:
+                raise AccessDenied(str(e)) from None
+            # the worker's job zip holds only Measure.csv and ProgramCost.csv (ReCET's jobzip refuses any other file); the optional
+            # files go as inputs of their own, and the upload's own SHA-256 is kept beside the job zip's
+            job = jobfiles.job_only_zip(Path(job_zip), info, Path(tmp) / "job.zip")
+        else:
+            job = Path(job_zip)
+        for n, f in supplied.items():
+            with local_copy(f, ".csv") as src:
+                suffix = Path(getattr(f, "name", None) or str(src)).suffix.lower()
+                if suffix not in jobfiles.UPLOAD_SUFFIXES:
+                    raise AccessDenied(f"{jobfiles.OPTIONAL[n][1]}: upload a .csv, .parquet or .xlsx file.")
+                dest = Path(tmp) / f"{n}{'.csv' if suffix == '.txt' else suffix}"
+                shutil.copyfile(src, dest)
+                files[n] = dest
+        inputs.update(_optional_inputs(req, info, files, st, run.storage_prefix, uploads, notes))
+        # the worker's input: "job_zip" (Measure.csv + ProgramCost.csv) or "workbook" (ReCET's job workbook, its sheets read by the engine)
+        name, key = ("workbook", "job.xlsx") if info.kind == jobfiles.WORKBOOK else ("job_zip", "job.zip")
+        inputs[name] = {"key": run.storage_prefix + key, "sha256": storage.sha256_of(job)}
+        inputs[name]["bytes"] = uploads.put_file(inputs[name]["key"], job).size
+        if job != Path(job_zip):
+            inputs[name]["upload_sha256"] = storage.sha256_of(Path(job_zip))
     if req.profiles_8760:
+        if "profiles_8760" in inputs:
+            raise AccessDenied("This run already has its true-ups' parent profiles as its 8,760 profiles; it takes no other.")
         if req.calculation != RECET:
             raise AccessDenied("A CET replica prices each record on its own profile only; supplied 8,760 profiles are ReCET's.")
         key = run.storage_prefix + "profiles_8760.parquet"
@@ -492,6 +533,8 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     run.spec = jobspec.build(run, uploads, results, packs=pinned, pack_files=pack_files(packs, req.acc_version))
     if cset is not None:
         run.spec["context"]["cost_tests"] = cost_tests_record(cset)
+    if notes:  # echoed into the receipt with the rest of the context, and shown on the run page
+        run.spec["context"]["notes"] = notes
     run.save()
     results.put_bytes(run.storage_prefix + "job.json", json.dumps(run.spec, indent=2).encode())
     audit.record(
@@ -513,6 +556,47 @@ def create_run(actor, organisation, req: RunRequest, job_zip: Path, *, submissio
     )
     transaction.on_commit(lambda: dispatch.backend(run.backend).submit(run))
     return run
+
+
+def _optional_inputs(req: RunRequest, info, files: dict, st: dict, prefix: str, uploads, notes: list) -> dict:
+    """The run's optional input files (a zip's and those uploaded on their own) as job spec inputs, with the platform's rules: the
+    program registry is every run's program table and the allocation version its statewide factors, so a supplied program table or
+    factor table is not used (a note says so); a CET replica takes none of the others (ReCET cet_versions/job.REFUSED)."""
+    out = {}
+    sheets = set(info.sheets or ())
+    for n, (sheet, label, _doc) in jobfiles.OPTIONAL.items():
+        given = n in files
+        in_sheet = sheet in sheets
+        if n == "programs":
+            if given or in_sheet:
+                notes.append(
+                    f"{label} ({'the Programs sheet' if in_sheet and not given else 'the file supplied'}) not used: the program "
+                    "registry is every run's program table."
+                )
+            continue
+        if n == "sw_factors":
+            if given or in_sheet:
+                where = "the SWAllocation sheet" if in_sheet and not given else "the file supplied"
+                why = (
+                    "the run allocates statewide programs with its allocation version"
+                    if st.get("allocate_statewide")
+                    else "the run does not allocate statewide programs (when it does, the allocation version gives the factors)"
+                )
+                notes.append(f"{label} ({where}) not used: {why}.")
+            continue
+        if not given:
+            continue
+        if req.calculation != RECET:
+            raise AccessDenied(
+                f"A CET replica prices a job on its release's own tables, so it cannot use the {label.lower()} file: remove it, "
+                "or price the job with ReCET's own calculation."
+            )
+        if in_sheet:
+            notes.append(f"{label}: the file supplied is used, not the workbook's {sheet} sheet.")
+        f = files[n]
+        key = f"{prefix}{n}{f.suffix}"
+        out[n] = {"key": key, "sha256": storage.sha256_of(f), "bytes": uploads.put_file(key, f).size}
+    return out
 
 
 def job_input(run: Run) -> dict:

@@ -17,7 +17,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, service
+from . import dispatch, drafts, forms, input_templates, service
 from . import results as results_mod
 from .models import EngineRelease, InputDraft, Run
 
@@ -165,8 +165,50 @@ def new_run(request):
             "draft": draft,
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
+            "input_templates": _input_template_links(releases),
         },
     )
+
+
+def _template_accs(releases) -> list[str]:
+    """The ACCs ReCET's own calculation has in the active releases, newest first."""
+    return sorted({a for r in releases for a in service.accs_for(r, service.RECET)}, reverse=True)
+
+
+def _input_template_links(releases) -> list[dict] | None:
+    """New run's template downloads: [{label, links: [(text, url)]}], one link per ACC for a template that differs by ACC. None when
+    the engine is not installed here (the templates are its own)."""
+    from django.urls import reverse
+
+    if input_templates.engine() is None:
+        return None
+    accs = _template_accs(releases)
+    out = []
+    for t in input_templates.TEMPLATES.values():
+        url = reverse("calculations:input_template", args=[t.kind])
+        if t.by_acc and accs:
+            links = [(f"{a} ACC", f"{url}?acc={a}") for a in accs]
+        else:
+            links = [(t.file, url)]
+        out.append({"label": t.label, "file": t.file, "links": links})
+    return out
+
+
+@login_required
+def input_template(request, kind):
+    """One of the engine's input templates (input_templates.TEMPLATES), for New run."""
+    if kind not in input_templates.TEMPLATES:
+        raise Http404("No such template.")
+    accs = _template_accs(service.releases())
+    acc = request.GET.get("acc") or (accs[0] if accs else "2026")
+    if acc not in accs:
+        raise Http404("No such ACC.")
+    try:
+        f = input_templates.path(kind, acc)
+    except LookupError:
+        raise Http404("The engine is not installed on this server, so its templates are not available.") from None
+    name = f.name if not input_templates.TEMPLATES[kind].by_acc else f.name.replace("template_", f"template_{acc}_acc_", 1)
+    return FileResponse(open(f, "rb"), as_attachment=True, filename=name)
 
 
 def _draft_for(request):
@@ -208,6 +250,7 @@ def run(request, pk):
             "error_text": service.plain_error(run.error),
             "sysadmin": access.is_system_admin(request.user),
             "notes": receipt.get("notes") or [],
+            "input_notes": ((run.spec or {}).get("context") or {}).get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
             "cet_comparison": results_mod.cet_comparison(run, files),
         },

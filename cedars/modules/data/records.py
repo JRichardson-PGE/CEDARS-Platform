@@ -271,7 +271,7 @@ def _sql(q: dq.Query, files: list[dict], cat: Catalog, columns: list[str]) -> tu
     ident, literal = dq._ident, dq._literal
     raw = " UNION ALL BY NAME ".join(
         f"SELECT *, {literal(f['organisation'])} AS _organisation, {literal(dq.filing_label(f))} AS _filing "
-        f"FROM read_parquet({literal(str(dq.local_path(f)))})"
+        f"FROM read_parquet({literal(str(dq.local_path(f)))}){dq.file_where(f)}"
         for f in files
     )
     texts = dq.text_columns(q, ["CEInputID"])
