@@ -1546,3 +1546,38 @@ def test_no_page_speaks_of_the_cpuc_as_a_filer(scene):
         if wrong := owned_by(scene["cpuc"].code, r.content.decode()):
             found[name] = wrong
     assert opened > 100 and not found, found
+
+
+def test_the_pa_picker_by_keyboard(browser, site, scene):
+    """The PA picker (Jake, 2026-11-02): closed it names what it keeps; open, All PAs and each PA type are tri-state boxes over their
+    PAs, every level shows and hides with a button, Escape closes it, and a whole type goes to the server as its pa_type."""
+    context, page = _open(browser, site, scene, "/data/overview/?series=forecast", None)
+    page.evaluate("document.querySelectorAll('details.dash-filters').forEach(d => d.open = true)")
+    summary = page.locator(".pa-menu > summary")
+    assert summary.inner_text().endswith("All PAs and statewide programs")
+    summary.focus()
+    page.keyboard.press("Enter")
+    assert page.evaluate("document.querySelector('.pa-menu').open")
+    every = page.locator("[data-pa-all]")
+    assert every.is_visible() and every.is_checked()  # nothing chosen: every PA, so every box shows ticked
+    ious = page.locator("input[name='pa_type'][value='IOU']")
+    assert not page.locator("input[name='pa'][value='SCE']").is_visible()  # each type starts folded
+    page.locator("button[aria-controls]").filter(has_text="Show or hide the PAs of IOUs").press("Enter")
+    sce = page.locator("input[name='pa'][value='SCE']")
+    sce.focus()
+    page.keyboard.press("Space")  # untick one IOU
+    assert not ious.is_checked() and page.evaluate("document.querySelector(\"input[name='pa_type'][value='IOU']\").indeterminate")
+    assert page.evaluate("document.querySelector('[data-pa-all]').indeterminate")
+    every.focus()
+    page.keyboard.press("Space")  # All PAs: half ticked -> ticked
+    page.locator("[data-pa-statewide]").uncheck()
+    page.locator("input[name='pa_type'][value='CCA']").uncheck()
+    assert "CCAs" not in summary.inner_text() and "All IOUs" in summary.inner_text()
+    page.keyboard.press("Escape")
+    assert not page.evaluate("document.querySelector('.pa-menu').open")
+    assert page.evaluate("document.activeElement === document.querySelector('.pa-menu > summary')")
+    sent = page.evaluate("[...new FormData(document.querySelector('.pa-picker').closest('form'))].filter(([k]) => k.startsWith('pa'))")
+    context.close()
+    types = sorted(v for k, v in sent if k == "pa_type")
+    assert types == ["IOU"], sent
+    assert ["pa", "SW"] not in sent and not any(k == "pa" and v in ("PGE", "SCE") for k, v in sent), sent  # a whole type goes as itself

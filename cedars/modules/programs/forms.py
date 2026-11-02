@@ -7,7 +7,6 @@ from django.utils.html import format_html
 
 from cedars.services.registry import field_guide
 from cedars.services.registry.importers import parse_sectors
-from cedars.services.registry.models import Program
 
 STATE_CHOICES = [("", "Open and closed"), ("open", "Open"), ("closed", "Closed")]
 SEGMENT_CHOICES = [
@@ -28,16 +27,8 @@ STATUS_CHOICES = [
 ]
 
 
-def pa_choices():
-    codes = set(Program.objects.filter(administrator__isnull=False).values_list("administrator__code", flat=True))
-    if Program.objects.filter(statewide=True).exists():
-        codes.add("SW")
-    return [("", "Every PA")] + [(c, "Statewide (SW)" if c == "SW" else c) for c in sorted(codes)]
-
-
 class CatalogFilter(forms.Form):
     q = forms.CharField(label="Name or PrgID", required=False, widget=forms.TextInput(attrs={"type": "search"}))
-    pa = forms.ChoiceField(label="PA", required=False)
     state = forms.ChoiceField(label="Open or closed", required=False, choices=STATE_CHOICES)
     segment = forms.ChoiceField(label="Segment", required=False, choices=SEGMENT_CHOICES)
     # a choice of the registry's years, "Today" first (UI review 2, #32); a year outside them that a link names is still offered
@@ -45,7 +36,6 @@ class CatalogFilter(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["pa"].choices = pa_choices()
         asked = str(self.data.get("year", "")).strip() if self.data else ""
         chosen = int(asked) if asked.isdigit() and 1990 <= int(asked) <= 2100 else None
         self.fields["year"].choices = [("", "Today")] + [(y, str(y)) for y in registry_years(chosen)]

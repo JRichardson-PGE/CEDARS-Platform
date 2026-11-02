@@ -172,25 +172,56 @@ def test_dashboard_views_by_pa_type_and_drills_to_its_pas(mixed):
     assert chips[0]["remove"] == "?series=claims&by=pa&pa=MCE"
 
 
-def test_pa_filter_choices_are_grouped_by_type(mixed):
-    groups = dashboard.pa_groups({"pa_type": ("REN",), "pa": ("MCE",)})
-    assert [(g["label"], g["type"], g["all"], [(p["code"], p["checked"]) for p in g["pas"]]) for g in groups] == [
-        ("IOUs", "IOU", False, [("PGE", False)]),
-        ("RENs", "REN", True, [("BAY", False)]),
-        ("CCAs", "CCA", False, [("MCE", True)]),
-        ("No PA type", "", False, [("NEWPA", False)]),
+def test_pa_picker_is_a_tree_of_types_from_the_organizations(mixed, cpuc_admin):
+    access.create_organisation(cpuc_admin, code="PCE", name="Peninsula Clean Energy", kind="pa")
+    picker = dashboard.pa_picker({"pa_type": ("REN",), "pa": ("MCE",)})
+    assert [(g["label"], g["type"], g["all"], g["some"], [(p["code"], p["checked"]) for p in g["pas"]]) for g in picker["groups"]] == [
+        ("IOUs", "IOU", False, False, [("PGE", False)]),
+        ("RENs", "REN", True, False, [("BAY", False)]),
+        ("CCAs", "CCA", False, True, [("MCE", True), ("PCE", False)]),
+        ("No PA type", "", False, False, [("NEWPA", False)]),
     ]
+    assert picker["statewide"] is None and picker["filtered"] and picker["summary"] == "All RENs, MCE"
+    bay = next(g for g in picker["groups"] if g["type"] == "REN")["pas"][0]
+    assert (
+        bay["name"] == "Bay Area Regional Energy Network"
+        and next(g for g in picker["groups"] if g["type"] == "CCA")["pas"][0]["name"] == ""
+    )
+    # the statewide pseudo-PA is its own choice below All PAs, never a PA without a type
+    access.create_organisation(cpuc_admin, code="SW", name="Statewide", kind="pa")
+    picker = dashboard.pa_picker({"pa": ("sw",)})
+    assert picker["statewide"] == {"code": "SW", "label": "Statewide programs", "checked": True, "former": []}
+    assert all("SW" not in [p["code"] for p in g["pas"]] for g in picker["groups"])
+    assert picker["summary"] == "Statewide"
+    assert dashboard.pa_picker({})["summary"] == "All PAs and statewide programs" and not dashboard.pa_picker({})["filtered"]
+    every_type = dashboard.pa_picker({"pa_type": ("IOU", "REN", "CCA"), "pa": ("NEWPA", "SW")})
+    assert every_type["summary"] == "All PAs, Statewide"
+
+
+def test_picker_summary_counts_what_it_does_not_name(mixed, cpuc_admin):
+    assert dashboard.pa_picker({"pa": ("PGE", "BAY", "MCE", "NEWPA")})["summary"] == "All PAs"  # every PA ticked one by one
+    access.create_organisation(cpuc_admin, code="PCE", name="Peninsula Clean Energy", kind="pa")
+    access.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa")
+    assert dashboard.pa_picker({"pa": ("PGE", "BAY", "MCE", "NEWPA")})["summary"] == "PGE, All RENs, MCE and 1 more"
+    assert access.pa_picker((), ("cca",))["summary"] == "All CCAs"
+
+
+def test_picked_pa_codes_read_types_and_former_codes(mixed):
+    assert access.picked_pa_codes() is None
+    assert access.picked_pa_codes(["mce"], ["IOU"]) == {"MCE", "PGE"}
+    assert access.picked_pa_codes([], ["REN"]) == {"BAY"}
 
 
 def test_the_pages_offer_whole_groups(mixed, client):
     page = client.get("/data/overview/?pa_type=REN&pa=MCE&series=claims").content.decode()
-    assert '<input type="checkbox" name="pa_type" value="REN" checked> All RENs' in page
-    assert '<input type="checkbox" name="pa_type" value="IOU"> All IOUs' in page
+    assert '<input type="checkbox" name="pa_type" value="REN" data-pa-group-box checked> All RENs' in page
+    assert '<input type="checkbox" name="pa_type" value="IOU" data-pa-group-box> All IOUs' in page
     assert '<input type="checkbox" name="pa" value="MCE" checked> MCE' in page
+    assert "<span data-pa-summary>All RENs, All CCAs</span>" in page  # MCE is the only CCA here
     assert "No PA type" in page and "by PA</h2>" in page and '<option value="pa_type">PA type</option>' in page
     assert "PA type: <strong>REN</strong>" in page
     records = client.get("/data/records/?pa_type=CCA&metric=tsb").content.decode()
-    assert '<input type="checkbox" name="pa_type" value="CCA" checked> All CCAs' in records
+    assert '<input type="checkbox" name="pa_type" value="CCA" data-pa-group-box checked> All CCAs' in records
     assert 'type="hidden" name="pa_type"' not in records  # in the form itself, not carried as a hidden field
 
 
