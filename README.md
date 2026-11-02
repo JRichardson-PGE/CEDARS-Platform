@@ -26,6 +26,14 @@ Every account signs in with a second factor. For a demo on your own machine you 
 `CEDARS_REQUIRE_MFA=0` (read by the dev settings only; every other environment always requires it). With Docker, set it in the shell
 before `docker compose up`.
 
+To try the site as a program administrator's filer, fill the demo organizations and add a test account (sandbox and developer databases
+only; it reads, submits and confirms in every module of that PA, and can be re-run to reset the password):
+
+    docker compose exec web python manage.py seed_sandbox
+    docker compose exec web python manage.py demo_account filer@pge.example.org --org PGE --name "Test Filer" --password "<choose one>"
+
+Add `--org-admin` to make it the PA's administrator as well.
+
 ## Calculations locally
 
 Runs are priced by the ReCET worker (`recet worker run`), which the platform starts and never imports. With the engine installed
