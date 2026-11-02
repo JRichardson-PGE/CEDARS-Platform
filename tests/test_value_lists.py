@@ -251,3 +251,75 @@ def test_the_edit_inputs_dropdowns_use_the_version_in_force(cpuc_admin, sector):
     from recet import editor
 
     assert src is not None and "Tribal" in editor.active_codes("sector", 2028)
+
+
+# --- the value list on a field's page
+
+
+@pytest.fixture
+def catalog(db):
+    import json
+    from pathlib import Path
+
+    from cedars.services.dictionary import service
+
+    path = Path(__file__).parent.parent / "data" / "dictionary" / f"recet-{recet.__version__}.json"
+    if not path.exists():
+        path = sorted((Path(__file__).parent.parent / "data" / "dictionary").glob("recet-*.json"))[-1]
+    return service.load_catalog(None, json.loads(path.read_text(encoding="utf-8")))
+
+
+def test_each_field_finds_its_list(catalog):
+    from cedars.services.dictionary import service
+
+    assert vls.list_for_field(service.resolve("Sector")) == "sector"
+    assert vls.list_for_field(service.resolve("EUL_ID")) == "eul"
+    assert vls.list_for_field(service.resolve("PA")) == "pa"
+    assert vls.list_for_field(service.resolve("ElecBen")) is None
+    assert vls.label_for("eul") == "EUL_ID" and vls.label_for("sector") == "Sector"
+
+
+def test_a_fields_page_shows_its_codes(client, cpuc_admin, catalog, sector):
+    page = client.get("/dictionary/fields/Sector/").content.decode()
+    assert 'id="values-h"' in page and "Showing the list as shipped with the engine" in page and "Agricultural" in page
+    assert 'href="/dictionary/lists/sector/"' in page
+    assert 'id="values-h"' not in client.get("/dictionary/fields/ElecBen/").content.decode()
+    assert 'href="/dictionary/fields/EUL_ID/"' in client.get("/dictionary/lists/eul/").content.decode()
+
+    def retire(d):
+        vls.change_code(cpuc_admin, d.codes.get(code="Agricultural"), end_year=2029, reason="Merged")
+
+    _published(cpuc_admin, sector, edit=retire)
+    page = client.get("/dictionary/fields/Sector/").content.decode()
+    assert "Showing version 1 (in force)" in page and "retired after 2029" in page  # a retired code is kept and marked
+    assert client.get("/dictionary/fields/Sector/?year=2031&state=active").content.decode().count("Agricultural") == 0
+    shipped = client.get("/dictionary/fields/Sector/?version=shipped").content.decode()
+    assert "Showing the list as shipped with the engine" in shipped and "retired after 2029" not in shipped
+
+
+def test_a_long_list_is_paged(client, catalog):
+    total = len(vls.shipped("ac_elec_impact_profile"))
+    assert total > 100
+    page = client.get("/dictionary/fields/AC_Elec_Impact_Profile/").content.decode()
+    pages = -(-total // 50)
+    assert f"Page 1 of {pages}" in page and "50 a page" in page and "page=2#values-h" in page
+    assert f"Page {pages} of {pages}" in client.get(f"/dictionary/fields/AC_Elec_Impact_Profile/?page={pages}").content.decode()
+
+
+def test_a_fields_codes_download_as_csv_and_excel(client, catalog):
+    import io
+
+    from openpyxl import load_workbook
+
+    from .test_document_accessibility import assert_accessible
+
+    r = client.get("/dictionary/fields/Sector/?format=csv&q=agri")
+    assert r["Content-Disposition"].endswith('value_list_sector_shipped.csv"')
+    assert r.content.decode().startswith("code,description,start_year,end_year\n")
+    r = client.get("/dictionary/fields/Sector/?format=xlsx")
+    assert r["Content-Disposition"].endswith('value_list_sector_shipped.xlsx"')
+    assert_accessible(r.content)
+    ws = load_workbook(io.BytesIO(r.content))["Codes"]
+    assert [c.value for c in ws[1]] == ["code", "description", "start_year", "end_year"]
+    assert ws.max_row == len(vls.shipped("sector")) + 1
+    assert client.get("/dictionary/lists/sector/?format=xlsx").status_code == 200

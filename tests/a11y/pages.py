@@ -69,6 +69,7 @@ PAGES = [
     ("faq-no-match", "/help/faq/?q=zebra", None),
     ("dictionary", "/dictionary/?q=climate", None),
     ("dictionary-field", "/dictionary/fields/AC_Climate_Zone/", None),
+    ("dictionary-field-codes-paged", "/dictionary/fields/AC_Elec_Impact_Profile/?page=2", None),
     # gap 33: retired fields and the change log (BR-08.4); the scene's {catalog_retired} retires LevNetBenRIMGas in 30 days
     ("dictionary-retired", "/dictionary/?state=all&q=LevNetBen", None),
     ("dictionary-field-retiring", "/dictionary/fields/LevNetBenRIMGas/", None),

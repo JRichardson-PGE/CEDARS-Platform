@@ -1,3 +1,4 @@
+import csv
 import io
 import json
 from pathlib import Path
@@ -54,7 +55,12 @@ def test_templates_follow_the_catalog(catalog):
 
 
 def test_catalog_and_crosswalk_downloads(catalog):
-    assert "E3ClimateZone,CET,AC_Climate_Zone" in service.crosswalk_csv()
+    rows = list(csv.DictReader(io.StringIO(service.crosswalk_csv())))
+    assert {"other_name": "E3ClimateZone", "used_in": "CET", "canonical_name": "AC_Climate_Zone"} in rows
+    assert {"other_name": "NetElecCO2", "used_in": "CET", "canonical_name": "FirstYearNetElecCO2"} in rows  # CET's output name
+    # legacy CEDARS names only (Jake, 2026-11-02): no ReCET name from one ReCET version to the next until its production release
+    assert not [r for r in rows if "ReCET" in r["used_in"]]
+    assert not {r["other_name"] for r in rows} & {"POC_ACC", "AC_kWh_1st_Baseline", "RebatesandIncentsPV_sct", "CreditedIOU"}
     assert service.catalog_csv().startswith("name,kind,group,definition")
 
 

@@ -91,7 +91,8 @@ class Field(models.Model):
 
 
 class Alias(models.Model):
-    """Another name a field is known by: CET's E3 names, earlier ReCET names. Accepted on upload, case-insensitively."""
+    """Another name a field is known by in legacy CEDARS (CET's E3 input names and CET's output names). Accepted on upload, ignoring case.
+    ReCET's own renames between its versions are not kept: ReCET is new until its production release (Jake, 2026-11-02)."""
 
     field = models.ForeignKey(Field, on_delete=models.CASCADE, related_name="aliases")
     name = models.CharField(max_length=80)

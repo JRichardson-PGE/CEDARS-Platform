@@ -33,7 +33,11 @@ dictionary/field:
     - >-
       A retired field says from when and why, with the usage, audience and regulatory reviews behind it. Its history lists each
       dictionary version that changed it, and the register entries that require it are linked.
+    - >-
+      A field checked against a value list shows the list's codes, in the version in force (or any other published version), with the
+      claim years each code is accepted for. Retired codes stay in the list, marked with the last year they are accepted for.
   how:
+    - Choose a value list version, search its codes or show those accepted in a claim year, and download them as CSV or Excel.
     - "CPUC system administrators: retire the field after its reviews, or reinstate a retired one."
   see: published-data
   tour:
@@ -43,6 +47,10 @@ dictionary/field:
     - target: main dl.facts
       title: The details
       text: Type, unit, source, cost tests, aggregation, other names and where it is used.
+    - heading: Value list
+      title: Value list
+      text: The codes the field may hold, a page at a time, with a version picker, filters and CSV and Excel downloads.
+      optional: true
     - heading: History
       title: History
       text: Each dictionary version that added, changed, retired or reinstated the field.
@@ -74,7 +82,7 @@ dictionary/list:
       published version with the date it took effect and why it changed.
     - A CPUC system administrator starts a new version here (a draft copy of the newest version) and changes it on the draft's page.
   how:
-    - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV.
+    - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV or Excel.
     - "Administrators: Start a new version."
   see: published-data
   tour:

@@ -1,6 +1,6 @@
 """Output templates (BR-06.10): which measure-level columns a run writes, and in what order. A template names fields of the published
 field catalog (the dictionary service, ReCET's renamed field names, decision L): the Measure input columns a run echoes and the output
-columns. An old name (a CET name or one ReCET used before) is saved under the field's canonical name, as the engine reads it.
+columns. A legacy CEDARS name (CET's) is saved under the field's canonical name, as the engine reads it.
 
 A run given a template carries it in its job spec's settings (`output_template`, `output_template_name`), so the run record says exactly
 which columns were asked for even if the template changes later. A column the run does not produce (an SCT column with the Societal Cost
