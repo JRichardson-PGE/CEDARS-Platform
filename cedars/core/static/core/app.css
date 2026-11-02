@@ -122,7 +122,10 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .bell .count { background: var(--bad); color: #fff; border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
 main { flex: 1; width: 100%; }
 main:focus { outline: none; }
-.page { max-width: 1200px; margin: 0 auto; padding: 1.25rem var(--gutter) 2.5rem; }
+.page { margin: 0 auto; padding: 1.25rem var(--gutter) 2.5rem; min-width: 0; }   /* the full window width, like the header: wide tables scroll only when they outgrow it */
+/* Prose keeps a readable measure however wide the page is (tables, charts, filters and card grids take the full width) */
+main.page :is(p:not(.alert, .coming-changes, .tour-offer, .notices, .card, .actions), .helptext, ul:not([class]), ol:not([class])) { max-width: 80ch; }   /* boxes (alerts, notices) span the page */
+main.page :is(td, th, caption, li, .empty, .tile, nav, header) :is(p, .helptext) { max-width: none; }
 main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem var(--gutter); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 @media (max-width: 480px) { .narrow { margin: 1rem auto; border: 0; background: none; } }
 .foot { margin-top: auto; border-top: 1px solid var(--line); background: var(--surface); color: var(--fg-2); font-size: .82rem; padding: 1.1rem var(--gutter); display: flex; gap: .5rem 1.5rem; flex-wrap: wrap; justify-content: space-between; }
@@ -185,6 +188,7 @@ button.link:hover { text-decoration-thickness: 2px; }
 
 /* ---------- Cards, tiles, facts ---------- */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 1rem 1.15rem; margin: 1rem 0; }
+.card[role="note"] { width: fit-content; max-width: 100%; box-sizing: border-box; }   /* a note box hugs its text, which keeps the 80-character measure */
 .card > h2:first-child, .card > h3:first-child { margin-top: 0; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0 1rem; }   /* side by side when they fit, else stacked (320 px) */
 dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; margin: .75rem 0 1.25rem; }
@@ -213,7 +217,7 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .hscroll:focus-visible { outline: 3px solid var(--focus); }
 
 /* ---------- ReCET's own documents under Help (core/engine_docs.py) ---------- */
-.engine-doc { max-width: 72rem; min-width: 0; }
+.engine-doc { min-width: 0; }   /* its prose keeps the page's measure; its tables and code take the width */
 .engine-doc :is(h2, h3, h4, h5, h6) { scroll-margin-top: 5rem; }   /* an anchor lands below the sticky header */
 .engine-doc table { border-collapse: collapse; background: var(--surface); font-size: .9rem; }
 .engine-doc th, .engine-doc td { border: 1px solid var(--line); padding: .35rem .6rem; text-align: left; vertical-align: top; }

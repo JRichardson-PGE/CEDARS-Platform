@@ -1,0 +1,303 @@
+# Definitions of the platform's own columns (cedars/services/dictionary/platform.py), for the data dictionary.
+#
+# A column's definition is the one written here, else its model field's help text, else a program field's entry in the program
+# fields guide (registry/program_fields.yaml), else a rule for a common column (platform._generic). Write one here for every column
+# that has none of those: tests/test_dictionary_platform.py fails on a column without a definition, and on an entry here for a
+# table or column that no longer exists. `table:` describes a table whose model has no docstring.
+#
+# Public repository: definitions only, never data.
+
+registry.AllocationVersion:
+  fields:
+    purpose: "What the factors are for: a budget filing, or claims (the factors can differ between a filing and its claims)."
+registry.AllocationEntry:
+  fields:
+    program_id: "The statewide program's ID (PrgID)."
+    percent_electric: "The electric share of the statewide program's budget in that year, in percent; the rest is gas."
+registry.AllocationShare:
+  fields:
+    electric: "The funding PA's share of the program's electric budget, as a fraction (the funding PAs' shares add up to 1)."
+    gas: "The funding PA's share of the program's gas budget, as a fraction (the funding PAs' shares add up to 1)."
+    weighted: >-
+      The funding PA's weighted factor: its electric and gas shares weighted by the program's electric share of the budget. A
+      statewide program's costs and benefits are allocated to the funding PAs by it.
+registry.ProgramChangeRequest:
+  fields:
+    effective: "The day the requested change would take effect, starting the program's new version."
+registry.GoalSet:
+  fields:
+    source_name: "The name of the file the goals were read from (the decision's goals table)."
+registry.Goal:
+  fields:
+    program_tsb: "The goal or target for incentive programs' total system benefit, in dollars, as the decision prints it."
+    program_gwh: "The goal or target for incentive programs' electric savings, in GWh, as the decision prints it."
+    program_mw: "The goal or target for incentive programs' peak demand savings, in MW, as the decision prints it."
+    program_mmtherms: "The goal or target for incentive programs' gas savings, in millions of therms, as the decision prints it."
+    cs_gwh: "The goal or target for codes and standards' electric savings, in GWh, as the decision prints it."
+    cs_mw: "The goal or target for codes and standards' peak demand savings, in MW, as the decision prints it."
+    cs_mmtherms: "The goal or target for codes and standards' gas savings, in millions of therms, as the decision prints it."
+registry.GoalCountingRule:
+  fields:
+    applies_to: "Which claims the rule counts toward the IOU territory's goals (the values below)."
+submissions.Deadline:
+  fields:
+    opens_at: "When filing for the deadline opens (blank: open now)."
+    due_at: "When the filing is due, Pacific time. A first version confirmed after it is marked late."
+submissions.WorkflowPolicy:
+  fields:
+    reopen_after_due: >-
+      Whether, and how, a filing may be corrected after its due date: the module's correction policy (BRD decision D1, the values
+      below).
+submissions.SubmissionVersion:
+  fields:
+    late: "Whether the version was confirmed after the deadline's due date."
+budgets.FundShift:
+  fields:
+    effective_at: "When the fund shift took effect (every co-funder had acknowledged it, or there was none); blank until then."
+budgets.FundShiftLine:
+  fields:
+    amount: "The dollars moved, for that program and program year in that PA's portfolio. Negative moves dollars out of it, positive into it."
+claims.ClaimRecord:
+  fields:
+    claim_id: "The claim's ID (ClaimID), as filed."
+    impact_type: "The claim's MeasImpactType, as filed (e.g. deemed, custom, NMEC)."
+    parent_claim_id: "The ClaimID of the NMEC claim this one trues up (ParentClaimID); blank when it is not a true-up."
+    true_up: "Whether the claim is an NMEC true-up of an earlier claim."
+    participant_id: "The strategic energy management (SEM) participant the claim belongs to (ParticipantID)."
+    sem_phase: "The SEM phase of the claim (SEM_Phase)."
+    project_id: "The project the claim belongs to (ProjectID, the project key)."
+    site_id: "The site of the claim (SiteID); the site's details are kept only in the PII vault."
+    withdrawn: "Whether the claim is withdrawn in the version."
+claims.RestatementLine:
+  fields:
+    role: "Which of the restatement's runs the line is from (the values below)."
+monthly.ReportLine:
+  fields:
+    table: "Which table of the monthly report the line is from (the values below)."
+    comments: "The PA's comments on the line, as filed."
+calculations.Run:
+  fields:
+    output_format: "The format the run's tables are written in (e.g. csv.zip, parquet, xlsx)."
+    measure_count: "How many measure records the job has (blank until counted)."
+    lane: "The queue the run waits in, by its size (the values below)."
+    estimate_seconds: "How long the run is expected to take, in seconds, estimated when it is queued."
+    storage_prefix: "Where the run's inputs and outputs are kept in the platform's object storage."
+    backend: "Where the run is carried out (the local worker or a batch service)."
+    backend_job_id: "The run's job ID in the backend, when the backend gives one."
+    error: "Why the run failed (blank when it did not)."
+    cancel_requested_at: "When someone asked to stop the run (blank: no one did)."
+snapshots.Snapshot:
+  fields:
+    dataset: "Which published dataset the snapshot belongs to (the values below)."
+    rows: "How many measure records the snapshot holds."
+snapshots.Release:
+  fields:
+    dataset: "Which published dataset the release is of (the values below)."
+snapshots.PIIScan:
+  fields:
+    outcome: >-
+      What the scan decided (the values below): clear (published), held (kept out of every release until it is released or a
+      newer version replaces it) or released (published by a CPUC system administrator with a reason).
+snapshots.ScanSettings:
+  fields:
+    changed_at: "When the settings were last changed."
+documents.Document:
+  fields:
+    collection: "Which of the document library's collections the document is in (the values below)."
+documents.AttributeList:
+  fields:
+    code: "The list's short code, used in links and downloads."
+documents.CommentResponse:
+  fields:
+    author: "The person who wrote the response: a user account (blank: migrated from the PDA)."
+documents.CommentPeriod:
+  fields:
+    opens: "The first day comments are accepted."
+    closes: "The last day comments are accepted."
+documents.ResponseRequest:
+  fields:
+    due: "The day the PA's response is due."
+documents.Comment:
+  fields:
+    author: "The person who wrote the comment: a user account (blank: migrated from the PDA)."
+    subject: "The comment's subject line."
+    file_key: "Where the comment's attached file is kept in the platform's object storage (blank: no file)."
+    file_size: "The attached file's size in bytes."
+    file_type: "The attached file's media type, e.g. application/pdf."
+documents.WorkOrder:
+  fields:
+    cpuc_contract_id: "The CPUC contract the work order is under."
+    cancelled: "Whether the work order is canceled."
+documents.Study:
+  fields:
+    objective: "What the study sets out to find, as CPUC ED describes it."
+    research_questions: "The questions the study answers."
+    methods: "The EM&V methods the study may use."
+    budget: "The study's budget, in dollars."
+    next_activity: "The study's next step, as the Project Status Report gives it."
+    next_activity_due: "When the next step is due."
+    completion_date: "When the study is (or was) expected to be completed."
+    calmac_id: "The study's ID in the CALMAC library of evaluation reports."
+documents.KeyDate:
+  fields:
+    "on": "The day of the event."
+    detail: "More about the event."
+    link: "A page with more about the event."
+    posted_at: "When the key date was posted."
+impact_profiles.ImpactProfile:
+  fields:
+    profile_key: >-
+      The profile ID: CET's E3MeaElecEndUseShape, ReCET's AC_Elec_Impact_Profile, the name a measure record gives to price on this
+      profile.
+    family: "Where the profile comes from (the values below)."
+impact_profiles.ProfileMapping:
+  fields:
+    alias_key: "The permutation's profile ID that is priced on the target profile instead of shapes of its own."
+    ended_at: "When the mapping stopped (blank: in use)."
+impact_profiles.LoadShapeUpload:
+  fields:
+    series_count: "How many 8,760 series the file has."
+    accepted_count: "How many of them passed the checks and were kept."
+    generated_at: "When the package's impact profiles were made from the accepted load shapes (blank: not yet)."
+    generation_summary: "What making the profiles did, as structured data (profiles made, changed, unchanged)."
+impact_profiles.UploadFinding:
+  fields:
+    record_id: "The series (in the uploaded file) the finding is about."
+    stage: "The check stage that found it (file, table headers, an 8,760 series, eTRM alignment)."
+    row: "The file line, with the header as line 1."
+    field: "The column the finding is about."
+    value: "The value found, as filed."
+impact_profiles.Shape:
+  fields:
+    minimum: "The smallest of the 8,760 values."
+    maximum: "The largest of the 8,760 values."
+impact_profiles.MeasurePackage:
+  fields:
+    first_seen_at: "When an eTRM synchronization first found the draft measure version."
+    last_seen_at: "When an eTRM synchronization last found it."
+impact_profiles.PackageVersion:
+  fields:
+    permutation_count: "How many permutations the version has."
+impact_profiles.Permutation:
+  fields:
+    measure_tech_id: "The measure technology's eTRM TechID."
+    standard_tech_id: "The standard (code) baseline technology's eTRM TechID."
+    pre_existing_tech_id: "The pre-existing technology's eTRM TechID (accelerated replacement only)."
+    standard_tech_group: "The standard baseline technology's eTRM technology group."
+    standard_tech_type: "The standard baseline technology's eTRM technology type."
+    pre_existing_tech_group: "The pre-existing technology's eTRM technology group."
+    pre_existing_tech_type: "The pre-existing technology's eTRM technology type."
+    measure_application_type: "The eTRM measure application type (e.g. normal replacement, accelerated replacement, new construction)."
+    uec_kwh_meas: "The measure technology's unit energy consumption, in kWh per unit, at full precision."
+    uec_kwh_base1: "The 1st baseline's unit energy consumption, in kWh per unit, at full precision."
+    uec_kwh_base2: "The 2nd baseline's unit energy consumption, in kWh per unit, at full precision (accelerated replacement only)."
+impact_profiles.ExcludedPackage:
+  fields:
+    detected_at: "When the synchronization refused the package."
+impact_profiles.LibraryExport:
+  fields:
+    catalog_name: "The name of the export's catalog file (catalog.parquet, one row per profile name)."
+    hourly_name: "The name of the export's hourly file (hourly.parquet, one row group per stored profile)."
+    catalog_rows: "How many profile names the catalog has."
+refdata.PackVersion:
+  fields:
+    acc_year: "The ACC year of an avoided-cost pack (blank for other kinds)."
+    fingerprint: "A hash over the pack's manifest, which identifies its exact files."
+    storage_uri: "Where the pack's files are kept in the platform's object storage."
+    registered_at: "When the pack version was registered."
+refdata.TieOut:
+  fields:
+    passed: "Whether the check passed."
+    largest_difference: "The largest difference the check found between the pack and its source or the independent calculation."
+    report: "The check's report, as structured data."
+    report_uri: "Where the check's full report is kept."
+    recorded_at: "When the check's result was recorded."
+refdata.EtrmPackage:
+  fields:
+    use_category: "The package's eTRM use category."
+    permutations: "How many published permutations the package has in the pack."
+refdata.EtrmPermutation:
+  fields:
+    measure_detail_id: "The permutation's eTRM Measure Detail ID (a claim's MeasDetailID)."
+    values: "The permutation's deemed values, under eTRM's own column labels (blanks left out)."
+    offering: "The eTRM offering."
+    meas_app_type: "The eTRM measure application type."
+    delivery_type: "The eTRM delivery type."
+    ntg_id: "The permutation's net-to-gross ID (NTG_ID)."
+    gsia_id: "The permutation's gross savings installation adjustment ID (GSIA_ID)."
+    pa_type: "The kind of PA the permutation is for, as eTRM gives it."
+rules.Rule:
+  fields:
+    table: "The table the rule tests (e.g. Measure, ProgramCost)."
+    field: "The field the rule tests."
+    source: "Where the rule comes from (e.g. CEDARS' validation rules, warning rules or specification)."
+releases.ReleaseNote:
+  table: "A release note (BR-12.1) announcing user-facing changes before they take effect."
+  fields:
+    effective_on: "The day the release's changes take effect."
+releases.Change:
+  table: "One change a release note announces."
+  fields:
+    area: "The part of CEDARS the change is in."
+    action: "What people need to do about it (blank: nothing)."
+    limit: "For a limit change, which published limit changes."
+releases.Mandate:
+  fields:
+    authority: "What kind of CPUC action requires the change (the values below)."
+    issued_on: "The day the decision, resolution or ruling was issued."
+    area: "Whether it changes CEDARS' data, its calculations or both."
+    effective_on: "The day the change takes effect."
+    implemented_on: "The day CEDARS implemented it (blank: not yet)."
+releases.MandateLink:
+  fields:
+    kind: "What the link points at (a rule set, dictionary version, value list version, field, data pack or release note)."
+retention.RetentionPolicy:
+  fields:
+    record_class: "The class of record the policy covers (e.g. draft filing versions, scratch runs)."
+    keep_days: "How many days a record of the class is kept (blank: permanently; 0: not kept once superseded)."
+retention.LegalHold:
+  fields:
+    record_class: "The class of record the hold covers."
+accounts.OrganisationCode:
+  fields:
+    code: "The code the organization had (e.g. EBCE, then AVA)."
+    recorded_at: "When the code was recorded."
+vault.PIIUpload:
+  fields:
+    organisation_id: "The organization that filed it (by its ID; the vault keeps no links to other tables)."
+    uploaded_by_id: "The person who uploaded it (by user ID; the vault keeps no links to other tables)."
+vault.PIIContact:
+  fields:
+    contact_id: "The contact's ID (ContactID), the only key the rest of the platform holds."
+vault.PIISite:
+  fields:
+    site_id: "The site's ID (SiteID), the only key the rest of the platform holds."
+audit.AuditEvent:
+  fields:
+    at: "When the change was made."
+    object_id: "The ID of the record changed."
+    object_repr: "The record changed, in words, as it was named then."
+    before: "The record's values before the change."
+    after: "The record's values after the change."
+    request_id: "The web request that made the change, to tie events of one action together."
+accessibility.FileCheck:
+  fields:
+    uploaded_by: "The person who uploaded the file (blank: imported, or not recorded)."
+    source: "Where the file was uploaded (the values below)."
+notifications.Subscription:
+  fields:
+    organisation: "The organization whose events the person hears about (blank: every organization they may see)."
+    event: "The kind of event the person wants to hear about."
+    channel: "How they are told (the values below)."
+impact_profiles.LoadShapeVersion:
+  table: "One version of a load shape's 8,760 values; a re-upload adds a version and never edits one."
+
+budgets.ChangeLetter:
+  fields:
+    previous: "The version the corrected version replaces, which the letter compares it with."
+claims.ChangeLetter:
+  fields:
+    previous: "The version the corrected version replaces, which the letter compares it with."
+monthly.ChangeLetter:
+  fields:
+    previous: "The version the corrected version replaces, which the letter compares it with."

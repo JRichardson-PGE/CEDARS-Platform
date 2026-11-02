@@ -34,11 +34,23 @@ def current() -> CatalogVersion | None:
 
 
 @transaction.atomic
-def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str = "") -> CatalogVersion:
-    """A new catalog version from an exported catalog (scripts/export_recet_dictionary.py writes one from ReCET)."""
+def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str = "", platform: bool = False) -> CatalogVersion:
+    """A new catalog version from an exported catalog (scripts/export_recet_dictionary.py writes one from ReCET). With `platform`,
+    the platform's own records are added to it (dictionary/platform.py: every column of the tables it keeps), and the label says so
+    unless one is given: "ReCET 0.1.89 + platform 0.2.0"."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator publishes a dictionary version.")
+    asked = label
     label = label or payload.get("source") or "catalog"
+    if platform:
+        import cedars
+
+        from . import platform as records
+
+        taken = {f["name"].lower() for f in payload["fields"]}
+        added = [f for f in records.catalog() if f["name"].lower() not in taken]
+        payload = {**payload, "fields": [*payload["fields"], *added]}
+        label = asked or f"{label} + platform {cedars.__version__}"
     previous = current()
     retired = (
         {f.name.lower(): f for f in previous.fields.filter(state=Field.State.RETIRED).prefetch_related("aliases", "usages")}
@@ -66,6 +78,7 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
             years_in_use=f.get("years_in_use", ""),
             audience=f.get("audience", Field.Audience.PUBLIC),
             required_by=f.get("required_by", ""),
+            values=f.get("values") or [],
             # a retirement is not undone by a later export that does not know of it (BR-08.4)
             **({a: getattr(retired[f["name"].lower()], a) for a in RETIREMENT} if f["name"].lower() in retired else {}),
         )
@@ -220,7 +233,7 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
     w = csv.writer(out, lineterminator="\n")
     w.writerow(
         ["name", "kind", "group", "definition", "data_type", "max_length", *ATTRIBUTES, "also_known_as", "documentation", "state"]
-        + ["retired_from"]
+        + ["retired_from", "values"]
     )
     for f in Field.objects.filter(version=version).prefetch_related("aliases").order_by("kind", "group", "name"):
         w.writerow(
@@ -236,6 +249,7 @@ def catalog_csv(version: CatalogVersion | None = None) -> str:
                 f.doc_link,
                 f.state,
                 f.retired_from or "",
+                "; ".join(f"{code} = {text}" if text != code else code for code, text in f.values or []),
             ]
         )
     return out.getvalue()

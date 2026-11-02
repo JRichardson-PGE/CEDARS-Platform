@@ -5,10 +5,16 @@ dictionary/index:
   guide:
     - Every field CEDARS takes in or calculates, under its canonical name, with the names it is also known by (CET's and the E3
       calculators' among them, which uploads may still use). Each field has its definition, type, unit and where it is used.
+    - >-
+      It also describes the records the platform keeps besides the calculation files, column by column: the program registry, the
+      filing calendar, filings and their versions, budget lines and results, fund shifts, claims, monthly reports, publication
+      snapshots and holds, documents and studies, impact profiles, rules and release notes. Their names are module.Table.column, and
+      their kind is Platform record.
     - Download the whole catalog as CSV, or the upload templates for each kind of filing.
   how:
     - Search by any name a field is known by, or by words in its definition.
     - Download the catalog (CSV) or the name crosswalk (CSV), or open the value lists or the change log.
+    - Choose Kind, Platform records, and a Platform table to see one table's columns.
     - Retired fields are not shown at first; choose State, Retired (or All) to see them.
   see: published-data
   tour:
@@ -20,7 +26,7 @@ dictionary/index:
       text: The templates for each filing's tables, with every column in order.
     - target: main form.filters
       title: Search
-      text: Search names and definitions, and narrow to inputs or outputs, or to retired fields.
+      text: Search names and definitions, and narrow to inputs, outputs or platform records, one platform table, or retired fields.
     - target: main table.list
       title: Fields
       text: Each field by kind and group. Select a name for its full entry.
@@ -33,6 +39,9 @@ dictionary/field:
     - >-
       A retired field says from when and why, with the usage, audience and regulatory reviews behind it. Its history lists each
       dictionary version that changed it, and the register entries that require it are linked.
+    - >-
+      A platform record's column says which table it is in and what the table holds, and lists the codes it may hold when it has a
+      fixed set.
     - >-
       A field checked against a value list shows the list's codes, in the version in force (or any other published version), with the
       claim years each code is accepted for. Retired codes stay in the list, marked with the last year they are accepted for.
@@ -50,6 +59,10 @@ dictionary/field:
     - heading: Value list
       title: Value list
       text: The codes the field may hold, a page at a time, with a version picker, filters and CSV and Excel downloads.
+      optional: true
+    - heading: Allowed values
+      title: Allowed values
+      text: The fixed set of codes a platform record's column may hold, with what each means.
       optional: true
     - heading: History
       title: History
