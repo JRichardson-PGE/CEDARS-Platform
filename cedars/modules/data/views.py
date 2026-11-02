@@ -224,7 +224,7 @@ def dashboard_page(request, slug):
             for d in dashboard.FILTERS
             if d not in query.PA_SELECTION
         ],
-        "pa_groups": dashboard.pa_groups(selected),
+        "pa_picker": dashboard.pa_picker(selected),
     }
     context |= saved_pages.page_context(request, page.slug, None if error else urlencode(view.params, doseq=True))
     return render(request, "data/dashboard.html", context)
@@ -307,7 +307,7 @@ def _records_context(request, page, number, error) -> dict:
         "datasets": list(records.DATASETS.items()),
         "filings": dashboard.filings(),
         "exclusions": [(code, e.label, code in q.exclude) for code, e in query.EXCLUSIONS.items()],
-        "pa_groups": dashboard.pa_groups(selected),
+        "pa_picker": dashboard.pa_picker(selected),
         "text_filters": [
             {"code": d, "label": query.DIMENSIONS[d].label, "value": ",".join(selected.get(d, ())), "help": DASHBOARD_HELP[d]}
             for d in ("program", "measure")

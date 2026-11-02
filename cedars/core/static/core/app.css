@@ -367,9 +367,37 @@ ol.comments { list-style: none; padding: 0; margin: 0; }
 .filters-more { flex-basis: 100%; }
 .dash-filters summary { cursor: pointer; font-weight: 600; min-height: 24px; }
 .dash-filters fieldset { margin: .5rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
-/* The PA filter: one group per PA type, each on its own line, its "All" box first and in bold. */
-fieldset.pa-filter > fieldset { flex-basis: 100%; margin: .25rem 0; display: flex; flex-wrap: wrap; gap: .25rem .9rem; }
-fieldset.pa-filter label.pa-all { font-weight: 600; }
+/* The PA picker (core/_pa_picker.html): a closed <details> that names what it keeps; open, a tree of All PAs > PA types > PAs, then
+   statewide programs. In the page's flow (it pushes what follows down), so nothing is covered and it reflows at 320 px. */
+fieldset.pa-picker { flex-basis: 100%; border: 0; padding: 0; margin: .25rem 0; min-width: 0; display: block; }
+fieldset.pa-picker > legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .2rem; }
+.pa-menu { max-width: 34rem; }
+.pa-menu > summary { cursor: pointer; display: flex; align-items: center; gap: .5rem; min-height: 36px; padding: .3rem .7rem;
+  border: 1px solid var(--control); border-radius: var(--r, 6px); background: var(--surface); color: var(--fg); list-style: none; }
+.pa-menu > summary::-webkit-details-marker { display: none; }
+.pa-menu > summary::after { content: ""; margin-left: auto; width: .5rem; height: .5rem; border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); flex: none; }
+.pa-menu[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.pa-panel { border: 1px solid var(--control); border-top: 0; border-radius: 0 0 var(--r, 6px) var(--r, 6px); background: var(--surface);
+  padding: .5rem .7rem .6rem; max-height: 26rem; overflow-y: auto; }
+.pa-panel .helptext { margin: 0 0 .4rem; }
+ul.pa-tree, ul.pa-children { list-style: none; margin: 0; padding: 0; }
+ul.pa-children { padding-left: 1.9rem; }
+ul.pa-children ul.pa-children { padding-left: 2.6rem; }
+.pa-row { display: flex; align-items: center; gap: .25rem; }
+.pa-picker label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; gap: .1rem .4rem; align-items: center; font-weight: 400;
+  min-height: 24px; color: var(--fg); }
+.pa-picker label.pa-head { font-weight: 600; }
+.pa-picker label.pa-head .muted { font-weight: 400; }
+li.pa-statewide { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line); }
+.pa-twisty { width: 24px; height: 24px; min-height: 24px; padding: 0; margin: 0; flex: none; display: inline-flex; align-items: center;
+  justify-content: center; background: transparent; color: var(--fg); border: 1px solid var(--control); border-radius: 4px; }
+.pa-twisty[hidden] { display: none; }
+.pa-twisty::before { content: ""; width: .4rem; height: .4rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg); }
+.pa-twisty[aria-expanded="true"]::before { transform: rotate(45deg) translate(-1px, -1px); }
+/* Without the script the show/hide buttons stay hidden; a row without one lines up with those that have one once it runs. */
+.js-pa .pa-row > label:first-child { margin-left: calc(24px + .25rem); }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }

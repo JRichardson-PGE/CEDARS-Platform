@@ -1,0 +1,39 @@
+{% comment %}The PA picker (Jake, 2026-11-02), one filter for every page that filters by PA. Context: pa_picker = accounts.service.pa_picker(...).
+A closed <details> shows what it keeps; open, it is a tree: "All PAs" > IOUs / RENs / CCAs (and any PA with no type yet) > their PAs,
+with statewide programs as their own choice below All PAs. A group's box is the pa_type filter (it keeps PAs given that type later
+too), a PA's box the pa filter, statewide's the pa filter's SW; ticked boxes add up, nothing ticked keeps every PA.
+Without scripts every box shows and submits as it is. core/app.js adds the tri-state All PAs and group boxes, the show/hide buttons and,
+on submit, sends a whole group as its pa_type (and everything ticked as no PA filter at all).{% endcomment %}
+{% with p=pa_picker %}{% if p.groups or p.statewide %}<fieldset class="pa-picker" data-pa-picker>
+  <legend>PA</legend>
+  <details class="pa-menu">
+    <summary><span class="sr-only">Program administrators: </span><span data-pa-summary>{{ p.summary }}</span></summary>
+    <div class="pa-panel">
+      <p class="helptext" id="pa-picker-help">Tick whole groups, single PAs or both. Nothing ticked keeps every PA.</p>
+      <ul class="pa-tree" aria-describedby="pa-picker-help">
+        <li class="pa-node">
+          <div class="pa-row">
+            <button type="button" class="pa-twisty" aria-expanded="true" aria-controls="pa-pick-all" hidden><span class="sr-only">Show or hide the groups of All PAs</span></button>
+            <label class="check pa-head"><input type="checkbox" data-pa-all hidden> All PAs</label>
+          </div>
+          <ul id="pa-pick-all" class="pa-children">
+            {% for g in p.groups %}<li class="pa-node" data-pa-group data-label="{{ g.label }}" data-type="{{ g.type }}">
+              <div class="pa-row">
+                <button type="button" class="pa-twisty" aria-expanded="true" aria-controls="pa-pick-{{ forloop.counter }}" hidden><span class="sr-only">Show or hide the PAs of {{ g.label }}</span></button>
+                {% if g.type %}<label class="check pa-head"><input type="checkbox" name="pa_type" value="{{ g.type }}" data-pa-group-box{% if g.all %} checked{% endif %}{% if g.some %} data-some{% endif %}> All {{ g.label }} <span class="muted small">({{ g.description }})</span></label>
+                {% else %}<label class="check pa-head"><input type="checkbox" data-pa-group-box hidden{% if g.some %} data-some{% endif %}> {{ g.label }}</label>{% endif %}
+              </div>
+              <ul id="pa-pick-{{ forloop.counter }}" class="pa-children">
+                {% for pa in g.pas %}<li><label class="check"><input type="checkbox" name="pa" value="{{ pa.code }}"{% if pa.checked %} checked{% endif %}> {{ pa.code }}{% if pa.name %} <span class="muted small">{{ pa.name }}</span>{% endif %}{% if pa.former %} <span class="small">(formerly {{ pa.former|join:", " }})</span>{% endif %}</label></li>
+                {% endfor %}
+              </ul>
+            </li>{% endfor %}
+          </ul>
+        </li>
+        {% if p.statewide %}<li class="pa-node pa-statewide">
+          <div class="pa-row"><label class="check pa-head"><input type="checkbox" name="pa" value="{{ p.statewide.code }}" data-pa-statewide{% if p.statewide.checked %} checked{% endif %}> {{ p.statewide.label }} <span class="muted small">({{ p.statewide.code }}{% if p.statewide.former %}, formerly {{ p.statewide.former|join:", " }}{% endif %})</span></label></div>
+        </li>{% endif %}
+      </ul>
+    </div>
+  </details>
+</fieldset>{% endif %}{% endwith %}

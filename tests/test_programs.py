@@ -53,6 +53,21 @@ def test_the_catalog_lists_every_program_closed_ones_included(signed_in, make_us
     assert "SW_WP" in html and "PGE_Res_HVAC" not in html
 
 
+def test_the_catalog_filters_on_the_pa_picker(signed_in, make_user, programs):
+    """The catalog's PA filter is the PA picker: several PAs, whole PA types and statewide programs, ORed."""
+    c = signed_in(make_user("someone@example.com"))
+    html = c.get("/programs/").content.decode()
+    assert "data-pa-picker" in html and '<input type="checkbox" name="pa" value="SW" data-pa-statewide>' in html
+    assert "<span data-pa-summary>All PAs and statewide programs</span>" in html
+    html = c.get("/programs/?pa_type=IOU").content.decode()
+    assert "PGE_Res_HVAC" in html and "PGE21001" in html and "SW_WP" not in html
+    assert "PA: <strong>All IOUs</strong>" in html
+    html = c.get("/programs/?pa_type=IOU&pa=sw").content.decode()
+    assert "3 programs" in html
+    assert "PA: <strong>Statewide programs</strong>" in html and 'href="?pa_type=IOU"' in html  # its chip removes only SW
+    assert "1 program." in c.get("/programs/?pa_type=REN&pa=SW").content.decode()
+
+
 def test_the_catalog_shows_the_attributes_of_the_chosen_program_year(signed_in, make_user, programs):
     c = signed_in(make_user("someone@example.com"))
     assert "Old Lighting" in c.get("/programs/?year=2020&state=open").content.decode()  # still open in 2020
@@ -170,7 +185,7 @@ def test_a_programs_admin_grant_can_change_its_organisations_programs(signed_in,
 def test_the_catalog_reads_the_whole_cedars_list_in_a_few_queries(signed_in, make_user, cpuc_admin, django_assert_max_num_queries):
     import_cedars_programs((DATA / "cedars_programs_20261003.csv").read_bytes(), actor=None)
     c = signed_in(make_user("someone@example.com"))
-    with django_assert_max_num_queries(21):  # 20, and one for the coming release notes every page announces
+    with django_assert_max_num_queries(23):  # 20, one for the coming release notes every page announces, two more for the PA picker
         r = c.get("/programs/?state=closed")
     assert r.status_code == 200 and "595 programs" in r.content.decode()
 

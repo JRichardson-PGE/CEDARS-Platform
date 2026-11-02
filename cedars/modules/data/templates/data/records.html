@@ -29,7 +29,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
   </label>
   <label>From year <input type="number" name="year_from" min="1990" max="2100" inputmode="numeric" value="{{ q.year_from|default_if_none:'' }}"></label>
   <label>To year <input type="number" name="year_to" min="1990" max="2100" inputmode="numeric" value="{{ q.year_to|default_if_none:'' }}"></label>
-  {% include "data/_pa_filter.html" %}
+  {% include "core/_pa_picker.html" %}
   {% for f in text_filters %}
   <label>{{ f.label }} <input type="text" name="{{ f.code }}" value="{{ f.value }}" autocomplete="off" aria-describedby="help-{{ f.code }}"><span class="helptext" id="help-{{ f.code }}">{{ f.help }}</span></label>
   {% endfor %}

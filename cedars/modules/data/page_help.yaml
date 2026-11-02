@@ -24,7 +24,8 @@ data/dashboard: &dashboard
   how: &dashboard_how
     - Choose the series (forecast, claims and, where there are any, monthly reports), the years, the metric and how to view the rows,
       then Apply.
-    - Narrow to PAs, sectors, programs or measures under Filters. Applied filters show as chips; Remove takes one off.
+    - Narrow to PAs, sectors, programs or measures under Filters. Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs)
+      or single PAs inside one, and statewide programs. Applied filters show as chips; Remove takes one off.
     - Point at a chart's row to see its values. With the keyboard, Tab to the chart and use the up and down arrow keys; Escape hides
       the values. The table under each chart lists them all.
     - Select a section's heading (Filters and view, Chart, Table) to fold it away or open it again. This browser remembers your choice.
@@ -150,6 +151,8 @@ data/records:
     - Records hold every published program unless you leave some out. A set larger than can be made while you wait is made in the
       background once you are signed in; you are told when it is ready and it waits under Your downloads.
   how:
+    - Open the PA list to tick All PAs, a whole group (IOUs, RENs or CCAs) or single PAs inside one, and statewide programs. Nothing
+      ticked keeps every PA.
     - Start from a column preset, then open a group to tick its columns. Every column is defined in the data dictionary.
     - Signed in, make the columns you chose your default, or save the whole choice of records and columns as a view under Saved views.
     - Each file records its release, when its data last changed, the filters, what was left out and the columns under their canonical

@@ -235,11 +235,12 @@ def _years_words(lo, hi) -> str:
     return f"{lo} or later" if lo is not None else f"{hi} or earlier"
 
 
-def chips(query: QueryDict, main: list[tuple[str, str, str]], active: dict) -> list[dict]:
-    """Every applied filter as {label, value, remove}: the main ones ([(param, label, value)]) first, then the other filters, one chip
+def chips(query: QueryDict, main: list[tuple], active: dict) -> list[dict]:
+    """Every applied filter as {label, value, remove}: the main ones ([(param, label, shown[, value])]; a value removes that one value
+    of the parameter only) first, then the other filters, one chip
     per ticked value. remove is the link to the same catalog without it."""
     q = clean_query(query)
-    out = [{"label": label, "value": value, "remove": _without(q, param)} for param, label, value in main]
+    out = [{"label": c[1], "value": c[2], "remove": _without(q, c[0], *c[3:])} for c in main]
     for f in FIELDS:
         if f.code not in active:
             continue

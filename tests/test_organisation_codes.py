@@ -232,9 +232,9 @@ def test_the_dashboards_count_a_former_code_under_the_pa(filed, cpuc_admin, ebce
     assert by_pa(q.but(filters=(("pa", ("AVA",)),))) == {"AVA": 80}
     assert {r["pa_type"]: r["tsb"] for r in dq.run(q.but(by=("pa_type",))).rows} == {"IOU": 100, "CCA": 80}
     assert dq.selected_pas(q.but(filters=(("pa", ("ebce",)),)), {}) == {"AVA"}
-    groups = dashboard.pa_groups({"pa": ("EBCE",)})
+    groups = dashboard.pa_picker({"pa": ("EBCE",)})["groups"]
     ccas = next(g for g in groups if g["type"] == "CCA")
-    assert ccas["pas"] == [{"code": "AVA", "checked": True, "former": ["EBCE"]}]
+    assert [(p["code"], p["checked"], p["former"]) for p in ccas["pas"]] == [("AVA", True, ["EBCE"])]
 
 
 def test_record_downloads_keep_the_code_as_filed_beside_the_counted_pa(filed, cpuc_admin, ebce):
@@ -253,7 +253,7 @@ def test_a_merged_organisations_filings_count_under_its_successor(filed, cpuc_ad
     access.merge_organisation(cpuc_admin, ebce, into=ava, effective=FIRST_DAY, reason="same party")
     q = dq.Query("claims", ("tsb",), by=("pa",))
     assert {r["pa"]: r["tsb"] for r in dq.run(q).rows} == {"PGE": 100, "AVA": 80}
-    assert all(g["type"] != "CCA" or [p["code"] for p in g["pas"]] == ["AVA"] for g in dashboard.pa_groups({}))
+    assert all(g["type"] != "CCA" or [p["code"] for p in g["pas"]] == ["AVA"] for g in dashboard.pa_picker({})["groups"])
 
 
 def test_a_goal_rule_written_for_a_former_code_counts_for_the_pa(cpuc_admin, ava):
