@@ -58,7 +58,7 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
 def test_no_goal_loaded_says_so(both):  # noqa: F811
     tsb = cards(front.summary("2028-2031"))["tsb"]
     assert len(tsb.figures) == 1 and tsb.percent is None
-    assert "No CPUC goal set covering this cycle is loaded yet" in tsb.lines[0]
+    assert "No CPUC goal is loaded for this cycle yet" in tsb.lines[0]
 
 
 def test_before_anything_is_published(db):

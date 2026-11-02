@@ -1,44 +1,22 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<h2>Do you need an account?</h2>
-<p>No, to read: the portfolio dashboard, record downloads, documents, the data dictionary, the validation rules and the filing calendar
-are open to everyone. You need an account to file for a program administrator (PA), to review filings for the CPUC, to run
-cost-effectiveness calculations, or to follow documents.</p>
-<h2>Create an account and sign in</h2>
+<p>You need no account to read published data. You need one to file for a program administrator (PA), review filings for the CPUC,
+run calculations or follow documents.</p>
+<h2>First steps</h2>
 <ol>
-  <li>Choose <a href="{% url 'account_signup' %}">Create an account</a> and give your work email address and a password.</li>
-  <li>Open the confirmation link CEDARS emails you. If nothing arrives within a few minutes, look in your junk folder.</li>
-  <li><a href="{% url 'account_login' %}">Sign in</a>. The first time, CEDARS asks you to set up a second factor: an authenticator app
-  (a six-digit code that changes every 30 seconds) or a security key. Every account uses one.</li>
-  <li>Keep the recovery codes CEDARS shows you somewhere safe. Each lets you sign in once if you lose your phone or key.</li>
+  <li><a href="{% url 'account_signup' %}">Create an account</a> with your work email, then open the confirmation link CEDARS emails you.</li>
+  <li><a href="{% url 'account_login' %}">Sign in</a> and set up a second factor (an authenticator app or a security key). Keep your
+  recovery codes somewhere safe.</li>
+  <li>To file or read for a PA, <a href="{% url 'administration:request_access' %}">ask an organization for access</a>. Its
+  administrators decide; access to personal information also needs a CPUC data steward's approval.</li>
+  <li>If you belong to more than one organization, choose one under <strong>Acting for</strong> in the header.</li>
 </ol>
-<p>Some organizations sign their people in through their own directory instead; their sign-in page says so.</p>
-<h2>Ask an organization for access</h2>
-<p>An account starts with no organization. To file or read for a PA, open <a href="{% url 'administration:account' %}">your account
-page</a> and choose <a href="{% url 'administration:request_access' %}">Ask an organization for access</a>: pick the organization and
-the permissions you need (for example claims, read and submit) and say why. The organization's own administrators decide. Access to
-personal information (contacts and sites in claims) also needs a CPUC data steward's approval, and every use of it is recorded.</p>
-<p>Grants can expire, and administrators confirm their people's access once a year, so you may be asked to show you still need it.</p>
-<h2>Acting for an organization</h2>
-<p>If you belong to more than one organization, the header shows <strong>Acting for</strong> with a list: choose the organization and
-then <strong>Switch</strong>. Everything you file or run is for the organization you are acting for, and the audit trail records it.</p>
-<h2>Notifications</h2>
-<p><a href="{% url 'notifications:index' %}">Notifications</a> in the header lists what needs you: a filing to review, an access request,
-a due date coming up, a run that finished, and, if you approve filings, each comment a filing organization posts on one. The
-count beside it is how many are unread. The same notices go by email. On
-<a href="{% url 'notifications:settings' %}">Notification settings</a> you choose which PAs and programs you follow, which events you
-hear about, and how many days before each due date you are reminded; <strong>Follow this program</strong> on a program's page adds it
-to the programs you follow.</p>
-<h2>API tokens</h2>
-<p>Your own systems can file and read through the CEDARS API. On your account page, under <strong>API tokens</strong>, make a token for one
-organization and the modules it may use; it can do no more than you can. Copy its key when it is shown: it is shown only once. A token
-stops working when it expires, when you revoke it, or when you leave the organization. The <a href="/api/v1/schema">API description</a>
-lists every endpoint. Calls are rate limited; the <a href="{% url 'limits:index' %}">Limits</a> page gives the current rates.</p>
-<h2>Changes, limits and this guide's release</h2>
-<p>Every change to CEDARS' specifications, validation rules, limits or system is announced in the
-<a href="{% url 'releases:index' %}">release notes</a> before it takes effect, and every page shows the changes coming soon. Signed in,
-choose <strong>Send me each release note by email</strong> there to be told of each one. The <a href="{% url 'limits:index' %}">Limits</a>
-page lists every limit as the site applies it now (upload sizes, files per upload, run and download sizes, API rates), and each upload
-field says its own. Each user guide, like this one, says the CEDARS release it was revised for, and the footer shows the release the
-site runs. The <a href="{% url 'core:help_faq' %}">frequently asked questions</a> have short answers with worked examples.</p>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'administration:account' %}">Your account</a>: organizations, access and API tokens.</li>
+  <li><a href="{% url 'notifications:settings' %}">Notification settings</a>: the PAs, programs and due dates you hear about.</li>
+  <li><a href="{% url 'releases:index' %}">Release notes</a> and <a href="{% url 'limits:index' %}">Limits</a>: what is changing and the current limits.</li>
+  <li><a href="/api/v1/schema">API description</a>: for systems that file or read through the API.</li>
+  <li><a href="{% url 'core:help_faq' %}">Frequently asked questions</a>.</li>
+</ul>
 {% endblock %}
