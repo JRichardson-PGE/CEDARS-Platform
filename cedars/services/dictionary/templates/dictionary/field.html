@@ -16,6 +16,7 @@
   </dl>
 </section>
 {% endif %}
+{% if table %}<p>A column of the platform's table <strong>{{ table.name }}</strong>{% if table.definition %}: {{ table.definition }}{% else %}.{% endif %} <a href="{% url 'dictionary:index' %}?group={{ f.group|urlencode }}">Every column of this table</a>.</p>{% endif %}
 <dl class="facts">
   <dt>Kind</dt><dd>{{ f.get_kind_display }}{% if f.group %}, {{ f.group }}{% endif %}</dd>
   <dt>Type</dt><dd>{{ f.data_type }}{% if f.max_length %}, up to {{ f.max_length }} characters{% endif %}</dd>
@@ -53,6 +54,18 @@ A retired code stays in the list with the last claim year it is accepted for.</p
 </form>
 <p>{{ values.total }} code{{ values.total|pluralize }}{% if values.page.paginator.num_pages > 1 %}, {{ values.page.paginator.per_page }} a page{% endif %}.</p>
 {% include "dictionary/_codes.html" with editable=False page=values.page query=values.query anchor="values-h" codes_label="Value list codes" %}
+</section>
+{% endif %}
+{% if f.values and not values %}
+<section aria-labelledby="allowed-h">
+<h2 id="allowed-h">Allowed values</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="allowed-h">
+<table class="list">
+  <caption class="sr-only">The codes this column may hold, with what each means</caption>
+  <thead><tr><th scope="col">Code</th><th scope="col">Meaning</th></tr></thead>
+  <tbody>{% for code, text in f.values %}<tr><th scope="row"><code>{{ code }}</code></th><td>{{ text }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
 </section>
 {% endif %}
 {% if mandates %}

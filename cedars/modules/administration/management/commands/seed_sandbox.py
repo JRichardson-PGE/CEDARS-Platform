@@ -61,6 +61,6 @@ class Command(BaseCommand):
         loaded = ""
         if dictionary.current() is None and DICTIONARY.exists():
             latest = sorted(DICTIONARY.glob("*.json"))[-1]
-            dictionary.load_catalog(None, json.loads(latest.read_text()))
+            dictionary.load_catalog(None, json.loads(latest.read_text()), platform=True)
             loaded = f", dictionary {latest.name}"
         self.stdout.write(f"Sandbox ready: {Organisation.objects.count()} organizations, {added} deadlines added for {year}{loaded}.")
