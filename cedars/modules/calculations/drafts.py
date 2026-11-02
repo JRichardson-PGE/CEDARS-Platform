@@ -124,20 +124,53 @@ def _load(folder: Path, measures: Path, programcost: Path | None):
     try:
         return ed.load_tables(measures=str(measures), programcost=str(programcost) if programcost else None)
     except ed.EditorError as e:
-        msg = str(e)
-        if "on the Job tab" in msg or "offline (Excel)" in msg:  # the desktop window's wording
-            msg = (
-                msg.split(";")[0]
-                + f"; Edit inputs takes jobs of up to {ed.MAX_EDIT_ROWS:,} measures. Edit larger jobs offline and upload them."
-            )
-        raise AccessDenied(msg[:1].upper() + msg[1:]) from None
+        raise AccessDenied(_editor_message(ed, e)) from None
+
+
+def _editor_message(ed, e) -> str:
+    msg = str(e)
+    if "on the Job tab" in msg or "offline (Excel)" in msg:  # the desktop window's wording
+        msg = (
+            msg.split(";")[0]
+            + f"; Edit inputs takes jobs of up to {ed.MAX_EDIT_ROWS:,} measures. Edit larger jobs offline and upload them."
+        )
+    return msg[:1].upper() + msg[1:]
+
+
+def _load_file(path: Path, folder: Path):
+    """A job zip's or a job workbook's Measure and ProgramCost tables (a workbook's other sheets are not part of a draft)."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            workbook = jobfiles.is_workbook(z)
+    except (zipfile.BadZipFile, OSError):
+        workbook = False
+    if not workbook:
+        m, pc = _extract(path, folder)
+        return _load(folder, m, pc)
+    try:
+        jobfiles.inspect_workbook(path)  # the platform's own messages for a workbook with no Measure sheet or no records
+    except jobfiles.JobFileError as e:
+        raise AccessDenied(str(e)) from None
+    book = folder / "job.xlsx"  # the engine's editor reads a workbook by its path, which must end .xlsx
+    if path != book:
+        shutil.copyfile(path, book)
+    ed = _editor()
+    try:
+        return ed.load_tables(workbook=str(book))
+    except ed.EditorError as e:
+        raise AccessDenied(_editor_message(ed, e)) from None
+    except ValueError as e:  # the engine's WorkbookError
+        raise AccessDenied(str(e)[:1].upper() + str(e)[1:]) from None
 
 
 def _extract(zip_path: Path, folder: Path) -> tuple[Path, Path | None]:
     try:
         z = zipfile.ZipFile(zip_path)
     except (zipfile.BadZipFile, OSError):
-        raise AccessDenied("The job file is not a valid .zip. Zip Measure.csv (and ProgramCost.csv) together and upload that.") from None
+        raise AccessDenied(
+            "The job file is not a valid .zip or Excel workbook. Zip Measure.csv (and ProgramCost.csv) together, or use the job "
+            "workbook (.xlsx), and upload that."
+        ) from None
     with z:
         try:
             found = jobfiles.members(z)
@@ -153,10 +186,10 @@ def _extract(zip_path: Path, folder: Path) -> tuple[Path, Path | None]:
 
 
 def create_from_zip(actor, organisation, name: str, zip_path: Path, *, label: str = "") -> InputDraft:
-    """A draft from a job zip (Measure.csv and, optionally, ProgramCost.csv), as New run takes a job."""
+    """A draft from a job zip (Measure.csv and, optionally, ProgramCost.csv) or a job workbook (its Measure and ProgramCost sheets),
+    as New run takes a job."""
     with tempfile.TemporaryDirectory() as tmp:
-        m, pc = _extract(Path(zip_path), Path(tmp))
-        job = _load(Path(tmp), m, pc)
+        job = _load_file(Path(zip_path), Path(tmp))
     return _create(actor, organisation, name, f"Uploaded {label}".strip() if label else "Uploaded job", job)
 
 
@@ -180,20 +213,20 @@ def create_from_run(actor, run: Run) -> InputDraft:
     """A draft from a run's own inputs (Edit inputs and rerun), for the run's organization."""
     if not service.can_read(actor, run):
         raise AccessDenied("You cannot see this run.")
-    if "job_zip" not in run.inputs:
+    stored = service.job_input(run)
+    if not stored:
         raise AccessDenied("This run has no job file to edit.")
     if run.measure_count and run.measure_count > max_rows():
         raise AccessDenied(f"This run has {run.measure_count:,} measures; Edit inputs takes jobs of up to {max_rows():,}.")
     with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "job.zip"
-        src = storage.store("uploads").open(run.inputs["job_zip"]["key"])
+        path = Path(tmp) / stored["key"].rsplit("/", 1)[-1]  # job.zip or job.xlsx
+        src = storage.store("uploads").open(stored["key"])
         try:
             with open(path, "wb") as f:
                 shutil.copyfileobj(src, f)
         finally:
             src.close()
-        m, pc = _extract(path, Path(tmp))
-        job = _load(Path(tmp), m, pc)
+        job = _load_file(path, Path(tmp))
     return _create(actor, run.organisation, f"{run.name} (edited)", f"Inputs of run {run.name}", job, source_run=run)
 
 

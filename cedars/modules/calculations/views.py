@@ -216,7 +216,7 @@ def run(request, pk):
 
 def _can_edit_inputs(user, run: Run) -> bool:
     """Edit inputs and rerun: offered on an ended run small enough for Edit inputs, when the engine is installed."""
-    if drafts.engine() is None or not run.ended or "job_zip" not in run.inputs:
+    if drafts.engine() is None or not run.ended or not service.job_input(run):
         return False
     return (run.measure_count or 0) <= drafts.max_rows() and service.can_submit(user, run.organisation)
 

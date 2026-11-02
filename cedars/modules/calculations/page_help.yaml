@@ -5,11 +5,11 @@ calculations/runs:
   guide:
     - >-
       Your cost-effectiveness runs and your organization's, newest first, with their status. Any job can be priced on the ReCET engine:
-      upload it as one .zip of Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job.
+      upload it as one .zip of Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or as ReCET's job workbook (.xlsx).
     - A run is yours alone or your organization's, as you choose when you start it. Runs a filing starts (budgets, claims, monthly
       reports) are listed here too.
   how:
-    - New run starts one: upload the job zip, choose the ACC and who the run is for.
+    - New run starts one: upload the job zip or workbook, choose the ACC and who the run is for.
     - Output templates choose the columns a run writes. Open a run for its status, files and results.
   see: calculations
   tour:
@@ -23,7 +23,10 @@ calculations/runs:
 calculations/new:
   title: Starting a run
   guide:
-    - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or run a draft you are editing in Edit inputs.
+    - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or as ReCET's job workbook (.xlsx), or run a
+      draft you are editing in Edit inputs. A workbook's Programs and SWAllocation sheets are not used (the program registry and the
+      allocation version take their place), and a CET replica cannot use its RunParameters, SWAllocation, GasProfiles or Profiles8760
+      sheets.
       Choose the engine release and the ACC; the run is queued, the run page shows its progress, and its files and results when it ends.
     - A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history only. It is never used
       for a filing.
@@ -34,7 +37,7 @@ calculations/new:
   tour:
     - target: main form
       title: The job
-      text: A name for the run, who it is for (only you, or your organization), and the job's .zip.
+      text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
     - heading: Pricing
       title: Pricing
       text: The engine release and the ACC. The page says when no worker is running a release.
@@ -171,7 +174,7 @@ calculations/drafts:
     - Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to a set number of measures (edit larger jobs
       offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.
   how:
-    - Start a draft from a job's .zip, or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
+    - Start a draft from a job's .zip or job workbook (its Measure and ProgramCost sheets), or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
   see: calculations
   tour:
     - target: main p.alert
@@ -184,7 +187,7 @@ calculations/drafts:
       optional: true
     - target: "#new-h"
       title: Start a draft
-      text: From a job's .zip, or empty.
+      text: From a job's .zip or workbook, or empty.
       optional: true
 
 calculations/draft:

@@ -10,8 +10,10 @@
 <p>This runs the tables of <a href="{% url 'calculations:draft' draft.pk %}">{{ draft.name }}</a> ({{ draft.measure_count }} measure{{ draft.measure_count|pluralize }}),
 as they stand now; the draft stays, to edit and run again. The run is queued and priced by the engine release you choose.</p>
 {% else %}
-<p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or run a job you are
-editing in <a href="{% url 'calculations:drafts' %}">Edit inputs</a>. The run is queued and priced by the engine release you choose;
+<p>Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or as ReCET's job
+workbook (.xlsx: a Measure sheet and, optionally, ProgramCost and ReCET's other sheets), or run a job you are editing in
+<a href="{% url 'calculations:drafts' %}">Edit inputs</a>. A workbook's Programs and SWAllocation sheets are not used: the program
+registry and the allocation version you choose take their place. The run is queued and priced by the engine release you choose;
 the run page shows its progress, and its files when it ends.</p>
 {% endif %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}

@@ -36,9 +36,9 @@ class NewDraftForm(djforms.Form):
         initial="upload",
     )
     job = djforms.FileField(
-        label="Job file (.zip)",
+        label="Job file (.zip or .xlsx)",
         required=False,
-        help_text=uploads.limit_text("Measure.csv and, optionally, ProgramCost.csv, zipped.", False),
+        help_text=uploads.limit_text("Measure.csv and, optionally, ProgramCost.csv, zipped, or ReCET's job workbook", False),
         validators=[uploads.check_size],
     )
 
