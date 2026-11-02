@@ -61,6 +61,20 @@ def index(request):
     )
 
 
+FIELD_CODES_PER_PAGE = 50
+
+
+def _field_values(request, f: Field) -> dict | None:
+    """The field's value list as shown on its page (the version in force unless another is asked for), or None when it has none."""
+    try:
+        name = value_lists.list_for_field(f)
+        if name is None:
+            return None
+        return _shown_codes(request, value_lists.get_list(name))
+    except (value_lists.ValueListError, value_lists.EngineMissing):
+        return None
+
+
 def detail(request, name):
     v = _version_or_404()
     f = Field.objects.filter(version=v, name=name).prefetch_related("aliases", "usages").first()
@@ -68,12 +82,20 @@ def detail(request, name):
         raise Http404
     from cedars.services.releases import mandates
 
+    values = _field_values(request, f)
+    if values is not None:
+        download = _codes_download(request, values)
+        if download is not None:
+            return download
+        values["page"] = Paginator(values.pop("rows"), FIELD_CODES_PER_PAGE).get_page(request.GET.get("page"))
+        values["release"] = value_lists.engine_release()
     return render(
         request,
         "dictionary/field.html",
         {
             "catalog": v,
             "f": f,
+            "values": values,
             "today": timezone.localdate(),
             "history": changelog.history(f.name),
             "mandates": mandates.for_field(f.name),
@@ -282,9 +304,9 @@ def _code_rows(version) -> list[dict]:
     ]
 
 
-def value_list(request, name):
-    """One list: its codes (the version in force, another version, or the engine's list), every version with its date and reason."""
-    vl = _list_or_404(name)
+def _shown_codes(request, vl: ValueList) -> dict:
+    """The codes of the version asked for (`?version=N`, or `shipped` for the engine's list; the version in force when none is), filtered
+    by the query string, with the published versions to choose from."""
     versions = list(vl.versions.filter(status="published").order_by("-number"))
     current = value_lists.in_force(vl)
     pick = request.GET.get("version", "")
@@ -293,25 +315,46 @@ def value_list(request, name):
         shown = current
     rows = _code_rows(shown) if shown else [dict(r, pk=None, new=False) for r in _shipped_or_empty(vl.name)]
     rows, filters = _filtered(request, rows)
-    if request.GET.get("format") == "csv":
-        tag = f"v{shown.number}" if shown else "shipped"
-        return _download(value_lists.codes_csv(rows), f"value_list_{vl.name}_{tag}.csv", "text/csv; charset=utf-8")
+    return {"vl": vl, "versions": versions, "current": current, "shown": shown, "rows": rows, "total": len(rows), **filters}
+
+
+def _codes_download(request, codes: dict):
+    """The codes shown, as CSV or an accessible workbook, when the query string asks for one (`format=csv` / `format=xlsx`)."""
+    fmt = request.GET.get("format")
+    if fmt not in ("csv", "xlsx"):
+        return None
+    vl, shown, rows = codes["vl"], codes["shown"], codes["rows"]
+    tag = f"v{shown.number}" if shown else "shipped"
+    filename = f"value_list_{vl.name}_{tag}.{fmt}"
+    if fmt == "csv":
+        return _download(value_lists.codes_csv(rows), filename, "text/csv; charset=utf-8")
+    which = f"version {shown.number}" if shown else "as shipped with the engine"
+    content = value_lists.codes_xlsx(rows, title=f"Value list {vl.name}, {which}")
+    return _download(content, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+def value_list(request, name):
+    """One list: its codes (the version in force, another version, or the engine's list), every version with its date and reason."""
+    vl = _list_or_404(name)
+    codes = _shown_codes(request, vl)
+    download = _codes_download(request, codes)
+    if download is not None:
+        return download
+    shown = codes.pop("shown")
+    rows = codes.pop("rows")
     can = value_lists.can_edit(request.user)
     return render(
         request,
         "dictionary/list.html",
         {
-            "vl": vl,
-            "versions": versions,
-            "current": current,
+            **codes,
             "shown": shown,
+            "field_name": value_lists.label_for(vl.name),
             "page": Paginator(rows, 100).get_page(request.GET.get("page")),
-            "total": len(rows),
             "draft": value_lists.draft_of(vl) if can else None,
             "can_edit": can,
             "release": value_lists.engine_release(),
             "changes": value_lists.changes_in(shown) if shown else None,
-            **filters,
         },
     )
 

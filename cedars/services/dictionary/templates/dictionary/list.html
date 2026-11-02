@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li><li><a href="{% url 'dictionary:lists' %}">Value lists</a></li></ol></nav>
 <div class="page-title"><h1>Value list {{ vl.name }}</h1>{% page_help "dictionary/list" %}</div>
-<p>The codes {% if vl.label != vl.name %}<a href="{% url 'dictionary:field' vl.label %}">{{ vl.label }}</a>{% else %}this field{% endif %} may hold.
+<p>The codes {% if field_name != vl.name %}<a href="{% url 'dictionary:field' field_name %}">{{ field_name }}</a>{% else %}this field{% endif %} may hold.
 {% if current %}In force: version {{ current.number }}, from {{ current.effective_from|date_words }}.{% else %}No version is published here yet, so the list shipped with the engine{% if release %} (ReCET {{ release }}){% endif %} is in force.{% endif %}</p>
 <p id="showing"><strong>Showing {% if shown %}version {{ shown.number }}{% if shown == current %} (in force){% endif %}{% else %}the list as shipped with the engine{% endif %}.</strong>
 {% if shown and shown.reason %}Why it changed: {{ shown.reason }}{% endif %}
@@ -25,6 +25,7 @@
   <div class="field"><label for="state">Codes</label><select id="state" name="state"><option value="">All</option><option value="active"{% if state == "active" %} selected{% endif %}>Accepted</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Not accepted (retired or not yet started)</option></select></div>
   <button type="submit">Apply</button>
   <button type="submit" name="format" value="csv">Download these codes (CSV)</button>
+  <button type="submit" name="format" value="xlsx">Download these codes (Excel)</button>
 </form>
 <p>{{ total }} code{{ total|pluralize }}.</p>
 {% include "dictionary/_codes.html" with editable=False %}
