@@ -1423,8 +1423,11 @@ def test_the_tour_leaves_disclosures_as_they_were(browser, site, scene):
     context, page = _open(browser, site, scene, "/programs/", None)
     other = "() => document.querySelector('main details.other-filters').open"
     assert not page.evaluate(other)
+    at = page.evaluate(
+        "() => Array.from(document.querySelectorAll('main details')).indexOf(document.querySelector('details.other-filters'))"
+    )
     states = tour(page)
-    assert any("Other filters" in title and state[0] for title, state in states)  # open while its step is shown
+    assert any("Other filters" in title and state[at] for title, state in states)  # open while its step is shown
     assert not page.evaluate(other)  # and closed again after
     context.close()
 
