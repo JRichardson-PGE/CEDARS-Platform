@@ -1,0 +1,10 @@
+{% comment %}For a filing page shown to someone not acting for a PA (the CPUC, the statewide pseudo-PA, another organization): the PAs'
+filings to choose from (submissions.filers), instead of "CPUC's filing". With: pa_choices, what ("budget filing", "claim", "report"),
+back (a link to the list, optional) and back_text.{% endcomment %}
+<section class="card" aria-labelledby="choose-pa-h">
+  <h2 id="choose-pa-h">Choose a program administrator</h2>
+  {% if pa_choices %}<p>Each PA files its own {{ what }}. Choose one to see where its {{ what }} stands:</p>
+  <ul>{% for s in pa_choices %}<li><a href="?org={{ s.organisation.code|urlencode }}">{{ s.organisation.code }}</a> <span class="small muted">{{ s.organisation.name }}</span></li>{% endfor %}</ul>
+  {% else %}<p>No program administrator has started this {{ what }} yet.</p>{% endif %}
+  {% if back %}<p><a href="{{ back }}">{{ back_text }}</a></p>{% endif %}
+</section>

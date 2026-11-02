@@ -1519,3 +1519,30 @@ def test_dashboard_sections_fold_and_stay_folded(browser, site, scene):
     page.reload()
     assert page.locator("details[data-part='filters']").evaluate("d => d.open")
     context.close()
+
+
+def test_no_page_speaks_of_the_cpuc_as_a_filer(scene):
+    """Every page, rendered for the CPUC administrator (acting for the CPUC): nothing such as "CPUC's operating budget", "TUAL: CPUC" or
+    "CPUC's status"; the CPUC regulates the PAs' filings and has none of its own (Jake, 2026-11-02). Pages the CPUC may not open are
+    skipped; the sign-in pages redirect it."""
+    from django.test import Client
+
+    from cedars.services.accounts.models import Organisation
+
+    from ..test_regulator_wording import owned_by
+
+    ids = {k: (v.code if isinstance(v, Organisation) else getattr(v, "pk", v)) for k, v in scene.items()}
+    session = _session_cookie(scene["cpuc_admin"], "mfa", type("Site", (), {"url": "http://testserver"})())["value"]
+    found, opened = {}, 0
+    for name, path, who in PAGES:
+        if who in (None, "password"):
+            continue
+        client = Client()
+        client.cookies[settings.SESSION_COOKIE_NAME] = session
+        r = client.get(path.format(**ids))
+        if r.status_code != 200 or not r.get("Content-Type", "").startswith("text/html"):
+            continue
+        opened += 1
+        if wrong := owned_by(scene["cpuc"].code, r.content.decode()):
+            found[name] = wrong
+    assert opened > 100 and not found, found

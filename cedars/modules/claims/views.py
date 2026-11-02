@@ -58,7 +58,7 @@ def _organisation(request, deadline: Deadline) -> Organisation | None:
         if not service.can_read_submission(request.user, Submission(deadline=deadline, organisation=org)):
             raise Http404
         return org
-    return request.organisation
+    return request.filing_organisation  # a PA acting for itself; the CPUC and other organizations choose a PA with ?org=
 
 
 def _money(x) -> str:
@@ -83,8 +83,8 @@ def _fmt(kind: str, x) -> str:
 
 @login_required
 def index(request):
-    """Claim years, newest first: each confirmation's due date and the acting organization's status."""
-    org = request.organisation
+    """Claim years, newest first: each confirmation's due date and the acting PA's status (none for the CPUC: it files no claims)."""
+    org = request.filing_organisation
     years = []
     cys = list(ClaimYear.objects.select_related("allocation_version"))
     imported = legacy.imported_deadlines(Deadline.objects.filter(module=service.MODULE, period__year__in=[cy.year for cy in cys]))
@@ -194,6 +194,7 @@ def period(request, pk):
                 break
             earlier.append({"deadline": d, "standing": service.standing(org, d)})
     ctx = {
+        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
         "deadline": deadline,
         "label": service.label(deadline),
         "cy": cy,

@@ -6,6 +6,7 @@ from rest_framework import authentication, exceptions
 from cedars.services.audit.context import set_actor
 
 from . import tokens
+from .service import filing_organisation
 
 TOKEN_ASSURANCE = "token"
 
@@ -24,6 +25,7 @@ class TokenAuthentication(authentication.BaseAuthentication):
             raise exceptions.AuthenticationFailed("That token is not valid: unknown, revoked or expired.")
         django_request = request._request
         django_request.organisation = token.organisation
+        django_request.filing_organisation = filing_organisation(token.organisation)
         django_request.assurance = TOKEN_ASSURANCE
         set_actor(token.user, token.organisation, TOKEN_ASSURANCE)
         return token.user, token
