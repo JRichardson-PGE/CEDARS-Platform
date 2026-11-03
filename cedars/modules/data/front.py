@@ -1,6 +1,6 @@
 """The front page's program-cycle summary (Jake, 2026-10-31; compact cards 2026-11-03): seven small cards for one program cycle, from
-the platform's published data: spending, total system benefit and energy saved, each with a gauge of its progress, then demand and gas
-savings and the statewide TRC and PAC ratios.
+the platform's published data, each with a gauge: spending, total system benefit, electricity saved, peak demand avoided and gas saved
+against their budget, goal or forecast, and the statewide TRC and PAC ratios on a scale with a mark at 1.
 
 Every number is the one a dashboard page shows for the same years and its default exclusions, so each card links to the page that breaks
 it down, and the two agree. The gauges' denominators:
@@ -9,14 +9,15 @@ it down, and the two agree. The gauges' denominators:
   total system benefit  the goals page's exclusions (codes and standards, ESA, pension and benefits out): what counts toward the IOU
                      territories' cycle goals (goal_view, the goal set in force) against those goals; with no goal set loaded for the
                      cycle, the claimed TSB against the latest filings' forecast TSB, with the same exclusions
-  energy saved       the energy savings page: net first-year MWh claimed against the latest filings' forecast (the CPUC's program
-                     goals are TSB goals; its energy goals are for codes and standards only, which the card leaves out)
-Demand (MW) and gas (MMTherms) savings show the forecast beside the claimed figure; the cost-effectiveness page's TRC and PAC ratios
-show the forecast ratio beside the claimed one.
+  savings            the energy savings page: net first-year MWh, MW and MMTherms claimed against the latest filings' forecast (the
+                     CPUC's program goals are TSB goals; its savings goals are for codes and standards only, which the cards leave out)
+  cost effectiveness  the cost-effectiveness page: the claimed TRC and PAC ratios on a gauge from 0 to RATIO_SCALE with a mark at 1;
+                     the card's numbers are the test's claimed benefits and costs and the forecast ratio
 
 The goal comes from the confirmed goal set in force (Administration > Goals). What the cards leave out, and where a denominator came
 from, is said once under the cards (`Summary.footnotes`), so the cards themselves stay small."""
 
+import math
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 
@@ -31,7 +32,8 @@ from . import query as dq
 
 NONE = "None yet"  # a figure with nothing published behind it, in words
 CACHE_SECONDS = 600  # the numbers change only with a new release, a goal set or a budget; the key carries the first two
-CACHE_VERSION = 2  # the cached Summary's shape: bump when Card or Summary changes, so a deploy never reads an old pickle
+CACHE_VERSION = 3  # the cached Summary's shape: bump when Card or Summary changes, so a deploy never reads an old pickle
+RATIO_SCALE = 2.0  # a cost-test ratio's gauge is full at 2 (the words give the ratio however high it is)
 
 
 @dataclass
@@ -40,8 +42,10 @@ class Card:
     title: str
     # the card's numbers, the headline first: {"label", "value" (text), "unit" (beside the value), "detail" (one short line)}
     figures: list[dict] = field(default_factory=list)
-    percent: float | None = None  # the gauge: spent of budget, TSB of goal, MWh of forecast (0-100, may exceed 100)
-    percent_label: str = ""  # what the percent is of, in words, after it: "of the operating budget"
+    percent: float | None = None  # the gauge's fill: spent of budget, TSB of goal, savings of forecast (0-100, may exceed 100)
+    percent_label: str = ""  # what the gauge's number is, in words, after it: "of budget"
+    center: str = ""  # the gauge's number when it is not the percent (a ratio: "0.84")
+    mark: float | None = None  # a tick on the gauge, 0-100 along it (a ratio's 1.0, where benefits equal costs)
     link: str = ""
     empty: str = ""  # the card's message when it has no numbers
 
@@ -52,7 +56,17 @@ class Card:
 
     @property
     def percent_text(self) -> str:
-        return "" if self.percent is None else f"{self.percent:.0f}%"
+        """The number written in the gauge: the ratio, or the percent."""
+        return self.center or ("" if self.percent is None else f"{self.percent:.0f}%")
+
+    @property
+    def mark_line(self) -> dict | None:
+        """The tick's end points across the gauge's arc (the template's half circle: center 60,58, radius 48)."""
+        if self.mark is None:
+            return None
+        angle = math.pi * (1 - max(0.0, min(self.mark, 100.0)) / 100)
+        x, y = math.cos(angle), math.sin(angle)
+        return {k: round(v, 2) for k, v in (("x1", 60 + 39 * x), ("y1", 58 - 39 * y), ("x2", 60 + 57 * x), ("y2", 58 - 57 * y))}
 
 
 @dataclass
@@ -227,11 +241,11 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
             )
     out.cards.append(card)
 
-    # 3-5. energy, demand and gas saved: net first year against the latest forecast
+    # 3-5. electricity, peak demand and gas saved: net first year against the latest forecast, each with a gauge
     c, f = saved["claims"].totals, saved["forecast"].totals
     units = (
-        ("energy", "Energy saved", "kwh_first_year_net", "MWh", 0, "kwh"),
-        ("demand", "Demand saved", "kw_first_year_net", "MW", 1, "kw"),
+        ("energy", "Electricity saved", "kwh_first_year_net", "MWh", 0, "kwh"),
+        ("demand", "Peak demand avoided", "kw_first_year_net", "MW", 1, "kw"),
         ("gas", "Gas saved", "therms_first_year_net", "MMTherms", 2, "therms"),
     )
     for key, title, code, unit, decimals, metric in units:
@@ -251,7 +265,7 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
                     "detail": f"of {number(forecast, decimals)} {unit} forecast" if forecast is not None else "",
                 }
             )
-            if key == "energy" and forecast:
+            if forecast:
                 card.percent, card.percent_label = _percent(claimed_value or 0, forecast), "of forecast"
         out.cards.append(card)
     if any(c.get(code) is not None or f.get(code) is not None for _, _, code, *_ in units):
@@ -260,10 +274,11 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
             "Assistance, and pension and benefits."
         )
 
-    # 6-7. cost effectiveness, statewide
+    # 6-7. cost effectiveness, statewide: each ratio's gauge runs from 0 to RATIO_SCALE with a mark at 1, where benefits equal costs
     exclude = dashboard.PAGES["cost-effectiveness"].exclude
+    metrics = ("trc", "pac", "trc_benefit", "trc_cost", "pac_benefit", "pac_cost")
     tests = {
-        s: dq.run(dq.Query(s, ("trc", "pac"), year_from=cycle.first_year, year_to=cycle.last_year, exclude=exclude)).totals
+        s: dq.run(dq.Query(s, metrics, year_from=cycle.first_year, year_to=cycle.last_year, exclude=exclude)).totals
         for s in ("claims", "forecast")
     }
     for test in ("trc", "pac"):
@@ -275,17 +290,21 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
         elif claimed_value is None and not claimed_years:  # nothing claimed in the cycle yet: the forecast alone
             card.figures.append({"label": forecast_label, "value": ratio(forecast)})
         else:
-            card.figures.append(
-                {
-                    "label": so_far,
-                    "value": ratio(claimed_value),
-                    "detail": f"{ratio(forecast)} forecast" if forecast is not None else "",
-                }
-            )
+            benefit, cost = tests["claims"].get(f"{test}_benefit"), tests["claims"].get(f"{test}_cost")
+            detail = [
+                f"{money(cost)} costs" if cost is not None else "",
+                "ratio " + NONE.lower() if claimed_value is None else "",  # a ratio over no cost is blank, never 0
+                f"{ratio(forecast)} forecast ratio" if forecast is not None else "",
+            ]
+            card.figures.append({"label": so_far, "value": money(benefit), "unit": "benefits", "detail": "; ".join(d for d in detail if d)})
+            if claimed_value is not None:
+                card.percent, card.center = 100 * claimed_value / RATIO_SCALE, ratio(claimed_value)
+                card.percent_label, card.mark = "benefit per $1 of cost", 100 / RATIO_SCALE
         out.cards.append(card)
     if any(tests[s].get(t) is not None for s in tests for t in ("trc", "pac")):
         out.footnotes.append(
-            "TRC and PAC are statewide benefits divided by statewide costs, and also leave out programs excluded from cost effectiveness."
+            "TRC and PAC are statewide benefits divided by statewide costs, and also leave out programs excluded from cost "
+            f"effectiveness. Their gauges run from 0 to {RATIO_SCALE:g}; the mark is 1, where benefits equal costs."
         )
 
     for r in (saved["claims"], saved["forecast"]):

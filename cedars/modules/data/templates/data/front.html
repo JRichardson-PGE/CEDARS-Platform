@@ -46,9 +46,10 @@
       <h3 id="card-{{ card.key }}"><a class="card-title" href="{{ card.link }}">{{ card.title }}</a></h3>
       {% if card.empty %}<p class="muted small">{{ card.empty }}</p>{% else %}
       {% if card.bar is not None %}
-      {# The gauge repeats the words in it, so the drawing is hidden from assistive technology; its fill is an attribute (the CSP forbids inline styles). #}
+      {% comment %}The gauge repeats the words in it, so the drawing is hidden from assistive technology; its fill is an attribute (the CSP forbids
+      inline styles). A ratio's gauge has a mark at 1, where benefits equal costs; the notes under the cards say so.{% endcomment %}
       <div class="gauge">
-        <svg viewBox="0 0 120 64" aria-hidden="true" focusable="false"><path class="gauge-edge" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-track" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-fill" d="M12 58 A48 48 0 0 1 108 58" pathLength="100" stroke-dasharray="{{ card.bar }} 100"/></svg>
+        <svg viewBox="0 0 120 64" aria-hidden="true" focusable="false"><path class="gauge-edge" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-track" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-fill" d="M12 58 A48 48 0 0 1 108 58" pathLength="100" stroke-dasharray="{{ card.bar }} 100"/>{% with m=card.mark_line %}{% if m %}<line class="gauge-mark-halo" x1="{{ m.x1 }}" y1="{{ m.y1 }}" x2="{{ m.x2 }}" y2="{{ m.y2 }}"/><line class="gauge-mark" x1="{{ m.x1 }}" y1="{{ m.y1 }}" x2="{{ m.x2 }}" y2="{{ m.y2 }}"/>{% endif %}{% endwith %}</svg>
         <p class="gauge-text"><span class="gauge-pct">{{ card.percent_text }}</span> <span class="gauge-of">{{ card.percent_label }}</span></p>
       </div>
       {% endif %}

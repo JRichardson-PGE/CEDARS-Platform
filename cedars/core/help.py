@@ -188,10 +188,10 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         Step(
             "cycle",
             "This program cycle at a glance",
-            "The cards sum the published filings for one four-year program cycle. Spending, total system benefit and energy saved "
-            "each have a gauge of their progress against the budget, the CPUC's goal and the forecast; demand and gas savings and the "
-            "statewide TRC and PAC ratios follow. Select a card to open the dashboard page that breaks its number down. Choose another "
-            "cycle with the Program cycle box.",
+            "The cards sum the published filings for one four-year program cycle, each with a gauge: spending against the budget, "
+            "total system benefit against the CPUC's goal, electricity, peak demand and gas saved against the forecast, and the "
+            "statewide TRC and PAC ratios, marked at 1. Select a card to open the dashboard page that breaks its number down. Choose "
+            "another cycle with the Program cycle box.",
         ),
         Step(
             "nav-dashboard",

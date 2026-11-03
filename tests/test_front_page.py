@@ -39,7 +39,9 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert str(s.cycle) == "2028-2031" and s.claimed_years == [2028] and s.claimed_span == "2028"
     c = cards(s)
     assert list(c) == KEYS  # seven compact cards (Jake, 2026-11-03)
-    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy"]  # the three with a gauge
+    # every card has a gauge when there is something to measure: here no kW is forecast and PAC has no costs, so no ratio
+    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy", "gas", "trc"]
+    assert [c[k].title for k in ("energy", "demand")] == ["Electricity saved", "Peak demand avoided"]
 
     spend = c["spending"]  # no operating budget recorded: the latest filings' forecast is the budget
     assert spend.figures == [
@@ -57,12 +59,15 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert energy.figures == [{"label": "Claimed 2028", "value": "4", "unit": "MWh", "detail": "of 7 MWh forecast"}]
     assert energy.percent == pytest.approx(50) and energy.percent_label == "of forecast"
     assert [c[k].figures[0]["unit"] for k in ("demand", "gas")] == ["MW", "MMTherms"]
-    assert c["demand"].percent is None and c["gas"].percent is None  # numbers only: Jake asked for gauges on the first three
+    assert c["gas"].percent_label == "of forecast" and c["demand"].figures[0]["detail"] == "of 0.0 MW forecast"
     assert c["demand"].link.endswith("metric=kw") and c["gas"].link.endswith("metric=therms")
 
     # PGE_Com_Lt is flagged Exclude_From_CE: left out, as on the cost-effectiveness page
-    assert c["trc"].figures == [{"label": "Claimed 2028", "value": "1.00", "detail": "1.00 forecast"}]
-    assert c["pac"].figures[0]["value"] == front.NONE  # no PAC costs in these records: blank, never 0
+    trc = c["trc"]  # the ratio in the gauge, on a scale to 2 with a mark at 1; benefits and costs under it
+    assert trc.percent_text == "1.00" and trc.percent == 50 and trc.mark == 50 and trc.percent_label == "benefit per $1 of cost"
+    assert trc.mark_line == {"x1": 60.0, "y1": 19.0, "x2": 60.0, "y2": 1.0}
+    assert trc.figures[0]["unit"] == "benefits" and trc.figures[0]["detail"].endswith("costs; 1.00 forecast ratio")
+    assert c["pac"].bar is None and c["pac"].figures[0]["detail"] == "$0 costs; ratio none yet"  # no PAC costs: blank, never 0
     assert "/data/cost-effectiveness/?year_from=2028&year_to=2031" == c["trc"].link and c["pac"].link.endswith("metric=pac")
 
 
@@ -133,14 +138,21 @@ def test_money():
 def test_the_front_page(both, goal_set, client):  # noqa: F811
     page = client.get("/?cycle=2028-2031").content.decode()
     assert '<h1 id="intro-title">California Energy Data and Reporting System</h1>' in page
+    assert "{#" not in page and "#}" not in page  # a template comment over two lines prints as text
     assert "The 2028-2031 program cycle so far" in page and "Claims cover 2028 so far" in page
     for key in KEYS:
         assert f'data-card="{key}"' in page
     # the gauge's words are text in the card; the drawing is hidden and filled by an attribute (no inline style under the CSP)
     assert '<span class="gauge-pct">9%</span> <span class="gauge-of">of IOU goals</span>' in page
     assert 'class="gauge-fill"' in page and 'stroke-dasharray="9.0 100"' in page and 'aria-hidden="true"' in page
-    assert page.count('class="gauge-fill"') == 3 and 'style="' not in page.split('class="front-cards"')[1].split("</section>")[0]
-    assert '<a class="card-title" href="/data/energy-savings/?year_from=2028&amp;year_to=2031&amp;metric=kw">Demand saved</a>' in page
+    assert (
+        page.count('class="gauge-fill"') == 5
+        and page.count('class="gauge-mark"') == 1
+        and 'style="' not in page.split('class="front-cards"')[1].split("</section>")[0]
+    )
+    assert (
+        '<a class="card-title" href="/data/energy-savings/?year_from=2028&amp;year_to=2031&amp;metric=kw">Peak demand avoided</a>' in page
+    )
     assert 'href="/data/goals/?year_from=2028&amp;year_to=2031&amp;period=cycle"' in page
     assert "Sign in" in page and "Create an account" in page
     # Help, the guides and the tour
