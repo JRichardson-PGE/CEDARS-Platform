@@ -25,7 +25,7 @@ errors still not copied (CALCULATIONS C17). It is in force for every program yea
 
 A published set is never edited: a change is a new set (a new folder), so a run on an old set can always be repeated from the package alone, as the ACC
 tables and run parameters can. `recet cost-tests list` lists the sets shipped, `recet cost-tests show EE-2026` writes a set out as formulas, and
-`recet cost-tests check FILE` checks a file.
+`recet cost-tests check FILE` checks a file; `recet cost-tests streams` lists the streams the engine prices.
 
 `data/cost_tests/cost_test_set.schema.json` (JSON Schema 2020-12) describes the file for other tools; `cost_test_sets.validate` checks the same rules
 and the cross-references a schema cannot express (section 3).
@@ -49,6 +49,14 @@ OUTPUT_FIELDS.md 1.8 to 1.10.
 
 ## 3. How a set is read
 
+* A `source: engine` stream is one the engine prices: `cost_test_sets.engine_streams()` (0.1.92; `recet cost-tests streams` lists them) holds each
+  one's name, kind, fuel, naming, gross form, whether it is internal, and the ACC rows the engine prices it on (the avoided-cost and participant
+  streams on all three, the bill impacts and `TaxCreditsGrossPV` on `trc` only). A set may leave any of them out, choose the pricings it reads each in,
+  and word its `unit` and `definition`; the rest is the engine's. Checking a set refuses a name the engine does not price, a changed fixed fact, and an
+  engine stream read in a pricing whose ACC rows, discount rates or suffix are not the ones the engine prices it at (`engine_pricing_problem`: on the
+  `trc` rows at `DiscountRateQtr` / `DiscountRateAnnual` with no suffix; on `sct_base` / `sct_high` at the `_SCT` rates, suffix `_SB` / `_SH`,
+  participant suffix `_SCT`). A pricing of a set's own (other rates or suffixes) is fine for input streams and program costs. A value of the set's own
+  is an input stream; a new engine stream is an engine release that adds a row to the catalog.
 * A stream named under a test is taken in that test's pricing: `ElecBen` under SCB is `ElecBen_SB`, a participant PV under SCB its `_SCT` form, and
   `OtherBen` (naming none) is the same column in every pricing. A stream the pricing does not have is an error when the set is loaded, never a silent zero.
 * `program_costs: {share: positive_benefits}` shares the program costs by the positive parts of the test's own benefits (not its numerator adders) in its

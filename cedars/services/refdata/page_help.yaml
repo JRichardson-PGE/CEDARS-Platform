@@ -61,14 +61,169 @@ refdata/cost_tests:
   guide:
     - A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned to
       one. A filing is priced only on a published set, the one its filing setup names or the one in force for its first program year.
+    - Anyone may build a set with the set builder and price their own analysis runs on it. Only the CPUC registers a set for everyone,
+      publishes it and pins it to a filing.
   how:
+    - Build a set starts the set builder, from a copy of a set, a file or nothing.
     - Register as a draft takes a set's definition file; publish it from its page.
   see: calculations
   tour:
     - heading: Every set
       title: Every set
       text: Each set with its program years, tests and status. Select one for its definition.
+    - target: "#mine-h"
+      title: My sets
+      text: The sets you are building and those shared with your organization, with Build a set to start another.
     - target: "#reg-h"
       title: Register a set
       text: For CPUC system administrators. A set starts as a draft.
       optional: true
+
+refdata/builder/start:
+  title: Build a cost-test set
+  guide:
+    - Starts a set on the set builder. The usual start is a copy of a registered set (its file, with today's date as the new version),
+      changed in a step or two. You can also copy one of your own sets or a set the engine ships, read in a set file you have (written by
+      hand or downloaded; one with problems is still read in, and its problems shown), or start from a blank set.
+    - Shared with your organization, the set can be opened and changed by its members who may start runs there.
+  how:
+    - Choose what to start from, pick the set or the file, and select Start.
+  see: calculations
+  tour:
+    - heading: Start from
+      title: Start from
+      text: A copy of a set, a file, or a blank set.
+    - target: "main form .actions"
+      title: Start
+      text: Opens the new set's first step.
+
+refdata/builder/set:
+  title: "Set builder: the set"
+  guide:
+    - The first step of a set being built. The id is made from the workstream, the first program year and an optional ending (EE-2028,
+      EE-2028-neb); the version, usually a date, tells it from other files of the same id. A registered set's id and version name one file
+      for good, so a changed set takes a new version.
+    - The program years say when the set is in force. A draft is never published and never prices a filing.
+    - The steps across the top show how many problems each has. Every save checks the whole set with the engine.
+  how:
+    - Change the fields and select Save and go on, or Save to stay on the step.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - target: "#step-problems"
+      title: Problems
+      text: What the engine says is wrong with this part of the set.
+      optional: true
+    - heading: Id
+      title: Id
+      text: The workstream, the first program year and an optional ending make the set's id.
+    - heading: Program years
+      title: Program years
+      text: The years the set is in force for; blank is open.
+
+refdata/builder/pricings:
+  title: "Set builder: pricings"
+  guide:
+    - A pricing says how a stream is priced for a test, which ACC rows and which discount rates, and the suffix its columns carry. The
+      engine prices its own streams only on its own pricings; a pricing of your own is for streams from input columns and the program costs.
+    - A pricing a stream, aggregate or test uses cannot be removed until they no longer use it.
+  how:
+    - Change a pricing's fields, tick Remove on one nothing uses, or fill in Add a pricing, then select Save.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: Pricing
+      title: A pricing
+      text: Its ACC rows, discount rates and column suffixes.
+      optional: true
+    - heading: Add a pricing
+      title: Add a pricing
+      text: A new pricing's id is typed once and cannot change.
+
+refdata/builder/engine:
+  title: "Set builder: streams the engine prices"
+  guide:
+    - The value streams the engine prices, from its own catalog. Include the ones the set's tests and aggregates read, choose the pricings
+      each is read in (only those the engine prices it in are offered), and word its unit and definition. The name, kind, fuel, column
+      naming and gross form are the engine's.
+    - A value of the set's own, such as a non-energy benefit, is a stream from input columns, the next step.
+  how:
+    - Tick or untick Include, choose the pricings, change the unit and definition, then select Save.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - target: "main form fieldset"
+      title: A stream
+      text: Include it, choose its pricings and word its definition.
+      optional: true
+    - heading: The program costs
+      title: The program costs
+      text: Part of every set and not changed here.
+      optional: true
+
+refdata/builder/inputs:
+  title: "Set builder: streams from input columns"
+  guide:
+    - Values the set reads from Measure.csv columns, once or each year of the measure's life, scaled by NumUnits, the NTG and market
+      effects. Non-energy benefits go here. A column that is not one of CET's is the set's own; a job without it prices it as 0.
+  how:
+    - Add a stream from input columns, or Change or Remove one in the list.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's input streams
+      title: The set's input streams
+      text: What each reads and how it is counted.
+
+refdata/builder/input_stream:
+  title: "Set builder: a stream from input columns"
+  guide:
+    - One stream from input columns. Its name is the column it writes and the name tests use. It adds up the per-unit values of the
+      Measure columns you choose (or name), times NumUnits and the NTG plus market effects, once or each year of the measure's life at the
+      pricing's discount rates. A gross form lets a test with the Gross variant use it.
+  how:
+    - Fill in the fields and select Save the stream.
+  see: calculations
+  tour:
+    - heading: Measure columns
+      title: Measure columns
+      text: The per-unit columns it adds up; name a new column of your own in the box.
+    - heading: Gross form
+      title: Gross form
+      text: How the stream's gross form is made, for tests with the Gross variant.
+
+refdata/builder/review:
+  title: "Set builder: review"
+  guide:
+    - The whole set, as the engine writes it out, with every problem left and a link to its step, and the set's file to download. An
+      analysis run on New run takes the file as your own cost-test set.
+    - The CPUC's cost-test pack managers register a set with no problems as a draft pack, which is then checked and published on its own
+      page. A registered set no longer changes here; copy it to start the next version.
+  how:
+    - Download the set file, Copy it to a new set, or Discard it; managers Register as a draft pack.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: Problems
+      title: Problems
+      text: Every problem left, by step.
+    - heading: The set in words
+      title: The set in words
+      text: Each test's benefits and costs as the engine adds them up.
+      optional: true
+    - heading: The file
+      title: The file
+      text: Download the set's YAML file.
+    - heading: What next
+      title: What next
+      text: Register, copy or discard the set.

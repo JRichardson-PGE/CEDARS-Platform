@@ -1,0 +1,58 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Review: {{ build }}</h1>{% page_help "refdata/builder/review" %}</div>{% endblock %}
+{% block step %}
+<section aria-labelledby="problems-h">
+<h2 id="problems-h">Problems</h2>
+{% if all_problems %}
+<div class="alert" role="alert">
+  <p><strong>The set has {{ build.open_problems }} problem{{ build.open_problems|pluralize }}</strong>{% if checked_by %}, found by ReCET {{ checked_by }}{% endif %}. Each step lists its own.</p>
+  {% for label, key, msgs in all_problems %}
+  <p>{% if key %}<a href="{% url 'refdata:build_step' build.pk key %}">{{ label }}</a>{% else %}{{ label }}{% endif %}</p>
+  <ul>{% for m in msgs %}<li>{{ m }}</li>{% endfor %}</ul>
+  {% endfor %}
+</div>
+{% elif checked_by %}
+<p>None: ReCET {{ checked_by }} loads the set as it is.</p>
+{% else %}
+<p>The header has no problems. The engine is not installed on this server, so the rest of the set could not be checked here.</p>
+{% endif %}
+</section>
+{% if set_aside %}
+<section aria-labelledby="aside-h">
+<h2 id="aside-h">Set aside from the file</h2>
+<p>The file it was started from had these keys, which the set format does not have. They are kept here and not written out.</p>
+<ul>{% for k, v in set_aside %}<li><code>{{ k }}</code>: {{ v }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if words %}
+<section aria-labelledby="words-h">
+<h2 id="words-h">The set in words</h2>
+<p>Each test as the engine writes it out: what its benefits and costs add up, column by column.</p>
+<pre class="log" tabindex="0" role="region" aria-labelledby="words-h">{{ words }}</pre>
+</section>
+{% endif %}
+<section aria-labelledby="file-h">
+<h2 id="file-h">The file</h2>
+<p><a href="{% url 'refdata:build_file' build.pk %}" download="{{ file_name }}">Download the set file ({{ file_name }})</a>. An analysis
+run on New run takes it as your own cost-test set file.</p>
+<details><summary>The file as it stands</summary><pre class="log" tabindex="0" role="region" aria-label="The set file">{{ yaml }}</pre></details>
+</section>
+<section class="card" aria-labelledby="act-h">
+<h2 id="act-h">What next</h2>
+{% if build.status == "registered" %}
+<p>Registered{% if build.pack %} as <a href="{% url 'refdata:detail' build.pack.pk %}">{{ build.pack }}</a>{% endif %}. Copy it to start the next version.</p>
+{% endif %}
+<form method="post" action="{% url 'refdata:build_action' build.pk %}" class="stack form-narrow">{% csrf_token %}
+  {% if manager and build.status != "registered" %}
+  <p>Register it as a draft pack for everyone, as an uploaded file is: then record its engine check and publish it on the pack's page.</p>
+  {{ register.notes.as_field_group }}
+  {% endif %}
+  <div class="actions">
+    {% if manager and build.status != "registered" %}<button type="submit" name="action" value="register" class="primary"{% if build.open_problems %} aria-disabled="true"{% endif %}>Register as a draft pack</button>{% endif %}
+    <button type="submit" name="action" value="copy">Copy it to a new set</button>
+    {% if can_change %}<button type="submit" name="action" value="discard">Discard it</button>{% endif %}
+  </div>
+  {% if manager and build.open_problems and build.status != "registered" %}<p class="small muted">Registering needs a set with no problems.</p>{% endif %}
+</form>
+</section>
+{% endblock %}

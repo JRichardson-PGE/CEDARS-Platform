@@ -1,3 +1,5 @@
+import json
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
@@ -177,3 +179,89 @@ class EtrmPackage(models.Model):
 
     def __str__(self):
         return self.label
+
+
+class OrderedJSONField(models.TextField):
+    """JSON kept as its text, so a mapping comes back in the order it was saved. PostgreSQL's jsonb reorders keys (shortest first), and a
+    cost-test set's order is part of it: its tests, streams and aggregates are written, described and shown in the set's order."""
+
+    def from_db_value(self, value, expression, connection):
+        return None if value is None else json.loads(value)
+
+    def to_python(self, value):
+        return json.loads(value) if isinstance(value, str) else value
+
+    def get_prep_value(self, value):
+        return None if value is None else json.dumps(value, ensure_ascii=False)
+
+    def value_to_string(self, obj):
+        return self.get_prep_value(self.value_from_object(obj))
+
+
+class CostTestBuild(models.Model):
+    """A cost-test set being built on the set builder (refdata/builder.py): the set as its YAML's mapping, edited one part at a time and
+    checked with the engine's own validator on every save. Every signed-in user may build sets and price their own analysis runs on them;
+    only the CPUC's cost-test pack managers register a set as a pack, publish it and pin it to a filing (Jake, 2026-11-03). A working copy
+    is not a version: once registered it is the pack that is versioned, and the build is kept, read-only, to be copied again.
+
+    Shared with an organization, it is read and changed by the members who may start runs there, as Edit inputs drafts are."""
+
+    class Status(models.TextChoices):
+        BUILDING = "building", "Being built"
+        OFFERED = "offered", "Offered to the CPUC"
+        REGISTERED = "registered", "Registered as a pack"
+        DISCARDED = "discarded", "Discarded"
+
+    data = OrderedJSONField(default=dict, help_text="the set, as its YAML file's mapping")
+    set_aside = OrderedJSONField(
+        default=dict, blank=True, help_text="keys of an uploaded file the set format does not have, kept here and shown, never written out"
+    )
+    source = models.CharField(max_length=300, blank=True, help_text="what the build was started from")
+    parent = models.ForeignKey(
+        PackVersion,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="builds",
+        help_text="the registered set it was copied from",
+    )
+    parent_build = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="copies", help_text="the build it was copied from"
+    )
+    parent_data = OrderedJSONField(default=dict, blank=True, help_text="the set it started as, for the list of changes")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cost_test_builds")
+    organisation = models.ForeignKey(
+        "accounts.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="cost_test_builds",
+        help_text="set when it is shared with the organization",
+    )
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.BUILDING)
+    problems = OrderedJSONField(default=dict, blank=True, help_text="the latest check: {step: [message, ...]}")
+    checked_by = models.CharField(max_length=60, blank=True, help_text="the engine release that checked it (blank: the engine is not here)")
+    offered_at = models.DateTimeField(null=True, blank=True)
+    offered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    offer_note = models.TextField(blank=True)
+    declined_at = models.DateTimeField(null=True, blank=True)
+    declined_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    declined_reason = models.TextField(blank=True)
+    pack = models.ForeignKey(PackVersion, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", help_text="once registered")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        d = self.data or {}
+        return f"{d.get('id') or 'New set'} {d.get('version') or ''}".strip()
+
+    @property
+    def label(self) -> str:
+        return str((self.data or {}).get("label") or "")
+
+    @property
+    def open_problems(self) -> int:
+        return sum(len(v) for v in (self.problems or {}).values())

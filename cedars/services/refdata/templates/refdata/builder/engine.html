@@ -1,0 +1,34 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Streams the engine prices: {{ build }}</h1>{% page_help "refdata/builder/engine" %}</div>{% endblock %}
+{% block step %}
+<p>The value streams the engine prices, from its own catalog. Include the ones the set's tests and aggregates read, choose the pricings
+each is read in, and word its unit and definition (the definition is shown in each run's field definitions). The name, kind, fuel, column
+naming and gross form are the engine's and cannot change here; a value of the set's own is a stream from input columns (the next step).</p>
+{% if no_catalog %}
+<p class="card" role="note">The engine installed here {% if engine_here %}is older than ReCET 0.1.92 and has no catalog of its streams{% else %}is missing{% endif %}, so the
+engine's streams cannot be changed on this server. The set keeps the ones it has.</p>
+{% else %}
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+{% if unknown %}<p class="alert" role="alert">The set names engine streams the engine does not price: {{ unknown|join:", " }}. Saving this page drops them.</p>{% endif %}
+<form method="post" class="stack">{% csrf_token %}
+  {% for r, include, pricings, unit, definition in rows %}
+  <fieldset id="stream-{{ r.name }}">
+    <legend>{{ r.name }}</legend>
+    <div class="field"><label class="check">{{ include }} Include {{ r.name }} in the set</label></div>
+    <p class="small muted">A {{ r.facts.kind }}{% if r.facts.fuel != "none" %} ({{ r.facts.fuel }}){% endif %}; {% if r.facts.naming == "suffix" %}a column per pricing with its suffix{% elif r.facts.naming == "participant_suffix" %}a column per pricing with its participant suffix{% else %}one column{% endif %}; {% if r.facts.gross == "divide_ntg" %}gross form computed with NTG 1{% elif r.facts.gross == "same" %}already gross{% elif r.facts.gross %}gross form {{ r.facts.gross }}{% else %}no gross form{% endif %}{% if r.facts.internal %}; used inside the tests, not written as a column{% endif %}.</p>
+    {% if r.can %}
+    <fieldset><legend>Read in the pricings</legend><div class="checks">{% for cb in pricings %}<label>{{ cb.tag }} {{ cb.choice_label }}</label>{% endfor %}</div></fieldset>
+    {% else %}<p>None of the set's pricings is one the engine prices {{ r.name }} in.</p>{% endif %}
+    {% if r.cannot %}<p class="small muted">Not in: {% for p, why in r.cannot.items %}{{ p }} ({{ why }}){% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+    <div class="row-fields">{{ unit.as_field_group }}{{ definition.as_field_group }}</div>
+  </fieldset>
+  {% endfor %}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary" name="then" value="next">Save and go on</button><button type="submit" name="then" value="stay">Save</button></div>{% endif %}
+</form>
+{% endif %}
+{% if program %}
+<h2>The program costs</h2>
+<p>{% for n, s in program %}{{ n }}: {{ s.definition|default:"the ProgramCost.csv costs" }}{% endfor %} The program costs are part of every
+set, priced by each test's own pricing and shared out by its share rule; they are not changed here.</p>
+{% endif %}
+{% endblock %}
