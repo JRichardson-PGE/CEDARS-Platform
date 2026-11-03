@@ -520,6 +520,20 @@ LifecycleBillReducElec, LifecycleBillIncrElec from the electric PV;    Lifecycle
 
 A measure whose sector has no schedule mapping (or a year outside the schedule's range) gets no bill impact for that fuel.
 
+**C9.1 First-year bill impacts**
+
+The bill change in the first billed year (the claim year `Y0`), in that year's dollars: the `k = 0` term of `PV` without its discount factor. The CET has no such columns; they are reported only and no cost
+test reads them.
+
+```text
+FY(s1, s2, rates) = wt * v(0) * rate(Y0)        wt = rem if n = 1 and rem > 1e-9, else 1 (0 when n = 0)        v(0) = s1 if floor_rul >= 1, else b * s1 + (1 - b) * s2
+
+FirstYearBillReducElec, FirstYearBillIncrElec = the split above of FY( fe * AC_Net_kWh_1st_Baseline, fe * AC_Net_kWh_2nd_Baseline, RateE )      (gas: FY of the gas streams)
+FirstYearBillReducElecGross ... FirstYearBillIncrGasGross = the same on C10's gross streams (NTG = 1, MEB = 0)
+```
+
+A boundary year at `k = 0` (an RUL under one year) is discounted by `Raf ^ yr1` in the lifecycle sum; the first-year value is not discounted, so it is not.
+
 ---------------------------------------------------------------------------------------------------------------------------------
 
 ## C10 Gross variants
@@ -710,7 +724,7 @@ off makes both 0.
 | `OtherCost` | `NTGRkWh + MEC` (C7) |
 | `NetParticipantCostAdjustedPV` (and `_SCT`), so the TRC and SCT costs | adds `MEC * (GrossMeasCostPV + ExcessIncentivesPV)` = `MarkEffectPlusExcessIncPV` (C8); `NetParticipantCostPV` itself does not change |
 | `...Gross` columns | divided by `NTG + MEB`, i.e. the market-effects adder is undone along with NTG (C10) |
-| bill impacts, RIM's bill terms | `NTGRkWh + MEB` / `NTGRTherm + MEB` (C9) |
+| bill impacts (lifecycle and first year), RIM's bill terms | `NTGRkWh + MEB` / `NTGRTherm + MEB` (C9) |
 | net emissions | `NTGRkWh + MEB` / `NTGRTherm + MEB` (C14) |
 | combined 8,760 profile | **not** included (market effects are an accounting adder, not physical savings) |
 
