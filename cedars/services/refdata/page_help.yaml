@@ -20,12 +20,14 @@ refdata/detail:
   title: A data pack
   guide:
     - One data pack, its status, what it holds, its files with their SHA-256 checksums, and the tie-outs it must pass before it is
-      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests.
+      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests, the set in words
+      as the engine reads it, and a link to download its file.
     - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed tie-out for each check
       the kind of pack requires.
   how:
     - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.
     - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
+    - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set.
   see: calculations
   tour:
     - target: main dl.facts
@@ -33,7 +35,11 @@ refdata/detail:
       text: Kind, status, ACC, source and notes.
     - target: "#set-h"
       title: The set
-      text: For a cost-test set, its tests and value streams.
+      text: For a cost-test set, its tests and value streams, and the link to download its file.
+      optional: true
+    - target: "#words-h"
+      title: The set in words
+      text: For a cost-test set, each test's benefits and costs as the engine adds them up.
       optional: true
     - target: "#perm-h"
       title: Permutations

@@ -160,6 +160,27 @@ def file_bytes(pack: PackVersion) -> bytes:
     return data
 
 
+def download_name(pack: PackVersion) -> str:
+    """The file name a set downloads under: its id and version, e.g. EE-2026_2026-10-31.yaml."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", f"{pack.label}_{pack.version}".strip("_")) + ".yaml"
+
+
+def in_words(pack: PackVersion, data: bytes | None = None) -> tuple[str | None, str]:
+    """The set as the engine writes it out (ReCET's `cost_test_sets.describe`, what `recet cost-tests show` prints), and what is wrong
+    when the engine cannot load it. (None, "") when the engine is not installed here."""
+    try:
+        from recet import cost_test_sets as engine
+    except ImportError:
+        return None, ""
+    try:
+        data = file_bytes(pack) if data is None else data
+        parsed = yaml.safe_load(data.decode("utf-8-sig"))
+        source = "built-in" if engine_copy(pack.label, pack.version) == data else download_name(pack)
+        return engine.describe(engine.parse(parsed, hashlib.sha256(data).hexdigest(), source)), ""
+    except (engine.SetError, storage.StorageError, UnicodeDecodeError, yaml.YAMLError) as e:
+        return None, str(e)
+
+
 def for_year(year: int | None, *, include_drafts: bool = False, workstream: str = "EE") -> PackVersion | None:
     """The set in force for a program year: the newest published set of the workstream whose first program year is not after it (an
     open-ended set, from: null, counts for every year), else, when asked and nothing is published, the newest draft that way."""
