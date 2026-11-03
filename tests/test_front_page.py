@@ -39,8 +39,8 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert str(s.cycle) == "2028-2031" and s.claimed_years == [2028] and s.claimed_span == "2028"
     c = cards(s)
     assert list(c) == KEYS  # seven compact cards (Jake, 2026-11-03)
-    # every card has a gauge when there is something to measure: here no kW is forecast and PAC has no costs, so no ratio
-    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy", "gas", "trc"]
+    # a gauge on every card but the ratios, when there is something to measure: here no kW is forecast
+    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy", "gas"]
     assert [c[k].title for k in ("energy", "demand")] == ["Electricity saved", "Peak demand avoided"]
 
     spend = c["spending"]  # no operating budget recorded: the latest filings' forecast is the budget
@@ -63,9 +63,8 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert c["demand"].link.endswith("metric=kw") and c["gas"].link.endswith("metric=therms")
 
     # PGE_Com_Lt is flagged Exclude_From_CE: left out, as on the cost-effectiveness page
-    trc = c["trc"]  # the ratio in the gauge, on a scale to 2 with a mark at 1; benefits and costs under it
-    assert trc.percent_text == "1.00" and trc.percent == 50 and trc.mark == 50 and trc.percent_label == "benefit per $1 of cost"
-    assert trc.mark_line == {"x1": 60.0, "y1": 19.0, "x2": 60.0, "y2": 1.0}
+    trc = c["trc"]  # the ratio large in the gauge's place, against 1 in words; benefits and costs under it (Jake: no gauge)
+    assert trc.bar is None and trc.headline == "1.00" and trc.percent_label == "At 1: benefits equal costs"
     assert trc.figures[0]["unit"] == "benefits" and trc.figures[0]["detail"].endswith("costs; 1.00 forecast ratio")
     assert c["pac"].bar is None and c["pac"].figures[0]["detail"] == "$0 costs; ratio none yet"  # no PAC costs: blank, never 0
     assert "/data/cost-effectiveness/?year_from=2028&year_to=2031" == c["trc"].link and c["pac"].link.endswith("metric=pac")
@@ -77,6 +76,11 @@ def test_no_goal_loaded_measures_tsb_against_the_forecast(both):  # noqa: F811
     assert [f["label"] for f in tsb.figures] == ["Claimed 2028"] and tsb.figures[0]["detail"].endswith(" forecast")
     assert tsb.percent_label == "of forecast" and tsb.percent is not None
     assert any("No CPUC goal is loaded for this cycle yet" in n for n in s.footnotes)
+
+
+def test_a_ratio_against_its_threshold():
+    assert front.threshold(0.84) == "Below 1: costs exceed benefits" and front.threshold(1.12) == "Above 1: benefits exceed costs"
+    assert front.threshold(0.999) == "At 1: benefits equal costs"  # as shown, to two places
 
 
 def test_a_gauge_past_100_is_full_and_says_how_far():
@@ -146,8 +150,8 @@ def test_the_front_page(both, goal_set, client):  # noqa: F811
     assert '<span class="gauge-pct">9%</span> <span class="gauge-of">of IOU goals</span>' in page
     assert 'class="gauge-fill"' in page and 'stroke-dasharray="9.0 100"' in page and 'aria-hidden="true"' in page
     assert (
-        page.count('class="gauge-fill"') == 5
-        and page.count('class="gauge-mark"') == 1
+        page.count('class="gauge-fill"') == 4
+        and page.count('class="gauge gauge-number"') == 1
         and 'style="' not in page.split('class="front-cards"')[1].split("</section>")[0]
     )
     assert (

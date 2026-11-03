@@ -7,8 +7,8 @@ data/front:
       cycle; each links to the dashboard page that breaks its numbers down and uses that page's exclusions, so the two agree.
     - Each card's gauge has its number written in it. Spending is the percent of the budget spent, Total system benefit the percent
       of the CPUC's goals counted (of the forecast when no goal is loaded), and the savings cards the percent of the forecast saved.
-      TRC and PAC show the ratio on a scale from 0 to 2, marked at 1, where benefits equal costs. The notes under the cards say what
-      each one leaves out.
+      TRC and PAC have no gauge; each shows its ratio large and says whether it is above or below 1, where benefits equal costs. The
+      notes under the cards say what each one leaves out.
     - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
   how:
     - Choose a cycle and Apply to change the cards. Select a card (its title is the link) to open its dashboard page.

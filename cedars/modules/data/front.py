@@ -1,6 +1,6 @@
 """The front page's program-cycle summary (Jake, 2026-10-31; compact cards 2026-11-03): seven small cards for one program cycle, from
-the platform's published data, each with a gauge: spending, total system benefit, electricity saved, peak demand avoided and gas saved
-against their budget, goal or forecast, and the statewide TRC and PAC ratios on a scale with a mark at 1.
+the platform's published data: spending, total system benefit, electricity saved, peak demand avoided and gas saved, each with a gauge
+of its progress against its budget, goal or forecast, and the statewide TRC and PAC ratios, each shown large in the gauge's place.
 
 Every number is the one a dashboard page shows for the same years and its default exclusions, so each card links to the page that breaks
 it down, and the two agree. The gauges' denominators:
@@ -11,13 +11,13 @@ it down, and the two agree. The gauges' denominators:
                      cycle, the claimed TSB against the latest filings' forecast TSB, with the same exclusions
   savings            the energy savings page: net first-year MWh, MW and MMTherms claimed against the latest filings' forecast (the
                      CPUC's program goals are TSB goals; its savings goals are for codes and standards only, which the cards leave out)
-  cost effectiveness  the cost-effectiveness page: the claimed TRC and PAC ratios on a gauge from 0 to RATIO_SCALE with a mark at 1;
-                     the card's numbers are the test's claimed benefits and costs and the forecast ratio
+  cost effectiveness  the cost-effectiveness page: the claimed TRC and PAC ratios, large where the other cards have their gauge
+                     (Jake: a ratio is a threshold measurement, not progress toward anything, so no gauge), said in
+                     words against 1 (`threshold`), with the test's claimed benefits and costs and the forecast ratio under it
 
 The goal comes from the confirmed goal set in force (Administration > Goals). What the cards leave out, and where a denominator came
 from, is said once under the cards (`Summary.footnotes`), so the cards themselves stay small."""
 
-import math
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 
@@ -33,7 +33,6 @@ from . import query as dq
 NONE = "None yet"  # a figure with nothing published behind it, in words
 CACHE_SECONDS = 600  # the numbers change only with a new release, a goal set or a budget; the key carries the first two
 CACHE_VERSION = 3  # the cached Summary's shape: bump when Card or Summary changes, so a deploy never reads an old pickle
-RATIO_SCALE = 2.0  # a cost-test ratio's gauge is full at 2 (the words give the ratio however high it is)
 
 
 @dataclass
@@ -44,8 +43,7 @@ class Card:
     figures: list[dict] = field(default_factory=list)
     percent: float | None = None  # the gauge's fill: spent of budget, TSB of goal, savings of forecast (0-100, may exceed 100)
     percent_label: str = ""  # what the gauge's number is, in words, after it: "of budget"
-    center: str = ""  # the gauge's number when it is not the percent (a ratio: "0.84")
-    mark: float | None = None  # a tick on the gauge, 0-100 along it (a ratio's 1.0, where benefits equal costs)
+    headline: str = ""  # a number shown large in the gauge's place, with no gauge (a ratio: "0.84"); percent_label says what it is
     link: str = ""
     empty: str = ""  # the card's message when it has no numbers
 
@@ -56,17 +54,8 @@ class Card:
 
     @property
     def percent_text(self) -> str:
-        """The number written in the gauge: the ratio, or the percent."""
-        return self.center or ("" if self.percent is None else f"{self.percent:.0f}%")
-
-    @property
-    def mark_line(self) -> dict | None:
-        """The tick's end points across the gauge's arc (the template's half circle: center 60,58, radius 48)."""
-        if self.mark is None:
-            return None
-        angle = math.pi * (1 - max(0.0, min(self.mark, 100.0)) / 100)
-        x, y = math.cos(angle), math.sin(angle)
-        return {k: round(v, 2) for k, v in (("x1", 60 + 39 * x), ("y1", 58 - 39 * y), ("x2", 60 + 57 * x), ("y2", 58 - 57 * y))}
+        """The number written in the gauge, or in its place: the percent, or the headline."""
+        return self.headline or ("" if self.percent is None else f"{self.percent:.0f}%")
 
 
 @dataclass
@@ -107,6 +96,14 @@ def number(value, decimals: int = 0) -> str:
 
 def ratio(value) -> str:
     return NONE if value is None else f"{value:.2f}"
+
+
+def threshold(value) -> str:
+    """Where a cost-test ratio stands against 1, its threshold (Jake: a ratio does not fill up toward anything), in words."""
+    shown = ratio(value)
+    if shown == "1.00":
+        return "At 1: benefits equal costs"
+    return "Above 1: benefits exceed costs" if value > 1 else "Below 1: costs exceed benefits"
 
 
 def pick_cycle(choice: str = "") -> tuple[FilingCycle | None, list[FilingCycle]]:
@@ -274,7 +271,7 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
             "Assistance, and pension and benefits."
         )
 
-    # 6-7. cost effectiveness, statewide: each ratio's gauge runs from 0 to RATIO_SCALE with a mark at 1, where benefits equal costs
+    # 6-7. cost effectiveness, statewide: the ratio large in the gauge's place and in words against 1 (a threshold, not progress)
     exclude = dashboard.PAGES["cost-effectiveness"].exclude
     metrics = ("trc", "pac", "trc_benefit", "trc_cost", "pac_benefit", "pac_cost")
     tests = {
@@ -298,13 +295,12 @@ def _build(cycle: FilingCycle, cycles: list[FilingCycle]) -> Summary:
             ]
             card.figures.append({"label": so_far, "value": money(benefit), "unit": "benefits", "detail": "; ".join(d for d in detail if d)})
             if claimed_value is not None:
-                card.percent, card.center = 100 * claimed_value / RATIO_SCALE, ratio(claimed_value)
-                card.percent_label, card.mark = "benefit per $1 of cost", 100 / RATIO_SCALE
+                card.headline, card.percent_label = ratio(claimed_value), threshold(claimed_value)
         out.cards.append(card)
     if any(tests[s].get(t) is not None for s in tests for t in ("trc", "pac")):
         out.footnotes.append(
             "TRC and PAC are statewide benefits divided by statewide costs, and also leave out programs excluded from cost "
-            f"effectiveness. Their gauges run from 0 to {RATIO_SCALE:g}; the mark is 1, where benefits equal costs."
+            "effectiveness. Above 1, benefits exceed costs."
         )
 
     for r in (saved["claims"], saved["forecast"]):

@@ -492,7 +492,7 @@ ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(-
 .faq .example table caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
 .front-cycle > .head-row { align-items: flex-end; }
 .cycle-pick { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; margin: 0; }
-/* Seven compact cards, each with a gauge (Jake, 2026-11-03): all in one row on a wide screen; between, four then three (a 12-column
+/* Seven compact cards, each with a gauge or a large ratio in its place (Jake, 2026-11-03): all in one row on a wide screen; between, four then three (a 12-column
    grid, 3 + 3 + 3 + 3 and 4 + 4 + 4); on a phone one per row with the gauge beside its numbers; at 320 px the gauge above them. */
 .front-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; margin: .75rem 0 .5rem; }
 .front-card { margin: 0; padding: .7rem .85rem; display: flex; flex-direction: column; position: relative; min-width: 0; }
@@ -534,14 +534,14 @@ dl.figures .detail { display: block; font-size: .8rem; font-weight: 400; color: 
 .gauge-edge { stroke: var(--control); stroke-width: 14; }
 .gauge-track { stroke: var(--surface-2); stroke-width: 12; }
 .gauge-fill { stroke: var(--link); stroke-width: 12; }
-/* A ratio's 1: an --fg line in a halo of the card's color, so it shows on the card, the track and the fill alike (the halo is over
-   7:1 on the fill and the line over 10:1 on the halo, in both schemes). */
-.gauge-mark-halo { stroke: var(--surface); stroke-width: 6; }
-.gauge-mark { stroke: var(--fg); stroke-width: 2.5; }
-@media (forced-colors: active) { .gauge-edge, .gauge-mark { stroke: CanvasText; } .gauge-track, .gauge-mark-halo { stroke: Canvas; } .gauge-fill { stroke: Highlight; } }
+@media (forced-colors: active) { .gauge-edge { stroke: CanvasText; } .gauge-track { stroke: Canvas; } .gauge-fill { stroke: Highlight; } }
 .gauge-text { display: contents; }
 .gauge-pct { grid-area: 1 / 1; align-self: end; font-size: 1.3rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 .gauge-of { font-size: .8rem; color: var(--fg-2); text-align: center; margin-top: .25rem; }
+/* A ratio in the gauge's place: no drawing (Jake: a ratio is a threshold measurement, it does not fill up), the number large in a box
+   the gauge's height and, under it, where it stands against 1 in words */
+.gauge-number { grid-template-rows: minmax(4.25rem, auto) auto; }
+.gauge-number .gauge-pct { grid-area: 1 / 1; font-size: 2.6rem; line-height: 1; padding-bottom: .1rem; }
 ul.front-notes { margin: 0 0 1rem; padding-left: 1.1rem; font-size: .85rem; color: var(--fg-2); }
 ul.front-notes li { margin: .1rem 0; }
 .front-help .card h3 { margin-top: 0; }
