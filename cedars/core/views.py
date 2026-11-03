@@ -10,6 +10,7 @@ from django.views.decorators.http import require_GET
 from . import engine_docs, faq, queue, revisions
 from . import help as site_help
 from . import page_help as pages
+from . import search as site_search
 
 # What the platform will hold, in the order the phases deliver it (architecture page, "Phasing toward program year 2028").
 MODULES = [
@@ -134,6 +135,15 @@ def help_faq(request):
             "revision": {"release": revisions.revised("faq"), "running": settings.VERSION},
         },
     )
+
+
+@require_GET
+def search(request):
+    """Site search (the header's box): pages, help, the glossary, programs, dictionary fields and documents in one list, each part
+    filtered by what this visitor may see (core/search.py). Works without scripts."""
+    q = site_search.clean(request.GET.get("q", ""))
+    parts = site_search.search(request.user, q) if q else []
+    return render(request, "core/search.html", {"q": q, "parts": parts, "total": sum(p.total for p in parts)})
 
 
 @require_GET

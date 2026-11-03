@@ -144,6 +144,34 @@ core/about:
       title: The parts of CEDARS
       text: Each module with what it does and the phase that delivers it.
 
+core/search:
+  title: Searching CEDARS
+  see: getting-started
+  guide:
+    - >-
+      The search box at the top of every page finds, in one list, the pages you can open, the help (user guides, each page's help and
+      the frequently asked questions), glossary terms, programs, data dictionary fields and documents. Every word you give must match;
+      a word also matches the start of a longer one, so "upload" finds "uploads".
+    - >-
+      Results include only what you may see: signed out, the public pages and published documents; signed in, also the pages your
+      account opens and the unpublished documents of your organizations. Each part shows its best matches; See every match opens that
+      part's own page with the same words, where you can filter further.
+  how:
+    - Type a PrgID or part of a program's name to go to the program, or a field name such as NTGRkWh to go to its definition.
+    - Search for an acronym, such as TSB or EUL, to find its glossary entry.
+  tour:
+    - target: main form
+      title: Words to find
+      text: Change the words and choose Search. The box at the top of every page does the same.
+    - target: "#search-summary"
+      title: What was found
+      text: How many results each part has, with a link to each part.
+      optional: true  # only after a search
+    - target: section.search-part
+      title: A part
+      text: Its best matches, each with one line about it, and a link to see every match on that part's own page.
+      optional: true  # a search that matches nothing shows none
+
 core/queue:
   title: My queue
   see: getting-started

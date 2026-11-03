@@ -48,6 +48,11 @@ PAGES = [
         )
     ],
     ("about", "/about/", None),
+    # site search (core/search.py): empty, a search signed out and one signed in, and a search that finds nothing
+    ("search", "/search/", None),
+    ("search-results", "/search/?q=program", None),
+    ("search-results-signed-in", "/search/?q=claims", "pge_admin"),
+    ("search-nothing", "/search/?q=zzqx", None),
     # release notes, limits and the FAQ (gap 9); the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
     ("releases", "/releases/", None),
     ("releases-signed-in", "/releases/", "community"),

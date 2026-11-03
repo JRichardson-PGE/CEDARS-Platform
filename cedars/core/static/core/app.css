@@ -74,7 +74,8 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .gov { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem; padding: .3rem var(--gutter); font-size: .8rem; color: var(--fg-2);
        background: var(--surface); border-bottom: 1px solid var(--line); }
 .gov strong { color: var(--fg); font-weight: 600; }
-.env-banner { margin: 0; margin-left: auto; padding: .1rem .6rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-weight: 600; font-size: .78rem; }
+.gov > p { margin: 0; display: flex; flex-wrap: wrap; gap: .25rem 1rem; }
+.gov > .env-banner { display: block; margin: 0; margin-left: auto; padding: .1rem .6rem; border-radius: 999px; background: var(--warn-bg); color: var(--warn); font-weight: 600; font-size: .78rem; }
 .top { display: flex; align-items: center; gap: 1.25rem; padding: 0 var(--gutter); min-height: 56px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; }
 .brand { display: inline-flex; align-items: center; gap: .6rem; font-weight: 700; font-size: 1.05rem; text-decoration: none; color: var(--fg); letter-spacing: .01em; padding: .6rem 0; }
 /* The cedar mark: white on primary, 8.3:1 light and 5:1 dark (the same pair as primary buttons); system colours in forced-colours mode. */
@@ -134,6 +135,19 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
 .foot ul.links { display: flex; gap: .3rem 1rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
 .foot ul.links li { margin: 0; }
 
+/* Site search in the identity bar (core/search.py): right-aligned, full width on a phone. 28 px tall controls (2.5.8), the control colour for
+   the borders (3:1, 1.4.11). */
+.site-search { margin-left: auto; }
+.site-search form { display: flex; gap: .3rem; align-items: stretch; margin: 0; }
+.site-search input[type=search] { width: 16rem; max-width: 100%; min-height: 28px; padding: .15rem .5rem; font-size: .85rem; }
+.site-search button { min-height: 28px; padding: .15rem .7rem; font-size: .82rem; }
+@media (max-width: 860px) { .site-search { margin-left: 0; width: 100%; } .site-search input[type=search] { flex: 1; width: auto; min-width: 0; } }
+/* The results page: one section per part, each hit a link with one line under it. */
+.search-hits { list-style: none; margin: 0; padding: 0; }
+.search-hits li { padding: .55rem 0; border-bottom: 1px solid var(--line-2); overflow-wrap: anywhere; }
+.search-hits li p { margin: .15rem 0 0; color: var(--fg-2); font-size: .92rem; max-width: 80ch; }
+.hit-kind { display: inline-block; font-size: .78rem; font-weight: 600; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: 0 .5rem; margin-right: .3rem; }
+.count-note { font-weight: 400; color: var(--fg-2); font-size: .9rem; }
 /* Mid widths (861-1700 px): tighter navigation and account cluster, so the header with every menu stays on one row from 1280 px for a
    member of one organization, whatever its code's length and the unread count (shown as 99+ above 99). The "Acting for" words of the
    badge are kept for screen readers only. At the full spacing that header needs about 1,470 px and a member of several organizations'
