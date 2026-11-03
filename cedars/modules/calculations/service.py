@@ -103,26 +103,81 @@ def accs_for(release: EngineRelease, calculation: str) -> list[str]:
     return [str(a) for a in (release.accs or {}).get(calculation, [])]
 
 
-@transaction.atomic
-def add_release(
-    actor, *, release: str, calculations: list[str], accs: dict, image="", batch_job_definition="", notes="", default=False, reason=""
-):
-    if actor is not None and not access.is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator adds engine releases.")
+# A release is named by its version number only ("0.1.90"): a job asks for exactly that, and the worker reports it (`recet --version`)
+RELEASE_NUMBER = re.compile(r"\d+\.\d+\.\d+(?:[.+-][0-9A-Za-z.]+)?")
+RELEASE_FIELDS = ["release", "calculations", "accs", "image", "batch_job_definition", "notes", "default", "active"]
+
+
+def release_number(text: str) -> str:
+    """ "0.1.90" from "0.1.90", "v0.1.90" or "ReCET 0.1.90" (the name the releases table shows); "" when it is not a release number."""
+    t = re.sub(r"^\s*recet\s*", "", text or "", flags=re.I).strip()
+    t = t[1:] if t[:1] in ("v", "V") else t
+    return t if RELEASE_NUMBER.fullmatch(t) else ""
+
+
+def calculation_code(name: str) -> str:
+    """A calculation's code from its code or from the name the pages show it by: "recet" or "ReCET" -> "recet"; "cet-25.1", "CET 25.1"
+    or "CET 25.1 replica" -> "cet-25.1". "" for anything else."""
+    n = " ".join((name or "").replace("\u2019", "'").split()).lower()
+    if n in (RECET, "recet's own", "recet own"):
+        return RECET
+    m = re.fullmatch(r"cet[\s_-]*(\d+\.\d+)(?:\s+replica)?", n)
+    return f"cet-{m.group(1)}" if m else ""
+
+
+def calculations_text(r: EngineRelease | None) -> str:
+    """A release's calculations as the Add and Change forms take them, one per line: "recet: 2024, 2026"."""
+    if r is None:
+        return ""
+    return "\n".join(f"{c}: {', '.join(accs_for(r, c))}" for c in r.calculations)
+
+
+def _checked_calculations(calculations: list[str], accs: dict) -> tuple[list[str], dict]:
     if RECET not in calculations:
-        raise AccessDenied('A release offers ReCET\'s own calculation ("recet").')
-    bad = [c for c in calculations if c != RECET and not c.startswith("cet-")]
+        raise AccessDenied('A release offers ReCET\'s own calculation: add a line "recet: " followed by its ACCs, e.g. recet: 2024, 2026.')
+    bad = [c for c in calculations if c != RECET and not re.fullmatch(r"cet-\d+\.\d+", c)]
     if bad:
-        raise AccessDenied(f"Not calculations: {', '.join(bad)}. Use recet or cet-<release>.")
+        raise AccessDenied(f"Not calculations: {', '.join(bad)}. Use recet or cet-<release>, e.g. cet-25.1.")
     missing = [c for c in calculations if not accs.get(c)]
     if missing:
         raise AccessDenied(f"Name the ACCs each calculation has; none given for {', '.join(missing)}.")
+    return list(calculations), {c: [str(a) for a in accs[c]] for c in calculations}
+
+
+@transaction.atomic
+def add_release(
+    actor,
+    *,
+    release: str,
+    calculations: list[str],
+    accs: dict,
+    image="",
+    batch_job_definition="",
+    notes="",
+    default=False,
+    retire_previous=False,
+    reason="",
+):
+    """Register a release. With `default` it becomes what New run offers first and filings price on; with `retire_previous` too, the
+    release that was the default is retired in the same step (its runs keep naming it). A release already on the list is changed or
+    returned to service there, never added twice: runs name their release by its number."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator adds engine releases.")
+    number = release_number(release)
+    if not number:
+        raise AccessDenied(f"Name the release by its version number, e.g. 0.1.90 (got {release.strip()!r}).")
+    if existing := EngineRelease.objects.filter(release=number).first():
+        if existing.active:
+            raise AccessDenied(f"{existing} is already on the list. Change its calculations, ACCs or image with its Change button.")
+        raise AccessDenied(f"{existing} is on the list, retired. Use its Return to service button to offer it again.")
+    calculations, accs = _checked_calculations(calculations, accs)
+    previous = EngineRelease.objects.filter(default=True).first()
     if default:
         EngineRelease.objects.filter(default=True).update(default=False)
     r = EngineRelease.objects.create(
-        release=release.strip(),
+        release=number,
         calculations=calculations,
-        accs={c: [str(a) for a in accs[c]] for c in calculations},
+        accs=accs,
         image=image,
         batch_job_definition=batch_job_definition,
         notes=notes,
@@ -136,6 +191,29 @@ def add_release(
         reason=reason,
         actor=actor,
     )
+    if default and retire_previous and previous is not None and previous.active:
+        previous.refresh_from_db()
+        retire_release(actor, previous, f"Replaced by {r} as the default." + (f" {reason}" if reason else ""))
+    return r
+
+
+@transaction.atomic
+def change_release(actor, r: EngineRelease, *, calculations: list[str], accs: dict, image="", batch_job_definition="", notes="", reason=""):
+    """Change what a release offers (its calculations and ACCs), its worker image, Batch job definition or notes. Its number never
+    changes, so every run on it still names it; a run's own record keeps the calculation and ACC it ran with."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator changes engine releases.")
+    if not (reason or "").strip():
+        raise AccessDenied("Say why the release is changed; it is kept in the audit trail.")
+    calculations, accs = _checked_calculations(calculations, accs)
+    before = audit.snapshot(r, RELEASE_FIELDS)
+    EngineRelease.objects.filter(pk=r.pk).update(
+        calculations=calculations, accs=accs, image=image, batch_job_definition=batch_job_definition, notes=notes
+    )
+    r.refresh_from_db()
+    after = audit.snapshot(r, RELEASE_FIELDS)
+    if after != before:
+        audit.record("engine_release.changed", obj=r, before=before, after=after, reason=reason, actor=actor)
     return r
 
 
@@ -163,6 +241,7 @@ def set_default_release(actor, r: EngineRelease) -> EngineRelease:
 
 @transaction.atomic
 def retire_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
+    """Offer a release for no new runs. It stays on the list, and its runs keep naming it."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator retires engine releases.")
     if r.default:
@@ -170,6 +249,18 @@ def retire_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
     EngineRelease.objects.filter(pk=r.pk).update(active=False)
     audit.record("engine_release.retired", obj=r, reason=reason, actor=actor)
     r.refresh_from_db()
+    return r
+
+
+@transaction.atomic
+def restore_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
+    """Offer a retired release for new runs again."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator returns engine releases to service.")
+    if not r.active:
+        EngineRelease.objects.filter(pk=r.pk).update(active=True)
+        audit.record("engine_release.restored", obj=r, reason=reason, actor=actor)
+        r.refresh_from_db()
     return r
 
 

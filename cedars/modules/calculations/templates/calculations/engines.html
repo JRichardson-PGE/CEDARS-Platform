@@ -6,24 +6,33 @@
 <p>The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the ACCs each has. A job asks for
 exactly one release, and the worker refuses any other, so a run's results always name the release that produced them. Filings
 (budgets, claims and monthly reports) are priced on the default release, so it needs the ACC of every filing still to come.</p>
+<p>To move to a new release, add it below and make it the default; the release it replaces can be retired in the same step. A retired
+release stays on this list and its runs keep naming it.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">
 <table class="list">
   <caption class="sr-only">Engine releases</caption>
-  <thead><tr><th scope="col">Release</th><th scope="col">Calculations and ACCs</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <thead><tr><th scope="col">Release</th><th scope="col">Calculations and ACCs</th><th scope="col">Status</th><th scope="col">Runs</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
-  {% for r, calcs, missing in releases %}
+  {% for r, calcs, missing, runs in releases %}
   <tr>
     <th scope="row">ReCET {{ r.release }}{% if r.image %}<br><span class="small muted">{{ r.image }}</span>{% endif %}</th>
     <td><ul class="grants">{% for label, accs in calcs %}<li>{{ label }}: {{ accs }}</li>{% endfor %}</ul></td>
     <td>{% if not r.active %}Retired{% elif r.default %}Default{% else %}Available{% endif %}
       {% if missing %}<br><span class="status warn">Cannot price</span> <span class="small">{{ missing }}</span>{% endif %}</td>
-    <td>{% if r.active and not r.default %}
+    <td>{{ runs }}</td>
+    <td><div class="actions">
+      {% if r.active %}<a class="button" href="{% url 'calculations:engine_release' r.pk %}">Change<span class="sr-only"> ReCET {{ r.release }}</span></a>{% endif %}
       <form method="post" class="actions">{% csrf_token %}<input type="hidden" name="release" value="{{ r.pk }}">
+      {% if not r.active %}
+        <button type="submit" name="action" value="restore">Return to service<span class="sr-only"> ReCET {{ r.release }}</span></button>
+      {% elif not r.default %}
         <button type="submit" name="action" value="default">Make default<span class="sr-only"> ReCET {{ r.release }}</span></button>
         <button type="submit" name="action" value="retire">Retire<span class="sr-only"> ReCET {{ r.release }}</span></button>
-      </form>{% endif %}</td>
+      {% endif %}
+      </form></div>
+      {% if r.default %}<p class="small muted">To retire it, make another release the default first.</p>{% endif %}</td>
   </tr>
-  {% empty %}<tr><td colspan="4">No releases yet.</td></tr>
+  {% empty %}<tr><td colspan="5">No releases yet.</td></tr>
   {% endfor %}
   </tbody>
 </table>
