@@ -528,7 +528,8 @@ ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(-
   .front-card, .front-card:nth-child(n+5) { grid-column: auto; }
 }
 .front-card:not(.has-gauge) > .figures { margin-top: auto; }   /* a card without a gauge: its numbers at the foot, in line with the others' */
-.front-card h3 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; line-height: 1.3; text-wrap: balance; }
+.front-card h3 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; line-height: 1.3; text-wrap: balance; min-height: 2.1rem; }
+.front-card .card-scope { display: block; font-size: .78rem; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--fg-2); }   /* what the card counts: "Codes and standards only" */
 /* The title's link covers the card: the whole card is the target, and the focus ring is drawn round the card */
 .front-card a.card-title { color: var(--link); text-decoration: none; }
 .front-card a.card-title::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-lg); }

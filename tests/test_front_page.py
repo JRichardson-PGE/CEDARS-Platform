@@ -39,9 +39,10 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert str(s.cycle) == "2028-2031" and s.claimed_years == [2028] and s.claimed_span == "2028"
     c = cards(s)
     assert list(c) == KEYS  # seven compact cards (Jake, 2026-11-03)
-    # a gauge on every card but the ratios, when there is something to measure: here no kW is forecast
-    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy", "gas"]
+    assert [k for k, card in c.items() if card.bar is not None] == ["spending", "tsb", "energy", "demand", "gas"]  # not the ratios
     assert [c[k].title for k in ("energy", "demand")] == ["Electricity saved", "Peak demand avoided"]
+    # what each card counts, under its title (Jake): TSB voluntary programs, the savings codes and standards, the ratios RA
+    assert [c[k].scope for k in KEYS] == ["", "Voluntary programs only"] + [front.CS_SCOPE] * 3 + [front.RA_SCOPE] * 2
 
     spend = c["spending"]  # no operating budget recorded: the latest filings' forecast is the budget
     assert spend.figures == [
@@ -55,19 +56,25 @@ def test_the_cycle_at_a_glance(both, goal_set):  # noqa: F811
     assert tsb.percent == pytest.approx(9) and tsb.percent_label == "of IOU goals"
     assert any("counts toward the IOU territories' goals" in n for n in s.footnotes)
 
-    energy = c["energy"]  # 3,500 kWh claimed of 7,000 kWh forecast: the gauge at half
-    assert energy.figures == [{"label": "Claimed 2028", "value": "4", "unit": "MWh", "detail": "of 7 MWh forecast"}]
-    assert energy.percent == pytest.approx(50) and energy.percent_label == "of forecast"
+    # codes and standards only (PGE_CS: 9,000 kWh) against PG&E's C&S cycle goal of 0.05 GWh, shown as 50 MWh
+    energy = c["energy"]
+    assert energy.figures == [{"label": "Claimed 2028", "value": "9", "unit": "MWh", "detail": "of 50 MWh goal"}]
+    assert energy.percent == pytest.approx(18) and energy.percent_label == "of C&S goals"
     assert [c[k].figures[0]["unit"] for k in ("demand", "gas")] == ["MW", "MMTherms"]
-    assert c["gas"].percent_label == "of forecast" and c["demand"].figures[0]["detail"] == "of 0.0 MW forecast"
-    assert c["demand"].link.endswith("metric=kw") and c["gas"].link.endswith("metric=therms")
+    assert c["demand"].percent == 0 and c["demand"].figures[0]["detail"] == "of 1.0 MW goal"
+    assert c["energy"].link == "/data/goals/?year_from=2028&year_to=2031&metric=cs_gwh&period=cycle"
+    assert c["gas"].link.endswith("metric=cs_mmtherms&period=cycle")
+    assert any(
+        n.startswith("Electricity saved, peak demand avoided and gas saved are codes and standards programs only") for n in s.footnotes
+    )
 
-    # PGE_Com_Lt is flagged Exclude_From_CE: left out, as on the cost-effectiveness page
+    # the resource acquisition segment only; PGE_Com_Lt is flagged Exclude_From_CE: left out, as on the cost-effectiveness page
     trc = c["trc"]  # the ratio large in the gauge's place, against 1 in words; benefits and costs under it (Jake: no gauge)
     assert trc.bar is None and trc.headline == "1.00" and trc.percent_label == "At 1: benefits equal costs"
     assert trc.figures[0]["unit"] == "benefits" and trc.figures[0]["detail"].endswith("costs; 1.00 forecast ratio")
     assert c["pac"].bar is None and c["pac"].figures[0]["detail"] == "$0 costs; ratio none yet"  # no PAC costs: blank, never 0
-    assert "/data/cost-effectiveness/?year_from=2028&year_to=2031" == c["trc"].link and c["pac"].link.endswith("metric=pac")
+    assert c["trc"].link == "/data/cost-effectiveness/?year_from=2028&year_to=2031&segment=Resource+Acquisition"
+    assert c["pac"].link.endswith("segment=Resource+Acquisition&metric=pac")
 
 
 def test_no_goal_loaded_measures_tsb_against_the_forecast(both):  # noqa: F811
@@ -150,13 +157,12 @@ def test_the_front_page(both, goal_set, client):  # noqa: F811
     assert '<span class="gauge-pct">9%</span> <span class="gauge-of">of IOU goals</span>' in page
     assert 'class="gauge-fill"' in page and 'stroke-dasharray="9.0 100"' in page and 'aria-hidden="true"' in page
     assert (
-        page.count('class="gauge-fill"') == 4
+        page.count('class="gauge-fill"') == 5
         and page.count('class="gauge gauge-number"') == 1
         and 'style="' not in page.split('class="front-cards"')[1].split("</section>")[0]
     )
-    assert (
-        '<a class="card-title" href="/data/energy-savings/?year_from=2028&amp;year_to=2031&amp;metric=kw">Peak demand avoided</a>' in page
-    )
+    demand = '<a class="card-title" href="/data/goals/?year_from=2028&amp;year_to=2031&amp;metric=cs_mw&amp;period=cycle">'
+    assert demand + 'Peak demand avoided <span class="card-scope">Codes and standards only</span></a>' in page
     assert 'href="/data/goals/?year_from=2028&amp;year_to=2031&amp;period=cycle"' in page
     assert "Sign in" in page and "Create an account" in page
     # Help, the guides and the tour

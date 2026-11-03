@@ -43,7 +43,7 @@
     {% for card in summary.cards %}
     {# The title's link covers the whole card (a larger target); the card's numbers are plain text inside it. #}
     <article class="card front-card{% if card.bar is not None or card.headline %} has-gauge{% endif %}" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
-      <h3 id="card-{{ card.key }}"><a class="card-title" href="{{ card.link }}">{{ card.title }}</a></h3>
+      <h3 id="card-{{ card.key }}"><a class="card-title" href="{{ card.link }}">{{ card.title }}{% if card.scope %} <span class="card-scope">{{ card.scope }}</span>{% endif %}</a></h3>
       {% if card.empty %}<p class="muted small">{{ card.empty }}</p>{% else %}
       {% if card.bar is not None %}
       {# The gauge repeats the words in it, so the drawing is hidden from assistive technology; its fill is an attribute (no inline styles). #}
