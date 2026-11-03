@@ -198,3 +198,36 @@ def test_the_register_command(cpuc_admin, tmp_path):
     call_command("register_cost_tests", str(f))
     p = refdata.PackVersion.objects.get(kind="cost_tests", label="EE-2030")
     assert p.status == "draft" and cost_tests.years_text(p) == "2030 to 2033"
+
+
+def test_anyone_signed_in_downloads_a_sets_file(cpuc_admin, pge_admin):
+    p = registered(cpuc_admin, publish=False, version="2026-09-15 draft/a")
+    c = Client()
+    assert c.get(f"/reference-data/{p.pk}/definition.yaml").status_code == 302  # signed out: to the sign-in page
+    sign_in(c, pge_admin)
+    r = c.get(f"/reference-data/{p.pk}/definition.yaml")
+    assert r.status_code == 200 and r.content == cost_tests.file_bytes(p) and r["Content-Type"].startswith("application/yaml")
+    assert r["Content-Disposition"] == 'attachment; filename="EE-2026_2026-09-15_draft_a.yaml"'
+    page = c.get(f"/reference-data/{p.pk}/").content.decode()
+    assert f'href="/reference-data/{p.pk}/definition.yaml"' in page and "Download the set file" in page
+    other = refdata.PackVersion.objects.exclude(kind="cost_tests").first()
+    if other is not None:
+        assert c.get(f"/reference-data/{other.pk}/definition.yaml").status_code == 404
+    storage.store("refdata").put_bytes(cost_tests.file_key(p.label, p.version), b"changed")
+    assert c.get(f"/reference-data/{p.pk}/definition.yaml").status_code == 404  # never a file that differs from the pack's
+
+
+def test_a_sets_page_shows_it_in_the_engines_words(cpuc_admin):
+    engine = pytest.importorskip("recet.cost_test_sets")
+    data = (engine.SETS_DIR / "EE-2026" / "definition.yaml").read_bytes()
+    p = cost_tests.register_set(cpuc_admin, data)
+    words, problem = cost_tests.in_words(p)
+    assert problem == "" and words == engine.describe(engine.builtin()["EE-2026"])
+    c = Client()
+    sign_in(c, cpuc_admin)
+    page = c.get(f"/reference-data/{p.pk}/").content.decode()
+    assert "The set in words" in page and "TRCBen  =" in page
+    bad = registered(cpuc_admin, publish=False, sid="EE-2030")  # a header and tests only: the engine cannot load it
+    words, problem = cost_tests.in_words(bad)
+    assert words is None and "pricings" in problem
+    assert "cannot load this set" in c.get(f"/reference-data/{bad.pk}/").content.decode()

@@ -1,8 +1,10 @@
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from cedars.core import storage
 from cedars.services.accounts.service import AccessDenied
 
 from . import cost_tests, etrm, service
@@ -53,7 +55,15 @@ def detail(request, pk):
     if pack.kind == etrm.KIND:
         ctx = _permutation(pack, request.GET.get("id", "").strip())
     if pack.kind == cost_tests.KIND:
-        ctx = {"cost_set": cost_tests.header(pack), "cost_years": cost_tests.years_text(pack), "cost_sha": cost_tests.sha256(pack)}
+        words, problem = cost_tests.in_words(pack)
+        ctx = {
+            "cost_set": cost_tests.header(pack),
+            "cost_years": cost_tests.years_text(pack),
+            "cost_sha": cost_tests.sha256(pack),
+            "cost_file": cost_tests.download_name(pack),
+            "cost_words": words,
+            "cost_problem": problem,
+        }
     return render(
         request,
         "refdata/detail.html",
@@ -67,6 +77,20 @@ def detail(request, pk):
             **ctx,
         },
     )
+
+
+@login_required
+def cost_test_file(request, pk):
+    """A cost-test set's own file, checked against the pack's SHA-256 on the way out. Anyone signed in may start an analysis run on a
+    registered set, so anyone signed in may read it: to see exactly what a run was priced on, or to start the next set from a copy."""
+    pack = get_object_or_404(PackVersion, pk=pk, kind=cost_tests.KIND)
+    try:
+        data = cost_tests.file_bytes(pack)
+    except storage.StorageError as e:
+        raise Http404(str(e)) from None
+    response = HttpResponse(data, content_type="application/yaml; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{cost_tests.download_name(pack)}"'
+    return response
 
 
 def _permutation(pack: PackVersion, mdid: str) -> dict:

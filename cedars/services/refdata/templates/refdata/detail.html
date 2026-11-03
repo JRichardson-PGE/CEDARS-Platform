@@ -24,8 +24,19 @@
   <dt>Set</dt><dd>{{ cost_set.label }} ({{ cost_set.id }}, version {{ cost_set.version }}){% if cost_set.draft %}. The file is marked draft, so it is never published{% endif %}</dd>
   <dt>Program years</dt><dd>{{ cost_years }}</dd>
   <dt>Tests</dt><dd>{% for tid, label in cost_set.tests.items %}{{ tid }}: {{ label }}{% if tid in cost_set.headline %} (headline){% endif %}{% if not forloop.last %}<br>{% endif %}{% endfor %}</dd>
-  <dt>File</dt><dd class="small">definition.yaml, SHA-256 <code>{{ cost_sha }}</code></dd>
+  <dt>File</dt><dd><a href="{% url 'refdata:cost_test_file' pack.pk %}" download="{{ cost_file }}">Download the set file ({{ cost_file }})</a><br><span class="small">SHA-256 <code>{{ cost_sha }}</code></span></dd>
 </dl>
+<p class="small muted">The file is the set exactly as runs read it. To make a set of your own, download this one and change it: New run takes it
+as your own cost-test set file for an analysis run. A registered set never changes; the CPUC registers a changed set under a new version.</p>
+{% if cost_words %}
+<h3 id="words-h">The set in words</h3>
+<p>Each test as the engine writes it out: what its benefits and costs add up, column by column.</p>
+<pre class="log" tabindex="0" role="region" aria-labelledby="words-h">{{ cost_words }}</pre>
+{% elif cost_problem %}
+<h3 id="words-h">The set in words</h3>
+<p><strong>The engine installed here cannot load this set.</strong> What it says:</p>
+<pre class="log" tabindex="0" role="region" aria-labelledby="words-h">{{ cost_problem }}</pre>
+{% endif %}
 <p><a href="{% url 'refdata:cost_tests' %}">Every cost-test set</a></p>
 </section>
 {% endif %}
