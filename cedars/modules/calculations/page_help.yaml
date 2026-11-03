@@ -11,6 +11,9 @@ calculations/runs:
   how:
     - New run starts one: upload the job zip or workbook, choose the ACC and who the run is for.
     - Output templates choose the columns a run writes. Open a run for its status, files and results.
+    - Under each run's name are its settings (what differs from New run's defaults, the cost-test set and the output format) and,
+      once it has ended, the day retention deletes it. An input check (Check the inputs only) is tagged so. Run time is how long the
+      engine took.
   see: calculations
   tour:
     - target: main .head-row .actions
@@ -18,11 +21,13 @@ calculations/runs:
       text: Start a run, or choose the columns runs write with an output template.
     - target: main table.list, main .empty
       title: The runs
-      text: Each run's name, who it is for, the engine and ACC, and its status. Select a name to open its page.
+      text: Each run's name with its settings and deletion date, who it is for, the engine and ACC, its status and run time. Select a name to open its page.
 
 calculations/new:
   title: Starting a run
   guide:
+    - From a run's page, Rerun with different settings opens this page filled in from that run, using its job file and the optional input
+      files you keep ticked unless you upload others.
     - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or as ReCET's job workbook (.xlsx), or run a
       draft you are editing in Edit inputs.
     - >-
@@ -37,7 +42,15 @@ calculations/new:
   how:
     - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
-    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on.
+    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on. Which ACC applies to my filing? lists each ACC's
+      budget filings and the program years whose claims use it.
+    - Compare with another ACC prices the job on a second ACC too; the run's Results then has a tab for each ACC and one comparing the two.
+    - First Year and Market effects are CET's own settings; Price each ACC component separately and Combined 8,760 electric load profile add
+      ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
+    - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.
+    - What each cost-test set prices, under Pricing, lists the registered sets, their program years and the tests each writes. An
+      analysis run may instead take a cost-test set file of your own (never a filing, or a run with filing checks or Priced for).
+    - Left blank, the run's name is the job file's (or draft's) name and its ACC. A large upload shows how much has been sent.
   see: calculations
   tour:
     - target: "#input-templates"
@@ -49,7 +62,11 @@ calculations/new:
       text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
     - heading: Pricing
       title: Pricing
-      text: The engine release and the ACC. The page says when no worker is running a release.
+      text: The engine release, the ACC and the cost-test set (or a file of your own for an analysis run). The page says when no worker is running a release.
+    - target: "#acc-help"
+      title: Which ACC applies
+      text: Each ACC's budget filings and the program years whose claims use it; dimmed ACCs are not offered here.
+      optional: true
     - heading: Optional input files
       title: Optional input files
       text: ReCET's run parameters, 8,760 electric profiles and gas monthly profiles, each a file of its own. Their columns are in ReCET's Input fields, section 4.
@@ -70,17 +87,21 @@ calculations/run:
       what produced the results (the engine release, the ACC and every input's checksum), so anyone can reproduce them.
     - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
       every other finding. The log is what the engine printed, updated while the run runs.
-    - A finished run opens its Results and can be compared with another run. A small job's inputs can be opened in Edit inputs to change
+    - A finished run opens its Results and can be compared with another run. Rerun with different settings starts it again as a new run,
+      with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit inputs to change
       and run again.
+    - Your own runs (for Only me) can be deleted with their files once they end; an organization's runs stay until retention removes them.
   how:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
     - Stop the run ends a queued or running run. Edit inputs and rerun opens a small job's tables to change and run again.
+    - Rerun with different settings opens New run filled in from this run.
+    - Delete the run, at the end of one of your own ended runs, removes it and its files for good once you tick the box.
     - Download every file (.zip) takes all the run's files at once; the inputs download as they were given.
   see: calculations
   tour:
     - target: "#status-h"
       title: Status
-      text: Queued, running (with its progress), finished or failed, and what to do about a failure.
+      text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
     - target: "#check-h"
       title: Input check
       text: What the engine's check before pricing found, what stopped the run and what it could not price.
@@ -94,7 +115,7 @@ calculations/run:
       optional: true
     - target: "#totals-h"
       title: Portfolio totals
-      text: The headline totals and every other total in the receipt.
+      text: The headline totals, what each number is, and every other total in the receipt.
       optional: true
     - target: "#files-h"
       title: Files
@@ -108,22 +129,33 @@ calculations/run:
       title: What produced these results
       text: The engine release, the ACC and the checksums of the inputs and reference data.
       optional: true
+    - target: "#delete-h"
+      title: Delete the run
+      text: Your own ended run, and its files, removed for good.
+      optional: true
 
 calculations/results:
   title: A run's results
   guide:
     - A finished run's results at the level you choose (portfolio, PA, program, sector or measure), for the program years and PAs you pick.
       The tiles are the headline totals, with what each number is under them, and the chart shows the largest groups.
-    - Choose the columns to show, sort by any column, filter the rows, and download the table as CSV.
+    - Choose the columns to show (Find searches their names and definitions), save them as a named view to pick again on any run's
+      Results or Compare, sort by any column, filter the rows, and download the table as CSV.
   how:
-    - Choose the level, program years and PAs, then Apply. Show these columns picks the columns.
+    - Choose the level, program years and PAs, then Apply. Show these columns picks the columns; Clear the ticks starts from none.
+    - Save the view names the columns shown; Show this view brings them back on any run. Delete a saved view removes one.
     - Filter narrows the rows; Download this table (CSV) gives what you see.
     - Compare with another run, or go back to the Run page and files.
+    - A run priced on two ACCs has a tab for each ACC's tables and one for the comparison of the two portfolios.
   see: calculations
   tour:
     - target: main .head-row .actions
       title: The run and comparisons
       text: The run's page with its files, and a comparison with another finished run.
+    - target: nav.subnav[aria-label="ACCs of this comparison"]
+      title: The two ACCs
+      text: A run compared with another ACC has each ACC's tables, and the comparison of the two.
+      optional: true
     - target: main form.filters
       title: What to show
       text: The PA and the program years. Choose, then Apply.
@@ -138,7 +170,7 @@ calculations/results:
       optional: true
     - heading: Choose columns
       title: Choose columns
-      text: Tick the columns to show, group by group.
+      text: Your saved views, Find, and the columns group by group. Save the columns shown as a view for any run.
       optional: true
     - target: main nav.subnav
       title: Level
@@ -154,8 +186,10 @@ calculations/compare:
   guide:
     - Two finished runs side by side (A and B) at the level you choose, with each value's difference. Use it to see what a change of ACC,
       engine release or inputs did. Neither run changes.
+    - Choose the columns as on Results, or pick one of your saved views; filter the rows; the column definitions are under the table.
   how:
     - Choose the level and the run to compare with, then Compare.
+    - Choose columns or Show this view; Filter narrows the rows.
     - Download this table (CSV) gives both runs' values and their differences.
   see: calculations
   tour:
@@ -168,6 +202,10 @@ calculations/compare:
     - target: main nav.subnav
       title: Level
       text: Portfolio, PA, program or sector.
+      optional: true
+    - heading: Choose columns
+      title: Choose columns
+      text: Your saved views, Find, and the columns group by group.
       optional: true
     - target: main table.data
       title: Side by side
@@ -218,27 +256,54 @@ calculations/drafts:
 calculations/draft:
   title: A draft
   guide:
-    - One job's tables being edited. The input check runs on every save and lists the cells to look at, errors first. Select a row to edit
-      it; add a measure or program cost row, rename or delete the draft.
-    - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip.
+    - One job's tables being edited, as a spreadsheet. Measure and ProgramCost are tabs; click a cell or type to change it, paste a
+      block copied from Excel, add, copy or delete rows, undo and redo. Every change is saved by itself, and the engine's cell checks
+      run on every save, marking each cell to look at (a cross stops the run, ! is a warning) and listing them above the table, errors
+      first. The line above the table says what the selected column means and what it changes.
+    - End uses are offered and checked against the impact-profile library in force, as a run matches them. Check with the engine runs
+      the engine's whole input check on the tables (impact profiles, programs, ACCs, and CEDARS' filing rules if you choose) without
+      pricing, and marks the cells it names; once the tables change, its findings are listed until you check again.
+    - The row-by-row view shows the same tables as pages, with a form for each row; it is the page without scripts. Run these inputs
+      starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip or the job workbook.
   how:
-    - Select a row to edit it, or add a measure or a program-cost row. Add a measure from eTRM fills a new row from an eTRM permutation.
-    - Run these inputs starts a run of the tables as they stand; Download the job zip gives them as a file.
-    - Rename the draft, or Delete it.
+    - Pick a cell and type, or press Enter to edit it; Enter or Tab saves it. Arrow keys move; Tab leaves the table.
+    - Select cells with Shift and the arrows, then copy, paste from Excel or clear them with Delete.
+    - Add a row, copy or delete the selected rows, or add a measure from eTRM, which fills a new row from an eTRM permutation.
+    - Check with the engine, choosing the ACC and the filing checks, queues a check-only run; reload the page when it ends.
+    - Run these inputs starts a run of the tables as they stand; Download the job zip or Download as a workbook gives them as a file. Rename the draft, or delete it.
   see: calculations
   tour:
     - target: main .head-row .actions
       title: Run or download
       text: Run these inputs, or download the job as a zip.
+    - target: "#grid-summary"
+      title: Input check
+      text: What the engine's cell checks found, after every save. Cells to look at lists each one; select it to go to the cell.
+      optional: true
+    - target: main .grid-tabs
+      title: Tables
+      text: Measure and ProgramCost. The left and right arrows move between them.
+      optional: true
+    - target: main .editor-bar
+      title: Rows and columns
+      text: Add, copy or delete rows, undo, go to a column by name, or hide the columns that change no result.
+      optional: true
+    - target: "#help"
+      title: What a column means
+      text: The selected cell's column, what it changes, and the cell's problems first when it has any.
+      optional: true
     - target: "#check-h"
       title: Input check
       text: What the engine's input rules found. Cells to look at lists each one, with a link to its row.
-    - target: main nav.subnav
-      title: Tables
-      text: Measure and ProgramCost.
+      optional: true
+    - target: "#engine-check-h"
+      title: Check with the engine
+      text: The engine's whole input check of the tables, as a run makes it, with nothing priced. Its findings are marked on the cells.
+      optional: true
     - target: "#table-h"
       title: The rows
       text: A page of rows. Select a row's number to edit it.
+      optional: true
     - target: "#change-h"
       title: Change the draft
       text: Add a row, rename the draft, or delete it.
@@ -285,6 +350,8 @@ calculations/draft_row:
   guide:
     - One row of a draft's table, its fields grouped as the input templates group them. Save the row and the input check runs again; the
       row's own findings are listed above the form. Copy the row to start a similar one, or delete it.
+    - An end use's box offers the end uses the impact-profile library in force has an 8,760 for, for the row's IOU and target sector; any
+      name can still be typed, and the check says when the library has no profile for it.
   how:
     - Change the fields and Save the row; the input check runs again.
     - Copy the row to start a similar one, or Delete the row.

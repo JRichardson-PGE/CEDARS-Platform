@@ -57,6 +57,7 @@ p { margin: .5rem 0 .9rem; }
 main h1 + p, main .page-title + p { max-width: 64ch; color: var(--fg-2); margin-top: 0; }   /* a page's description reads at a measure, in the secondary colour */
 code, pre, kbd, .mono, input.key { font-family: var(--mono); }
 code { font-size: .88em; overflow-wrap: anywhere; background: var(--surface-2); padding: .05em .3em; border-radius: 3px; }
+#input-templates a { overflow-wrap: anywhere; }   /* long template file names wrap at 320 px (1.4.10) */
 pre { white-space: pre-wrap; word-break: break-word; font-size: .82rem; margin: .3rem 0; }
 pre code { background: none; padding: 0; }
 table.changes { margin-top: .4rem; }
@@ -228,6 +229,7 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .doc-toc ul { margin: .2rem 0 .6rem; padding-left: 1.2rem; }
 .doc-toc li { margin: .3rem 0; }
 .doc-toc a { display: inline-block; min-height: 24px; overflow-wrap: anywhere; }   /* long file names (a_b_c_acc<version>) wrap at 320 px */
+#input-templates li { overflow-wrap: anywhere; }   /* template file names (template_electric_8760_profiles.csv) wrap at 320 px */
 .engine-doc { overflow-wrap: break-word; }
 .engine-doc .hscroll > pre { white-space: pre; word-break: normal; overflow-wrap: normal; width: max-content; min-width: 100%; box-sizing: border-box; }
 .engine-doc figure.diagram { margin: .75rem 0 .25rem; padding: .75rem; background: #ffffff; border: 1px solid var(--line); border-radius: var(--r-lg); }   /* the drawing's own colors are for a light page, in both schemes */
@@ -490,8 +492,10 @@ details.dash-part > .section-body > .chart { margin-bottom: 0; border: 0; paddin
 details.dash-part > .section-body .dash-controls { margin: 0; }
 
 /* ---------- Front page (data/front.html): the introduction, the program cycle's cards, Help ---------- */
-.front-intro { max-width: 72ch; margin-bottom: 1.5rem; }
-.front-intro .lede { font-size: 1.12rem; color: var(--fg); }
+.front-intro { margin-bottom: 1.5rem; }
+main.page .front-intro .lede { font-size: 1.12rem; color: var(--fg); max-width: none; }   /* two sentences: across the page, two or three lines at 1920 px */
+ul.front-roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: .5rem 2rem; list-style: none; margin: .25rem 0 1rem; padding: 0; }   /* the intro's three points side by side when they fit, stacked on a phone; each at a readable measure */
+ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(--line); max-width: 70ch; }
 .tour-offer { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .6rem; background: var(--info-bg); border-left: 4px solid var(--info);
   border-radius: var(--r); padding: .55rem .9rem; margin: 1rem 0 0; }
 .tour-offer button.link { margin-left: auto; }

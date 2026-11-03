@@ -50,6 +50,10 @@ class InputDraft(models.Model):
     programcost = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True, db_index=True)
+    # "Check with the engine" (ReCET's Validate inputs): the latest check-only run of the draft and the hash of the tables it checked,
+    # so its findings are marked on the cells only while the tables are still the ones it checked
+    check_run = models.ForeignKey("Run", null=True, blank=True, on_delete=models.SET_NULL, related_name="checked_drafts")
+    check_hash = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["-updated_at"]
@@ -183,6 +187,24 @@ class OutputTemplateDefault(models.Model):
 
     def __str__(self):
         return f"{self.user}: {self.template}"
+
+
+class ResultView(models.Model):
+    """A person's named set of Results columns (as ReCET's own saved views): picked on Results or Compare to show those columns, in
+    order, for any run. A person's own; saving under a name they already use replaces that view's columns."""
+
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="result_views")
+    name = models.CharField(max_length=60)
+    columns = models.JSONField(default=list, help_text="Results column keys, in order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [Lower("name"), "pk"]
+        constraints = [models.UniqueConstraint("owner", Lower("name"), name="calculations_result_view_name_per_owner")]
+
+    def __str__(self):
+        return self.name
 
 
 class Worker(models.Model):

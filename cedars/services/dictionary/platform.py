@@ -172,6 +172,7 @@ NOT_DESCRIBED: dict[str, str] = {
     "impact_profiles.ProcessingJob": "machinery (background jobs)",
     "calculations.InputDraft": "a person's working copy of a job's inputs",
     "calculations.OutputTemplateDefault": "a person's own settings",
+    "calculations.ResultView": "a person's own settings (saved Results columns)",
     "calculations.Worker": "machinery (calculation workers)",
     "data.DownloadJob": "machinery (background downloads)",
     "data.SavedView": "a person's saved page settings",

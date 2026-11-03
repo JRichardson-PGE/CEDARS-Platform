@@ -173,7 +173,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     )
     dictionary.load_catalog(
         None,
-        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.89.json").read_text()),
+        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.90.json").read_text()),
         platform=True,
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
@@ -333,6 +333,24 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
             "seconds": 9,
         },
     )
+    if drafts.engine() is not None:  # Edit inputs: the engine's check of the draft, ended, with a finding on a cell and one on the job
+        check = drafts.start_check(
+            analyst, draft, calculations.RunRequest(name="x", release=release, calculation="recet", acc_version="2024")
+        )
+        calculations.mark_started(check, worker="scene")
+        report = {
+            "ok": False,
+            "errors": 1,
+            "stats": {},
+            "issues": [
+                {"severity": "error", "code": "not_numeric", "message": "NumUnits is not a number", "count": 1,
+                 "cells": [["Measure", 0, "NumUnits"]]},
+                {"severity": "warning", "code": "measures_without_program_costs", "message": "measures with no program costs", "count": 1,
+                 "examples": ["PGE_X"], "cells": []},
+            ],
+        }  # fmt: skip
+        storage.store("results").put_bytes(check.storage_prefix + "out/preflight.json", json.dumps(report).encode())
+        calculations.finish(check, exit_code=0, receipt={})
     queued = calculations.create_run(
         analyst, pge, calculations.RunRequest(name="2029 budget", release=release, calculation="recet", acc_version="2026"), job
     )
@@ -393,6 +411,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pii_filer": pii_filer,
         "queued_run": queued,
         "finished_run": finished,
+        "result_view": _result_view(analyst),
         "draft": draft,
         "rules": rules,
         "rules_draft": rules_draft,
@@ -1102,6 +1121,13 @@ def _session_cookie(user, method, site):
     return {"name": settings.SESSION_COOKIE_NAME, "value": s.session_key, "url": site.url}
 
 
+def _result_view(analyst):
+    """The analyst's saved Results view, so Results and Compare show the views list and its delete."""
+    from cedars.modules.calculations import result_views
+
+    return result_views.save(analyst, "Benefits and ratios", ["TotalSystemBenefit", "TRC_ratio"])
+
+
 def _open(browser, site, scene, path, who, **context_args):
     context = browser.new_context(**context_args)
     if who is not None:
@@ -1114,6 +1140,9 @@ def _open(browser, site, scene, path, who, **context_args):
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     if who is not None:  # a check that reached the sign-in page instead would pass without having seen the page
         assert "/accounts/login/" not in page.url, f"{path} sent {who} to {page.url}"
+    # Edit inputs draws its spreadsheet after the page loads (calculations/edit_grid.js): check the page once it is drawn
+    if page.locator("#editor").count():
+        page.wait_for_selector("#editor[data-ready]", state="attached")
     return context, page
 
 
@@ -1799,3 +1828,51 @@ def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene
     page.goto(f"{site.url}/calculations/templates/new/")
     assert page.locator("#field-picker").is_hidden() and page.locator("[data-without-picker]").is_visible()
     context.close()
+
+
+# ---------- Edit inputs as a spreadsheet (calculations/edit_grid.js, Tabulator 6.3.1 with ReCET's NVDA-tested fixes) ----------
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_edit_inputs_grid_by_keyboard(browser, axe_source, site, scene, scheme):
+    """The spreadsheet replaces the paged table once drawn; it is one tab stop with the focus on a cell, the arrows move it and the help
+    line follows, typing edits and the change is saved by itself, Tab leaves the grid (no keyboard trap, 2.1.2), the tabs follow the
+    ARIA tabs pattern, and axe finds nothing with a cell being edited."""
+    from cedars.modules.calculations import drafts
+
+    if drafts.engine() is None:
+        pytest.skip("Edit inputs needs the ReCET engine package (the page says so instead of drawing the grid)")
+    context, page = _open(browser, site, scene, "/calculations/drafts/{draft}/", "analyst", color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#editor").count(), f"no grid at {page.url}: {page.title()}: {page.inner_text('main')[:800]}"
+    assert page.get_attribute("#editor", "data-ready") == "1", page.inner_text("#save-status")
+    assert not page.is_visible("#table-h") and page.is_visible("#grid-Measure .tabulator-cell")
+    assert page.get_attribute("#grid-Measure", "aria-label") == "Measure table"
+    page.focus("#help")  # the help line just before the grid
+    page.keyboard.press("Tab")
+    first = page.evaluate("document.activeElement.className")
+    assert "tabulator" in first, first
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("ArrowRight")
+    cell = page.evaluate(
+        "[document.activeElement.classList.contains('tabulator-cell'), document.activeElement.getAttribute('tabulator-field')]"
+    )
+    assert cell[0] and cell[1], cell
+    assert cell[1] in page.inner_text("#help")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#grid-Measure .tabulator-cell.tabulator-editing input")
+    page.add_script_tag(content=axe_source)
+    page.evaluate("window.scrollTo(0, 0)")  # the sticky header covers what the focus scrolled past; axe would call it obscured
+    editing = _run_axe(page)
+    assert not editing, f"grid with a cell being edited ({scheme}): " + json.dumps(editing, indent=1)
+    page.keyboard.type("7")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#save-status.ok:has-text('Saved ')", timeout=10000)
+    page.keyboard.press("Tab")
+    assert not page.evaluate("document.getElementById('grid-Measure').contains(document.activeElement)")
+    page.focus("#tab-Measure")
+    page.keyboard.press("ArrowRight")
+    assert page.evaluate("document.activeElement.id") == "tab-ProgramCost"
+    assert page.get_attribute("#tab-ProgramCost", "aria-selected") == "true" and page.is_visible("#grid-ProgramCost")
+    found = _violations(page, axe_source)
+    context.close()
+    assert not found, f"grid ({scheme}): " + json.dumps(found, indent=1)

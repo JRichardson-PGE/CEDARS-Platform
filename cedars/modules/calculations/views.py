@@ -1,5 +1,5 @@
 import mimetypes
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 from django.contrib import messages
@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
@@ -15,9 +16,10 @@ from cedars.core import storage, zipstream
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import cost_tests
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, input_templates, service
+from . import dispatch, drafts, forms, input_templates, result_views, service
 from . import results as results_mod
 from .models import EngineRelease, InputDraft, Run
 
@@ -96,9 +98,37 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
         elif k == "filing_validation":  # the choice's words, not its code (UAT 2, U10)
             v = service.FILING_CHECKS.get(v, v)
         elif k == "acc_purpose":
-            v = dict(forms.ACC_PURPOSES).get(v, v)
+            v = dict(service.acc_purposes()).get(v, v)
+        elif k == "market_effects":
+            v = f"{float(v):.0%}"
+        elif k == "compare_with":
+            v = f"{v} ACC"
+        elif k == "profile_years":
+            v = ", ".join(str(y) for y in v)
         out.append((service.jobspec.SETTINGS.get(k, k), v))
     return out
+
+
+def settings_line(run: Run) -> str:
+    """The runs list's one line of a run's settings (ReCET's settings_summary): what differs from New run's defaults, and the set."""
+    st = run.settings or {}
+    parts = []
+    if run.cost_tests.get("id"):
+        parts.append(f"cost tests {run.cost_tests['id']}{' (custom file)' if run.cost_tests.get('status') == 'custom' else ''}")
+    if st.get("include_societal") is False:
+        parts.append("SCT off")
+    if st.get("emissions") is False:
+        parts.append("emissions off")
+    if st.get("acc_purpose"):
+        parts.append(f"priced for {dict(forms.ACC_PURPOSES).get(st['acc_purpose'], st['acc_purpose']).lower()}")
+    if st.get("filing_validation"):
+        parts.append(service.FILING_CHECKS.get(st["filing_validation"], st["filing_validation"]))
+    if st.get("allocate_statewide"):
+        parts.append("statewide allocated")
+    if st.get("output_template"):
+        parts.append(f"template {st.get('output_template_name') or 'unnamed'}")
+    parts.append(run.output_format)
+    return " · ".join(parts)
 
 
 def _run_or_404(request, pk) -> Run:
@@ -112,11 +142,15 @@ def _run_or_404(request, pk) -> Run:
 def runs(request):
     qs = service.visible_runs(request.user)
     page = Paginator(qs, PER_PAGE).get_page(request.GET.get("page"))
-    rows = [(r, status_view(r)) for r in page.object_list]
+    deletion = service.deletion_dates(page.object_list)
+    rows = [
+        (r, status_view(r), {"settings": settings_line(r), "time": duration(r.seconds), "deletion": deletion.get(r.pk, "")})
+        for r in page.object_list
+    ]
     return render(
         request,
         "calculations/runs.html",
-        {"page": page, "rows": rows, "live": any(not r.ended for r, _ in rows), "can_start": service.default_release() is not None},
+        {"page": page, "rows": rows, "live": any(not r.ended for r, *_ in rows), "can_start": service.default_release() is not None},
     )
 
 
@@ -130,8 +164,9 @@ def new_run(request):
     if not releases:
         return render(request, "calculations/new.html", {"form": None})
     draft = _draft_for(request)
+    rerun = _rerun_for(request) if draft is None else None
     orgs = _submittable(request.user, request.user_organisations)
-    first = draft.organisation if draft is not None else request.organisation
+    first = draft.organisation if draft is not None else rerun.organisation if rerun is not None else request.organisation
     if first in orgs:
         orgs.remove(first)
         orgs.insert(0, first)
@@ -139,13 +174,24 @@ def new_run(request):
     initial = {"engine": f"{default.release}|recet", "acc_version": "2024", "include_societal": True, "emissions": True}
     if draft is not None:
         initial |= {"name": draft.name, "run_for": draft.organisation.code if draft.organisation else ""}
+    if rerun is not None:
+        initial |= forms.rerun_initial(rerun)
     form = forms.NewRunForm(
-        request.POST or None, request.FILES or None, releases=releases, organisations=orgs, user=request.user, draft=draft, initial=initial
+        request.POST or None,
+        request.FILES or None,
+        releases=releases,
+        organisations=orgs,
+        user=request.user,
+        draft=draft,
+        rerun=rerun,
+        initial=initial,
     )
     if request.method == "POST" and form.is_valid():
         try:
             if draft is not None:
                 run = drafts.start_run(request.user, form.cleaned_data["organisation"], form.run_request(), draft)
+            elif rerun is not None:
+                run = _start_rerun(request, form, rerun)
             else:
                 run = service.create_run_from_upload(
                     request.user, form.cleaned_data["organisation"], form.run_request(), form.cleaned_data["job"]
@@ -163,11 +209,34 @@ def new_run(request):
             "releases": releases,
             "service": service,
             "draft": draft,
+            "rerun": rerun,
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
             "input_templates": _input_template_links(releases),
+            "cost_test_sets": _cost_test_sets(),
+            "acc_table": service.acc_table(releases),
         },
     )
+
+
+def _cost_test_sets() -> list[dict]:
+    """New run's "What each cost-test set prices": every registered set not withdrawn, with its program years and the tests it writes."""
+    out = []
+    packs = PackVersion.objects.filter(kind=PackVersion.Kind.COST_TESTS).exclude(status=PackVersion.Status.WITHDRAWN)
+    for p in packs.order_by("label", "-registered_at"):
+        h = cost_tests.header(p)
+        headline = set(h.get("headline") or ())
+        out.append(
+            {
+                "id": p.label,
+                "version": p.version,
+                "label": h.get("label", ""),
+                "status": p.get_status_display(),
+                "years": cost_tests.years_text(p),
+                "tests": [{"id": t, "label": label, "headline": t in headline} for t, label in (h.get("tests") or {}).items()],
+            }
+        )
+    return out
 
 
 def _template_accs(releases) -> list[str]:
@@ -209,6 +278,35 @@ def input_template(request, kind):
         raise Http404("The engine is not installed on this server, so its templates are not available.") from None
     name = f.name if not input_templates.TEMPLATES[kind].by_acc else f.name.replace("template_", f"template_{acc}_acc_", 1)
     return FileResponse(open(f, "rb"), as_attachment=True, filename=name)
+
+
+def _rerun_for(request):
+    """The run New run starts again with different settings (?from= on the page, a hidden field when it is sent), or None. Anyone who
+    can see the run can rerun it as a run of their own choosing."""
+    pk = request.POST.get("from") or request.GET.get("from")
+    if not pk:
+        return None
+    try:
+        return _run_or_404(request, pk)
+    except ValidationError:
+        raise Http404 from None
+
+
+def _start_rerun(request, form, rerun):
+    """Queue the rerun: the run's stored inputs New run keeps (form.reused()), with any uploaded in their place."""
+    req = form.run_request()
+    reused = form.reused()
+    with service.reused_inputs(rerun, reused) as stored:
+        job = form.cleaned_data.get("job") or stored.get("job_zip") or stored.get("workbook")
+        if job is None:
+            raise AccessDenied("The run's job file is no longer stored; upload the job file.")
+        req.supplied = {**{n: p for n, p in stored.items() if n in forms.SUPPLIED_FIELDS}, **(req.supplied or {})}
+        if req.cet_outputs is None and "cet_outputs" in stored:
+            req.cet_outputs = stored["cet_outputs"]
+        organisation = form.cleaned_data["organisation"]
+        if isinstance(job, Path):
+            return service.create_run(request.user, organisation, req, job)
+        return service.create_run_from_upload(request.user, organisation, req, job)
 
 
 def _draft_for(request):
@@ -253,11 +351,17 @@ def run(request, pk):
             "notes": receipt.get("notes") or [],
             "input_notes": ((run.spec or {}).get("context") or {}).get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
+            "can_rerun": bool(service.job_input(run)),
+            "can_delete": run.organisation_id is None
+            and run.owner_id == request.user.pk
+            and run.ended
+            and run.submission_version_id is None,
             "cet_comparison": results_mod.cet_comparison(run, files),
             "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
             "log": log,
             "log_cut": log_cut,
             "inputs": _input_files(run),
+            "deletion": service.deletion_dates([run]).get(run.pk, ""),
         },
     )
 
@@ -282,6 +386,24 @@ def _can_edit_inputs(user, run: Run) -> bool:
 @login_required
 def run_status(request, pk):
     return JsonResponse(status_view(_run_or_404(request, pk)))
+
+
+@login_required
+@require_POST
+def delete(request, pk):
+    """Delete one's own ("Only me") ended run and its files (R9); audited."""
+    run = _run_or_404(request, pk)
+    if not request.POST.get("sure"):
+        messages.error(request, "Tick the box to say the run and its files go for good.")
+        return redirect("calculations:run", pk=run.pk)
+    name = run.name
+    try:
+        service.delete_run(request.user, run)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect("calculations:run", pk=run.pk)
+    messages.success(request, f"Deleted the run {name} and its files.")
+    return redirect("calculations:runs")
 
 
 @login_required
@@ -449,6 +571,9 @@ def _table_params(request, rv, cat, levels):
     level = request.GET.get("level", "portfolio")
     level = level if level in {k for k, _ in levels} else "portfolio"
     picked = request.GET.getlist("col") or [k for k in request.GET.get("columns", "").split(",") if k]
+    if not picked and request.GET.get("view"):
+        view = result_views.get(request.user, request.GET["view"])
+        picked = list(view.columns) if view else []
     keys = [k for k in picked if k in cat] or [k for k in rv.DEFAULT_VIEW if k in cat]
     return level, keys, rv.parse_years(request.GET.getlist("years")), request.GET.get("sort", ""), request.GET.get("desc") == "1"
 
@@ -464,6 +589,37 @@ def _query(**kw) -> str:
     return urlencode([(k, x) for k, v in kw.items() for x in (v if isinstance(v, list) else [v]) if x not in (None, "")])
 
 
+def _picker(request, cat, keys, state: dict) -> dict:
+    """The column picker's context, shared by Results and Compare: the groups (narrowed by Find over names and definitions), which
+    boxes are ticked (none after Clear), the ticked columns Find hides (kept as hidden fields so Show keeps them), the person's saved
+    views, and the query that rebuilds the page without the picker's own parameters."""
+    find = request.GET.get("find", "").strip()[:80]
+    clear = request.GET.get("clear") == "1"
+    groups = results_mod.picker_groups(cat)
+    if find:
+        f = find.lower()
+        groups = [(g, [i for i in items if f in i[0].lower() or f in i[1].lower() or f in (i[2] or "").lower()]) for g, items in groups]
+        groups = [(g, items) for g, items in groups if items]
+    shown = {k for _, items in groups for k, _, _ in items}
+    ticked = [] if clear else list(keys)
+    views = list(result_views.visible(request.user))
+    chosen = request.GET.get("view", "")
+    return {
+        "groups": groups,
+        "ticked": ticked,
+        "hidden_keys": [k for k in ticked if k not in shown],
+        "find": find,
+        "clear": clear,
+        "open": bool(request.GET.get("col") or find or clear or request.GET.get("picker")),
+        "views": views,
+        "view": next((v for v in views if str(v.pk) == chosen), None),
+        "state": [(k, x) for k, v in state.items() for x in (v if isinstance(v, list) else [v]) if x not in (None, "")],
+        "base": "?" + _query(**state),
+        "columns": ",".join(keys),
+        "count": len(keys),
+    }
+
+
 def _cell(rv, cat, column, v):
     if column == "Measures":
         return f"{int(v):,}" if v == v and v is not None else ""
@@ -475,12 +631,39 @@ def _rows(rv, cat, table):
     return [[(_cell(rv, cat, c, v), c in numeric) for c, v in zip(table.columns, r, strict=True)] for r in table.itertuples(index=False)]
 
 
+def _acc_tabs(run: Run, acc: str) -> list[dict]:
+    """A comparison run's tabs on Results: each ACC's tables, then the comparison of the two."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return []
+    tabs = [{"key": a, "label": f"{a} ACC" + (" (the run's own)" if a == run.acc_version else ""), "href": f"?acc={a}"} for a in parts]
+    tabs.append({"key": "comparison", "label": "Comparison of the two", "href": "?acc=comparison"})
+    for t in tabs:
+        t["on"] = t["key"] == acc
+    return tabs
+
+
+def _results_acc(request, run: Run) -> str:
+    """The ACC tab asked for (?acc=), the run's own when it names none or one the run does not have; "" for a run with one ACC."""
+    parts = results_mod.acc_parts(run)
+    if not parts:
+        return ""
+    asked = request.GET.get("acc", "")
+    return asked if asked in parts or asked == "comparison" else parts[0]
+
+
 @login_required
 def results(request, pk):
     run = _run_or_404(request, pk)
-    ctx = {"run": run}
+    acc = _results_acc(request, run)
+    ctx = {"run": run, "acc": acc, "acc_tabs": _acc_tabs(run, acc)}
+    if acc == "comparison":
+        ctx["comparison"] = results_mod.acc_comparison(run)
+        if ctx["comparison"] is None:
+            ctx["note"] = "This run's comparison of the two ACCs is not available (the run has not finished, or wrote none)."
+        return render(request, "calculations/results.html", ctx)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults as e:
         return render(request, "calculations/results.html", {**ctx, "note": str(e)})
     rv = results_mod.engine()
@@ -507,7 +690,7 @@ def results(request, pk):
             results_mod.with_measure_rows(run, res)
         table = res.table(level, pa, keys, years)
     text = request.GET.get("q", "")
-    state = {"level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
+    state = {"acc": acc, "level": level, "pa": pa, "years": years, "columns": ",".join(keys)}
     labels = {k: rv.display_label(c) for k, c in cat.items()}
     head = []
     if table is not None:
@@ -543,7 +726,7 @@ def results(request, pk):
             "all_years": all_years,
             "years": years,
             "keys": keys,
-            "groups": results_mod.picker_groups(cat),
+            "picker": _picker(request, cat, keys, {"acc": acc, "level": level, "pa": pa, "years": years}),
             "default_keys": [k for k in rv.DEFAULT_VIEW if k in cat],
             "tiles": results_mod.tiles(res, pa, years),
             "chart": results_mod.sector_bars(res, pa, years),
@@ -572,8 +755,9 @@ def _csv_response(table, name):
 @login_required
 def results_csv(request, pk):
     run = _run_or_404(request, pk)
+    acc = _results_acc(request, run)
     try:
-        res = results_mod.load(run)
+        res = results_mod.load(run, acc or None)
     except results_mod.NoResults:
         raise Http404 from None
     rv = results_mod.engine()
@@ -586,7 +770,7 @@ def results_csv(request, pk):
             raise Http404
         results_mod.with_measure_rows(run, res)
     t = res.table(level, pa, keys, years).rename(columns={k: c.label for k, c in cat.items()})
-    return _csv_response(t, f"cedars_run_{run.pk}_{level}.csv")
+    return _csv_response(t, f"cedars_run_{run.pk}_{level}{f'_acc{acc}' if acc else ''}.csv")
 
 
 def _compare_candidates(user, run):
@@ -619,6 +803,9 @@ def compare(request, pk):
     known = sorted(set(ra.years()) | set(rb.years()))
     years = _years(rv, years, known)
     table = rv.compare(ra, rb, level, keys, years=years)
+    shown_rows = len(table)
+    text = request.GET.get("q", "")
+    table = results_mod.filter_rows(table, text)
     labels = {k: rv.display_label(c) for k, c in cat.items()}
     ids = [c for c in table.columns if "__" not in c]
     values = ["Measures"] + [k for k in keys if k in cat]
@@ -634,6 +821,10 @@ def compare(request, pk):
     state = {"with": str(b.pk), "level": level, "years": years, "columns": ",".join(keys)}
     ctx.update(
         {
+            "picker": _picker(request, cat, keys, {"with": str(b.pk), "level": level, "years": years}),
+            "text": text,
+            "filtered_from": shown_rows if text else None,
+            "definitions": [(labels[k], results_mod.definition(k, cat[k])) for k in keys if k in cat],
             "level": level,
             "levels": [{"key": k, "label": label, "href": "?" + _query(**{**state, "level": k})} for k, label in rv.COMPARE_LEVELS],
             "all_years": known,
@@ -642,7 +833,7 @@ def compare(request, pk):
             "ids": ids,
             "values": [(k, labels.get(k, k), cat[k].help if k in cat else "") for k in values],
             "rows": rows,
-            "csv": "?" + _query(**state),
+            "csv": "?" + _query(**state, q=text),
             "calc_a": service.calculation_label(a.calculation),
             "calc_b": service.calculation_label(b.calculation),
             "match": "PrgID" if level == "program" else "name",
@@ -664,7 +855,7 @@ def compare_csv(request, pk):
     cat = {**rb.catalog(), **ra.catalog()}
     level, keys, years, _sort, _desc = _table_params(request, rv, cat, rv.COMPARE_LEVELS)
     years = _years(rv, years, sorted(set(ra.years()) | set(rb.years())))
-    table = rv.compare(ra, rb, level, keys, years=years)
+    table = results_mod.filter_rows(rv.compare(ra, rb, level, keys, years=years), request.GET.get("q", ""))
     side = {"a": f"A: {a.name}", "b": f"B: {b.name}", "diff": "difference", "pct": "% change"}
 
     def name(c: str) -> str:
@@ -672,3 +863,38 @@ def compare_csv(request, pk):
         return f"{cat[k].label if k in cat else k} ({side[part]})" if k and part in side else c
 
     return _csv_response(table.rename(columns=name), f"cedars_compare_{a.pk}_{b.pk}_{level}.csv")
+
+
+def _back(request, fallback):
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    nxt = request.POST.get("next", "")
+    ok = url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    return nxt if ok and nxt.startswith("/") else fallback
+
+
+@login_required
+@require_POST
+def result_view_save(request):
+    """Save the columns shown on Results or Compare as one of the person's views, then go back to the page."""
+    back = _back(request, reverse("calculations:runs"))
+    columns = [c for c in request.POST.get("columns", "").split(",") if c]
+    try:
+        view = result_views.save(request.user, request.POST.get("name", ""), columns)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+        return redirect(back)
+    messages.success(request, f'Saved the view "{view.name}" ({len(view.columns)} column{"s" if len(view.columns) != 1 else ""}).')
+    return redirect(back)
+
+
+@login_required
+@require_POST
+def result_view_delete(request, pk):
+    view = result_views.get(request.user, pk)
+    if view is None:
+        raise Http404
+    name = view.name
+    result_views.delete(request.user, view)
+    messages.success(request, f'Deleted the view "{name}".')
+    return redirect(_back(request, reverse("calculations:runs")))
