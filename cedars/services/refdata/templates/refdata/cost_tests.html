@@ -38,6 +38,24 @@ CPUC registers the sets everyone uses.</p>
 </div>
 {% else %}<p>None yet.</p>{% endif %}
 </section>
+{% if offered is not None %}
+<section aria-labelledby="offered-h">
+<h2 id="offered-h">Offered to the CPUC</h2>
+<p>Sets their builders offer for everyone. Open one to review it, then register it as a draft pack or decline it with a reason, which
+its builder is sent.</p>
+{% if offered %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Offered to the CPUC">
+<table class="list">
+  <caption class="sr-only">Cost-test sets offered to the CPUC, oldest first, with who offered them and their note</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Name</th><th scope="col">Offered by</th><th scope="col">Offered</th><th scope="col">Note</th><th scope="col">Problems</th></tr></thead>
+  <tbody>
+  {% for b in offered %}<tr><th scope="row"><a href="{% url 'refdata:build_step' b.pk 'review' %}">{{ b }}</a></th><td>{{ b.label }}</td><td>{{ b.offered_by|person }}{% if b.organisation %} ({{ b.organisation.code }}){% endif %}</td><td>{{ b.offered_at|date_words }}</td><td>{{ b.offer_note|default:"None" }}</td><td>{% if b.open_problems %}{{ b.open_problems }}{% else %}None{% endif %}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None at the moment.</p>{% endif %}
+</section>
+{% endif %}
 {% if form %}
 <section class="card" aria-labelledby="reg-h">
   <h2 id="reg-h">Register a set</h2>

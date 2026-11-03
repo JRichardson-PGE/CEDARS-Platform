@@ -22,10 +22,12 @@ import re
 import yaml
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.notifications import service as notifications
 
 from . import cost_tests
 from . import service as packs
@@ -112,14 +114,27 @@ def is_manager(user) -> bool:
     return packs.can_manage(user, cost_tests.KIND)
 
 
-def visible(user):
-    """The builds a user may open: their own, and those shared with an organization where they may start runs. Discarded ones are gone."""
+def _mine(user) -> Q:
     orgs = [o for o in access.organisations_of(user) if can_submit(user, o)]
+    return Q(owner=user) | Q(organisation__in=orgs)
+
+
+def mine(user):
+    """A user's own builds and those shared with an organization where they may start runs (My sets). Discarded ones are gone."""
     return (
-        CostTestBuild.objects.exclude(status=Status.DISCARDED)
-        .filter(Q(owner=user) | Q(organisation__in=orgs))
-        .select_related("owner", "organisation", "pack", "parent")
+        CostTestBuild.objects.exclude(status=Status.DISCARDED).filter(_mine(user)).select_related("owner", "organisation", "pack", "parent")
     )
+
+
+def visible(user):
+    """The builds a user may open: their own sets (`mine`) and, for the CPUC's cost-test pack managers, every set offered to the CPUC."""
+    q = _mine(user) | Q(status=Status.OFFERED) if is_manager(user) else _mine(user)
+    return CostTestBuild.objects.exclude(status=Status.DISCARDED).filter(q).select_related("owner", "organisation", "pack", "parent")
+
+
+def offered():
+    """The sets offered to the CPUC, oldest offer first (the managers' list)."""
+    return CostTestBuild.objects.filter(status=Status.OFFERED).select_related("owner", "organisation", "offered_by").order_by("offered_at")
 
 
 def can_change(user, build: CostTestBuild) -> bool:
@@ -887,8 +902,14 @@ def register(actor, build: CostTestBuild, *, notes: str = "") -> PackVersion:
         pack = cost_tests.register_set(actor, to_yaml(build.data), source=f"set builder: {build.source}", notes=notes)
     except cost_tests.SetError as e:
         raise BuildError(str(e)) from None
+    was_offered = build.status == Status.OFFERED
     build.status, build.pack = Status.REGISTERED, pack
     build.save()
+    if was_offered:
+        to = build.offered_by or build.owner
+        transaction.on_commit(
+            lambda: notifications.notify(to, f"The CPUC registered your cost-test set {build}", f"Registered as {pack}.", _link(build))
+        )
     audit.record(
         "cost_test_build.registered",
         obj=build,
@@ -897,6 +918,70 @@ def register(actor, build: CostTestBuild, *, notes: str = "") -> PackVersion:
         organisation=build.organisation,
     )
     return pack
+
+
+# --- offering a set to the CPUC (Jake, 2026-11-03: a light mark with a note; the CPUC registers it or declines it with a reason)
+
+
+def _link(build: CostTestBuild) -> str:
+    from django.urls import reverse
+
+    return reverse("refdata:build_step", args=[build.pk, "review"])
+
+
+@transaction.atomic
+def offer(actor, build: CostTestBuild, *, note: str = "") -> CostTestBuild:
+    """Offer a set to the CPUC to register for everyone. It stays the offerer's: they may change it while it is offered (the managers
+    see it as it is when they look) or withdraw the offer. Refused while it has problems."""
+    _require(actor, build)
+    build = CostTestBuild.objects.select_for_update().get(pk=build.pk)
+    if build.status != Status.BUILDING:
+        raise BuildError(f"{build} is already {build.get_status_display().lower()}.")
+    build.problems, build.checked_by = check(build.data, exclude_pack=build.pack)
+    if build.problems:
+        build.save()
+        raise BuildError("The set still has problems; offer it once the Review step lists none.")
+    now = timezone.now()
+    build.status, build.offered_at, build.offered_by, build.offer_note = Status.OFFERED, now, actor, note.strip()
+    build.declined_at, build.declined_by, build.declined_reason = None, None, ""
+    build.save()
+    audit.record("cost_test_build.offered", obj=build, after={"id": build.data.get("id"), "note": build.offer_note}, actor=actor,
+                 organisation=build.organisation)  # fmt: skip
+    return build
+
+
+@transaction.atomic
+def withdraw_offer(actor, build: CostTestBuild) -> CostTestBuild:
+    _require(actor, build)
+    build = CostTestBuild.objects.select_for_update().get(pk=build.pk)
+    if build.status != Status.OFFERED:
+        raise BuildError(f"{build} is not offered to the CPUC.")
+    build.status = Status.BUILDING
+    build.save(update_fields=["status", "updated_at"])
+    audit.record("cost_test_build.offer_withdrawn", obj=build, actor=actor, organisation=build.organisation)
+    return build
+
+
+@transaction.atomic
+def decline(actor, build: CostTestBuild, *, reason: str) -> CostTestBuild:
+    """CPUC only: decline an offered set, with the reason the offerer is sent. The set goes back to its builder, unchanged."""
+    if not is_manager(actor):
+        raise AccessDenied("Only the CPUC's cost-test pack managers decline an offered set.")
+    if not reason.strip():
+        raise BuildError("Say why the set is declined; the person who offered it is sent the reason.")
+    build = CostTestBuild.objects.select_for_update().get(pk=build.pk)
+    if build.status != Status.OFFERED:
+        raise BuildError(f"{build} is not offered to the CPUC.")
+    build.status, build.declined_at, build.declined_by, build.declined_reason = Status.BUILDING, timezone.now(), actor, reason.strip()
+    build.save()
+    audit.record(
+        "cost_test_build.declined", obj=build, after={"reason": build.declined_reason}, actor=actor, organisation=build.organisation
+    )
+    to = build.offered_by or build.owner
+    transaction.on_commit(
+        lambda: notifications.notify(to, f"The CPUC declined your cost-test set {build}", build.declined_reason, _link(build))
+    )
+    return build
 
 
 def words(build: CostTestBuild) -> str | None:

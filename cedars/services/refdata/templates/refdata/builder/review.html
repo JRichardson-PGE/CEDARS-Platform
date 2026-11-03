@@ -54,6 +54,29 @@ run on New run takes it as your own cost-test set file.</p>
 </section>
 <section class="card" aria-labelledby="act-h">
 <h2 id="act-h">What next</h2>
+{% if build.status == "offered" %}
+<p>Offered to the CPUC {{ build.offered_at|date_words }} by {{ build.offered_by|person }}{% if build.offer_note %}: “{{ build.offer_note }}”{% endif %}.</p>
+{% elif build.declined_at %}
+<p>The CPUC declined it {{ build.declined_at|date_words }} ({{ build.declined_by|person }}): {{ build.declined_reason }}</p>
+{% endif %}
+{% if decline %}
+<form method="post" action="{% url 'refdata:build_action' build.pk %}" class="stack form-narrow">{% csrf_token %}
+  {{ decline.reason.as_field_group }}
+  <div class="actions"><button type="submit" name="action" value="decline">Decline it</button></div>
+</form>
+{% endif %}
+{% if can_change and build.status == "building" and not manager %}
+<form method="post" action="{% url 'refdata:build_action' build.pk %}" class="stack form-narrow">{% csrf_token %}
+  <p>A set that everyone could use can be offered to the CPUC, which registers it for everyone or declines it with a reason.</p>
+  {{ offer.note.as_field_group }}
+  <div class="actions"><button type="submit" name="action" value="offer"{% if build.open_problems %} aria-disabled="true"{% endif %}>Offer it to the CPUC</button></div>
+  {% if build.open_problems %}<p class="small muted">Offering needs a set with no problems.</p>{% endif %}
+</form>
+{% elif can_change and build.status == "offered" %}
+<form method="post" action="{% url 'refdata:build_action' build.pk %}">{% csrf_token %}
+  <div class="actions"><button type="submit" name="action" value="withdraw_offer">Withdraw the offer</button></div>
+</form>
+{% endif %}
 {% if build.status == "registered" %}
 <p>Registered{% if build.pack %} as <a href="{% url 'refdata:detail' build.pack.pk %}">{{ build.pack }}</a>{% endif %}. Copy it to start the next version.</p>
 {% endif %}

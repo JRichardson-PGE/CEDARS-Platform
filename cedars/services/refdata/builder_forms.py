@@ -367,3 +367,18 @@ class TestForm(forms.Form):
             "filing": bool(t.get("filing", True)),
             "definition": t.get("definition", ""),
         }
+
+
+class OfferForm(forms.Form):
+    note = forms.CharField(
+        label="A note for the CPUC (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="What the set is for and why everyone could use it",
+    )
+
+
+class DeclineForm(forms.Form):
+    reason = forms.CharField(
+        label="Why it is declined", widget=forms.Textarea(attrs={"rows": 2}), help_text="Sent to the person who offered it"
+    )

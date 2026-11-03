@@ -1057,18 +1057,22 @@ aggregates:
   NetElec: {pricing: primary, plus: [ElecBen, NEBHealth], minus: [], unit: $ (PV), definition: Electric and health benefits.}
 tests:
   PAC: {label: Program Administrator Cost, pricing: primary, benefits: [ElecBen, NEBHealth], costs: [RebatesandIncentsPV],
-        program_costs: {share: PAC}, headline: true, definition: The administrator's costs.}
+        program_costs: {share: positive_benefits}, headline: true, definition: The administrator's costs.}
 """
 
 
 def _cost_test_builds(analyst, cpuc_admin):
-    """The set builder: an analyst's set started from a file, with its label left blank (a problem the set step shows), and a manager's
-    own copy (Review then offers Register)."""
+    """The set builder: an analyst's set started from a file, with its label left blank (a problem the set step shows), a manager's
+    own copy (Review then offers Register), and an analyst's set offered to the CPUC."""
     mine = builder.start_from_file(analyst, SCENE_SET.encode(), "neb.yaml")
     managers = builder.start_from_file(cpuc_admin, SCENE_SET.replace("label: ''", "label: EE with health").encode(), "neb.yaml")
     managers.parent_data = {**managers.data, "tests": {}}  # as a copy of another set: Review lists what changed
     managers.save(update_fields=["parent_data"])
-    return {"build": mine.pk, "manager_build": managers.pk}
+    offered = builder.start_from_file(
+        analyst, SCENE_SET.replace("label: ''", "label: Offered set").replace("2026-11-03", "v2").encode(), "o.yaml"
+    )
+    builder.offer(analyst, offered, note="For everyone's analysis runs")  # the managers' Offered table and Decline
+    return {"build": mine.pk, "manager_build": managers.pk, "offered_build": offered.pk}
 
 
 def _releases(cpuc_admin):

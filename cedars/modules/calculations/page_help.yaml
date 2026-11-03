@@ -49,7 +49,8 @@ calculations/new:
       ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
     - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.
     - What each cost-test set prices, under Pricing, lists the registered sets, their program years and the tests each writes. An
-      analysis run may instead take a cost-test set file of your own (never a filing, or a run with filing checks or Priced for).
+      analysis run may instead take one of your own sets from the set builder (Or one of my cost-test sets) or a cost-test set file of
+      your own (never a filing, or a run with filing checks or Priced for).
     - Left blank, the run's name is the job file's (or draft's) name and its ACC. A large upload shows how much has been sent.
   see: calculations
   tour:
@@ -62,7 +63,7 @@ calculations/new:
       text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
     - heading: Pricing
       title: Pricing
-      text: The engine release, the ACC and the cost-test set (or a file of your own for an analysis run). The page says when no worker is running a release.
+      text: The engine release, the ACC and the cost-test set (or one of your own sets, or a file, for an analysis run). The page says when no worker is running a release.
     - target: "#acc-help"
       title: Which ACC applies
       text: Each ACC's budget filings and the program years whose claims use it; dimmed ACCs are not offered here.

@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from cedars.core.templatetags.ui import person
 from cedars.services.accounts.service import AccessDenied
 
 from . import builder, cost_tests
@@ -367,7 +368,7 @@ def _part_saved(request, build, step, name):
 
 
 def _review(request, build):
-    register = bf.RegisterForm(request.POST or None) if builder.is_manager(request.user) else None
+    register = bf.RegisterForm() if builder.is_manager(request.user) else None
     return render(
         request,
         "refdata/builder/review.html",
@@ -383,6 +384,8 @@ def _review(request, build):
             manager=builder.is_manager(request.user),
             set_aside=sorted(build.set_aside.items()),
             changes=builder.changes(build),
+            offer=bf.OfferForm(),
+            decline=bf.DeclineForm() if builder.is_manager(request.user) and build.status == "offered" else None,
             parent=build.parent or build.parent_build,
         ),
     )
@@ -411,6 +414,18 @@ def build_action(request, pk):
             copy = builder.start_from_build(request.user, build, organisation=shared)
             messages.success(request, f"Started {copy} as a copy of {build}.")
             return redirect("refdata:build_step", pk=copy.pk, step="set")
+        if action == "offer":
+            builder.offer(request.user, build, note=request.POST.get("note", ""))
+            messages.success(request, f"{build} offered to the CPUC. You can still change it, or withdraw the offer.")
+            return redirect("refdata:build_step", pk=build.pk, step="review")
+        if action == "withdraw_offer":
+            builder.withdraw_offer(request.user, build)
+            messages.success(request, f"The offer of {build} is withdrawn.")
+            return redirect("refdata:build_step", pk=build.pk, step="review")
+        if action == "decline":
+            builder.decline(request.user, build, reason=request.POST.get("reason", ""))
+            messages.success(request, f"{build} declined; {person(build.offered_by or build.owner)} is sent the reason.")
+            return redirect("refdata:cost_tests")
         if action == "register":
             form = bf.RegisterForm(request.POST)
             form.is_valid()

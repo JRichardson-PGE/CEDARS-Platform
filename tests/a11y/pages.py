@@ -6,7 +6,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}."""
+{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}."""
 
 PAGES = [
     ("home", "/", None),
@@ -194,6 +194,8 @@ PAGES = [
     ("build-input-new", "/reference-data/cost-tests/build/{build}/inputs/new/", "analyst"),
     ("build-input", "/reference-data/cost-tests/build/{build}/inputs/NEBHealth/", "analyst"),
     ("build-review-manager", "/reference-data/cost-tests/build/{manager_build}/review/", "cpuc_admin"),
+    ("build-review-offered", "/reference-data/cost-tests/build/{offered_build}/review/", "cpuc_admin"),
+    ("build-review-offering", "/reference-data/cost-tests/build/{offered_build}/review/", "analyst"),
     (
         "pack-etrm-lookup",
         "/reference-data/{etrm_pack}/?id=SWHC052-02-A-NR-DnDeemDI-Com-Com-Ex-cWtd-CZ01-Com-Default%3E2yrs-Def-GSIA-Any-Any",

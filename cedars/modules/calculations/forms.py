@@ -1,7 +1,9 @@
 from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from cedars.core import uploads
-from cedars.services.refdata.models import PackVersion
+from cedars.services.refdata import builder
+from cedars.services.refdata.models import CostTestBuild, PackVersion
 from cedars.services.registry.models import AllocationVersion
 
 from . import output_templates, service
@@ -89,6 +91,13 @@ class NewRunForm(forms.Form):
         empty_label="The set in force for the job's first program year",
         help_text="The cost tests it is priced on (ReCET's own calculation). A draft set is for analysis runs only",
     )
+    cost_test_build = forms.ModelChoiceField(
+        label="Or one of my cost-test sets",
+        required=False,
+        queryset=CostTestBuild.objects.none(),
+        empty_label="None",
+        help_text="A set you built (or one shared with your organization) on Cost-test sets, for an analysis run only, sent as its file",
+    )
     cost_tests_file = forms.FileField(
         label="Your own cost-test set (.yaml, optional)",
         required=False,
@@ -171,6 +180,11 @@ class NewRunForm(forms.Form):
                 self.fields[field] = forms.BooleanField(label=f"Use the run's {lead} again", required=False, initial=True)
                 self.kept.append((name, label, field))
         if user is not None:
+            self.fields["cost_test_build"].queryset = builder.mine(user).filter(status__in=["building", "offered", "registered"])
+            self.fields["cost_test_build"].label_from_instance = lambda b: (
+                f"{b}{f' ({b.label})' if b.label else ''}"
+                + (f", {b.open_problems} problem{'s' if b.open_problems != 1 else ''}" if b.open_problems else "")
+            )
             self.fields["output_template"].queryset = output_templates.visible(user)
             self.fields["output_template"].initial = output_templates.default_for(user)
         self.organisations = {o.code: o for o in organisations}
@@ -201,6 +215,12 @@ class NewRunForm(forms.Form):
             data["profile_years"] = parse_years(data.get("profile_years", ""))
         except forms.ValidationError as e:
             self.add_error("profile_years", e)
+        build = data.get("cost_test_build")
+        if build is not None:
+            if build.open_problems:
+                self.add_error("cost_test_build", f"{build} has {build.open_problems} problem(s); fix them on its Review step first.")
+            elif data.get("cost_tests_file") or data.get("cost_test_set"):
+                self.add_error("cost_test_build", "Choose one cost-test set: a registered one, one of yours, or a file.")
         if data.get("profile_years") and not data.get("portfolio_8760"):
             self.add_error("profile_years", "Tick Combined 8,760 electric load profile to choose its years.")
         return data
@@ -234,9 +254,17 @@ class NewRunForm(forms.Form):
             allocation_version=d.get("allocation_version"),
             cet_outputs=d.get("cet_outputs"),
             cost_test_set=d.get("cost_test_set"),
-            cost_tests_file=d.get("cost_tests_file"),
+            cost_tests_file=d.get("cost_tests_file") or self._build_file(d.get("cost_test_build")),
+            cost_test_build=d.get("cost_test_build"),
             supplied={n: d.get(n) for n in SUPPLIED_FIELDS if d.get(n)},
         )
+
+    @staticmethod
+    def _build_file(build):
+        """One of the user's own sets as the file the run is priced on: what the builder's Review step downloads."""
+        if build is None:
+            return None
+        return SimpleUploadedFile(builder.file_name(build), builder.to_yaml(build.data), content_type="application/yaml")
 
     def reused(self) -> list[str]:
         """The rerun's stored inputs to use again: its job file unless another is uploaded, and each optional input kept (ticked) and

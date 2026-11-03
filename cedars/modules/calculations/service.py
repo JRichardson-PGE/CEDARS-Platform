@@ -335,6 +335,7 @@ class RunRequest:
     # an analysis run's own cost-test set file (a local path or an UploadedFile; ReCET's --cost-tests FILE): never a filing's, which
     # takes a published set. Sent as inputs.cost_tests with its SHA-256, which the receipt must repeat.
     cost_tests_file: object = None
+    cost_test_build: object = None  # the set builder's working copy the file was written from (refdata CostTestBuild), recorded
 
 
 def run_name(job_name: str, acc_version: str) -> str:
@@ -714,6 +715,8 @@ def create_run(
             "sha256": inputs["cost_tests"]["sha256"],
             "file": Path(getattr(req.cost_tests_file, "name", None) or str(req.cost_tests_file)).name[:200],
         }
+        if req.cost_test_build is not None:  # one of the user's own sets from the set builder
+            run.spec["context"]["cost_tests"]["build"] = req.cost_test_build.pk
     if notes:  # echoed into the receipt with the rest of the context, and shown on the run page
         run.spec["context"]["notes"] = notes
     run.save()
