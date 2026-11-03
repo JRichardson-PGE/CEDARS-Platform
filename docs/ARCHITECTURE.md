@@ -104,8 +104,15 @@ how far it is built. Update the Status column in the PR that changes it.
   less-tested path) without pages making HTTP calls to their own server.
 - Edit inputs (`calculations/drafts.py`, pages under `/calculations/drafts/`) keeps a small job's tables (up to the engine's 500
   measures) as text in Postgres and checks them cell by cell with the pinned engine's `recet.editor` (Jake, 2026-10-30: the web app
-  installs ReCET); impact profiles are not matched there (no profile library on the web servers), the run checks them. Pages are
-  server-rendered forms, one row at a time; a draft downloads as a job zip, or starts from a run's inputs (Edit inputs and rerun).
+  installs ReCET); impact profiles are not matched there (no profile library on the web servers), the run checks them. The page is a
+  spreadsheet with scripts (`calculations/edit_grid.js` on Tabulator 6.3.1, vendored with its SHA-256s in
+  `static/calculations/vendor/tabulator-6.3.1/`, as ReCET's own Edit inputs page with its NVDA-tested fixes: one tab stop with the
+  focus on the active cell, Tab leaves the grid, a help line that follows the cell, the ARIA tabs pattern): paste from Excel, add,
+  copy and delete rows, undo; every change saves both tables whole (`PUT drafts/<id>/grid.json`, `drafts.save_tables`: refused with
+  409 when the tables' SHA-256 `drafts.revision` changed since the page loaded them, one `calculation_draft.tables_saved` audit
+  event with the rows and cells changed) and answers with the cell checks and the dropdown values. Without scripts, or with
+  `?view=rows`, the page is server-rendered forms, one row at a time. A draft downloads as a job zip, or starts from a run's inputs
+  (Edit inputs and rerun).
   Add a measure from eTRM (BR-06.22, prototype; `draft_views.draft_etrm`, `drafts.add_from_etrm`) fills a new measure row from the
   eTRM permutations pack (`refdata.etrm.editor_pack`: the published one in force, else the newest draft): find the measure package
   (`EtrmPackage`, written at load), then narrow its offering one key at a time in the Measure Detail ID's order (`etrm.OFFERING_KEYS`);

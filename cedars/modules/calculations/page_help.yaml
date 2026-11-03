@@ -250,35 +250,54 @@ calculations/drafts:
 calculations/draft:
   title: A draft
   guide:
-    - One job's tables being edited. The input check runs on every save and lists the cells to look at, errors first. Select a row to edit
-      it; add a measure or program cost row, rename or delete the draft.
-    - Run these inputs starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip
-      or the job workbook.
-    - End uses are checked against the impact-profile library in force, as a run matches them. Check with the engine runs the engine's
-      whole input check on the tables (impact profiles, programs, ACCs, and CEDARS' filing rules if you choose) without pricing, and marks
-      the cells it names here; once the tables change, its findings are listed until you check again.
+    - One job's tables being edited, as a spreadsheet. Measure and ProgramCost are tabs; click a cell or type to change it, paste a
+      block copied from Excel, add, copy or delete rows, undo and redo. Every change is saved by itself, and the engine's cell checks
+      run on every save, marking each cell to look at (a cross stops the run, ! is a warning) and listing them above the table, errors
+      first. The line above the table says what the selected column means and what it changes.
+    - End uses are offered and checked against the impact-profile library in force, as a run matches them. Check with the engine runs
+      the engine's whole input check on the tables (impact profiles, programs, ACCs, and CEDARS' filing rules if you choose) without
+      pricing, and marks the cells it names; once the tables change, its findings are listed until you check again.
+    - The row-by-row view shows the same tables as pages, with a form for each row; it is the page without scripts. Run these inputs
+      starts a run of the tables as they stand now; the draft stays, to edit and run again. Download gives the job zip or the job workbook.
   how:
-    - Select a row to edit it, or add a measure or a program-cost row. Add a measure from eTRM fills a new row from an eTRM permutation.
-    - Run these inputs starts a run of the tables as they stand; Download the job zip or Download as a workbook gives them as a file.
+    - Pick a cell and type, or press Enter to edit it; Enter or Tab saves it. Arrow keys move; Tab leaves the table.
+    - Select cells with Shift and the arrows, then copy, paste from Excel or clear them with Delete.
+    - Add a row, copy or delete the selected rows, or add a measure from eTRM, which fills a new row from an eTRM permutation.
     - Check with the engine, choosing the ACC and the filing checks, queues a check-only run; reload the page when it ends.
-    - Rename the draft, or Delete it.
+    - Run these inputs starts a run of the tables as they stand; Download the job zip or Download as a workbook gives them as a file. Rename the draft, or delete it.
   see: calculations
   tour:
     - target: main .head-row .actions
       title: Run or download
       text: Run these inputs, or download the job as a zip.
+    - target: "#grid-summary"
+      title: Input check
+      text: What the engine's cell checks found, after every save. Cells to look at lists each one; select it to go to the cell.
+      optional: true
+    - target: main .grid-tabs
+      title: Tables
+      text: Measure and ProgramCost. The left and right arrows move between them.
+      optional: true
+    - target: main .editor-bar
+      title: Rows and columns
+      text: Add, copy or delete rows, undo, go to a column by name, or hide the columns that change no result.
+      optional: true
+    - target: "#help"
+      title: What a column means
+      text: The selected cell's column, what it changes, and the cell's problems first when it has any.
+      optional: true
     - target: "#check-h"
       title: Input check
       text: What the engine's input rules found. Cells to look at lists each one, with a link to its row.
+      optional: true
     - target: "#engine-check-h"
       title: Check with the engine
       text: The engine's whole input check of the tables, as a run makes it, with nothing priced. Its findings are marked on the cells.
-    - target: main nav.subnav
-      title: Tables
-      text: Measure and ProgramCost.
+      optional: true
     - target: "#table-h"
       title: The rows
       text: A page of rows. Select a row's number to edit it.
+      optional: true
     - target: "#change-h"
       title: Change the draft
       text: Add a row, rename the draft, or delete it.

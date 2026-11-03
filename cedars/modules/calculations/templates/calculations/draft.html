@@ -1,29 +1,56 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% block title %}Edit inputs · {{ draft.name }}{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:drafts' %}">Edit inputs</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ draft.name }}</h1>{% page_help "calculations/draft" %}</div>
-  <div class="actions">{% if can_change %}<a class="button primary" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a> <a class="button" href="{% url 'calculations:draft_workbook' draft.pk %}">Download as a workbook</a></div>
+  <div class="actions">{% if can_change %}<a class="button primary" id="run-link" href="{% url 'calculations:new' %}?draft={{ draft.pk }}">Run these inputs</a> {% endif %}<a class="button" href="{% url 'calculations:draft_download' draft.pk %}">Download the job zip</a> <a class="button" href="{% url 'calculations:draft_workbook' draft.pk %}">Download as a workbook</a></div>
 </div>
 <p class="small muted">{{ draft.source }}{% if draft.source_run %} (<a href="{% url 'calculations:run' draft.source_run.pk %}">the run</a>){% endif %}. For {{ draft.organisation.code|default:"you only" }}. Changed {{ draft.updated_at|datetime_words }}.</p>
 
-<section class="card" aria-labelledby="check-h">
-  <h2 id="check-h">Input check</h2>
-  {% if checks_failed %}<p class="alert" role="alert">The engine's cell checks could not run on these tables ({{ checks_failed }}). Look for blank or malformed numbers; the run still checks every input.</p>{% else %}
-  {% if counts.error %}<p><strong>{{ counts.error }} cell{{ counts.error|pluralize }} would stop the run.</strong> {% else %}<p><strong>Nothing here stops the run.</strong> {% endif %}
-  {{ counts.warning }} warning{{ counts.warning|pluralize }}{% if counts.info %}, {{ counts.info }} note{{ counts.info|pluralize }}{% endif %}.
-  These are the engine's per-cell input rules{% if library %}, with end uses checked against {{ library }}{% else %}; no impact-profile library is in force, so end uses are not checked here{% endif %}{% if check and check.current and check.report %}, and the findings of the engine's input check below{% endif %}. The run checks everything again.</p>
-  {% endif %}
-  {% if issues %}
-  <details{% if counts.error %} open{% endif %}><summary>Cells to look at</summary>
-    <ul class="issues">
-    {% for i in issues %}<li><span aria-hidden="true" class="mark">{{ i.symbol }}</span> {{ i.label }}: <a href="{% url 'calculations:draft_row' draft.pk i.table i.number %}#{{ i.anchor }}">{{ i.table }} row {{ i.number }}, {{ i.column }}</a>: {{ i.message }}</li>{% endfor %}
-    {% if more_issues %}<li>and {{ more_issues }} more</li>{% endif %}
+{% if grid %}
+<section id="editor" class="editor" hidden aria-labelledby="sheet-h" data-api="{% url 'calculations:draft_grid' draft.pk %}" data-end-uses="{% url 'calculations:draft_end_uses' %}" data-run="{% url 'calculations:new' %}?draft={{ draft.pk }}">
+  {% csrf_token %}
+  <h2 id="sheet-h" class="sr-only">The tables</h2>
+  <div class="grid-status">
+    <p id="grid-summary" class="issue-line"></p>
+    <p id="save-status" class="save-status small muted">Loading…</p>
+  </div>
+  <details id="grid-issues-box" class="grid-issues" hidden><summary>Cells to look at (<span id="grid-issues-count">0</span>)</summary>
+    <ul id="grid-issues" class="issues"></ul>
+  </details>
+  <div role="tablist" aria-label="Tables" class="grid-tabs">
+    <button type="button" role="tab" id="tab-Measure" aria-controls="grid-Measure" aria-selected="true">Measure <span data-count="Measure" class="count"></span></button>
+    <button type="button" role="tab" id="tab-ProgramCost" aria-controls="grid-ProgramCost" aria-selected="false" tabindex="-1">ProgramCost <span data-count="ProgramCost" class="count"></span></button>
+  </div>
+  <div class="editor-bar">
+    {% if can_change %}<span class="actions" role="group" aria-label="Rows">
+      <button type="button" data-action="add">Add a row</button>
+      <button type="button" data-action="duplicate">Copy the selected rows</button>
+      <button type="button" data-action="delete">Delete the selected rows</button>
+      <button type="button" data-action="undo">Undo</button>
+      <button type="button" data-action="redo">Redo</button>
+    </span>{% endif %}
+    <span class="field inline"><label for="col-find">Go to column</label><input type="text" id="col-find" list="col-names" autocomplete="off"><datalist id="col-names"></datalist></span>
+    <span class="inline"><input type="checkbox" id="hide-noeff"><label for="hide-noeff">Hide columns that change no result</label></span>
+  </div>
+  <div id="grid-confirm" class="grid-confirm" role="group" aria-labelledby="grid-confirm-text" hidden>
+    <span id="grid-confirm-text"></span> <button type="button" id="grid-confirm-yes">Delete</button> <button type="button" id="grid-confirm-no">Keep them</button>
+  </div>
+  <p id="help" class="help-line" tabindex="0">Pick a cell to see what its column means and what it changes.</p>
+  <div id="grid-Measure" class="grid" role="tabpanel" aria-labelledby="tab-Measure"></div>
+  <div id="grid-ProgramCost" class="grid" role="tabpanel" aria-labelledby="tab-ProgramCost" hidden></div>
+  <details class="small grid-keys"><summary>Keys and marks</summary>
+    <ul>
+      <li>Arrow keys move between cells; Tab and Shift+Tab leave the table. Enter or typing edits a cell{% if can_change %}; Enter or Tab saves it{% endif %}.</li>
+      <li>Shift with the arrow keys or a click selects a range. Ctrl+C copies it{% if can_change %}; Ctrl+V pastes a block copied from Excel; Delete clears it{% endif %}.</li>
+      <li>Columns in italics change no result (they are carried to the outputs). A cell marked <span aria-hidden="true">✕</span> stops the run, <span aria-hidden="true">!</span> is a warning, a dashed outline a note; a screen reader reads each with its cell.</li>
+      <li>Every change is saved by itself. <a href="?view=rows">Row-by-row view</a> shows the same tables as pages and forms.</li>
     </ul>
   </details>
-  {% endif %}
 </section>
+{% endif %}
 
 <section class="card" aria-labelledby="engine-check-h">
   <h2 id="engine-check-h">Check with the engine</h2>
@@ -52,9 +79,28 @@
   <p class="small muted">On ReCET {{ check_release.release }}.</p>
   {% elif can_change %}<p>No engine release offers ReCET's own calculation, so the check cannot run.</p>{% endif %}
 </section>
+<div data-without-grid>
+<section class="card" aria-labelledby="check-h">
+  <h2 id="check-h">Input check</h2>
+  {% if checks_failed %}<p class="alert" role="alert">The engine's cell checks could not run on these tables ({{ checks_failed }}). Look for blank or malformed numbers; the run still checks every input.</p>{% else %}
+  {% if counts.error %}<p><strong>{{ counts.error }} cell{{ counts.error|pluralize }} would stop the run.</strong> {% else %}<p><strong>Nothing here stops the run.</strong> {% endif %}
+  {{ counts.warning }} warning{{ counts.warning|pluralize }}{% if counts.info %}, {{ counts.info }} note{{ counts.info|pluralize }}{% endif %}.
+  These are the engine's per-cell input rules{% if library %}, with end uses checked against {{ library }}{% else %}; no impact-profile library is in force, so end uses are not checked here{% endif %}{% if check and check.current and check.report %}, and the findings of the engine's input check below{% endif %}. The run checks everything again.</p>
+  {% endif %}
+  {% if issues %}
+  <details{% if counts.error %} open{% endif %}><summary>Cells to look at</summary>
+    <ul class="issues">
+    {% for i in issues %}<li><span aria-hidden="true" class="mark">{{ i.symbol }}</span> {{ i.label }}: <a href="{% url 'calculations:draft_row' draft.pk i.table i.number %}#{{ i.anchor }}">{{ i.table }} row {{ i.number }}, {{ i.column }}</a>: {{ i.message }}</li>{% endfor %}
+    {% if more_issues %}<li>and {{ more_issues }} more</li>{% endif %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+{% if not grid %}<p class="small">Row-by-row view. <a href="?table={{ table }}">The spreadsheet view</a> edits both tables in place (it needs scripts).</p>{% endif %}
+
 
 <nav class="subnav" aria-label="Tables">
-  {% for t, n in tables %}<a href="?table={{ t }}"{% if t == table %} aria-current="page"{% endif %}>{{ t }} ({{ n }})</a>{% endfor %}
+  {% for t, n in tables %}<a href="?table={{ t }}{% if not grid %}&amp;view=rows{% endif %}"{% if t == table %} aria-current="page"{% endif %}>{{ t }} ({{ n }})</a>{% endfor %}
 </nav>
 <h2 id="table-h">{{ table }}</h2>
 <p class="small">Columns in italics change no result (they are carried to the outputs). Marks: <span aria-hidden="true">✕</span> stops the run, <span aria-hidden="true">!</span> warning, <span aria-hidden="true">i</span> note; each is also written out for screen readers.</p>
@@ -72,11 +118,12 @@
 </div>
 {% if pages > 1 %}
 <nav class="pager" aria-label="{{ table }} pages">
-  {% if page > 1 %}<a href="?table={{ table }}&amp;page={{ page|add:-1 }}">Previous</a>{% endif %}
+  {% if page > 1 %}<a href="?table={{ table }}&amp;page={{ page|add:-1 }}{% if not grid %}&amp;view=rows{% endif %}">Previous</a>{% endif %}
   <span>Page {{ page }} of {{ pages }}</span>
-  {% if page < pages %}<a href="?table={{ table }}&amp;page={{ page|add:1 }}">Next</a>{% endif %}
+  {% if page < pages %}<a href="?table={{ table }}&amp;page={{ page|add:1 }}{% if not grid %}&amp;view=rows{% endif %}">Next</a>{% endif %}
 </nav>
 {% endif %}
+</div>
 
 {% if can_change %}
 <section class="card" aria-labelledby="change-h">
@@ -93,3 +140,5 @@
 </section>
 {% endif %}
 {% endblock %}
+{% block head %}{% if grid %}<link rel="stylesheet" href="{% static 'calculations/vendor/tabulator-6.3.1/tabulator_simple.min.css' %}"><link rel="stylesheet" href="{% static 'calculations/edit_grid.css' %}">{% endif %}{% endblock %}
+{% block scripts %}{% if grid %}<script src="{% static 'calculations/vendor/tabulator-6.3.1/tabulator.min.js' %}" defer></script><script src="{% static 'calculations/edit_grid.js' %}" defer></script>{% endif %}{% endblock %}

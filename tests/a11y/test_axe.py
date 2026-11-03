@@ -1140,6 +1140,9 @@ def _open(browser, site, scene, path, who, **context_args):
     assert response.status == 200, f"{path} answered {response.status} at {page.url}"
     if who is not None:  # a check that reached the sign-in page instead would pass without having seen the page
         assert "/accounts/login/" not in page.url, f"{path} sent {who} to {page.url}"
+    # Edit inputs draws its spreadsheet after the page loads (calculations/edit_grid.js): check the page once it is drawn
+    if page.locator("#editor").count():
+        page.wait_for_selector("#editor[data-ready]", state="attached")
     return context, page
 
 
@@ -1787,3 +1790,51 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     assert summary.inner_text().endswith("All PAs and statewide programs")
     assert page.locator("[data-pa-statewide]").count() == 1
     context.close()
+
+
+# ---------- Edit inputs as a spreadsheet (calculations/edit_grid.js, Tabulator 6.3.1 with ReCET's NVDA-tested fixes) ----------
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_edit_inputs_grid_by_keyboard(browser, axe_source, site, scene, scheme):
+    """The spreadsheet replaces the paged table once drawn; it is one tab stop with the focus on a cell, the arrows move it and the help
+    line follows, typing edits and the change is saved by itself, Tab leaves the grid (no keyboard trap, 2.1.2), the tabs follow the
+    ARIA tabs pattern, and axe finds nothing with a cell being edited."""
+    from cedars.modules.calculations import drafts
+
+    if drafts.engine() is None:
+        pytest.skip("Edit inputs needs the ReCET engine package (the page says so instead of drawing the grid)")
+    context, page = _open(browser, site, scene, "/calculations/drafts/{draft}/", "analyst", color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#editor").count(), f"no grid at {page.url}: {page.title()}: {page.inner_text('main')[:800]}"
+    assert page.get_attribute("#editor", "data-ready") == "1", page.inner_text("#save-status")
+    assert not page.is_visible("#table-h") and page.is_visible("#grid-Measure .tabulator-cell")
+    assert page.get_attribute("#grid-Measure", "aria-label") == "Measure table"
+    page.focus("#help")  # the help line just before the grid
+    page.keyboard.press("Tab")
+    first = page.evaluate("document.activeElement.className")
+    assert "tabulator" in first, first
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("ArrowRight")
+    cell = page.evaluate(
+        "[document.activeElement.classList.contains('tabulator-cell'), document.activeElement.getAttribute('tabulator-field')]"
+    )
+    assert cell[0] and cell[1], cell
+    assert cell[1] in page.inner_text("#help")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#grid-Measure .tabulator-cell.tabulator-editing input")
+    page.add_script_tag(content=axe_source)
+    page.evaluate("window.scrollTo(0, 0)")  # the sticky header covers what the focus scrolled past; axe would call it obscured
+    editing = _run_axe(page)
+    assert not editing, f"grid with a cell being edited ({scheme}): " + json.dumps(editing, indent=1)
+    page.keyboard.type("7")
+    page.keyboard.press("Enter")
+    page.wait_for_selector("#save-status.ok:has-text('Saved ')", timeout=10000)
+    page.keyboard.press("Tab")
+    assert not page.evaluate("document.getElementById('grid-Measure').contains(document.activeElement)")
+    page.focus("#tab-Measure")
+    page.keyboard.press("ArrowRight")
+    assert page.evaluate("document.activeElement.id") == "tab-ProgramCost"
+    assert page.get_attribute("#tab-ProgramCost", "aria-selected") == "true" and page.is_visible("#grid-ProgramCost")
+    found = _violations(page, axe_source)
+    context.close()
+    assert not found, f"grid ({scheme}): " + json.dumps(found, indent=1)
