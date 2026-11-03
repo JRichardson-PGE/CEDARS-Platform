@@ -35,4 +35,5 @@ urlpatterns = [
     path("result-views/", views.result_view_save, name="result_view_save"),
     path("result-views/<int:pk>/delete", views.result_view_delete, name="result_view_delete"),
     path("engines/", views.engines, name="engines"),
+    path("engines/<int:pk>/", views.engine_release, name="engine_release"),
 ]

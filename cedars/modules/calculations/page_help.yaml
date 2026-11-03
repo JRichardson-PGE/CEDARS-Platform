@@ -218,17 +218,37 @@ calculations/engines:
     - For CPUC system administrators. The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the
       ACCs each has. A job asks for exactly one release and the worker refuses any other, so a run's results always name the release that
       produced them. The default is what New run offers first; a retired release keeps its runs but takes no new ones.
+    - A new ReCET version is a release of its own, added here by its number; the old one is retired, never edited into the new one, so
+      each run keeps naming the release it ran on.
   how:
-    - Add the release registers a ReCET release by its version.
-    - Make default sets what New run offers first; Retire takes no new runs on a release and keeps its runs.
+    - Add the release registers a ReCET release by its version number (e.g. 0.1.90). The Calculations box starts with the default
+      release's lines; write each as recet or cet-25.1 (or ReCET, CET 25.1 replica, as the table shows them), a colon and its ACC years.
+    - Tick Make it the default, and Retire the current default, to move to the new release in one step.
+    - Change edits a release's calculations, ACCs, worker image or Batch job definition, with a reason for the audit trail.
+    - Make default sets what New run offers first and filings price on; Retire takes no new runs on a release and keeps its runs;
+      Return to service offers a retired release again. The default is retired only after another release is made the default.
   see: calculations
   tour:
     - target: main table.list
       title: The releases
-      text: Each release, the calculations and ACCs it has, and whether it is the default.
+      text: Each release, the calculations and ACCs it has, whether it is the default and how many runs it has priced.
     - target: "#add-h"
       title: Add a release
       text: Register a new release by its version number.
+
+calculations/engine_release:
+  title: Change a release
+  guide:
+    - For CPUC system administrators. Change what one ReCET release offers (its calculations and the ACCs each has), its worker image,
+      AWS Batch job definition and notes. Its number never changes, so the runs on it keep naming it; a new ReCET version is added as a
+      release of its own on Engine releases.
+  how:
+    - Write each calculation on its own line, recet or cet-25.1 then a colon and its ACC years, say why it is changed, and save.
+  see: calculations
+  tour:
+    - target: "#change-h"
+      title: What it offers
+      text: The release's calculations and ACCs, how its worker is run, and the reason kept in the audit trail.
 
 calculations/drafts:
   title: Edit inputs

@@ -295,33 +295,83 @@ class OutputTemplateForm(forms.Form):
         return output_templates.parse(d.get("columns", "")) + list(d.get("add") or [])
 
 
-class EngineReleaseForm(forms.Form):
-    release = forms.CharField(label="ReCET release", max_length=40, help_text="e.g. 0.1.78")
+CALCULATIONS_HELP = (
+    "One per line, the calculation and then its ACCs: recet: 2021, 2022, 2024, 2026 for ReCET's own and, for each CET replica, "
+    "cet-25.1: 2024. The names the table shows (ReCET, CET 25.1 replica) work too."
+)
+
+
+def parse_calculations(text: str) -> dict[str, list[str]]:
+    """{"recet": ["2024", "2026"], "cet-25.1": ["2024"]} from the Calculations box: one "calculation: ACC, ACC" per line, the calculation
+    by its code or the name the releases table shows it by."""
+    out: dict[str, list[str]] = {}
+    for line in (text or "").splitlines():
+        if not line.strip():
+            continue
+        name, sep, accs = line.partition(":")
+        years = [a.strip() for a in accs.replace(";", ",").split(",") if a.strip()]
+        if not sep or not years:
+            raise forms.ValidationError(f"Write each line as calculation: ACC, ACC, e.g. recet: 2024, 2026 (got {line.strip()!r}).")
+        code = service.calculation_code(name)
+        if not code:
+            raise forms.ValidationError(
+                f"{name.strip()!r} is not a calculation. Use recet (ReCET's own) or cet-<release> for a CET replica, e.g. cet-25.1."
+            )
+        bad = [y for y in years if not (y.isdigit() and len(y) == 4)]
+        if bad:
+            raise forms.ValidationError(f"Name each ACC by its year, e.g. 2024 (got {', '.join(bad)} for {code}).")
+        if code in out:
+            raise forms.ValidationError(f"{code} is on two lines; put its ACCs on one.")
+        out[code] = years
+    if not out:
+        raise forms.ValidationError("Name at least ReCET's own calculation and its ACCs, e.g. recet: 2024, 2026.")
+    if service.RECET not in out:
+        raise forms.ValidationError('Add ReCET\'s own calculation: a line "recet: " followed by its ACCs, e.g. recet: 2024, 2026.')
+    return out
+
+
+class EngineReleaseChangeForm(forms.Form):
+    """What a release offers and how it is run; its number never changes (its runs name it)."""
+
     calculations = forms.CharField(
-        label="Calculations and their ACCs",
-        widget=forms.Textarea(attrs={"rows": 4}),
-        help_text="One per line: recet: 2021, 2022, 2024, 2026 and, for each CET replica, cet-25.1: 2024, 2026",
+        label="Calculations and their ACCs", widget=forms.Textarea(attrs={"rows": 9}), help_text=CALCULATIONS_HELP
     )
     image = forms.CharField(label="Worker image (optional)", max_length=300, required=False)
     batch_job_definition = forms.CharField(label="AWS Batch job definition (optional)", max_length=200, required=False)
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+    reason = forms.CharField(
+        label="Why it is changed",
+        max_length=300,
+        help_text="Kept in the audit trail, e.g. the data pack that added an ACC.",
+    )
+
+    def clean_calculations(self):
+        return parse_calculations(self.cleaned_data["calculations"])
+
+
+class EngineReleaseForm(EngineReleaseChangeForm):
+    release = forms.CharField(label="ReCET release", max_length=40, help_text="The version number only, e.g. 0.1.90")
     default = forms.BooleanField(label="Make it the default for new runs", required=False)
+    retire_previous = forms.BooleanField(label="Retire the release it replaces as the default", required=False)
     reason = forms.CharField(
         label="Why it is added",
         max_length=300,
         help_text="Kept in the audit trail, e.g. the release's change or the decision that calls for it.",
     )
+    field_order = ["release", "calculations", "default", "retire_previous", "image", "batch_job_definition", "notes", "reason"]
 
-    def clean_calculations(self):
-        out = {}
-        for line in self.cleaned_data["calculations"].splitlines():
-            if not line.strip():
-                continue
-            calc, sep, accs = line.partition(":")
-            years = [a.strip() for a in accs.split(",") if a.strip()]
-            if not sep or not years:
-                raise forms.ValidationError(f"Write each line as calculation: ACC, ACC (got {line.strip()!r}).")
-            out[calc.strip()] = years
-        if not out:
-            raise forms.ValidationError("Name at least ReCET's own calculation and its ACCs.")
-        return out
+    def __init__(self, *args, current_default=None, **kwargs):
+        # a new release usually offers what the default does: start from its calculations and ACCs
+        kwargs.setdefault("initial", {"calculations": service.calculations_text(current_default)})
+        super().__init__(*args, **kwargs)
+        if current_default is None:
+            del self.fields["retire_previous"]
+        else:
+            self.fields["retire_previous"].label = f"Retire {current_default}, the current default (its runs keep naming it)"
+            self.fields["retire_previous"].help_text = "Only when this release is made the default."
+
+    def clean_release(self):
+        number = service.release_number(self.cleaned_data["release"])
+        if not number:
+            raise forms.ValidationError(f"Name the release by its version number, e.g. 0.1.90 (got {self.cleaned_data['release']!r}).")
+        return number

@@ -411,6 +411,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pii_filer": pii_filer,
         "queued_run": queued,
         "finished_run": finished,
+        "engine_release": release.pk,
         "result_view": _result_view(analyst),
         "draft": draft,
         "rules": rules,
