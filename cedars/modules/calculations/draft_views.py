@@ -1,17 +1,20 @@
 """The Edit inputs pages: the drafts list (start one from an upload or a blank job), a draft's tables with every problem cell marked,
 and the page that edits one row. Server-rendered forms, so they work without scripts."""
 
+import json
+
 from django import forms as djforms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Min
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
-from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from cedars.core import uploads
 from cedars.services.accounts.service import AccessDenied
@@ -70,6 +73,22 @@ def _issue(i) -> dict:
         "symbol": SYMBOL[i.severity],
         "anchor": f"f-{slugify(i.column)}",
         "severity": i.severity,
+    }
+
+
+def _finding(i: dict) -> dict:
+    """One of an engine check's findings about the job as a whole (no cells, or cells of tables changed since)."""
+    sev = i.get("severity") if i.get("severity") in SEVERITY else "info"
+    msg = str(i.get("message", ""))
+    examples = ", ".join(str(e) for e in (i.get("examples") or [])[:5])
+    return {
+        "label": SEVERITY[sev],
+        "symbol": SYMBOL[sev],
+        "severity": sev,
+        "code": i.get("code", ""),
+        "message": msg[:1].upper() + msg[1:],
+        "count": int(i.get("count") or 0),
+        "examples": examples,
     }
 
 
@@ -141,6 +160,44 @@ def draft_from_run(request, pk):
     return redirect("calculations:draft", pk=draft.pk)
 
 
+def _check_accs(ed, d) -> tuple[service.EngineRelease | None, list[str], str]:
+    """The release an engine check runs on (the default), its ReCET ACCs, and the one offered first: the claims ACC of the draft's first
+    claim year when the release has it (recet.versions.claims_acc), else its newest."""
+    release = service.default_release()
+    if release is None or service.RECET not in release.calculations:
+        return None, [], ""
+    accs = sorted(service.accs_for(release, service.RECET), reverse=True)
+    years = [y for y in (ed.claim_year(v) for v in drafts.frame(d, "Measure").get("ClaimYearQuarter", [])) if y]
+    first = ""
+    if years:
+        try:
+            from recet import versions
+
+            first = next((str(r.acc) for r in versions.claims_acc() if r.first <= min(years) <= r.last), "")
+        except (ImportError, AttributeError):
+            first = ""
+    return release, accs, first if first in accs else (accs[0] if accs else "")
+
+
+def _start_check(request, d):
+    ed = drafts.engine()
+    release, accs, _ = _check_accs(ed, d)
+    acc = request.POST.get("acc", "")
+    if release is None or acc not in accs:
+        raise AccessDenied("Choose one of the ACCs offered to check the inputs on.")
+    filing = request.POST.get("filing_validation", "")
+    if filing not in service.FILING_CHECKS:
+        raise AccessDenied("Choose filing checks from the list.")
+    req = service.RunRequest(
+        name=f"Input check: {d.name}"[:200],
+        release=release,
+        calculation=service.RECET,
+        acc_version=acc,
+        settings={"filing_validation": filing} if filing else {},
+    )
+    return drafts.start_check(request.user, d, req)
+
+
 def _display(ed, table, df):
     pinned, scroll, no_effect = ed.display_layout(table, list(df.columns))
     return pinned + scroll, no_effect
@@ -166,6 +223,10 @@ def draft(request, pk):
                 i = drafts.add_row(request.user, d, table, like=0 if table == "Measure" and d.measure_count else None)
                 messages.success(request, f"Added row {i + 1}.")
                 return redirect(f"{reverse('calculations:draft_row', args=[d.pk, table, i + 1])}")
+            elif action == "check":
+                run = _start_check(request, d)
+                messages.success(request, f"The engine's input check is queued ({run.name}). This page marks its findings when it ends.")
+                return redirect(f"{reverse('calculations:draft', args=[d.pk])}?table={table}#engine-check-h")
             elif action == "delete":
                 drafts.delete(request.user, d)
                 messages.success(request, f"Deleted the draft {d.name}.")
@@ -176,7 +237,12 @@ def draft(request, pk):
 
     df = drafts.frame(d, table)
     columns, no_effect = _display(ed, table, df)
-    found, failed = _issues(d)
+    src = drafts.choices()
+    found, failed = _issues(d, src)
+    check = drafts.check_findings(d)
+    if check is not None and check.current:
+        found = found + check.cells  # the engine check's cells, marked like the cell checks'
+    check_release, check_accs, check_acc = _check_accs(ed, d)
     by_cell: dict[tuple[int, str], list] = {}
     for i in found:
         if i.table == table:
@@ -212,6 +278,7 @@ def draft(request, pk):
         {
             "draft": d,
             "can_change": can_change,
+            "grid": request.GET.get("view") != "rows",
             "table": table,
             "tables": [(t, len(drafts.frame(d, t))) for t in drafts.TABLES],
             "columns": [(c, c in no_effect) for c in columns],
@@ -224,13 +291,28 @@ def draft(request, pk):
             "first_row": start + 1,
             "last_row": min(len(df), start + PER_PAGE),
             "more_issues": max(0, len(listed) - 200),
+            "library": getattr(src, "library", None),
+            "check": check,
+            "check_other": [_finding(i) for i in (check.other if check else [])],
+            "check_release": check_release,
+            "check_accs": check_accs,
+            "check_acc": check_acc,
+            "filing_checks": list(service.FILING_CHECKS.items()),
         },
     )
 
 
-def _field(ed, src, table, column, value, row, years, issues):
-    """How the row page shows one column: a select of the engine's values for it (the current value kept), else a text box."""
-    choices = None if column in ed.END_USE_COLUMNS else src.column_choices(table, column, years)
+def _field(ed, src, table, column, value, row, years, issues, record=None):
+    """How the row page shows one column: a select of the engine's values for it (the current value kept), else a text box. An end use
+    is a text box offering the library's end uses for the row's IOU and target sector (any name can still be typed: the check says
+    when the library has no 8,760 for it)."""
+    suggestions = None
+    if column in ed.END_USE_COLUMNS:
+        choices = None
+        if getattr(src, "library", None) is not None and record is not None:
+            suggestions = src.end_use_choices(record.get("IOU_AC_Territory", ""), record.get("AC_Elec_Target_Sector", ""))
+    else:
+        choices = src.column_choices(table, column, years)
     if choices is not None and value and value not in choices:
         choices = [value, *choices]
     affects, how = ed.EFFECTS[table].get(column, (None, ""))
@@ -239,6 +321,7 @@ def _field(ed, src, table, column, value, row, years, issues):
         "id": f"f-{slugify(column)}",
         "value": value,
         "choices": choices,
+        "suggestions": suggestions,
         "effect": f"Changes {affects}." if ed.affects_results(table, column) and affects else "No effect on results.",
         "how": how,
         "help": ed.field_help().get(column, ""),
@@ -288,7 +371,7 @@ def draft_row(request, pk, table, number):
     found, failed = _issues(d, src)
     found = [i for i in found if i.table == table and i.row == index]
     pinned, scroll, no_effect = ed.display_layout(table, list(df.columns))
-    fields = {c: _field(ed, src, table, c, row[c], index, years, [i for i in found if i.column == c]) for c in df.columns}
+    fields = {c: _field(ed, src, table, c, row[c], index, years, [i for i in found if i.column == c], row) for c in df.columns}
     groups = [
         ("Identification", [fields[c] for c in pinned]),
         ("Changes results", [fields[c] for c in scroll if c not in no_effect]),
@@ -307,8 +390,119 @@ def draft_row(request, pk, table, number):
             "issues": [_issue(i) for i in found],
             "checks_failed": failed,
             "back": back,
+            "library": getattr(src, "library", None),
         },
     )
+
+
+# --- the spreadsheet grid's JSON (calculations/edit_grid.js; ReCET's /edit/api)
+
+NEW_MEASURE_LIKE = [
+    "PrgID",
+    "ClaimYearQuarter",
+    "IOU_AC_Territory",
+    "AC_Climate_Zone",
+    "AC_Elec_Target_Sector",
+    "AC_Gas_Target_Sector",
+    "Sector",
+    "Version",
+]
+NEW_PROGRAMCOST_LIKE = ["PrgID", "PrgYear", "ClaimYearQuarter", "PA"]
+MAX_GRID_BODY = 8 * 1024 * 1024  # a 500-measure job is about 0.5 MB of JSON
+
+
+def _grid_issues(d, src) -> list[dict]:
+    """The grid's marked cells: the cell checks on the tables as saved, then the latest engine check's cells while it still applies."""
+    found, _failed = _issues(d, src)
+    check = drafts.check_findings(d)
+    if check is not None and check.current:
+        found = found + check.cells
+    return [{"table": i.table, "row": i.row, "column": i.column, "severity": i.severity, "message": i.message} for i in found]
+
+
+def _grid_layout(ed, frames) -> dict:
+    help_ = ed.field_help()
+    out = {}
+    for t, df in zip(drafts.TABLES, frames, strict=True):
+        pinned, scroll, no_effect = ed.display_layout(t, list(df.columns))
+        out[t] = {
+            "pinned": pinned,
+            "scroll": scroll,
+            "no_effect": sorted(no_effect),
+            "numeric": sorted(ed.numeric_columns(t) & set(df.columns)),
+            "tooltips": {c: ed.column_tooltip(t, c) for c in pinned + scroll},
+            "help": {c: help_.get(c, "") for c in pinned + scroll},
+        }
+    return out
+
+
+@never_cache
+@login_required
+@require_http_methods(["GET", "PUT"])
+def draft_grid(request, pk):
+    """GET: the draft's tables for the grid, their layout, dropdown values and cell checks. PUT {rev, tables}: save both tables whole
+    and answer with the new revision, the cell checks and the dropdown values (the claim years may have changed)."""
+    ed = drafts.engine()
+    if ed is None:
+        return JsonResponse({"error": "Edit inputs needs the ReCET engine installed on this server."}, status=503)
+    d = _draft_or_404(request, pk)
+    src = drafts.choices()
+    if request.method == "PUT":
+        if not drafts.can_change(request.user, d):
+            return JsonResponse({"error": "You cannot change this draft."}, status=403)
+        if len(request.body) > MAX_GRID_BODY:
+            return JsonResponse({"error": "Too large for Edit inputs: edit this job offline and upload it."}, status=413)
+        try:
+            body = json.loads(request.body)
+            if not isinstance(body, dict):
+                raise ValueError
+            rev = drafts.save_tables(request.user, d, body.get("tables"), body.get("rev"))
+        except ValueError:
+            return JsonResponse({"error": "Not saved: the request was not JSON."}, status=400)
+        except drafts.Conflict as e:
+            return JsonResponse({"error": str(e), "rev": drafts.revision(d)}, status=409)
+        except AccessDenied as e:
+            return JsonResponse({"error": f"Not saved: {e}"}, status=400)
+        d.refresh_from_db()
+        m = drafts.frame(d, "Measure")
+        return JsonResponse({"rev": rev, "issues": _grid_issues(d, src), "choices": drafts.column_choices(src, m)})
+    frames = drafts.frames(d)
+    return JsonResponse(
+        {
+            "name": d.name,
+            "rev": drafts.revision(d),
+            "can_change": drafts.can_change(request.user, d),
+            "tables": {t: drafts._pack(df) for t, df in zip(drafts.TABLES, frames, strict=True)},
+            "layout": _grid_layout(ed, frames),
+            "choices": drafts.column_choices(src, frames[0]),
+            "issues": _grid_issues(d, src),
+            "max_rows": ed.MAX_EDIT_ROWS,
+            "end_uses": bool(getattr(src, "library", None)),
+            "new_measure": {"defaults": ed.NEW_MEASURE_DEFAULTS, "like": NEW_MEASURE_LIKE},
+            "new_programcost_like": NEW_PROGRAMCOST_LIKE,
+        }
+    )
+
+
+@never_cache
+@login_required
+@require_GET
+def draft_end_uses(request):
+    """The end uses offered for an IOU and target sector (the grid's per-row list): the library's in force, else the engine's list."""
+    if drafts.engine() is None:
+        return JsonResponse({"values": [""]})
+    src = drafts.choices()
+    return JsonResponse({"values": ["", *src.end_use_choices(request.GET.get("iou", "")[:20], request.GET.get("sector", "")[:40])]})
+
+
+@login_required
+def draft_workbook(request, pk):
+    if drafts.engine() is None:
+        return _no_engine(request)
+    d = _draft_or_404(request, pk)
+    resp = HttpResponse(drafts.workbook_bytes(d), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    resp["Content-Disposition"] = f'attachment; filename="{slugify(d.name) or "job"}.xlsx"'
+    return resp
 
 
 @login_required

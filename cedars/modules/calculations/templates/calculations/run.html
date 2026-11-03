@@ -22,6 +22,7 @@
 {% if check %}
 <section aria-labelledby="check-h">
 <h2 id="check-h">Input check</h2>
+{% if check.acc_part %}<p class="small">The inputs were checked once for each ACC of the comparison; this is the check on the {{ check.acc_part }} ACC.</p>{% endif %}
 <p id="check-verdict">{% if check.n.error %}<strong>{{ check.n.error }} problem{{ check.n.error|pluralize }} stopped the run.</strong>{% elif check.n.warning %}<strong>{{ check.n.warning }} warning{{ check.n.warning|pluralize }}</strong>; nothing stopped the run.{% else %}<strong>No problems found.</strong>{% endif %}{% if check.n.info %} {{ check.n.info }} note{{ check.n.info|pluralize }}.{% endif %}</p>
 {% if check.unpriced %}
 <p><strong>Not priced:</strong></p>
@@ -40,7 +41,7 @@
   </ul>
   {% endif %}
 </details>
-<p class="small">{% if check.has_findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk 'preflight_findings.xlsx' %}">preflight_findings.xlsx</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
+<p class="small">{% if check.findings_file %}Every finding, with the rows and cells it names, is in <a href="{% url 'calculations:run_file' run.pk check.findings_file %}">{{ check.findings_file }}</a>.{% else %}The findings file is written with the run's other files.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -62,6 +63,7 @@
     {% if inputs|length > 1 %}<a href="{% url 'calculations:run_inputs_zip' run.pk %}">Download every input (.zip)</a>{% endif %}</dd>
 </dl>
 {% if input_notes %}<ul class="small">{% for n in input_notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+{% if can_rerun %}<p class="actions"><a class="button" href="{% url 'calculations:new' %}?from={{ run.pk }}">Rerun with different settings</a> <span class="small muted">New run with this run's settings and its stored inputs, to change and start as a new run.</span></p>{% endif %}
 {% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
 </section>
 
@@ -130,6 +132,16 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
 </dl>
 {% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+{% if can_delete %}
+<section class="card" aria-labelledby="delete-h">
+  <h2 id="delete-h">Delete the run</h2>
+  <p>This run is your own, so you can delete it and its files now rather than wait for retention to remove it. A deleted run cannot be brought back.</p>
+  <form method="post" action="{% url 'calculations:delete' run.pk %}" class="stack">{% csrf_token %}
+    <label class="inline"><input type="checkbox" name="sure" value="1" required> Delete this run and its files for good</label>
+    <div class="actions"><button type="submit">Delete the run</button></div>
+  </form>
 </section>
 {% endif %}
 {% endblock %}

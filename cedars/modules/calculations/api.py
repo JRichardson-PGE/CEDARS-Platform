@@ -193,6 +193,23 @@ class NewRun(serializers.Serializer):
     include_societal = serializers.BooleanField(default=True)
     emissions = serializers.BooleanField(default=True)
     preflight_only = serializers.BooleanField(default=False, help_text="Check the inputs only")
+    compare_with = serializers.CharField(
+        required=False, allow_blank=True, help_text="Another ACC by year: the job is priced on it too and compared (ReCET only)"
+    )
+    base_year = serializers.IntegerField(
+        required=False, min_value=2000, max_value=2100, help_text="CET's First Year; the earliest claim year when left out"
+    )
+    market_effects = serializers.ChoiceField(choices=[0, 0.05], required=False, help_text="CET's market effects: 0 or 0.05")
+    components = serializers.BooleanField(default=False, help_text="Price each ACC component separately (ReCET only)")
+    apply_exclude_from_ce = serializers.BooleanField(
+        default=False, help_text="Leave Exclude_From_CE programs out of the portfolio summary (still priced)"
+    )
+    portfolio_8760 = serializers.BooleanField(default=False, help_text="The combined 8,760 electric load profile (ReCET only)")
+    profile_years = serializers.ListField(
+        child=serializers.IntegerField(min_value=2000, max_value=2100),
+        required=False,
+        help_text="Years of the combined 8,760 profile; the First Year when left out",
+    )
     cet_outputs = serializers.FileField(
         required=False, help_text="A parallel run: the outputs CSV of the same job run in CET, compared measure by measure (ReCET only)"
     )
@@ -275,6 +292,13 @@ def _request(data: dict, user) -> service.RunRequest:
         "include_societal": data["include_societal"],
         "emissions": data["emissions"],
         "preflight_only": data.get("preflight_only") or None,
+        "compare_with": (data.get("compare_with") or "").strip() or None,
+        "base_year": data.get("base_year"),
+        "market_effects": data.get("market_effects") or None,
+        "components": data.get("components") or None,
+        "apply_exclude_from_ce": data.get("apply_exclude_from_ce") or None,
+        "portfolio_8760": data.get("portfolio_8760") or None,
+        "profile_years": sorted(set(data.get("profile_years") or [])) or None,
         "cost_test_set": (data.get("cost_test_set") or "").strip() or None,
         **_template_settings(data, user),
     }

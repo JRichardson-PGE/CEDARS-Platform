@@ -495,10 +495,10 @@ audit log; a mail failure never changes the run.
 
 ### 8.7 Accessibility
 
-The web pages must meet WCAG 2.2 Level AA (Jake, 2026-10-29), in light and dark colour schemes, with a keyboard alone and with a screen reader. The rules
+The web pages must meet WCAG 2.2 Level AA (Jake, 2026-10-29), in light and dark color schemes, with a keyboard alone and with a screen reader. The rules
 for page changes are in the repository's CLAUDE.md. The vendored Tabulator grid (Edit inputs) and Mermaid diagrams (Docs) count as part of the page:
 where they fall short, the page gives an equivalent (a text alternative for a diagram, keyboard commands for the grid). The audit of 2026-10-29
-(0.1.64) found the pages short of it. 0.1.67 fixed every gap outside the Edit inputs grid: a `--control` border colour of at least 3:1 for fields
+(0.1.64) found the pages short of it. 0.1.67 fixed every gap outside the Edit inputs grid: a `--control` border color of at least 3:1 for fields
 and buttons, a visible focus ring and a skip link, Apply buttons instead of filters that reload on change, live regions for run status and row counts,
 help shown on the page instead of only in tooltips, focusable scroll boxes, text alternatives (`accTitle` / `accDescr`) on the diagrams, error messages
 that take the focus, sort buttons in table headings, and tables that scroll inside their box at 320 px. 0.1.68 fixed the grid's: Tabulator's roles repaired, a help line that follows the active cell from the keyboard and names its
