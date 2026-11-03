@@ -142,12 +142,24 @@ def cost_test_sets(request):
             except (cost_tests.SetError, AccessDenied) as e:
                 form.add_error("file", str(e))
             else:
-                messages.success(request, f"{pack.label} {pack.version} registered as a draft. Record its engine check, then publish it.")
+                check = pack.tie_outs.filter(name="engine_check").order_by("-recorded_at", "-id").first()
+                if check is None:
+                    messages.success(
+                        request, f"{pack.label} {pack.version} registered as a draft. Record its engine check, then publish it."
+                    )
+                elif check.passed:
+                    messages.success(request, f"{pack.label} {pack.version} registered as a draft, and the engine check passed.")
+                else:
+                    messages.error(
+                        request, f"{pack.label} {pack.version} registered as a draft, but the engine check failed: {check.summary}"
+                    )
                 return redirect("refdata:detail", pk=pack.pk)
     packs = PackVersion.objects.filter(kind=cost_tests.KIND).order_by("label", "-registered_at")
     rows = [(p, cost_tests.header(p), cost_tests.years_text(p)) for p in packs]
     in_force = cost_tests.for_year(None)
     from . import builder
 
-    builds = list(builder.visible(request.user))
-    return render(request, "refdata/cost_tests.html", {"rows": rows, "form": form, "in_force": in_force, "builds": builds})
+    builds = list(builder.mine(request.user))
+    offered = list(builder.offered()) if builder.is_manager(request.user) else None
+    ctx = {"rows": rows, "form": form, "in_force": in_force, "builds": builds, "offered": offered}
+    return render(request, "refdata/cost_tests.html", ctx)

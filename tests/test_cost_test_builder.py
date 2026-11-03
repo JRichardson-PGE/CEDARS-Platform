@@ -17,7 +17,7 @@ from cedars.services.refdata import builder_forms as bf
 from cedars.services.refdata.models import CostTestBuild, PackVersion
 
 from .conftest import page_only, sign_in
-from .test_calculations import analyst  # noqa: F401 - fixture
+from .test_calculations import analyst, release  # noqa: F401 - fixtures
 from .test_cost_test_sets import registered, set_file
 
 pytestmark = pytest.mark.django_db
@@ -75,8 +75,8 @@ def test_every_validator_message_lands_on_a_step():
     d["streams"]["OtherBen"]["basis"] = "monthly"
     d["aggregates"]["TotalSystemBenefit"]["plus"].append("Nope")
     d["tests"]["PAC"]["program_costs"] = {"share": "RIM"}
-    problems, release = builder.check(d)
-    assert release == engine_release()
+    problems, checked_by = builder.check(d)
+    assert checked_by == engine_release()
     assert list(problems) == ["set", "pricings", "engine", "inputs", "aggregates", "tests"]
     assert sum(len(v) for v in problems.values()) == len(engine.validate(d)) and all(problems.values())
     assert any("OtherBen.basis" in m for m in problems["inputs"]) and any("ElecBen.kind" in m for m in problems["engine"])
@@ -498,3 +498,101 @@ def test_the_ee_set_from_the_engine_passes_its_check_as_the_engines_own_file(cpu
     pack = cost_tests.register_set(cpuc_admin, data)
     check = pack.tie_outs.get(name="engine_check")
     assert check.passed and "byte for byte" in check.summary
+
+
+# --- offering a set to the CPUC, and New run's "My cost-test sets"
+
+
+def test_a_set_is_offered_declined_with_a_reason_and_registered(cpuc_admin, analyst):  # noqa: F811
+    from cedars.services.notifications.models import Notification
+
+    b = builder.start_from_engine(analyst, "EE-2026")
+    builder.put_test(analyst, b, None, jst())
+    assert b not in builder.visible(cpuc_admin)  # private until it is offered
+    with pytest.raises(AccessDenied):
+        builder.decline(analyst, b, reason="x")
+    with django_capture_on_commit():
+        b = builder.offer(analyst, b, note="A JST test for everyone")
+    assert b.status == "offered" and b in builder.visible(cpuc_admin) and list(builder.offered()) == [b]
+    assert b not in builder.mine(cpuc_admin)
+    with pytest.raises(builder.BuildError, match="reason"):
+        builder.decline(cpuc_admin, b, reason=" ")
+    with django_capture_on_commit():
+        builder.decline(cpuc_admin, b, reason="JST needs the working group's sign-off first.")
+    b.refresh_from_db()
+    assert b.status == "building" and b.declined_reason.startswith("JST") and b not in builder.visible(cpuc_admin)
+    n = Notification.objects.get(user=analyst)
+    assert "declined" in n.title and n.body.startswith("JST") and n.link.endswith(f"/build/{b.pk}/review/")
+    with django_capture_on_commit():
+        builder.offer(analyst, b)
+        builder.withdraw_offer(analyst, b)
+        builder.offer(analyst, b)
+        pack = builder.register(cpuc_admin, b)
+    assert Notification.objects.filter(user=analyst, title__contains="registered").count() == 1
+    assert pack.label == "EE-2026" and set(
+        audit.models.AuditEvent.objects.filter(action__startswith="cost_test_build.").values_list("action", flat=True)
+    ) >= {"cost_test_build.offered", "cost_test_build.declined", "cost_test_build.offer_withdrawn", "cost_test_build.registered"}
+
+
+def django_capture_on_commit():
+    """Run on_commit callbacks at once (the tests run inside one transaction)."""
+    from unittest import mock
+
+    from django.db import transaction
+
+    return mock.patch.object(transaction, "on_commit", lambda f, *a, **k: f())
+
+
+def test_offering_and_declining_on_the_pages(cpuc_admin, analyst):  # noqa: F811
+    b = builder.start_from_file(analyst, EE.read_bytes(), "ee.yaml")
+    b.data["version"] = "v-offer"
+    b.save()
+    c, m = Client(), Client()
+    sign_in(c, analyst)
+    sign_in(m, cpuc_admin)
+    page = page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode())
+    assert "Offer it to the CPUC" in page
+    assert c.post(f"/reference-data/cost-tests/build/{b.pk}/action/", {"action": "offer", "note": "Please"}).status_code == 302
+    assert "Withdraw the offer" in page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode())
+    sets = page_only(m.get("/reference-data/cost-tests/").content.decode())
+    assert "Offered to the CPUC" in sets and "Please" in sets
+    review = page_only(m.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode())
+    assert "Decline it" in review and "Register as a draft pack" in review
+    r = m.post(f"/reference-data/cost-tests/build/{b.pk}/action/", {"action": "decline", "reason": "Not now."})
+    assert r.status_code == 302 and r.url == "/reference-data/cost-tests/"
+    b.refresh_from_db()
+    assert b.status == "building" and "declined it" in c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode()
+    assert "Offered to the CPUC" not in page_only(c.get("/reference-data/cost-tests/").content.decode())  # managers only
+
+
+@needs_catalog
+def test_new_run_prices_one_of_my_sets_as_its_file(tmp_path, analyst, release):  # noqa: F811
+    from cedars.modules.calculations.models import Run
+
+    from .test_calculation_run_options import post_new
+
+    b = builder.start_from_engine(analyst, "EE-2026")
+    builder.set_header(analyst, b, workstream="EE", first_year=2026, tail="mine", label="Mine", description="", version="v1",
+                       draft=False, years_from=None, years_to=None, share=False)  # fmt: skip
+    builder.put_test(analyst, b, None, jst())
+    c = Client()
+    sign_in(c, analyst)
+    page = c.get("/calculations/new/").content.decode()
+    assert 'name="cost_test_build"' in page and "EE-2026-mine v1 (Mine)" in page
+    r = post_new(c, tmp_path, cost_test_build=str(b.pk))
+    assert r.status_code == 302, r.content.decode()[:2000]
+    run = Run.objects.get()
+    data = builder.to_yaml(b.data)
+    assert run.cost_tests["status"] == "custom" and run.cost_tests["build"] == b.pk and run.cost_tests["file"] == builder.file_name(b)
+    assert storage_bytes(run.inputs["cost_tests"]["key"]) == data
+    assert "from the set builder" in c.get(f"/calculations/runs/{run.pk}/").content.decode()
+    builder.put_test(analyst, b, None, jst(id="BAD", pricing="nope"))
+    r = post_new(c, tmp_path, cost_test_build=str(b.pk))
+    assert r.status_code == 200 and "fix them on its Review step" in r.content.decode()
+    assert Run.objects.count() == 1
+
+
+def storage_bytes(key):
+    from cedars.core import storage
+
+    return storage.store("uploads").get_bytes(key)

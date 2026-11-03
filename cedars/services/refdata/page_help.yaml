@@ -66,7 +66,8 @@ refdata/cost_tests:
       publishes it and pins it to a filing.
   how:
     - Build a set starts the set builder, from a copy of a set, a file or nothing.
-    - Register as a draft takes a set's definition file; publish it from its page.
+    - Register as a draft takes a set's definition file; the engine here records its engine check at once; publish it from its page.
+    - Managers review the sets Offered to the CPUC, then register one from its Review step or decline it with a reason.
   see: calculations
   tour:
     - heading: Every set
@@ -75,6 +76,10 @@ refdata/cost_tests:
     - target: "#mine-h"
       title: My sets
       text: The sets you are building and those shared with your organization, with Build a set to start another.
+    - target: "#offered-h"
+      title: Offered to the CPUC
+      text: For the CPUC's managers, the sets their builders offer for everyone.
+      optional: true
     - target: "#reg-h"
       title: Register a set
       text: For CPUC system administrators. A set starts as a draft.
@@ -273,6 +278,8 @@ refdata/builder/review:
       check at once, and it is published on its own page. A registered set no longer changes here; copy it to start the next version.
   how:
     - Download the set file, Copy it to a new set, or Discard it; managers Register as a draft pack.
+    - Offer it to the CPUC with a note, when everyone could use it; Withdraw the offer while it waits. Managers Decline an offered set
+      with a reason, which its builder is sent.
   see: calculations
   tour:
     - target: nav.subnav
