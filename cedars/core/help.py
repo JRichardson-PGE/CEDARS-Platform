@@ -185,6 +185,7 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
     steps = [
         Step("intro", "Welcome to CEDARS", welcome),
         PAGE_HELP_STEP,
+        SEARCH_STEP,
         Step(
             "cycle",
             "This program cycle at a glance",
@@ -366,6 +367,14 @@ PAGE_HELP_STEP = Step(
     "Help on every page",
     "The question mark beside this heading, and beside every page's heading, opens a guide to that page and a tour of just that page. "
     "Use it whenever you land somewhere new.",
+)
+
+# The site search in the header (core/search.py), on every page.
+SEARCH_STEP = Step(
+    "search",
+    "Search",
+    "Find a page, a user guide or answer, a glossary term, a program by PrgID or name, a data dictionary field or a document from any "
+    "page. Results include only what you may open.",
 )
 
 HELP_STEP = Step(
