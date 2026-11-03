@@ -16,6 +16,7 @@ from cedars.core import storage, zipstream
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.refdata import cost_tests
 from cedars.services.refdata.models import PackVersion
 
 from . import dispatch, drafts, forms, input_templates, result_views, service
@@ -108,6 +109,28 @@ def settings_view(settings: dict) -> list[tuple[str, object]]:
     return out
 
 
+def settings_line(run: Run) -> str:
+    """The runs list's one line of a run's settings (ReCET's settings_summary): what differs from New run's defaults, and the set."""
+    st = run.settings or {}
+    parts = []
+    if run.cost_tests.get("id"):
+        parts.append(f"cost tests {run.cost_tests['id']}{' (custom file)' if run.cost_tests.get('status') == 'custom' else ''}")
+    if st.get("include_societal") is False:
+        parts.append("SCT off")
+    if st.get("emissions") is False:
+        parts.append("emissions off")
+    if st.get("acc_purpose"):
+        parts.append(f"priced for {dict(forms.ACC_PURPOSES).get(st['acc_purpose'], st['acc_purpose']).lower()}")
+    if st.get("filing_validation"):
+        parts.append(service.FILING_CHECKS.get(st["filing_validation"], st["filing_validation"]))
+    if st.get("allocate_statewide"):
+        parts.append("statewide allocated")
+    if st.get("output_template"):
+        parts.append(f"template {st.get('output_template_name') or 'unnamed'}")
+    parts.append(run.output_format)
+    return " · ".join(parts)
+
+
 def _run_or_404(request, pk) -> Run:
     run = get_object_or_404(Run.objects.select_related("organisation", "owner", "allocation_version"), pk=pk)
     if not service.can_read(request.user, run):
@@ -119,11 +142,15 @@ def _run_or_404(request, pk) -> Run:
 def runs(request):
     qs = service.visible_runs(request.user)
     page = Paginator(qs, PER_PAGE).get_page(request.GET.get("page"))
-    rows = [(r, status_view(r)) for r in page.object_list]
+    deletion = service.deletion_dates(page.object_list)
+    rows = [
+        (r, status_view(r), {"settings": settings_line(r), "time": duration(r.seconds), "deletion": deletion.get(r.pk, "")})
+        for r in page.object_list
+    ]
     return render(
         request,
         "calculations/runs.html",
-        {"page": page, "rows": rows, "live": any(not r.ended for r, _ in rows), "can_start": service.default_release() is not None},
+        {"page": page, "rows": rows, "live": any(not r.ended for r, *_ in rows), "can_start": service.default_release() is not None},
     )
 
 
@@ -186,9 +213,30 @@ def new_run(request):
             "unserved": dispatch.unserved(releases),
             "worker_minutes": settings.HEALTH["worker_seen"],
             "input_templates": _input_template_links(releases),
+            "cost_test_sets": _cost_test_sets(),
             "acc_table": service.acc_table(releases),
         },
     )
+
+
+def _cost_test_sets() -> list[dict]:
+    """New run's "What each cost-test set prices": every registered set not withdrawn, with its program years and the tests it writes."""
+    out = []
+    packs = PackVersion.objects.filter(kind=PackVersion.Kind.COST_TESTS).exclude(status=PackVersion.Status.WITHDRAWN)
+    for p in packs.order_by("label", "-registered_at"):
+        h = cost_tests.header(p)
+        headline = set(h.get("headline") or ())
+        out.append(
+            {
+                "id": p.label,
+                "version": p.version,
+                "label": h.get("label", ""),
+                "status": p.get_status_display(),
+                "years": cost_tests.years_text(p),
+                "tests": [{"id": t, "label": label, "headline": t in headline} for t, label in (h.get("tests") or {}).items()],
+            }
+        )
+    return out
 
 
 def _template_accs(releases) -> list[str]:
@@ -313,6 +361,7 @@ def run(request, pk):
             "log": log,
             "log_cut": log_cut,
             "inputs": _input_files(run),
+            "deletion": service.deletion_dates([run]).get(run.pk, ""),
         },
     )
 
