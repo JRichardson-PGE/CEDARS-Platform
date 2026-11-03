@@ -41,26 +41,29 @@
   <p class="front-dive">Dive in deeper in the <a href="{% url 'data:dashboards' %}">Portfolio Dashboard</a>.</p>
   <div class="front-cards">
     {% for card in summary.cards %}
-    <article class="card front-card" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
-      <h3 id="card-{{ card.key }}">{{ card.title }}</h3>
-      {% if card.empty %}<p class="muted">{{ card.empty }}</p>{% endif %}
-      {% if card.figures and not card.empty %}
+    {# The title's link covers the whole card (a larger target); the card's numbers are plain text inside it. #}
+    <article class="card front-card{% if card.bar is not None or card.headline %} has-gauge{% endif %}" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
+      <h3 id="card-{{ card.key }}"><a class="card-title" href="{{ card.link }}">{{ card.title }}{% if card.scope %} <span class="card-scope">{{ card.scope }}</span>{% endif %}</a></h3>
+      {% if card.empty %}<p class="muted small">{{ card.empty }}</p>{% else %}
+      {% if card.bar is not None %}
+      {# The gauge repeats the words in it, so the drawing is hidden from assistive technology; its fill is an attribute (no inline styles). #}
+      <div class="gauge">
+        <svg viewBox="0 0 120 64" aria-hidden="true" focusable="false"><path class="gauge-edge" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-track" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-fill" d="M12 58 A48 48 0 0 1 108 58" pathLength="100" stroke-dasharray="{{ card.bar }} 100"/></svg>
+        <p class="gauge-text"><span class="gauge-pct">{{ card.percent_text }}</span> <span class="gauge-of">{{ card.percent_label }}</span></p>
+      </div>
+      {% elif card.headline %}
+      <div class="gauge gauge-number"><p class="gauge-text"><span class="gauge-pct">{{ card.headline }}</span> <span class="gauge-of">{{ card.percent_label }}</span></p></div>
+      {% endif %}
       <dl class="figures">
-        {% for f in card.figures %}<div class="figure{% if forloop.first %} lead{% endif %}"><dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.detail %} <span class="detail">{{ f.detail }}</span>{% endif %}</dd></div>{% endfor %}
+        {% for f in card.figures %}<div class="figure{% if forloop.first %} lead{% endif %}"><dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.unit %} <span class="unit">{{ f.unit }}</span>{% endif %}{% if f.detail %} <span class="detail">{{ f.detail }}</span>{% endif %}</dd></div>{% endfor %}
       </dl>
       {% endif %}
-      {% if card.bar is not None %}
-      {# The bar repeats the words beside it, so it is hidden from assistive technology; its width is an attribute (the CSP forbids inline styles). #}
-      <div class="meter-row">
-        <svg class="meter" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="meter-track" width="100" height="8" rx="2"/><rect class="meter-fill" width="{{ card.bar }}" height="8" rx="2"/></svg>
-        <p class="meter-label">{{ card.percent_label }}</p>
-      </div>
-      {% endif %}
-      {% for line in card.lines %}<p class="small muted">{{ line }}</p>{% endfor %}
-      <p class="card-link"><a href="{{ card.link }}">{{ card.link_text }}</a></p>
     </article>
     {% endfor %}
   </div>
+  {% if summary.footnotes %}
+  <ul class="front-notes">{% for n in summary.footnotes %}<li>{{ n }}</li>{% endfor %}</ul>
+  {% endif %}
   {% else %}
   {% for n in summary.notes %}<p class="muted">{{ n }}</p>{% endfor %}
   {% endif %}
