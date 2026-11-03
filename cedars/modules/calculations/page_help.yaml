@@ -133,9 +133,11 @@ calculations/results:
   guide:
     - A finished run's results at the level you choose (portfolio, PA, program, sector or measure), for the program years and PAs you pick.
       The tiles are the headline totals, with what each number is under them, and the chart shows the largest groups.
-    - Choose the columns to show, sort by any column, filter the rows, and download the table as CSV.
+    - Choose the columns to show (Find searches their names and definitions), save them as a named view to pick again on any run's
+      Results or Compare, sort by any column, filter the rows, and download the table as CSV.
   how:
-    - Choose the level, program years and PAs, then Apply. Show these columns picks the columns.
+    - Choose the level, program years and PAs, then Apply. Show these columns picks the columns; Clear the ticks starts from none.
+    - Save the view names the columns shown; Show this view brings them back on any run. Delete a saved view removes one.
     - Filter narrows the rows; Download this table (CSV) gives what you see.
     - Compare with another run, or go back to the Run page and files.
     - A run priced on two ACCs has a tab for each ACC's tables and one for the comparison of the two portfolios.
@@ -162,7 +164,7 @@ calculations/results:
       optional: true
     - heading: Choose columns
       title: Choose columns
-      text: Tick the columns to show, group by group.
+      text: Your saved views, Find, and the columns group by group. Save the columns shown as a view for any run.
       optional: true
     - target: main nav.subnav
       title: Level
@@ -178,8 +180,10 @@ calculations/compare:
   guide:
     - Two finished runs side by side (A and B) at the level you choose, with each value's difference. Use it to see what a change of ACC,
       engine release or inputs did. Neither run changes.
+    - Choose the columns as on Results, or pick one of your saved views; filter the rows; the column definitions are under the table.
   how:
     - Choose the level and the run to compare with, then Compare.
+    - Choose columns or Show this view; Filter narrows the rows.
     - Download this table (CSV) gives both runs' values and their differences.
   see: calculations
   tour:
@@ -192,6 +196,10 @@ calculations/compare:
     - target: main nav.subnav
       title: Level
       text: Portfolio, PA, program or sector.
+      optional: true
+    - heading: Choose columns
+      title: Choose columns
+      text: Your saved views, Find, and the columns group by group.
       optional: true
     - target: main table.data
       title: Side by side

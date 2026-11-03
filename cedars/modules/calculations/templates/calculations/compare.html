@@ -31,7 +31,15 @@
   {% for l in levels %}<a href="{{ l.href }}"{% if l.key == level %} aria-current="page"{% endif %}>{{ l.label }}</a>{% endfor %}
 </nav>
 <p class="small muted">Each row is a group found in either run, matched on its {{ match }}. Difference is B minus A; % is the difference over A (blank when A is 0). Ratios are each run's own, from its summed benefits and costs.</p>
-<p><a class="button" href="{% url 'calculations:compare_csv' a.pk %}{{ csv }}">Download this table (CSV)</a></p>
+{% include "calculations/_column_picker.html" %}
+<form method="get" class="row-form" aria-label="Filter rows">
+  <input type="hidden" name="with" value="{{ b.pk }}"><input type="hidden" name="level" value="{{ level }}"><input type="hidden" name="columns" value="{{ keys|join:',' }}">
+  {% for y in years %}<input type="hidden" name="years" value="{{ y }}">{% endfor %}
+  <label>Filter rows <input type="search" name="q" value="{{ text }}" placeholder="program, PA, text"></label>
+  <button type="submit">Filter</button>
+  {% if text %}<span class="small">{{ rows|length }} of {{ filtered_from }} rows</span>{% endif %}
+  <a class="button" href="{% url 'calculations:compare_csv' a.pk %}{{ csv }}">Download this table (CSV)</a>
+</form>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="compare-caption">
 <table class="list data">
   <caption id="compare-caption" class="sr-only">{{ a.name }} (A) and {{ b.name }} (B), side by side</caption>
@@ -41,8 +49,10 @@
     <tr>{% for key, label, help in values %}<th scope="col">A</th><th scope="col">B</th><th scope="col">Difference</th><th scope="col">%</th>{% endfor %}</tr>
   </thead>
   <tbody>{% for r in rows %}<tr>{% for v, num in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td{% if num %} class="num"{% endif %}>{{ v }}</td>{% endif %}{% endfor %}</tr>
-  {% empty %}<tr><td colspan="{{ ids|length|add:4 }}">Neither run has rows at this level{% if years %} for these years{% endif %}.</td></tr>{% endfor %}</tbody>
+  {% empty %}<tr><td colspan="{{ ids|length|add:4 }}">Neither run has rows at this level{% if years %} for these years{% endif %}{% if text %} matching "{{ text }}"{% endif %}.</td></tr>{% endfor %}</tbody>
 </table>
 </div>
+{% if definitions %}<details class="small"><summary>Column definitions</summary>
+  <dl class="facts">{% for label, help in definitions %}<dt>{{ label }}</dt><dd>{{ help }}</dd>{% endfor %}</dl></details>{% endif %}
 {% endif %}
 {% endblock %}

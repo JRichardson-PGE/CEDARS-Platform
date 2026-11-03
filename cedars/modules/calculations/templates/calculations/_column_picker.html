@@ -1,0 +1,54 @@
+{# The column picker of Results and Compare (views._picker): saved views, Find, the columns by group, Default and Clear, and Save as a view. Plain GET and POST forms, so it works without scripts. #}
+<details class="card column-picker" id="picker"{% if picker.open %} open{% endif %}>
+  <summary>Choose columns ({{ picker.count }} shown{% if picker.view %}, view "{{ picker.view.name }}"{% endif %})</summary>
+  {% if picker.views %}
+  <form method="get" class="row-form" aria-label="Your saved views">
+    {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <div class="field"><label for="view-pick">Your saved views</label>
+      <select id="view-pick" name="view">{% for v in picker.views %}<option value="{{ v.pk }}"{% if picker.view and v.pk == picker.view.pk %} selected{% endif %}>{{ v.name }} ({{ v.columns|length }} column{{ v.columns|length|pluralize }})</option>{% endfor %}</select></div>
+    <button type="submit">Show this view</button>
+  </form>
+  {% endif %}
+  <form method="get" class="row-form" aria-label="Find columns">
+    {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <input type="hidden" name="columns" value="{{ picker.ticked|join:',' }}">
+    <div class="field"><label for="col-find">Find columns</label>
+      <input type="search" id="col-find" name="find" value="{{ picker.find }}" aria-describedby="col-find-help"></div>
+    <button type="submit">Find</button>
+    {% if picker.find %}<a href="{{ picker.base }}&amp;columns={{ picker.ticked|join:','|urlencode }}&amp;picker=1#picker">Show every column</a>{% endif %}
+    <span class="small muted" id="col-find-help">Searches the column names and their definitions.</span>
+  </form>
+  <form method="get">
+    {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    {% for k in picker.hidden_keys %}<input type="hidden" name="col" value="{{ k }}">{% endfor %}
+    {% if picker.find and picker.hidden_keys %}<p class="small">{{ picker.hidden_keys|length }} ticked column{{ picker.hidden_keys|length|pluralize }} not matching "{{ picker.find }}" stay{{ picker.hidden_keys|length|pluralize:"s," }} ticked.</p>{% endif %}
+    {% for group, items in picker.groups %}
+    <fieldset>
+      <legend>{{ group }}</legend>
+      <div class="checks">
+      {% for key, label, help in items %}<label><input type="checkbox" name="col" value="{{ key }}" aria-describedby="col-{{ forloop.parentloop.counter }}-{{ forloop.counter }}"{% if key in picker.ticked %} checked{% endif %}> {{ label }}<span class="sr-only" id="col-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">{{ help }}</span></label>{% endfor %}
+      </div>
+    </fieldset>
+    {% empty %}<p>No column matches "{{ picker.find }}".</p>
+    {% endfor %}
+    <div class="actions">
+      <button type="submit" class="primary">Show these columns</button>
+      <a href="{{ picker.base }}">Default columns</a>
+      <a href="{{ picker.base }}&amp;clear=1#picker">Clear the ticks</a>
+    </div>
+  </form>
+  <form method="post" action="{% url 'calculations:result_view_save' %}" class="row-form" aria-label="Save as a view">
+    {% csrf_token %}
+    <input type="hidden" name="columns" value="{{ picker.columns }}">
+    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+    <div class="field"><label for="view-name">Save the {{ picker.count }} column{{ picker.count|pluralize }} shown as a view named</label>
+      <input type="text" id="view-name" name="name" maxlength="60" required value="{{ picker.view.name|default:'' }}" aria-describedby="view-name-help"></div>
+    <button type="submit">Save the view</button>
+    <span class="small muted" id="view-name-help">Your own; it is offered on Results and Compare for every run. A name you already use gets these columns.</span>
+  </form>
+  {% if picker.views %}
+  <details class="small"><summary>Delete a saved view</summary>
+    <ul>{% for v in picker.views %}<li><form method="post" action="{% url 'calculations:result_view_delete' v.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="link" aria-label="Delete the view {{ v.name }}">Delete</button></form> {{ v.name }}</li>{% endfor %}</ul>
+  </details>
+  {% endif %}
+</details>

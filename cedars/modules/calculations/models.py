@@ -189,6 +189,24 @@ class OutputTemplateDefault(models.Model):
         return f"{self.user}: {self.template}"
 
 
+class ResultView(models.Model):
+    """A person's named set of Results columns (as ReCET's own saved views): picked on Results or Compare to show those columns, in
+    order, for any run. A person's own; saving under a name they already use replaces that view's columns."""
+
+    owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="result_views")
+    name = models.CharField(max_length=60)
+    columns = models.JSONField(default=list, help_text="Results column keys, in order")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = [Lower("name"), "pk"]
+        constraints = [models.UniqueConstraint("owner", Lower("name"), name="calculations_result_view_name_per_owner")]
+
+    def __str__(self):
+        return self.name
+
+
 class Worker(models.Model):
     """A local worker process (`manage.py calculations_worker`) and the ReCET release it runs, refreshed each time it polls the queue,
     so the platform knows which releases have a worker now: New run says when a release has none, a worker takes only its own

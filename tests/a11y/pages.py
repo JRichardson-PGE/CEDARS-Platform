@@ -222,6 +222,8 @@ PAGES = [
     ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
     ("results-measure-level", "/calculations/runs/{finished_run}/results/?level=measure&pa=PGE", "analyst"),
     ("compare", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program", "analyst"),
+    ("results-view-find", "/calculations/runs/{finished_run}/results/?view={result_view}&find=benefit", "analyst"),
+    ("compare-view", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program&view={result_view}&q=pge", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),
     ("programs", "/programs/", "community"),
     ("programs-public", "/programs/?q=PGE", None),

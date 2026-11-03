@@ -184,6 +184,7 @@ def test_a_comparison_run_has_a_results_tab_for_each_acc_and_the_comparison(anal
     assert "$23,100" in own  # the run's own ACC: 1,100 x (1 + ... + 6)
     other = web.get(f"/calculations/runs/{run.pk}/results/", {"acc": "2026"}).content.decode()
     assert "$25,410" in other and 'name="acc" value="2026"' in other  # the other ACC's tables (x 1.1), kept on every form
+    assert "acc=2026&amp;level=" in other  # the column picker's Default columns link keeps it too
     comparison = web.get(f"/calculations/runs/{run.pk}/results/", {"acc": "comparison"}).content.decode()
     assert 'id="comparison-h"' in comparison and "TotalSystemBenefit" in comparison and "2,310" in comparison
     r = web.get(f"/calculations/runs/{run.pk}/results.csv", {"acc": "2026", "level": "program"})

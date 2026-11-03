@@ -32,5 +32,7 @@ urlpatterns = [
     path("runs/<uuid:pk>/results.csv", views.results_csv, name="results_csv"),
     path("runs/<uuid:pk>/compare/", views.compare, name="compare"),
     path("runs/<uuid:pk>/compare.csv", views.compare_csv, name="compare_csv"),
+    path("result-views/", views.result_view_save, name="result_view_save"),
+    path("result-views/<int:pk>/delete", views.result_view_delete, name="result_view_delete"),
     path("engines/", views.engines, name="engines"),
 ]
