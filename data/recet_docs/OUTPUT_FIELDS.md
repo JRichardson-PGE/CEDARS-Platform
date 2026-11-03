@@ -760,6 +760,39 @@ The gross streams are the net streams of the entry above divided by `NTG + MEB` 
 - Example B, `LifecycleBillReducGasGross`: 5700 * 1.485816933 + (0.125 * 5700 + 0.875 * 3800) * 1.530391441 / 1.0766^5 + 0.5 * 3800 * 1.576303184 / 1.0766^6 = **14,664.66**
 - Example B, `LifecycleBillIncrGasGross`: max(0, -PV_gas_gross), and PV_gas_gross is positive, so 0 = **0.00**
 
+#### `FirstYearBillReducElec`, `FirstYearBillIncrElec`, `FirstYearBillReducGas`, `FirstYearBillIncrGas`, `FirstYearBillReducElecGross`, `FirstYearBillIncrElecGross`, `FirstYearBillReducGasGross`, `FirstYearBillIncrGasGross`
+
+The customer's bill change in the first year of the measure's life: the first billed year (the claim year, `Used_Year`) of the lifecycle bill impacts above, in that year's dollars. The four net columns use
+the quantities of `LifecycleBillReducElec` ... `LifecycleBillIncrGas` (NTG plus market effects), the four `...Gross` columns those of `LifecycleBillReducElecGross` ... `LifecycleBillIncrGasGross` (no NTG, no
+market effects). The CET has no first-year bill columns; these follow its lifecycle bill calculation for one year. Reported only: no cost test reads them. Unit: Dollars (first year, not discounted).
+
+**Formula**
+
+```text
+FY(s1, s2, rate) = wt(0) * v(0) * rate(Y0)          the j = 0 term of PV(s1, s2, rate) above, without a discount factor
+    wt(0) = rem  if ny = 1 and rem > 0.000000001 (a life shorter than one year), else 1          (0 when ny = 0)
+    v(0)  = s1   if floor_rul >= 1,  else  b * s1 + (1 - b) * s2                              (an RUL under one year: the boundary year is the first)
+
+FirstYearBillReducElec = FY_elec        FirstYearBillIncrElec = 0                 if Fuel_Sub_Flag is false
+FirstYearBillReducElec = pos(FY_elec)   FirstYearBillIncrElec = pos(-FY_elec)     if Fuel_Sub_Flag is true
+FY_elec, FY_gas: FY of the streams of PV_elec, PV_gas (net) or PV_elec_gross, PV_gas_gross (...Gross); the gas columns the same with FY_gas
+```
+
+`rate(Y0)` is the claim year's `RateE` / `RateG`, as in the lifecycle sum; a measure with no rate for that year or no schedule for its sector gets 0 for that fuel.
+The lifecycle sum discounts a boundary year by `Raf ^ (j + yr1)` (CET's own exponent); a first-year value is not discounted, so that factor is not applied here.
+**Inputs:** as for `LifecycleBillReducElec` ... `LifecycleBillIncrGas` (net) and `LifecycleBillReducElecGross` ... (gross).
+
+- Example A, `FirstYearBillReducElec`: 34200 * 0.406249518 = **13,893.73**
+- Example A, `FirstYearBillReducGas`: 1620 * 2.815469667 = **4,561.06**
+- Example A, `FirstYearBillReducElecGross`: 42750 * 0.406249518 = **17,367.17**
+- Example A, `FirstYearBillReducGasGross`: 1800 * 2.815469667 = **5,067.85**
+- Example A, `FirstYearBillIncrElec`: not a fuel-substitution measure, so 0 = **0.00**
+- Example B, `FirstYearBillIncrElec`: max(0, 28800 * 0.426280328) (`RUL_Yrs` 1.125, so the first year is all 1st baseline) = **12,276.87**
+- Example B, `FirstYearBillReducElec`: the first-year electric value is negative, so 0 = **0.00**
+- Example B, `FirstYearBillReducGas`: 5130 * 1.485816933 = **7,622.24**
+- Example B, `FirstYearBillIncrElecGross`: 36000 * 0.426280328 = **15,346.09**
+- Example B, `FirstYearBillReducGasGross`: 5700 * 1.485816933 = **8,469.16**
+
 ### 1.6 Societal (SB = Base, SH = High) and societal-rate columns
 
 Blank when "Include societal cost tests" is off. These are the columns of 1.4 and 1.5 repeated for the Societal Cost tests. Two things change, and only these two: the **price rows** are
@@ -1884,7 +1917,7 @@ it they are counted like every other measure.
 | `group` | The kind of row. Text. | `portfolio`, `IOU territory (PA)`, `credited PA`, `program segment`, `program year` or `excluded` |
 | `value` | The group's value. Text. | `all measures`, the IOU territory (`PGE`, `SCE`, `SDGE`, `SCG`) or the credited PA (any PA of `ProgramCost.csv`, such as a REN or CCA; `SW` for unallocated statewide programs), the segment (for example `resource_acquisition`, `(blank)`), the program year (for example `2028`), or the excluded row's label |
 | `measures` | Number of measures in the group. Count. | `COUNT of the measure-level rows in the group` |
-| `ElecBen`, `GasBen`, `WaterEnergyBen`, `OtherBen`, `ElecSupplyCost`, `GasSupplyCost`, `WaterEnergyCost`, `TotalSystemBenefit`, `TRCCost`, `PACCost`, `RIMCost`, `SCBCost`, `SCHCost`, `TRCCostNoAdmin`, `PACCostNoAdmin`, `WeightedProgramCost`, `LifecycleBillReducElec`, `LifecycleBillReducGas`, `PCTBen`, `PCTCost` | The group's total of the measure-level column of the same name (a column with no values, for example `SCBCost` when SCB/SCH are off, is omitted). $ (`WeightedProgramCost` nominal, the rest PV). | `SUM over the measures of the group of the measure-level column of the same name` |
+| `ElecBen`, `GasBen`, `WaterEnergyBen`, `OtherBen`, `ElecSupplyCost`, `GasSupplyCost`, `WaterEnergyCost`, `TotalSystemBenefit`, `TRCCost`, `PACCost`, `RIMCost`, `SCBCost`, `SCHCost`, `TRCCostNoAdmin`, `PACCostNoAdmin`, `WeightedProgramCost`, `LifecycleBillReducElec`, `LifecycleBillReducGas`, `PCTBen`, `PCTCost`, `FirstYearBillReducElec`, `FirstYearBillIncrElec`, `FirstYearBillReducGas`, `FirstYearBillIncrGas` | The group's total of the measure-level column of the same name (a column with no values, for example `SCBCost` when SCB/SCH are off, is omitted). $ (`WeightedProgramCost` nominal, the four `FirstYearBill` columns in first-year dollars, the rest PV). | `SUM over the measures of the group of the measure-level column of the same name` |
 | `FirstYearNetElecCO2`, `FirstYearNetGasCO2` | The group's First Year Net Electric CO2 emissions avoided and First Year Net Gas CO2 emissions avoided. Metric Tons. | `SUM over the group of FirstYearNetElecCO2` (and of `FirstYearNetGasCO2`) |
 | `TRCBen`, `PACBen`, `RIMBen`, `SCBBen`, `SCHBen` | The numerators of the group's ratios below: the group's total of the measure-level column of the same name (`SCBBen` and `SCHBen` omitted when SCB/SCH are off), so `TRC_ratio = TRCBen / TRCCost`, `TRC_NoAdmin_ratio = TRCBen / TRCCostNoAdmin`, `PAC_ratio = PACBen / PACCost`, and so on. $ (PV). | `SUM over the group of TRCBen` (and of each of the others) |
 | `TRC_ratio` | Portfolio Total Resource Cost ratio, on CET's receipt definition: the summed benefits (supply costs are inside the cost, not netted from the numerator) over the summed cost. Ratio. | `( SUM(ElecBen) + SUM(GasBen) + SUM(WaterEnergyBen) + SUM(OtherBen) + SUM(TaxCredits) ) / SUM(TRCCost)` |
@@ -2348,6 +2381,14 @@ refer to.
 | `LifecycleBillIncrElecGross` | 0 | 25956.1 |
 | `LifecycleBillReducGasGross` | 11297.5 | 14664.7 |
 | `LifecycleBillIncrGasGross` | 0 | 0 |
+| `FirstYearBillReducElec` | 13893.7 | 0 |
+| `FirstYearBillIncrElec` | 0 | 12276.9 |
+| `FirstYearBillReducGas` | 4561.06 | 7622.24 |
+| `FirstYearBillIncrGas` | 0 | 0 |
+| `FirstYearBillReducElecGross` | 17367.2 | 0 |
+| `FirstYearBillIncrElecGross` | 0 | 15346.1 |
+| `FirstYearBillReducGasGross` | 5067.85 | 8469.16 |
+| `FirstYearBillIncrGasGross` | 0 | 0 |
 | `ElecBen_SB` | 6688.34 | 0 |
 | `ElecBen_SH` | 7296.37 | 0 |
 | `ElecSupplyCost_SB` | 0 | 4734.01 |
