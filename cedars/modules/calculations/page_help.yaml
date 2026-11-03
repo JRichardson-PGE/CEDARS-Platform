@@ -391,16 +391,25 @@ calculations/templates:
 calculations/template:
   title: An output template
   guide:
-    - Name the template and list its columns in the order the file should have them, one per line, or tick them under Add columns. A
-      column a run does not produce is left out, with a note.
+    - Name the template and pick its columns in the order the file should have them. The list on the left has every field a run can
+      write, by kind (input, program and output fields) and output group, with a search over names and definitions; the list on the
+      right is the template in file order. A column a run does not produce is left out, with a note.
+    - The Columns box holds the same list as text, one per line, to paste a list into. Without scripts, the page has the Columns box and
+      tick boxes under Add columns instead of the two lists.
   how:
-    - List the columns one per line, or tick them under Add columns, then Save the template.
+    - Select fields on the left and Add them (or press Enter); select columns on the right and Remove them (or press Delete).
+    - Move the selected columns with Move to the top, up, down or to the bottom (Alt+Up and Alt+Down), then Save the template.
     - Delete the template takes one of yours off the list.
   see: calculations
   tour:
     - target: main form .form-narrow
-      title: Name and columns
-      text: The template's name, who sees it, and its columns in order.
+      title: Name
+      text: The template's name, who sees it, and whether new runs start with it.
+    - target: "#field-picker"
+      title: Pick the columns
+      text: Fields you can add on the left, filtered by kind, group or search; the template's columns in file order on the right, with buttons to add, remove and reorder. Selecting a field shows its definition below.
+      optional: true
     - heading: Add columns
       title: Add columns
       text: Every column a run can write, by group. Tick them to add them to the list.
+      optional: true
