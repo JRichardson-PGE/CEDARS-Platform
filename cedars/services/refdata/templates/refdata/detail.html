@@ -99,6 +99,7 @@ published pack in force: blank fields are filled from it and filed values that d
     <p><label for="reason">Reason (for discarding)</label><input id="reason" name="reason" type="text"></p>
     <div class="actions">
       <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>
+      {% if cost_set and engine_here %}<button type="submit" name="action" value="engine_check">Check it with the engine again</button>{% endif %}
       <button type="submit" name="action" value="discard">Discard the draft</button>
     </div>
   </form>

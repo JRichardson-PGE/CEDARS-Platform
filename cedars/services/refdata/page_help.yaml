@@ -27,7 +27,8 @@ refdata/detail:
   how:
     - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.
     - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
-    - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set.
+    - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set. Its engine check is recorded
+      when it is registered, by the engine installed here; Check it with the engine again records it anew.
   see: calculations
   tour:
     - target: main dl.facts
@@ -200,13 +201,76 @@ refdata/builder/input_stream:
       title: Gross form
       text: How the stream's gross form is made, for tests with the Gross variant.
 
+refdata/builder/aggregates:
+  title: "Set builder: aggregates"
+  guide:
+    - Columns that add up streams in one pricing, such as TotalSystemBenefit, written per measure. A set needs none; tests do not read
+      them.
+  how:
+    - Add an aggregate, or Change or Remove one in the list.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's aggregates
+      title: The set's aggregates
+      text: What each adds and takes away, and in which pricing.
+
+refdata/builder/aggregate:
+  title: "Set builder: an aggregate"
+  guide:
+    - One aggregate. Its name is the column it writes. It adds the streams you tick under Streams it adds and takes away those under
+      Streams it takes away, each read in the pricing you choose. Ticking Also write it gross adds a column from each stream's gross form.
+  how:
+    - Fill in the fields and select Save the aggregate.
+  see: calculations
+  tour:
+    - target: "#id_plus"
+      title: Streams it adds
+      text: Each stream with the pricings it is read in.
+
+refdata/builder/tests:
+  title: "Set builder: tests"
+  guide:
+    - The set's cost tests, in the order a run writes them and its pages show them. Each is a ratio of the streams it adds as benefits
+      to those it adds as costs, read in its pricing, with a share of the program costs when it has one.
+  how:
+    - Add a test, or Change, Remove, or move a test Up or Down in the list.
+  see: calculations
+  tour:
+    - target: nav.subnav
+      title: The steps
+      text: Go to any step; each shows its open problems.
+    - heading: The set's tests
+      title: The set's tests
+      text: Each test's pricing, benefits, costs, program costs and variants, in order.
+
+refdata/builder/test:
+  title: "Set builder: a test"
+  guide:
+    - One cost test. Its id names its columns (TRCBen, TRCCost, TRCRatio). Tick its benefits and costs among the set's streams, each read
+      in the test's pricing; choose how it takes the program costs (none, its own share of the program's positive benefits, or another
+      test's share); and choose its variants and outputs.
+  how:
+    - Fill in the fields and select Save the test.
+  see: calculations
+  tour:
+    - target: "#id_benefits"
+      title: Benefits
+      text: Each stream with the pricings it is read in.
+    - heading: Outputs
+      title: Outputs
+      text: The lifecycle net benefit, levelized costs, headline and filing choices.
+
 refdata/builder/review:
   title: "Set builder: review"
   guide:
     - The whole set, as the engine writes it out, with every problem left and a link to its step, and the set's file to download. An
       analysis run on New run takes the file as your own cost-test set.
-    - The CPUC's cost-test pack managers register a set with no problems as a draft pack, which is then checked and published on its own
-      page. A registered set no longer changes here; copy it to start the next version.
+    - A set copied from another one lists what changed since, part by part.
+    - The CPUC's cost-test pack managers register a set with no problems as a draft pack; the engine installed here records its engine
+      check at once, and it is published on its own page. A registered set no longer changes here; copy it to start the next version.
   how:
     - Download the set file, Copy it to a new set, or Discard it; managers Register as a draft pack.
   see: calculations
@@ -217,6 +281,10 @@ refdata/builder/review:
     - heading: Problems
       title: Problems
       text: Every problem left, by step.
+    - heading: What changed
+      title: What changed
+      text: For a copied set, each part added, removed or changed since it was copied.
+      optional: true
     - heading: The set in words
       title: The set in words
       text: Each test's benefits and costs as the engine adds them up.

@@ -168,6 +168,15 @@ def post_all(c, build):
         data = {k: v for k, v in i.items() if v not in (None, [], "")}
         assert c.post(f"/reference-data/cost-tests/build/{build.pk}/inputs/{name}/", data).status_code == 302, name
     build.refresh_from_db()
+    for name, a in list((build.data.get("aggregates") or {}).items()):
+        data = {k: v for k, v in bf.AggregateForm.initial_for(name, a).items() if v not in (None, [], "", False)}
+        assert c.post(f"/reference-data/cost-tests/build/{build.pk}/aggregates/{name}/", data).status_code == 302, name
+    build.refresh_from_db()
+    for tid, t in list((build.data.get("tests") or {}).items()):
+        data = {k: v for k, v in bf.TestForm.initial_for(tid, t).items() if v not in (None, [], False)}
+        data["levelized"] = list(t.get("levelized") or [])  # "" (the test's cost) is a value, not a blank
+        assert c.post(f"/reference-data/cost-tests/build/{build.pk}/tests/{tid}/", data).status_code == 302, tid
+    build.refresh_from_db()
     return build
 
 
@@ -354,3 +363,138 @@ def test_a_manager_registers_from_review(cpuc_admin):
     pack = PackVersion.objects.get(kind="cost_tests", label="EE-2028")
     assert r["Location"] == f"/reference-data/{pack.pk}/"
     assert set_file  # the cost-test set fixtures stay importable here
+
+
+# --- aggregates and tests (steps 5 and 6), what changed, the engine check
+
+
+def jst(**kw):
+    d = {"id": "JST", "label": "Just transition", "pricing": "primary", "benefits": ["ElecBen"], "numerator_adders": [], "costs":
+         ["RebatesandIncentsPV"], "share": "TRC", "variants": ["NoAdmin"], "lifecycle_net_benefit": False, "levelized": [""],
+         "headline": False, "filing": False, "definition": "A test of our own."}  # fmt: skip
+    return {**d, **kw}
+
+
+@needs_catalog
+def test_tests_are_added_renamed_moved_and_removed(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    builder.put_test(analyst, b, None, jst())
+    assert list(b.data["tests"])[-1] == "JST" and b.problems == {}
+    t = b.data["tests"]["JST"]
+    assert t["program_costs"] == {"share": "TRC"} and t["filing"] is False and t["levelized"] == [""] and "headline" not in t
+    builder.move_test(analyst, b, "JST", -1)
+    assert list(b.data["tests"])[-2:] == ["JST", "PCT"]
+    builder.put_test(analyst, b, "TRC", {**bf.TestForm.initial_for("TRC", b.data["tests"]["TRC"]), "id": "TRCX"})
+    assert list(b.data["tests"])[0] == "TRCX" and b.data["tests"]["PAC"]["program_costs"] == {"share": "TRCX"}
+    assert b.data["tests"]["JST"]["program_costs"] == {"share": "TRCX"} and b.problems == {}
+    builder.remove_test(analyst, b, "TRCX")
+    assert sum("program_costs.share" in m for m in b.problems["tests"]) == 3  # PAC, RIM and JST shared its program costs
+    with pytest.raises(builder.BuildError, match="capital"):
+        builder.put_test(analyst, b, None, jst(id="jst"))
+    with pytest.raises(builder.BuildError, match="already"):
+        builder.put_test(analyst, b, None, jst(id="PAC"))
+    assert [c for c, _ in builder.share_choices(b.data, "JST")] == ["", "positive_benefits", "SCB", "SCH"]
+
+
+@needs_catalog
+def test_an_aggregate_through_the_forms(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    url = f"/reference-data/cost-tests/build/{b.pk}/aggregates/new/"
+    data = {
+        "name": "NetElec",
+        "pricing": "primary",
+        "plus": ["ElecBen"],
+        "minus": ["ElecSupplyCost"],
+        "unit": "$ (PV)",
+        "definition": "Net.",
+    }
+    assert c.post(url, data).status_code == 302
+    b.refresh_from_db()
+    assert list(b.data["aggregates"]) == ["TotalSystemBenefit", "NetElec"] and b.problems == {}
+    assert b.data["aggregates"]["NetElec"] == {"pricing": "primary", "plus": ["ElecBen"], "minus": ["ElecSupplyCost"], "unit": "$ (PV)",
+                                               "definition": "Net."}  # fmt: skip
+    assert (
+        c.post(url, {**data, "name": "SocialElec", "pricing": "sct_base", "plus": ["RebatesandIncentsPV"], "minus": []}).status_code == 302
+    )
+    b.refresh_from_db()
+    assert b.problems == {}  # RebatesandIncentsPV is read in sct_base
+    c.post(f"/reference-data/cost-tests/build/{b.pk}/aggregates/", {"remove": "SocialElec"})
+    b.refresh_from_db()
+    assert list(b.data["aggregates"]) == ["TotalSystemBenefit", "NetElec"]
+    page = page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/aggregates/NetElec/").content.decode())
+    assert "ElecBen (primary, sct_base, sct_high)" in page
+
+
+@needs_catalog
+def test_the_tests_page_orders_and_changes_tests(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    url = f"/reference-data/cost-tests/build/{b.pk}/tests/"
+    assert c.post(url, {"down": "TRC"}).status_code == 302
+    b.refresh_from_db()
+    assert list(b.data["tests"])[:2] == ["PAC", "TRC"]
+    page = page_only(c.get(url).content.decode())
+    assert 'name="up" value="PAC"' not in page and 'name="down" value="PCT"' not in page
+    r = c.post(f"{url}new/", {**{k: v for k, v in jst().items() if v not in ([], False)}, "share": "positive_benefits"})
+    assert r.status_code == 302
+    b.refresh_from_db()
+    assert b.data["tests"]["JST"]["program_costs"] == {"share": "positive_benefits"} and b.problems == {}
+
+
+@needs_catalog
+def test_review_lists_what_changed_since_the_copy(cpuc_admin, analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    assert builder.changes(b) == []
+    builder.put_test(analyst, b, None, jst())
+    builder.move_test(analyst, b, "PCT", -1)
+    builder.remove_aggregate(analyst, b, "TotalSystemBenefit")
+    choices = {r["name"]: {"include": r["included"], "pricings": r["pricings"], "unit": r["unit"], "definition": r["definition"]}
+               for r in builder.engine_rows(b.data)}  # fmt: skip
+    choices["GasBen"]["definition"] = "Changed."
+    builder.set_engine_streams(analyst, b, choices)
+    got = {(x["part"], x["name"], x["what"], tuple(x["keys"])) for x in builder.changes(b)}
+    assert got == {("Test", "JST", "added", ()), ("Test", "order", "changed", ()), ("Aggregate", "TotalSystemBenefit", "removed", ()),
+                   ("Stream", "GasBen", "changed", ("definition",))}  # fmt: skip
+    c = Client()
+    sign_in(c, analyst)
+    page = page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode())
+    assert "What changed" in page and "TotalSystemBenefit" in page and "removed" in page
+    assert builder.changes(builder.start_blank(analyst)) == []
+
+
+@needs_catalog
+def test_registering_records_the_engine_check_at_once(cpuc_admin):
+    b = builder.start_from_engine(cpuc_admin, "EE-2026")
+    builder.put_test(cpuc_admin, b, None, jst())
+    pack = builder.register(cpuc_admin, b)
+    check = pack.tie_outs.get(name="engine_check")
+    assert check.passed and check.engine_release == engine_release() and "7 tests" in check.summary
+    from cedars.services.refdata import service as refdata
+
+    assert refdata.outstanding(pack) == [] and refdata.publish_pack(cpuc_admin, pack).status == "published"
+
+
+def test_a_registered_file_the_engine_refuses_fails_its_check_and_can_be_checked_again(cpuc_admin):
+    pack = registered(cpuc_admin, publish=False)  # a header-and-tests file: the engine lacks its pricings and streams
+    if not cost_tests.engine_installed():
+        assert not pack.tie_outs.exists()
+        return
+    check = pack.tie_outs.get(name="engine_check")
+    assert not check.passed and "refuses" in check.summary and check.report["errors"]
+    c = Client()
+    sign_in(c, cpuc_admin)
+    assert "Check it with the engine again" in page_only(c.get(f"/reference-data/{pack.pk}/").content.decode())
+    assert c.post(f"/reference-data/{pack.pk}/", {"action": "engine_check"}).status_code == 302
+    assert pack.tie_outs.filter(name="engine_check").count() == 2
+
+
+def test_the_ee_set_from_the_engine_passes_its_check_as_the_engines_own_file(cpuc_admin):
+    data = cost_tests.engine_copy("EE-2026", "2026-10-31")
+    if data is None:
+        pytest.skip("the engine is not installed here")
+    pack = cost_tests.register_set(cpuc_admin, data)
+    check = pack.tie_outs.get(name="engine_check")
+    assert check.passed and "byte for byte" in check.summary

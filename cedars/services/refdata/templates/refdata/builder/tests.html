@@ -1,0 +1,31 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Tests: {{ build }}</h1>{% page_help "refdata/builder/tests" %}</div>{% endblock %}
+{% block step %}
+<p>Each test is a ratio, <code>&lt;T&gt;Ben / &lt;T&gt;Cost</code>, over streams read in its pricing, with a share of the program costs when it has
+one. The order here is the order a run writes the tests and its pages show them.</p>
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+<h2>The set's tests</h2>
+{% if tests %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Tests">
+<table class="list">
+  <caption class="sr-only">The set's tests in order, with each one's pricing, program costs and variants</caption>
+  <thead><tr><th scope="col">Test</th><th scope="col">Pricing</th><th scope="col">Benefits</th><th scope="col">Costs</th><th scope="col">Program costs</th><th scope="col">Variants</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for tid, t in tests %}<tr>
+    <th scope="row">{{ tid }}: {{ t.label }}{% if t.headline %} (headline){% endif %}</th><td>{{ t.pricing }}</td>
+    <td>{{ t.benefits|join:", " }}{% if t.numerator_adders %}; plus {{ t.numerator_adders|join:", " }}{% endif %}</td><td>{{ t.costs|join:", " }}</td>
+    <td>{% if t.program_costs.share == "positive_benefits" %}its own share{% elif t.program_costs.share %}{{ t.program_costs.share }}'s share{% else %}none{% endif %}</td>
+    <td>{{ t.variants|join:", "|default:"none" }}</td>
+    {% if can_change %}<td><a href="{% url 'refdata:build_test' build.pk tid %}">Change<span class="sr-only"> {{ tid }}</span></a>
+      <form method="post" class="inline-form">{% csrf_token %}
+        {% if not forloop.first %}<button type="submit" name="up" value="{{ tid }}">Up<span class="sr-only"> {{ tid }}</span></button>{% endif %}
+        {% if not forloop.last %}<button type="submit" name="down" value="{{ tid }}">Down<span class="sr-only"> {{ tid }}</span></button>{% endif %}
+        <button type="submit" name="remove" value="{{ tid }}">Remove<span class="sr-only"> {{ tid }}</span></button></form></td>{% endif %}
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet. A set needs at least one test.</p>{% endif %}
+{% if can_change %}<p><a class="button" href="{% url 'refdata:build_test_new' build.pk %}">Add a test</a></p>{% endif %}
+<p><a href="{% url 'refdata:build_step' build.pk 'review' %}">Go on to Review</a></p>
+{% endblock %}

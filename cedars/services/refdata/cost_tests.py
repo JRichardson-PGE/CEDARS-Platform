@@ -2,8 +2,9 @@
 
 A set is one YAML file (ReCET's `data/cost_tests/<id>/definition.yaml`): which value streams each cost test adds up, how it shares the
 program costs, and the program years it is in force for. Its pack holds that one file, so the pack's fingerprint names the set exactly.
-CPUC stewards register a set (the Cost-test sets page or `manage.py register_cost_tests`), record the engine check (the engine release
-in use loads the set and `recet cost-tests check` passes; a set ReCET ships must be byte for byte the engine's own), and publish it.
+CPUC stewards register a set (the Cost-test sets page, the set builder or `manage.py register_cost_tests`), the engine check is
+recorded (at once by the engine in the web process, `engine_check`; by hand where it is not installed: the engine release in use loads
+the set; a set ReCET ships must be byte for byte the engine's own), and publish it.
 
 How a run uses it (calculations.service): a filing takes a published set only, by its id (`settings.cost_test_set`), which the engine
 prices as its built-in set and records with the file's SHA-256 in the receipt; the platform refuses a receipt whose set differs from the
@@ -123,7 +124,7 @@ def register_set(actor, data: bytes, *, source: str = "", notes: str = "") -> Pa
     store.put_bytes(key, data)
     first = h["program_years"]["from"]
     manifest = {DEFINITION: {"sha256": digest, "bytes": len(data), "set": h}}
-    return service.register_pack(
+    pack = service.register_pack(
         actor,
         kind=KIND,
         label=h["id"],
@@ -134,6 +135,8 @@ def register_set(actor, data: bytes, *, source: str = "", notes: str = "") -> Pa
         source=source or "cost-test set file",
         notes=notes,
     )
+    engine_check(actor, pack)  # recorded at once with the engine here; without it the check is recorded by hand
+    return pack
 
 
 def engine_copy(sid: str, version: str) -> bytes | None:
@@ -179,6 +182,50 @@ def in_words(pack: PackVersion, data: bytes | None = None) -> tuple[str | None, 
         return engine.describe(engine.parse(parsed, hashlib.sha256(data).hexdigest(), source)), ""
     except (engine.SetError, storage.StorageError, UnicodeDecodeError, yaml.YAMLError) as e:
         return None, str(e)
+
+
+def engine_installed() -> bool:
+    try:
+        from recet import cost_test_sets  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+def engine_check(actor, pack: PackVersion):
+    """Record the pack's engine_check tie-out with the engine installed in the web process (Jake, 2026-11-03: recorded automatically,
+    not by hand): it passes when the engine loads the set, i.e. its validator finds nothing (every engine stream one it prices, at the
+    rows, rates and suffix it prices it at; every aggregate and test over streams of its pricing), and a set the engine ships is byte for
+    byte the engine's own file. None (nothing recorded) when the engine is not installed here."""
+    from . import service
+
+    try:
+        import recet
+        from recet import cost_test_sets as engine
+    except ImportError:
+        return None
+    release = recet.__version__
+    data = file_bytes(pack)
+    try:
+        parsed = yaml.safe_load(data.decode("utf-8-sig"))
+        errors = engine.validate(parsed)
+    except (UnicodeDecodeError, yaml.YAMLError) as e:
+        errors = [f"not readable: {e}"]
+    shipped = engine_copy(pack.label, pack.version)
+    if shipped is not None and shipped != data:
+        errors.append(f"the engine ships {pack.label} {pack.version} with a different file")
+    if errors:
+        summary = (
+            f"ReCET {release} refuses the set: " + "; ".join(errors[:3]) + (f"; and {len(errors) - 3} more" if len(errors) > 3 else "")
+        )
+    else:
+        s = engine.parse(parsed, hashlib.sha256(data).hexdigest(), "built-in" if shipped == data else download_name(pack))
+        summary = f"ReCET {release} loads the set: {len(s.tests)} test{'s' if len(s.tests) != 1 else ''} over {len(s.streams)} streams" + (
+            ", byte for byte the engine's own file" if shipped == data else ""
+        )
+    return service.record_tie_out(
+        actor, pack, check="engine_check", passed=not errors, summary=summary, engine_release=release, report={"errors": errors}
+    )
 
 
 def for_year(year: int | None, *, include_drafts: bool = False, workstream: str = "EE") -> PackVersion | None:

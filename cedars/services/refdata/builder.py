@@ -45,7 +45,7 @@ STEPS = [
     ("review", "Review"),
 ]
 STEP_LABELS = dict(STEPS)
-PAGES = ["set", "pricings", "engine", "inputs", "review"]  # the steps with a page of their own (aggregates and tests come next)
+PAGES = [k for k, _ in STEPS]  # every step has a page of its own
 
 # the set file's keys in the order the builder writes them (ReCET's EE-2026 order)
 TOP = ["schema_version", "id", "workstream", "version", "label", "description", "draft", "program_years", "pricings", "streams",
@@ -667,6 +667,194 @@ def remove_input_stream(actor, build: CostTestBuild, name: str) -> CostTestBuild
         raise BuildError(f"The set has no input stream {name}.")
     build.data["streams"] = {n: x for n, x in streams.items() if n != name}
     return _save(actor, build, "inputs", {name: copy.deepcopy(s)}, {name: None})
+
+
+# --- steps 5 and 6: aggregates and tests
+
+TEST_ID = re.compile(r"^[A-Z][A-Za-z0-9]{1,15}$")  # ReCET's rule: it names the columns <T>Ben, <T>Cost, <T>Ratio
+TEST_DEFAULTS = {"numerator_adders": [], "program_costs": "none", "variants": [], "lifecycle_net_benefit": False, "levelized": [],
+                 "headline": False, "filing": True, "definition": ""}  # fmt: skip
+AGGREGATE_DEFAULTS = {"minus": [], "gross": False, "unit": "", "definition": ""}
+ALWAYS = {"tests": ["label", "pricing", "benefits", "costs", "program_costs", "variants"], "aggregates": ["pricing", "plus"]}
+
+
+def readable_streams(data: dict) -> list[tuple[str, dict]]:
+    """The streams an aggregate or test can name (every one but the program costs, which a test takes through its share)."""
+    return [(n, s) for n, s in (data.get("streams") or {}).items() if isinstance(s, dict) and s.get("source") != "program"]
+
+
+def has_program_costs(data: dict) -> bool:
+    return any(isinstance(s, dict) and s.get("source") == "program" for s in (data.get("streams") or {}).values())
+
+
+def _entry(part: str, new: dict, old: dict | None) -> dict:
+    """An aggregate or test as the set writes it: its keys in the format's order; a key left at its default is written only when the
+    entry already had it (so saving a page unchanged gives back the same file) or the format always writes it."""
+    keys, defaults = (TEST_KEYS, TEST_DEFAULTS) if part == "tests" else (AGGREGATE_KEYS, AGGREGATE_DEFAULTS)
+    out = {}
+    for k in keys:
+        if k not in new:
+            continue
+        v = new[k]
+        if k in defaults and v == defaults[k] and k not in (old or {}) and not (old is None and k in ALWAYS[part]):
+            continue
+        out[k] = v
+    for k, v in (old or {}).items():  # keys this page does not edit stay as they were
+        if k not in keys:
+            out[k] = v
+    return out
+
+
+def _put(actor, build: CostTestBuild, part: str, old_name: str | None, name: str, entry: dict, *, step: str) -> CostTestBuild:
+    entries = build.data.get(part) if isinstance(build.data.get(part), dict) else {}
+    if old_name is not None and old_name not in entries:
+        raise BuildError(f"The set has no {'test' if part == 'tests' else 'aggregate'} {old_name}.")
+    if name in entries and name != old_name:
+        raise BuildError(f"The set already has {'a test' if part == 'tests' else 'an aggregate'} {name}.")
+    before = copy.deepcopy(entries.get(old_name)) if old_name else None
+    e = _entry(part, entry, before if isinstance(before, dict) else None)
+    if old_name is None:
+        entries = {**entries, name: e}
+    else:
+        entries = {(name if n == old_name else n): (e if n == old_name else x) for n, x in entries.items()}
+        if part == "tests" and name != old_name:  # a test that shares this one's program costs follows the rename
+            for t in entries.values():
+                if isinstance(t, dict) and isinstance(t.get("program_costs"), dict) and t["program_costs"].get("share") == old_name:
+                    t["program_costs"] = {"share": name}
+    build.data[part] = entries
+    return _save(actor, build, step, {old_name or name: before}, {name: copy.deepcopy(e)})
+
+
+def _remove(actor, build: CostTestBuild, part: str, name: str, *, step: str) -> CostTestBuild:
+    _require(actor, build)
+    entries = build.data.get(part) if isinstance(build.data.get(part), dict) else {}
+    if name not in entries:
+        raise BuildError(f"The set has no {'test' if part == 'tests' else 'aggregate'} {name}.")
+    before = copy.deepcopy(entries[name])
+    build.data[part] = {n: x for n, x in entries.items() if n != name}
+    return _save(actor, build, step, {name: before}, {name: None})
+
+
+def put_aggregate(actor, build: CostTestBuild, old_name: str | None, fields: dict) -> CostTestBuild:
+    """Step 5: add an aggregate (old_name None) or change one. `fields`: name, pricing, plus, minus, gross, unit, definition."""
+    _require(actor, build)
+    name = fields["name"].strip()
+    if not NAME.match(name):
+        raise BuildError("An aggregate's name is the column it writes: letters, digits and _, starting with a letter.")
+    entry = {
+        "pricing": fields["pricing"],
+        "plus": list(fields.get("plus") or []),
+        "minus": list(fields.get("minus") or []),
+        "gross": bool(fields.get("gross")),
+        "unit": (fields.get("unit") or "").strip(),
+        "definition": (fields.get("definition") or "").strip(),
+    }
+    return _put(actor, build, "aggregates", old_name, name, entry, step="aggregates")
+
+
+def remove_aggregate(actor, build: CostTestBuild, name: str) -> CostTestBuild:
+    return _remove(actor, build, "aggregates", name, step="aggregates")
+
+
+def put_test(actor, build: CostTestBuild, old_id: str | None, fields: dict) -> CostTestBuild:
+    """Step 6: add a test (old_id None) or change one. `fields`: id, label, pricing, benefits, numerator_adders, costs, share ("" none,
+    "positive_benefits" or another test's id), variants, lifecycle_net_benefit, levelized, headline, filing, definition. A new test goes
+    last; renaming one renames it in the share of every test that shares its program costs."""
+    _require(actor, build)
+    tid = fields["id"].strip()
+    if not TEST_ID.match(tid):
+        raise BuildError("A test's id starts with a capital letter and has 2 to 16 letters and digits (TRC, PAC, JST1): it names the "
+                         "columns <T>Ben, <T>Cost and <T>Ratio.")  # fmt: skip
+    share = fields.get("share") or ""
+    entry = {
+        "label": (fields.get("label") or "").strip(),
+        "pricing": fields["pricing"],
+        "benefits": list(fields.get("benefits") or []),
+        "numerator_adders": list(fields.get("numerator_adders") or []),
+        "costs": list(fields.get("costs") or []),
+        "program_costs": {"share": share} if share else "none",
+        "variants": [v for v in ("NoAdmin", "Gross") if v in (fields.get("variants") or [])],
+        "lifecycle_net_benefit": bool(fields.get("lifecycle_net_benefit")),
+        "levelized": [v for v in ("", "NoAdmin") if v in (fields.get("levelized") or [])],
+        "headline": bool(fields.get("headline")),
+        "filing": bool(fields.get("filing", True)),
+        "definition": (fields.get("definition") or "").strip(),
+    }
+    old = (build.data.get("tests") or {}).get(old_id) if old_id else None
+    if isinstance(old, dict) and old.get("program_costs") is None and "program_costs" in old and not share:
+        entry["program_costs"] = None  # "none" written as null in the file stays null
+    return _put(actor, build, "tests", old_id, tid, entry, step="tests")
+
+
+def remove_test(actor, build: CostTestBuild, tid: str) -> CostTestBuild:
+    """Remove a test. A test that shared its program costs is shown as a problem on the step."""
+    return _remove(actor, build, "tests", tid, step="tests")
+
+
+def move_test(actor, build: CostTestBuild, tid: str, by: int) -> CostTestBuild:
+    """Move a test up (by -1) or down (by 1): the set's order is the order runs write, describe and show its tests."""
+    _require(actor, build)
+    tests = build.data.get("tests") if isinstance(build.data.get("tests"), dict) else {}
+    order = list(tests)
+    if tid not in order:
+        raise BuildError(f"The set has no test {tid}.")
+    i = order.index(tid)
+    j = max(0, min(len(order) - 1, i + by))
+    if i == j:
+        return build
+    order.insert(j, order.pop(i))
+    build.data["tests"] = {t: tests[t] for t in order}
+    return _save(actor, build, "tests", {"order": list(tests)}, {"order": order})
+
+
+def share_choices(data: dict, tid: str | None) -> list[tuple[str, str]]:
+    """What a test may share its program costs on: none, its own share of the positive benefits, or another test's share (one that
+    computes its own)."""
+    out = [("", "No program costs"), ("positive_benefits", "Its own share: the measure's share of the program's positive benefits")]
+    for t, v in (data.get("tests") or {}).items():
+        if (
+            t != tid
+            and isinstance(v, dict)
+            and isinstance(v.get("program_costs"), dict)
+            and v["program_costs"].get("share") == "positive_benefits"
+        ):
+            out.append((t, f"{t}'s share (the same program costs, shared as {t} shares them)"))
+    return out
+
+
+# --- what changed since the set it started from
+
+PARTS = [("pricings", "Pricing"), ("streams", "Stream"), ("aggregates", "Aggregate"), ("tests", "Test")]
+
+
+def changes(build: CostTestBuild) -> list[dict]:
+    """The set against the one it was copied from (`parent_data`): each header field, pricing, stream, aggregate and test added, removed
+    or changed (with the keys that changed), and the tests' order. Empty for a set started from nothing."""
+    old, new = build.parent_data or {}, build.data or {}
+    if not old:
+        return []
+    out = []
+    for k in HEADER:
+        if k in ("id", "version"):
+            continue
+        if old.get(k) != new.get(k):
+            out.append({"part": "Set", "name": k.replace("_", " "), "what": "changed", "keys": []})
+    if old.get("id") != new.get("id"):
+        out.insert(0, {"part": "Set", "name": "id", "what": f"{old.get('id')} to {new.get('id')}", "keys": []})
+    for part, label in PARTS:
+        a = old.get(part) if isinstance(old.get(part), dict) else {}
+        b = new.get(part) if isinstance(new.get(part), dict) else {}
+        for n in b:
+            if n not in a:
+                out.append({"part": label, "name": n, "what": "added", "keys": []})
+            elif a[n] != b[n]:
+                x, y = a[n] if isinstance(a[n], dict) else {}, b[n] if isinstance(b[n], dict) else {}
+                keys = [k for k in dict.fromkeys([*x, *y]) if x.get(k) != y.get(k)]
+                out.append({"part": label, "name": n, "what": "changed", "keys": keys})
+        out += [{"part": label, "name": n, "what": "removed", "keys": []} for n in a if n not in b]
+        if part == "tests" and [t for t in a if t in b] != [t for t in b if t in a]:
+            out.append({"part": "Test", "name": "order", "what": "changed", "keys": []})
+    return out
 
 
 # --- the end of a build

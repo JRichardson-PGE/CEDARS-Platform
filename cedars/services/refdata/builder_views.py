@@ -93,7 +93,8 @@ def build_step(request, pk, step):
     build = _build_or_404(request, pk)
     if step not in builder.PAGES:
         raise Http404("No such step")
-    return {"set": _set, "pricings": _pricings, "engine": _engine, "inputs": _inputs, "review": _review}[step](request, build)
+    pages = {"set": _set, "pricings": _pricings, "engine": _engine, "inputs": _inputs, "aggregates": _aggregates, "tests": _tests}
+    return {**pages, "review": _review}[step](request, build)
 
 
 def _guard(request, build) -> bool:
@@ -246,12 +247,123 @@ def build_input(request, pk, name=None):
         except (builder.BuildError, AccessDenied) as e:
             form.add_error(None, str(e))
         else:
-            n = len((build.problems or {}).get("inputs", []))
-            (messages.warning if n else messages.success)(
-                request, f"{form.cleaned_data['name']} saved." + (f" Streams from input columns have {n} problem(s)." if n else "")
-            )
-            return redirect("refdata:build_step", pk=build.pk, step="inputs")
+            return _part_saved(request, build, "inputs", form.cleaned_data["name"])
     return render(request, "refdata/builder/input_stream.html", _ctx(request, build, "inputs", form=form, name=name))
+
+
+def _streams_for(build, named=()) -> list[tuple[str, dict]]:
+    """The streams an aggregate or test can name, and any it names that the set does not have (so a save keeps them, as problems)."""
+    streams = builder.readable_streams(build.data)
+    have = {n for n, _ in streams}
+    return streams + [(n, {}) for n in dict.fromkeys(named) if n not in have]
+
+
+def _pricing_ids(build) -> list[str]:
+    return list(build.data.get("pricings") or {}) if isinstance(build.data.get("pricings"), dict) else []
+
+
+def _aggregates(request, build):
+    error = ""
+    if _guard(request, build) and request.POST.get("remove"):
+        try:
+            builder.remove_aggregate(request.user, build, request.POST["remove"])
+        except (builder.BuildError, AccessDenied) as e:
+            error = str(e)
+        else:
+            messages.success(request, f"{request.POST['remove']} removed.")
+            return redirect("refdata:build_step", pk=build.pk, step="aggregates")
+    aggregates = [(n, a) for n, a in (build.data.get("aggregates") or {}).items() if isinstance(a, dict)]
+    return render(request, "refdata/builder/aggregates.html", _ctx(request, build, "aggregates", aggregates=aggregates, error=error))
+
+
+@login_required
+def build_aggregate(request, pk, name=None):
+    """Step 5: add or change one aggregate."""
+    build = _build_or_404(request, pk)
+    aggregates = build.data.get("aggregates") or {}
+    if name is not None and not isinstance(aggregates.get(name), dict):
+        raise Http404("No such aggregate")
+    a = aggregates.get(name) or {}
+    pricings = _pricing_ids(build)
+    initial = bf.AggregateForm.initial_for(name, a) if name else {"pricing": pricings[0] if pricings else None, "unit": "$ (PV)"}
+    form = bf.AggregateForm(
+        request.POST if _guard(request, build) else None,
+        initial=initial,
+        pricings=pricings,
+        streams=_streams_for(build, [*(a.get("plus") or []), *(a.get("minus") or [])]),
+    )
+    if form.is_bound and form.is_valid():
+        try:
+            builder.put_aggregate(request.user, build, name, form.cleaned_data)
+        except (builder.BuildError, AccessDenied) as e:
+            form.add_error(None, str(e))
+        else:
+            return _part_saved(request, build, "aggregates", form.cleaned_data["name"])
+    return render(request, "refdata/builder/aggregate.html", _ctx(request, build, "aggregates", form=form, name=name))
+
+
+def _tests(request, build):
+    error = ""
+    if _guard(request, build):
+        try:
+            if request.POST.get("remove"):
+                builder.remove_test(request.user, build, request.POST["remove"])
+                messages.success(request, f"{request.POST['remove']} removed.")
+            elif request.POST.get("up") or request.POST.get("down"):
+                tid = request.POST.get("up") or request.POST.get("down")
+                builder.move_test(request.user, build, tid, -1 if request.POST.get("up") else 1)
+                messages.success(request, f"{tid} moved {'up' if request.POST.get('up') else 'down'}.")
+        except (builder.BuildError, AccessDenied) as e:
+            error = str(e)
+        else:
+            return redirect("refdata:build_step", pk=build.pk, step="tests")
+    tests = [(t, v) for t, v in (build.data.get("tests") or {}).items() if isinstance(v, dict)]
+    return render(request, "refdata/builder/tests.html", _ctx(request, build, "tests", tests=tests, error=error))
+
+
+@login_required
+def build_test(request, pk, tid=None):
+    """Step 6: add or change one test."""
+    build = _build_or_404(request, pk)
+    tests = build.data.get("tests") or {}
+    if tid is not None and not isinstance(tests.get(tid), dict):
+        raise Http404("No such test")
+    t = tests.get(tid) or {}
+    pricings = _pricing_ids(build)
+    initial = (
+        bf.TestForm.initial_for(tid, t)
+        if tid
+        else {
+            "pricing": pricings[0] if pricings else None,
+            "share": "positive_benefits" if builder.has_program_costs(build.data) else "",
+            "filing": True,
+        }  # fmt: skip
+    )
+    named = [*(t.get("benefits") or []), *(t.get("numerator_adders") or []), *(t.get("costs") or [])]
+    form = bf.TestForm(
+        request.POST if _guard(request, build) else None,
+        initial=initial,
+        pricings=pricings,
+        streams=_streams_for(build, named),
+        shares=builder.share_choices(build.data, tid),
+    )
+    if form.is_bound and form.is_valid():
+        try:
+            builder.put_test(request.user, build, tid, form.cleaned_data)
+        except (builder.BuildError, AccessDenied) as e:
+            form.add_error(None, str(e))
+        else:
+            return _part_saved(request, build, "tests", form.cleaned_data["id"])
+    return render(request, "refdata/builder/test.html", _ctx(request, build, "tests", form=form, tid=tid))
+
+
+def _part_saved(request, build, step, name):
+    n = len((build.problems or {}).get(step, []))
+    label = builder.STEP_LABELS[step]
+    (messages.warning if n else messages.success)(
+        request, f"{name} saved." + (f" {label} has {n} problem{'s' if n != 1 else ''}, listed at the top." if n else "")
+    )
+    return redirect("refdata:build_step", pk=build.pk, step=step)
 
 
 def _review(request, build):
@@ -270,6 +382,8 @@ def _review(request, build):
             register=register,
             manager=builder.is_manager(request.user),
             set_aside=sorted(build.set_aside.items()),
+            changes=builder.changes(build),
+            parent=build.parent or build.parent_build,
         ),
     )
 
@@ -301,7 +415,20 @@ def build_action(request, pk):
             form = bf.RegisterForm(request.POST)
             form.is_valid()
             pack = builder.register(request.user, build, notes=form.cleaned_data.get("notes", ""))
-            messages.success(request, f"{pack.label} {pack.version} registered as a draft pack. Record its engine check, then publish it.")
+            check = pack.tie_outs.filter(name="engine_check").order_by("-recorded_at", "-id").first()
+            if check is None:
+                messages.success(
+                    request, f"{pack.label} {pack.version} registered as a draft pack. Record its engine check, then publish it."
+                )
+            elif check.passed:
+                messages.success(
+                    request,
+                    f"{pack.label} {pack.version} registered as a draft pack, and the engine check passed. Publish it when it is due.",
+                )
+            else:
+                messages.error(
+                    request, f"{pack.label} {pack.version} registered as a draft pack, but the engine check failed: {check.summary}"
+                )
             return redirect("refdata:detail", pk=pack.pk)
     except (builder.BuildError, AccessDenied, cost_tests.SetError) as e:
         messages.error(request, str(e))
