@@ -510,10 +510,11 @@ def _needs(missing: list[tuple[str, str]]) -> str:
 
 @login_required
 def engines(request):
-    """The engine releases runs can use (CPUC system administrators add, set the default and retire them)."""
+    """The engine releases runs can use (CPUC system administrators add, change, set the default, retire and return them to service)."""
     if not access.is_system_admin(request.user):
         raise Http404
-    form = forms.EngineReleaseForm(request.POST or None)
+    current = service.default_release()
+    form = forms.EngineReleaseForm(request.POST or None, current_default=current)
     if request.method == "POST":
         action = request.POST.get("action", "add")
         try:
@@ -528,20 +529,27 @@ def engines(request):
                     batch_job_definition=d["batch_job_definition"],
                     notes=d["notes"],
                     default=d["default"],
+                    retire_previous=bool(d.get("retire_previous")),
                     reason=d["reason"],
                 )
-                messages.success(request, f"Added {r}.")
+                retired = current is not None and d["default"] and d.get("retire_previous")
+                messages.success(request, f"Added {r}." + (f" {current} is retired." if retired else ""))
+                if r.default and (missing := service.missing_accs(r)):
+                    messages.warning(request, f"{r} cannot price {_needs(missing)}: filings price on the default release.")
                 return redirect("calculations:engines")
-            if action in ("default", "retire"):
+            if action in ("default", "retire", "restore"):
                 r = get_object_or_404(EngineRelease, pk=request.POST.get("release"))
                 if action == "default":
                     service.set_default_release(request.user, r)
                     messages.success(request, f"{r} is now the default for new runs.")
                     if missing := service.missing_accs(r):
                         messages.warning(request, f"{r} cannot price {_needs(missing)}: filings price on the default release.")
-                else:
+                elif action == "retire":
                     service.retire_release(request.user, r, request.POST.get("reason", ""))
                     messages.success(request, f"{r} is retired.")
+                else:
+                    service.restore_release(request.user, r, request.POST.get("reason", ""))
+                    messages.success(request, f"{r} is back in service.")
                 return redirect("calculations:engines")
         except AccessDenied as e:
             form.add_error(None, str(e))
@@ -554,12 +562,50 @@ def engines(request):
                     r,
                     [(service.calculation_label(c), ", ".join(service.accs_for(r, c))) for c in r.calculations],
                     _needs(service.missing_accs(r)) if r.active else "",
+                    Run.objects.filter(engine_release=r.release).count(),
                 )
                 for r in EngineRelease.objects.all()
             ],
             "form": form,
         },
     )
+
+
+@login_required
+def engine_release(request, pk):
+    """Change one release: its calculations and ACCs, worker image, Batch job definition and notes (never its number)."""
+    if not access.is_system_admin(request.user):
+        raise Http404
+    r = get_object_or_404(EngineRelease, pk=pk)
+    initial = {
+        "calculations": service.calculations_text(r),
+        "image": r.image,
+        "batch_job_definition": r.batch_job_definition,
+        "notes": r.notes,
+    }
+    form = forms.EngineReleaseChangeForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            service.change_release(
+                request.user,
+                r,
+                calculations=list(d["calculations"]),
+                accs=d["calculations"],
+                image=d["image"],
+                batch_job_definition=d["batch_job_definition"],
+                notes=d["notes"],
+                reason=d["reason"],
+            )
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, f"Saved {r}.")
+            if r.default and (missing := service.missing_accs(r)):
+                messages.warning(request, f"{r} cannot price {_needs(missing)}: filings price on the default release.")
+            return redirect("calculations:engines")
+    runs = Run.objects.filter(engine_release=r.release).count()
+    return render(request, "calculations/engine_release.html", {"release": r, "form": form, "runs": runs})
 
 
 # --- Results and Compare (results.py: ReCET's own results code over the run's group sums)

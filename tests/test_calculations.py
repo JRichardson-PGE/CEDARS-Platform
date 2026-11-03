@@ -9,7 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from cedars.core import storage
 from cedars.modules.calculations import dispatch, jobfiles, service
-from cedars.modules.calculations.models import Run, Worker
+from cedars.modules.calculations.models import EngineRelease, Run, Worker
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
@@ -568,6 +568,87 @@ def test_a_release_needs_recet_and_its_accs(cpuc_admin):
         service.add_release(cpuc_admin, release="0.1.81", calculations=["cet-25.1"], accs={"cet-25.1": ["2024"]})
     with pytest.raises(AccessDenied, match="none given for cet-24.3"):
         service.add_release(cpuc_admin, release="0.1.81", calculations=["recet", "cet-24.3"], accs={"recet": ["2024"]})
+
+
+def test_a_new_release_of_the_same_engine_replaces_the_old_one(signed_in, cpuc_admin, analyst, pge, release, tmp_path):
+    """Jake, 2026-11-03: with 0.1.89 on the list, 0.1.90 could not be added (the box was filled in with the names the table shows) and
+    0.1.89 could not be changed or retired. The names work now, the form starts from the default's lines, and adding the new default
+    can retire the old one; runs keep naming the release they ran on."""
+    from cedars.services.audit.models import AuditEvent
+
+    old_run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
+    c = signed_in(cpuc_admin)
+    page = c.get("/calculations/engines/").content.decode()
+    assert "recet: 2021, 2022, 2024, 2026\ncet-25.1: 2024, 2026" in page  # the Add form starts from the default's calculations
+    assert "Retire ReCET 0.1.78, the current default" in page
+    r = c.post(
+        "/calculations/engines/",
+        {
+            "action": "add",
+            "release": "ReCET 0.1.90",
+            "calculations": "ReCET: 2021, 2022, 2024, 2026\nCET 25.1 replica: 2017, 2024\nCET 21.0 replica: 2017, 2018, 2019",
+            "default": "on",
+            "retire_previous": "on",
+            "reason": "platform pins 0.1.90",
+        },
+    )
+    assert r.status_code == 302
+    new = service.default_release()
+    assert new.release == "0.1.90" and new.calculations == ["recet", "cet-25.1", "cet-21.0"]
+    assert new.accs["cet-21.0"] == ["2017", "2018", "2019"]
+    release.refresh_from_db()
+    assert not release.active and not release.default
+    assert "Replaced by ReCET 0.1.90" in AuditEvent.objects.get(action="engine_release.retired", object_id=str(release.pk)).reason
+    old_run.refresh_from_db()
+    assert old_run.engine_release == "0.1.78"  # history kept
+    # the same number twice says what to do instead of failing on the unique key
+    again = c.post("/calculations/engines/", {"action": "add", "release": "0.1.78", "calculations": "recet: 2024", "reason": "x"})
+    assert "is on the list, retired" in again.content.decode()
+    c.post("/calculations/engines/", {"action": "restore", "release": release.pk})
+    release.refresh_from_db()
+    assert release.active and not release.default
+    assert AuditEvent.objects.filter(action="engine_release.restored", object_id=str(release.pk)).exists()
+
+
+def test_the_add_form_says_what_a_calculations_line_should_be(signed_in, cpuc_admin, release):
+    c = signed_in(cpuc_admin)
+    base = {"action": "add", "release": "0.1.91", "reason": "x"}
+    html = c.post("/calculations/engines/", {**base, "calculations": "CET 25.1 replica: 2024"}).content.decode()
+    assert "Add ReCET&#x27;s own calculation" in html
+    html = c.post("/calculations/engines/", {**base, "calculations": "recet: 2024\nOpenBCA: 2024"}).content.decode()
+    assert "&#x27;OpenBCA&#x27; is not a calculation" in html
+    html = c.post("/calculations/engines/", {**base, "release": "latest", "calculations": "recet: 2024"}).content.decode()
+    assert "version number" in html
+    assert not EngineRelease.objects.filter(release="0.1.91").exists()
+
+
+def test_a_release_is_changed_with_a_reason_and_keeps_its_number(signed_in, cpuc_admin, analyst, release):
+    from cedars.services.audit.models import AuditEvent
+
+    assert signed_in(analyst).get(f"/calculations/engines/{release.pk}/").status_code == 404
+    c = signed_in(cpuc_admin)
+    page = c.get(f"/calculations/engines/{release.pk}/").content.decode()
+    assert "Change ReCET 0.1.78" in page and "recet: 2021, 2022, 2024, 2026" in page
+    r = c.post(
+        f"/calculations/engines/{release.pk}/",
+        {"calculations": "recet: 2024, 2026\ncet-24.3: 2022", "image": "worker:0.1.78", "reason": "2021 and 2022 packs withdrawn"},
+    )
+    assert r.status_code == 302
+    release.refresh_from_db()
+    assert release.release == "0.1.78" and release.accs == {"recet": ["2024", "2026"], "cet-24.3": ["2022"]}
+    assert release.image == "worker:0.1.78" and release.default
+    e = AuditEvent.objects.get(action="engine_release.changed", object_id=str(release.pk))
+    assert e.before["accs"]["recet"] == ["2021", "2022", "2024", "2026"] and e.after["image"] == "worker:0.1.78"
+    with pytest.raises(AccessDenied, match="Say why"):
+        service.change_release(cpuc_admin, release, calculations=["recet"], accs={"recet": ["2024"]})
+
+
+def test_release_numbers_and_calculation_names():
+    assert service.release_number("ReCET 0.1.90") == service.release_number("v0.1.90") == "0.1.90"
+    assert service.release_number("latest") == ""
+    assert service.calculation_code("ReCET") == "recet"
+    assert service.calculation_code("CET 25.1 replica") == service.calculation_code("cet-25.1") == "cet-25.1"
+    assert service.calculation_code("OpenBCA") == ""
 
 
 def test_uploads_held_in_memory_are_spooled(analyst, pge, release, tmp_path):
