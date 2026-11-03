@@ -1243,6 +1243,32 @@ def test_wide_pages_use_the_window_and_prose_keeps_its_measure(browser, site, sc
     assert sizes["prose"] <= 50 * sizes["font"], f"a paragraph runs {sizes['prose']:.0f} px wide"
 
 
+def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
+    """New run was one 640 px column, about 3,650 px tall at 1920 px (Jake, 2026-11-03). Its sections now span the window and their
+    fields flow into columns, in reading order; at 320 px every section is one column (the reflow test checks it does not scroll)."""
+    found = {}
+    for width in (1920, 320):
+        context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": width, "height": 1000})
+        found[width] = page.evaluate(
+            """() => {
+              const form = document.querySelector('main form').getBoundingClientRect().width;
+              const cols = [...document.querySelectorAll('main form .field-grid')]
+                .map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length);
+              // reading order: each field starts at or after the one before it, left to right within a row
+              const fields = [...document.querySelectorAll('main form .field-grid > *')].map(f => f.getBoundingClientRect());
+              const backwards = fields.filter((r, i) => i && r.top < fields[i - 1].top - 1 && r.left > fields[i - 1].left).length;
+              return {form, cols, backwards, height: document.documentElement.scrollHeight};
+            }"""
+        )
+        context.close()
+    wide, narrow = found[1920], found[320]
+    assert wide["form"] > 1800, f"the New run form is {wide['form']:.0f} px wide in a 1920 px window"
+    assert min(wide["cols"]) >= 3 and max(wide["cols"]) >= 5, f"field columns at 1920 px: {wide['cols']}"
+    assert wide["height"] < 2400, f"New run is {wide['height']} px tall at 1920 px"
+    assert wide["backwards"] == 0, "a field sits above and to the right of the one read before it"
+    assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
+
+
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
 def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
     context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)

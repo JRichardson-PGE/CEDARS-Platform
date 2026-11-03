@@ -60,6 +60,16 @@ def test_new_run_is_filled_in_from_the_run(analyst, pge, release, tmp_path, web)
     assert "Rerun with different settings" in web.get(f"/calculations/runs/{run.pk}/").content.decode()
 
 
+def test_a_kept_inputs_acronym_keeps_its_capitals(analyst, pge, release, tmp_path, web, monkeypatch):
+    """ "Use the run's CET outputs to compare with again", not "cET outputs" (the first letter of a word is lowered, not an acronym's)."""
+    run = original(analyst, pge, release, tmp_path)
+    monkeypatch.setattr(
+        service, "reusable_inputs", lambda r: [("cet_outputs", "CET outputs to compare with"), ("run_parameters", "Run parameters")]
+    )
+    page = web.get(f"/calculations/new/?from={run.pk}").content.decode()
+    assert "Use the run&#x27;s CET outputs to compare with again" in page and "Use the run&#x27;s run parameters again" in page
+
+
 def test_a_rerun_takes_the_runs_inputs_again_with_new_settings(analyst, pge, release, tmp_path, web):
     run = original(analyst, pge, release, tmp_path)
     r = post(web, run)

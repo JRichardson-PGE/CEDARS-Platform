@@ -44,6 +44,10 @@ marked with `.current` and the page inside it with `aria-current="page"`.
 `.hscroll` box only when it is wider than the window (1920 px gives it 1,872 px, not 1,152). Prose keeps a readable measure on its own:
 paragraphs, hints and plain lists in `main.page` stop at 80 characters (`.guide`, `.measure` and page descriptions are narrower still),
 while tables, charts, filter bars, tiles and card grids use the width. A form that should stay narrow says so (`.form-narrow`).
+A long form uses the width too (New run, `.wide-form`): each fieldset's fields sit in a `.field-grid`, as many columns of about 20rem
+as fit (one at 320 px), filled left to right in the order they are read, so the visual order is the DOM order. Fields that go together
+share a `.field-cell` (a box and the option it turns on, a check and its year), and small sections share a row in a `.fieldset-row`
+(the larger one marked `.grow`). Explanatory paragraphs inside keep the 80-character measure; tables in a section's disclosures use its width.
 
 ## Components (by class)
 

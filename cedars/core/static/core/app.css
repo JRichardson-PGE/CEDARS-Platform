@@ -280,6 +280,17 @@ summary { min-height: 24px; box-sizing: border-box; }   /* 2.5.8: a disclosure's
 fieldset { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; min-width: 0; margin: 0 0 .5rem; background: var(--surface); }   /* min-content wide by default, which overflows at 320 px */
 legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .form-narrow { max-width: 40rem; }
+/* A long form that uses the window (New run): each section's fields flow into as many columns as fit, in reading order, left to right
+   (1.3.2: the visual order is the DOM order). A .field-cell keeps fields that go together in one column (a box and the option it turns
+   on). At 320 px every grid is one column (min(100%, ...): 1.4.10). Small sections share a row in .fieldset-row. */
+.field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: .9rem 1.25rem; align-items: start; }
+.field-grid > *, .field-cell { min-width: 0; }
+.field-cell { display: flex; flex-direction: column; gap: .7rem; }
+.field-grid :is(select, input:not([type=checkbox], [type=radio], [type=file]), textarea) { width: 100%; box-sizing: border-box; }
+.fieldset-row { display: flex; flex-wrap: wrap; gap: .8rem 1rem; align-items: stretch; }
+.fieldset-row > fieldset { flex: 1 1 min(100%, 20rem); margin: 0; }
+.fieldset-row > fieldset.grow { flex: 3 1 min(100%, 40rem); }   /* the larger section: two or three columns of its own beside a small one */
+.wide-form > fieldset { margin: 0; }
 .inline-form { display: inline; margin: 0; }
 .filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }
