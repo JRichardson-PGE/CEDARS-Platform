@@ -166,9 +166,9 @@ class NewRunForm(forms.Form):
             self.fields["job"].help_text = "Leave it empty to run the same job file again"
             for name, label in service.reusable_inputs(rerun):
                 field = f"keep_{name}"
-                self.fields[field] = forms.BooleanField(
-                    label=f"Use the run's {label[:1].lower()}{label[1:]} again", required=False, initial=True
-                )
+                # lower the first letter of a word ("Run parameters"), never of an acronym ("CET outputs" stayed "cET outputs")
+                lead = label if label[1:2].isupper() else label[:1].lower() + label[1:]
+                self.fields[field] = forms.BooleanField(label=f"Use the run's {lead} again", required=False, initial=True)
                 self.kept.append((name, label, field))
         if user is not None:
             self.fields["output_template"].queryset = output_templates.visible(user)
