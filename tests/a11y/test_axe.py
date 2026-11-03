@@ -1053,7 +1053,8 @@ streams:
   NEBHealth: {source: input, kind: benefit, columns: [UnitHealthBens], basis: one_time, ntg: kwh, market_effects: benefits,
               pricings: [primary], naming: none, gross: divide_ntg, unit: $, definition: Health benefits per unit.}
   ProgramCosts: {source: program, kind: cost, unit: $ (PV), definition: The program's costs.}
-aggregates: {}
+aggregates:
+  NetElec: {pricing: primary, plus: [ElecBen, NEBHealth], minus: [], unit: $ (PV), definition: Electric and health benefits.}
 tests:
   PAC: {label: Program Administrator Cost, pricing: primary, benefits: [ElecBen, NEBHealth], costs: [RebatesandIncentsPV],
         program_costs: {share: PAC}, headline: true, definition: The administrator's costs.}
@@ -1065,6 +1066,8 @@ def _cost_test_builds(analyst, cpuc_admin):
     own copy (Review then offers Register)."""
     mine = builder.start_from_file(analyst, SCENE_SET.encode(), "neb.yaml")
     managers = builder.start_from_file(cpuc_admin, SCENE_SET.replace("label: ''", "label: EE with health").encode(), "neb.yaml")
+    managers.parent_data = {**managers.data, "tests": {}}  # as a copy of another set: Review lists what changed
+    managers.save(update_fields=["parent_data"])
     return {"build": mine.pk, "manager_build": managers.pk}
 
 

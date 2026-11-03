@@ -31,11 +31,14 @@ Only the CPUC registers a set for everyone and pins a set to a filing.</p>
   <li>Work through the steps: <strong>Set</strong> (its id, built from the workstream and first program year, its label, version and
   program years), <strong>Pricings</strong> (which ACC rows and discount rates each pricing uses), <strong>Streams the engine prices</strong> (the
   values the engine prices: include or leave out each one, and choose its pricings, unit and definition) and <strong>Streams from input
-  columns</strong> (a value of your own, such as a health benefit, from Measure columns you name).</li>
+  columns</strong> (a value of your own, such as a health benefit, from Measure columns you name), <strong>Aggregates</strong>
+  (columns such as TotalSystemBenefit that add up streams in one pricing) and <strong>Tests</strong> (each test's benefits, costs,
+  share of the program costs, variants and outputs, in the order runs show them).</li>
   <li>Every save is checked by the engine's own validator, and each problem is listed at the top of the step it belongs to and counted
-  beside the step's name. <strong>Review</strong> lists them all, shows the set in the engine's words and offers its file.</li>
+  beside the step's name. <strong>Review</strong> lists them all, shows the set in the engine's words, lists what changed since
+  the set it was copied from, and offers its file.</li>
   <li>Download the file and use it as your own cost-test set file on New run. A CPUC cost-test pack manager can register a set with no
-  problems as a draft pack, then record its engine check and publish it.</li>
+  problems as a draft pack; the engine on the server records its engine check at once, and the manager publishes it.</li>
 </ol>
 <h2>Learn more</h2>
 <ul class="links">

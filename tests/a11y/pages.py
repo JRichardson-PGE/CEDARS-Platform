@@ -186,8 +186,11 @@ PAGES = [
     ("build-start", "/reference-data/cost-tests/build/", "analyst"),
     *[
         (f"build-{step}", f"/reference-data/cost-tests/build/{{build}}/{step}/", "analyst")
-        for step in ("set", "pricings", "engine", "inputs", "review")
+        for step in ("set", "pricings", "engine", "inputs", "aggregates", "tests", "review")
     ],
+    ("build-aggregate-new", "/reference-data/cost-tests/build/{build}/aggregates/new/", "analyst"),
+    ("build-test", "/reference-data/cost-tests/build/{build}/tests/PAC/", "analyst"),
+    ("build-test-new", "/reference-data/cost-tests/build/{build}/tests/new/", "analyst"),
     ("build-input-new", "/reference-data/cost-tests/build/{build}/inputs/new/", "analyst"),
     ("build-input", "/reference-data/cost-tests/build/{build}/inputs/NEBHealth/", "analyst"),
     ("build-review-manager", "/reference-data/cost-tests/build/{manager_build}/review/", "cpuc_admin"),

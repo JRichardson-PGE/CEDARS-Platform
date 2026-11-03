@@ -17,6 +17,21 @@
 <p>The header has no problems. The engine is not installed on this server, so the rest of the set could not be checked here.</p>
 {% endif %}
 </section>
+{% if parent or changes %}
+<section aria-labelledby="changes-h">
+<h2 id="changes-h">What changed</h2>
+{% if changes %}
+<p>Against {% if parent %}{{ parent }}{% else %}the set it started as{% endif %}, the set it was copied from:</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="changes-h">
+<table class="list">
+  <caption class="sr-only">Each part of the set that was added, removed or changed since it was copied</caption>
+  <thead><tr><th scope="col">Part</th><th scope="col">Name</th><th scope="col">Change</th></tr></thead>
+  <tbody>{% for c in changes %}<tr><td>{{ c.part }}</td><th scope="row">{{ c.name }}</th><td>{{ c.what }}{% if c.keys %}: {{ c.keys|join:", " }}{% endif %}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p>Nothing yet: it is the same set as {% if parent %}{{ parent }}{% else %}the one it started as{% endif %}.</p>{% endif %}
+</section>
+{% endif %}
 {% if set_aside %}
 <section aria-labelledby="aside-h">
 <h2 id="aside-h">Set aside from the file</h2>
@@ -44,7 +59,7 @@ run on New run takes it as your own cost-test set file.</p>
 {% endif %}
 <form method="post" action="{% url 'refdata:build_action' build.pk %}" class="stack form-narrow">{% csrf_token %}
   {% if manager and build.status != "registered" %}
-  <p>Register it as a draft pack for everyone, as an uploaded file is: then record its engine check and publish it on the pack's page.</p>
+  <p>Register it as a draft pack for everyone, as an uploaded file is. The engine here records its engine check at once; then publish it on the pack's page.</p>
   {{ register.notes.as_field_group }}
   {% endif %}
   <div class="actions">

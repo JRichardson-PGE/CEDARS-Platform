@@ -39,6 +39,14 @@ def detail(request, pk):
             elif action == "withdraw":
                 service.withdraw_pack(request.user, pack, reason)
                 messages.success(request, f"{pack.label} withdrawn. Runs that used it still name it.")
+            elif action == "engine_check" and pack.kind == cost_tests.KIND:
+                t = cost_tests.engine_check(request.user, pack)
+                if t is None:
+                    messages.error(request, "The engine is not installed on this server; record the engine check by hand.")
+                else:
+                    (messages.success if t.passed else messages.error)(
+                        request, f"Engine check {'passed' if t.passed else 'failed'}. {t.summary}"
+                    )
             elif action == "discard":
                 service.discard_draft(request.user, pack, reason)
                 messages.success(request, "Draft discarded.")
@@ -63,6 +71,7 @@ def detail(request, pk):
             "cost_file": cost_tests.download_name(pack),
             "cost_words": words,
             "cost_problem": problem,
+            "engine_here": cost_tests.engine_installed(),
         }
     return render(
         request,

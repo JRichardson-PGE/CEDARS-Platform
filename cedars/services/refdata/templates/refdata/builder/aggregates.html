@@ -1,0 +1,25 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Aggregates: {{ build }}</h1>{% page_help "refdata/builder/aggregates" %}</div>{% endblock %}
+{% block step %}
+<p>Columns that add up streams in one pricing, such as TotalSystemBenefit: the streams it adds less the streams it takes away. A run
+writes each one per measure. Tests do not read aggregates; they name their own streams.</p>
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+<h2>The set's aggregates</h2>
+{% if aggregates %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Aggregates">
+<table class="list">
+  <caption class="sr-only">The set's aggregates, with the streams each adds and takes away</caption>
+  <thead><tr><th scope="col">Aggregate</th><th scope="col">Pricing</th><th scope="col">Adds</th><th scope="col">Takes away</th><th scope="col">Gross too</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for n, a in aggregates %}<tr>
+    <th scope="row">{{ n }}</th><td>{{ a.pricing }}</td><td>{{ a.plus|join:", " }}</td><td>{{ a.minus|join:", "|default:"nothing" }}</td><td>{% if a.gross %}yes{% else %}no{% endif %}</td>
+    {% if can_change %}<td><a href="{% url 'refdata:build_aggregate' build.pk n %}">Change<span class="sr-only"> {{ n }}</span></a>
+      <form method="post" class="inline-form">{% csrf_token %}<button type="submit" name="remove" value="{{ n }}">Remove<span class="sr-only"> {{ n }}</span></button></form></td>{% endif %}
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None. A set needs no aggregate.</p>{% endif %}
+{% if can_change %}<p><a class="button" href="{% url 'refdata:build_aggregate_new' build.pk %}">Add an aggregate</a></p>{% endif %}
+<p><a href="{% url 'refdata:build_step' build.pk 'tests' %}">Go on to Tests</a></p>
+{% endblock %}

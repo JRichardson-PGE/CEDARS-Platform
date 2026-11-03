@@ -1,0 +1,15 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>{% if tid %}Change {{ tid }}{% else %}Add a test{% endif %}: {{ build }}</h1>{% page_help "refdata/builder/test" %}</div>{% endblock %}
+{% block step %}
+<p><a href="{% url 'refdata:build_step' build.pk 'tests' %}">Back to the tests</a></p>
+<p>Each stream is listed with the pricings it is read in; one not read in the test's pricing is a problem.</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.id.as_field_group }}{{ form.label.as_field_group }}{{ form.pricing.as_field_group }}
+  {{ form.benefits.as_field_group }}{{ form.numerator_adders.as_field_group }}{{ form.costs.as_field_group }}
+  {{ form.share.as_field_group }}{{ form.variants.as_field_group }}
+  <fieldset><legend>Outputs</legend>{{ form.lifecycle_net_benefit.as_field_group }}{{ form.levelized.as_field_group }}{{ form.headline.as_field_group }}{{ form.filing.as_field_group }}</fieldset>
+  {{ form.definition.as_field_group }}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary">Save the test</button></div>{% endif %}
+</form>
+{% endblock %}

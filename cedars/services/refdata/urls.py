@@ -13,5 +13,9 @@ urlpatterns = [
     path("cost-tests/build/<int:pk>/action/", builder_views.build_action, name="build_action"),
     path("cost-tests/build/<int:pk>/inputs/new/", builder_views.build_input, name="build_input_new"),
     path("cost-tests/build/<int:pk>/inputs/<str:name>/", builder_views.build_input, name="build_input"),
+    path("cost-tests/build/<int:pk>/aggregates/new/", builder_views.build_aggregate, name="build_aggregate_new"),
+    path("cost-tests/build/<int:pk>/aggregates/<str:name>/", builder_views.build_aggregate, name="build_aggregate"),
+    path("cost-tests/build/<int:pk>/tests/new/", builder_views.build_test, name="build_test_new"),
+    path("cost-tests/build/<int:pk>/tests/<str:tid>/", builder_views.build_test, name="build_test"),
     path("cost-tests/build/<int:pk>/<slug:step>/", builder_views.build_step, name="build_step"),
 ]

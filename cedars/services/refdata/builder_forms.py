@@ -286,3 +286,84 @@ class InputStreamForm(forms.Form):
 
 class RegisterForm(forms.Form):
     notes = forms.CharField(label="Notes on the pack (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
+
+
+def _stream_choices(streams) -> list[tuple[str, str]]:
+    """A stream as a choice: its name and the pricings it is read in, so a choice outside the pricing chosen is easy to see."""
+    return [(n, f"{n} ({', '.join(s.get('pricings') or []) or 'no pricing'})") for n, s in streams]
+
+
+class AggregateForm(forms.Form):
+    name = forms.CharField(label="Name", max_length=64, help_text="The column it writes, e.g. TotalSystemBenefit (letters, digits and _)")
+    pricing = forms.ChoiceField(label="Pricing", widget=forms.RadioSelect, help_text="Every stream it adds is read in this pricing")
+    plus = forms.MultipleChoiceField(label="Streams it adds", widget=forms.CheckboxSelectMultiple)
+    minus = forms.MultipleChoiceField(label="Streams it takes away", required=False, widget=forms.CheckboxSelectMultiple)
+    gross = forms.BooleanField(label="Also write it gross (<name>Gross, from each stream's gross form)", required=False)
+    unit = forms.CharField(label="Unit", max_length=60, required=False, initial="$ (PV)")
+    definition = forms.CharField(label="Definition", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, pricings=(), streams=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["pricing"].choices = [(p, p) for p in pricings]
+        self.fields["plus"].choices = self.fields["minus"].choices = _stream_choices(streams)
+
+    @staticmethod
+    def initial_for(name: str, a: dict) -> dict:
+        return {"name": name, **{k: a.get(k, builder.AGGREGATE_DEFAULTS.get(k)) for k in builder.AGGREGATE_KEYS}}
+
+
+class TestForm(forms.Form):
+    VARIANTS = [
+        ("NoAdmin", "NoAdmin: also without the program costs (<T>CostNoAdmin, <T>RatioNoAdmin)"),
+        ("Gross", "Gross: also on the gross forms, with no net-to-gross (<T>BenGross, <T>CostGross, <T>RatioGross)"),
+    ]
+    LEVELIZED = [("", "Levelized on the test's cost"), ("NoAdmin", "Levelized on the cost without program costs (needs NoAdmin)")]
+
+    id = forms.CharField(
+        label="Test id",
+        max_length=16,
+        help_text="A capital letter, then letters and digits (TRC, PAC, JST1): it names <T>Ben, <T>Cost, <T>Ratio",
+    )
+    label = forms.CharField(label="Name", max_length=120, help_text="e.g. Total Resource Cost")
+    pricing = forms.ChoiceField(label="Pricing", widget=forms.RadioSelect, help_text="Every stream it reads is read in this pricing")
+    benefits = forms.MultipleChoiceField(label="Benefits", widget=forms.CheckboxSelectMultiple)
+    numerator_adders = forms.MultipleChoiceField(
+        label="Added to the benefits (not to TotalSystemBenefit)",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="e.g. TRC's TaxCredits; never on the gross forms",
+    )
+    costs = forms.MultipleChoiceField(label="Costs", widget=forms.CheckboxSelectMultiple)
+    share = forms.ChoiceField(label="Program costs", widget=forms.RadioSelect, required=False)
+    variants = forms.MultipleChoiceField(label="Variants", choices=VARIANTS, required=False, widget=forms.CheckboxSelectMultiple)
+    lifecycle_net_benefit = forms.BooleanField(label="Write its lifecycle net benefit (<T>LifecycleNetBen)", required=False)
+    levelized = forms.MultipleChoiceField(label="Levelized costs", choices=LEVELIZED, required=False, widget=forms.CheckboxSelectMultiple)
+    headline = forms.BooleanField(label="A headline test (on the run page's tiles and the summary's NoAdmin ratios)", required=False)
+    filing = forms.BooleanField(label="Priced on filings", required=False, initial=True)
+    definition = forms.CharField(label="Definition", required=False, widget=forms.Textarea(attrs={"rows": 3}))
+
+    def __init__(self, *args, pricings=(), streams=(), shares=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["pricing"].choices = [(p, p) for p in pricings]
+        for k in ("benefits", "numerator_adders", "costs"):
+            self.fields[k].choices = _stream_choices(streams)
+        self.fields["share"].choices = list(shares)
+
+    @staticmethod
+    def initial_for(tid: str, t: dict) -> dict:
+        pc = t.get("program_costs")
+        return {
+            "id": tid,
+            "label": t.get("label", ""),
+            "pricing": t.get("pricing"),
+            "benefits": list(t.get("benefits") or []),
+            "numerator_adders": list(t.get("numerator_adders") or []),
+            "costs": list(t.get("costs") or []),
+            "share": pc.get("share", "") if isinstance(pc, dict) else "",
+            "variants": list(t.get("variants") or []),
+            "lifecycle_net_benefit": bool(t.get("lifecycle_net_benefit")),
+            "levelized": list(t.get("levelized") or []),
+            "headline": bool(t.get("headline")),
+            "filing": bool(t.get("filing", True)),
+            "definition": t.get("definition", ""),
+        }
