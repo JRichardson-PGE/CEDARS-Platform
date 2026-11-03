@@ -5,9 +5,12 @@ data/front:
   guide:
     - What CEDARS is, the current program cycle at a glance, and Help. The cards add up the published filings for one four-year program
       cycle; each links to the dashboard page that breaks its numbers down and uses that page's exclusions, so the two agree.
+    - The gauges on Spending, Total system benefit and Energy saved show the percent spent of the budget, counted of the CPUC's goals
+      (or of the forecast when no goal is loaded) and saved of the forecast; the percent is written in each gauge. The notes under the
+      cards say what each one leaves out.
     - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
   how:
-    - Choose a cycle and Apply to change the cards; each card links to its dashboard page.
+    - Choose a cycle and Apply to change the cards. Select a card (its title is the link) to open its dashboard page.
     - Portfolio Dashboard, just above the cards, opens the full dashboard, where the published numbers break down by PA, sector, program and year.
     - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
     - Sign in, or Create an account; the published data need neither.
