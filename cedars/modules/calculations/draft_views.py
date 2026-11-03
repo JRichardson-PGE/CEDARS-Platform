@@ -1,17 +1,20 @@
 """The Edit inputs pages: the drafts list (start one from an upload or a blank job), a draft's tables with every problem cell marked,
 and the page that edits one row. Server-rendered forms, so they work without scripts."""
 
+import json
+
 from django import forms as djforms
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Min
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
-from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from cedars.core import uploads
 from cedars.services.accounts.service import AccessDenied
@@ -275,6 +278,7 @@ def draft(request, pk):
         {
             "draft": d,
             "can_change": can_change,
+            "grid": request.GET.get("view") != "rows",
             "table": table,
             "tables": [(t, len(drafts.frame(d, t))) for t in drafts.TABLES],
             "columns": [(c, c in no_effect) for c in columns],
@@ -389,6 +393,106 @@ def draft_row(request, pk, table, number):
             "library": getattr(src, "library", None),
         },
     )
+
+
+# --- the spreadsheet grid's JSON (calculations/edit_grid.js; ReCET's /edit/api)
+
+NEW_MEASURE_LIKE = [
+    "PrgID",
+    "ClaimYearQuarter",
+    "IOU_AC_Territory",
+    "AC_Climate_Zone",
+    "AC_Elec_Target_Sector",
+    "AC_Gas_Target_Sector",
+    "Sector",
+    "Version",
+]
+NEW_PROGRAMCOST_LIKE = ["PrgID", "PrgYear", "ClaimYearQuarter", "PA"]
+MAX_GRID_BODY = 8 * 1024 * 1024  # a 500-measure job is about 0.5 MB of JSON
+
+
+def _grid_issues(d, src) -> list[dict]:
+    """The grid's marked cells: the cell checks on the tables as saved, then the latest engine check's cells while it still applies."""
+    found, _failed = _issues(d, src)
+    check = drafts.check_findings(d)
+    if check is not None and check.current:
+        found = found + check.cells
+    return [{"table": i.table, "row": i.row, "column": i.column, "severity": i.severity, "message": i.message} for i in found]
+
+
+def _grid_layout(ed, frames) -> dict:
+    help_ = ed.field_help()
+    out = {}
+    for t, df in zip(drafts.TABLES, frames, strict=True):
+        pinned, scroll, no_effect = ed.display_layout(t, list(df.columns))
+        out[t] = {
+            "pinned": pinned,
+            "scroll": scroll,
+            "no_effect": sorted(no_effect),
+            "numeric": sorted(ed.numeric_columns(t) & set(df.columns)),
+            "tooltips": {c: ed.column_tooltip(t, c) for c in pinned + scroll},
+            "help": {c: help_.get(c, "") for c in pinned + scroll},
+        }
+    return out
+
+
+@never_cache
+@login_required
+@require_http_methods(["GET", "PUT"])
+def draft_grid(request, pk):
+    """GET: the draft's tables for the grid, their layout, dropdown values and cell checks. PUT {rev, tables}: save both tables whole
+    and answer with the new revision, the cell checks and the dropdown values (the claim years may have changed)."""
+    ed = drafts.engine()
+    if ed is None:
+        return JsonResponse({"error": "Edit inputs needs the ReCET engine installed on this server."}, status=503)
+    d = _draft_or_404(request, pk)
+    src = drafts.choices()
+    if request.method == "PUT":
+        if not drafts.can_change(request.user, d):
+            return JsonResponse({"error": "You cannot change this draft."}, status=403)
+        if len(request.body) > MAX_GRID_BODY:
+            return JsonResponse({"error": "Too large for Edit inputs: edit this job offline and upload it."}, status=413)
+        try:
+            body = json.loads(request.body)
+            if not isinstance(body, dict):
+                raise ValueError
+            rev = drafts.save_tables(request.user, d, body.get("tables"), body.get("rev"))
+        except ValueError:
+            return JsonResponse({"error": "Not saved: the request was not JSON."}, status=400)
+        except drafts.Conflict as e:
+            return JsonResponse({"error": str(e), "rev": drafts.revision(d)}, status=409)
+        except AccessDenied as e:
+            return JsonResponse({"error": f"Not saved: {e}"}, status=400)
+        d.refresh_from_db()
+        m = drafts.frame(d, "Measure")
+        return JsonResponse({"rev": rev, "issues": _grid_issues(d, src), "choices": drafts.column_choices(src, m)})
+    frames = drafts.frames(d)
+    return JsonResponse(
+        {
+            "name": d.name,
+            "rev": drafts.revision(d),
+            "can_change": drafts.can_change(request.user, d),
+            "tables": {t: drafts._pack(df) for t, df in zip(drafts.TABLES, frames, strict=True)},
+            "layout": _grid_layout(ed, frames),
+            "choices": drafts.column_choices(src, frames[0]),
+            "issues": _grid_issues(d, src),
+            "max_rows": ed.MAX_EDIT_ROWS,
+            "end_uses": bool(getattr(src, "library", None)),
+            "new_measure": {"defaults": ed.NEW_MEASURE_DEFAULTS, "like": NEW_MEASURE_LIKE},
+            "new_programcost_like": NEW_PROGRAMCOST_LIKE,
+        }
+    )
+
+
+@never_cache
+@login_required
+@require_GET
+def draft_end_uses(request):
+    """The end uses offered for an IOU and target sector (the grid's per-row list): the library's in force, else the engine's list."""
+    if drafts.engine() is None:
+        return JsonResponse({"values": [""]})
+    src = drafts.choices()
+    return JsonResponse({"values": ["", *src.end_use_choices(request.GET.get("iou", "")[:20], request.GET.get("sector", "")[:40])]})
 
 
 @login_required

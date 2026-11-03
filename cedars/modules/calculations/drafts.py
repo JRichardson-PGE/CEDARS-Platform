@@ -310,6 +310,98 @@ def add_row(actor, draft: InputDraft, table: str, like: int | None = None, *, co
     return len(df) - 1
 
 
+# --- the spreadsheet grid (edit_grid.js, as ReCET's own Edit inputs page): both tables saved whole on every change
+
+MAX_PROGRAMCOST_ROWS = 5000  # as ReCET's own editor page (recet/web/edit_api.py)
+MAX_CELL_CHARS = 2000
+MAX_COLUMNS = 300
+
+
+def revision(draft: InputDraft) -> str:
+    """The tables' version a grid edits: the SHA-256 of both tables, so a save from a page showing an older version is refused rather
+    than overwriting newer changes. The same hash an engine check is held to (content_hash)."""
+    return content_hash(draft)
+
+
+class Conflict(Exception):
+    """The draft changed since the page loaded it (another window or person)."""
+
+
+def _grid_table(table: str, data) -> object:
+    """One table as a save sends it ({columns, rows}), checked for shape, size and CET's delimiter, conformed as the engine's editor
+    keeps it. Content is the cell checks' job."""
+    import pandas as pd
+
+    ed = _editor()
+    if not isinstance(data, dict):
+        raise AccessDenied(f"{table}: columns and rows are required.")
+    cols, rows = data.get("columns"), data.get("rows")
+    if not isinstance(cols, list) or not isinstance(rows, list) or not 0 < len(cols) <= MAX_COLUMNS:
+        raise AccessDenied(f"{table}: columns and rows are required.")
+    if any(not isinstance(c, str) or not c.strip() or len(c) > 100 for c in cols) or len(set(cols)) != len(cols):
+        raise AccessDenied(f"{table}: the column names are not usable.")
+    limit = ed.MAX_EDIT_ROWS if table == "Measure" else MAX_PROGRAMCOST_ROWS
+    if len(rows) > limit:
+        raise AccessDenied(f"Edit inputs takes jobs of up to {limit:,} {table} rows. Edit larger jobs offline and upload them.")
+    clean = []
+    for r in rows:
+        if not isinstance(r, list) or len(r) != len(cols):
+            raise AccessDenied(f"{table}: every row needs one value per column.")
+        vals = ["" if v is None else str(v).strip() for v in r]
+        for c, v in zip(cols, vals, strict=True):
+            if len(v) > MAX_CELL_CHARS:
+                raise AccessDenied(f"{table}, {c}: a value is longer than {MAX_CELL_CHARS:,} characters.")
+            if "|" in v:
+                raise AccessDenied(f"{c}: CET files are '|'-delimited, so a value may not contain '|'.")
+        clean.append(vals)
+    return ed.conform(pd.DataFrame(clean, columns=cols, dtype=str), ed.MEASURE_COLUMNS if table == "Measure" else ed.PROGRAMCOST_COLUMNS)
+
+
+@transaction.atomic
+def save_tables(actor, draft: InputDraft, tables: dict, rev: str | None) -> str:
+    """Save both tables as the grid holds them (rows added, copied, deleted, pasted or edited in any number). Refuses a save made on
+    another version of the tables (Conflict). One audit event says how many rows and cells changed. Returns the new revision."""
+    _require(actor, draft)
+    draft = InputDraft.objects.select_for_update().get(pk=draft.pk)
+    if rev is not None and rev != revision(draft):
+        raise Conflict("This draft was changed in another window or by someone else. Reload the page to see the latest version.")
+    before = frames(draft)
+    after = [_grid_table(t, (tables or {}).get(t)) for t in TABLES]
+    summary = {}
+    for t, old, new in zip(TABLES, before, after, strict=True):
+        cells = 0
+        for i in range(min(len(old), len(new))):
+            a, b = old.iloc[i], new.iloc[i]
+            cells += sum(1 for c in new.columns if (a.get(c, "") if c in old.columns else "") != b[c])
+        summary[t] = {"rows_before": len(old), "rows_after": len(new), "cells_changed": cells}
+    if all(s["rows_before"] == s["rows_after"] and not s["cells_changed"] for s in summary.values()) and all(
+        list(o.columns) == list(n.columns) for o, n in zip(before, after, strict=True)
+    ):
+        return revision(draft)
+    for t, df in zip(TABLES, after, strict=True):
+        setattr(draft, FIELD[t], _pack(df))
+    draft.save(update_fields=["measures", "programcost", "updated_at"])
+    _event(actor, draft, "calculation_draft.tables_saved", before={t: s["rows_before"] for t, s in summary.items()}, after=summary)
+    return revision(draft)
+
+
+def column_choices(src, measures) -> dict[str, dict[str, list[str]]]:
+    """The grid's dropdown values per table and column for the claim years in the Measure table (the engine's ChoiceSource), as
+    ReCET's own editor page sends them."""
+    ed = _editor()
+    years = sorted({y for y in (ed.claim_year(v) for v in measures.get("ClaimYearQuarter", [])) if y}) or None
+    out: dict[str, dict[str, list[str]]] = {}
+    for t, cols in (("Measure", ed.MEASURE_COLUMNS), ("ProgramCost", ed.PROGRAMCOST_COLUMNS)):
+        out[t] = {}
+        for col in cols:
+            if t == "Measure" and col in ed.END_USE_COLUMNS:
+                continue
+            vals = src.column_choices(t, col, years)
+            if vals:
+                out[t][col] = ["", *vals]
+    return out
+
+
 @dataclass
 class EtrmFill:
     index: int  # the new row's, 0-based
