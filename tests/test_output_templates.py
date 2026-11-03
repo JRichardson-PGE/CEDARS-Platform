@@ -147,3 +147,19 @@ def test_the_templates_pages(analyst, web, catalog):  # noqa: F811
 def test_without_a_catalog_the_page_says_so(web):
     page = web.get("/calculations/templates/new/").content.decode()
     assert "No field catalog is published yet" in page
+
+
+def test_the_field_pickers_catalog(web, catalog):
+    from cedars.modules.calculations.template_views import picker_fields
+
+    fields = picker_fields(output_templates.catalog())
+    kinds = {f["k"] for f in fields}
+    assert kinds == {"input", "program", "output"}
+    first = fields[0]
+    assert first["g"] == output_templates.INPUT_GROUP and first["k"] == "input" and first["l"] == f"/dictionary/fields/{first['c']}/"
+    assert all(f["k"] == "program" for f in fields if f["c"].startswith("Prg_"))
+    page = web.get("/calculations/templates/new/").content.decode()
+    assert 'id="field-picker" hidden' in page and 'id="field-catalog"' in page and "template_picker.js" in page
+    assert "data-without-picker" in page  # the tick boxes, for a browser without scripts
+    data = json.loads(page.split('id="field-catalog" type="application/json">', 1)[1].split("</script>", 1)[0])
+    assert data == fields

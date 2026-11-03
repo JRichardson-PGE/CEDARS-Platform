@@ -16,13 +16,17 @@
   <li>Choose <strong>Start the run</strong>, or <strong>Check the inputs only</strong>. The run's page shows its progress and the
   engine's log while it runs, then the input check (what stopped the run, what could not be priced and every other finding), its
   files, one at a time or all in one .zip, and its results.</li>
+  <li>A run you leave unnamed is named after its job file (or draft) and its ACC. <strong>What each cost-test set prices</strong>, under
+  Pricing, lists the registered sets and their tests; an analysis run may take a cost-test set file of your own instead, recorded with
+  its SHA-256 (a filing, or a run with filing checks or <strong>Priced for</strong>, takes a published set). The run page explains its
+  totals and says when retention deletes the run.</li>
 </ol>
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job as a spreadsheet (paste from Excel, add and copy rows, undo) or row by row, or add a measure from eTRM. End uses
   are offered and checked from the impact-profile library in force; <strong>Check with the engine</strong> runs the engine's whole input
   check on the tables without pricing and marks the cells it names; a draft downloads as a job zip or a job workbook.</li>
-  <li><a href="{% url 'calculations:templates' %}">Output templates</a>: choose the columns a run's file holds.</li>
+  <li><a href="{% url 'calculations:templates' %}">Output templates</a>: choose the columns a run's file holds and their order, from the list of every field a run writes.</li>
   <li><a href="{% url 'impact_profiles:library' %}">Impact profile library</a>: the hourly profiles measures name, and custom uploads.</li>
   <li>From a finished run's page, open its Results or compare it with another run. On both, <strong>Choose columns</strong> finds
   columns by name or definition and saves the columns shown as a named view, which you can pick again for any run.</li>

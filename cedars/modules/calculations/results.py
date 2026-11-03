@@ -29,15 +29,27 @@ HEADLINE = [
     ("RIM_ratio", "RIM"),
     ("SCB_ratio", "SCT Base"),
 ]
+# What each tile is, as the run page's "What these numbers are" says it (ReCET's OUTPUT_FIELDS definitions, in short).
+HEADLINE_HELP = {
+    "Measures": "The measure records the run priced.",
+    "TotalSystemBenefit": "Net lifecycle system benefit: every benefit less every supply-type cost, in present-value dollars to the run's "
+    "First Year (the other benefits and costs undiscounted).",
+    "TotalExpenditures": "The budget: what the programs spend on the measures, their rebates and incentives plus their share of the "
+    "program costs, in nominal (undiscounted) dollars.",
+    "TRC_ratio": "Total Resource Cost test: TRC benefits over TRC costs, recomputed from the run's summed benefits and costs.",
+    "PAC_ratio": "Program Administrator Cost test: PAC benefits over PAC costs, recomputed from the summed benefits and costs.",
+    "RIM_ratio": "Ratepayer Impact Measure test: RIM benefits over RIM costs, recomputed from the summed benefits and costs.",
+    "SCB_ratio": "Societal Cost Test, base case: SCT benefits over SCT costs (blank on the TRC-only 2021 and 2022 ACCs).",
+}
 
 
 def headline_totals(totals: dict, measures: int | None) -> list[dict]:
     """The run page's tiles from the receipt's portfolio totals, labeled and formatted as the Results page shows them: the measure
     count, then HEADLINE's columns the run has (whole dollars; ratios to two decimals)."""
-    out = [] if measures is None else [{"label": "Measures", "value": f"{int(measures):,}"}]
+    out = [] if measures is None else [{"label": "Measures", "value": f"{int(measures):,}", "help": HEADLINE_HELP["Measures"]}]
     for key, label in HEADLINE:
         if key in totals and totals[key] is not None:
-            out.append({"label": label, "value": format_total(key, totals[key])})
+            out.append({"label": label, "value": format_total(key, totals[key]), "help": HEADLINE_HELP.get(key, "")})
     return out
 
 
