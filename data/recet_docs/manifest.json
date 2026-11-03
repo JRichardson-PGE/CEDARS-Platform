@@ -1,14 +1,14 @@
 {
   "engine": {
-    "version": "0.1.91",
-    "commit": "4146407f1d9da4ec036dc351e3c7ea01523df5b5"
+    "version": "0.1.92",
+    "commit": "19c00533bbe321c9a09deac1c1b48daf1fe0cd18"
   },
   "documents": {
     "INPUT_FORMATS.md": "6bf780d3a8a7e1133fb8f7e008a09d32388cdd94d8d39c1307710734eb1fe0d2",
     "INPUT_FIELDS.md": "262f53b89fe7cab2341a40701d138fa4b428680110310ac9ba2ed5b0b76ae0b3",
     "OUTPUT_FIELDS.md": "cefc7a83aa87c1e10822cc6cd8542b7b65b1f9bb8113ca82dbe18fd21206b5bd",
     "CALCULATIONS.md": "94c664debf28c2f44b7f872886d2ba67fa1f9824e270064aa27c7425aad94b66",
-    "COST_TESTS.md": "401e24fe0725b1ca25b39531847317137a8a772af9939f8b2742dfe3ede49c7c",
+    "COST_TESTS.md": "1b5fba386d9801528e9f67c62bf31129dec7d561084d7c3975857fbb00eb9501",
     "USER_GUIDE.md": "51e50fb9aff6a08d2a10230e576863500073ebfe3edaf147b012239f2a464968",
     "ARCHITECTURE.md": "1bdbdbb1bd11cba0615bb1ae8e4c5729f82fb5c6da7996ee2a692ea3ed9a37c7"
   },
