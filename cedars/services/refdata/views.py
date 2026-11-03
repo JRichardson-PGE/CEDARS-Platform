@@ -138,4 +138,7 @@ def cost_test_sets(request):
     packs = PackVersion.objects.filter(kind=cost_tests.KIND).order_by("label", "-registered_at")
     rows = [(p, cost_tests.header(p), cost_tests.years_text(p)) for p in packs]
     in_force = cost_tests.for_year(None)
-    return render(request, "refdata/cost_tests.html", {"rows": rows, "form": form, "in_force": in_force})
+    from . import builder
+
+    builds = list(builder.visible(request.user))
+    return render(request, "refdata/cost_tests.html", {"rows": rows, "form": form, "in_force": in_force, "builds": builds})

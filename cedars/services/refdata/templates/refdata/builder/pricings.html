@@ -1,0 +1,29 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Pricings: {{ build }}</h1>{% page_help "refdata/builder/pricings" %}</div>{% endblock %}
+{% block step %}
+<p>A pricing is how a stream is priced for a test: which rows of the ACC, which run-parameter discount rates, and the suffix its columns
+carry (ElecBen_SB is ElecBen in a pricing with suffix _SB). The engine prices its own streams only on its own pricings: the TRC rows at
+the primary rates with no suffix, and the SCT Base and High rows at the societal rates with _SB and _SH (participant columns _SCT). A
+pricing of your own is for streams from input columns and the program costs.</p>
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+<form method="post" class="stack">{% csrf_token %}
+  {{ formset.management_form }}
+  {% for f, uses in rows %}
+  <fieldset>
+    <legend>Pricing {{ f.initial.id }}</legend>
+    {{ f.id }}
+    <div class="row-fields">
+      {{ f.label.as_field_group }}{{ f.acc_rows.as_field_group }}{{ f.discount_rate_quarterly.as_field_group }}{{ f.discount_rate_annual.as_field_group }}{{ f.suffix.as_field_group }}{{ f.participant_suffix.as_field_group }}
+    </div>
+    {% if uses %}<p class="small muted">Used by {{ uses|join:", " }}, so it cannot be removed.</p>{% else %}{{ f.remove.as_field_group }}{% endif %}
+  </fieldset>
+  {% endfor %}
+  <fieldset>
+    <legend>Add a pricing (optional)</legend>
+    <div class="row-fields">
+      {{ new.id.as_field_group }}{{ new.label.as_field_group }}{{ new.acc_rows.as_field_group }}{{ new.discount_rate_quarterly.as_field_group }}{{ new.discount_rate_annual.as_field_group }}{{ new.suffix.as_field_group }}{{ new.participant_suffix.as_field_group }}
+    </div>
+  </fieldset>
+  {% if can_change %}<div class="actions"><button type="submit" class="primary" name="then" value="next">Save and go on</button><button type="submit" name="then" value="stay">Save</button></div>{% endif %}
+</form>
+{% endblock %}

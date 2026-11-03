@@ -21,6 +21,22 @@
   its SHA-256 (a filing, or a run with filing checks or <strong>Priced for</strong>, takes a published set). The run page explains its
   totals and says when retention deletes the run.</li>
 </ol>
+<h2>Build a cost-test set</h2>
+<p>Anyone signed in can build a cost-test set for their own analysis runs on <strong>Reference data, Cost-test sets, Build a set</strong>.
+Only the CPUC registers a set for everyone and pins a set to a filing.</p>
+<ol>
+  <li>Start from a copy of a registered set, one of your own, a set the engine ships, a set file you upload (a YAML file, written by
+  hand or downloaded from a set's page) or nothing. A file's parts the set format does not have are set aside and shown on Review,
+  never written out. Tick <strong>Share it with</strong> your organization to let the people there who may start runs see and change it.</li>
+  <li>Work through the steps: <strong>Set</strong> (its id, built from the workstream and first program year, its label, version and
+  program years), <strong>Pricings</strong> (which ACC rows and discount rates each pricing uses), <strong>Streams the engine prices</strong> (the
+  values the engine prices: include or leave out each one, and choose its pricings, unit and definition) and <strong>Streams from input
+  columns</strong> (a value of your own, such as a health benefit, from Measure columns you name).</li>
+  <li>Every save is checked by the engine's own validator, and each problem is listed at the top of the step it belongs to and counted
+  beside the step's name. <strong>Review</strong> lists them all, shows the set in the engine's words and offers its file.</li>
+  <li>Download the file and use it as your own cost-test set file on New run. A CPUC cost-test pack manager can register a set with no
+  problems as a draft pack, then record its engine check and publish it.</li>
+</ol>
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job as a spreadsheet (paste from Excel, add and copy rows, undo) or row by row, or add a measure from eTRM. End uses

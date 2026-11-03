@@ -1,0 +1,20 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>{% if name %}Change {{ name }}{% else %}Add a stream from input columns{% endif %}: {{ build }}</h1>{% page_help "refdata/builder/input_stream" %}</div>{% endblock %}
+{% block step %}
+<p><a href="{% url 'refdata:build_step' build.pk 'inputs' %}">Back to the input streams</a></p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {{ form.name.as_field_group }}{{ form.kind.as_field_group }}
+  <fieldset><legend>Measure columns</legend>
+    {% if form.columns.field.choices %}{{ form.columns.as_field_group }}{% endif %}{{ form.new_columns.as_field_group }}
+  </fieldset>
+  {{ form.basis.as_field_group }}
+  <fieldset><legend>2nd baseline (each year of the life only)</legend>
+    {% if form.columns_2nd.field.choices %}{{ form.columns_2nd.as_field_group }}{% endif %}{{ form.new_columns_2nd.as_field_group }}
+  </fieldset>
+  {{ form.ntg.as_field_group }}{{ form.market_effects.as_field_group }}{{ form.pricings.as_field_group }}{{ form.naming.as_field_group }}
+  <fieldset><legend>Gross form</legend>{{ form.gross.as_field_group }}{{ form.gross_column.as_field_group }}</fieldset>
+  {{ form.unit.as_field_group }}{{ form.definition.as_field_group }}
+  {% if can_change %}<div class="actions"><button type="submit" class="primary">Save the stream</button></div>{% endif %}
+</form>
+{% endblock %}

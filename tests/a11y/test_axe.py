@@ -27,7 +27,7 @@ from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.dictionary import service as dictionary
 from cedars.services.notifications import service as notifications
-from cedars.services.refdata import cost_tests
+from cedars.services.refdata import builder, cost_tests
 from cedars.services.refdata import service as refdata
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import ProgramChangePolicy
@@ -399,6 +399,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **monthly,
         **corrections,
         **_releases(cpuc_admin),
+        **_cost_test_builds(analyst, cpuc_admin),
         **_mandates(cpuc_admin, rules),
         **documents,
         **_publication_hold(pge),
@@ -1030,6 +1031,41 @@ def _etrm(cpuc_admin):
 
     sample = Path(__file__).parent.parent / "data" / "etrm_permutations_export.csv"
     return refdata.publish_pack(cpuc_admin, etrm.load(cpuc_admin, [sample], label="eTRM published permutations", version="2026-10-30"))
+
+
+SCENE_SET = """\
+schema_version: 1
+id: EE-2028-neb
+workstream: EE
+version: '2026-11-03'
+label: ''
+description: EE cost tests with a health benefit.
+draft: true
+program_years: {from: 2028, to: null}
+pricings:
+  primary: {label: TRC avoided costs, acc_rows: trc, discount_rate_quarterly: DiscountRateQtr, discount_rate_annual: DiscountRateAnnual,
+            suffix: '', participant_suffix: ''}
+streams:
+  ElecBen: {source: engine, kind: benefit, fuel: elec, pricings: [primary], naming: suffix, gross: divide_ntg, unit: $ (PV),
+            definition: Electric avoided-cost benefits.}
+  RebatesandIncentsPV: {source: engine, kind: cost, pricings: [primary], naming: participant_suffix, gross: same, unit: $ (PV),
+                        definition: Rebates and incentives.}
+  NEBHealth: {source: input, kind: benefit, columns: [UnitHealthBens], basis: one_time, ntg: kwh, market_effects: benefits,
+              pricings: [primary], naming: none, gross: divide_ntg, unit: $, definition: Health benefits per unit.}
+  ProgramCosts: {source: program, kind: cost, unit: $ (PV), definition: The program's costs.}
+aggregates: {}
+tests:
+  PAC: {label: Program Administrator Cost, pricing: primary, benefits: [ElecBen, NEBHealth], costs: [RebatesandIncentsPV],
+        program_costs: {share: PAC}, headline: true, definition: The administrator's costs.}
+"""
+
+
+def _cost_test_builds(analyst, cpuc_admin):
+    """The set builder: an analyst's set started from a file, with its label left blank (a problem the set step shows), and a manager's
+    own copy (Review then offers Register)."""
+    mine = builder.start_from_file(analyst, SCENE_SET.encode(), "neb.yaml")
+    managers = builder.start_from_file(cpuc_admin, SCENE_SET.replace("label: ''", "label: EE with health").encode(), "neb.yaml")
+    return {"build": mine.pk, "manager_build": managers.pk}
 
 
 def _releases(cpuc_admin):

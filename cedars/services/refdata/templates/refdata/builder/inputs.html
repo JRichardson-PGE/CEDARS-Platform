@@ -1,0 +1,27 @@
+{% extends "refdata/builder/base.html" %}
+{% block heading %}<div class="page-title"><h1>Streams from input columns: {{ build }}</h1>{% page_help "refdata/builder/inputs" %}</div>{% endblock %}
+{% block step %}
+<p>Values the set reads straight from Measure.csv columns: NumUnits x (NTG + market effects) x the per-unit values, once or each year of
+the measure's life. A non-energy benefit goes here. A column that is not one of CET's is the set's own: a job's Measure.csv may carry it,
+and a job without it prices it as 0.</p>
+{% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
+<h2>The set's input streams</h2>
+{% if streams %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Input streams">
+<table class="list">
+  <caption class="sr-only">The set's streams from input columns, with what each reads and how it is counted</caption>
+  <thead><tr><th scope="col">Stream</th><th scope="col">It is</th><th scope="col">Columns</th><th scope="col">Counted</th><th scope="col">Pricings</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for n, s in streams %}<tr>
+    <th scope="row">{{ n }}</th><td>{{ s.kind }}</td><td>{{ s.columns|join:", " }}{% if s.columns_2nd %}; 2nd baseline {{ s.columns_2nd|join:", " }}{% endif %}</td>
+    <td>{% if s.basis == "annual_over_life" %}each year of the life{% elif s.basis == "one_time" %}once{% else %}{{ s.basis }}{% endif %}</td><td>{{ s.pricings|join:", " }}</td>
+    {% if can_change %}<td><a href="{% url 'refdata:build_input' build.pk n %}">Change<span class="sr-only"> {{ n }}</span></a>
+      <form method="post" class="inline-form">{% csrf_token %}<button type="submit" name="remove" value="{{ n }}">Remove<span class="sr-only"> {{ n }}</span></button></form></td>{% endif %}
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet.</p>{% endif %}
+{% if can_change %}<p><a class="button" href="{% url 'refdata:build_input_new' build.pk %}">Add a stream from input columns</a></p>{% endif %}
+<p><a href="{% url 'refdata:build_step' build.pk 'review' %}">Go on to Review</a></p>
+{% endblock %}

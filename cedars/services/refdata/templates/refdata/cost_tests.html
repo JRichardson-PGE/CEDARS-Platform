@@ -21,6 +21,23 @@ analysis run may also use a draft. A change to a set is a new version, never an 
   </tbody>
 </table>
 </div>
+<section aria-labelledby="mine-h">
+<h2 id="mine-h">My sets</h2>
+<p>Sets you are building, and those shared with your organization. Anyone may build a set and price their own analysis runs on it; the
+CPUC registers the sets everyone uses.</p>
+<p><a class="button" href="{% url 'refdata:build_start' %}">Build a set</a></p>
+{% if builds %}
+<div class="hscroll" tabindex="0" role="region" aria-label="My sets">
+<table class="list">
+  <caption class="sr-only">Cost-test sets being built, with their status and open problems</caption>
+  <thead><tr><th scope="col">Set</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Problems</th><th scope="col">Whose</th><th scope="col">Last changed</th></tr></thead>
+  <tbody>
+  {% for b in builds %}<tr><th scope="row"><a href="{% url 'refdata:build_step' b.pk 'review' %}">{{ b }}</a></th><td>{{ b.label }}</td><td>{{ b.get_status_display }}{% if b.pack %}: <a href="{% url 'refdata:detail' b.pack.pk %}">{{ b.pack }}</a>{% endif %}</td><td>{% if b.open_problems %}{{ b.open_problems }}{% else %}None{% endif %}</td><td>{{ b.owner|person }}{% if b.organisation %}, shared with {{ b.organisation.code }}{% endif %}</td><td>{{ b.updated_at|date_words }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None yet.</p>{% endif %}
+</section>
 {% if form %}
 <section class="card" aria-labelledby="reg-h">
   <h2 id="reg-h">Register a set</h2>
