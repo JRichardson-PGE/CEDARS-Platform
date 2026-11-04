@@ -1,11 +1,12 @@
 {% extends "core/base.html" %}
 {% block title %}Download {{ job.pk }} · Your downloads{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'data:records' %}">Record downloads</a></li><li><a href="{% url 'data:downloads' %}">Your downloads</a></li></ol></nav>
 <nav class="subnav" aria-label="Data pages">
   <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
   <a href="{% url 'data:records' %}">Record downloads</a>
   <a href="{% url 'data:views' %}">Saved views</a>
-  <a href="{% url 'data:downloads' %}">Your downloads</a>
+  <a href="{% url 'data:downloads' %}" aria-current="true">Your downloads</a>
 </nav>
 <div class="page-title"><h1>{{ series }} records, {{ job.fmt|upper }}</h1>{% page_help "data/download_job" %}</div>
 <dl class="facts">

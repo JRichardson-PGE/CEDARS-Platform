@@ -1,7 +1,11 @@
+{% with here=request.resolver_match.view_name %}{% if here != "impact_profiles:library" %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'impact_profiles:library' %}">Impact profiles</a></li>{% if section == "packages" and here != "impact_profiles:packages" %}<li><a href="{% url 'impact_profiles:packages' %}">Deemed load shapes</a></li>{% elif section == "uploads" and here != "impact_profiles:uploads" %}<li><a href="{% url 'impact_profiles:uploads' %}">Upload history</a></li>{% endif %}</ol></nav>
+{% endif %}
 <nav class="subnav" aria-label="Impact profiles">
-  <a href="{% url 'impact_profiles:library' %}"{% if section == 'library' %} aria-current="page"{% endif %}>Impact profile library</a>
-  <a href="{% url 'impact_profiles:packages' %}"{% if section == 'packages' %} aria-current="page"{% endif %}>Deemed load shapes</a>
-  <a href="{% url 'impact_profiles:uploads' %}"{% if section == 'uploads' %} aria-current="page"{% endif %}>Upload history</a>
+  <a href="{% url 'impact_profiles:library' %}"{% if section == 'library' %} aria-current="{% if here == 'impact_profiles:library' %}page{% else %}true{% endif %}"{% endif %}>Impact profile library</a>
+  <a href="{% url 'impact_profiles:packages' %}"{% if section == 'packages' %} aria-current="{% if here == 'impact_profiles:packages' %}page{% else %}true{% endif %}"{% endif %}>Deemed load shapes</a>
+  <a href="{% url 'impact_profiles:uploads' %}"{% if section == 'uploads' %} aria-current="{% if here == 'impact_profiles:uploads' %}page{% else %}true{% endif %}"{% endif %}>Upload history</a>
   <a href="{% url 'impact_profiles:sync_history' %}"{% if section == 'sync' %} aria-current="page"{% endif %}>eTRM sync history</a>
   <a href="{% url 'impact_profiles:exports' %}"{% if section == 'exports' %} aria-current="page"{% endif %}>Library files</a>
 </nav>
+{% endwith %}

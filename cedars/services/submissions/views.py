@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import nav, storage
 from cedars.core import uploads as core_uploads
 from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
@@ -431,6 +431,7 @@ def _correctable(request, pk) -> tuple[SubmissionVersion, str]:
     sub = v.submission
     if not access.has_permission(request.user, sub.organisation, f"{sub.deadline.module}.submit"):
         raise Http404
+    nav.belongs_to(request, f"{sub.deadline.module}:index")  # the filing's own menu item, not the filing calendar's
     e = corrections.editor_for(sub.deadline.module)
     if e is None:
         raise Http404
