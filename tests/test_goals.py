@@ -176,3 +176,20 @@ def _upload(name, text):
     from django.core.files.uploadedfile import SimpleUploadedFile
 
     return SimpleUploadedFile(name, text.encode(), content_type="text/csv")
+
+
+def test_goal_templates_are_offered_and_load(cpuc_admin, pge_admin, signed_in):
+    client = signed_in(cpuc_admin)
+    page = client.get("/admin/goals/").content.decode()
+    assert "/admin/goals/template-goals.csv" in page and "/admin/goals/template-rules.csv" in page
+    assert 'href="/admin/goals/"' in page  # in the Administration menu
+    goal_file = client.get("/admin/goals/template-goals.csv")
+    rule_file = client.get("/admin/goals/template-rules.csv")
+    assert goal_file["Content-Type"].startswith("text/csv") and goal_file.content.decode() == HEADER
+    assert rule_file.content.decode().splitlines() == ["PA,Territory,Share,AppliesTo,Source"]
+    assert client.get("/admin/goals/template-other.csv").status_code == 404
+    # a filled-in template loads
+    _load(cpuc_admin, goal_file.content.decode() + "PGE,annual,2028,2028,1,1,1,1,1,1,1\n", rules=rule_file.content.decode())
+    signed_in(pge_admin)
+    assert client.get("/admin/goals/template-goals.csv").status_code == 404
+    assert 'href="/admin/goals/"' not in client.get("/").content.decode()

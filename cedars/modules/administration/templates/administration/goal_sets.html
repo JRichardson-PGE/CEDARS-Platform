@@ -25,6 +25,8 @@ record. The portfolio dashboard compares forecasts and claims with the goals in 
   <p class="small">Goal file columns: Utility (PGE, SCE, SDGE, SCG), Kind (cycle or annual), FirstYear, LastYear, ProgramTSB, ProgramGWh,
   ProgramMW, ProgramMMTherms, CSGWh, CSMW, CSMMTherms. Leave a cell blank (or "-") where the decision sets no value. Counting rule file
   columns: PA, Territory, Share (0 to 1), AppliesTo (all, programs or cs), Source.</p>
+  <p class="small" id="goal-templates">Templates: <a href="{% url 'administration:goal_template_csv' 'goals' %}" download>Download the goal file template (CSV)</a>
+  and <a href="{% url 'administration:goal_template_csv' 'rules' %}" download>the counting rule file template (CSV)</a>.</p>
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>

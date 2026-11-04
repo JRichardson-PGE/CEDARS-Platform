@@ -63,6 +63,7 @@ PAGES = [
     Page("administration:allocations", "administration/allocations", "user", "statewide sw"),
     Page("administration:organisations", "administration/organisations", "admin", "organisations"),
     Page("administration:stewardship", "administration/stewardship", "steward"),
+    Page("administration:goal_sets", "administration/goal_sets", "sysadmin", "goals savings targets decision tsb gwh template"),
     Page("retention:index", "retention/index", "sysadmin"),
     Page("snapshots:holds", "snapshots/holds", "sysadmin", "publication"),
     Page("accessibility:files", "accessibility/files", "sysadmin"),

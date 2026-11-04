@@ -300,6 +300,7 @@ administration/goal_sets:
       annual targets, for each IOU). The newest confirmed set replaces the earlier ones for every year it covers; earlier sets stay for the
       years before. The dashboard's Goals page and the front page compare results with them.
   how:
+    - Download the goal file template (and the counting rule file template), fill in the decision's tables, and load it.
     - Load as a draft takes one decision's goal file; a second administrator confirms it on its page.
     - Open a set for its goals, counting rules and checks.
   tour:
@@ -309,6 +310,9 @@ administration/goal_sets:
     - target: "#up-h"
       title: Load a decision's goals
       text: From the decision's tables. A set starts as a draft until a second administrator confirms it.
+    - target: "#goal-templates"
+      title: Templates
+      text: Empty goal and counting rule files with the columns the upload reads.
 
 administration/goal_set:
   title: A goal set

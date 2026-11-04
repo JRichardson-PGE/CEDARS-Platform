@@ -59,8 +59,9 @@ def _number(value, where: str) -> Decimal | None:
 
 
 def _rows(content: bytes, needed: list[str], what: str) -> list[dict]:
-    rows = list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
-    missing = set(needed) - set(rows[0].keys() if rows else [])
+    reader = csv.DictReader(io.StringIO(content.decode("utf-8-sig")))
+    rows = list(reader)
+    missing = set(needed) - set(reader.fieldnames or [])  # the header, so a file with no rows yet is not "missing columns"
     if missing:
         raise ValueError(f"the {what} is missing columns: {', '.join(sorted(missing))}")
     return rows
@@ -229,6 +230,13 @@ def in_force_years(s: GoalSet) -> dict[str, list[int]]:
             years -= {y for g in n.goals.filter(kind=kind) for y in range(g.first_year, g.last_year + 1)}
         out[kind] = sorted(years)
     return out
+
+
+def template_csv(which: str) -> str:
+    """An empty goal file or counting rule file: the header row import_goals reads."""
+    out = io.StringIO()
+    csv.writer(out, lineterminator="\n").writerow(GOAL_COLUMNS + [c for c, _ in METRICS] if which == "goals" else RULE_COLUMNS)
+    return out.getvalue()
 
 
 def goals_csv(s: GoalSet) -> str:
