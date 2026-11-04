@@ -412,3 +412,26 @@ def test_the_command_rescans_every_hold(filer, cpuc_admin, pge, django_capture_o
     assert "2 rescanned, 1 cleared, 1 still held" in out.getvalue()
     assert Snapshot.objects.get(version=a).pii_scan.outcome == "clear" and Snapshot.objects.get(version=b).pii_scan.held
     assert AuditEvent.objects.filter(action="snapshot.rescanned", actor=cpuc_admin).count() == 2
+
+
+# Navigation review D7 (M10): the hold on the filing's own page and in My queue.
+
+
+def test_the_version_page_shows_its_hold_to_the_filing_organization(client, make_user, filer, cpuc_admin, held_snap):  # noqa: F811
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("claims:version", args=[held_snap.version.pk])).content.decode())
+    assert 'id="hold-notice-h">Publication held</h2>' in page and f'href="/publication/holds/{held_snap.pk}/"' in page
+    assert "phone" in page.lower() and no_raw(page)
+    client.logout()
+    page = page_only(client.get(reverse("claims:version", args=[held_snap.version.pk])).content.decode())
+    assert "Publication held" not in page  # a reader outside the filing organization sees no hold
+
+
+def test_a_held_publication_waits_in_my_queue(client, filer, cpuc_admin, held_snap):  # noqa: F811
+    for who in (filer, cpuc_admin):
+        sign_in(client, who)
+        page = page_only(client.get(reverse("core:queue")).content.decode())
+        assert "Held publications to look into" in page and f'href="/publication/holds/{held_snap.pk}/"' in page, who
+    snapshots.release_hold(cpuc_admin, held_snap, "the 'phone number' is a measure code")
+    sign_in(client, filer)
+    assert f'href="/publication/holds/{held_snap.pk}/"' not in page_only(client.get(reverse("core:queue")).content.decode())

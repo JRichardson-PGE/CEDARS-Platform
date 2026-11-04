@@ -83,3 +83,22 @@ def test_an_ordinary_access_denied_still_reaches_the_filer(filer, filing, pge, p
     with pytest.raises(AccessDenied) as e:
         service.price(filer, v)
     assert str(e.value) != submissions.PRICING_UNAVAILABLE
+
+
+def test_the_budgets_list_and_a_version_link_the_operating_budget(client, filer, pge_admin, pge, filing, programs, release):  # noqa: F811
+    """Navigation review D7 (M9): what a filer's budget is now, from Budgets itself."""
+    operating = reverse("budgets:operating", args=[filing.cycle.first_year])
+    page = sign_in(client, filer).get(reverse("budgets:index")).content.decode()
+    assert f'href="{operating}">PGE\'s operating budget for the' in page.replace("&#x27;", "'")
+    assert operating not in sign_in(client, pge_admin).get(reverse("budgets:index")).content.decode()  # not one of its readers
+    v, _ = priced_version(filer, filing, pge, release)
+    page = sign_in(client, filer).get(reverse("budgets:version", args=[v.pk])).content.decode()
+    assert f'href="{operating}?org=PGE"' in page
+
+
+def test_the_footer_links_the_standing_pages(client):
+    """Navigation review D7 (M8)."""
+    foot = client.get("/help/").content.decode().split('<footer class="foot">', 1)[1].split("</footer>", 1)[0]
+    for name in ("core:help", "core:about", "releases:index", "limits:index", "mandates:index", "feedback:form", "submissions:calendar"):
+        assert f'href="{reverse(name)}' in foot, name
+    assert f'href="{reverse("core:help_guide", args=["accessibility"])}">Accessibility</a>' in foot

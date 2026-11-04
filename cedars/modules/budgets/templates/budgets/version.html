@@ -1,5 +1,5 @@
 {% extends "core/base.html" %}
-{% load filing_comments %}
+{% load filing_comments publication_hold %}
 {% block title %}{{ v.submission.organisation.code }} {{ label }}, version {{ v.number }}{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li><li>{% if can_open_filing %}<a href="{% url 'budgets:filing' v.submission.deadline.pk %}?org={{ v.submission.organisation.code|urlencode }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</li></ol></nav>
@@ -15,7 +15,9 @@
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>
   {% if calc.cost_tests %}<dt>Cost tests</dt><dd>{{ calc.cost_tests.id }} {{ calc.cost_tests.version }}</dd>{% endif %}{% endif %}
   {% if v.findings.rule_set %}<dt>Rule set</dt><dd>{{ v.findings.rule_set }}</dd>{% endif %}
+  {% if operating %}<dt>Operating budget</dt><dd><a href="{% url 'budgets:operating' v.submission.deadline.cycle.first_year %}?org={{ v.submission.organisation.code|urlencode }}">{{ v.submission.organisation.code }}'s operating budget for the cycle</a>: the budget that stands, with every fund shift applied</dd>{% endif %}
 </dl>
+{% publication_hold v %}
 {% if legacy %}{% include "legacy/_imported.html" %}{% endif %}
 {% if not t.priced %}<p>Not priced yet: the table shows the filed budget only.</p>{% endif %}
 

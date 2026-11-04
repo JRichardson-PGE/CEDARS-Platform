@@ -26,6 +26,7 @@ to every signed-in user.</p>
   <span class="count">{{ c.filings|length }} filing{{ c.filings|length|pluralize }}{% if c.standing %}, {{ c.standing|length }} standing budget{{ c.standing|length|pluralize }}{% endif %}</span></summary>
 <div class="section-body">
 {% endif %}
+{% if operating %}<p class="operating-link"><a href="{% url 'budgets:operating' c.cycle.first_year %}">{% if org %}{{ org.code }}'s operating budget{% else %}Operating budgets{% endif %} for the {{ c.cycle|cycle_label }} cycle</a>: the approved budget with every fund shift applied.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle|cycle_label }} cycle">
 <table class="list">
   <caption class="sr-only">Filings of the {{ c.cycle|cycle_label }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
