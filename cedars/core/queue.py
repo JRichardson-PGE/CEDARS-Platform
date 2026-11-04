@@ -82,3 +82,15 @@ def sections(user) -> list[Section]:
         items.sort(key=lambda i: (i.due_day or date.max, i.since_day or date.max, i.what))
         out.append(Section(k, items))
     return out
+
+
+def count(user) -> int:
+    """How many items wait on the user, for the count beside My queue in the header (navigation review, D1). The same providers as the
+    page, so the count is the page's; a provider that fails counts nothing."""
+    n = 0
+    for k in kinds():
+        try:
+            n += len(list(k.provider(user)))
+        except Exception:
+            log.exception("queue provider %s failed", k.key)
+    return n

@@ -52,13 +52,13 @@ def _ids(html: str) -> set[str]:
 
 @pytest.mark.django_db
 def test_every_document_renders_with_its_links_resolved(client):
-    r = client.get("/help/recet/")
+    r = client.get("/calculations/engine-docs/")
     assert r.status_code == 200
     page = r.content.decode()
     ids = {}
     for doc in engine_docs.DOCS:
-        assert f'href="/help/recet/{doc.slug}/"' in page
-        r = client.get(f"/help/recet/{doc.slug}/")
+        assert f'href="/calculations/engine-docs/{doc.slug}/"' in page
+        r = client.get(f"/calculations/engine-docs/{doc.slug}/")
         assert r.status_code == 200, doc.slug
         html = r.content.decode()
         assert html.count("<h1") == 1 and f">{doc.title}</h1>" in html
@@ -70,8 +70,8 @@ def test_every_document_renders_with_its_links_resolved(client):
         for href in re.findall(r'href="([^"]*)"', body):
             if href.startswith("#"):
                 assert href[1:] in ids[doc.slug], (doc.slug, href)
-            elif href.startswith("/help/recet/"):
-                slug, _, frag = href.removeprefix("/help/recet/").partition("/")
+            elif href.startswith("/calculations/engine-docs/"):
+                slug, _, frag = href.removeprefix("/calculations/engine-docs/").partition("/")
                 assert slug in engine_docs.BY_SLUG, (doc.slug, href)
                 if frag.startswith("#"):
                     assert frag[1:] in ids[slug], (doc.slug, href)
@@ -82,17 +82,20 @@ def test_every_document_renders_with_its_links_resolved(client):
 
 @pytest.mark.django_db
 def test_an_unknown_document_is_not_found(client):
-    assert client.get("/help/recet/nothing-here/").status_code == 404
+    assert client.get("/calculations/engine-docs/nothing-here/").status_code == 404
 
 
 def test_links_to_documents_not_shown_go_to_github_at_the_pin():
     commit = engine_docs.manifest()["engine"]["commit"]
     assert engine_docs._href("WEB_GUIDE.md#runs") == f"{engine_docs.REPOSITORY}/blob/{commit}/recet/docs/WEB_GUIDE.md#runs"
     assert engine_docs._href("../../tests/reference_calc.py") == f"{engine_docs.REPOSITORY}/blob/{commit}/tests/reference_calc.py"
-    assert engine_docs._href("OUTPUT_FIELDS.md#x") == "/help/recet/output-fields/#x"
+    assert engine_docs._href("OUTPUT_FIELDS.md#x") == "/calculations/engine-docs/output-fields/#x"
     assert engine_docs._href("#here") == "#here"
     # GitHub keeps a run of dashes in an anchor where Python-Markdown makes one
-    assert engine_docs._href("CALCULATIONS.md#c6-benefit--supply-cost-split") == "/help/recet/calculations/#c6-benefit-supply-cost-split"
+    assert (
+        engine_docs._href("CALCULATIONS.md#c6-benefit--supply-cost-split")
+        == "/calculations/engine-docs/calculations/#c6-benefit-supply-cost-split"
+    )
 
 
 def test_wide_tables_scroll_in_a_named_region_and_diagrams_are_text():

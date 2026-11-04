@@ -715,13 +715,21 @@ def _require_sysadmin(request):
 def _allocation_manager(request) -> bool:
     from cedars.services.registry import service as registry
 
-    return registry.can_manage_allocation(request.user, getattr(request, "organisation", None))
+    return request.user.is_authenticated and registry.can_manage_allocation(request.user, getattr(request, "organisation", None))
 
 
-@login_required
-def allocations(request):
-    """Every statewide allocation version, for everyone signed in; the managing organizations' holders and the CPUC load new ones."""
+def _allocation_versions(request):
+    """The versions the visitor may read: every one signed in; the confirmed ones signed out (Jake, 2026-11-04: the factors are for
+    everyone to view; a draft stays with the funding PAs and the CPUC, and everyone signed in, as before)."""
     from cedars.services.registry.models import AllocationVersion
+
+    qs = AllocationVersion.objects.all()
+    return qs if request.user.is_authenticated else qs.filter(status=AllocationVersion.Status.CONFIRMED)
+
+
+def allocations(request):
+    """Every statewide allocation version, for everyone (drafts signed in only); the managing organizations' holders and the CPUC load
+    new ones."""
 
     can_manage = _allocation_manager(request)
     form = forms.AllocationUploadForm(request.POST or None, request.FILES or None) if can_manage else None
@@ -753,7 +761,7 @@ def allocations(request):
             except AccessDenied as e:
                 return _refused(request, e, "administration:allocations")
             return _done(request, f"{v.label} loaded as a draft. Check it, then confirm it.", f"/allocations/{v.pk}/")
-    versions = AllocationVersion.objects.select_related(
+    versions = _allocation_versions(request).select_related(
         "filing_cycle", "confirmed_by", "confirmed_organisation", "created_by", "created_organisation"
     )
     managers = Organisation.objects.filter(manages_allocation=True, active=True).order_by("code")
@@ -764,13 +772,11 @@ def allocations(request):
     )
 
 
-@login_required
 def allocation(request, pk):
     from cedars.services.registry import service as registry
-    from cedars.services.registry.models import AllocationVersion
 
     v = get_object_or_404(
-        AllocationVersion.objects.select_related("created_by", "created_organisation", "confirmed_by", "confirmed_organisation"), pk=pk
+        _allocation_versions(request).select_related("created_by", "created_organisation", "confirmed_by", "confirmed_organisation"), pk=pk
     )
     can_manage = _allocation_manager(request)
     if request.method == "POST":
@@ -801,14 +807,12 @@ def allocation(request, pk):
     )
 
 
-@login_required
 def allocation_csv(request, pk):
     from django.http import HttpResponse
 
     from cedars.services.registry import service as registry
-    from cedars.services.registry.models import AllocationVersion
 
-    v = get_object_or_404(AllocationVersion, pk=pk)
+    v = get_object_or_404(_allocation_versions(request), pk=pk)
     response = HttpResponse(registry.allocation_csv(v), content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="statewide_factors_{v.pk}.csv"'
     return response

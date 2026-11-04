@@ -11,6 +11,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 PAGES = [
     ("home", "/", None),
     ("home-signed-in", "/", "pge_admin"),
+    ("home-no-organization", "/", "community"),  # the header without Filings, and the line asking for access (navigation review, D1)
     ("home-earlier-cycle", "/?cycle=2024-2027", None),
     ("help", "/help/", None),
     ("help-contact", "/help/contact/", None),
@@ -34,9 +35,9 @@ PAGES = [
         )
     ],
     # ReCET's own documents, from the pinned engine (core/engine_docs.py)
-    ("recet-docs", "/help/recet/", None),
+    ("recet-docs", "/calculations/engine-docs/", None),
     *[
-        (f"recet-doc-{slug}", f"/help/recet/{slug}/", None)
+        (f"recet-doc-{slug}", f"/calculations/engine-docs/{slug}/", None)
         for slug in (
             "input-formats",
             "input-fields",
@@ -179,6 +180,7 @@ PAGES = [
     ("allocations", "/allocations/", "cpuc_admin"),
     ("allocation", "/allocations/{allocation}/", "cpuc_admin"),
     ("allocations-pa", "/allocations/", "pge_admin"),
+    ("allocations-signed-out", "/allocations/", None),  # the confirmed versions, open to everyone (Jake, 2026-11-04)
     ("allocation-pa", "/allocations/{allocation}/", "pge_admin"),
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
@@ -222,6 +224,7 @@ PAGES = [
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
     ("calculations", "/calculations/", "analyst"),
+    ("calculations-no-organization", "/calculations/", "community"),
     ("output-templates", "/calculations/templates/", "analyst"),
     ("output-template-new", "/calculations/templates/new/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),
@@ -262,6 +265,7 @@ PAGES = [
     ("program-change-request-own", "/programs/requests/{change_request}/", "pge_admin"),
     ("program-locked-attributes", "/programs/locked/", "cpuc_admin"),
     ("claims", "/claims/", "analyst"),
+    ("claims-approver", "/claims/", "approver"),  # the Waiting for a decision column and Correction requests in the menu
     ("claims-regulator", "/claims/", "cpuc_admin"),
     ("claims-year-new", "/claims/years/new/", "cpuc_admin"),
     ("claims-setup", "/claims/years/2028/setup/", "cpuc_admin"),

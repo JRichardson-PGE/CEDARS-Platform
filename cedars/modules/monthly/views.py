@@ -87,6 +87,7 @@ def _status(v: SubmissionVersion | None) -> dict:
 def index(request):
     """Each program year's twelve reports with their due dates and the acting PA's status (none for the CPUC: it files no reports)."""
     org = request.filing_organisation
+    waiting = submissions.pending_corrections(request.user, service.MODULE)  # None unless an approver
     years = []
     for setup in service.years():
         rows = []
@@ -98,10 +99,21 @@ def index(request):
                 # The report page refuses a report the user may not read (UAT 2, U03): name it without a link then.
                 can_open = sub is None or service.can_read_submission(request.user, sub)
             rows.append(
-                {"deadline": d, "latest": latest, "status": _status(latest), "past_due": submissions.past_due(d), "can_open": can_open}
+                {
+                    "waiting": (waiting or {}).get(d.pk, 0),
+                    "deadline": d,
+                    "latest": latest,
+                    "status": _status(latest),
+                    "past_due": submissions.past_due(d),
+                    "can_open": can_open,
+                }
             )
         years.append({"setup": setup, "months": rows})
-    return render(request, "monthly/index.html", {"years": years, "org": org, "sysadmin": access.is_system_admin(request.user)})
+    return render(
+        request,
+        "monthly/index.html",
+        {"years": years, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
+    )
 
 
 @login_required

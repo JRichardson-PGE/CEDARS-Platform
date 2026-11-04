@@ -85,6 +85,7 @@ def _fmt(kind: str, x) -> str:
 def index(request):
     """Claim years, newest first: each confirmation's due date and the acting PA's status (none for the CPUC: it files no claims)."""
     org = request.filing_organisation
+    waiting = submissions.pending_corrections(request.user, service.MODULE)  # None unless an approver
     years = []
     cys = list(ClaimYear.objects.select_related("allocation_version"))
     imported = legacy.imported_deadlines(Deadline.objects.filter(module=service.MODULE, period__year__in=[cy.year for cy in cys]))
@@ -97,9 +98,21 @@ def index(request):
                 latest = submissions.latest(sub) if sub else None
                 # The period page refuses a confirmation the user may not read (UAT 2, U03): name it without a link then.
                 can_open = sub is None or service.can_read_submission(request.user, sub)
-            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d), "can_open": can_open})
+            rows.append(
+                {
+                    "waiting": (waiting or {}).get(d.pk, 0),
+                    "deadline": d,
+                    "latest": latest,
+                    "past_due": submissions.past_due(d),
+                    "can_open": can_open,
+                }
+            )
         years.append({"cy": cy, "periods": rows, "legacy": any(r["deadline"].pk in imported for r in rows)})
-    return render(request, "claims/index.html", {"years": years, "org": org, "sysadmin": access.is_system_admin(request.user)})
+    return render(
+        request,
+        "claims/index.html",
+        {"years": years, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
+    )
 
 
 def template(request):

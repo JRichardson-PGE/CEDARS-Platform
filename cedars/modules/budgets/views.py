@@ -90,6 +90,7 @@ def index(request):
     """Budget filings by cycle: each filing's due date and the acting PA's status (none for the CPUC, which files no budget), and the
     budgets that stand for every PA."""
     org = request.filing_organisation
+    waiting = submissions.pending_corrections(request.user, service.MODULE)  # None unless an approver
     cycles = []
     for cycle in FilingCycle.objects.filter(deadlines__module=service.MODULE).distinct().order_by("-first_year"):
         rows = []
@@ -100,7 +101,15 @@ def index(request):
                 latest = submissions.latest(sub) if sub else None
                 # The filing page refuses a filing the user may not read (UAT 2, U03): name it without a link then.
                 can_open = sub is None or service.can_read_submission(request.user, sub)
-            rows.append({"deadline": d, "latest": latest, "past_due": submissions.past_due(d), "can_open": can_open})
+            rows.append(
+                {
+                    "waiting": (waiting or {}).get(d.pk, 0),
+                    "deadline": d,
+                    "latest": latest,
+                    "past_due": submissions.past_due(d),
+                    "can_open": can_open,
+                }
+            )
         standing = []
         for o in Organisation.objects.filter(submissions__deadline__module=service.MODULE, submissions__deadline__cycle=cycle).distinct():
             stands = list({v.pk: v for v in service.standing_by_year(o, cycle).values()}.values())
@@ -115,7 +124,7 @@ def index(request):
     return render(
         request,
         "budgets/index.html",
-        {"cycles": cycles, "org": org, "sysadmin": access.is_system_admin(request.user)},
+        {"cycles": cycles, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
     )
 
 

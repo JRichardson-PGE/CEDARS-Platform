@@ -201,8 +201,8 @@ def test_help_pages(client):
 
 def test_the_tour_for_each_visitor(client, signed_in, pge_admin):
     out = [s.target for s in site_help.tour_steps(False)]
-    signed = [s.target for s in site_help.tour_steps(True)]
-    assert out[0] == "intro" and out[-1] == "help" and "sign-in" in out and "nav-programs" not in out
+    signed = [s.target for s in site_help.tour_steps(site_help.Visitor(signed_in=True, acting_for=True))]
+    assert out[0] == "intro" and out[-1] == "help" and "sign-in" in out and "nav-programs" in out and "nav-filings" not in out
     assert "nav-filings" in signed and "account" in signed and "notifications" in signed and "sign-in" not in signed
     assert "nav-admin" not in signed  # administration only for administrators
     admin = [s.target for s in site_help.tour_steps(site_help.Visitor(signed_in=True, acting_for=True, org_admin=True))]

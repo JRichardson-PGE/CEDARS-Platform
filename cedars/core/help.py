@@ -167,8 +167,9 @@ def visitor(request) -> Visitor:
 
 def tour_steps(who: Visitor | bool) -> list[Step]:
     """The tour of the front page. A signed-out visitor sees the public parts; a signed-in user also gets a step for each part only
-    signed-in users see (Jake, 2026-10-31): the filings, calculations, reference data, administration (for administrators), the
-    organization they act for, notifications and their account."""
+    signed-in users see (Jake, 2026-10-31), following their header (core/nav.py): the filings, reference data and My queue for a member
+    of an organization, calculations, published data, administration (for administrators), the organization they act for, notifications
+    and their account."""
     if isinstance(who, bool):
         who = Visitor(signed_in=who)
     welcome = (
@@ -177,8 +178,9 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
     )
     if who.signed_in:
         welcome += (
-            "You are signed in, so besides the public pages this tour shows the parts only signed-in users see: filings, "
-            "calculations, reference data and your account. Use Next and Back to move, or Escape to leave at any time."
+            "You are signed in, so besides the public pages this tour shows the parts only signed-in users see"
+            + (": filings, calculations, reference data and your account. " if who.acting_for else ": calculations and your account. ")
+            + "Use Next and Back to move, or Escape to leave at any time."
         )
     else:
         welcome += "This tour shows where things are. Use Next and Back to move, or Escape to leave at any time."
@@ -204,72 +206,72 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             "Open the portfolio dashboard",
         ),
     ]
+    programs = Step(
+        "nav-programs",
+        "Programs",
+        "Every program in the registry, closed ones included, with each program's versions, allocation factors and the "
+        "evaluations that cover it. A program's own administrators change its attributes from its page; a change to a locked "
+        "attribute is a request the CPUC decides, listed under program change requests.",
+        "/programs/",
+        "Open the program catalog",
+    )
     if not who.signed_in:
         return steps + [
+            programs,
             Step(
-                "nav-records",
-                "Record downloads",
-                "The published measure-level records for every PA in one file: choose the records and the columns, then download them.",
+                "nav-published",
+                "Published data",
+                "What anyone may read: the published measure-level records for every PA, PA documents, CPUC guidance, DEER resources and "
+                "EM&V studies, every field's definition, the change logs of corrected filings, the statewide allocation factors and the "
+                "filing calendar. None of it needs an account.",
                 "/data/records/",
                 "Open record downloads",
-            ),
-            Step(
-                "nav-reference",
-                "Documents and data dictionary",
-                "PA documents, CPUC guidance, DEER resources and EM&V studies, and every field's definition. Both open without an account.",
-                "/documents/",
-                "Open the document library",
             ),
             Step(
                 "sign-in",
                 "Sign in",
                 "Program administrators and CPUC staff sign in to file and review, and anyone can sign in to run cost-effectiveness "
                 "calculations or follow documents. Anyone can create an account; every account uses a second factor, set up the "
-                "first time you sign in. Signed in, the header adds Filings, Calculations, the validation rules, notifications and your "
-                "account.",
+                "first time you sign in. Signed in, the header adds Calculations and your account, and, once you act for a program "
+                "administrator, Filings, Reference data and My queue.",
                 "/accounts/login/",
                 "Sign in",
             ),
             HELP_STEP,
         ]
+    steps.append(programs)
+    if who.acting_for:
+        steps += [
+            Step(
+                "nav-filings",
+                "Filings: budgets and fund shifts",
+                "Only signed in. Budget filings follow the four-year cycle: upload the Measure and ProgramCost tables, see every finding "
+                "against the rules, price the filing, then confirm it. Every confirmed version is kept and can be compared with any "
+                "other. Fund shifts move budget between programs; the standing filing plus the shifts in effect is the operating budget.",
+                "/budgets/",
+                "Open Budgets",
+            ),
+            Step(
+                "nav-filings",
+                "Filings: claims",
+                "Each claim year is confirmed after each quarter and once more with the final claims. A quarter's upload holds what is "
+                "new or changed and is compiled over the earlier quarters; deemed measures are checked against eTRM. Contacts and sites "
+                "go to the PII vault separately and need a data steward's approval to read. Corrections after a due date are new "
+                "versions, published with a change letter.",
+                "/claims/",
+                "Open Claims",
+            ),
+            Step(
+                "nav-filings",
+                "Filings: monthly reports and the calendar",
+                "Each month a PA reports its commitments and the year's inputs so far; spending is compared with the operating budget. "
+                "The filing calendar lists every due date, and drafts and versions not yet confirmed are seen only by your "
+                "organization.",
+                "/filings/calendar/",
+                "Open the filing calendar",
+            ),
+        ]
     steps += [
-        Step(
-            "nav-programs",
-            "Programs",
-            "Every program in the registry, closed ones included, with each program's versions, allocation factors and the "
-            "evaluations that cover it. A program's own administrators change its attributes from its page; a change to a locked "
-            "attribute is a request the CPUC decides, listed under program change requests.",
-            "/programs/",
-            "Open the program catalog",
-        ),
-        Step(
-            "nav-filings",
-            "Filings: budgets and fund shifts",
-            "Only signed in. Budget filings follow the four-year cycle: upload the Measure and ProgramCost tables, see every finding "
-            "against the rules, price the filing, then confirm it. Every confirmed version is kept and can be compared with any "
-            "other. Fund shifts move budget between programs; the standing filing plus the shifts in effect is the operating budget.",
-            "/budgets/",
-            "Open Budgets",
-        ),
-        Step(
-            "nav-filings",
-            "Filings: claims",
-            "Each claim year is confirmed after each quarter and once more with the final claims. A quarter's upload holds what is "
-            "new or changed and is compiled over the earlier quarters; deemed measures are checked against eTRM. Contacts and sites "
-            "go to the PII vault separately and need a data steward's approval to read. Corrections after a due date are new "
-            "versions, published with a change letter.",
-            "/claims/",
-            "Open Claims",
-        ),
-        Step(
-            "nav-filings",
-            "Filings: monthly reports and the calendar",
-            "Each month a PA reports its commitments and the year's inputs so far; spending is compared with the operating budget. "
-            "The filing calendar lists every due date, and drafts and versions not yet confirmed are seen only by your "
-            "organization.",
-            "/filings/calendar/",
-            "Open the filing calendar",
-        ),
         Step(
             "nav-calculations",
             "Calculations: runs",
@@ -289,22 +291,39 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             "Open Edit inputs",
         ),
         Step(
+            "nav-published",
+            "Published data",
+            "What anyone may read, signed in or not: the published records, saved views of them, the document library and the "
+            "evaluation studies, and the data dictionary. Large record downloads are made in the background and listed under your "
+            "downloads."
+            + ("" if who.acting_for else " The change logs, the statewide allocation factors and the filing calendar are here too."),
+            "/data/records/",
+            "Open record downloads",
+        ),
+        Step(
             "nav-reference",
-            "Reference",
-            "Record downloads, documents and the data dictionary, as for everyone, plus the validation rules, the reference data "
-            "every filing is checked and priced with (ACCs, cost-test sets, eTRM packs) and the statewide allocation factors, "
-            "which the funding PAs load and confirm. Large record downloads are made in the background and listed under your "
-            "downloads.",
-            "/reference-data/",
-            "Open reference data",
+            "Reference data",
+            (
+                "What runs and filings are priced and checked against: the data packs (ACCs, eTRM, the profile library), the cost-test "
+                "sets and their builder, the statewide allocation factors the funding PAs load and confirm, the validation rules, the "
+                "value lists and the register of CPUC-mandated changes."
+            )
+            if who.acting_for
+            else (
+                "The cost-test sets your own runs can be priced with, and the builder for a set of your own. The rest of the reference "
+                "data opens once you act for a program administrator."
+            ),
+            "/reference-data/cost-tests/",
+            "Open the cost-test sets",
         ),
     ]
     if who.admin:
         parts = []
         if who.sysadmin:
             parts.append(
-                "as a CPUC system administrator: organizations, energy efficiency goals, retention, jobs and "
-                "health, site settings and the audit log"
+                "as a CPUC system administrator, in four groups: people and access (organizations, role templates, access settings, "
+                "the audit log), data and publishing (goals, publication holds, document accessibility, retention), communications "
+                "(release notes, the register of CPUC-mandated changes, feedback) and the system's jobs and health"
             )
         if who.org_admin:
             parts.append(
@@ -329,15 +348,19 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
                 "more than one, choose another and Switch.",
             )
         )
+    if who.acting_for:
+        steps.append(
+            Step(
+                "queue",
+                "My queue",
+                "The work waiting on you now, across every module: requests to decide, filings ready to confirm, fund shifts to "
+                "acknowledge, comments waiting for your reply, documents to publish and questions to answer. The count beside it is "
+                "how many items wait. Each item leaves it once done.",
+                "/queue/",
+                "Open your queue",
+            )
+        )
     steps += [
-        Step(
-            "queue",
-            "My queue",
-            "The work waiting on you now, across every module: requests to decide, filings ready to confirm, fund shifts to "
-            "acknowledge, comments waiting for your reply, documents to publish and questions to answer. Each item leaves it once done.",
-            "/queue/",
-            "Open your queue",
-        ),
         Step(
             "notifications",
             "Notifications",
