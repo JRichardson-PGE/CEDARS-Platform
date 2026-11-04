@@ -6,7 +6,7 @@ refdata/index:
     - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
       run and every filing records the packs it used. A draft can be used for analysis runs but not for filings; a published pack is never
       changed, and a withdrawn one keeps the runs that used it.
-  see: calculations
+  see: reference-data
   tour:
     - heading: In force today
       title: In force today
@@ -29,7 +29,7 @@ refdata/detail:
     - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
     - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set. Its engine check is recorded
       when it is registered, by the engine installed here; Check it with the engine again records it anew.
-  see: calculations
+  see: reference-data
   tour:
     - target: main dl.facts
       title: The pack
@@ -68,7 +68,7 @@ refdata/cost_tests:
     - Build a set starts the set builder, from a copy of a set, a file or nothing.
     - Register as a draft takes a set's definition file; the engine here records its engine check at once; publish it from its page.
     - Managers review the sets Offered to the CPUC, then register one from its Review step or decline it with a reason.
-  see: calculations
+  see: reference-data
   tour:
     - heading: Every set
       title: Every set
@@ -94,7 +94,7 @@ refdata/builder/start:
     - Shared with your organization, the set can be opened and changed by its members who may start runs there.
   how:
     - Choose what to start from, pick the set or the file, and select Start.
-  see: calculations
+  see: reference-data
   tour:
     - heading: Start from
       title: Start from
@@ -113,7 +113,7 @@ refdata/builder/set:
     - The steps across the top show how many problems each has. Every save checks the whole set with the engine.
   how:
     - Change the fields and select Save and go on, or Save to stay on the step.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -137,7 +137,7 @@ refdata/builder/pricings:
     - A pricing a stream, aggregate or test uses cannot be removed until they no longer use it.
   how:
     - Change a pricing's fields, tick Remove on one nothing uses, or fill in Add a pricing, then select Save.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -159,7 +159,7 @@ refdata/builder/engine:
     - A value of the set's own, such as a non-energy benefit, is a stream from input columns, the next step.
   how:
     - Tick or untick Include, choose the pricings, change the unit and definition, then select Save.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -180,7 +180,7 @@ refdata/builder/inputs:
       effects. Non-energy benefits go here. A column that is not one of CET's is the set's own; a job without it prices it as 0.
   how:
     - Add a stream from input columns, or Change or Remove one in the list.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -197,7 +197,7 @@ refdata/builder/input_stream:
       pricing's discount rates. A gross form lets a test with the Gross variant use it.
   how:
     - Fill in the fields and select Save the stream.
-  see: calculations
+  see: reference-data
   tour:
     - heading: Measure columns
       title: Measure columns
@@ -213,7 +213,7 @@ refdata/builder/aggregates:
       them.
   how:
     - Add an aggregate, or Change or Remove one in the list.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -229,7 +229,7 @@ refdata/builder/aggregate:
       Streams it takes away, each read in the pricing you choose. Ticking Also write it gross adds a column from each stream's gross form.
   how:
     - Fill in the fields and select Save the aggregate.
-  see: calculations
+  see: reference-data
   tour:
     - target: "#id_plus"
       title: Streams it adds
@@ -242,7 +242,7 @@ refdata/builder/tests:
       to those it adds as costs, read in its pricing, with a share of the program costs when it has one.
   how:
     - Add a test, or Change, Remove, or move a test Up or Down in the list.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
@@ -259,7 +259,7 @@ refdata/builder/test:
       test's share); and choose its variants and outputs.
   how:
     - Fill in the fields and select Save the test.
-  see: calculations
+  see: reference-data
   tour:
     - target: "#id_benefits"
       title: Benefits
@@ -280,7 +280,7 @@ refdata/builder/review:
     - Download the set file, Copy it to a new set, or Discard it; managers Register as a draft pack.
     - Offer it to the CPUC with a note, when everyone could use it; Withdraw the offer while it waits. Managers Decline an offered set
       with a reason, which its builder is sent.
-  see: calculations
+  see: reference-data
   tour:
     - target: nav.subnav
       title: The steps

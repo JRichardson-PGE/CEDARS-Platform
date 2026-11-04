@@ -32,6 +32,14 @@ PAGES = [
             "monthly-reports",
             "calculations",
             "accessibility",
+            "correcting-records",
+            "documents",
+            "impact-profiles",
+            "reference-data",
+            "reviewing",
+            "rules-and-lists",
+            "releases",
+            "administering",
         )
     ],
     # ReCET's own documents, from the pinned engine (core/engine_docs.py)

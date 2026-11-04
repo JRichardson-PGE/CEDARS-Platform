@@ -45,7 +45,7 @@ submissions/calendar:
 
 submissions/reopen_requests:
   title: Requests to correct filings
-  see: claims
+  see: reviewing
   guide:
     - After its due date a confirmed filing is corrected as a new version, for that organization and period only, and the version filed
       stays readable. A PA asks to reopen with a reason; a CPUC approver approves or declines it.
@@ -165,7 +165,7 @@ submissions/correction:
 
 submissions/deadline:
   title: A filing deadline
-  see: getting-started
+  see: administering
   guide:
     - One deadline on the filing calendar, when it opens and is due, its notes and every change made to it, with the reason.
     - >-

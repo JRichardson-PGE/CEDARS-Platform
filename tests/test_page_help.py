@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from django.template import Context, Template, TemplateSyntaxError
+from django.urls import reverse
 
 from cedars.core import help as site_help
 from cedars.core import page_help as pages
@@ -104,3 +105,62 @@ def test_the_help_page_links_back_and_to_the_tour(client):
 @pytest.mark.django_db  # every page reads the coming release notes (the banner)
 def test_the_help_index_lists_the_pages(client):
     assert 'href="/help/pages/"' in client.get("/help/").content.decode()
+
+
+# Navigation review D5 (Jake, 2026-11-04): a guide for each kind of reader, and every page's (?) names the guide written for it.
+SEE_BY_PREFIX = {
+    "administration/organisation": "administering",
+    "administration/role_template": "administering",
+    "administration/stewardship": "administering",
+    "administration/settings": "administering",
+    "administration/audit": "administering",
+    "administration/health": "administering",
+    "administration/goal_set": "administering",
+    "administration/allocation": "reference-data",
+    "refdata/": "reference-data",
+    "impact_profiles/": "impact-profiles",
+    "documents/": "documents",
+    "rules/": "rules-and-lists",
+    "dictionary/list": "rules-and-lists",
+    "dictionary/code": "rules-and-lists",
+    "releases/": "releases",
+    "snapshots/hold": "reviewing",
+    "submissions/reopen_requests": "reviewing",
+    "accessibility/": "administering",
+    "retention/": "administering",
+}
+
+
+def test_each_page_names_the_guide_for_its_reader():
+    found = pages.entries()
+    for prefix, slug in SEE_BY_PREFIX.items():
+        keys = [k for k in found if k.startswith(prefix)]
+        assert keys, prefix
+        for k in keys:
+            assert found[k].see == slug, f"{k}: see: {found[k].see}, expected {slug}"
+    # The CPUC's and administrators' pages never fall back on the filers' or the public's guides.
+    for k, e in found.items():
+        if k.startswith(("administration/", "rules/", "refdata/", "snapshots/", "releases/")) and k not in (
+            "administration/account",
+            "administration/request_access",
+            "administration/token_created",
+        ):
+            assert e.see not in ("getting-started", "published-data", "calculations", "budgets"), k
+
+
+def test_every_reader_has_guides():
+    groups = site_help.by_reader()
+    assert [key for key, _, _ in groups] == [key for key, _ in site_help.READERS]
+    assert all(guides for _, _, guides in groups)
+    assert sum(len(g) for _, _, g in groups) == len(site_help.GUIDES)  # every guide is in a group
+
+
+@pytest.mark.django_db
+def test_the_help_index_groups_the_guides_by_reader(client):
+    body = client.get("/help/").content.decode()
+    for key, label, guides in site_help.by_reader():
+        at = body.index(f'<h3 id="guides-{key}">{label}</h3>')
+        for g in guides:
+            assert body.index(f'href="/help/{g.slug}/"', at) > at, g.slug
+    analysts = body.index('id="guides-analyst"')
+    assert body.index(f'href="{reverse("core:recet_docs")}"', analysts) > analysts  # the engine documentation, under Analysts

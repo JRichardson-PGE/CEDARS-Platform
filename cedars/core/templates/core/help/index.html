@@ -4,15 +4,15 @@
 <div class="page-title"><h1>Help</h1>{% page_help "core/help/index" %}</div>
 <p>Guides to each part of CEDARS, how to get support or send feedback, and a tour for new users.</p>
 <h2>User guides</h2>
-<div class="hscroll" tabindex="0" role="region" aria-label="User guides">
-<table class="list">
-  <caption class="sr-only">User guides, with what each covers and who it is for</caption>
-  <thead><tr><th scope="col">Guide</th><th scope="col">What it covers</th><th scope="col">For</th></tr></thead>
-  <tbody>
-  {% for g in guides %}<tr><th scope="row"><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></th><td>{{ g.summary }}</td><td>{{ g.audience }}</td></tr>{% endfor %}
-  </tbody>
-</table>
-</div>
+<p>Each guide is listed under the people it is written for; anyone may read any of them.</p>
+{% for key, label, group in readers %}
+<h3 id="guides-{{ key }}">{{ label }}</h3>
+<ul class="links guides">
+  {% for g in group %}<li><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a>: {{ g.summary }}</li>{% endfor %}
+  {% if key == "analyst" %}<li><a href="{% url 'core:recet_docs' %}">Engine documentation</a>: the calculation engine's full
+  reference, from input formats to every output column's formula, the method and the cost tests.</li>{% endif %}
+</ul>
+{% endfor %}
 <div class="cards">
   <section class="card" aria-labelledby="support-title">
     <h2 id="support-title">Feedback and support</h2>
@@ -52,8 +52,6 @@
 <h2>More reference</h2>
 <ul class="links">
   <li><a href="{% url 'core:help_pages' %}">Help for each page</a>: the guide and tour each page opens from the question mark beside its heading.</li>
-  <li><a href="{% url 'core:recet_docs' %}">Engine documentation</a>: the calculation engine's full reference, from input formats to every
-  output column's formula, the method and the cost tests.</li>
   <li><a href="{% url 'core:about' %}">About CEDARS</a>: what the platform holds and when each part arrives.</li>
   <li><a href="{% url 'dictionary:index' %}">Data dictionary</a>: every field's name, definition and unit, and the names CET used.</li>
   <li><a href="{% url 'rules:index' %}">Validation rules</a>: what each filing is checked against (signed in).</li>

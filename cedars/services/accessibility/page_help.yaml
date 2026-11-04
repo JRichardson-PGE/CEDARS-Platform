@@ -2,7 +2,7 @@
 
 accessibility/files:
   title: Document accessibility
-  see: accessibility
+  see: administering
   guide:
     - For CPUC system administrators. Every PDF and workbook stored as a document's file, or attached to a comment on a document or on
       a filing, is checked as it is stored. PDFs need tagged text (not scanned images), a title and a language; workbooks need a marked
@@ -22,7 +22,7 @@ accessibility/files:
 
 accessibility/file:
   title: A file's accessibility check
-  see: accessibility
+  see: administering
   guide:
     - >-
       What the accessibility check found in one uploaded file, with how to fix each finding and the WCAG 2.2 success criteria it bears
@@ -48,7 +48,7 @@ accessibility/file:
 
 accessibility/settings:
   title: Document accessibility settings
-  see: accessibility
+  see: administering
   guide:
     - For CPUC system administrators. Whether the accessibility check only warns, or refuses an upload with the findings chosen. Files
       brought over from the legacy sites are checked and listed but never refused. Every change needs a reason and is in the audit log.

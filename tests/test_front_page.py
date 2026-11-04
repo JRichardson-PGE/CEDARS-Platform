@@ -7,6 +7,7 @@ from datetime import timedelta
 import pytest
 from django.core.cache import cache
 from django.utils import timezone
+from django.utils.html import escape
 
 from cedars.core import help as site_help
 from cedars.modules.data import front
@@ -194,7 +195,7 @@ def test_help_pages(client):
     for g in site_help.GUIDES:
         assert f'href="/help/{g.slug}/"' in index
         r = client.get(f"/help/{g.slug}/")
-        assert r.status_code == 200 and f"<h1>{g.title}</h1>" in r.content.decode()
+        assert r.status_code == 200 and f"<h1>{escape(g.title)}</h1>" in r.content.decode()
     assert client.get("/help/nope/").status_code == 404
     assert 'href="/?tour=1"' in index
 

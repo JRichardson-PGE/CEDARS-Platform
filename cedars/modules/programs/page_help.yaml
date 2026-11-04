@@ -110,7 +110,7 @@ programs/requests:
   guide:
     - Changes to locked program attributes that a program's administrators asked for, waiting for a CPUC programs approver's decision,
       and the ones already decided. Filter by status or program.
-  see: programs
+  see: reviewing
   tour:
     - target: main form.filters
       title: Filter
@@ -126,7 +126,7 @@ programs/request:
       approver approves or declines it with a reason; the PA that asked may withdraw it while it waits.
   how:
     - A CPUC programs approver decides the request, with a reason; the PA that asked may Withdraw the request while it waits.
-  see: programs
+  see: reviewing
   tour:
     - target: main table.list
       title: What would change

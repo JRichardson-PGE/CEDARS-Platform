@@ -82,7 +82,7 @@ dictionary/lists:
       never deleted.
   how:
     - Select a list for its codes and versions.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: main table.list
       title: The lists
@@ -97,7 +97,7 @@ dictionary/list:
   how:
     - Choose a version, search the codes, show those accepted (or not) in a claim year, and download them as CSV or Excel.
     - "Administrators: Start a new version."
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: "#edit-h"
       title: Change this list
@@ -126,7 +126,7 @@ dictionary/list_draft:
     - Add a code, or read a file into the draft.
     - Select Change beside a code to retire, reinstate or describe it.
     - Publish the version with its date and reason, or discard the draft.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: "#changes-h"
       title: What this draft changes
@@ -152,7 +152,7 @@ dictionary/code:
       years or be taken out.
   how:
     - Change the description or the years, give the reason and Save the change.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: main form.stack
       title: The code
@@ -172,7 +172,7 @@ dictionary/retire:
   how:
     - Give the date (today or later), the three reviews and the reason, then Retire.
     - Announce the retirement in a release note before the date.
-  see: published-data
+  see: rules-and-lists
   tour:
     - heading: What to review
       title: What to review
@@ -192,7 +192,7 @@ dictionary/changes:
   how:
     - Select a dictionary version for its changes field by field.
     - Download every version's changes as CSV.
-  see: published-data
+  see: releases
   tour:
     - target: main p.actions
       title: Download
@@ -214,7 +214,7 @@ dictionary/version_changes:
       One version of the data dictionary against the version before it: each field added, retired (with the reason), reinstated,
       changed (each attribute, other name or use, before and after) or dropped. The first version lists no changes: it brought in
       every field.
-  see: published-data
+  see: releases
   tour:
     - target: main .page-title + p
       title: The version
