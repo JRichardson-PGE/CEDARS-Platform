@@ -18,6 +18,7 @@ class Guide:
     summary: str
     audience: str  # who it is for, in words
     areas: tuple[str, ...] = ()  # the parts of CEDARS it covers (releases.service.AREAS): a release changing one should revise it
+    reader: str = "everyone"  # the Help index's group (READERS)
 
     @property
     def revised(self) -> str:
@@ -26,6 +27,14 @@ class Guide:
 
         return revisions.revised(f"guide:{self.slug}")
 
+
+READERS = [
+    ("everyone", "Everyone"),
+    ("pa", "Program administrators"),
+    ("analyst", "Analysts"),
+    ("cpuc", "CPUC staff"),
+    ("admin", "Administrators"),
+]
 
 GUIDES = [
     Guide(
@@ -37,12 +46,6 @@ GUIDES = [
         ("accounts", "api"),
     ),
     Guide(
-        "glossary",
-        "Glossary",
-        "The acronyms, program administrator codes and terms used on CEDARS pages, in filings and in downloads.",
-        "Everyone",
-    ),
-    Guide(
         "published-data",
         "Finding published data",
         "The portfolio dashboard, record downloads, the document library and the data dictionary. No account needed.",
@@ -50,11 +53,24 @@ GUIDES = [
         ("data", "documents", "reference"),
     ),
     Guide(
+        "glossary",
+        "Glossary",
+        "The acronyms, program administrator codes and terms used on CEDARS pages, in filings and in downloads.",
+        "Everyone",
+    ),
+    Guide(
+        "accessibility",
+        "Keyboard and screen reader use",
+        "How the pages work with a keyboard, a screen reader and zoom, and how to report a barrier.",
+        "Everyone",
+    ),
+    Guide(
         "programs",
         "Programs",
         "The program catalog, a program's page and versions, and asking for a change to a program.",
         "Program administrators and CPUC staff",
         ("programs",),
+        "pa",
     ),
     Guide(
         "budgets",
@@ -62,6 +78,7 @@ GUIDES = [
         "Uploading, checking, pricing and confirming a budget filing; comparing versions; fund shifts and the operating budget.",
         "Program administrators",
         ("budgets",),
+        "pa",
     ),
     Guide(
         "claims",
@@ -70,6 +87,15 @@ GUIDES = [
         "corrections.",
         "Program administrators",
         ("claims",),
+        "pa",
+    ),
+    Guide(
+        "monthly-reports",
+        "Monthly reports",
+        "What a monthly report holds, how spending is compared with the operating budget, and the 13th-month report.",
+        "Program administrators",
+        ("monthly",),
+        "pa",
     ),
     Guide(
         "correcting-records",
@@ -78,13 +104,16 @@ GUIDES = [
         "recorded.",
         "Program administrators",
         ("claims", "budgets", "monthly"),
+        "pa",
     ),
     Guide(
-        "monthly-reports",
-        "Monthly reports",
-        "What a monthly report holds, how spending is compared with the operating budget, and the 13th-month report.",
-        "Program administrators",
-        ("monthly",),
+        "documents",
+        "Documents and EM&V",
+        "The document library, filing a document and its versions, comment periods, evaluation studies, work orders and responses to "
+        "recommendations.",
+        "Program administrators, evaluators and CPUC Energy Division",
+        ("documents",),
+        "pa",
     ),
     Guide(
         "calculations",
@@ -92,15 +121,68 @@ GUIDES = [
         "Starting a run, reading its results, comparing two runs, editing a small job's inputs, output templates and impact profiles.",
         "Analysts at PAs and the CPUC",
         ("calculations",),
+        "analyst",
     ),
     Guide(
-        "accessibility",
-        "Keyboard and screen reader use",
-        "How the pages work with a keyboard, a screen reader and zoom, and how to report a barrier.",
-        "Everyone",
+        "impact-profiles",
+        "Impact profiles",
+        "The profile library, custom profiles, deemed load shapes from eTRM measure packages, their checks and the library files the "
+        "engine reads.",
+        "Analysts and the PAs that lead measure packages",
+        ("calculations",),
+        "analyst",
+    ),
+    Guide(
+        "reference-data",
+        "Reference data and cost-test sets",
+        "Data packs (ACCs, eTRM packs, the profile library), statewide allocation factors, and cost-test sets and the set builder.",
+        "Analysts, funding PAs and the CPUC's reference data managers",
+        ("reference", "calculations"),
+        "analyst",
+    ),
+    Guide(
+        "reviewing",
+        "Reviewing and approving",
+        "My queue, correction requests, program changes, confirming filings, replying to comments, publishing documents, publication "
+        "holds and second confirmations.",
+        "CPUC approvers, data stewards and the PA staff who confirm filings",
+        ("claims", "budgets", "monthly", "programs"),
+        "cpuc",
+    ),
+    Guide(
+        "rules-and-lists",
+        "Validation rules and value lists",
+        "What filings are checked against, checking a file before you file it, comparing rule sets, and keeping the rules, value lists "
+        "and fields in versions.",
+        "Filers, and the CPUC staff who keep the rules and lists",
+        ("reference",),
+        "cpuc",
+    ),
+    Guide(
+        "releases",
+        "Release notes and mandated changes",
+        "How changes are announced before they take effect, the limits, the specification change log and the register of "
+        "CPUC-mandated changes.",
+        "Everyone; written for the CPUC staff who announce changes",
+        (),
+        "cpuc",
+    ),
+    Guide(
+        "administering",
+        "Administering CEDARS",
+        "Organizations and their members, access requests, role templates, recertification, data stewardship, access settings, the "
+        "audit log, retention, publication and accessibility settings, and jobs and health.",
+        "CPUC system administrators and organization administrators",
+        ("accounts",),
+        "admin",
     ),
 ]
 BY_SLUG = {g.slug: g for g in GUIDES}
+
+
+def by_reader() -> list[tuple[str, str, list[Guide]]]:
+    """The Help index's groups: each reader's key, heading and guides, in READERS order."""
+    return [(key, label, [g for g in GUIDES if g.reader == key]) for key, label in READERS]
 
 
 def support() -> dict:

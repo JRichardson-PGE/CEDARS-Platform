@@ -10,7 +10,7 @@ rules/index:
   how:
     - Check a file before you file it runs the rules in force on your file.
     - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: main p.actions
       title: Check a file, or compare rule sets
@@ -37,7 +37,7 @@ rules/detail:
       it reads, to check files in your own systems.
     - "Administrators: Start the draft makes a new version to change; in a draft, Add a rule, open a rule to change it, and Publish
       this rule set."
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: "#version-h"
       title: Start a new version
@@ -67,7 +67,7 @@ rules/rule:
       replaces.
   how:
     - "Administrators, in a draft: Change the rule, or Take it out with the reason."
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: "#change-h"
       title: Change this rule
@@ -82,7 +82,7 @@ rules/differences:
   guide:
     - The rules only in the first set, only in the second, and those whose wording or severity changed. Use it to see what a new version of
       the rules changes before it takes effect.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: main form.filters
       title: The two sets
@@ -107,7 +107,7 @@ rules/check:
     - Choose the rules, the table and the file, then Check. Check and download every finding (CSV) gives each finding's line, record,
       field and how to fix it.
     - Other ways to check lists the API, the JSON download and ReCET's preflight.
-  see: published-data
+  see: rules-and-lists
   tour:
     - target: main form
       title: The file
@@ -135,7 +135,7 @@ rules/rule_form:
     - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to.
     - For a constraint on one field, choose what the field must be and what that constraint needs.
     - Give the reason, then Add the rule or Save the change.
-  see: published-data
+  see: rules-and-lists
   tour:
     - heading: What the rule tests
       title: What the rule tests

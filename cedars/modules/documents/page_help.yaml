@@ -10,7 +10,7 @@ documents/library:
   how:
     - Follow a collection or value from My document subscriptions to hear when a matching document is published.
     - Evaluation studies and work orders have their own pages, linked at the top.
-  see: published-data
+  see: documents
   tour:
     - target: main .head-row .button
       title: File a document
@@ -42,7 +42,7 @@ documents/document:
   how:
     - Comments and responses (when the document takes them) is where questions are asked and answered in public.
     - Its managers add a version, change the details, publish a version and see its downloads.
-  see: published-data
+  see: documents
   tour:
     - target: main .head-row .actions
       title: Manage the document
@@ -71,7 +71,7 @@ documents/comments:
       managers open and change comment periods, and respond.
   how:
     - The comment-and-response report (CSV) lists every comment with its response.
-  see: published-data
+  see: documents
   tour:
     - target: main .head-row a
       title: The report
@@ -97,7 +97,7 @@ documents/new:
   how:
     - Choose the collection, then the type, the attributes and the files, and File the document.
     - It starts unpublished: publish it from its page.
-  see: published-data
+  see: documents
   tour:
     - target: main form.filters
       title: Collection
@@ -114,7 +114,7 @@ documents/change:
       change here; add a version to replace them.
   how:
     - Change the title or attributes, give the reason, and Save the change. Add a version to replace the files.
-  see: published-data
+  see: documents
   tour:
     - target: main form
       title: The details
@@ -130,7 +130,7 @@ documents/version_new:
       full plan is left unticked, and the program's page stops showing the plan as a placeholder once it is published.
   how:
     - Choose the files and, for an EM&V deliverable, the stage, then Add the version.
-  see: published-data
+  see: documents
   tour:
     - target: main form
       title: The version
@@ -141,7 +141,7 @@ documents/downloads:
   guide:
     - Every download of the document's files, and every view in the browser, newest first. Each is an event in the audit trail. Downloads by
       people who were not signed in are counted as public.
-  see: published-data
+  see: documents
   tour:
     - target: main table.list
       title: Downloads
@@ -155,7 +155,7 @@ documents/response_new:
       is public and never changes; a revised response is a further version with its reason.
   how:
     - Choose the response's files and File the response.
-  see: published-data
+  see: documents
   tour:
     - target: main ul
       title: Who is asked
@@ -173,7 +173,7 @@ documents/lists:
   how:
     - Add a value to a list; Retire one to stop offering it, or Reinstate it.
     - Correct a value's label with a reason and Save; documents filed with it show the new label.
-  see: published-data
+  see: documents
   tour:
     - target: main section.card
       title: A list
@@ -187,7 +187,7 @@ documents/subscriptions:
     - Messages land on your notifications page, and by email as you choose.
   how:
     - Tick the collections and values to follow, then Save my subscriptions; Stop following ends one.
-  see: published-data
+  see: documents
   tour:
     - target: "#choose-h"
       title: Collections and values
@@ -200,7 +200,7 @@ documents/subscribers:
   title: Document subscribers
   guide:
     - For CPUC staff. What is followed and by whom, the most followed first, and every subscription as a CSV.
-  see: published-data
+  see: documents
   tour:
     - target: main table.list
       title: Subscriptions
@@ -216,7 +216,7 @@ documents/studies:
       status, lead, type, study manager, funding cycle and program.
   how:
     - Study budgets compiles each EM&V plan's tables; the aging review lists what each study manager owes.
-  see: published-data
+  see: documents
   tour:
     - target: main .head-row .button
       title: Add a study
@@ -243,7 +243,7 @@ documents/study:
   how:
     - Follow the study to hear when its status changes and its documents are published.
     - Its managers Update the study, add or Remove the programs it evaluates, and Upload a document.
-  see: published-data
+  see: documents
   tour:
     - target: "#facts-h"
       title: The study
@@ -270,7 +270,7 @@ documents/study_form:
       history. Everything except the contacts is public.
   how:
     - Fill in the facts and plans, give the reason for a change, and save.
-  see: published-data
+  see: documents
   tour:
     - target: main form
       title: The study
@@ -286,7 +286,7 @@ documents/summary:
     - The study lists and budget tables each EM&V plan compiles, from the register, the number of studies and their budgets by type,
       sector, lead, status and group, planned against completed. Canceled studies are left out. A study with several sectors counts in each
       sector, so that table can add up to more than the total.
-  see: published-data
+  see: documents
   tour:
     - target: main form.filters
       title: The cycle
@@ -306,7 +306,7 @@ documents/aging:
     - What each study manager owes, and for how long. Unpublished drafts of a study's documents, next activities past their due date,
       questions left unanswered after their comment period closed, and active studies not updated for a while. PAs asked to respond to
       recommendations are listed for responses past their due date. Drafts are never deleted; they stay here until they are published.
-  see: published-data
+  see: documents
   tour:
     - target: main form.filters
       title: Filter
@@ -325,7 +325,7 @@ documents/work_orders:
       this list.
   how:
     - Add the work order (Energy Division); its tasks are added on its page.
-  see: published-data
+  see: documents
   tour:
     - target: main table.list
       title: The work orders
@@ -341,7 +341,7 @@ documents/work_order:
     - One work order, its tasks, the studies and the documents filed under it. Follow it to hear when its documents are published.
   how:
     - Add the task to the work order. Mark the work order canceled, or reinstate it.
-  see: published-data
+  see: documents
   tour:
     - target: main .head-row .actions
       title: Follow

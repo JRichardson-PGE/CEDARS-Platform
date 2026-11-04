@@ -7,13 +7,17 @@
     "release": "0.2.0",
     "sha256": "fc7c2b39bb9b8f30e170d8fd67a6d25cf607e5a2767457dce2e23188e857e3e2"
   },
+  "guide:administering": {
+    "release": "0.2.0",
+    "sha256": "3196ea8b644a7cf3bdb80a5d2a663d0e94cee183be2b87c58619bbb135c9cd14"
+  },
   "guide:budgets": {
     "release": "0.2.0",
     "sha256": "fcefaaa3badece5e529b834cce6e540f3b149e9ef368895cf4dda49bd2506c19"
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "b43b0e8e92b7350056cb134a56e20bfd164c62714ddecd7241da96af13ed4387"
+    "sha256": "20819218b3fb715ed87e556627014461c34b5cf7817ae6e98fe0bdea5f355203"
   },
   "guide:claims": {
     "release": "0.2.0",
@@ -23,6 +27,10 @@
     "release": "0.2.0",
     "sha256": "f90adb3936e5c75759188ac64152b390ed1708b9248c3cd6ac215d2d30c0b350"
   },
+  "guide:documents": {
+    "release": "0.2.0",
+    "sha256": "7867108c0cdede2e3189ac6467cffd9aba6601733e3402ef564c9b5b13cbc1d9"
+  },
   "guide:getting-started": {
     "release": "0.2.0",
     "sha256": "e3e23b613b69ab22c8238a8674b6032f2d51e3a06d99dc0dfd14abcc578fc5b9"
@@ -30,6 +38,10 @@
   "guide:glossary": {
     "release": "0.2.0",
     "sha256": "1d22d9de9b17748b8561a57cb093fd620dc120501e297fc665dc332ec2b2959f"
+  },
+  "guide:impact-profiles": {
+    "release": "0.2.0",
+    "sha256": "20fb4a20e83e068b779a9848f47b398f6f91183770f2458143f4d05db506d673"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
@@ -41,6 +53,22 @@
   },
   "guide:published-data": {
     "release": "0.2.0",
-    "sha256": "1da01c0c72b8b70c32010a423edca5d5804dd902646e1ccf79bf05e7d036be8c"
+    "sha256": "31a050b410160f60fa40d8914e9402e512c494be1f6f9faf284ef10877254f87"
+  },
+  "guide:reference-data": {
+    "release": "0.2.0",
+    "sha256": "9626a4ec67f5b870946f9fd59d4af154f2bd06987e938ff23f775193c34e0de1"
+  },
+  "guide:releases": {
+    "release": "0.2.0",
+    "sha256": "ba710543fed7fed9a6d118242c2cf0549819779750ab38d8079508ba2cf20901"
+  },
+  "guide:reviewing": {
+    "release": "0.2.0",
+    "sha256": "54dd32a0ced85fb7dda38f51e3370da353364968dac4f9918a4585ed83dc0e28"
+  },
+  "guide:rules-and-lists": {
+    "release": "0.2.0",
+    "sha256": "2a10052f6765860404259b48eb58f87ec31439b900aff800d91c62e41cd78778"
   }
 }

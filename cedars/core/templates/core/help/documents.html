@@ -1,0 +1,34 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>The <a href="{% url 'documents:library' %}">document library</a> holds PA documents, CPUC staff guidance, DEER resources, program
+files and EM&amp;V documents. Published documents are open to everyone; drafts are seen only by the people who manage them. A published
+version never changes: a revision is a new version, and every earlier version stays listed and downloadable.</p>
+<h2>First steps</h2>
+<ol>
+  <li><a href="{% url 'documents:new' %}">File a document</a> in a collection you manage: choose the collection, then its type, the
+  attributes it is filed with and the files. It starts unpublished; publish it from its page when it is ready.</li>
+  <li>Replace its files by adding a version. An EM&amp;V deliverable (a workplan or study results) moves through its stages (drafts,
+  comments, final, PA responses) as versions of one document.</li>
+  <li>While a version's comment period is open, anyone signed in can comment or ask a question. The document's managers open comment
+  periods and respond; comments and responses are public, with their author's name and organization.</li>
+  <li><a href="{% url 'documents:subscriptions' %}">Follow</a> a collection or a value documents are filed with to hear when a matching
+  document is published or opens for comment.</li>
+</ol>
+<h2>Evaluation studies</h2>
+<ul class="links">
+  <li><a href="{% url 'documents:studies' %}">Evaluation studies</a> is the EM&amp;V study register: each study's facts, the programs
+  and program years it evaluates, and its documents. Published details are public; contacts are not.</li>
+  <li><a href="{% url 'documents:work_orders' %}">Work orders</a> are Energy Division's contract work orders; studies and documents are
+  filed under them.</li>
+  <li>A PA responds to a study's recommendations as a version of the deliverable at the stage PA response.</li>
+  <li><a href="{% url 'documents:aging' %}">The aging review</a> lists what each study manager owes, and <a
+  href="{% url 'documents:study_summary' %}">Study budgets</a> compiles the register's budget tables.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li>Every stored PDF and workbook is checked for accessibility as it is stored, and the uploader is told what was found. The
+  <a href="{% url 'core:help_guide' 'accessibility' %}">accessibility guide</a> says how to report a barrier.</li>
+  <li><a href="{% url 'documents:lists' %}">Document value lists</a>: the types and attributes a document can be filed with.</li>
+  <li><a href="{% url 'core:help_guide' 'reviewing' %}">Reviewing and approving</a>: documents and questions waiting in My queue.</li>
+</ul>
+{% endblock %}

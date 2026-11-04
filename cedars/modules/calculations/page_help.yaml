@@ -242,7 +242,7 @@ calculations/engines:
     - Change edits a release's calculations, ACCs, worker image or Batch job definition, with a reason for the audit trail.
     - Make default sets what New run offers first and filings price on; Retire takes no new runs on a release and keeps its runs;
       Return to service offers a retired release again. The default is retired only after another release is made the default.
-  see: calculations
+  see: administering
   tour:
     - target: main table.list
       title: The releases
@@ -259,7 +259,7 @@ calculations/engine_release:
       release of its own on Engine releases.
   how:
     - Write each calculation on its own line, recet or cet-25.1 then a colon and its ACC years, say why it is changed, and save.
-  see: calculations
+  see: administering
   tour:
     - target: "#change-h"
       title: What it offers

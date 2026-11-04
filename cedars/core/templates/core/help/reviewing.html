@@ -1,0 +1,43 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Work that waits on someone is never assigned by hand: <a href="{% url 'core:queue' %}">My queue</a> reads it live from each part of
+CEDARS, for every organization you act for, and an item leaves the queue the moment the work is done. The number beside My queue in the
+header is how many items wait on you. Items with a due date come first; overdue ones are marked Overdue.</p>
+<h2>First steps</h2>
+<ol>
+  <li>Open <a href="{% url 'core:queue' %}">My queue</a>. Each row's link opens the page where the work is done.</li>
+  <li>If the item is for another organization you belong to, switch to it with <strong>Acting for</strong> in the header first.</li>
+  <li>Decide, reply or confirm on that page. Every decision needs a reason where the page asks for one, and every decision is in the
+  audit log.</li>
+</ol>
+<h2>What waits for whom</h2>
+<ul class="links">
+  <li><strong>CPUC approvers</strong>: <a href="{% url 'submissions:reopen_requests' %}">requests to correct filings</a> after their due
+  date (an approved request opens a new version for that organization and period only), and
+  <a href="{% url 'programs:requests' %}">changes to locked program attributes</a>. The Budgets, Claims and Monthly reports pages show
+  how many correction requests wait for each program administrator.</li>
+  <li><strong>PA staff who may confirm filings</strong>: filings priced and ready to confirm, and fund shifts to acknowledge for a
+  co-funding PA (a shift takes effect once every co-funder has acknowledged it).</li>
+  <li><strong>Both sides of a filing</strong>: comments on a filing waiting for your side's reply.</li>
+  <li><strong>Document managers</strong>: documents filed but not yet published, unanswered questions on a document, and responses to
+  an EM&amp;V study's recommendations.</li>
+  <li><strong>CPUC data stewards</strong>: requests for PII access, after the organization's administrators have approved them, and a
+  change to the PII rules another steward proposed (<a href="{% url 'administration:stewardship' %}">Data stewardship</a>).</li>
+  <li><strong>Organization administrators</strong>: access requests to their organization.</li>
+  <li><strong>A second CPUC system administrator</strong>: a draft set of <a href="{% url 'administration:goal_sets' %}">energy
+  efficiency goals</a>, which the administrator who loaded it cannot confirm.</li>
+</ul>
+<h2>Publication holds</h2>
+<p>Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may be
+personal information. A filing with a hit is held, and the public data keep what was published before. The filing's organization sees
+its own holds on <a href="{% url 'snapshots:holds' %}">Publication holds</a>; CPUC system administrators see every hold and release it
+once the records are corrected or found safe.</p>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>: what a reopened filing's new draft
+  allows.</li>
+  <li><a href="{% url 'core:help_guide' 'programs' %}">Programs</a>: what a program change does.</li>
+  <li><a href="{% url 'core:help_guide' 'documents' %}">Documents and EM&amp;V</a>: comment periods and publishing.</li>
+  <li><a href="{% url 'notifications:settings' %}">Notification settings</a>: what you are told by email as well.</li>
+</ul>
+{% endblock %}

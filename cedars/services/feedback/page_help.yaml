@@ -22,7 +22,7 @@ feedback/inbox:
   how:
     - Show New, Closed or All, then Apply.
     - Open a message to read it whole, reply to the sender and close it with a note.
-  see: getting-started
+  see: administering
   tour:
     - target: main form.filters
       title: Which messages
@@ -39,7 +39,7 @@ feedback/detail:
       was done, or reopen a closed one with a reason; both are in the audit log.
   how:
     - Close records that it was dealt with; Reopen puts it back among the new ones.
-  see: getting-started
+  see: administering
   tour:
     - target: main dl.facts
       title: Where it came from

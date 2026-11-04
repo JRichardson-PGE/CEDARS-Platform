@@ -11,7 +11,7 @@ impact_profiles/library:
   how:
     - Choose what to show and Apply; open a profile for its 8,760 by climate zone.
     - Add a custom profile uploads one for the organization you act for.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main form.filters
       title: Search and filter
@@ -36,7 +36,7 @@ impact_profiles/profile:
   how:
     - Add the new version replaces a custom profile's 8,760s; earlier versions stay.
     - Retire takes the profile out of use for new measures; runs and claims keep the version they used.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main dl.facts
       title: The profile
@@ -68,7 +68,7 @@ impact_profiles/custom_new:
       is linked above the form.
   how:
     - Fill the template (CSV) with one 8,760 per climate zone, choose the file, then Check and add.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main form
       title: The profile
@@ -79,7 +79,7 @@ impact_profiles/rejected:
   guide:
     - The file uploaded to replace a profile's version did not pass its checks, so nothing changed. The findings say what to fix; fix the
       file and upload it again from the profile's page.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main p.alert
       title: What was wrong
@@ -90,7 +90,7 @@ impact_profiles/packages:
   guide:
     - The draft measure packages from eTRM starting in 2027 or later, synced nightly, each with the PA that leads it. The lead PA
       uploads the package's load shapes; impact profiles are generated from them.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main form.filters
       title: Filter
@@ -109,7 +109,7 @@ impact_profiles/package:
   how:
     - When a permutation's own profile ID has no shapes (for example new construction reusing the existing-vintage modeling), map it to
       another profile under Profile IDs pointing at another profile.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main dl.facts
       title: The package
@@ -143,7 +143,7 @@ impact_profiles/load_shape:
   title: A load shape
   guide:
     - One load shape of a measure package, the share of the year's energy in each month for its current version, and every version.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main dl.facts
       title: The load shape
@@ -159,7 +159,7 @@ impact_profiles/uploads:
   title: Load shape upload history
   guide:
     - Load shape uploads made for the organizations you belong to, including other members', newest first, with each upload's result.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main table.list
       title: Uploads
@@ -173,7 +173,7 @@ impact_profiles/upload:
       package's impact profiles from here.
   how:
     - Download the findings (CSV) for every finding, beyond the first 500 shown.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main dl.facts
       title: The upload
@@ -205,7 +205,7 @@ impact_profiles/sync_history:
       with the reason, so the PA that leads it can fix it in eTRM. A failed sync is retried and raises an alarm if it keeps failing.
   how:
     - Choose what to show and Apply. Sync now pulls from eTRM without waiting for the night.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main dl.facts
       title: The last sync
@@ -229,7 +229,7 @@ impact_profiles/exports:
       published under Reference data.
   how:
     - Write the library now writes a new numbered export; its data pack is published under Reference data.
-  see: calculations
+  see: impact-profiles
   tour:
     - target: main table.list
       title: Library writes

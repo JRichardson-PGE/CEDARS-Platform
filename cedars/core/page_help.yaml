@@ -174,7 +174,7 @@ core/search:
 
 core/queue:
   title: My queue
-  see: getting-started
+  see: reviewing
   guide:
     - The work waiting on you across CEDARS, for every organization you act for, read live from each module, so an item leaves the queue the
       moment the work is done. Nothing here is assigned by hand.
@@ -313,7 +313,7 @@ core/help/faq:
 
 core/help/tour:
   title: The tour, written out
-  see: accessibility
+  see: getting-started
   guide:
     - The front page's tour on one page, for anyone who would rather read it or uses CEDARS without scripts. Signed in, it includes the
       parts only signed-in users see.

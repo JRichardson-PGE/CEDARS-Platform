@@ -42,7 +42,12 @@ def help_index(request):
     return render(
         request,
         "core/help/index.html",
-        {"guides": site_help.GUIDES, "support": site_help.support(), "engine_docs": engine_docs.DOCS},
+        {
+            "guides": site_help.GUIDES,
+            "readers": site_help.by_reader(),
+            "support": site_help.support(),
+            "engine_docs": engine_docs.DOCS,
+        },
     )
 
 
