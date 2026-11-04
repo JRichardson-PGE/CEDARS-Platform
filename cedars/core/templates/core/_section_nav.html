@@ -1,0 +1,3 @@
+{% if links %}<nav class="subnav" aria-label="{{ label }}">
+  {% for l in links %}<a href="{{ l.url }}"{% if l.current %} aria-current="{{ l.current }}"{% endif %}>{{ l.label }}</a>
+  {% endfor %}</nav>{% endif %}

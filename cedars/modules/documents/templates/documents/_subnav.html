@@ -1,9 +1,15 @@
+{% with here=request.resolver_match.view_name %}{% if section == "studies" or section == "budgets" or section == "aging" or section == "work_orders" %}{% if here != "documents:studies" %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'documents:studies' %}">Evaluation studies</a></li></ol></nav>
+{% endif %}{% elif here != "documents:library" %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'documents:library' %}">Documents</a></li></ol></nav>
+{% endif %}
 <nav class="subnav" aria-label="Documents and EM&amp;V">
   <a href="{% url 'documents:library' %}"{% if section == 'library' %} aria-current="page"{% endif %}>Library</a>
   <a href="{% url 'documents:studies' %}"{% if section == 'studies' %} aria-current="page"{% endif %}>Evaluation studies</a>
   <a href="{% url 'documents:study_summary' %}"{% if section == 'budgets' %} aria-current="page"{% endif %}>Study budgets</a>
   {% if show_aging or section == 'aging' %}<a href="{% url 'documents:aging' %}"{% if section == 'aging' %} aria-current="page"{% endif %}>Aging review</a>{% endif %}
   <a href="{% url 'documents:work_orders' %}"{% if section == 'work_orders' %} aria-current="page"{% endif %}>Work orders</a>
-  {% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}"{% if section == 'subscriptions' %} aria-current="page"{% endif %}>My subscriptions</a>{% endif %}
+  {% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}"{% if section == 'subscriptions' %} aria-current="{% if here == 'documents:subscriptions' %}page{% else %}true{% endif %}"{% endif %}>My subscriptions</a>{% endif %}
   <a href="{% url 'documents:lists' %}"{% if section == 'lists' %} aria-current="page"{% endif %}>Value lists</a>
 </nav>
+{% endwith %}
