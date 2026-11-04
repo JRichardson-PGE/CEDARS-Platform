@@ -14,6 +14,7 @@
 <div class="page-title"><h1>Check a file before you file it</h1>{% page_help "rules/check" %}</div>
 <p>Runs a filing's validation rules on one table of your file, exactly as the upload runs them: the rules in force, or any other published version. Nothing you upload here is kept.</p>
 {% if choices %}
+{% url 'dictionary:index' as fields_url %}{% url 'rules:index' as rules_url %}{% before_upload fields=fields_url fields_label="the field definitions" guide=rules_url guide_label="every rule set and what each checks" %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
   <div class="field"><label for="rule_set">Rules</label><select id="rule_set" name="rule_set" aria-describedby="rs-help">{% for ch in choices %}<optgroup label="{{ ch.checker.label }}">{% for v in ch.versions %}<option value="{{ v.pk }}"{% if rs and v == rs or not rs and v == ch.in_force and forloop.parentloop.first %} selected{% endif %}>{{ v }}{% if v == ch.in_force %} (in force){% elif ch.in_force and v.effective_from > ch.in_force.effective_from %} (takes effect later){% endif %}</option>{% endfor %}</optgroup>{% endfor %}</select><span id="rs-help" class="small muted">The version in force is what an upload today is checked against.</span></div>
   <div class="field"><label for="table">Table</label><select id="table" name="table"><option{% if table == "Measure" %} selected{% endif %}>Measure</option><option{% if table == "ProgramCost" %} selected{% endif %}>ProgramCost</option></select></div>

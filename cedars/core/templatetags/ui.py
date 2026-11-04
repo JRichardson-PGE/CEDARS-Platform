@@ -122,3 +122,47 @@ def audit_rows(event) -> list[tuple[str, str, str]]:
     before, after = as_dict(event.before), as_dict(event.after)
     keys = list(before) + [k for k in after if k not in before]
     return [(str(k).replace("_", " ").replace("organisation", "organization"), shown(before.get(k)), shown(after.get(k))) for k in keys]
+
+
+@register.inclusion_tag("core/_before_upload.html", takes_context=True)
+def before_upload(
+    context, template="", template_label="", fields="", fields_label="", rule_set="", rules_note="", guide="", guide_label=""
+):
+    """The "Before you upload" line under a file control (navigation review D3): the template, the field definitions, the rules the
+    file will be checked against and the guide section, each part only when the form has one.
+
+    template: the template's URL; fields: "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the
+    code of the rule set in force (rules.in_force: its page when one is published, else "none published yet"), or rules_note: the words
+    to say instead (e.g. the engine checks the file); guide: a Help guide's slug, with an #anchor if any, or a URL."""
+    from django.urls import NoReverseMatch, reverse
+
+    parts = []
+    if template:
+        parts.append({"url": template, "label": template_label or "the template"})
+    if fields:
+        url = fields
+        if "." in fields and "/" not in fields:
+            url = f"{reverse('dictionary:index')}?table={fields}"
+        parts.append({"url": url, "label": fields_label or "the field definitions"})
+    if rule_set:
+        from cedars.services.rules import service as rules
+
+        rs = rules.in_force(rule_set)
+        user = getattr(context.get("request"), "user", None)
+        if rs is not None and user is not None and user.is_authenticated:
+            parts.append({"url": reverse("rules:detail", args=[rs.pk]), "label": f"the rules it is checked against, {rs.label}"})
+        elif rs is None:
+            parts.append({"text": "no rule set is published for it yet"})
+    if rules_note:
+        parts.append({"text": rules_note})
+    if guide:
+        url = guide
+        if "/" not in guide:
+            slug, _, anchor = guide.partition("#")
+            try:
+                url = reverse("core:help_guide", args=[slug]) + (f"#{anchor}" if anchor else "")
+            except NoReverseMatch:
+                url = ""
+        if url:
+            parts.append({"url": url, "label": guide_label or "the user guide"})
+    return {"parts": parts}

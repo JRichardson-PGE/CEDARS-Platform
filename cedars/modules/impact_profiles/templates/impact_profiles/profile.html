@@ -76,6 +76,7 @@ several names: the library stores the 8,760s once and every name prices on them.
 {% if can_replace %}
 <section class="card" aria-labelledby="replace-h">
   <h2 id="replace-h">Replace with a new version</h2>
+    {% url 'impact_profiles:custom_template' as tmpl %}{% before_upload template=tmpl template_label="the custom profile template" rules_note="the new version is checked as the first one was" %}
   <form method="post" action="{% url 'impact_profiles:profile_replace' p.pk %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in replace_form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Add the new version</button></div>

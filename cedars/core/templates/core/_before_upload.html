@@ -1,0 +1,1 @@
+{% if parts %}<p class="before-upload"><strong>Before you upload:</strong> {% for p in parts %}{% if p.url %}<a href="{{ p.url }}">{{ p.label }}</a>{% else %}{{ p.text }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}

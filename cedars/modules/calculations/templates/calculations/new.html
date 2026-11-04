@@ -33,6 +33,7 @@ the run page shows its progress, and its files when it ends.</p>
 {% comment %}The form uses the window's width (Jake, 2026-11-03: a 640 px column left two thirds of a 1920 px window empty): each
 section's fields flow into as many columns as fit (.field-grid, about 20rem each), left to right in the order they are read, and fields that
 go together share a cell (.field-cell: a box and the option it turns on). See docs/DESIGN.md, Forms.{% endcomment %}
+{% url 'core:recet_doc' 'input-formats' as formats %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=formats template_label="the job's input formats" fields=infields fields_label="its input fields" rules_note="the engine checks the inputs before it prices them; filing checks are a run option" guide="calculations" guide_label="the cost-effectiveness runs guide" %}
 <form method="post" enctype="multipart/form-data" class="stack wide-form" novalidate data-upload-progress>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   <fieldset><legend>The job</legend>

@@ -59,6 +59,7 @@ its builder is sent.</p>
 {% if form %}
 <section class="card" aria-labelledby="reg-h">
   <h2 id="reg-h">Register a set</h2>
+    {% url 'core:recet_doc' 'cost-tests' as ct %}{% before_upload fields=ct fields_label="how a set is defined" rules_note="the engine checks the set when it is registered" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Register as a draft</button></div>

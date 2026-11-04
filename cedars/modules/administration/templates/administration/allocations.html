@@ -29,6 +29,7 @@ The other funding PAs are told when a version is confirmed.{% if nav.sysadmin %}
 <section class="card" aria-labelledby="up-h">
   <h2 id="up-h">Load a factor file</h2>
   <p class="small">Loaded for {% if request.organisation and request.organisation.manages_allocation %}{{ request.organisation.code }}{% else %}the CPUC{% endif %}. The file uses the layout CEDARS exports and ReCET reads: Year, ProgramID, ProgramName, PercentElectric, then each funding PA's gas, electric and weighted factors.</p>
+    {% if example %}{% url 'administration:allocation_csv' example.pk as tmpl %}{% endif %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=tmpl template_label="the latest confirmed factors, in the same layout" fields=infields fields_label="the engine's statewide allocation table" rules_note="the checks run on the draft's page before you confirm it" guide="budgets" guide_label="the budget filings guide" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>

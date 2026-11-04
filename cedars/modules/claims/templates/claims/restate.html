@@ -17,6 +17,7 @@ and the whole change is the program and engine effect.</p>
 </section>
 {% if why %}<p class="alert" role="alert">{{ why }}</p>
 {% else %}
+{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload fields=infields|add:"#4-supplied-input-files" fields_label="the optional files' columns" rules_note="the engine checks them when it prices the restatement" guide="claims" guide_label="the claims guide" %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate aria-labelledby="form-h">{% csrf_token %}
   <h2 id="form-h">The restatement</h2>
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}

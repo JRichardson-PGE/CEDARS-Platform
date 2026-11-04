@@ -27,6 +27,7 @@ version is never deleted. A published version never changes.</p>
 </section>
 <section class="card" aria-labelledby="upload-h">
   <h2 id="upload-h">Add or change codes from a file</h2>
+  {% url 'dictionary:lists' as lists_url %}{% before_upload fields=lists_url fields_label="the value lists in force" %}
   <form method="post" action="{% url 'dictionary:upload_codes' vl.name %}" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in upload_form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit">Read the file into the draft</button>

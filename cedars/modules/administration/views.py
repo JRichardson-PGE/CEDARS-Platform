@@ -768,7 +768,15 @@ def allocations(request):
     return render(
         request,
         "administration/allocations.html",
-        {"versions": versions, "form": form, "can_manage": can_manage, "managers": managers, "permission": perms.label(perms.ALLOCATION)},
+        {
+            "versions": versions,
+            "form": form,
+            "can_manage": can_manage,
+            "managers": managers,
+            "permission": perms.label(perms.ALLOCATION),
+            # the latest confirmed version's factor file: the layout a new file takes (navigation review D3)
+            "example": _allocation_versions(request).filter(status="confirmed").order_by("-confirmed_at").first(),
+        },
     )
 
 

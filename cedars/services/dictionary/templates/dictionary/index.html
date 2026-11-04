@@ -32,6 +32,7 @@ schema for the API. Calculations' Measure and ProgramCost are a calculation run'
   <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
   <div class="field"><label for="kind">Kind</label><select id="kind" name="kind"><option value="">All</option>{% for value, text in kinds %}<option value="{{ value }}"{% if kind == value %} selected{% endif %}>{{ text }}s</option>{% endfor %}</select></div>
   {% if groups %}<div class="field"><label for="group">Platform table</label><select id="group" name="group"><option value="">All</option>{% for g in groups %}<option value="{{ g }}"{% if group == g %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></div>{% endif %}
+  <div class="field"><label for="table">Upload table</label><select id="table" name="table"><option value="">All</option>{% for module, table in tables %}{% with key=module|add:"."|add:table %}<option value="{{ key }}"{% if upload_table == key %} selected{% endif %}>{{ module|capfirst }}, {{ table }}</option>{% endwith %}{% endfor %}</select></div>
   <div class="field"><label for="state">State</label><select id="state" name="state"><option value="">In use</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Retired</option><option value="all"{% if state == "all" %} selected{% endif %}>All, retired included</option></select></div>
   <button type="submit">Search</button>
 </form>
