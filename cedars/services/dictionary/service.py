@@ -202,6 +202,45 @@ def template_xlsx(module: str, table: str, version: CatalogVersion | None = None
     return book.save()
 
 
+@dataclass(frozen=True)
+class TemplateField:
+    """One column of a filing template's table, as its Fields sheet describes it."""
+
+    name: str
+    required: bool = False
+    type: str = ""
+    unit: str = ""
+    definition: str = ""
+    aliases: str = ""
+
+
+def catalog_fields(module: str, table: str, version: CatalogVersion | None = None) -> list[TemplateField]:
+    """A module table's columns from the field catalog in force, for a filing template (none when no catalog is loaded)."""
+    version = version or current()
+    if version is None:
+        return []
+    return [
+        TemplateField(f.name, u.required, f.data_type, f.unit, f.definition, _aliases(f)) for f, u in table_fields(module, table, version)
+    ]
+
+
+def filing_template_xlsx(title: str, tables: list[tuple[str, list[TemplateField]]], *, notes: str = "") -> bytes:
+    """A filing's upload template (navigation review D2, as the claims template is): a Fields sheet first, with every column of every
+    table, whether it is required, its type, unit and definition, then one sheet per table with its columns in order. An upload of the
+    workbook as it stands reads only the tables' sheets; the Fields sheet is ignored."""
+    from cedars.core import workbooks
+
+    version = current()
+    catalog = f"Field catalog {version.label}" if version else "No field catalog loaded"
+    book = workbooks.Book(title, subject=f"The tables' columns and the definition of each field ({catalog})", description=notes)
+    about = book.sheet("Fields", ["Table", "Field", "Required", "Type", "Unit", "Definition", "Also accepted as"], widths={5: 60})
+    for sheet, fields in tables:
+        for f in fields:
+            about.append([sheet, f.name, "yes" if f.required else "", f.type, f.unit, f.definition, f.aliases])
+        book.sheet(sheet[:31], [f.name for f in fields])
+    return book.save()
+
+
 def json_schema(module: str, table: str, version: CatalogVersion | None = None) -> dict:
     """A JSON Schema for one row of the table, for the API (a row is an object keyed by canonical names)."""
     version = version or current()

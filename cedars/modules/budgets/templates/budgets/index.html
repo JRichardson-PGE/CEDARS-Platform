@@ -8,6 +8,7 @@
     <a class="button" href="{% url 'budgets:compare' %}">Compare two versions</a>
     <a class="button" href="{% url 'budgets:shifts' %}">Fund shifts</a>
     <a class="button" href="{% url 'budgets:changes' %}">Change log</a>
+    <a class="button" href="{% url 'budgets:template' %}">Budget filing template (Excel)</a>
     {% if sysadmin %}<a class="button primary" href="{% url 'budgets:filing_new' %}">Set up a filing</a>{% endif %}
   </div>
 </div>

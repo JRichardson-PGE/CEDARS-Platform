@@ -116,6 +116,14 @@ def index(request):
     )
 
 
+def template(request):
+    """The monthly report template workbook (navigation review D2): public, like the claims template and the data dictionary."""
+    xlsx = service.template_xlsx()
+    response = HttpResponse(xlsx, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = 'attachment; filename="monthly_report_template.xlsx"'
+    return response
+
+
 @login_required
 def year_new(request):
     if not access.is_system_admin(request.user):

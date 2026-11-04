@@ -128,6 +128,14 @@ def index(request):
     )
 
 
+def template(request):
+    """The budget filing template workbook (navigation review D2): public, like the claims template and the data dictionary."""
+    xlsx = service.template_xlsx()
+    response = HttpResponse(xlsx, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = 'attachment; filename="budget_filing_template.xlsx"'
+    return response
+
+
 @login_required
 def filing_new(request):
     if not access.is_system_admin(request.user):

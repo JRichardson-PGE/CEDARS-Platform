@@ -8,14 +8,15 @@ budgets/index:
       budgets that stand for each PA.
     - The newest cycle is open; earlier cycles are folded under their headings. Open a filing to upload, check, price and confirm it.
   how:
+    - Budget filing template (Excel) is the workbook to fill in, Measure and ProgramCost with a Fields sheet defining every column.
     - Compare two versions shows any two budget versions you can read side by side, by program.
     - Fund shifts move budget between programs within a cycle; the standing filing plus the shifts in effect is the operating budget.
   see: budgets
   tour:
     - target: main .head-row .actions, main .head-row .button
-      title: Compare, fund shifts and the change log
-      text: Compare any two versions, open the fund shifts, or see every correction to a published filing in the change log. CPUC
-        administrators set up new filings here too.
+      title: Compare, fund shifts, the change log and the template
+      text: Compare any two versions, open the fund shifts, see every correction to a published filing in the change log, or
+        download the budget filing template. CPUC administrators set up new filings here too.
     - target: main section.cycle
       title: The current cycle
       text: Each filing of the cycle with its due date and, when you act for a PA, its status. Select a filing to open it (CPUC staff

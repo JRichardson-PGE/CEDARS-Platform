@@ -8,12 +8,15 @@ monthly/index:
     - Each program year lists its twelve reports with their due dates and, when you act for a PA, where its reports stand, with the
       whole year in one view and the 13th-month report generated from the year's confirmed claims.
   how:
+    - Monthly report template (Excel) is the workbook to fill in, Commitments, Measure and ProgramCost with a Fields sheet defining
+      every column.
     - The change log lists every correction to a published monthly report, each with a change letter.
   see: monthly-reports
   tour:
     - target: main > .head-row > .actions
-      title: Change log
-      text: Every correction to a published report. CPUC administrators set up a program year's reports here too.
+      title: The template and the change log
+      text: The monthly report template to fill in, and every correction to a published report. CPUC administrators set up a program
+        year's reports here too.
     - target: main section .head-row .actions, main section .head-row .button
       title: The year in one view
       text: Every month of a year side by side, and the 13th-month report.

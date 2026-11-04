@@ -5,6 +5,7 @@ from . import shift_views, views
 app_name = "budgets"
 urlpatterns = [
     path("", views.index, name="index"),
+    path("template.xlsx", views.template, name="template"),
     path("filings/new/", views.filing_new, name="filing_new"),
     path("filings/<int:pk>/", views.filing, name="filing"),
     path("filings/<int:pk>/setup/", views.setup, name="setup"),

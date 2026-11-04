@@ -1146,3 +1146,22 @@ def deadline_page(deadline) -> str:
     from django.urls import reverse
 
     return reverse("budgets:filing", args=[deadline.pk]) if FilingSetup.objects.filter(deadline=deadline).exists() else ""
+
+
+def template_xlsx() -> bytes:
+    """The budget filing template: Measure and ProgramCost as the field catalog has them (the engine's input tables), with a Fields
+    sheet defining each column (navigation review D2). Without a catalog loaded, each table's required columns."""
+    from cedars.services.dictionary import service as dictionary
+
+    from . import jobfile
+
+    tables = [
+        (t, dictionary.catalog_fields("calculations", t) or [dictionary.TemplateField(c, True) for c in jobfile.REQUIRED[t]])
+        for t in jobfile.TABLES
+    ]
+    return dictionary.filing_template_xlsx(
+        "CEDARS budget filing template",
+        tables,
+        notes="Fill in the Measure and ProgramCost sheets and upload the workbook, or save each sheet as Measure.csv and ProgramCost.csv "
+        "in one .zip. The Fields sheet is not read.",
+    )
