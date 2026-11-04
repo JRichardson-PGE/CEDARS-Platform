@@ -77,14 +77,16 @@
 <h2 id="upload-h">{% if v and file %}Upload a corrected file{% else %}Upload the report{% endif %}</h2>
 {% if opens_later %}<p>This report opens on {{ deadline.opens_at|date_words }}, when the month has ended.</p>
 {% else %}
-<p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept.</p>
+<p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept.
+<a href="{% url 'monthly:template' %}">The monthly report template</a> has the three tables and defines every field.</p>
 <form method="post" enctype="multipart/form-data" action="{% url 'monthly:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
   {{ upload_form.file.as_field_group }}
   <div class="actions"><button type="submit" class="primary">Upload and check</button></div>
 </form>
 {% endif %}
 <details><summary>What the file holds</summary>
-  <p>Three tables: Commitments, and the year's BCA inputs so far, Measure and ProgramCost, as a calculation run takes them.</p>
+  <p>Three tables: Commitments, and the year's BCA inputs so far, Measure and ProgramCost, as a calculation run takes them.
+  <a href="{% url 'monthly:template' %}">The monthly report template</a> has them all.</p>
   <h3>Commitments</h3>
   <p>One row per program with commitments, with the columns PA, PrgID, YearMonth ({{ deadline.period.year }}{{ deadline.period.number|stringformat:"02d" }}), the committed fields CEDARS' monthly reports have today and an optional Comments:</p>
   <ul>{% for f, help in commitment_fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>

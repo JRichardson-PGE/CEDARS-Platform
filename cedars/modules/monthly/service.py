@@ -1189,3 +1189,30 @@ def deadline_page(deadline) -> str:
     from django.urls import reverse
 
     return reverse("monthly:report", args=[deadline.pk]) if setup_for(deadline) is not None else ""
+
+
+COMMITMENT_KEYS = [
+    ("PA", "The program administrator's code: the filing organization's."),
+    ("PrgID", "The program, as in the program registry."),
+    ("YearMonth", "The report's month, as YYYYMM (202801 for January 2028)."),
+]
+
+
+def template_xlsx() -> bytes:
+    """The monthly report template: Commitments (its keys, the committed fields and an optional Comments) and the year-to-date BCA
+    inputs Measure and ProgramCost as the field catalog has them, with a Fields sheet defining each column (navigation review D2)."""
+    from cedars.services.dictionary import service as dictionary
+
+    TF = dictionary.TemplateField
+    commitments = [TF(f, True, "text", "", d) for f, d in COMMITMENT_KEYS]
+    commitments += [TF(f, True, "number", "", d) for f, d in COMMITMENT_FIELDS]
+    commitments.append(TF("Comments", False, "text", "", "Optional: anything the CPUC should know about the row."))
+    tables = [("Commitments", commitments)] + [
+        (t, dictionary.catalog_fields("calculations", t) or [TF(c, True) for c in up.REQUIRED[t]]) for t in up.BCA_TABLES
+    ]
+    return dictionary.filing_template_xlsx(
+        "CEDARS monthly report template",
+        tables,
+        notes="Commitments has one row per program with commitments; Measure and ProgramCost are the year's BCA inputs so far. Fill in "
+        "the three sheets and upload the workbook, or save each as a CSV of the same name in one .zip. The Fields sheet is not read.",
+    )

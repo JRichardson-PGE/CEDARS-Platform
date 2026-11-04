@@ -5,6 +5,7 @@ from . import views
 app_name = "monthly"
 urlpatterns = [
     path("", views.index, name="index"),
+    path("template.xlsx", views.template, name="template"),
     path("years/new/", views.year_new, name="year_new"),
     path("years/<int:year>/", views.year, name="year"),
     path("years/<int:year>/year.csv", views.year_csv, name="year_csv"),

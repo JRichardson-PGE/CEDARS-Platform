@@ -10,6 +10,15 @@
   <a class="button" href="{% url 'dictionary:changes' %}">Changes</a>
 </p>
 <h2>Upload templates</h2>
+<p>Each filing's template is one workbook with a sheet per table and a Fields sheet defining every column:</p>
+<ul>
+  <li><a href="{% url 'budgets:template' %}">Budget filing template</a> (Excel): Measure and ProgramCost.</li>
+  <li><a href="{% url 'claims:template' %}">Claims template</a> (Excel): every claims table.</li>
+  <li><a href="{% url 'monthly:template' %}">Monthly report template</a> (Excel): Commitments, Measure and ProgramCost.</li>
+</ul>
+<h3>Each table on its own</h3>
+<p>The tables the field catalog defines, one at a time: an empty file with the header row, a workbook with the Fields sheet, or a JSON
+schema for the API. Calculations' Measure and ProgramCost are a calculation run's job, and a budget filing's.</p>
 <ul>
 {% for module, table in tables %}
   <li>{{ module|capfirst }}, {{ table }}:
