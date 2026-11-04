@@ -43,6 +43,7 @@ urlpatterns = [
     path("allocations/<int:pk>/factors.csv", views.allocation_csv, name="allocation_csv"),
     re_path(r"^admin/allocations/(?P<rest>.*)$", RedirectView.as_view(url="/allocations/%(rest)s", query_string=True)),
     path("admin/goals/", views.goal_sets, name="goal_sets"),
+    path("admin/goals/template-<str:which>.csv", views.goal_template_csv, name="goal_template_csv"),
     path("admin/goals/<int:pk>/", views.goal_set, name="goal_set"),
     path("admin/goals/<int:pk>/goals.csv", views.goal_set_csv, name="goal_set_csv"),
 ]

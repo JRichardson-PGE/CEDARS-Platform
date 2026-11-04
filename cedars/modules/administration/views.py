@@ -884,6 +884,21 @@ def goal_set(request, pk):
 
 
 @login_required
+def goal_template_csv(request, which):
+    from django.http import Http404, HttpResponse
+
+    from cedars.services.registry import goals
+
+    _require_sysadmin(request)
+    if which not in ("goals", "rules"):
+        raise Http404
+    response = HttpResponse(goals.template_csv(which), content_type="text/csv; charset=utf-8")
+    name = "goal_file_template.csv" if which == "goals" else "counting_rules_template.csv"
+    response["Content-Disposition"] = f'attachment; filename="{name}"'
+    return response
+
+
+@login_required
 def goal_set_csv(request, pk):
     from django.http import HttpResponse
 
