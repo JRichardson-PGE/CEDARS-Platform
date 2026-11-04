@@ -75,6 +75,7 @@ class PIIScan(models.Model):
         CLEAR = "clear", "Clear"
         HELD = "held", "Held"
         RELEASED = "released", "Released by an administrator"
+        CERTIFIED = "certified", "Certified by the filing organization"
 
     snapshot = models.OneToOneField(Snapshot, on_delete=models.CASCADE, related_name="pii_scan")
     outcome = models.CharField(max_length=10, choices=Outcome.choices)

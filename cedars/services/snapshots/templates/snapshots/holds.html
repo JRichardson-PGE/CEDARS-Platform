@@ -23,11 +23,11 @@
 {% if past %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Released or replaced holds">
 <table class="list">
-  <caption class="sr-only">Holds that were released by an administrator or replaced by a newer version</caption>
+  <caption class="sr-only">Holds the filing organization certified, an administrator released, or a newer version replaced</caption>
   <thead><tr><th scope="col">Filing</th><th scope="col">Outcome</th><th scope="col">Reason</th></tr></thead>
   <tbody>{% for r in past %}<tr>
     <th scope="row"><a href="{% url 'snapshots:hold' r.snap.pk %}">{{ r.label }}</a></th>
-    <td>{% if r.scan.held %}<span class="status">Replaced by a newer version</span>{% else %}<span class="status ok">Released</span> <span class="small muted nowrap">{{ r.scan.released_at|date_words }}</span>{% endif %}</td>
+    <td>{% if r.scan.held %}<span class="status">Replaced by a newer version</span>{% else %}<span class="status ok">{% if r.scan.outcome == "certified" %}Certified by {{ r.snap.organisation.code|default:"the organization" }}{% else %}Released{% endif %}</span> <span class="small muted nowrap">{{ r.scan.released_at|date_words }}</span>{% endif %}</td>
     <td>{{ r.scan.release_reason }}</td>
   </tr>{% endfor %}</tbody>
 </table>

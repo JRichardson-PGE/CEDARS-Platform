@@ -236,7 +236,8 @@ def _hold(snap: Snapshot, scan: PIIScan) -> None:
             "scan found what may be personal information.",
             summary(scan),
             "The dashboards and downloads keep showing what was published before. Correct the filing (un-confirm it before the due "
-            "date, or request a correction), or, if these are not personal information, ask a CPUC system administrator to release it.",
+            "date, or request a correction), or, if these are not personal information, certify that on the hold's page (those who "
+            "confirm the filing), which releases it.",
         ]
     )
     told = 0
@@ -275,6 +276,52 @@ def release_hold(actor, snap: Snapshot, reason: str) -> PIIScan:
                 f"A CPUC system administrator released it to the public dashboards and downloads. Reason: {reason}",
                 f"/publication/holds/{snap.pk}/",
                 key=f"publication-released:{snap.pk}",
+            )
+    return scan
+
+
+def may_certify(user, snap: Snapshot) -> bool:
+    """Whether the user may certify a hold: a member of the filing's organization who may confirm filings in its module (navigation
+    review D9, Jake 2026-11-04: the PA that filed is the right one to say what the scan found is not personal information)."""
+    return bool(user and user.is_authenticated) and access.has_permission(user, snap.organisation, f"{module_of(snap)}.confirm")
+
+
+@transaction.atomic
+def certify_hold(actor, snap: Snapshot, reason: str) -> PIIScan:
+    """The filing organization's confirmer certifies, with the reason, that what the scan found is not personal information, which
+    releases the hold (navigation review D9). Audited under the organization; the CPUC system administrators and the organization's
+    other confirmers are told. The CPUC keeps its own release and rescan (release_hold, rescan)."""
+    from cedars.services.notifications import service as notifications
+
+    if not may_certify(actor, snap):
+        raise access.AccessDenied(f"Only those who confirm {snap.organisation.code}'s filings here certify its held publication.")
+    if not reason.strip():
+        raise access.AccessDenied("Give the reason: why what the scan found is not personal information.")
+    scan = PIIScan.objects.select_for_update().get(snapshot=snap)
+    if not scan.held:
+        raise access.AccessDenied("That publication is not held.")
+    scan.outcome, scan.released_by, scan.released_at, scan.release_reason = PIIScan.Outcome.CERTIFIED, actor, timezone.now(), reason
+    scan.save()
+    audit.record(
+        "snapshot.hold_certified",
+        obj=snap,
+        before={"outcome": "held"},
+        after={"outcome": "certified"},
+        reason=reason,
+        actor=actor,
+        organisation=snap.organisation,
+    )
+    rebuild(snap.dataset, f"{label(snap.version)} released: {snap.organisation.code} certified the publication scan's findings")
+    who = actor.name or actor.email
+    for user in owners(snap):
+        if user != actor:
+            notifications.notify(
+                user,
+                f"Publication released by {snap.organisation.code}: {label(snap.version)}",
+                f"{who} certified for {snap.organisation.code} that what the publication scan found is not personal information, which "
+                f"released it to the public dashboards and downloads. Reason: {reason}",
+                f"/publication/holds/{snap.pk}/",
+                key=f"publication-certified:{snap.pk}",
             )
     return scan
 

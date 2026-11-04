@@ -30,8 +30,10 @@ header is how many items wait on you. Items with a due date come first; overdue 
 <h2>Publication holds</h2>
 <p>Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may be
 personal information. A filing with a hit is held, and the public data keep what was published before. The filing's organization sees
-its own holds on <a href="{% url 'snapshots:holds' %}">Publication holds</a>; CPUC system administrators see every hold and release it
-once the records are corrected or found safe.</p>
+its own holds on <a href="{% url 'snapshots:holds' %}">Publication holds</a>. If the values the scan found are not personal
+information, one of the organization's confirmers certifies that, with the reason, and the filing is published; the certification is
+audited and the CPUC system administrators are told. Otherwise the organization corrects the filing. CPUC system administrators see
+every hold and can release one or scan it again after changing the scan settings.</p>
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>: what a reopened filing's new draft

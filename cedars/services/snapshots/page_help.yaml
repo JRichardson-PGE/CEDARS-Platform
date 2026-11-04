@@ -6,7 +6,8 @@ snapshots/holds:
   guide:
     - Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may
       be personal information. A filing with a hit is held, and the public data keep what was published before.
-    - The filing's organization sees its own holds here; CPUC system administrators see every hold and release them.
+    - The filing's organization sees its own holds here, and those who confirm its filings certify a hold whose findings are not
+      personal information, which releases it. CPUC system administrators see every hold and can release them too.
   how:
     - Open a held filing to see which columns matched, how many records, masked examples and the first record IDs.
     - System administrators change what the scan looks for on the Publication scan settings page.
@@ -16,7 +17,7 @@ snapshots/holds:
       text: Filings held by the scan and not yet released or replaced by a corrected version.
     - heading: Released or replaced
       title: Released or replaced
-      text: Holds an administrator released, with the reason, and holds a newer version replaced.
+      text: Holds the filing organization certified or an administrator released, with the reason, and holds a newer version replaced.
 
 snapshots/hold:
   title: A held publication
@@ -29,7 +30,8 @@ snapshots/hold:
       like; never the value), to look into them in the filing.
     - If the values are personal information, the filing's organization corrects the filing (un-confirm it before the due date, or
       request a correction after it). The corrected version is scanned in its own right.
-    - If they are not, a CPUC system administrator gives the reason and releases it, or changes the scan settings and scans it again.
+    - If they are not, someone who confirms the organization's filings certifies that with the reason, which releases it (Certify and
+      release). A CPUC system administrator can also release it, or change the scan settings and scan it again.
   tour:
     - heading: What the scan found
       title: What the scan found
@@ -41,6 +43,10 @@ snapshots/hold:
     - heading: What happens next
       title: What happens next
       text: How a held filing is corrected or released.
+      optional: true
+    - heading: Certify it is not personal information
+      title: Certify it
+      text: For those who confirm the organization's filings. Give the reason; the release is audited and the CPUC is told.
       optional: true
     - heading: Release it
       title: Release it

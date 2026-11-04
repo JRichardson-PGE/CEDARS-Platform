@@ -6,6 +6,7 @@
 <p>
   {% if scan.held and not superseded %}<span class="status warn">Held</span> This filing is confirmed, but its records are not in the public dashboards and record downloads: the publication scan found what may be personal information. The public data keep showing what was published before.
   {% elif scan.held %}<span class="status">Replaced</span> A newer version of this filing is published, so this one was never released.
+  {% elif scan.outcome == "certified" %}<span class="status ok">Certified</span> {{ scan.released_by|person }} certified for {{ snap.organisation.code }} {{ scan.released_at|date_words }} that what the scan found is not personal information, which released it: {{ scan.release_reason }}
   {% else %}<span class="status ok">Released</span> {{ scan.released_by|person }} released it {{ scan.released_at|date_words }}: {{ scan.release_reason }}{% endif %}
 </p>
 
@@ -34,8 +35,19 @@
 <h2 id="next-h">What happens next</h2>
 <ul>
   <li>If these are personal information, the filing's organization corrects the filing: un-confirm it before the due date and upload it again, or request a correction after the due date. The corrected version is scanned in its own right.</li>
-  <li>If they are not (a measure code that looks like an account number, say), a CPUC system administrator releases it with the reason, or changes the <a href="{% url 'snapshots:scan_settings' %}">publication scan settings</a> and scans it again.</li>
+  <li>If they are not (a measure code that looks like an account number, say), someone who confirms {{ snap.organisation.code }}'s filings certifies that with the reason, which releases it. The CPUC system administrators are told.</li>
+  <li>A CPUC system administrator can also release it, or change the <a href="{% url 'snapshots:scan_settings' %}">publication scan settings</a> for a false hit the scan should not make again and scan it again.</li>
 </ul>
+{% if may_certify %}
+<div class="card">
+  <h3>Certify it is not personal information</h3>
+  <form method="post" class="stack form-narrow">{% csrf_token %}<input type="hidden" name="action" value="certify">
+    <p><label for="certify-reason">Reason: why what the scan found is not personal information</label><textarea id="certify-reason" name="reason" rows="3" required aria-describedby="certify-help"></textarea></p>
+    <p class="small muted" id="certify-help">You certify this for {{ snap.organisation.code }}. It releases the records to the public dashboards and downloads, and is recorded in the audit log with your name and the reason.</p>
+    <div class="actions"><button type="submit" class="primary">Certify and release</button></div>
+  </form>
+</div>
+{% endif %}
 {% if sysadmin %}
 <div class="card">
   <h3>Release it</h3>
