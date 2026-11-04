@@ -1,0 +1,32 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Reference data are what the calculation engine and the filings read besides your own inputs: the avoided cost calculators (ACCs),
+eTRM packs, the impact profile library, statewide allocation factors and cost-test sets. Every run and every filing records the
+versions it used, so a result can always be traced to its data.</p>
+<h2>Data packs</h2>
+<ol>
+  <li><a href="{% url 'refdata:index' %}">Data packs</a> lists every pack with its status and files, each with its SHA-256 checksum.</li>
+  <li>A draft pack can be used for analysis runs but not for filings. A pack is published once it passes its tie-outs; a published pack
+  is never changed, and a withdrawn one keeps the runs that used it.</li>
+</ol>
+<h2>Statewide allocation factors</h2>
+<p>The <a href="{% url 'administration:allocations' %}">statewide allocation factors</a> are each funding PA's share of each statewide
+program, by year. Anyone can read the confirmed versions; signed in, you see every version. A confirmed version never changes. The
+funding PAs manage the factors: a member with the permission loads a draft from a factor file and confirms or discards it, and the
+other funding PAs are told. A run that names no version uses the most recently confirmed one for its program year.</p>
+<h2>Cost-test sets</h2>
+<ul class="links">
+  <li>A <a href="{% url 'refdata:cost_tests' %}">cost-test set</a> says which value streams each cost test adds up and how it shares the
+  program costs. Every run is pinned to one. A filing is priced only on a published set: the one its filing setup names, or the one in
+  force for its first program year.</li>
+  <li>Anyone signed in may <a href="{% url 'refdata:build_start' %}">build a set</a>, usually from a copy of a registered set, and price
+  their own analysis runs on it from New run. Only the CPUC registers a set for filings.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:recet_docs' %}">Engine documentation</a>: the calculation engine's reference, including the cost tests and
+  the allocation table's layout.</li>
+  <li><a href="{% url 'core:help_guide' 'impact-profiles' %}">Impact profiles</a>.</li>
+  <li><a href="{% url 'core:help_guide' 'calculations' %}">Cost-effectiveness runs</a>.</li>
+</ul>
+{% endblock %}

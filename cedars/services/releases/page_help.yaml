@@ -2,7 +2,7 @@
 
 releases/index:
   title: Release notes
-  see: getting-started
+  see: releases
   guide:
     - >-
       Every change to CEDARS' specifications, validation rules, limits and system, announced before it takes effect. Coming changes are
@@ -31,7 +31,7 @@ releases/index:
 
 releases/detail:
   title: A release note
-  see: getting-started
+  see: releases
   guide:
     - >-
       One announced change: what changes and why, the day it takes effect, the platform release it ships in (or that it needs no new
@@ -57,7 +57,7 @@ releases/detail:
 
 releases/limits:
   title: Limits
-  see: getting-started
+  see: releases
   guide:
     - >-
       Every limit CEDARS applies now, read from the setting that enforces it: upload sizes and files per upload, calculation run sizes,
@@ -81,7 +81,7 @@ releases/limits:
 
 releases/manage:
   title: Write release notes
-  see: getting-started
+  see: releases
   guide:
     - >-
       For CPUC system administrators. Draft a release note, list its changes and publish it before they take effect: at least the
@@ -109,7 +109,7 @@ releases/manage:
 
 releases/edit:
   title: A draft release note
-  see: getting-started
+  see: releases
   guide:
     - >-
       For CPUC system administrators. List the note's changes, each with its kind, the part of CEDARS it touches, what changes and what
@@ -131,7 +131,7 @@ releases/edit:
 
 releases/mandates:
   title: CPUC-mandated changes
-  see: getting-started
+  see: releases
   guide:
     - >-
       The register of changes to CEDARS' data or calculations that CPUC decisions and resolutions require: the decision or resolution,
@@ -157,7 +157,7 @@ releases/mandates:
 
 releases/mandate:
   title: A CPUC-mandated change
-  see: getting-started
+  see: releases
   guide:
     - >-
       One entry of the register: the decision or resolution and a link to it, what it requires of CEDARS, when it takes effect, its
@@ -178,7 +178,7 @@ releases/mandate:
 
 releases/mandates_manage:
   title: Keep the register of CPUC-mandated changes
-  see: getting-started
+  see: releases
   guide:
     - >-
       For CPUC system administrators. Draft an entry for each decision or resolution that changes CEDARS' data or calculations, link
@@ -197,7 +197,7 @@ releases/mandates_manage:
 
 releases/mandate_edit:
   title: An entry of the register
-  see: getting-started
+  see: releases
   guide:
     - >-
       For CPUC system administrators. Link the records that carry the change (each must exist and be published), change the entry, and

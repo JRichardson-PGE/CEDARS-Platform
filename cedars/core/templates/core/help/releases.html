@@ -1,0 +1,34 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Every change to CEDARS' specifications, validation rules, limits and system is announced in the
+<a href="{% url 'releases:index' %}">release notes</a> before it takes effect. A note is published at least the usual notice period
+before its changes take effect; one published at shorter notice says why. A published note never changes: if a plan changes, the note
+is withdrawn (it stays listed, marked, with the reason) and a new one is published.</p>
+<h2>For everyone</h2>
+<ul class="links">
+  <li><a href="{% url 'releases:index' %}">Release notes</a>: coming changes first, then the release this site runs and every earlier
+  note. Subscribe to hear of new notes.</li>
+  <li><a href="{% url 'limits:index' %}">Limits</a>: every limit CEDARS applies now (upload sizes, run sizes, download sizes, API
+  rates), with any change that is coming and its date.</li>
+  <li><a href="{% url 'dictionary:changes' %}">Specification change log</a>: every version of the data dictionary, the value lists and
+  the rule sets.</li>
+  <li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a>: each decision or resolution that changes CEDARS' data or
+  calculations, what it requires, when it takes effect, how far CEDARS has implemented it and where CEDARS carries it.</li>
+</ul>
+<h2>For CPUC system administrators</h2>
+<ol>
+  <li><a href="{% url 'releases:manage' %}">Write a release note</a>: list each change with its kind, the part of CEDARS it touches,
+  what changes and what people need to do, then publish it with a date after today. Publishing tells everyone subscribed and shows a
+  banner on every page until it takes effect.</li>
+  <li>The check at the top of that page says whether the running release has its note, whether every limit in effect matches what the
+  site applies, and whether the user guides were revised for the releases that changed their part of CEDARS.</li>
+  <li><a href="{% url 'mandates:manage' %}">Keep the register</a>: draft an entry for each decision or resolution, link the rule set,
+  dictionary version, value list, field, reference data or release note that carries it, and publish it. The register is public:
+  enter only what the CPUC's public document says.</li>
+</ol>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_guide' 'rules-and-lists' %}">Validation rules and value lists</a>.</li>
+  <li><a href="{% url 'core:help_guide' 'administering' %}">Administering CEDARS</a>.</li>
+</ul>
+{% endblock %}

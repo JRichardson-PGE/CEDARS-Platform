@@ -1,0 +1,54 @@
+{% extends "core/help/guide.html" %}
+{% block guide %}
+<p>Administration is shared. Each organization's own administrators manage its members and their permissions; the CPUC assigns only an
+organization's first administrator. CPUC system administrators keep the organizations, role templates, access settings, retention and
+the system itself. Every change is recorded in the <a href="{% url 'administration:audit' %}">audit log</a>, with who made it, for which
+organization, why, and the record before and after.</p>
+<h2>An organization's administrators</h2>
+<ol>
+  <li>Open your organization from <a href="{% url 'administration:organisations' %}">Organizations</a>. Its page lists its codes, members
+  and their permissions, access requests waiting for a decision, its yearly recertification and its members' API tokens.</li>
+  <li>Approve or decline each access request. A request for personal information (PII) also needs a CPUC data steward's approval after
+  yours.</li>
+  <li>Grant a member a single permission, or a role template (such as Evaluator or Consultant) to give every permission of that role
+  at once. Revoke a permission, or remove a member, when it is no longer needed.</li>
+  <li>When a recertification opens, certify each grant to keep it or remove it by the due date. A grant not certified in time may be
+  suspended, as the access settings say; Reinstate restores it.</li>
+</ol>
+<h2>CPUC system administrators</h2>
+<ul class="links">
+  <li><a href="{% url 'administration:organisations' %}">Organizations</a>: add an organization by its CEDARS code and name, assign its
+  first administrator, change its name or PA type, rename its code (the history is kept) or merge in an organization recorded under a
+  former code.</li>
+  <li><a href="{% url 'administration:role_templates' %}">Role templates</a>: named bundles of module permissions that organization
+  administrators grant. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
+  decision of its own.</li>
+  <li><a href="{% url 'administration:settings' %}">Access settings</a>: how often grants are recertified, whether grants not certified
+  are suspended, and whether PII is only for federated organizations and sessions.</li>
+  <li><a href="{% url 'administration:stewardship' %}">Data stewardship</a>: CPUC data stewards approve PII access, and a change to the
+  PII rules takes one steward to propose and a second to confirm.</li>
+  <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a>: change a deadline's due date, opening date or notes on its page,
+  with a reason; those who follow the calendar are told.</li>
+  <li><a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a>: load each CPUC decision's goals from the templates; a
+  second administrator confirms them.</li>
+  <li><a href="{% url 'snapshots:holds' %}">Publication holds</a> and the <a href="{% url 'snapshots:scan_settings' %}">scan
+  settings</a>: what the scan for personal information looks for before a filing reaches the public data.</li>
+  <li><a href="{% url 'accessibility:files' %}">Document accessibility</a>: what the check on each stored PDF and workbook found, and
+  whether it only warns or refuses an upload.</li>
+  <li><a href="{% url 'retention:index' %}">Retention</a>: how long each class of record is kept. Nothing under a legal hold is
+  deleted.</li>
+  <li><a href="{% url 'feedback:inbox' %}">Feedback</a>: every message sent from a page's Feedback link; close each with a note on what
+  was done.</li>
+  <li><a href="{% url 'administration:health' %}">Jobs and health</a>: every health check, failing first; every system administrator is
+  told when one starts failing. <a href="{% url 'calculations:engines' %}">Engine releases</a> is where the site moves to a new release
+  of the calculation engine.</li>
+</ul>
+<h2>Learn more</h2>
+<ul class="links">
+  <li><a href="{% url 'core:help_guide' 'reviewing' %}">Reviewing and approving</a>: the decisions waiting in My queue.</li>
+  <li><a href="{% url 'core:help_guide' 'releases' %}">Release notes and mandated changes</a>: announcing a change before it takes
+  effect.</li>
+  <li><a href="{% url 'core:help_guide' 'rules-and-lists' %}">Validation rules and value lists</a>.</li>
+  <li><a href="{% url 'core:help_guide' 'getting-started' %}">Getting started</a>: accounts, the second factor and API tokens.</li>
+</ul>
+{% endblock %}
