@@ -1,6 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Your downloads · Record downloads{% endblock %}
 {% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'data:records' %}">Record downloads</a></li></ol></nav>
 <nav class="subnav" aria-label="Data pages">
   <a href="{% url 'data:dashboards' %}">Portfolio dashboard</a>
   <a href="{% url 'data:records' %}">Record downloads</a>

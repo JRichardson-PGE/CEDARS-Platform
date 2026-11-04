@@ -166,3 +166,23 @@ def before_upload(
         if url:
             parts.append({"url": url, "label": guide_label or "the user guide"})
     return {"parts": parts}
+
+
+@register.inclusion_tag("core/_section_nav.html", takes_context=True)
+def section_nav(context, menu: str):
+    """A section's sub-navigation (navigation review D4): the items of one header menu the visitor sees, as the sub-navigation under the
+    header on that section's pages. Nothing when the visitor sees fewer than two of them (a signed-out visitor on a public page)."""
+    from cedars.core import nav
+
+    shown = next((m for m in context.get("menus") or () if m.key == menu), None)
+    links = [x for _, items in shown.groups for x in items] if shown and not shown.link else []
+    request = context.get("request")
+    here = nav.view_name(request) if request else ""
+    best = nav.holder(here, links) if here else None
+    out = []
+    for item, url in links:
+        current = ""
+        if best and best[1] == url:
+            current = "page" if request.path == url else "true"
+        out.append({"label": item.label, "url": url, "current": current})
+    return {"label": shown.label if shown else "", "links": out if len(out) > 1 else []}

@@ -126,9 +126,9 @@ def test_an_approver_sees_what_waits(signed_in, cpuc_admin, cpuc, pge, filer, fi
 def test_the_menu_holding_the_page_is_highlighted(signed_in, pge_admin, path, key):
     html = signed_in(pge_admin).get(path).content.decode()
     h = header(html)
-    current = re.findall(r'data-tour="nav-([a-z]+)"(?: class="current"| aria-current="page")', h)
+    current = re.findall(r'data-tour="nav-([a-z]+)"(?: class="current"| aria-current="(?:page|true)")', h)
     assert current == [key], (path, current)
-    assert h.count('aria-current="page"') == 1
+    assert len(re.findall(r'aria-current="(?:page|true)"', h)) == 1
 
 
 def test_the_engine_documentation_moved_under_calculations(client):
@@ -168,3 +168,144 @@ def test_every_menu_item_opens_for_those_it_is_shown_to(signed_in, cpuc_admin, c
     for item in nav.items(nav.roles_of(cpuc_admin)):
         r = c.get(nav.reverse(item.url_name), follow=True)
         assert r.status_code == 200, item.url_name
+
+
+# Navigation review D4 (Jake, 2026-11-04): the highlighted menu is set by the page, not its address; every page below a menu item has a
+# breadcrumb back to it; a section with several sibling pages has a sub-navigation.
+
+
+def _view_names() -> set[str]:
+    from django.urls import get_resolver
+
+    names = set()
+
+    def walk(res, ns=None):
+        for p in res.url_patterns:
+            if hasattr(p, "url_patterns"):
+                walk(p, ":".join(x for x in (ns, p.namespace) if x) if p.namespace else ns)
+            elif p.name:
+                names.add(f"{ns}:{p.name}" if ns else p.name)
+
+    walk(get_resolver())
+    return names
+
+
+def test_every_page_belongs_to_a_menu_item_or_to_none():
+    from fnmatch import fnmatchcase
+
+    every = [i for m in nav.MENUS for i in m.items]
+    lost = sorted(
+        n
+        for n in _view_names()
+        if not nav.in_no_menu(n) and not any(fnmatchcase(n, p) for p in nav.SHARED) and not any(i.holds(n) for i in every)
+    )
+    assert not lost, f"give these pages an item in core/nav.py (Item.pages), or list them in NO_MENU or SHARED: {lost}"
+
+
+def test_the_most_specific_item_holds_a_page():
+    every = [(i,) for m in nav.MENUS for i in m.items]
+    cases = {
+        "budgets:filing": "budgets:index",
+        "budgets:shift_new": "budgets:shifts",
+        "budgets:operating": "budgets:shifts",
+        "budgets:change_letter": "budgets:changes",
+        "claims:change_letter": "claims:changes",
+        "calculations:run": "calculations:runs",
+        "calculations:draft_row": "calculations:drafts",
+        "calculations:engine_release": "calculations:engines",
+        "core:recet_doc": "core:recet_docs",
+        "documents:aging": "documents:studies",
+        "documents:document": "documents:library",
+        "deer_resources:home": "documents:library",
+        "dictionary:code": "dictionary:lists",
+        "dictionary:field": "dictionary:index",
+        "refdata:build_test": "refdata:cost_tests",
+        "refdata:detail": "refdata:index",
+        "mandates:detail": "mandates:index",
+        "mandates:edit": "mandates:manage",
+        "administration:allocation": "administration:allocations",
+        "administration:organisation": "administration:organisations",
+        "snapshots:hold": "snapshots:holds",
+    }
+    for page, item in cases.items():
+        assert nav.holder(page, every)[0].url_name == item, page
+    assert nav.holder("releases:index", every) is None and nav.holder("administration:account", every) is None
+
+
+def test_a_filing_s_records_highlight_its_own_item():
+    class Request:
+        nav_item = ""
+        path = "/filings/versions/1/records/"
+
+        class resolver_match:  # noqa: N801
+            view_name = "submissions:records"
+
+    r = Request()
+    nav.belongs_to(r, "claims:index")
+    shown = nav.header(r, {"", "user", "member"})
+    current = [(s.key, s.current_url) for s in shown if s.current]
+    assert current == [("filings", "/claims/")]
+    assert not any(s.current_exact for s in shown)  # a page below the item: aria-current="true", not "page"
+
+
+def test_a_page_below_an_item_is_marked_true_and_its_own_page_page(signed_in, pge_admin):
+    c = signed_in(pge_admin)
+    h = header(c.get("/budgets/shifts/").content.decode())
+    assert '<a href="/budgets/shifts/" aria-current="page">' in h
+    h = header(c.get("/dictionary/lists/").content.decode())
+    assert '<a href="/dictionary/lists/" aria-current="page">' in h
+    html = c.get("/documents/lists/").content.decode()
+    assert '<a href="/documents/" aria-current="true">' in header(html)
+
+
+TOP_PAGES = {
+    # A menu item's own page, or a page in no menu (core/nav.py NO_MENU): no breadcrumb.
+    "accessibility/files", "administration/account", "administration/allocations", "administration/audit", "administration/goal_sets",
+    "administration/health", "administration/organisations", "administration/role_templates", "administration/settings",
+    "administration/stewardship", "budgets/index", "calculations/runs", "claims/index", "data/dashboard", "data/front", "data/records",
+    "data/views", "dictionary/index", "feedback/form", "feedback/inbox", "monthly/index", "notifications/index", "programs/catalog",
+    "refdata/index", "releases/index", "releases/limits", "releases/mandates", "retention/index", "rules/index", "snapshots/holds",
+    "submissions/calendar", "submissions/reopen_requests", "core/about", "core/help/index", "core/queue", "core/search",
+}  # fmt: skip
+CRUMBS = ('aria-label="Breadcrumb"', "_record_crumbs", "documents/_subnav.html", "impact_profiles/_nav.html", "refdata/builder/base.html")
+
+
+def test_every_page_below_a_menu_item_has_a_breadcrumb():
+    from pathlib import Path
+
+    from cedars.core import page_help
+
+    missing = []
+    for p in sorted(Path(page_help.ROOT).rglob("templates/**/*.html")):
+        key = str(p).split("/templates/", 1)[1].removesuffix(".html")
+        if key.startswith(("account/", "mfa/", "allauth/")):  # sign-in pages: in no menu
+            continue
+        text = p.read_text(encoding="utf-8")
+        if "<h1" in text and key not in TOP_PAGES and not any(c in text for c in CRUMBS):
+            missing.append(key)
+    assert not missing, f"add a breadcrumb back to the page's menu item: {missing}"
+
+
+@pytest.mark.parametrize(
+    "path,crumb",
+    [
+        ("/impact-profiles/packages/", "/impact-profiles/"),
+        ("/documents/studies/aging/", "/documents/studies/"),
+        ("/documents/lists/", "/documents/"),
+        ("/data/downloads/", "/data/records/"),
+    ],
+)
+def test_section_pages_keep_their_breadcrumb(signed_in, cpuc_admin, path, crumb):
+    html = signed_in(cpuc_admin).get(path).content.decode()
+    crumbs = html.split('<nav aria-label="Breadcrumb">', 1)[1].split("</nav>", 1)[0]
+    assert f'href="{crumb}"' in crumbs
+
+
+def test_reference_data_has_a_sub_navigation(signed_in, pge_admin, client):
+    c = signed_in(pge_admin)
+    for path in ("/reference-data/", "/rules/", "/dictionary/lists/", "/allocations/", "/mandates/"):
+        html = c.get(path).content.decode()
+        sub = html.split('<nav class="subnav" aria-label="Reference data">', 1)[1].split("</nav>", 1)[0]
+        assert sub.count("<a ") == 6 and f'href="{path}" aria-current="page"' in sub, path
+    client.logout()
+    assert 'aria-label="Reference data"' not in client.get("/allocations/").content.decode()  # signed out: no Reference data menu

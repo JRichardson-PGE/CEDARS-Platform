@@ -40,10 +40,13 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have). The help pages themselves
   (`page_help.WITHOUT_HELP`: a page's help on a page of its own, and the list of them) have no (?): it would be help about the help.
 - **The header is data** (navigation review D1, Jake 2026-11-04): `cedars/core/nav.py` lists the menus and who sees each item (signed
-  out, a member of no organization, a member, approver, administrators); the highlighted menu follows the items' paths. A page added to
-  the header is an item there, with its help key and words in `core/search.py`'s HELP_KEYS. Published data is what anyone may read;
+  out, a member of no organization, a member, approver, administrators); the highlighted menu is set by the page (each item's `pages`,
+  view names), not its address (D4). A page added to the header is an item there, with its help key and words in `core/search.py`'s HELP_KEYS. Published data is what anyone may read;
   Reference data is what runs and filings are priced and checked against. Each page is listed once (cost-test sets under Reference data,
   engine releases under Calculations).
+- **Breadcrumbs and sub-navigation** (navigation review D4): every page below a menu item has a breadcrumb back to it; a section with
+  several sibling pages adds a sub-navigation and keeps the breadcrumb (`{% section_nav "<menu>" %}` draws one from a header menu). A new
+  page's view name is held by an item in `core/nav.py` or listed in its NO_MENU / SHARED (tests/test_navigation.py fails otherwise).
 - **Before you upload** (navigation review D3): every data file control has `{% before_upload %}` beside it (the template, the field
   definitions, the rules in force, the guide); tests/test_before_upload.py fails on a new multipart form without it.
 - **Release notes, limits and guides** (BR-12.1, 12.5; `cedars/services/releases`). A limit people meet is a setting listed in

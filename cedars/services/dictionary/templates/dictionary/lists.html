@@ -2,6 +2,7 @@
 {% block title %}Value lists{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li></ol></nav>
+{% section_nav "reference" %}
 <div class="page-title"><h1>Value lists</h1>{% page_help "dictionary/lists" %}</div>
 <p>The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check values
 against. Each list is kept in versions: the version in force on a date is the newest published one effective by then, and until a list
