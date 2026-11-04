@@ -19,7 +19,7 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
-from . import faq, page_help
+from . import faq, nav, page_help
 from . import help as site_help
 
 PER_PART = 8  # the matches each part shows; "See all" links to that part's own page for more
@@ -28,62 +28,105 @@ MAX_QUERY = 200  # characters kept of a query
 
 @dataclass(frozen=True)
 class Page:
-    """A page the header links to: its URL name, the key of its help entry (title and description) and who sees it in the header."""
+    """A page search lists by name: its URL name, the key of its help entry (title and description) and who sees it (core/nav.py's
+    `who` values: any one is enough)."""
 
     url_name: str
     help_key: str
-    who: str = ""  # "" everyone; "user" signed in; "sysadmin"; "admin" (system or organization administrator); "steward"
+    who: tuple[str, ...] = ("",)
     words: str = ""  # other words it is known by
 
 
-# The header's pages and the footer's (core/base.html), in its order, with who the header shows each one to. A page added to the header
-# is added here (tests/test_search.py checks every header link is).
-PAGES = [
-    Page("core:home", "data/front", words="home front page program cycle"),
-    Page("data:dashboards", "data/dashboard", words="portfolio dashboard charts"),
-    Page("programs:catalog", "programs/catalog", words="programs list prgid"),
-    Page("programs:fields", "programs/fields"),
-    Page("programs:requests", "programs/requests", "user"),
-    Page("budgets:index", "budgets/index", "user", "filings budget filing"),
-    Page("claims:index", "claims/index", "user", "filings claim"),
-    Page("monthly:index", "monthly/index", "user", "filings monthly report"),
-    Page("submissions:calendar", "submissions/calendar", words="filings due dates deadlines"),
-    Page("calculations:runs", "calculations/runs", "user", "calculations recet cet cost effectiveness run"),
-    Page("calculations:drafts", "calculations/drafts", "user", "calculations recet"),
-    Page("calculations:templates", "calculations/templates", "user", "calculations recet"),
-    Page("impact_profiles:library", "impact_profiles/library", "user", "load shapes"),
-    Page("core:recet_docs", "core/help/recet_docs", words="calculations cet engine"),
-    Page("calculations:engines", "calculations/engines", "sysadmin", "recet"),
-    Page("data:records", "data/records", words="download records data"),
-    Page("documents:library", "documents/library", words="pda psr emv deer"),
-    Page("dictionary:index", "dictionary/index", words="fields data dictionary"),
-    Page("dictionary:lists", "dictionary/lists", words="codes"),
-    Page("rules:index", "rules/index", "user", "validation"),
-    Page("refdata:index", "refdata/index", "user", "acc avoided costs data packs"),
-    Page("administration:allocations", "administration/allocations", "user", "statewide sw"),
-    Page("administration:organisations", "administration/organisations", "admin", "organisations"),
-    Page("administration:stewardship", "administration/stewardship", "steward"),
-    Page("administration:goal_sets", "administration/goal_sets", "sysadmin", "goals savings targets decision tsb gwh template"),
-    Page("retention:index", "retention/index", "sysadmin"),
-    Page("snapshots:holds", "snapshots/holds", "sysadmin", "publication"),
-    Page("accessibility:files", "accessibility/files", "sysadmin"),
-    Page("administration:health", "administration/health", "sysadmin"),
-    Page("administration:settings", "administration/settings", "sysadmin"),
-    Page("administration:role_templates", "administration/role_templates", "sysadmin", "roles permissions"),
-    Page("feedback:inbox", "feedback/inbox", "sysadmin"),
-    Page("administration:audit", "administration/audit", "admin", "log history"),
-    Page("core:queue", "core/queue", "user", "my queue work waiting"),
-    Page("notifications:index", "notifications/index", "user"),
-    Page("administration:account", "administration/account", "user", "my account api token profile"),
-    Page("core:help", "core/help/index", words="support"),
-    Page("core:help_faq", "core/help/faq", words="faq questions"),
-    Page("core:help_contact", "core/help/contact", words="support email"),
-    Page("core:about", "core/about"),
-    Page("releases:index", "releases/index", words="changes what's new"),
-    Page("limits:index", "releases/limits"),
-    Page("mandates:index", "releases/mandates", words="mandated changes"),
-    Page("feedback:form", "feedback/form"),
-]
+# Each page's help entry and other words it is known by. The header's pages (core/nav.py, listed to whoever the header shows them) and the
+# footer's; tests/test_search.py checks every page the header or footer links to is here.
+HELP_KEYS = {
+    "core:home": ("data/front", "home front page program cycle"),
+    "data:dashboards": ("data/dashboard", "portfolio dashboard charts"),
+    "programs:catalog": ("programs/catalog", "programs list prgid"),
+    "budgets:index": ("budgets/index", "filings budget filing"),
+    "budgets:shifts": ("budgets/shifts", "filings fund shift operating budget"),
+    "claims:index": ("claims/index", "filings claim"),
+    "monthly:index": ("monthly/index", "filings monthly report"),
+    "submissions:calendar": ("submissions/calendar", "filings due dates deadlines"),
+    "rules:check": ("rules/check", "filings validation rules check upload"),
+    "submissions:reopen_requests": ("submissions/reopen_requests", "filings correction corrections reopen approve"),
+    "budgets:changes": ("budgets/changes", "change log letters corrections"),
+    "claims:changes": ("claims/changes", "change log letters corrections"),
+    "monthly:changes": ("monthly/changes", "change log letters corrections"),
+    "calculations:runs": ("calculations/runs", "calculations recet cet cost effectiveness run"),
+    "calculations:new": ("calculations/new", "calculations recet cet cost effectiveness run"),
+    "calculations:drafts": ("calculations/drafts", "calculations recet"),
+    "calculations:templates": ("calculations/templates", "calculations recet"),
+    "impact_profiles:library": ("impact_profiles/library", "load shapes"),
+    "core:recet_docs": ("core/help/recet_docs", "calculations cet engine recet documents"),
+    "calculations:engines": ("calculations/engines", "recet"),
+    "data:records": ("data/records", "download records data"),
+    "data:views": ("data/views", "saved views dashboard"),
+    "documents:library": ("documents/library", "pda psr emv deer"),
+    "documents:studies": ("documents/studies", "emv evaluation studies work orders"),
+    "dictionary:index": ("dictionary/index", "fields data dictionary"),
+    "refdata:index": ("refdata/index", "acc avoided costs data packs reference data"),
+    "refdata:cost_tests": ("refdata/cost_tests", "cost tests trc pac builder yaml"),
+    "administration:allocations": ("administration/allocations", "statewide sw"),
+    "rules:index": ("rules/index", "validation"),
+    "dictionary:lists": ("dictionary/lists", "codes value lists"),
+    "mandates:index": ("releases/mandates", "mandated changes"),
+    "administration:organisations": ("administration/organisations", "organisations"),
+    "administration:role_templates": ("administration/role_templates", "roles permissions"),
+    "administration:stewardship": ("administration/stewardship", ""),
+    "administration:settings": ("administration/settings", "access settings"),
+    "administration:audit": ("administration/audit", "log history"),
+    "administration:goal_sets": ("administration/goal_sets", "goals savings targets decision tsb gwh template"),
+    "snapshots:holds": ("snapshots/holds", "publication"),
+    "accessibility:files": ("accessibility/files", ""),
+    "retention:index": ("retention/index", ""),
+    "releases:manage": ("releases/manage", "release notes write"),
+    "mandates:manage": ("releases/mandates_manage", "mandated changes register"),
+    "feedback:inbox": ("feedback/inbox", ""),
+    "administration:health": ("administration/health", ""),
+    "core:queue": ("core/queue", "my queue work waiting"),
+    "notifications:index": ("notifications/index", ""),
+    "administration:account": ("administration/account", "my account api token profile"),
+    "programs:fields": ("programs/fields", ""),
+    "programs:requests": ("programs/requests", ""),
+    "core:help": ("core/help/index", "support"),
+    "core:help_faq": ("core/help/faq", "faq questions"),
+    "core:help_contact": ("core/help/contact", "support email"),
+    "core:about": ("core/about", ""),
+    "releases:index": ("releases/index", "changes what's new"),
+    "limits:index": ("releases/limits", ""),
+    "feedback:form": ("feedback/form", ""),
+}
+# Pages outside the menus, and who may open them.
+OTHER_PAGES = {
+    "core:home": ("",),
+    "programs:fields": ("",),
+    "programs:requests": ("user",),
+    "core:queue": ("member",),
+    "notifications:index": ("user",),
+    "administration:account": ("user",),
+    "core:help": ("",),
+    "core:help_faq": ("",),
+    "core:help_contact": ("",),
+    "core:about": ("",),
+    "releases:index": ("",),
+    "limits:index": ("",),
+    "feedback:form": ("",),
+}
+
+
+def _pages() -> list[Page]:
+    """The menus' pages, each with every role any of its menu items shows it to, then the pages outside the menus."""
+    who: dict[str, set[str]] = {}
+    for m in nav.MENUS:
+        for i in m.items:
+            who.setdefault(i.url_name, set()).update(i.who)
+    for name, roles in OTHER_PAGES.items():
+        who.setdefault(name, set()).update(roles)
+    return [Page(name, HELP_KEYS[name][0], tuple(sorted(r)), HELP_KEYS[name][1]) for name, r in who.items()]
+
+
+PAGES = _pages()
 
 
 @dataclass(frozen=True)
@@ -138,18 +181,7 @@ def _part(key, title, hits, more_url="", more_text="") -> Part:
 
 
 def _roles(user) -> set[str]:
-    if not user.is_authenticated:
-        return {""}
-    from cedars.services.accounts import service as access
-
-    roles = {"", "user"}
-    if access.is_system_admin(user):
-        roles |= {"sysadmin", "admin"}
-    if access.is_steward(user):
-        roles.add("steward")
-    if any(access.is_org_admin(user, o) for o in access.organisations_of(user)):
-        roles.add("admin")
-    return roles
+    return nav.roles_of(user)
 
 
 def pages(user, terms) -> Part:
@@ -157,7 +189,7 @@ def pages(user, terms) -> Part:
     entries = page_help.entries()
     items = []
     for p in PAGES:
-        if p.who not in roles:
+        if not roles.intersection(p.who):
             continue
         e = entries[p.help_key]
         title = e.title.removeprefix("The ")

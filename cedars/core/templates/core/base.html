@@ -21,64 +21,11 @@
 <div class="top">
   <a class="brand" href="{% url 'core:home' %}">{# The mark is a cedar: three flat, drooping tiers of boughs on one trunk. Decorative (the link is named by its text), so hidden from assistive technology. #}<svg class="logo" viewBox="0 0 28 28" width="28" height="28" aria-hidden="true" focusable="false"><rect class="logo-bg" width="28" height="28" rx="6"/><g class="logo-tree"><path d="M13.2 6h1.6l.35 18.5h-2.3z"/><path d="M14 3.2c.9 1.3 1.5 2.5 1.7 3.6-1.1.3-2.3.3-3.4 0 .2-1.1.8-2.3 1.7-3.6z"/><path d="M9.2 10.8C11.4 9.5 12.8 7.9 14 7.9S16.6 9.5 18.8 10.8C16.4 10.7 11.6 10.7 9.2 10.8Z"/><path d="M6.4 15.3C9.8 13.7 12.1 11.9 14 11.9S18.2 13.7 21.6 15.3C17.8 15.1 10.2 15.1 6.4 15.3Z"/><path d="M3.6 20.2C8.3 18.4 11.4 16.3 14 16.3S19.7 18.4 24.4 20.2C19.2 19.9 8.8 19.9 3.6 20.2Z"/></g></svg><span>CEDARS</span></a>
   {% if user.is_authenticated and not mfa_pending %}
-  {% with here=request.path %}
-  {% comment %}Grouped navigation. Each group is a native disclosure (works without scripts); the group whose page is open is marked
-     .current and the page link inside it carries aria-current. app.js adds Escape, one-open-at-a-time and the narrow-screen Menu button.{% endcomment %}
+  {% comment %}The menus are built from what the account may do (core/nav.py). Each menu is a native disclosure (works without scripts);
+     the menu holding the open page is marked .current and its item carries aria-current. app.js adds Escape, one-open-at-a-time and the
+     narrow-screen Menu button.{% endcomment %}
   <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
-  <nav aria-label="Main" id="main-nav">
-    <a href="{% url 'data:dashboards' %}" data-tour="nav-dashboard"{% if here|slice:":6" == '/data/' and here|slice:":14" != '/data/records/' and here|slice:":16" != '/data/downloads/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
-    <a href="{% url 'programs:catalog' %}" data-tour="nav-programs"{% if here|slice:":10" == '/programs/' %} aria-current="page"{% endif %}>Programs</a>
-    <details data-tour="nav-filings"{% if here|slice:":9" == '/budgets/' or here|slice:":8" == '/claims/' or here|slice:":9" == '/monthly/' or '/filings/' in here %} class="current"{% endif %}>
-      <summary>Filings</summary>
-      <ul>
-        <li><a href="{% url 'budgets:index' %}"{% if here|slice:":9" == '/budgets/' %} aria-current="page"{% endif %}>Budgets</a></li>
-        <li><a href="{% url 'claims:index' %}"{% if here|slice:":8" == '/claims/' %} aria-current="page"{% endif %}>Claims</a></li>
-        <li><a href="{% url 'monthly:index' %}"{% if here|slice:":9" == '/monthly/' %} aria-current="page"{% endif %}>Monthly reports</a></li>
-        <li><a href="{% url 'submissions:calendar' %}"{% if '/filings/' in here %} aria-current="page"{% endif %}>Filing calendar</a></li>
-      </ul>
-    </details>
-    <details data-tour="nav-calculations"{% if '/calculations/' in here or '/impact-profiles/' in here %} class="current"{% endif %}>
-      <summary>Calculations</summary>
-      <ul>
-        <li><a href="{% url 'calculations:runs' %}"{% if '/calculations/' in here and '/engines/' not in here and '/drafts/' not in here and '/templates/' not in here %} aria-current="page"{% endif %}>Runs</a></li>
-        <li><a href="{% url 'calculations:drafts' %}"{% if '/calculations/drafts/' in here %} aria-current="page"{% endif %}>Edit inputs</a></li>
-        <li><a href="{% url 'calculations:templates' %}"{% if '/calculations/templates/' in here %} aria-current="page"{% endif %}>Output templates</a></li>
-        <li><a href="{% url 'impact_profiles:library' %}"{% if '/impact-profiles/' in here %} aria-current="page"{% endif %}>Impact profiles</a></li>
-        <li><a href="{% url 'core:recet_docs' %}"{% if '/help/recet/' in here %} aria-current="page"{% endif %}>ReCET documents</a></li>
-        {% if nav.sysadmin %}<li><a href="{% url 'calculations:engines' %}"{% if '/calculations/engines/' in here %} aria-current="page"{% endif %}>Engine releases</a></li>{% endif %}
-      </ul>
-    </details>
-    <details data-tour="nav-reference"{% if here|slice:":11" == '/documents/' or here|slice:":14" == '/data/records/' or here|slice:":16" == '/data/downloads/' or '/dictionary/' in here or '/rules/' in here or '/reference-data/' in here or here|slice:":13" == '/allocations/' %} class="current"{% endif %}>
-      <summary>Reference</summary>
-      <ul>
-        <li><a href="{% url 'data:records' %}"{% if here|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a></li>
-        <li><a href="{% url 'documents:library' %}"{% if here|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a></li>
-        <li><a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in here %} aria-current="page"{% endif %}>Data dictionary</a></li>
-        <li><a href="{% url 'rules:index' %}"{% if '/rules/' in here %} aria-current="page"{% endif %}>Validation rules</a></li>
-        <li><a href="{% url 'refdata:index' %}"{% if '/reference-data/' in here %} aria-current="page"{% endif %}>Reference data</a></li>
-        <li><a href="{% url 'administration:allocations' %}"{% if here|slice:":13" == '/allocations/' %} aria-current="page"{% endif %}>Statewide allocation factors</a></li>
-      </ul>
-    </details>
-    {% if nav.sysadmin or nav.org_admin or nav.steward %}
-    <details data-tour="nav-admin"{% if '/admin/' in here or here|slice:":13" == '/publication/' %} class="current"{% endif %}>
-      <summary>Administration</summary>
-      <ul>
-        {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:organisations' %}"{% if '/admin/organizations/' in here %} aria-current="page"{% endif %}>Organizations</a></li>{% endif %}
-        {% if nav.steward %}<li><a href="{% url 'administration:stewardship' %}"{% if '/admin/stewardship/' in here %} aria-current="page"{% endif %}>Stewardship</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'administration:goal_sets' %}"{% if '/admin/goals/' in here %} aria-current="page"{% endif %}>Energy efficiency goals</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'retention:index' %}"{% if '/admin/retention/' in here %} aria-current="page"{% endif %}>Retention</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'snapshots:holds' %}"{% if '/publication/' in here %} aria-current="page"{% endif %}>Publication holds</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'accessibility:files' %}"{% if '/admin/document-accessibility/' in here %} aria-current="page"{% endif %}>Document accessibility</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'administration:health' %}"{% if '/admin/health/' in here %} aria-current="page"{% endif %}>Jobs and health</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'administration:settings' %}"{% if '/admin/settings/' in here %} aria-current="page"{% endif %}>Settings</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'administration:role_templates' %}"{% if '/admin/role-templates/' in here %} aria-current="page"{% endif %}>Role templates</a></li>{% endif %}
-        {% if nav.sysadmin %}<li><a href="{% url 'feedback:inbox' %}"{% if '/admin/feedback/' in here %} aria-current="page"{% endif %}>Feedback</a></li>{% endif %}
-        {% if nav.sysadmin or nav.org_admin %}<li><a href="{% url 'administration:audit' %}"{% if '/admin/audit/' in here %} aria-current="page"{% endif %}>Audit</a></li>{% endif %}
-      </ul>
-    </details>
-    {% endif %}
-  </nav>
-  {% endwith %}
+  {% include "core/_nav.html" %}
   <div class="who">
     {% if request.user_organisations|length > 1 %}
     <form method="post" action="{% url 'administration:switch_organisation' %}" class="org-switch" data-tour="acting-for">{% csrf_token %}
@@ -88,7 +35,7 @@
       <button type="submit">Switch</button>
     </form>
     {% elif request.organisation %}<span class="org-badge" data-tour="acting-for"><span class="label">Acting for</span> <b>{{ request.organisation.code }}</b></span>{% endif %}
-    <a href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue</a>
+    {% if nav.member %}<a class="queue-link" href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue{% if queue_count %} <span class="count wait">{% if queue_count > 99 %}99+{% else %}{{ queue_count }}{% endif %}</span><span class="sr-only"> waiting</span>{% endif %}</a>{% endif %}
     <a class="bell" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}>Notifications{% if unread_notifications %} <span class="count">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span><span class="sr-only"> unread</span>{% endif %}</a>
     <a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a>
     <a href="{% url 'administration:account' %}" data-tour="account"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
@@ -100,12 +47,7 @@
   {% else %}
   {# The public header has the same narrow-screen Menu button as the signed-in one (UI review 2, #42). #}
   <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
-  <nav aria-label="Main" id="main-nav">
-    <a href="{% url 'data:dashboards' %}" data-tour="nav-dashboard"{% if request.path|slice:":6" == '/data/' and request.path|slice:":14" != '/data/records/' %} aria-current="page"{% endif %}>Portfolio dashboard</a>
-    <a href="{% url 'data:records' %}" data-tour="nav-records"{% if request.path|slice:":14" == '/data/records/' %} aria-current="page"{% endif %}>Record downloads</a>
-    <a href="{% url 'documents:library' %}" data-tour="nav-reference"{% if request.path|slice:":11" == '/documents/' %} aria-current="page"{% endif %}>Documents</a>
-    <a href="{% url 'dictionary:index' %}"{% if '/dictionary/' in request.path %} aria-current="page"{% endif %}>Data dictionary</a>
-  </nav>
+  {% include "core/_nav.html" %}
   <div class="who"><a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a> <a class="button primary" href="{% url 'account_login' %}" data-tour="sign-in">Sign in</a></div>
   {% endif %}
 </div>

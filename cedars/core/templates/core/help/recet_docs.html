@@ -1,16 +1,16 @@
 {% extends "core/base.html" %}
-{% block title %}ReCET documents{% endblock %}
+{% block title %}Engine documentation{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:help' %}">Help</a></li></ol></nav>
-<div class="page-title"><h1>ReCET documents</h1>{% page_help "core/help/recet_docs" %}</div>
-<p>The full reference for ReCET, the cost-effectiveness engine behind <a href="{% url 'calculations:runs' %}">Calculations</a>: every input
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li></ol></nav>
+<div class="page-title"><h1>Engine documentation</h1>{% page_help "core/help/recet_docs" %}</div>
+<p>ReCET's own documents: the full reference for ReCET, the cost-effectiveness engine behind <a href="{% url 'calculations:runs' %}">Calculations</a>: every input
 format and field, every output column with its formula, the method, and how the cost tests are defined. For first steps on CEDARS, read
 the <a href="{% url 'core:help_guide' 'calculations' %}">Calculations guide</a>.</p>
 <p class="small muted">These are the engine's own documents, from ReCET {{ engine.version }} (commit <span class="mono">{{ engine.short }}</span>),
 the version CEDARS runs, so they change only when CEDARS moves to a new engine version. Where they describe ReCET's own web site or desktop
 window, the CEDARS Calculations pages do the same things but may look different.
 <a href="{{ engine.url }}">The documents on GitHub</a>.</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="ReCET documents">
+<div class="hscroll" tabindex="0" role="region" aria-label="Engine documents">
 <table class="list">
   <caption class="sr-only">ReCET documents, with what each covers</caption>
   <thead><tr><th scope="col">Document</th><th scope="col">Read it to learn</th></tr></thead>

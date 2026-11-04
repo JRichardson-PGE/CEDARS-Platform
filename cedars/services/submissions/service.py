@@ -27,7 +27,7 @@ import hashlib
 from collections.abc import Callable
 
 from django.db import transaction
-from django.db.models import Max, Q
+from django.db.models import Count, Max, Q
 from django.utils import timezone
 
 from cedars.services import audit
@@ -721,6 +721,19 @@ def decide_reopen(actor, req: ReopenRequest, approve: bool, note: str = "") -> S
     req.save()
     audit.record(f"reopen.{req.status}", obj=req, reason=note, actor=actor)
     return _new_version(actor, req.submission, req.reason) if approve else None
+
+
+def pending_corrections(actor, module: str) -> dict[int, int] | None:
+    """The correction requests waiting for a decision on each of the module's deadlines (deadline id -> count), for an approver of the
+    module or their delegate; None for anyone else (navigation review, D1: the index pages show approvers what waits)."""
+    if approver_for(actor, module) is None:
+        return None
+    rows = (
+        ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING, submission__deadline__module=module)
+        .values("submission__deadline")
+        .annotate(n=Count("pk"))
+    )
+    return {r["submission__deadline"]: r["n"] for r in rows}
 
 
 @transaction.atomic

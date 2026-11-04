@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from cedars.modules.data import views as data_views
 
@@ -17,8 +18,11 @@ urlpatterns = [
     path("help/faq/", views.help_faq, name="help_faq"),
     path("help/pages/", views.help_pages, name="help_pages"),
     path("help/pages/<path:key>/", views.help_page, name="help_page"),
-    path("help/recet/", views.recet_docs, name="recet_docs"),
-    path("help/recet/<slug:slug>/", views.recet_doc, name="recet_doc"),
+    # The engine's documents are Calculations' (navigation review, D1); their first address, under Help, redirects.
+    path("calculations/engine-docs/", views.recet_docs, name="recet_docs"),
+    path("calculations/engine-docs/<slug:slug>/", views.recet_doc, name="recet_doc"),
+    path("help/recet/", RedirectView.as_view(pattern_name="core:recet_docs", permanent=True, query_string=True)),
+    path("help/recet/<slug:slug>/", RedirectView.as_view(pattern_name="core:recet_doc", permanent=True, query_string=True)),
     path("help/<slug:slug>/", views.help_guide, name="help_guide"),
     path("healthz", views.healthz, name="healthz"),
     path("robots.txt", views.robots_txt, name="robots_txt"),

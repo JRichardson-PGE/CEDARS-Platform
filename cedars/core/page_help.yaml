@@ -237,12 +237,13 @@ core/help/guide:
       text: The rest of the user guides, and All of Help.
 
 core/help/recet_docs:
-  title: ReCET documents
+  title: The engine documentation
   see: calculations
   guide:
     - >-
       The full reference for ReCET, the engine Calculations runs on: input formats and fields, every output column with its formula,
-      the method, and how the cost tests are defined. They are the engine's own documents, from the version CEDARS runs.
+      the method, and how the cost tests are defined. They are the engine's own documents, from the version CEDARS runs, and are under
+      Calculations in the menu.
   how:
     - Pick a document by its title. Output fields is where to start to trace a number back to the inputs.
   tour:

@@ -39,6 +39,11 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   selector or heading text (`cedars/core/page_help.py`). A changed page keeps its help true; the tests fail on a heading without help and on
   a tour step whose part is gone (mark a step `optional` only for a part some people or states do not have). The help pages themselves
   (`page_help.WITHOUT_HELP`: a page's help on a page of its own, and the list of them) have no (?): it would be help about the help.
+- **The header is data** (navigation review D1, Jake 2026-11-04): `cedars/core/nav.py` lists the menus and who sees each item (signed
+  out, a member of no organization, a member, approver, administrators); the highlighted menu follows the items' paths. A page added to
+  the header is an item there, with its help key and words in `core/search.py`'s HELP_KEYS. Published data is what anyone may read;
+  Reference data is what runs and filings are priced and checked against. Each page is listed once (cost-test sets under Reference data,
+  engine releases under Calculations).
 - **Release notes, limits and guides** (BR-12.1, 12.5; `cedars/services/releases`). A limit people meet is a setting listed in
   `releases/limits.py`, never a number in a page or message. A change to a user guide (`core/templates/core/help/<slug>.html`) or the
   FAQ (`core/faq.yaml`) is recorded with `uv run python manage.py help_revisions --update` in the same PR (a test fails otherwise); bump

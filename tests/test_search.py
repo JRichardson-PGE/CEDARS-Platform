@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from django.urls import reverse
 
-from cedars.core import page_help, search
+from cedars.core import nav, page_help, search
 from cedars.modules.documents import service as docs
 from cedars.services.dictionary import service as dictionary
 from cedars.services.registry import service as registry
@@ -34,7 +34,7 @@ def test_the_header_has_the_search_box_on_every_page(client):
 
 def test_every_header_page_is_searchable_with_help():
     """Each page the header or footer links to is in search.PAGES, and each PAGES entry names a help entry that exists."""
-    names = set(re.findall(r"\{% url '([a-z_]+:[a-z_]+)'", BASE.read_text(encoding="utf-8")))
+    names = set(re.findall(r"\{% url '([a-z_]+:[a-z_]+)'", BASE.read_text(encoding="utf-8"))) | nav.all_url_names()
     names -= {"core:search", "account_login", "administration:switch_organisation", "releases:detail"}  # (a release note's own page)
     listed = {p.url_name for p in search.PAGES}
     assert names - listed == set()
@@ -47,7 +47,7 @@ def test_every_header_page_is_searchable_with_help():
 def test_public_pages_listed_to_everyone_open_signed_out(client):
     dictionary.load_catalog(None, json.loads(CATALOG.read_text(encoding="utf-8")))
     for p in search.PAGES:
-        if p.who == "":
+        if "" in p.who or "anon" in p.who:
             assert client.get(reverse(p.url_name), follow=True).status_code == 200, p.url_name
             assert not client.get(reverse(p.url_name)).get("Location", "").startswith("/accounts/"), p.url_name
 

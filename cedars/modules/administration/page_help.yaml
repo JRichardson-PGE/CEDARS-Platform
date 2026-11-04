@@ -251,7 +251,8 @@ administration/allocations:
   title: Statewide allocation factors
   see: budgets
   guide:
-    - The share of each statewide program each funding PA carries, by year. Everyone signed in can read every version. Each version is a
+    - The share of each statewide program each funding PA carries, by year. Anyone can read the confirmed versions, signed in or not;
+      drafts are shown to those signed in. Each version is a
       complete table of factors; a confirmed version never changes, and filings, claims and runs record the version they used. A run
       that names none uses the most recently confirmed version with factors for its program year.
     - The funding PAs manage the factors. Their organization administrators grant the permission to manage them to members; a member

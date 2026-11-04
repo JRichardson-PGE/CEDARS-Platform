@@ -6,9 +6,10 @@
   <div class="page-title"><h1>Calculations</h1>{% page_help "calculations/runs" %}</div>
   <div class="actions">{% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
     <a class="button" href="{% url 'calculations:templates' %}">Output templates</a>
-    <a class="button" href="{% url 'core:recet_docs' %}">ReCET documents</a></div>
+    <a class="button" href="{% url 'core:recet_docs' %}">Engine documentation</a></div>
 </div>
 <p>Cost-effectiveness runs on the ReCET engine: yours, and your organizations' (they stay with the organization).</p>
+{% if user.is_authenticated and nav and not nav.member %}<p class="ask-access">To file or read for a program administrator, <a href="{% url 'administration:request_access' %}">ask it for access</a>.</p>{% endif %}
 <p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job's tables here before running it.</p>
 {% if live %}<p class="small muted" id="runs-live" data-live="1">Runs still queued or running update on this page by themselves.</p>{% endif %}
 {% if rows %}

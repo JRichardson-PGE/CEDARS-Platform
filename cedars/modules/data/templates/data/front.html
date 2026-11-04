@@ -18,6 +18,8 @@
     <a class="button" href="{% url 'account_signup' %}">Create an account</a>
   </div>
   {% endif %}
+  {# A signed-in account that belongs to no organization (navigation review, D1): the one step it needs to file. #}
+  {% if user.is_authenticated and nav and not nav.member %}<p class="ask-access">To file or read for a program administrator, <a href="{% url 'administration:request_access' %}">ask it for access</a>.</p>{% endif %}
   {# Without scripts the link opens the written tour; tour.js turns it into the guided one. The Hide button needs scripts, so it starts hidden. #}
   <p class="tour-offer" data-tour-offer>New to CEDARS? <a href="{% url 'core:help_tour' %}" data-tour-start>Take the tour</a>.
     <button type="button" class="link" data-tour-dismiss hidden>Hide this</button></p>

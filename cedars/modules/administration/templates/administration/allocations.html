@@ -2,7 +2,8 @@
 {% block title %}Statewide allocation factors{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Statewide allocation factors</h1>{% page_help "administration/allocations" %}</div>
-<p>The share of each statewide program each funding PA carries, by year. Each version is a complete table of factors. A confirmed version
+<p>The share of each statewide program each funding PA carries, by year{% if not user.is_authenticated %}: every confirmed version, open to
+everyone{% endif %}. Each version is a complete table of factors. A confirmed version
 never changes; filings, claims and runs record the version they used, and a run that names none uses the most recently confirmed version
 with factors for its program year.</p>
 <p>The funding PAs manage the factors: {% for o in managers %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}no organization yet{% endfor %}.

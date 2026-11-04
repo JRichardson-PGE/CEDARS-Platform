@@ -1,0 +1,19 @@
+<nav aria-label="Main" id="main-nav">
+  {% for m in menus %}{% if m.link %}
+  <a href="{{ m.link.1 }}" data-tour="nav-{{ m.key }}"{% if m.current %} aria-current="page"{% endif %}>{% if m.short %}<span class="nav-long">{{ m.label }}</span><span class="nav-short" aria-hidden="true">{{ m.short }}</span>{% else %}{{ m.label }}{% endif %}</a>
+  {% else %}
+  <details data-tour="nav-{{ m.key }}"{% if m.current %} class="current"{% endif %}>
+    <summary>{{ m.label }}</summary>
+    <ul>
+      {% for title, items in m.groups %}{% if title %}
+      <li class="nav-group"><span class="nav-group-title" id="nav-{{ m.key }}-{{ forloop.counter }}">{{ title }}</span>
+        <ul aria-labelledby="nav-{{ m.key }}-{{ forloop.counter }}">{% for item, url in items %}
+          <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="page"{% endif %}>{{ item.label }}</a></li>{% endfor %}
+        </ul></li>
+      {% else %}{% for item, url in items %}
+      <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="page"{% endif %}>{{ item.label }}</a></li>{% endfor %}
+      {% endif %}{% endfor %}
+    </ul>
+  </details>
+  {% endif %}{% endfor %}
+</nav>
