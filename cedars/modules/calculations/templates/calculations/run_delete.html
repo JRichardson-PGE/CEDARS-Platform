@@ -7,7 +7,7 @@
 back; you can start the job again from New run.</p>
 <dl class="facts">
   <dt>Status</dt><dd>{{ run.get_status_display }}</dd>
-  <dt>Created</dt><dd>{{ run.created_at|date:"Y-m-d H:i" }}</dd>
+  <dt>Created</dt><dd>{{ run.created_at|datetime_words }}</dd>
 </dl>
 <form method="post" action="{% url 'calculations:delete' run.pk %}" class="actions">{% csrf_token %}
   <input type="hidden" name="sure" value="1">
