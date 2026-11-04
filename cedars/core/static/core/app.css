@@ -374,7 +374,7 @@ fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of 
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
 .column-group { margin: .3rem 0; }
-/* Output template page: the two-list field picker (calculations/template_picker.js), ReCET's Templates page laid out on these tokens */
+/* Output template page: the two-list field picker (calculations/field_picker.js; also Results and Compare's Choose columns), ReCET's Templates page laid out on these tokens */
 .picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: start; }
 .picker[hidden] { display: none; }
 .picker-side { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }

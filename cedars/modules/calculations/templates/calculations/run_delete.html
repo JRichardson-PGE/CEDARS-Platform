@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Delete {{ run.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></li></ol></nav>
+<div class="page-title"><h1>Delete “{{ run.name }}”?</h1>{% page_help "calculations/run_delete" %}</div>
+<p>This removes the run, its {{ files }} output file{{ files|pluralize }} and its stored inputs for good. A deleted run cannot be brought
+back; you can start the job again from New run.</p>
+<dl class="facts">
+  <dt>Status</dt><dd>{{ run.get_status_display }}</dd>
+  <dt>Created</dt><dd>{{ run.created_at|date:"Y-m-d H:i" }}</dd>
+</dl>
+<form method="post" action="{% url 'calculations:delete' run.pk %}" class="actions">{% csrf_token %}
+  <input type="hidden" name="sure" value="1">
+  <button type="submit" class="danger">Delete the run for good</button>
+  <a class="button" href="{% url 'calculations:run' run.pk %}">Keep the run</a>
+</form>
+{% endblock %}

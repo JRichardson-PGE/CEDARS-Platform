@@ -352,10 +352,7 @@ def run(request, pk):
             "input_notes": ((run.spec or {}).get("context") or {}).get("notes") or [],
             "can_edit_inputs": _can_edit_inputs(request.user, run),
             "can_rerun": bool(service.job_input(run)),
-            "can_delete": run.organisation_id is None
-            and run.owner_id == request.user.pk
-            and run.ended
-            and run.submission_version_id is None,
+            "can_delete": _can_delete(request.user, run),
             "cet_comparison": results_mod.cet_comparison(run, files),
             "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
             "log": log,
@@ -388,14 +385,27 @@ def run_status(request, pk):
     return JsonResponse(status_view(_run_or_404(request, pk)))
 
 
+def _can_delete(user, run: Run) -> bool:
+    """Whether the page offers Delete this run: one's own ("Only me") ended run not priced into a filing (service.delete_run decides)."""
+    return run.organisation_id is None and run.owner_id == user.pk and run.ended and run.submission_version_id is None
+
+
 @login_required
-@require_POST
 def delete(request, pk):
-    """Delete one's own ("Only me") ended run and its files (R9); audited."""
+    """Delete one's own ("Only me") ended run and its files (R9); audited. GET asks first (Jake, 2026-11-04: the button by Results asks
+    for confirmation before deleting); the confirmation's POST deletes."""
     run = _run_or_404(request, pk)
+    if request.method == "GET":
+        if not _can_delete(request.user, run):
+            messages.error(request, "Only your own ended runs (for Only me) can be deleted.")
+            return redirect("calculations:run", pk=run.pk)
+        files = service.output_files(run)
+        return render(request, "calculations/run_delete.html", {"run": run, "files": len(files)})
+    if request.method != "POST":
+        return HttpResponse(status=405)
     if not request.POST.get("sure"):
-        messages.error(request, "Tick the box to say the run and its files go for good.")
-        return redirect("calculations:run", pk=run.pk)
+        messages.error(request, "Confirm that the run and its files go for good.")
+        return redirect("calculations:delete", pk=run.pk)
     name = run.name
     try:
         service.delete_run(request.user, run)
@@ -636,12 +646,13 @@ def _query(**kw) -> str:
 
 
 def _picker(request, cat, keys, state: dict) -> dict:
-    """The column picker's context, shared by Results and Compare: the groups (narrowed by Find over names and definitions), which
-    boxes are ticked (none after Clear), the ticked columns Find hides (kept as hidden fields so Show keeps them), the person's saved
-    views, and the query that rebuilds the page without the picker's own parameters."""
+    """The column picker's context, shared by Results and Compare: the two lists' catalog and labels (field_picker.js; the columns
+    shown are sent in order as `columns`), and, for the picker without scripts, the groups (narrowed by Find over names and
+    definitions), which boxes are ticked (none after Clear), the ticked columns Find hides (kept as hidden fields so Show keeps
+    them), the person's saved views, and the query that rebuilds the page without the picker's own parameters."""
     find = request.GET.get("find", "").strip()[:80]
     clear = request.GET.get("clear") == "1"
-    groups = results_mod.picker_groups(cat)
+    groups = every = results_mod.picker_groups(cat)
     if find:
         f = find.lower()
         groups = [(g, [i for i in items if f in i[0].lower() or f in i[1].lower() or f in (i[2] or "").lower()]) for g, items in groups]
@@ -663,6 +674,18 @@ def _picker(request, cat, keys, state: dict) -> dict:
         "base": "?" + _query(**state),
         "columns": ",".join(keys),
         "count": len(keys),
+        # the two lists (field_picker.js): every column with its label, group and definition, in the engine's order
+        "catalog": [{"c": k, "t": label, "g": g, "d": help or ""} for g, items in every for k, label, help in items],
+        "field_picker": {
+            "target": "pick-columns",
+            "sep": "comma",
+            "noun": "the table",
+            "kinds": False,
+            "groups": [g for g, _items in every],
+            "left": "Columns you can add",
+            "right": "Columns shown, in table order",
+            "find_right": "Find in the columns shown",
+        },
     }
 
 

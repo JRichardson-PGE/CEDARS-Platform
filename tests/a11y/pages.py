@@ -240,6 +240,8 @@ PAGES = [
     ("edit-inputs-etrm-row", "/calculations/drafts/{draft}/etrm/?year=all&package=swhc052-02&delivery_type=DnDeemed", "analyst"),
     ("new-run-from-draft", "/calculations/new/?draft={draft}", "analyst"),
     ("run-finished", "/calculations/runs/{finished_run}/", "analyst"),
+    ("run-own-ended", "/calculations/runs/{own_run}/", "analyst"),
+    ("run-delete", "/calculations/runs/{own_run}/delete", "analyst"),
     ("results", "/calculations/runs/{finished_run}/results/", "analyst"),
     ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
     ("results-measure-level", "/calculations/runs/{finished_run}/results/?level=measure&pa=PGE", "analyst"),
