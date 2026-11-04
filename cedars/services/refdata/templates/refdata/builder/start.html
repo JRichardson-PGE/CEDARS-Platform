@@ -6,6 +6,7 @@
 <p>Build a set step by step, checked by the engine as you go. You can price your own analysis runs on it as soon as it has no problems;
 the CPUC registers and publishes the sets everyone uses and the one a filing is priced on. Starting from a copy is the usual way: the
 next set is the last one with a change or two.</p>
+{% url 'refdata:cost_tests' as sets %}{% url 'core:recet_doc' 'cost-tests' as ct %}{% before_upload template=sets template_label="the published sets, to start from or download" fields=ct fields_label="how a set is defined" rules_note="each step is checked by the engine" %}
 <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.start.as_field_group }}

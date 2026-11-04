@@ -38,6 +38,11 @@ def index(request):
     group = request.GET.get("group", "")
     if group:
         fields = fields.filter(group=group)
+    # an upload table's fields ("calculations.Measure"), as the "Before you upload" line under each file control links them (D3)
+    upload_table = request.GET.get("table", "")
+    module, _, table = upload_table.partition(".")
+    if table:
+        fields = fields.filter(usages__module=module, usages__table=table).distinct()
     if state == "retired":
         fields = fields.filter(state=Field.State.RETIRED)
     elif state != "all":  # in use, and those retiring later (BR-08.4: retired fields stay, shown on request)
@@ -56,6 +61,7 @@ def index(request):
             "kind": kind,
             "kinds": Field.Kind.choices,
             "group": group,
+            "upload_table": upload_table,
             "groups": list(
                 Field.objects.filter(version=v, kind=Field.Kind.RECORD).order_by("group").values_list("group", flat=True).distinct()
             ),

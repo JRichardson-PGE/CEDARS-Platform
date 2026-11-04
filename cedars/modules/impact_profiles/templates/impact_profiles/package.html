@@ -16,6 +16,7 @@
   <p>Each series is checked in four stages: the file, its headers, each 8,760 (hours 1 to 8760, adding up to 1), and its match with this
   package's permutations. Use explicit building types and climate zones; for an "Any" building type use Com or Res.
   <a href="{% url 'impact_profiles:load_shape_template' %}">Download the template (CSV)</a>.</p>
+    {% url 'impact_profiles:load_shape_template' as tmpl %}{% before_upload template=tmpl template_label="the load shape template" rules_note="each series is checked in four stages, above" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Upload and check</button></div>

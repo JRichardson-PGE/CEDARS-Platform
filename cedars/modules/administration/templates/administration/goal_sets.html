@@ -27,6 +27,7 @@ record. The portfolio dashboard compares forecasts and claims with the goals in 
   columns: PA, Territory, Share (0 to 1), AppliesTo (all, programs or cs), Source.</p>
   <p class="small" id="goal-templates">Templates: <a href="{% url 'administration:goal_template_csv' 'goals' %}" download>Download the goal file template (CSV)</a>
   and <a href="{% url 'administration:goal_template_csv' 'rules' %}" download>the counting rule file template (CSV)</a>.</p>
+    {% url 'administration:goal_template_csv' 'goals' as tmpl %}{% before_upload template=tmpl template_label="the goal file template" fields="#goal-templates" fields_label="the columns, above" rules_note="each row is checked when the file is loaded" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>

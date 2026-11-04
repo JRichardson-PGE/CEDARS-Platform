@@ -44,6 +44,8 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   the header is an item there, with its help key and words in `core/search.py`'s HELP_KEYS. Published data is what anyone may read;
   Reference data is what runs and filings are priced and checked against. Each page is listed once (cost-test sets under Reference data,
   engine releases under Calculations).
+- **Before you upload** (navigation review D3): every data file control has `{% before_upload %}` beside it (the template, the field
+  definitions, the rules in force, the guide); tests/test_before_upload.py fails on a new multipart form without it.
 - **Release notes, limits and guides** (BR-12.1, 12.5; `cedars/services/releases`). A limit people meet is a setting listed in
   `releases/limits.py`, never a number in a page or message. A change to a user guide (`core/templates/core/help/<slug>.html`) or the
   FAQ (`core/faq.yaml`) is recorded with `uv run python manage.py help_revisions --update` in the same PR (a test fails otherwise); bump

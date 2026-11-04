@@ -23,6 +23,7 @@ offline). Each cell is checked by the engine's own input rules as you save, and 
 </div>
 <section class="card" aria-labelledby="new-h">
   <h2 id="new-h">Start a draft</h2>
+  {% url 'core:recet_doc' 'input-formats' as formats %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=formats template_label="the job's input formats" fields=infields fields_label="its input fields" rules_note="each cell is checked as you save it" guide="calculations" guide_label="the cost-effectiveness runs guide" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
     {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     {{ form.name.as_field_group }}
