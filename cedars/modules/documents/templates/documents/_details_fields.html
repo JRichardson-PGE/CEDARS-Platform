@@ -1,4 +1,5 @@
 {{ form.document_type.as_field_group }}
+<p class="small" id="type-list-link">{% if type_list %}<a href="{% url 'documents:lists' %}#list-{{ type_list.code }}">{{ type_list.name }}</a>: the document types of this collection. {% endif %}The attributes below are kept on <a href="{% url 'documents:lists' %}">Document value lists</a>.</p>
 {{ form.title.as_field_group }}
 {{ form.summary.as_field_group }}
 {{ form.pas.as_field_group }}

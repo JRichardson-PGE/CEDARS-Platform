@@ -186,7 +186,11 @@ def report(request, pk):
     can = {a: org is not None and access.has_permission(request.user, org, f"{service.MODULE}.{a}") for a in ("submit", "confirm")}
     acting = org is not None and org == request.organisation
     ctx = {
-        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
+        "pa_choices": []
+        if org
+        else submissions.filer_statuses(
+            deadline, lambda s: service.can_read_submission(request.user, s), every=access.is_cpuc_staff(request.user)
+        ),
         "deadline": deadline,
         "label": service.label(deadline),
         "setup": service.setup_for(deadline),

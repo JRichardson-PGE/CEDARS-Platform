@@ -137,12 +137,11 @@ core/about:
   title: About CEDARS
   see: getting-started
   guide:
-    - What CEDARS is, who files in it, and what the platform holds. The table lists each part of CEDARS and the phase of the build it
-      arrives in.
+    - What CEDARS is, who files in it, and what it holds. The table lists each part of CEDARS, what it does and a link to it.
   tour:
-    - heading: What the platform will hold
+    - heading: What CEDARS holds
       title: The parts of CEDARS
-      text: Each module with what it does and the phase that delivers it.
+      text: Each part with what it does; select one to open it.
 
 core/search:
   title: Searching CEDARS

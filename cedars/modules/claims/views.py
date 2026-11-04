@@ -207,7 +207,11 @@ def period(request, pk):
                 break
             earlier.append({"deadline": d, "standing": service.standing(org, d)})
     ctx = {
-        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
+        "pa_choices": []
+        if org
+        else submissions.filer_statuses(
+            deadline, lambda s: service.can_read_submission(request.user, s), every=access.is_cpuc_staff(request.user)
+        ),
         "deadline": deadline,
         "label": service.label(deadline),
         "cy": cy,

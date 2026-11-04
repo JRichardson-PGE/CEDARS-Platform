@@ -13,15 +13,31 @@ from . import page_help as pages
 from . import search as site_search
 
 # What the platform will hold, in the order the phases deliver it (architecture page, "Phasing toward program year 2028").
+# What CEDARS holds (About CEDARS; navigation review D8, L4: what the platform holds, not the build plan): each part, what it does and
+# its page.
 MODULES = [
-    ("Programs", "The program catalog and one page per program, closed programs included.", 2),
-    ("Calculations", "Cost-effectiveness runs on the ReCET engine: new runs, results, comparisons.", 2),
-    ("Impact profiles", "Deemed load shapes from eTRM and custom impact profiles.", 2),
-    ("Budgets", "Budget filings for each four-year cycle, and fund shifts.", 3),
-    ("Claims", "Quarterly and annual claims on the common template.", 4),
-    ("Monthly reports", "Monthly expenditures and commitments against the operating budget.", 5),
-    ("Data and downloads", "Dashboards and filtered downloads of published data.", 6),
-    ("Documents", "PA documents, CPUC guidance, DEER resources, program files and EM&V documents, replacing the PDA and PSR.", 6),
+    (
+        "Portfolio dashboard and record downloads",
+        "Published results by year, PA, program and sector, and record-level downloads.",
+        "data:dashboards",
+    ),
+    ("Programs", "The program catalog and one page per program, closed programs included.", "programs:catalog"),
+    ("Budgets", "Budget filings for each four-year cycle, fund shifts and the operating budget.", "budgets:index"),
+    ("Claims", "Quarterly and annual claims on the common template.", "claims:index"),
+    ("Monthly reports", "Monthly expenditures and commitments against the operating budget.", "monthly:index"),
+    ("Calculations", "Cost-effectiveness runs on the ReCET engine: new runs, results, comparisons.", "calculations:runs"),
+    ("Impact profiles", "Deemed load shapes from eTRM and custom impact profiles.", "impact_profiles:library"),
+    ("Documents", "PA documents, CPUC guidance, DEER resources, program files and EM&V documents and studies.", "documents:library"),
+    (
+        "Reference data",
+        "The ACCs, eTRM packs, statewide allocation factors and cost-test sets runs and filings are priced on.",
+        "refdata:index",
+    ),
+    (
+        "Data dictionary and validation rules",
+        "Every field's definition, the value lists and the rules each filing is checked against.",
+        "dictionary:index",
+    ),
 ]
 
 

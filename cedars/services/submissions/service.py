@@ -244,6 +244,28 @@ def filers(deadline: Deadline, can_read: Callable[[Submission], bool]) -> list[S
     return [s for s in subs if s.organisation.files and can_read(s)]
 
 
+def filer_statuses(deadline: Deadline, can_read: Callable[[Submission], bool], *, every: bool = False) -> list[dict]:
+    """For the "Choose a program administrator" list (navigation review D8, L8): each PA with where its filing for the deadline stands
+    ({"organisation", "status", "link"}), by code. With every (CPUC staff), every active PA is listed, one that has not started as "Not
+    started"; otherwise only the filings can_read allows, as filers() gives them. Only a filing the reader may open is linked."""
+    subs = {s.organisation_id: s for s in Submission.objects.filter(deadline=deadline).select_related("organisation")}
+    rows = {}
+    for s in subs.values():
+        readable = s.organisation.files and can_read(s)
+        if readable or (every and s.organisation.files):
+            v = latest(s)
+            rows[s.organisation.code] = {
+                "organisation": s.organisation,
+                "status": v.get_status_display() if v else "Started",
+                "link": readable,
+            }
+    if every:
+        for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True):
+            if o.files and o.code not in rows:
+                rows[o.code] = {"organisation": o, "status": "Not started", "link": False}
+    return [rows[c] for c in sorted(rows)]
+
+
 def latest(submission: Submission) -> SubmissionVersion | None:
     return submission.versions.order_by("-number").first()
 
