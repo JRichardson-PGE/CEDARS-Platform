@@ -84,8 +84,9 @@ calculations/new:
 calculations/run:
   title: A run
   guide:
-    - One cost-effectiveness run, its status while it is queued and running, then its settings, portfolio totals, files, and the record of
-      what produced the results (the engine release, the ACC and every input's checksum), so anyone can reproduce them.
+    - One cost-effectiveness run, its status while it is queued and running, then its portfolio totals and files, the input check, its
+      settings, and the record of what produced the results (the engine release, the ACC and every input's checksum), so anyone can
+      reproduce them.
     - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
       every other finding. The log is what the engine printed, updated while the run runs.
     - A finished run opens its Results and can be compared with another run. Rerun with different settings starts it again as a new run,
@@ -96,23 +97,16 @@ calculations/run:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
     - Stop the run ends a queued or running run. Edit inputs and rerun opens a small job's tables to change and run again.
     - Rerun with different settings opens New run filled in from this run.
-    - Delete the run, at the end of one of your own ended runs, removes it and its files for good once you tick the box.
+    - Delete this run, beside Results on one of your own ended runs, asks you to confirm, then removes the run and its files for good.
     - Download every file (.zip) takes all the run's files at once; the inputs download as they were given.
   see: calculations
   tour:
     - target: "#status-h"
       title: Status
       text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
-    - target: "#check-h"
-      title: Input check
-      text: What the engine's check before pricing found, what stopped the run and what it could not price.
-      optional: true
-    - target: "#settings-h"
-      title: Settings
-      text: What the run was asked to do, and its inputs to download.
     - target: main .head-row .actions
-      title: Results and compare
-      text: The results by portfolio, PA, program and measure, and a comparison with any other finished run.
+      title: Results, compare and delete
+      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, and, on your own ended run, Delete this run (it asks first).
       optional: true
     - target: "#totals-h"
       title: Portfolio totals
@@ -122,6 +116,13 @@ calculations/run:
       title: Files
       text: Every file the run wrote, to download.
       optional: true
+    - target: "#check-h"
+      title: Input check
+      text: What the engine's check before pricing found, what stopped the run and what it could not price.
+      optional: true
+    - target: "#settings-h"
+      title: Settings
+      text: What the run was asked to do, and its inputs to download.
     - target: "#log-h"
       title: Log
       text: What the engine printed while it ran.
@@ -130,20 +131,33 @@ calculations/run:
       title: What produced these results
       text: The engine release, the ACC and the checksums of the inputs and reference data.
       optional: true
-    - target: "#delete-h"
-      title: Delete the run
-      text: Your own ended run, and its files, removed for good.
-      optional: true
+
+calculations/run_delete:
+  title: Delete a run
+  guide:
+    - Asks you to confirm before your own ended run (for Only me) and its files are deleted. A deleted run cannot be brought back; a run a
+      filing was priced with, an organization's run and a run under a legal hold are kept.
+  how:
+    - Delete the run for good removes it and its files; Keep the run goes back to the run's page.
+  see: calculations
+  tour:
+    - target: main form.actions
+      title: Delete or keep
+      text: Delete the run for good, or keep it and go back to its page.
 
 calculations/results:
   title: A run's results
   guide:
     - A finished run's results at the level you choose (portfolio, PA, program, sector or measure), for the program years and PAs you pick.
       The tiles are the headline totals, with what each number is under them, and the chart shows the largest groups.
-    - Choose the columns to show (Find searches their names and definitions), save them as a named view to pick again on any run's
-      Results or Compare, sort by any column, filter the rows, and download the table as CSV.
+    - Choose the columns to show and their order, as on an output template (columns you can add on the left, searched by name and
+      definition; the columns shown on the right, in table order), save them as a named view to pick again on any run's Results or
+      Compare, sort by any column, filter the rows, and download the table as CSV.
   how:
-    - Choose the level, program years and PAs, then Apply. Show these columns picks the columns; Clear the ticks starts from none.
+    - Choose the level, program years and PAs, then Apply.
+    - In Choose columns, select columns on the left and Add them (or press Enter); select columns on the right and Remove them (or press
+      Delete), or move them with Move to the top, up, down or to the bottom (Alt+Up and Alt+Down); then Show these columns. Without
+      scripts, Find and the tick boxes choose them instead (Clear the ticks starts from none).
     - Save the view names the columns shown; Show this view brings them back on any run. Delete a saved view removes one.
     - Filter narrows the rows; Download this table (CSV) gives what you see.
     - Compare with another run, or go back to the Run page and files.
@@ -171,7 +185,7 @@ calculations/results:
       optional: true
     - heading: Choose columns
       title: Choose columns
-      text: Your saved views, Find, and the columns group by group. Save the columns shown as a view for any run.
+      text: Your saved views, then the columns you can add on the left and the columns shown, in order, on the right. Save the columns shown as a view for any run.
       optional: true
     - target: main nav.subnav
       title: Level
@@ -190,7 +204,7 @@ calculations/compare:
     - Choose the columns as on Results, or pick one of your saved views; filter the rows; the column definitions are under the table.
   how:
     - Choose the level and the run to compare with, then Compare.
-    - Choose columns or Show this view; Filter narrows the rows.
+    - Choose columns (add, remove and order them, then Show these columns) or Show this view; Filter narrows the rows.
     - Download this table (CSV) gives both runs' values and their differences.
   see: calculations
   tour:
@@ -206,7 +220,7 @@ calculations/compare:
       optional: true
     - heading: Choose columns
       title: Choose columns
-      text: Your saved views, Find, and the columns group by group.
+      text: Your saved views, then the columns you can add on the left and the columns shown, in order, on the right.
       optional: true
     - target: main table.data
       title: Side by side

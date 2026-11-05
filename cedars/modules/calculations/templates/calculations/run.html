@@ -6,7 +6,8 @@
 <div class="head-row">
   <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
   {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
-  {% if run.status == "succeeded" %}<div class="actions"><a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a></div>{% endif %}
+  {% if run.status == "succeeded" or can_delete %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}
+    {% if can_delete %}<a class="button danger" id="delete-run" href="{% url 'calculations:delete' run.pk %}">Delete this run</a>{% endif %}</div>{% endif %}
 </div>
 
 <section class="card" aria-labelledby="status-h">
@@ -18,6 +19,50 @@
   {% if run.status == "succeeded" and run.error %}<p class="alert" role="alert">{{ run.error }}</p>{% endif %}
   {% if deletion %}<p class="small" id="run-deletion">{{ deletion }}.{% if sysadmin %} <a href="{% url 'retention:index' %}">Retention periods</a>{% endif %}</p>{% endif %}
 </section>
+
+{% if totals %}
+<section aria-labelledby="totals-h">
+<h2 id="totals-h">Portfolio totals</h2>
+<dl class="tiles">{% for t in totals %}<div class="tile"><dt>{{ t.label }}</dt><dd>{{ t.value }}</dd></div>{% endfor %}</dl>
+<details class="small tile-help" id="tile-help"><summary>What these numbers are</summary>
+<dl>{% for t in totals %}{% if t.help %}<dt>{{ t.label }}</dt><dd>{{ t.help }}</dd>{% endif %}{% endfor %}</dl></details>
+<p class="small">Whole dollars and two-decimal ratios over every measure of the run, from the engine's receipt. <a href="{% url 'calculations:results' run.pk %}">Results</a> has them by PA, program, sector and year with each column's definition.</p>
+{% if other_totals %}<details class="small"><summary>Every total in the receipt</summary>
+<div class="hscroll" tabindex="0" role="region" aria-label="Every total in the receipt"><table class="list"><caption class="sr-only">Every total in the receipt</caption>
+<thead><tr><th scope="col">Column</th><th scope="col" class="num">Total</th></tr></thead>
+<tbody>{% for k, v in other_totals %}<tr><th scope="row"><code>{{ k }}</code></th><td class="num">{{ v }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
+</section>
+{% endif %}
+
+{% if files %}
+<section aria-labelledby="files-h">
+<h2 id="files-h">Files</h2>
+{% if run.ended %}<p><a class="button" href="{% url 'calculations:run_zip' run.pk %}">Download every file (.zip)</a></p>{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Output files">
+<table class="list">
+  <caption class="sr-only">Output files</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
+
+{% if cet_comparison %}
+<section aria-labelledby="cet-h">
+<h2 id="cet-h">Compared with CET</h2>
+<p>Totals over the measures matched by CET_ID with the CET run's outputs supplied with this run. A ratio of 1 means the same total.
+Where ReCET departs from CET on purpose (its documented corrections), the totals differ.{% if cet_comparison.measures %} Each measure's
+differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison.measures %}">{{ cet_comparison.measures }}</a>.{% endif %}</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Comparison with CET">
+<table class="list">
+  <caption class="sr-only">ReCET and CET totals by metric</caption>
+  <thead><tr><th scope="col">Metric</th><th scope="col">ReCET</th><th scope="col">CET</th><th scope="col">ReCET / CET</th></tr></thead>
+  <tbody>{% for r in cet_comparison.rows %}<tr><th scope="row">{{ r.metric }}</th><td class="num">{{ r.recet }}</td><td class="num">{{ r.cet }}</td><td class="num">{{ r.ratio|default:"Not defined (CET total 0)" }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+{% endif %}
 
 {% if check %}
 <section aria-labelledby="check-h">
@@ -67,50 +112,6 @@
 {% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
 </section>
 
-{% if totals %}
-<section aria-labelledby="totals-h">
-<h2 id="totals-h">Portfolio totals</h2>
-<dl class="tiles">{% for t in totals %}<div class="tile"><dt>{{ t.label }}</dt><dd>{{ t.value }}</dd></div>{% endfor %}</dl>
-<details class="small tile-help" id="tile-help"><summary>What these numbers are</summary>
-<dl>{% for t in totals %}{% if t.help %}<dt>{{ t.label }}</dt><dd>{{ t.help }}</dd>{% endif %}{% endfor %}</dl></details>
-<p class="small">Whole dollars and two-decimal ratios over every measure of the run, from the engine's receipt. <a href="{% url 'calculations:results' run.pk %}">Results</a> has them by PA, program, sector and year with each column's definition.</p>
-{% if other_totals %}<details class="small"><summary>Every total in the receipt</summary>
-<div class="hscroll" tabindex="0" role="region" aria-label="Every total in the receipt"><table class="list"><caption class="sr-only">Every total in the receipt</caption>
-<thead><tr><th scope="col">Column</th><th scope="col" class="num">Total</th></tr></thead>
-<tbody>{% for k, v in other_totals %}<tr><th scope="row"><code>{{ k }}</code></th><td class="num">{{ v }}</td></tr>{% endfor %}</tbody></table></div></details>{% endif %}
-</section>
-{% endif %}
-
-{% if cet_comparison %}
-<section aria-labelledby="cet-h">
-<h2 id="cet-h">Compared with CET</h2>
-<p>Totals over the measures matched by CET_ID with the CET run's outputs supplied with this run. A ratio of 1 means the same total.
-Where ReCET departs from CET on purpose (its documented corrections), the totals differ.{% if cet_comparison.measures %} Each measure's
-differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison.measures %}">{{ cet_comparison.measures }}</a>.{% endif %}</p>
-<div class="hscroll" tabindex="0" role="region" aria-label="Comparison with CET">
-<table class="list">
-  <caption class="sr-only">ReCET and CET totals by metric</caption>
-  <thead><tr><th scope="col">Metric</th><th scope="col">ReCET</th><th scope="col">CET</th><th scope="col">ReCET / CET</th></tr></thead>
-  <tbody>{% for r in cet_comparison.rows %}<tr><th scope="row">{{ r.metric }}</th><td class="num">{{ r.recet }}</td><td class="num">{{ r.cet }}</td><td class="num">{{ r.ratio|default:"Not defined (CET total 0)" }}</td></tr>{% endfor %}</tbody>
-</table>
-</div>
-</section>
-{% endif %}
-
-{% if files %}
-<section aria-labelledby="files-h">
-<h2 id="files-h">Files</h2>
-{% if run.ended %}<p><a class="button" href="{% url 'calculations:run_zip' run.pk %}">Download every file (.zip)</a></p>{% endif %}
-<div class="hscroll" tabindex="0" role="region" aria-label="Output files">
-<table class="list">
-  <caption class="sr-only">Output files</caption>
-  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
-  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
-</table>
-</div>
-</section>
-{% endif %}
-
 {% if log or not run.ended and run.status != "queued" %}
 <section aria-labelledby="log-h">
 <h2 id="log-h">Log</h2>
@@ -132,16 +133,6 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
 </dl>
 {% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
-</section>
-{% endif %}
-{% if can_delete %}
-<section class="card" aria-labelledby="delete-h">
-  <h2 id="delete-h">Delete the run</h2>
-  <p>This run is your own, so you can delete it and its files now rather than wait for retention to remove it. A deleted run cannot be brought back.</p>
-  <form method="post" action="{% url 'calculations:delete' run.pk %}" class="stack">{% csrf_token %}
-    <label class="inline"><input type="checkbox" name="sure" value="1" required> Delete this run and its files for good</label>
-    <div class="actions"><button type="submit">Delete the run</button></div>
-  </form>
 </section>
 {% endif %}
 {% endblock %}

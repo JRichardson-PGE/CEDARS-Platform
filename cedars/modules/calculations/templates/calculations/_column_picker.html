@@ -1,4 +1,7 @@
-{# The column picker of Results and Compare (views._picker): saved views, Find, the columns by group, Default and Clear, and Save as a view. Plain GET and POST forms, so it works without scripts. #}
+{% load static %}
+{# The column picker of Results and Compare (views._picker): saved views, the two lists (field_picker.js: columns you can add on the left,
+   the columns shown in table order on the right, sent as one comma list), Default, and Save as a view. Without scripts the two lists stay
+   hidden and Find, the tick boxes by group and Clear choose the columns instead. #}
 <details class="card column-picker" id="picker"{% if picker.open %} open{% endif %}>
   <summary>Choose columns ({{ picker.count }} shown{% if picker.view %}, view "{{ picker.view.name }}"{% endif %})</summary>
   {% if picker.views %}
@@ -9,6 +12,18 @@
     <button type="submit">Show this view</button>
   </form>
   {% endif %}
+  <form method="get" data-with-picker hidden>
+    {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+    <input type="hidden" name="columns" id="pick-columns" value="{{ picker.ticked|join:',' }}">
+    <input type="hidden" name="picker" value="1">
+    {% include "calculations/_field_picker.html" with fp=picker.field_picker %}
+    <div class="actions">
+      <button type="submit" class="primary">Show these columns</button>
+      <a href="{{ picker.base }}">Default columns</a>
+    </div>
+    <p class="small muted">With no columns on the right, the default columns are shown.</p>
+  </form>
+  <div data-without-picker>
   <form method="get" class="row-form" aria-label="Find columns">
     {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     <input type="hidden" name="columns" value="{{ picker.ticked|join:',' }}">
@@ -37,6 +52,7 @@
       <a href="{{ picker.base }}&amp;clear=1#picker">Clear the ticks</a>
     </div>
   </form>
+  </div>
   <form method="post" action="{% url 'calculations:result_view_save' %}" class="row-form" aria-label="Save as a view">
     {% csrf_token %}
     <input type="hidden" name="columns" value="{{ picker.columns }}">
@@ -52,3 +68,5 @@
   </details>
   {% endif %}
 </details>
+{{ picker.catalog|json_script:"field-catalog" }}
+<script src="{% static 'calculations/field_picker.js' %}" defer></script>
