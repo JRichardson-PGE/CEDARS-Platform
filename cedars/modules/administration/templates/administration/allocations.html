@@ -10,7 +10,7 @@ with factors for its program year.</p>
 <p>The funding PAs manage the factors: {% for o in managers %}{{ o.code }}{% if not forloop.last %}, {% endif %}{% empty %}no organization yet{% endfor %}.
 A member with the "{{ permission }}" permission, granted by their organization's administrator, loads a draft and confirms or discards it.
 The other funding PAs are told when a version is confirmed.{% if nav.sysadmin %} The CPUC's energy efficiency goals are kept on
-<a href="{% url 'administration:goal_sets' %}">Energy efficiency goals</a>.{% endif %}</p>
+<a href="{% url 'administration:goal_sets' %}">CPUC goal decisions</a>.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Allocation versions">
 <table class="list">
   <caption class="sr-only">Allocation versions, newest first</caption>

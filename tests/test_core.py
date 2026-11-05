@@ -1,5 +1,6 @@
 import importlib
 import os
+import re
 from unittest import mock
 
 import pytest
@@ -20,7 +21,7 @@ def test_about_lists_the_modules(client):
     assert '<a class="skip" href="#main">' in html
     assert 'id="announcer"' in html
     for name in ("Programs", "Calculations", "Impact profiles", "Budgets", "Claims", "Monthly reports"):
-        assert f'<th scope="row">{name}</th>' in html
+        assert re.search(rf'<th scope="row"><a href="[^"]+">{name}</a></th>', html), name
 
 
 def test_healthz_checks_the_database(client):

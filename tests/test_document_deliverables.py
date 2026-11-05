@@ -296,6 +296,7 @@ def test_the_new_document_and_version_pages_take_the_stage(people, study, client
     sign_in(client, people["evaluator"])
     page = client.get("/documents/new/?collection=emv").content.decode()
     assert "Track it as a study deliverable" in page and "Comments open" in page
+    assert 'id="type-list-link"' in page and 'href="/documents/lists/' in page  # the document types beside the control (D8, L7)
     r = client.post(
         "/documents/new/",
         {

@@ -296,7 +296,14 @@ def new(request):
     return render(
         request,
         "documents/new.html",
-        {"form": form, "collection": collection, "collections": [(c, Collection(c).label) for c in allowed], "study": study},
+        {
+            "form": form,
+            "collection": collection,
+            "collections": [(c, Collection(c).label) for c in allowed],
+            "study": study,
+            # the collection's document types, linked beside the control (navigation review D8, L7)
+            "type_list": AttributeList.objects.filter(type_of=collection).first() if collection else None,
+        },
     )
 
 

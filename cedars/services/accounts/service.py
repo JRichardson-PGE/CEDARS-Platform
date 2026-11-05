@@ -519,6 +519,14 @@ def cpuc() -> Organisation | None:
     return Organisation.objects.filter(kind=Organisation.Kind.CPUC).first()
 
 
+def is_cpuc_staff(user) -> bool:
+    """A member of the CPUC's organization (any permission), or a CPUC system administrator."""
+    if user is None or not user.is_authenticated:
+        return False
+    org = cpuc()
+    return is_system_admin(user) or (org is not None and organisations_of(user).filter(pk=org.pk).exists())
+
+
 def filing_organisation(org: Organisation | None) -> Organisation | None:
     """The organization a page should speak of as "yours" when it shows a PA's own filings, budgets or reports: the acting organization
     when it files (Organisation.files), else None. The CPUC, the statewide (SW) pseudo-PA and other organizations have no filings or

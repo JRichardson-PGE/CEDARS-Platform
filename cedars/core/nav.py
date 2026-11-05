@@ -206,7 +206,7 @@ MENUS = (
             Group(
                 "Data and publishing",
                 (
-                    Item("Energy efficiency goals", "administration:goal_sets", SYSADMIN, pages=("administration:goal_*",)),
+                    Item("CPUC goal decisions", "administration:goal_sets", SYSADMIN, pages=("administration:goal_*",)),
                     Item("Publication holds", "snapshots:holds", SYSADMIN, pages=("snapshots:*",)),
                     Item("Document accessibility", "accessibility:files", SYSADMIN, pages=("accessibility:*",)),
                     Item("Retention", "retention:index", SYSADMIN),

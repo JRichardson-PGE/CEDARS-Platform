@@ -294,7 +294,7 @@ administration/allocation:
       text: Every step taken on the version, who took it and for which organization.
 
 administration/goal_sets:
-  title: Energy efficiency goals
+  title: CPUC goal decisions
   see: administering
   guide:
     - The CPUC adopts goals by decision about every two years. Each decision is loaded as a set of goals (cumulative goals for each cycle and

@@ -219,7 +219,11 @@ def filing(request, pk):
     if v is not None:
         service.ensure_lines(v)
     ctx = {
-        "pa_choices": [] if org else submissions.filers(deadline, lambda s: service.can_read_submission(request.user, s)),
+        "pa_choices": []
+        if org
+        else submissions.filer_statuses(
+            deadline, lambda s: service.can_read_submission(request.user, s), every=access.is_cpuc_staff(request.user)
+        ),
         "deadline": deadline,
         "label": service.label(deadline),
         "setup": deadline.budget_setup,

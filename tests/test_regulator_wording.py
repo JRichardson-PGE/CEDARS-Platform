@@ -65,3 +65,20 @@ def test_a_pa_still_sees_its_own(client, filer, standing, cycle):  # noqa: F811
     assert b"<h1>PGE operating budget, " in client.get(reverse("budgets:operating", args=[cycle.first_year])).content
     filing_page = page_only(client.get(reverse("budgets:filing", args=[standing.submission.deadline.pk])).content.decode())
     assert "Choose a program administrator" not in filing_page and ": PGE" in filing_page
+
+
+def test_the_cpuc_sees_every_pa_and_where_its_filing_stands(client, cpuc_admin, standing):  # noqa: F811
+    """Navigation review D8 (L8): a PA that has not filed is listed as not started, not left out."""
+    access.create_organisation(cpuc_admin, code="MCE", name="Marin Clean Energy", kind="pa", pa_type="CCA")
+    sign_in(client, cpuc_admin)
+    page = page_only(client.get(reverse("budgets:filing", args=[standing.submission.deadline.pk])).content.decode())
+    chooser = page.split('id="choose-pa-h"', 1)[1].split("</section>", 1)[0]
+    assert '?org=PGE">PGE</a>' in chooser and "Published" in chooser
+    assert "MCE <span" in chooser and "Not started" in chooser and '?org=MCE"' not in chooser
+
+
+def test_the_about_page_says_what_cedars_holds(client):
+    """Navigation review D8 (L4): what the platform holds, not the build plan."""
+    page = page_only(client.get(reverse("core:about")).content.decode())
+    assert "What CEDARS holds" in page and "Phase" not in page and "will hold" not in page
+    assert f'href="{reverse("programs:catalog")}"' in page and f'href="{reverse("releases:index")}"' in page
