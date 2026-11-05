@@ -124,7 +124,16 @@ def index(request):
     return render(
         request,
         "budgets/index.html",
-        {"cycles": cycles, "org": org, "approver": waiting is not None, "sysadmin": access.is_system_admin(request.user)},
+        {
+            "cycles": cycles,
+            "org": org,
+            "approver": waiting is not None,
+            "sysadmin": access.is_system_admin(request.user),
+            # each cycle's operating budget: the approved budget with every fund shift applied (navigation review D7)
+            "operating": shifts.can_read_operating(request.user, org)
+            if org is not None and org.files
+            else (org is None and shifts.can_read_every_operating(request.user)),
+        },
     )
 
 
@@ -423,6 +432,7 @@ def version(request, pk):
             "cost_fields": PROGRAM_COST_FIELDS,
             "legacy": legacy.imported(v) if v.imported else None,
             "letter": ChangeLetter.objects.filter(version=v).first(),
+            "operating": v.submission.organisation.files and shifts.can_read_operating(request.user, v.submission.organisation),
         },
     )
 

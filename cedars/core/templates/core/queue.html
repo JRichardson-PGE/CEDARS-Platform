@@ -31,6 +31,6 @@
 {% endif %}
 <details class="small"><summary>What the queue covers</summary>
 <ul>{% for s in sections %}<li>{{ s.kind.label }}</li>{% endfor %}</ul>
-<p>Each kind shows only the items you may act on: approvers' requests to approvers and their delegates, confirmations to those who may confirm the filing, fund shifts to those who may acknowledge for a co-funding PA, comments to the side whose turn it is to reply. Deadline reminders come by notification (<a href="{% url 'notifications:settings' %}">notification settings</a>).</p>
+<p>Each kind shows only the items you may act on: approvers' requests to approvers and their delegates, confirmations to those who may confirm the filing, fund shifts to those who may acknowledge for a co-funding PA, comments to the side whose turn it is to reply, a held publication to the filing organization's confirmers and the CPUC system administrators. Deadline reminders come by notification (<a href="{% url 'notifications:settings' %}">notification settings</a>).</p>
 </details>
 {% endblock %}

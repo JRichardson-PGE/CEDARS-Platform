@@ -369,6 +369,33 @@ def hold_records_csv(user, snap: Snapshot) -> str:
     return out.getvalue()
 
 
+def hold_of(v: SubmissionVersion) -> PIIScan | None:
+    """The scan holding this version's publication now, or None (not held, released, or never scanned)."""
+    return (
+        PIIScan.objects.filter(snapshot__version=v, outcome=PIIScan.Outcome.HELD)
+        .select_related("snapshot__organisation", "snapshot__version__submission__deadline")
+        .first()
+    )
+
+
+def held_for(user) -> list[PIIScan]:
+    """The held publications waiting on the user (My queue, navigation review D7): their own organization's filings in a module where
+    they confirm, and every one for a CPUC system administrator, who releases holds. A hold a newer published version stands over is
+    left out: it would not be published anyway."""
+    if user is None or not user.is_authenticated:
+        return []
+    qs = PIIScan.objects.filter(outcome=PIIScan.Outcome.HELD).select_related(
+        "snapshot__organisation", "snapshot__version__submission__deadline__period", "snapshot__version__submission__deadline__cycle"
+    )
+    if not access.is_system_admin(user):
+        allowed = []
+        for org in access.organisations_of(user):
+            modules = {p.split(".")[0] for p in access.effective_permissions(user, org) if p.endswith(".confirm")}
+            allowed += [s for s in qs.filter(snapshot__organisation=org) if module_of(s.snapshot) in modules]
+        qs = allowed
+    return [s for s in qs if not superseded(s.snapshot)]
+
+
 def may_see(user, snap: Snapshot) -> bool:
     return access.is_system_admin(user) or access.organisations_of(user).filter(pk=snap.organisation_id).exists()
 

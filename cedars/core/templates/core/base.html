@@ -64,15 +64,12 @@
   <ul class="links">
     <li><a href="{% url 'core:help' %}">Help</a></li>
     <li><a href="{% url 'core:about' %}">About CEDARS</a></li>
+    <li><a href="{% url 'core:help_guide' 'accessibility' %}">Accessibility</a></li>
     <li><a href="{% url 'releases:index' %}">Release notes</a></li>
     <li><a href="{% url 'limits:index' %}">Limits</a></li>
+    <li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a></li>
     <li><a href="{% url 'feedback:form' %}?from={{ request.get_full_path|urlencode }}">Feedback on this page</a></li>
-    <li><a href="{% url 'documents:library' %}">Documents</a></li>
-    <li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li>
-    {% if user.is_authenticated %}<li><a href="{% url 'rules:index' %}">Validation rules</a></li>{% endif %}{# signed in only (Jake, 2026-11-02) #}
     <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li>
-    <li><a href="{% url 'data:dashboards' %}">Portfolio dashboard</a></li>
-    <li><a href="{% url 'data:records' %}">Record downloads</a></li>
   </ul>
   <span>CEDARS platform {{ platform_version }}</span>
 </footer>

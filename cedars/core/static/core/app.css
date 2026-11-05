@@ -292,6 +292,8 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .ask-access { background: var(--info-bg); border-left: 4px solid var(--info); border-radius: var(--r); padding: .6rem .9rem; margin: .5rem 0 1rem; }   /* an account with no organization (D1) */
 .before-upload { font-size: .92rem; margin: .25rem 0 .75rem; padding: .45rem .75rem; border-left: 3px solid var(--line); background: var(--surface-2); border-radius: var(--r); }   /* D3 */
 .alert { background: var(--bad-bg); border-left: 4px solid var(--bad); border-radius: var(--r); padding: .6rem .9rem; margin: .5rem 0 1rem; }
+.hold-notice { border: 1px solid var(--line); border-left: 4px solid var(--warn); background: var(--warn-bg); border-radius: var(--r); padding: .6rem .9rem; margin: 0 0 1rem; }   /* D7: a held publication, named in its heading */
+.hold-notice h2 { font-size: 1.05rem; margin: 0 0 .3rem; }
 ul.notices { list-style: none; padding: 0; margin: 0 0 1rem; }
 ul.notices li { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem .9rem; margin-bottom: .5rem; background: var(--surface); }
 ul.notices li.unread { border-left: 4px solid var(--primary); }   /* also marked "New" in text */
