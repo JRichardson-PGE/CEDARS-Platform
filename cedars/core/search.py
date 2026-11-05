@@ -2,7 +2,8 @@
 page's help and the FAQ), glossary terms, programs, data-dictionary fields and documents.
 
 Nothing is indexed: each part asks the same source its own page reads, with the same rules on who sees what. Pages are listed only to
-the visitors their header shows them to (`PAGES`, the header's own groups); documents come from the library's search, which keeps
+the visitors their header shows them to (`all_pages()`: the header's and footer's pages, and every other page with its own help and a
+fixed address, navigation review D6); documents come from the library's search, which keeps
 unpublished documents to those who may read them; programs and dictionary fields are public, as their pages are. Each part shows its
 best `PER_PART` matches and links to its own page's search for the rest, so a part never runs more than one query a page does.
 
@@ -115,18 +116,83 @@ OTHER_PAGES = {
 }
 
 
-def _pages() -> list[Page]:
-    """The menus' pages, each with every role any of its menu items shows it to, then the pages outside the menus."""
+# Pages with a help entry and a fixed address whose help key is not their URL name with "/" for ":" (navigation review D6).
+OTHER_KEYS = {
+    "core:help_tour": "core/help/tour",
+    "refdata:build_start": "refdata/builder/start",
+    "documents:study_summary": "documents/summary",
+    "documents:new_study": "documents/study_form",
+}
+# Who may open a page that no menu item says, or says too widely (its menu item's who otherwise).
+WHO = {
+    "administration:request_access": ("user",),
+    "notifications:settings": ("user",),
+    "documents:new": ("user",),
+    "documents:subscriptions": ("user",),
+    "documents:subscribers": ("sysadmin",),
+    "documents:aging": ("user",),
+    "documents:new_study": ("user",),
+    "data:downloads": ("user",),
+    "impact_profiles:custom_new": ("member",),
+    "administration:organisation_new": ("sysadmin",),
+    "budgets:filing_new": ("sysadmin",),
+    "claims:year_new": ("sysadmin",),
+    "monthly:year_new": ("sysadmin",),
+    "refdata:build_start": ("user",),
+    "programs:locked": ("user",),
+}
+SKIP = {"core:search"}  # this page itself
+
+
+def _url_names() -> list[str]:
+    from django.urls import get_resolver
+
+    out = []
+
+    def walk(res, ns=None):
+        for p in res.url_patterns:
+            if hasattr(p, "url_patterns"):
+                walk(p, ":".join(x for x in (ns, p.namespace) if x) if p.namespace else ns)
+            elif p.name:
+                out.append(f"{ns}:{p.name}" if ns else p.name)
+
+    walk(get_resolver())
+    return out
+
+
+@cache
+def all_pages() -> tuple[Page, ...]:
+    """Every page search lists by name: the menus' and the footer's (HELP_KEYS, with the words they are known by), then every other
+    page with a help entry and an address that takes no arguments (navigation review D6), each listed to whoever may open it: the roles
+    of the menu items that hold it (core/nav.py), OTHER_PAGES or WHO."""
+    from django.urls import NoReverseMatch
+
+    entries = page_help.entries()
+    every = [(i,) for m in nav.MENUS for i in m.items]
     who: dict[str, set[str]] = {}
     for m in nav.MENUS:
         for i in m.items:
             who.setdefault(i.url_name, set()).update(i.who)
     for name, roles in OTHER_PAGES.items():
         who.setdefault(name, set()).update(roles)
-    return [Page(name, HELP_KEYS[name][0], tuple(sorted(r)), HELP_KEYS[name][1]) for name, r in who.items()]
-
-
-PAGES = _pages()
+    pages = [Page(name, HELP_KEYS[name][0], tuple(sorted(r)), HELP_KEYS[name][1]) for name, r in who.items()]
+    listed = set(who)
+    for name in _url_names():
+        if name in listed or name in SKIP:
+            continue
+        key = OTHER_KEYS.get(name, name.replace(":", "/"))
+        if key not in entries:
+            continue
+        try:
+            reverse(name)
+        except NoReverseMatch:  # an address with arguments: found through its parent page
+            continue
+        roles = WHO.get(name) or (h[0].who if (h := nav.holder(name, every)) else None)
+        if roles is None:
+            continue
+        listed.add(name)
+        pages.append(Page(name, key, tuple(sorted(roles))))
+    return tuple(pages)
 
 
 @dataclass(frozen=True)
@@ -188,7 +254,7 @@ def pages(user, terms) -> Part:
     roles = _roles(user)
     entries = page_help.entries()
     items = []
-    for p in PAGES:
+    for p in all_pages():
         if not roles.intersection(p.who):
             continue
         e = entries[p.help_key]
