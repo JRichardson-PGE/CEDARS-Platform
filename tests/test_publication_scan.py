@@ -435,3 +435,41 @@ def test_a_held_publication_waits_in_my_queue(client, filer, cpuc_admin, held_sn
     snapshots.release_hold(cpuc_admin, held_snap, "the 'phone number' is a measure code")
     sign_in(client, filer)
     assert f'href="/publication/holds/{held_snap.pk}/"' not in page_only(client.get(reverse("core:queue")).content.decode())
+
+
+# Navigation review D9 (Jake, 2026-11-04): the PA that filed certifies its own hold.
+
+
+def test_the_filing_organization_s_confirmer_certifies_and_releases(client, filer, cpuc_admin, held_snap):  # noqa: F811
+    assert snapshots.may_certify(filer, held_snap) and not snapshots.may_certify(cpuc_admin, held_snap)
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(filer, held_snap, "  ")  # a reason is needed
+    sign_in(client, filer)
+    page = page_only(client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode())
+    assert "Certify it is not personal information" in page and "Release to the public data" not in page
+    r = client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "certify", "reason": "M8 is a measure code"})
+    assert r.status_code == 302
+    scan = PIIScan.objects.get(snapshot=held_snap)
+    assert scan.outcome == "certified" and not scan.held and scan.released_by == filer and scan.release_reason == "M8 is a measure code"
+    assert held_snap.version_id in in_release()
+    event = AuditEvent.objects.get(action="snapshot.hold_certified")
+    assert event.organisation == held_snap.organisation and event.reason == "M8 is a measure code"
+    [told] = Notification.objects.filter(title__startswith="Publication released by PGE")
+    assert told.user == cpuc_admin and "M8 is a measure code" in told.body
+    page = page_only(client.get(reverse("snapshots:hold", args=[held_snap.pk])).content.decode())
+    assert "Certified" in page and "Certify it is not personal information" not in page
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(filer, held_snap, "again")  # no longer held
+
+
+def test_only_the_filing_organization_s_confirmers_certify(client, make_user, cpuc_admin, pge, pge_admin, held_snap):
+    reader = make_user("reader@pge.example.org")
+    access.grant(pge_admin, reader, pge, "claims.read")
+    assert not snapshots.may_certify(reader, held_snap)
+    with pytest.raises(AccessDenied):
+        snapshots.certify_hold(reader, held_snap, "not PII")
+    sign_in(client, reader)
+    client.post(reverse("snapshots:hold", args=[held_snap.pk]), {"action": "certify", "reason": "not PII"})
+    assert PIIScan.objects.get(snapshot=held_snap).held
+    snapshots.release_hold(cpuc_admin, held_snap, "the CPUC keeps its own release")
+    assert PIIScan.objects.get(snapshot=held_snap).outcome == "released"

@@ -52,6 +52,9 @@ def hold(request, pk):
             if request.POST.get("action") == "release":
                 service.release_hold(request.user, snap, request.POST.get("reason", ""))
                 messages.success(request, "Released: the records are in the public dashboards and downloads now.")
+            elif request.POST.get("action") == "certify":
+                service.certify_hold(request.user, snap, request.POST.get("reason", ""))
+                messages.success(request, "Certified and released: the records are in the public dashboards and downloads now.")
             elif request.POST.get("action") == "rescan":
                 scan = service.rescan(request.user, snap)
                 messages.success(
@@ -72,6 +75,7 @@ def hold(request, pk):
             "findings": findings,
             "superseded": service.superseded(snap),
             "sysadmin": access.is_system_admin(request.user),
+            "may_certify": service.may_certify(request.user, snap),
             "module": service.module_of(snap),
         },
     )
