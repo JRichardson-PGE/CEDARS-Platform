@@ -33,20 +33,21 @@ def test_the_header_has_the_search_box_on_every_page(client):
 
 
 def test_every_header_page_is_searchable_with_help():
-    """Each page the header or footer links to is in search.PAGES, and each PAGES entry names a help entry that exists."""
+    """Each page the header or footer links to is in search.all_pages(), and each PAGES entry names a help entry that exists."""
     names = set(re.findall(r"\{% url '([a-z_]+:[a-z_]+)'", BASE.read_text(encoding="utf-8"))) | nav.all_url_names()
-    names -= {"core:search", "account_login", "administration:switch_organisation", "releases:detail"}  # (a release note's own page)
-    listed = {p.url_name for p in search.PAGES}
+    # a release note's and a guide's own pages are found through their lists
+    names -= {"core:search", "account_login", "administration:switch_organisation", "releases:detail", "core:help_guide"}
+    listed = {p.url_name for p in search.all_pages()}
     assert names - listed == set()
     entries = page_help.entries()
-    for p in search.PAGES:
+    for p in search.all_pages():
         reverse(p.url_name)
         assert p.help_key in entries, p
 
 
 def test_public_pages_listed_to_everyone_open_signed_out(client):
     dictionary.load_catalog(None, json.loads(CATALOG.read_text(encoding="utf-8")))
-    for p in search.PAGES:
+    for p in search.all_pages():
         if "" in p.who or "anon" in p.who:
             assert client.get(reverse(p.url_name), follow=True).status_code == 200, p.url_name
             assert not client.get(reverse(p.url_name)).get("Location", "").startswith("/accounts/"), p.url_name
@@ -123,3 +124,17 @@ def test_the_faq_is_searched_too(client):
     word = max(re.findall(r"[A-Za-z]{5,}", q.q), key=len)
     part = {p.key: p for p in search.search(None_user(), word)}["help"]
     assert part.total >= 1 and any(h.kind == "Question" for h in part.hits) or part.total > search.PER_PART
+
+
+def test_every_page_with_its_own_help_and_address_is_searchable(client, signed_in, cpuc_admin):
+    """Navigation review D6: not only the header's pages; each listed to whoever may open it."""
+    listed = {p.url_name: p for p in search.all_pages()}
+    for name in ("impact_profiles:packages", "documents:work_orders", "claims:restatements", "snapshots:scan_settings"):
+        assert name in listed, name
+    assert "rules:differences" in listed
+    assert len(listed) > 70
+    assert "" in listed["documents:work_orders"].who and listed["snapshots:scan_settings"].who == ("sysadmin",)
+    assert 'href="/documents/work-orders/"' in client.get("/search/", {"q": "work orders"}).content.decode()  # public
+    assert f'href="{reverse("snapshots:scan_settings")}"' not in client.get("/search/", {"q": "scan settings"}).content.decode()
+    html = signed_in(cpuc_admin).get("/search/", {"q": "scan settings"}).content.decode()
+    assert f'href="{reverse("snapshots:scan_settings")}"' in html
