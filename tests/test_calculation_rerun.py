@@ -111,14 +111,22 @@ def test_only_those_who_see_a_run_rerun_it(analyst, pge, release, tmp_path, make
 def test_the_owner_deletes_their_own_ended_run(analyst, pge, release, worker, tmp_path, web, django_capture_on_commit_callbacks):
     run = original(analyst, pge, release, tmp_path, org=None)
     page = web.get(f"/calculations/runs/{run.pk}/").content.decode()
-    assert 'id="delete-h"' not in page  # queued: stop it first
+    assert 'id="delete-run"' not in page  # queued: stop it first
+    assert web.get(f"/calculations/runs/{run.pk}/delete")["Location"] == f"/calculations/runs/{run.pk}/"
     with pytest.raises(AccessDenied, match="Stop the run first"):
         service.delete_run(analyst, run)
     run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
-    assert 'id="delete-h"' in web.get(f"/calculations/runs/{run.pk}/").content.decode()
+    page = web.get(f"/calculations/runs/{run.pk}/").content.decode()
+    head = page.split('class="head-row"')[1].split("</div>\n</div>")[0]  # Delete this run is up beside Results (Jake, 2026-11-04)
+    assert f'<a class="button danger" id="delete-run" href="/calculations/runs/{run.pk}/delete">Delete this run</a>' in head
+    assert 'id="delete-h"' not in page and 'name="sure"' not in page  # nothing deletes from the run page itself
 
-    r = web.post(f"/calculations/runs/{run.pk}/delete")  # the box not ticked
-    assert r.status_code == 302 and Run.objects.filter(pk=run.pk).exists()
+    confirm = web.get(f"/calculations/runs/{run.pk}/delete")  # the button asks first
+    html = confirm.content.decode()
+    assert confirm.status_code == 200 and "Delete “2028 claims”?" in html and "Delete the run for good" in html and "Keep the run" in html
+    assert Run.objects.filter(pk=run.pk).exists()
+    r = web.post(f"/calculations/runs/{run.pk}/delete")  # not confirmed
+    assert r.status_code == 302 and r["Location"] == f"/calculations/runs/{run.pk}/delete" and Run.objects.filter(pk=run.pk).exists()
     prefix = run.storage_prefix
     with django_capture_on_commit_callbacks(execute=True):
         r = web.post(f"/calculations/runs/{run.pk}/delete", {"sure": "1"})

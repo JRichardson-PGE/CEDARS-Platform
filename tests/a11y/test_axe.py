@@ -331,8 +331,14 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
             "outputs": {"measure_level_run.csv.zip": {"sha256": "ef" * 32}},
             "totals": {"TRCRatio": 1.42, "PACRatio": 1.87},
             "seconds": 9,
+            "cost_tests": ((finished.spec or {}).get("context") or {}).get("cost_tests") or {},  # priced on the set it was pinned to
         },
     )
+    own = calculations.create_run(  # the analyst's own ("Only me") ended run: the run page offers Delete this run, which asks first
+        analyst, None, calculations.RunRequest(name="Scratch run", release=release, calculation="recet", acc_version="2024"), job
+    )
+    calculations.mark_started(own, worker="scene")
+    calculations.finish(own, exit_code=1, receipt={"error": "ValueError: Measure.csv has no CEInputID column"})
     if drafts.engine() is not None:  # Edit inputs: the engine's check of the draft, ended, with a finding on a cell and one on the job
         check = drafts.start_check(
             analyst, draft, calculations.RunRequest(name="x", release=release, calculation="recet", acc_version="2024")
@@ -412,6 +418,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "pii_filer": pii_filer,
         "queued_run": queued,
         "finished_run": finished,
+        "own_run": own,
         "engine_release": release.pk,
         "result_view": _result_view(analyst),
         "draft": draft,
@@ -1896,6 +1903,50 @@ def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene
     context.add_cookies([_session_cookie(scene["analyst"], "mfa", site)])
     page = context.new_page()
     page.goto(f"{site.url}/calculations/templates/new/")
+    assert page.locator("#field-picker").is_hidden() and page.locator("[data-without-picker]").is_visible()
+    context.close()
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_results_column_picker_by_keyboard(browser, axe_source, site, scene, scheme):
+    """Choose columns on Results as the output template page has it (Jake, 2026-11-04): a column added with Enter, moved with Alt+Up,
+    removed with Delete, the hidden columns field kept in step and sent in that order, each change announced, and axe clean with the
+    picker open. Without scripts: Find and the tick boxes."""
+    from cedars.modules.calculations import results as results_mod
+
+    if results_mod.engine() is None:
+        pytest.skip("the Results pages use the ReCET engine's results code (the page says so instead)")
+    path = "/calculations/runs/{finished_run}/results/?level=program&columns=TotalSystemBenefit&picker=1"
+    context, page = _open(browser, site, scene, path, "analyst", color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#field-picker").is_visible() and page.locator("[data-without-picker]").is_hidden()
+    assert page.locator("#pick-columns").input_value() == "TotalSystemBenefit"
+    page.fill("#pick-find", "ElecBen")
+    page.locator("#pick-available").focus()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    assert page.locator("#pick-columns").input_value() == "TotalSystemBenefit,ElecBen"
+    page.locator("#pick-selected").focus()
+    page.locator("#pick-selected").select_option("ElecBen")
+    page.keyboard.press("Alt+ArrowUp")
+    assert page.locator("#pick-columns").input_value() == "ElecBen,TotalSystemBenefit"
+    page.wait_for_selector("#announcer:has-text('position 1 of 2')", state="attached")
+    page.locator("#pick-selected").dispatch_event("change")
+    assert "Electric benefits" in page.inner_text("#pick-def")
+    found = _violations(page, axe_source)
+    assert not found, f"results column picker ({scheme}): " + json.dumps(found, indent=1)
+    page.locator("#field-picker").locator("xpath=..").locator("button[type=submit]").click()
+    page.wait_for_load_state()
+    assert "columns=ElecBen%2CTotalSystemBenefit" in page.url
+    page.locator("#pick-selected").select_option("TotalSystemBenefit")
+    page.locator("#pick-selected").focus()
+    page.keyboard.press("Delete")
+    assert page.locator("#pick-columns").input_value() == "ElecBen"
+    context.close()
+
+    context = browser.new_context(java_script_enabled=False)
+    context.add_cookies([_session_cookie(scene["analyst"], "mfa", site)])
+    page = context.new_page()
+    page.goto(f"{site.url}{path.format(finished_run=scene['finished_run'].pk)}")
     assert page.locator("#field-picker").is_hidden() and page.locator("[data-without-picker]").is_visible()
     context.close()
 

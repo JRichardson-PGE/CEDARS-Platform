@@ -51,8 +51,9 @@ Only the CPUC registers a set for everyone and pins a set to a filing.</p>
   <li><a href="{% url 'impact_profiles:library' %}">Impact profile library</a>: the hourly profiles measures name, and custom uploads (the <a href="{% url 'core:help_guide' 'impact-profiles' %}">Impact profiles</a> guide).</li>
   <li><a href="{% url 'core:help_guide' 'reference-data' %}">Reference data and cost-test sets</a>: the ACCs, allocation factors and
   cost-test sets a run is pinned to.</li>
-  <li>From a finished run's page, open its Results or compare it with another run. On both, <strong>Choose columns</strong> finds
-  columns by name or definition and saves the columns shown as a named view, which you can pick again for any run.</li>
+  <li>From a finished run's page, open its Results or compare it with another run. On both, <strong>Choose columns</strong> works as an
+  output template does: columns you can add on the left (searched by name or definition), the columns shown on the right in the order the
+  table shows them, with buttons to add, remove and reorder them. Save the columns shown as a named view to pick again for any run.</li>
   <li>From a finished run's page, you can also choose <strong>Rerun with different settings</strong>: New run filled in
   from the run, with its job file and optional input files used again unless you upload others. Your own runs (for Only me) can be
   deleted, with their files, once they end; an organization's runs stay until retention removes them.</li>

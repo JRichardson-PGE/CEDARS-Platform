@@ -1,15 +1,21 @@
-// Output template page: a two-list field picker, as ReCET's own Templates page has it. The left list shows the fields of the chosen kind
-// or group that are not in the template yet, filtered by the search box; the right list is the template in file order. The Columns text
-// box (sent with the form) always holds the right list, one column per line, and typing or pasting there rebuilds the list. Without
-// scripts the page keeps its text box and its tick boxes. Changes are announced through window.cedarsAnnounce.
+// The two-list field picker (calculations/_field_picker.html), as ReCET's own Templates page has it: on the output template page and in
+// Choose columns on Results and Compare. The left list shows the fields of the chosen kind or group that are not chosen yet, filtered by
+// the search box; the right list is the chosen columns in order. The input the picker names (data-target: the template's Columns text
+// box, or Results' hidden columns field) always holds the right list, one per line or comma-separated (data-sep), and typing or pasting
+// in a text box rebuilds the list. Without scripts the page keeps its own way to choose ([data-without-picker]); [data-with-picker]
+// parts are shown only with the picker. Changes are announced through window.cedarsAnnounce.
 (function () {
   "use strict";
-  var text = document.getElementById("id_columns");
   var picker = document.getElementById("field-picker");
   var catalogEl = document.getElementById("field-catalog");
-  if (!text || !picker || !catalogEl) return;
+  if (!picker || !catalogEl) return;
+  var text = document.getElementById(picker.getAttribute("data-target") || "id_columns");
+  if (!text) return;
+  var comma = picker.getAttribute("data-sep") === "comma";
+  var noun = picker.getAttribute("data-noun") || "the template";
   var fields = JSON.parse(catalogEl.textContent), byName = {}, byLower = {};
   fields.forEach(function (f) { byName[f.c] = f; byLower[f.c.toLowerCase()] = f.c; });
+  function shown(name) { var f = byName[name]; return f && f.t ? f.t : name; } // Results' columns have a label besides their key
   var avail = document.getElementById("pick-available"), sel = document.getElementById("pick-selected");
   var kind = document.getElementById("pick-kind"), find = document.getElementById("pick-find"), findSel = document.getElementById("pick-find-sel");
   var def = document.getElementById("pick-def");
@@ -28,11 +34,13 @@
     });
     return out;
   }
-  function matches(f, q) { return !q || f.c.toLowerCase().indexOf(q) >= 0 || (f.d || "").toLowerCase().indexOf(q) >= 0; }
+  function matches(f, q) {
+    return !q || [f.c, f.t || "", f.d || ""].some(function (s) { return s.toLowerCase().indexOf(q) >= 0; });
+  }
   function option(name) {
     var o = document.createElement("option");
     o.value = name;
-    o.textContent = byName[name] ? name : name + " (not a measure-level column)"; // said in words, not by color
+    o.textContent = byName[name] ? shown(name) : name + " (not a measure-level column)"; // said in words, not by color
     return o;
   }
   function renderAvail() {
@@ -60,15 +68,15 @@
     var q = findSel.value.trim().toLowerCase();
     sel.textContent = "";
     chosen.forEach(function (c) {
-      if (q && c.toLowerCase().indexOf(q) < 0) return;
+      if (q && c.toLowerCase().indexOf(q) < 0 && shown(c).toLowerCase().indexOf(q) < 0) return;
       var o = option(c);
       if (keep && keep.indexOf(c) >= 0) o.selected = true;
       sel.appendChild(o);
     });
-    document.getElementById("pick-sel-count").textContent = plural(chosen.length, "column") + " in the template";
+    document.getElementById("pick-sel-count").textContent = plural(chosen.length, "column") + " in " + noun;
     var count = document.getElementById("columns-count");
-    if (count) count.textContent = plural(chosen.length, "column") + " in the template.";
-    if (!leaveText) text.value = chosen.join("\n") + (chosen.length ? "\n" : "");
+    if (count) count.textContent = plural(chosen.length, "column") + " in " + noun + ".";
+    if (!leaveText) text.value = comma ? chosen.join(",") : chosen.join("\n") + (chosen.length ? "\n" : "");
   }
   function picked(list) {
     return Array.prototype.filter.call(list.options, function (o) { return o.selected; }).map(function (o) { return o.value; });
@@ -76,9 +84,9 @@
   function showDef(name) {
     var f = byName[name];
     def.textContent = "";
-    var head = document.createElement(f ? "a" : "strong");
-    if (f) head.href = f.l;
-    head.textContent = name;
+    var head = document.createElement(f && f.l ? "a" : "strong");
+    if (f && f.l) head.href = f.l;
+    head.textContent = shown(name);
     def.appendChild(head);
     def.appendChild(document.createTextNode(f ? " (" + f.g + "): " + (f.d || "no definition recorded") : " is not a measure-level column."));
   }
@@ -88,14 +96,14 @@
     chosen = chosen.concat(names);
     renderSel(names);
     renderAvail();
-    say((names.length === 1 ? names[0] : plural(names.length, "field")) + " added; " + plural(chosen.length, "column") + " in the template");
+    say((names.length === 1 ? shown(names[0]) : plural(names.length, "field")) + " added; " + plural(chosen.length, "column") + " in " + noun);
   }
   function remove(names) {
     if (!names.length) return;
     chosen = chosen.filter(function (c) { return names.indexOf(c) < 0; });
     renderSel();
     renderAvail();
-    say((names.length === 1 ? names[0] : plural(names.length, "column")) + " removed; " + plural(chosen.length, "column") + " in the template");
+    say((names.length === 1 ? shown(names[0]) : plural(names.length, "column")) + " removed; " + plural(chosen.length, "column") + " in " + noun);
   }
   function move(how) {
     var names = picked(sel);
@@ -114,7 +122,7 @@
     }
     renderSel(names);
     var first = chosen.indexOf(names[0]) + 1;
-    say((names.length === 1 ? names[0] : plural(names.length, "column")) + " now at position " + first + " of " + chosen.length);
+    say((names.length === 1 ? shown(names[0]) : plural(names.length, "column")) + " now at position " + first + " of " + chosen.length);
   }
 
   document.getElementById("pick-add").addEventListener("click", function () { add(picked(avail)); });
@@ -123,7 +131,7 @@
   });
   document.getElementById("pick-remove").addEventListener("click", function () { remove(picked(sel)); });
   document.getElementById("pick-clear").addEventListener("click", function () {
-    if (chosen.length && window.confirm("Remove every column from the template?")) remove(chosen.slice());
+    if (chosen.length && window.confirm("Remove every column from " + noun + "?")) remove(chosen.slice());
   });
   ["top", "up", "down", "bottom"].forEach(function (h) {
     document.getElementById("pick-" + h).addEventListener("click", function () { move(h); });
@@ -147,11 +155,12 @@
   // the tick boxes are the picker's no-script stand-in: hidden (and cleared, so they add nothing) while the picker runs
   Array.prototype.forEach.call(document.querySelectorAll("[data-without-picker]"), function (el) {
     Array.prototype.forEach.call(el.querySelectorAll("input[type=checkbox]"), function (b) {
-      if (b.checked) { var v = b.value; if (chosen.indexOf(v) < 0) text.value += (text.value && !/\n$/.test(text.value) ? "\n" : "") + v + "\n"; }
+      if (b.checked && !comma) { var v = b.value; if (chosen.indexOf(v) < 0) text.value += (text.value && !/\n$/.test(text.value) ? "\n" : "") + v + "\n"; }
       b.checked = false;
     });
     el.hidden = true;
   });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-with-picker]"), function (el) { el.hidden = false; });
   chosen = parse(text.value);
   picker.hidden = false;
   renderSel();

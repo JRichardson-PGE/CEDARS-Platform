@@ -30,7 +30,7 @@ def templates(request):
 
 
 def picker_fields(cat) -> list[dict]:
-    """The field picker's catalog (template_picker.js): each field's name, group, kind (input, program or output field), definition
+    """The field picker's catalog (field_picker.js): each field's name, group, kind (input, program or output field), definition
     and data dictionary page, in the order a run writes them."""
     out = []
     for group, fields in cat.groups:
@@ -107,6 +107,15 @@ def template(request, pk=None):
             "unknown": unknown,
             "ticked": set(form.data.getlist("add")) if form.is_bound else set(),
             "picker_fields": picker_fields(cat) if cat else [],
-            "output_groups": [g for g, _f in cat.groups if g != output_templates.INPUT_GROUP] if cat else [],
+            "field_picker": {
+                "target": "id_columns",
+                "sep": "newline",
+                "noun": "the template",
+                "kinds": True,
+                "groups": [g for g, _f in cat.groups if g != output_templates.INPUT_GROUP] if cat else [],
+                "left": "Fields you can add",
+                "right": "Template columns, in file order",
+                "find_right": "Find in the template",
+            },
         },
     )

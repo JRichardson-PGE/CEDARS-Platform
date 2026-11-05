@@ -88,3 +88,30 @@ def test_compare_has_its_own_picker_row_filter_and_definitions(analyst, pge, rel
     r = web.get(f"/calculations/runs/{a.pk}/compare.csv", {"with": str(b.pk), "level": "program", "q": "sce_ind"})
     rows = list(csv.DictReader(io.StringIO(r.content.decode())))
     assert len(rows) == 1 and rows[0]["PrgID"] == "SCE_Ind"
+
+
+def test_the_two_list_column_picker(analyst, pge, release, worker, tmp_path, web):  # noqa: F811
+    """Choose columns as the output template page has it (Jake, 2026-11-04): every column on the left, the columns shown on the right in
+    the order chosen, sent as one comma list that sets the table's column order. Shown only with scripts; the tick boxes stay without."""
+    import json
+    import re
+
+    run = finished(analyst, pge, release, tmp_path)
+    url = f"/calculations/runs/{run.pk}/results/"
+    html = web.get(url, {"level": "program", "columns": "ElecBen,TRC_ratio"}).content.decode()
+    picker = html.split('id="picker"')[1].split("</details>")[0]
+    assert '<form method="get" data-with-picker hidden>' in picker and "<div data-without-picker>" in picker
+    assert 'id="field-picker" data-target="pick-columns" data-sep="comma" data-noun="the table" hidden' in picker
+    assert '<input type="hidden" name="columns" id="pick-columns" value="ElecBen,TRC_ratio">' in picker
+    assert 'name="level" value="program"' in picker and "field_picker.js" in html
+    catalog = json.loads(re.search(r'<script id="field-catalog" type="application/json">(.*?)</script>', html, re.S).group(1))
+    keys = [f["c"] for f in catalog]
+    assert {"ElecBen", "TRC_ratio", "TotalSystemBenefit"} <= set(keys) and len(keys) == len(set(keys))
+    elec = next(f for f in catalog if f["c"] == "ElecBen")
+    assert elec["t"] == "Electric benefits ($)" and elec["g"] and elec["d"]
+    # the order chosen is the table's order, and the CSV's
+    r = web.get(f"/calculations/runs/{run.pk}/results.csv", {"level": "program", "columns": "ElecBen,TRC_ratio"})
+    assert list(next(csv.DictReader(io.StringIO(r.content.decode()))))[-2:] == ["Electric benefits ($)", "TRC"]
+    # Compare gets the same picker
+    html = web.get(f"/calculations/runs/{run.pk}/compare/", {"with": str(run.pk), "columns": "TRC_ratio"}).content.decode()
+    assert 'data-target="pick-columns"' in html and 'id="pick-columns" value="TRC_ratio"' in html
