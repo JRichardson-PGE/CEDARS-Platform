@@ -12,4 +12,5 @@ urlpatterns = [
     path("fields/", views.fields, name="fields"),
     path("<str:prg_id>/", views.program, name="program"),
     path("<str:prg_id>/change", views.change, name="change"),
+    path("<str:prg_id>/lead", views.lead, name="lead"),
 ]

@@ -11,6 +11,15 @@
 </ol>
 <p>Contacts and sites never go in the claims file: upload them separately on the period's page (needs the PII permission). To withdraw a
 claim, list its ClaimID in the next upload's Withdrawal table.</p>
+<h2>Statewide programs</h2>
+<p>A statewide program is claimed only by its lead PA, which its <a href="{% url 'programs:catalog' %}">program page</a> names. Any
+PA's administrators can record the lead of a program that has none; after that, only the lead PA can change it. The lead
+PA files these claims in the statewide confirmations, due before the PAs' own: two weeks before a quarter's claim and a month before the
+annual claim, unless the CPUC sets other dates. They hold only the statewide programs it leads, and are priced with the statewide
+allocation, so each record's results are credited to the PAs that fund the program.</p>
+<p>Once the lead PA confirms, each funding PA sees its share on the year's <strong>statewide claims credited</strong> page, linked under
+each year on <a href="{% url 'claims:index' %}">Claims</a>, before it files its own claim. Its year's totals, such as the 13th-month
+report, count that share. Don't put statewide programs in your own claims: those records are rejected.</p>
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'core:help_guide' 'correcting-records' %}">Correcting filed records</a>.</li>

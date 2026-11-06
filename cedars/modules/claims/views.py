@@ -17,6 +17,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
+from cedars.services.registry.models import Program
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
@@ -44,7 +45,7 @@ def accs() -> list[str]:
 
 def _deadline(pk) -> Deadline:
     d = get_object_or_404(
-        Deadline.objects.select_related("period"), pk=pk, module=service.MODULE, kind__in=service.KINDS, period__isnull=False
+        Deadline.objects.select_related("period"), pk=pk, module=service.MODULE, kind__in=service.ALL_KINDS, period__isnull=False
     )
     if not ClaimYear.objects.filter(year=d.period.year).exists():
         raise Http404
@@ -90,9 +91,11 @@ def index(request):
     years = []
     cys = list(ClaimYear.objects.select_related("allocation_version"))
     imported = legacy.imported_deadlines(Deadline.objects.filter(module=service.MODULE, period__year__in=[cy.year for cy in cys]))
-    for cy in cys:
+    leads = org is not None and Program.objects.filter(statewide=True, lead=org).exists()
+
+    def rows_for(deadlines, show_org=True):
         rows = []
-        for d in service.periods(cy.year):
+        for d in deadlines:
             latest, can_open = None, True
             if org is not None:
                 sub = Submission.objects.filter(deadline=d, organisation=org).first()
@@ -104,11 +107,25 @@ def index(request):
                     "waiting": (waiting or {}).get(d.pk, 0),
                     "deadline": d,
                     "latest": latest,
+                    "files": show_org or latest is not None,
                     "past_due": submissions.past_due(d),
                     "can_open": can_open,
                 }
             )
-        years.append({"cy": cy, "periods": rows, "legacy": any(r["deadline"].pk in imported for r in rows)})
+        return rows
+
+    for cy in cys:
+        rows = rows_for(service.periods(cy.year))
+        sw = rows_for(service.periods(cy.year, statewide=True), show_org=leads)
+        years.append(
+            {
+                "cy": cy,
+                "periods": rows,
+                "rows": sorted(rows + sw, key=lambda r: (r["deadline"].due_at, r["deadline"].pk)),
+                "sw_missing": service.missing_sw_deadlines(cy),
+                "legacy": any(r["deadline"].pk in imported for r in rows),
+            }
+        )
     return render(
         request,
         "claims/index.html",
@@ -142,6 +159,7 @@ def year_new(request):
                 allocation_version=d["allocation_version"],
                 cost_test_set=d["cost_test_set"],
                 due={kind: service.due_at(d[forms.due_field(kind)]) for kind, _ in service.PERIODS},
+                sw_due=_sw_due(d),
                 notes=d["notes"],
             )
         except AccessDenied as e:
@@ -150,6 +168,11 @@ def year_new(request):
             messages.success(request, f"{cy.year} claims are set up.")
             return redirect("claims:index")
     return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS})
+
+
+def _sw_due(cleaned: dict) -> dict:
+    """The statewide due dates a form gave (blank ones left to the defaults)."""
+    return {k: service.due_at(cleaned[forms.due_field(k)]) for k, _ in service.SW_PERIODS if cleaned.get(forms.due_field(k))}
 
 
 @login_required
@@ -167,7 +190,20 @@ def setup(request, year):
     )
     if done:
         return done
-    own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
+    sw_form = None
+    if service.missing_sw_deadlines(cy):
+        sw_post = request.method == "POST" and "add_statewide" in request.POST
+        sw_form = forms.StatewideDatesForm(request.POST if sw_post else None, prefix="sw")
+        if sw_post:
+            if sw_form.is_valid():
+                try:
+                    service.add_sw_deadlines(request.user, cy, _sw_due(sw_form.cleaned_data))
+                except AccessDenied as e:
+                    messages.error(request, str(e))
+                else:
+                    messages.success(request, f"{cy.year} statewide claims are on the filing calendar.")
+                    return redirect("claims:setup", cy.year)
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request) and "add_statewide" not in request.POST
     form = forms.SetupForm(
         request.POST if own else None,
         accs=accs(),
@@ -189,7 +225,77 @@ def setup(request, year):
         else:
             messages.success(request, "Saved. Versions already priced keep what they were priced with.")
             return redirect("claims:index")
-    return render(request, "claims/setup.html", {"cy": cy, "form": form, "default_acc": service.default_acc(cy.year)} | calendar)
+    ctx = {"cy": cy, "form": form, "default_acc": service.default_acc(cy.year), "sw_form": sw_form}
+    return render(request, "claims/setup.html", ctx | calendar)
+
+
+# --- statewide claims credited to a PA
+
+
+def _share_org(request) -> Organisation | None:
+    """Whose statewide share the page shows: ?org=CODE (published claims are public to signed-in users), else the PA acted for."""
+    code = request.GET.get("org", "")
+    if code:
+        return access.by_code_or_404(code)
+    return request.filing_organisation
+
+
+def _share_rows(org, year: int) -> list[dict]:
+    rows = []
+    for r in service.statewide_share(org, year):
+        val = r["values"]
+        rows.append(
+            {
+                **r,
+                "cells": [(label, _fmt(kind, val.get(col))) for col, label, kind in SHARE_COLUMNS],
+            }
+        )
+    return rows
+
+
+SHARE_COLUMNS = [
+    ("FirstYearNetKWh", "First-year net kWh", "number"),
+    ("FirstYearNetKW", "First-year net kW", "number"),
+    ("FirstYearNetThm", "First-year net therms", "number"),
+    ("TotalSystemBenefit", "TSB", "money"),
+    ("TotalExpenditures", "Expenditures", "money"),
+]
+
+
+@login_required
+def statewide(request, year):
+    """The statewide claims credited to a PA in a claim year: each lead PA's confirmed statewide claims, the results its run credited
+    to the PA, by program, and where each statewide confirmation stands."""
+    cy = get_object_or_404(ClaimYear, year=year)
+    org = _share_org(request)
+    pas = Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code")
+    rows = _share_rows(org, year) if org else []
+    totals = [(label, _fmt(kind, sum((r["values"].get(col) or 0) for r in rows))) for col, label, kind in SHARE_COLUMNS]
+    status = [{**st, "pa_deadline": service.counterpart(st["deadline"])} for st in service.statewide_status(year)]
+    return render(
+        request,
+        "claims/statewide.html",
+        {"cy": cy, "org": org, "pas": [p for p in pas if p.files], "rows": rows, "totals": totals, "status": status,
+         "columns": SHARE_COLUMNS},
+    )  # fmt: skip
+
+
+@login_required
+def statewide_csv(request, year):
+    get_object_or_404(ClaimYear, year=year)
+    org = _share_org(request)
+    if org is None:
+        raise Http404
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="statewide_share_{org.code}_{year}.csv"'
+    w = csv.writer(response)
+    w.writerow(["PA", "ClaimYear", "PrgID", "ProgramName", "LeadPA", "Confirmation", "Measures", *[c for c, _, _ in SHARE_COLUMNS]])
+    for r in service.statewide_share(org, year):
+        w.writerow(
+            [org.code, year, r["prg_id"], r["name"], r["lead"].code, r["label"], r["measures"],
+             *[r["values"].get(c, "") for c, _, _ in SHARE_COLUMNS]]
+        )  # fmt: skip
+    return response
 
 
 # --- a PA's claims for one confirmation
@@ -214,7 +320,7 @@ def period(request, pk):
     earlier_open = service.earlier_unconfirmed(org, deadline) if org else None
     earlier = []
     if org is not None:
-        for d in service.periods(cy.year):
+        for d in service.same_run(deadline):
             if service.number(d) >= service.number(deadline):
                 break
             earlier.append({"deadline": d, "standing": service.standing(org, d)})
@@ -246,6 +352,10 @@ def period(request, pk):
         "earlier_open": service.label(earlier_open) if earlier_open else "",
         "tables": spec.TABLES,
         "legacy": legacy.imported(v) if v is not None and v.imported else None,
+        "statewide": service.is_statewide(deadline),
+        "counterpart": service.counterpart(deadline),
+        "sw_status": None if service.is_statewide(deadline) else next(iter(service.statewide_status(cy.year, deadline)), None),
+        "led": list(Program.objects.filter(statewide=True, lead=org).order_by("prg_id")) if org else [],
     }
     if v is not None:
         ctx["pricing_run"] = submissions.pricing_run(v, reset_on=("submission.files_attached", "submission.validated"))
@@ -461,7 +571,7 @@ def _version(request, pk) -> SubmissionVersion:
         SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation"),
         pk=pk,
         submission__deadline__module=service.MODULE,
-        submission__deadline__kind__in=service.KINDS,
+        submission__deadline__kind__in=service.ALL_KINDS,
     )
     if not service.can_read(request.user, v):
         raise Http404

@@ -22,10 +22,12 @@ class ClaimsConfig(AppConfig):
         from cedars.services.submissions.service import (
             register_claims_totals,
             register_deadline_page,
+            register_filers,
             register_publisher,
             register_reader,
             register_setup_groups,
             register_setup_page,
+            register_stream,
         )
 
         from . import service
@@ -40,11 +42,14 @@ class ClaimsConfig(AppConfig):
             "claims",
             label="A claim year",
             url_name="claims:year_new",
-            about="A program year's claims: its four quarterly claims and the annual claim, each with its own deadline.",
+            about="A program year's claims: its four quarterly claims and the annual claim, each with its own deadline, and the "
+            "statewide claims filed before each.",
             order=2,
         )
         register_setup_groups("claims", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_reader("claims", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
+        register_filers("claims", service.filers)  # statewide claims are filed by the statewide programs' lead PAs only
+        register_stream("claims", service.stream)  # a lead PA's statewide claims stand beside its own (snapshots)
 
         from cedars.services.notifications.service import register_filing
 

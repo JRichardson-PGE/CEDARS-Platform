@@ -125,6 +125,9 @@ def board(user, now=None) -> Board:
             key = (c.module, o.pk)
             if key not in readers:
                 readers[key] = service.can_read_filing(user, sub or Submission(deadline=c.deadline, organisation=o))
+            if sub is None and not service.files_for(c.deadline, o):
+                cells.append(Cell("Nothing to file", "not one of its filers"))
+                continue
             cells.append(_cell(readers[key], o, c, sub, versions.get(sub.pk, []) if sub else [], now))
         rows.append(Row(o, cells))
     return Board(cols, rows, without, access.is_cpuc_staff(user))

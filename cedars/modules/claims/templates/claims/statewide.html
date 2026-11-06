@@ -1,0 +1,65 @@
+{% extends "core/base.html" %}
+{% load ui %}
+{% block title %}{{ cy.year }} statewide claims{% if org %} credited to {{ org.code }}{% endif %}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
+<div class="page-title"><h1>{{ cy.year }} statewide claims{% if org %} credited to {{ org.code }}{% endif %}</h1>{% page_help "claims/statewide" %}</div>
+<p>A statewide program's lead PA claims it in the statewide confirmations, due before the PAs' own. Each record is priced with the
+statewide allocation, so its results are credited to the PAs that fund the program. Once the lead PA confirms, each funding PA sees its
+share here before it files its own claim, and its year's totals (the 13th-month report) count it. A lead PA's draft is not counted.</p>
+
+<form method="get" class="filters" aria-label="Whose share to show">
+  <label>Program administrator <select name="org">{% if not org %}<option value="">Choose a PA</option>{% endif %}{% for p in pas %}<option value="{{ p.code }}"{% if org and p.pk == org.pk %} selected{% endif %}>{{ p.name }} ({{ p.code }})</option>{% endfor %}</select></label>
+  <button type="submit">Apply</button>
+</form>
+
+<section aria-labelledby="status-h">
+<h2 id="status-h">Where the statewide confirmations stand</h2>
+{% if status %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Statewide confirmations of {{ cy.year }}">
+<table class="list">
+  <caption class="sr-only">Statewide confirmations of {{ cy.year }} claims and the lead PAs that have confirmed them</caption>
+  <thead><tr><th scope="col">Statewide confirmation</th><th scope="col">Due</th><th scope="col">Before</th><th scope="col">Confirmed by</th><th scope="col">Not confirmed yet</th></tr></thead>
+  <tbody>
+  {% for st in status %}
+  <tr>
+    <th scope="row"><a href="{% url 'claims:period' st.deadline.pk %}">{{ st.deadline.kind }}</a></th>
+    <td>{{ st.deadline.due_at|date_words }}</td>
+    <td>{% if st.pa_deadline %}{{ st.pa_deadline.kind }}, {{ st.pa_deadline.due_at|date_words }}{% endif %}</td>
+    <td>{{ st.confirmed|join:", "|default:"None yet" }}</td>
+    <td>{{ st.open|join:", "|default:"None" }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>{{ cy.year }} claims have no statewide confirmations on the filing calendar.</p>{% endif %}
+</section>
+
+{% if org %}
+<section aria-labelledby="share-h">
+<h2 id="share-h">Credited to {{ org.code }}</h2>
+{% if rows %}
+<p class="small"><a href="{% url 'claims:statewide_csv' cy.year %}?org={{ org.code }}">Download as CSV</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Statewide claims credited to {{ org.code }}">
+<table class="list">
+  <caption class="sr-only">{{ cy.year }} statewide claims credited to {{ org.code }}, by program, year to date</caption>
+  <thead><tr><th scope="col">Program</th><th scope="col">Lead PA</th><th scope="col">Confirmation</th><th scope="col" class="num">Measures</th>{% for c in columns %}<th scope="col" class="num">{{ c.1 }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <th scope="row">{{ r.prg_id }}{% if r.name %}<br><span class="small">{{ r.name }}</span>{% endif %}</th>
+    <td>{{ r.lead.code }}</td>
+    <td><a href="{% url 'claims:version' r.version.pk %}?pa={{ org.code }}">{{ r.label }}</a></td>
+    <td class="num">{{ r.measures|floatformat:"0g" }}</td>
+    {% for c in r.cells %}<td class="num">{{ c.1 }}</td>{% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th scope="row" colspan="4">Total</th>{% for t in totals %}<td class="num">{{ t.1 }}</td>{% endfor %}</tr></tfoot>
+</table>
+</div>
+{% else %}<p>No confirmed statewide claim credits {{ org.code }} with anything in {{ cy.year }} yet.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

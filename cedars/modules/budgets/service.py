@@ -298,7 +298,8 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
                 )
             )
             return False
-        if not p.statewide and p.administrator_id not in (None, organisation.pk):
+        why = registry.filing_problem(p, organisation)
+        if why:
             problems.append(
                 Problem(
                     i,
@@ -307,7 +308,7 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
                     "PrgID",
                     "BUD-ORG",
                     "reject",
-                    f"{prg} is another program administrator's program",
+                    why,
                     f"File only {organisation.code}'s programs and the statewide programs it leads.",
                     prg,
                 )

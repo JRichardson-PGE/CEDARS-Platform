@@ -5,7 +5,8 @@ leaves the version published with no snapshot (`manage.py snapshot_published` ma
 What is in force (`rebuild`): the snapshots of each submission's standing published version (`submissions.current`), one per slot:
   forecast  every filing (application, TUAL, MCAL ...) is its own slot; the query layer picks the filing a page asks for
   claims    one slot per PA and claim year: each quarter's results are compiled year to date, so only the latest period stands
-            (the annual claim once confirmed), never two quarters added together
+            (the annual claim once confirmed), never two quarters added together; a lead PA's statewide claims have a slot of their
+            own beside its own claims (submissions.stream)
   monthly   likewise, one per PA and report year: the latest month's year-to-date report
 A release is made only when that set changes.
 
@@ -505,7 +506,7 @@ def in_force(dataset: str) -> list[Snapshot]:
         return sorted(standing, key=lambda s: s.created_at)
     best: dict[tuple, Snapshot] = {}
     for s in standing:
-        slot = (s.organisation_id, s.year)
+        slot = (s.organisation_id, s.year, submissions.stream(s.version.submission.deadline))
         if slot not in best or _rank(s) > _rank(best[slot]):
             best[slot] = s
     return sorted(best.values(), key=lambda s: s.created_at)

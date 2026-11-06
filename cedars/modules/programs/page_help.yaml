@@ -33,7 +33,8 @@ programs/program:
     - One program's definition as it stands today, every earlier version, and where it appears across CEDARS. A program is never edited
       in place; a change starts a new version on its effective date, and the version before it is kept as it was.
     - >-
-      A statewide program shows its allocation factors, the share each funding PA carries by year. The last section lists everything on
+      A statewide program shows its lead PA, the only PA that files its claims and budget, and its allocation factors, the share each
+      funding PA carries by year. The last section lists everything on
       record about the program, each linked to its record, for one program year or every year: budget filings by cycle, fund shifts,
       claims, monthly reports, the evaluations that cover it and the documents that name it.
   how:
@@ -42,6 +43,8 @@ programs/program:
     - Signed in, Follow this program sends you a notice when a filing that includes it is published or corrected, a fund shift moves its
       funds, its details change or a document about it is published. Your notification settings choose which of these you hear about.
     - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
+    - A statewide program's lead PA is recorded under Lead PA, with a reason. While it has none, any program administrator's administrators
+      can record one; after that only the lead PA's administrators can change it, for example to hand it to another PA.
   see: programs
   tour:
     - target: "#def-h"
@@ -55,7 +58,7 @@ programs/program:
       text: Every version of the program, what changed in each and why.
     - target: "#alloc-h"
       title: Statewide allocation
-      text: For a statewide program, each funding PA's share by version and year.
+      text: For a statewide program, each funding PA's share by version and year, and its lead PA.
     - target: "#rec-h"
       title: Filings, reports and documents
       text: Everything on record about the program. Choose a program year and Show, or see every year.

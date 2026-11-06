@@ -2,6 +2,12 @@
 service's calendar: Q1 to Q4 on the year's quarters, then the final annual one on the year (due the following spring), as CEDARS has
 them. Each PA's filing for one of them is a submission with versions.
 
+Statewide claims (Jake, 2026-11-06) are filed on their own: a statewide program's lead PA (registry `Program.lead`) files its claims in
+five statewide confirmations (SW_PERIODS), each due before the PAs' confirmation of the same period (by default two weeks before a
+quarter, a month before the annual claim), compiled and confirmed in order as the PAs' own are. They are priced with the statewide
+allocation, so each record's results are credited to the funding PAs; a PA's own claims hold no statewide program. Each PA sees the shares
+of the statewide claims credited to it (`statewide_share`) before it files, and its year's totals (the 13th-month report) count them.
+
     upload (.zip or .xlsx: the records new or changed since the last confirmed quarter)
     -> compiled year to date (the earlier quarters' confirmed records, this upload's over them by primary key) -> checks -> validated
     -> priced (Calculations, through the submissions service: the year to date, allocated) -> confirm
@@ -22,9 +28,10 @@ import io
 import json
 import re
 import zipfile
+from calendar import monthrange
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -54,8 +61,23 @@ MODULE = "claims"
 RULE_SET = "claims"
 # The five confirmations of a claim year: (kind, the period it is on: quarter number, or 0 for the year).
 PERIODS = [("Q1 claim", 1), ("Q2 claim", 2), ("Q3 claim", 3), ("Q4 claim", 4), ("Annual (final) claim", 0)]
+# Statewide claims (Jake, 2026-11-06): each statewide program's lead PA files its claims as a filing of their own, due before the PAs'
+# claims (two weeks before a quarter's, a month before the annual claim, by default), so the funding PAs see what is credited to them
+# before they file. Same five confirmations; a lead files them as it files its own.
+SW_PERIODS = [
+    ("Q1 statewide claim", 1),
+    ("Q2 statewide claim", 2),
+    ("Q3 statewide claim", 3),
+    ("Q4 statewide claim", 4),
+    ("Annual (final) statewide claim", 0),
+]
+SW_FOR = dict(zip([k for k, _ in SW_PERIODS], [k for k, _ in PERIODS], strict=True))  # statewide kind -> the PAs' kind it comes before
+SW_LEAD_DAYS = 14  # a statewide quarter's default due date: this many days before the PAs' quarter
+SW_LEAD_MONTHS_ANNUAL = 1  # the statewide annual claim's: this many months before the PAs' annual claim
 # Only these deadlines are the module's: another "claims" deadline (one added by hand on the filing calendar) is not a claim year's.
 KINDS = [kind for kind, _ in PERIODS]
+SW_KINDS = [kind for kind, _ in SW_PERIODS]
+ALL_KINDS = KINDS + SW_KINDS
 INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirectInstallMat", "UnitEndUserRebate"]
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 # Tables the CEDARS claims rule set (CET's Measure and ProgramCost specification and rules) checks; the module checks the rest.
@@ -81,6 +103,51 @@ def due_at(day) -> datetime:
     return timezone.make_aware(datetime.combine(day, time(23, 59, 59)))
 
 
+def is_statewide(deadline: Deadline) -> bool:
+    """Whether a deadline is one of the statewide claims filings (filed by statewide programs' lead PAs)."""
+    return deadline.kind in SW_KINDS
+
+
+def filers(deadline: Deadline) -> set[int] | None:
+    """Who files for a deadline (submissions.register_filers): a statewide one, the PAs that lead a statewide program (and any that has
+    started it); the PAs' own, every PA."""
+    if not is_statewide(deadline):
+        return None
+    leads = set(Program.objects.filter(statewide=True, lead__isnull=False).values_list("lead_id", flat=True))
+    return leads | set(Submission.objects.filter(deadline=deadline).values_list("organisation_id", flat=True))
+
+
+def stream(deadline: Deadline) -> str:
+    """The run of confirmations a deadline belongs to: "statewide" or "" (the PAs' own claims). Each is compiled on its own."""
+    return "statewide" if is_statewide(deadline) else ""
+
+
+def default_sw_due(pa_due: datetime, sw_kind: str) -> datetime:
+    """A statewide confirmation's default due date: two weeks before the PAs' quarter, a month before their annual claim."""
+    if SW_FOR[sw_kind] == PERIODS[-1][0]:
+        y, m = pa_due.year, pa_due.month - SW_LEAD_MONTHS_ANNUAL
+        while m < 1:
+            y, m = y - 1, m + 12
+        day = min(pa_due.day, monthrange(y, m)[1])
+        return pa_due.replace(year=y, month=m, day=day)
+    return pa_due - timedelta(days=SW_LEAD_DAYS)
+
+
+def _sw_due(due: dict, sw_due: dict | None) -> dict:
+    """Each statewide kind's due date: the one given, else the default; refused unless it comes before the PAs' (statewide first)."""
+    out = {}
+    for kind in SW_KINDS:
+        pa_due = due[SW_FOR[kind]]
+        when = (sw_due or {}).get(kind) or default_sw_due(pa_due, kind)
+        if when >= pa_due:
+            raise AccessDenied(
+                f"The {kind} must be due before the {SW_FOR[kind]}: statewide claims are filed first, so the funding PAs see what is "
+                "credited to them before they file."
+            )
+        out[kind] = when
+    return out
+
+
 def _check_allocation(version: AllocationVersion | None) -> None:
     if version is not None and version.status != AllocationVersion.Status.CONFIRMED:
         raise AccessDenied(f"{version} is a draft; claims are priced only with a confirmed allocation version.")
@@ -102,10 +169,20 @@ def _check_cost_tests(pack) -> None:
 
 @transaction.atomic
 def add_year(
-    actor, *, year: int, acc_version: str, due: dict, opens: dict | None = None, allocation_version=None, notes="", cost_test_set=None
+    actor,
+    *,
+    year: int,
+    acc_version: str,
+    due: dict,
+    opens: dict | None = None,
+    allocation_version=None,
+    notes="",
+    cost_test_set=None,
+    sw_due: dict | None = None,
 ) -> ClaimYear:
-    """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same), priced
-    on an ACC and an allocation version (or the most recent)."""
+    """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same) and the
+    five statewide ones before them (`sw_due` = {kind: datetime} for SW_PERIODS; a kind left out takes `default_sw_due`), priced on an
+    ACC and an allocation version (or the most recent)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
     if ClaimYear.objects.filter(year=year).exists():
@@ -117,6 +194,7 @@ def add_year(
     missing = [k for k, _ in PERIODS if not due.get(k)]
     if missing:
         raise AccessDenied(f"Give a due date for each confirmation: {', '.join(missing)}.")
+    sw = _sw_due(due, sw_due)
     registry.ensure_periods(year)
     cy = ClaimYear.objects.create(
         year=year, acc_version=acc_version, allocation_version=allocation_version, notes=notes, cost_test_set=cost_test_set
@@ -124,13 +202,41 @@ def add_year(
     for kind, n in PERIODS:
         period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
         submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=due[kind], opens_at=(opens or {}).get(kind))
+    _add_sw_deadlines(actor, year, sw)
     audit.record("claim_year.set_up", obj=cy, after=_setup_fields(cy), actor=actor)
     return cy
 
 
+def _add_sw_deadlines(actor, year: int, sw: dict) -> None:
+    for kind, n in SW_PERIODS:
+        period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
+        submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=sw[kind])
+
+
+def missing_sw_deadlines(cy: ClaimYear) -> bool:
+    """Whether a claim year set up before statewide claims were filed on their own lacks its statewide deadlines."""
+    return not Deadline.objects.filter(module=MODULE, kind__in=SW_KINDS, period__year=cy.year).exists()
+
+
+@transaction.atomic
+def add_sw_deadlines(actor, cy: ClaimYear, sw_due: dict | None = None) -> None:
+    """Give a claim year set up before statewide claims were filed on their own its five statewide deadlines (`sw_due` as add_year's;
+    the defaults otherwise), each before the PAs' deadline it comes ahead of."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator sets up claim years.")
+    if not missing_sw_deadlines(cy):
+        raise AccessDenied(f"{cy.year} claims already have their statewide deadlines.")
+    due = {d.kind: d.due_at for d in Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year)}
+    missing = [k for k in KINDS if k not in due]
+    if missing:
+        raise AccessDenied(f"{cy.year} claims have no {', '.join(missing)} deadline to put the statewide one before.")
+    _add_sw_deadlines(actor, cy.year, _sw_due(due, sw_due))
+    audit.record("claim_year.statewide_deadlines_added", obj=cy, after=_setup_fields(cy), actor=actor)
+
+
 def year_deadlines(cy: ClaimYear):
-    """The claim year's deadlines (its four quarters and the annual claim), in due order."""
-    return Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).select_related("period").order_by("due_at")
+    """The claim year's deadlines (the statewide and the PAs' four quarters and annual claims), in due order."""
+    return Deadline.objects.filter(module=MODULE, kind__in=ALL_KINDS, period__year=cy.year).select_related("period").order_by("due_at")
 
 
 def _group(cy: ClaimYear) -> tuple:
@@ -182,10 +288,25 @@ def acc_needs() -> list[tuple[str, str]]:
     return [(f"{cy.year} claims", cy.acc_version) for cy in ClaimYear.objects.filter(year__in=years).order_by("year") if cy.acc_version]
 
 
-def periods(year: int) -> list[Deadline]:
-    """The year's deadlines in filing order: Q1 to Q4, then the annual one."""
-    ds = Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=year).select_related("period")
+def periods(year: int, statewide: bool = False) -> list[Deadline]:
+    """The year's deadlines in filing order: Q1 to Q4, then the annual one; the PAs' own claims, or with `statewide` the statewide ones."""
+    kinds = SW_KINDS if statewide else KINDS
+    ds = Deadline.objects.filter(module=MODULE, kind__in=kinds, period__year=year).select_related("period")
     return sorted(ds, key=number)
+
+
+def same_run(deadline: Deadline) -> list[Deadline]:
+    """The deadlines of the year compiled with this one: the statewide confirmations, or the PAs' own."""
+    return periods(deadline.period.year, statewide=is_statewide(deadline))
+
+
+def counterpart(deadline: Deadline) -> Deadline | None:
+    """The statewide confirmation a PA's confirmation comes after (or, for a statewide one, the PAs' confirmation it comes before)."""
+    if is_statewide(deadline):
+        kind = SW_FOR[deadline.kind]
+    else:
+        kind = next((k for k, pa in SW_FOR.items() if pa == deadline.kind), "")
+    return Deadline.objects.filter(module=MODULE, kind=kind, period=deadline.period_id).select_related("period").first()
 
 
 def number(deadline: Deadline) -> int:
@@ -246,14 +367,14 @@ def _versions(organisation, year: int):
     return SubmissionVersion.objects.filter(
         submission__organisation=organisation,
         submission__deadline__module=MODULE,
-        submission__deadline__kind__in=KINDS,
+        submission__deadline__kind__in=ALL_KINDS,
         submission__deadline__period__year=year,
     ).select_related("submission__deadline__period")
 
 
 def base_for(organisation, deadline: Deadline) -> SubmissionVersion | None:
     """What a confirmation's upload goes over: the standing version of the latest earlier confirmation that has one."""
-    earlier = [d for d in periods(deadline.period.year) if number(d) < number(deadline)]
+    earlier = [d for d in same_run(deadline) if number(d) < number(deadline)]
     for d in reversed(earlier):
         v = standing(organisation, d)
         if v is not None:
@@ -263,7 +384,7 @@ def base_for(organisation, deadline: Deadline) -> SubmissionVersion | None:
 
 def later_locked(organisation, deadline: Deadline) -> Deadline | None:
     """A later confirmation of the same year that the organization has confirmed, if any."""
-    later = [d for d in periods(deadline.period.year) if number(d) > number(deadline)]
+    later = [d for d in same_run(deadline) if number(d) > number(deadline)]
     for d in later:
         sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
         v = submissions.latest(sub) if sub else None
@@ -272,11 +393,11 @@ def later_locked(organisation, deadline: Deadline) -> Deadline | None:
     return None
 
 
-def year_standing(organisation, year: int) -> tuple[SubmissionVersion | None, list[int], bool]:
+def year_standing(organisation, year: int, statewide: bool = False) -> tuple[SubmissionVersion | None, list[int], bool]:
     """The version whose compiled tables are the PA's year to date (the standing version of its latest confirmation), the quarters
-    confirmed, and whether the final annual confirmation is."""
+    confirmed, and whether the final annual confirmation is; with `statewide`, of the statewide claims it files as a lead PA."""
     latest, quarters, final = None, [], False
-    for d in periods(year):
+    for d in periods(year, statewide=statewide):
         v = standing(organisation, d)
         if v is None:
             continue
@@ -402,7 +523,7 @@ def upload_claims(
     """Take a PA's upload for one confirmation: start the submission (or use its open draft), keep the upload as this version's records
     (the version's earlier upload is deleted: superseded uploads are not kept, BR-05.9), then compile and check it (`check`).
     `sources`: the files a combined upload was made of (upload.combine), kept with the version's file entry."""
-    if deadline.module != MODULE or deadline.kind not in KINDS or deadline.period_id is None:
+    if deadline.module != MODULE or deadline.kind not in ALL_KINDS or deadline.period_id is None:
         raise AccessDenied("That is not a claims deadline.")
     claim_year(deadline)
     _require_in_order(organisation, deadline)
@@ -461,7 +582,7 @@ def _adopt(actor, v: SubmissionVersion, f: dict) -> dict:
 def earlier_unconfirmed(organisation, deadline: Deadline) -> Deadline | None:
     """The first earlier confirmation of the year that has an upload but is not confirmed yet: it must be confirmed before this one
     takes an upload, as each confirmation is compiled on the one before it. None when this one may be uploaded."""
-    for d in periods(deadline.period.year):
+    for d in same_run(deadline):
         if number(d) >= number(deadline):
             break
         sub = Submission.objects.filter(deadline=d, organisation=organisation).first()
@@ -506,11 +627,17 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     corrected = compiled_tables(previous) if previous else {}
     deemed, etrm_summary = fill_deemed(own, base)
     comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
-    rescope = _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before) if scope else None
+    rescope = (
+        _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline))
+        if scope
+        else None
+    )
     if rescope is not None:
         problems, notes, rule_set, rechecked = rescope
     else:
-        problems = deemed + derive_checks(own, comp.tables, org, year, last_quarter(deadline), base, corrected)
+        problems = deemed + derive_checks(
+            own, comp.tables, org, year, last_quarter(deadline), base, corrected, statewide=is_statewide(deadline)
+        )
         found, notes, rule_set = _rule_findings(own, year)
         problems += found
     own_f = own_file(v)
@@ -643,7 +770,7 @@ def _moved(p, back: dict[str, list[int]]):
     return Problem(row, p.record_id, p.table, p.field, p.rule_id, p.severity, p.message, p.fix, p.value)
 
 
-def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None):
+def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None, statewide=False):
     """A correction's check (BR-02.4: "that row re-validated"): the module's checks on the records `_related` names, the claims rule
     set on the changed Measure and ProgramCost records, and every other record's findings carried over to its new line. None when the
     whole version must be checked instead: no earlier findings, another rule set in force since, or a table's columns changed."""
@@ -657,7 +784,7 @@ def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, 
     module, engine = _related(own, scope)
     sub, back = _subset(own, module)
     problems = [p for p in deemed if p.row in module.get(p.table, ())]
-    problems += [_moved(p, back) for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected)]
+    problems += [_moved(p, back) for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide)]
     notes = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
     rule_set = (previous or {}).get("rule_set", "")
     sub_e, back_e = _subset(own, engine)
@@ -1119,10 +1246,13 @@ def derive_checks(
     last_q: int,
     base: dict[str, upload.Table] | None = None,
     corrected: dict[str, upload.Table] | None = None,
+    statewide: bool = False,
 ) -> list[Problem]:
     """The module's checks (rule IDs CLM-*), on the upload's own records, with references checked against the compiled year to date:
     the template's columns, required fields and types for the tables the claims rule set does not cover (it covers Measure and
-    ProgramCost), primary keys, ID prefixes, the claim year and quarter, programs in the registry and the PA's own, the links between
+    ProgramCost), primary keys, ID prefixes, the claim year and quarter, programs in the registry and the PA's own (a statewide
+    program only in the statewide claims filing, by its lead PA; `statewide`: this is that filing, which holds nothing else), the
+    links between
     the tables, withdrawals against the year so far (`base`, and `corrected`: the compiled tables of the version a correction replaces),
     and CEDARS' own data rules for the Claim and Site tables that a record can
     be checked against on its own."""
@@ -1215,8 +1345,16 @@ def derive_checks(
             if p is None:
                 add(name, i, rid_of(name, r), "PrgID", "CLM-PRG", f"PrgID {prg} is not in the program registry",
                     "Use the PrgID of a program in the Programs catalog, or ask for the program to be added first.", prg)  # fmt: skip
-            elif not p.statewide and p.administrator_id not in (None, organisation.pk):
-                add(name, i, rid_of(name, r), "PrgID", "CLM-ORG", f"{prg} is another program administrator's program",
+            elif statewide and not p.statewide:
+                add(name, i, rid_of(name, r), "PrgID", "CLM-SW", f"{prg} is not a statewide program",
+                    f"The statewide claims filing holds only the statewide programs {code} leads; claim {prg} in "
+                    f"{code}'s own claims.", prg)  # fmt: skip
+            elif not statewide and p.statewide:
+                add(name, i, rid_of(name, r), "PrgID", "CLM-SW", f"{prg} is a statewide program",
+                    "Statewide programs are claimed by their lead PA in the statewide claims filing, due before the PAs' claims, so "
+                    "the funding PAs see their shares first; take these records out of this upload.", prg)  # fmt: skip
+            elif why := registry.filing_problem(p, organisation):
+                add(name, i, rid_of(name, r), "PrgID", "CLM-ORG", why,
                     f"Claim only {code}'s programs and the statewide programs it leads.", prg)  # fmt: skip
 
     # links between the tables (the compiled year to date)
@@ -1581,7 +1719,9 @@ def price(actor, v: SubmissionVersion) -> str:
         path = Path(tmp) / "job.zip"
         path.write_bytes(storage.store("uploads").get_bytes(key))
         name = f"{v.submission.organisation.code} {label(v.submission.deadline)}, version {v.number}"
-        statewide = Program.objects.filter(prg_id__in=v.claim_lines.values("prg_id"), statewide=True).exists()
+        statewide = is_statewide(v.submission.deadline) or (
+            Program.objects.filter(prg_id__in=v.claim_lines.values("prg_id"), statewide=True).exists()
+        )
         return submissions.price(
             actor,
             v,
@@ -1686,7 +1826,7 @@ def import_results(v: SubmissionVersion) -> bool:
 def on_publish(v: SubmissionVersion) -> None:
     """Publication hook: the results the version was confirmed on are read now, so the published version holds them; a correction
     (version 2 or later) gets its change letter."""
-    if v.submission.deadline.kind in KINDS:
+    if v.submission.deadline.kind in ALL_KINDS:
         import_results(v)
         if v.number > 1:
             write_change_letter(v)
@@ -1935,9 +2075,10 @@ def notice(v: SubmissionVersion, event) -> Concern:
 
 
 def standing_versions(*, organisation=None, year: int | None = None) -> list[SubmissionVersion]:
-    """Each PA's year to date that stands: per organization and claim year, the published version of its latest confirmation."""
+    """Each PA's year to date that stands: per organization and claim year, the published version of its latest confirmation (a lead
+    PA's statewide claims stand on their own beside its own claims)."""
     qs = SubmissionVersion.objects.filter(
-        status=SubmissionVersion.Status.PUBLISHED, submission__deadline__module=MODULE, submission__deadline__kind__in=KINDS
+        status=SubmissionVersion.Status.PUBLISHED, submission__deadline__module=MODULE, submission__deadline__kind__in=ALL_KINDS
     ).select_related("submission__deadline__period", "submission__organisation")
     if organisation is not None:
         qs = qs.filter(submission__organisation=organisation)
@@ -1945,7 +2086,7 @@ def standing_versions(*, organisation=None, year: int | None = None) -> list[Sub
         qs = qs.filter(submission__deadline__period__year=year)
     best: dict[tuple, SubmissionVersion] = {}
     for v in qs:
-        k = (v.submission.organisation_id, v.submission.deadline.period.year)
+        k = (v.submission.organisation_id, v.submission.deadline.period.year, is_statewide(v.submission.deadline))
         rank = (number(v.submission.deadline), v.number)
         if k not in best or rank > (number(best[k].submission.deadline), best[k].number):
             best[k] = v
@@ -2170,34 +2311,109 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
 def year_totals(organisation, year: int) -> list[dict]:
     """A PA's confirmed claims for a year by program (submissions.claims_totals; the Monthly reports module's 13th-month report reads it):
     the year to date of its latest confirmation. Expenditures = the ten ProgramCost fields + the measures' rebates and incentives;
-    savings and TSB are the priced first-year values summed over every credited PA. A legacy year's statewide unallocated claims (the SW
-    version, `legacy.py`) are outside every total: none."""
-    v, quarters, final = year_standing(organisation, year)
-    if v is None or (v.calculation or {}).get("outside_totals"):
-        return []
-    t = table(v)
+    savings and TSB are the priced first-year values summed over every credited PA. Then the statewide programs' shares credited to the
+    PA from their lead PAs' standing statewide claims (`statewide_share`): expenditures = TotalExpenditures, its share of the program
+    costs plus its measures' rebates and incentives. A legacy year's statewide unallocated claims (the SW version, `legacy.py`) are
+    outside every total: none."""
     out = []
-    for r in t.rows:
-        s = r.sums
+    v, quarters, final = year_standing(organisation, year)
+    if v is not None and not (v.calculation or {}).get("outside_totals"):
+        for r in table(v).rows:
+            s = r.sums
+            out.append(
+                {
+                    "prg_id": r.prg_id,
+                    "pa": r.pa or organisation.code,
+                    "year": year,
+                    "quarters": quarters,
+                    "final": final,
+                    "records": r.claims,
+                    "expenditures": r.expenditures,
+                    "incentives": r.rebates,
+                    **_savings(s),
+                }
+            )
+    for sh in statewide_share(organisation, year):
+        val = sh["values"]
         out.append(
             {
-                "prg_id": r.prg_id,
-                "pa": r.pa or organisation.code,
+                "prg_id": sh["prg_id"],
+                "pa": organisation.code,
                 "year": year,
-                "quarters": quarters,
-                "final": final,
-                "records": r.claims,
-                "expenditures": r.expenditures,
-                "incentives": r.rebates,
-                "gross_kwh": s.get("FirstYearGrossKWh", 0.0),
-                "gross_kw": s.get("FirstYearGrossKW", 0.0),
-                "gross_therm": s.get("FirstYearGrossThm", 0.0),
-                "net_kwh": s.get("FirstYearNetKWh", 0.0),
-                "net_kw": s.get("FirstYearNetKW", 0.0),
-                "net_therm": s.get("FirstYearNetThm", 0.0),
-                "tsb": s.get("TotalSystemBenefit", 0.0),
+                "quarters": sh["quarters"],
+                "final": sh["final"],
+                "records": sh["measures"],
+                "expenditures": Decimal(str(round(val.get("TotalExpenditures", 0.0), 2))),
+                "incentives": Decimal(str(round(val.get("RebatesandIncents", 0.0), 2))),
+                "statewide_lead": sh["lead"].code,
+                **_savings(val),
             }
         )
+    return out
+
+
+def _savings(s: dict) -> dict:
+    return {
+        "gross_kwh": s.get("FirstYearGrossKWh", 0.0),
+        "gross_kw": s.get("FirstYearGrossKW", 0.0),
+        "gross_therm": s.get("FirstYearGrossThm", 0.0),
+        "net_kwh": s.get("FirstYearNetKWh", 0.0),
+        "net_kw": s.get("FirstYearNetKW", 0.0),
+        "net_therm": s.get("FirstYearNetThm", 0.0),
+        "tsb": s.get("TotalSystemBenefit", 0.0),
+    }
+
+
+def statewide_leads(year: int) -> list:
+    """The PAs that have filed statewide claims for the year (as lead PAs), by code."""
+    from cedars.services.accounts.models import Organisation
+
+    ids = Submission.objects.filter(deadline__module=MODULE, deadline__kind__in=SW_KINDS, deadline__period__year=year).values(
+        "organisation"
+    )
+    return list(Organisation.objects.filter(pk__in=ids).order_by("code"))
+
+
+def statewide_share(organisation, year: int) -> list[dict]:
+    """The statewide claims credited to a PA in a claim year, by program: from each lead PA's standing statewide year to date (its latest
+    confirmed statewide confirmation), the results its run credited to the PA. Each row: prg_id, name, lead (the lead PA), version (the
+    published statewide version), label, quarters, final, measures and values ({output column: sum}). Only confirmed statewide claims
+    count: a lead's draft is its own until it confirms. A legacy year has none here (its PA files hold their statewide shares)."""
+    out = []
+    for lead in statewide_leads(year):
+        v, quarters, final = year_standing(lead, year, statewide=True)
+        if v is None or not import_results(v):
+            continue
+        results = v.claim_results.filter(run=(v.calculation or {}).get("run", ""), pa__iexact=organisation.code)
+        for res in results:
+            out.append(
+                {
+                    "prg_id": res.prg_id,
+                    "name": res.program_name,
+                    "lead": lead,
+                    "version": v,
+                    "label": f"{label(v.submission.deadline)}, version {v.number}",
+                    "quarters": quarters,
+                    "final": final,
+                    "measures": res.measures,
+                    "values": dict(res.values),
+                }
+            )
+    return sorted(out, key=lambda r: (r["prg_id"], r["lead"].code))
+
+
+def statewide_status(year: int, deadline: Deadline | None = None) -> list[dict]:
+    """Where each statewide confirmation of the year stands for the lead PAs: [{"deadline", "confirmed": [codes], "open": [codes]}],
+    in filing order; with `deadline` (a PA's confirmation), only the statewide one it comes after."""
+    sw = [counterpart(deadline)] if deadline is not None else periods(year, statewide=True)
+    out = []
+    for d in sw:
+        if d is None:
+            continue
+        confirmed, started = [], []
+        for sub in Submission.objects.filter(deadline=d).select_related("organisation").order_by("organisation__code"):
+            (confirmed if standing(sub.organisation, d) is not None else started).append(sub.organisation.code)
+        out.append({"deadline": d, "confirmed": confirmed, "open": started})
     return out
 
 
@@ -2205,6 +2421,6 @@ def deadline_page(deadline) -> str:
     """The claims period page of one of a claim year's deadlines, for the filing calendar; "" for any other claims deadline."""
     from django.urls import reverse
 
-    if deadline.kind not in KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
+    if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
         return ""
     return reverse("claims:period", args=[deadline.pk])

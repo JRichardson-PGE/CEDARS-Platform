@@ -67,7 +67,7 @@ def _version(request, pk) -> SubmissionVersion:
     _require_scope(request)
     v = (
         SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation", "confirmed_by")
-        .filter(pk=pk, submission__deadline__module=service.MODULE, submission__deadline__kind__in=service.KINDS)
+        .filter(pk=pk, submission__deadline__module=service.MODULE, submission__deadline__kind__in=service.ALL_KINDS)
         .first()
     )
     if v is None or not (v.status == SubmissionVersion.Status.PUBLISHED or _reads(request, v.submission.organisation)):
@@ -76,7 +76,7 @@ def _version(request, pk) -> SubmissionVersion:
 
 
 def _deadline(pk) -> Deadline:
-    d = Deadline.objects.select_related("period").filter(pk=pk, module=service.MODULE, kind__in=service.KINDS).first()
+    d = Deadline.objects.select_related("period").filter(pk=pk, module=service.MODULE, kind__in=service.ALL_KINDS).first()
     if d is None or d.period is None:
         raise NotFound("No such claims confirmation.")
     return d
@@ -243,7 +243,8 @@ def _page(request, items: list, key: str, per_page: int = PER_PAGE) -> Response:
 
 @extend_schema(
     summary="Claim years and their confirmations",
-    description="Each claim year with its ACC, its allocation version and its five confirmations (Q1 to Q4 and the annual claim).",
+    description="Each claim year with its ACC, its allocation version, its five confirmations (Q1 to Q4 and the annual claim) and the "
+    "five statewide confirmations its statewide programs' lead PAs file before them.",
     responses=inline_serializer("ClaimYears", {"years": serializers.ListField(child=serializers.DictField())}),
 )
 @api_view(["GET"])
@@ -257,6 +258,7 @@ def years(request):
                 "acc": cy.acc_version,
                 "allocation_version": str(cy.allocation_version) if cy.allocation_version else None,
                 "confirmations": [deadline_json(request, d) for d in service.periods(cy.year)],
+                "statewide_confirmations": [deadline_json(request, d) for d in service.periods(cy.year, statewide=True)],
             }
         )
     return Response({"years": out})

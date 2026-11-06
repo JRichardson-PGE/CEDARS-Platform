@@ -209,6 +209,75 @@ def can_edit(actor, program: Program) -> bool:
     return org is not None and (access.is_org_admin(actor, org) or access.has_permission(actor, org, "programs.admin"))
 
 
+# --- statewide programs' lead PAs
+
+
+def lead_of(program: Program) -> Organisation | None:
+    """The PA that files a statewide program's claims and budgets; None for a program that is not statewide or has none recorded."""
+    return program.lead if program.statewide else None
+
+
+def filing_problem(program: Program, organisation: Organisation) -> str:
+    """Why `organisation` may not file `program` (its claims or budget), or "" when it may: its own program, or a statewide program it
+    leads. A statewide program is filed only by its lead PA, so a funding PA never files it a second time; one with no lead recorded is
+    filed by nobody until the CPUC records one."""
+    if program.statewide:
+        if program.lead_id is None:
+            return f"{program.prg_id} is a statewide program with no lead PA recorded; any PA records it on the program's page"
+        if program.lead_id != organisation.pk:
+            return f"{program.prg_id} is a statewide program led by {program.lead.code}; only its lead PA files it"
+        return ""
+    if program.administrator_id not in (None, organisation.pk):
+        return f"{program.prg_id} is another program administrator's program"
+    return ""
+
+
+def can_set_lead(actor, program: Program, organisation: Organisation | None) -> bool:
+    """Whether actor, acting for `organisation`, may record a statewide program's lead PA (Jake, 2026-11-06): any PA's administrators
+    (org admins and programs.admin holders) while it has none, then only the current lead's. A CPUC system administrator may too."""
+    if not program.statewide or actor is None:
+        return program.statewide
+    if access.is_system_admin(actor):
+        return True
+    if organisation is None or organisation.kind != Organisation.Kind.PA:
+        return False
+    if program.lead_id is not None and program.lead_id != organisation.pk:
+        return False
+    return access.is_org_admin(actor, organisation) or access.has_permission(actor, organisation, "programs.admin")
+
+
+@transaction.atomic
+def set_lead(actor, program: Program, lead: Organisation | None, reason: str, organisation: Organisation | None = None) -> Program:
+    """Record (or clear) a statewide program's lead PA, with a reason, acting for `organisation` (`can_set_lead`): any PA while the
+    program has no lead, then only its current lead, which may hand it to another PA."""
+    if not program.statewide:
+        raise AccessDenied(f"{program} is not a statewide program: its administrator files it.")
+    if not can_set_lead(actor, program, organisation):
+        if program.lead_id is not None:
+            raise AccessDenied(f"Only {program.lead.code}, {program}'s lead PA, changes its lead.")
+        raise AccessDenied("Only a program administrator's administrators record a statewide program's lead PA.")
+    if lead is not None and lead.kind != Organisation.Kind.PA:
+        raise AccessDenied(f"{lead.code} is not a program administrator.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for the change.")
+    before = program.lead.code if program.lead_id else None
+    after = lead.code if lead else None
+    if before == after:
+        return program
+    program.lead = lead
+    program.save(update_fields=["lead"])
+    audit.record(
+        "program.lead_set",
+        obj=program,
+        before={"lead": before},
+        after={"lead": after},
+        reason=reason,
+        actor=actor,
+        organisation=organisation if organisation is not None and organisation.kind == Organisation.Kind.PA else None,
+    )
+    return program
+
+
 # --- changing programs
 
 

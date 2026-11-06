@@ -28,6 +28,14 @@ class Program(models.Model):
         help_text="Blank for a statewide (SW) program",
     )
     statewide = models.BooleanField(default=False, help_text="A statewide program, funded by several PAs through the allocation factors")
+    lead = models.ForeignKey(
+        "accounts.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="led_programs",
+        help_text="A statewide program's lead PA: the only PA that files its claims and budgets (blank for any other program)",
+    )
     portfolio_cost = models.BooleanField(default=False, help_text="A portfolio-level cost ID, kept out of the program catalog (BR-02.6)")
     created_at = models.DateTimeField(auto_now_add=True)
 

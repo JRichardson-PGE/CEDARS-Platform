@@ -6,13 +6,17 @@ claims/index:
     - Each claim year is confirmed five times, after each quarter and once more with the final annual claims. This page lists each year's
       confirmations with their due dates and, when you act for a PA, where its claims stand. The newest year is open; earlier years are
       folded under their headings.
+    - Statewide programs are claimed first. Each statewide program's lead PA files its claims in the statewide confirmations, due before
+      the PAs' own (two weeks before a quarter's, a month before the annual claim), and they're listed in due order beside them. Each
+      funding PA then sees what those claims credit to it before it files.
     - The claims template (Excel) lists every table and field. The change log lists every correction to confirmed claims, and Linked
       claims follows NMEC chains, projects and SEM participants across quarters and years.
   how:
     - Open a confirmation to see where your PA's claims stand and to file or correct them. CPUC staff choose the PA there.
     - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
       and years; Restated claims lists confirmed claims priced again on today's engine.
-    - Set up a claim year (CPUC system administrators) adds the next year's five confirmations.
+    - Set up a claim year (CPUC system administrators) adds the next year's five confirmations and the five statewide ones before them.
+    - Statewide claims credited to your PA, under each year, shows your share of the lead PAs' confirmed statewide claims.
   see: claims
   tour:
     - target: main .head-row .actions, main .head-row .button
@@ -31,8 +35,11 @@ claims/year_new:
   guide:
     - For CPUC system administrators. A claim year has five confirmations (four quarters and the annual) due on the dates you set, and is
       priced on the ACC and allocation version chosen on its pricing page.
+    - It also has five statewide confirmations, which the statewide programs' lead PAs file first. Each must be due before the PAs'
+      confirmation of the same period; left blank, it's due two weeks before a quarter's and a month before the annual claim.
   how:
     - Choose the year and the five due dates, then Set up the claim year. Its ACC and allocation version are chosen on its pricing page.
+    - Leave the statewide due dates blank for the usual lead time, or set your own.
   see: claims
   tour:
     - target: main form
@@ -47,6 +54,7 @@ claims/setup:
     - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
+    - A year set up before statewide claims were filed on their own gets its five statewide due dates here.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
@@ -59,6 +67,10 @@ claims/setup:
     - target: "#setup-due-dates"
       title: Due dates
       text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#statewide-deadlines"
+      title: Statewide due dates
+      text: For a year set up before statewide claims were filed on their own, add its five statewide confirmations.
+      optional: true
     - target: "#remove-setup"
       title: Remove this set-up
       text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
@@ -73,6 +85,9 @@ claims/period:
       version, published with a change letter.
     - Contacts and sites never go in the claims file. They are uploaded separately under Personal information, need the PII permission a
       data steward approves, and are kept apart in the PII vault.
+    - Statewide programs are claimed only by their lead PA, in the statewide confirmation due before the PAs' own. A statewide
+      confirmation holds only the statewide programs its PA leads. It's priced with the statewide allocation, so once it's confirmed each
+      funding PA sees its share before filing.
   how:
     - To withdraw a claim filed earlier in the year, list its ClaimID in the Withdrawal table of the next upload, with the reason.
     - Download every finding (CSV) names each line, record, field and rule and says how to fix it.
@@ -87,6 +102,14 @@ claims/period:
         Each PA files its own claim. CPUC staff, and anyone not acting for a PA, choose one here to see its claim; others' published
         versions are open to everyone signed in.
       optional: true  # only when you are not acting for a PA
+    - target: "#statewide-filing"
+      title: Statewide claims
+      text: This confirmation is the statewide one, filed first by the lead PA, and holds only the statewide programs it leads.
+      optional: true
+    - target: "#statewide-first"
+      title: Statewide claims, filed first
+      text: Which lead PAs have confirmed the statewide claims due before this one, and a link to what they credit to this PA.
+      optional: true
     - target: "#nothing-yet"
       title: Not started yet
       text: The PA has not started this claim, and you cannot upload it; its filers do that here.
@@ -114,6 +137,30 @@ claims/period:
     - target: "#versions-h"
       title: Versions
       text: Every version of this confirmation, newest first.
+      optional: true
+
+claims/statewide:
+  title: Statewide claims credited to a PA
+  guide:
+    - Each statewide program's lead PA claims it in the statewide confirmations, due before the PAs' own. Its records are priced with
+      the statewide allocation, so their results are credited to the PAs that fund the program.
+    - This page shows one PA's share, by program, from the lead PAs' latest confirmed statewide claims (year to date), and where each
+      statewide confirmation stands. A lead PA's draft isn't counted until it's confirmed. The PA's year's totals, such as its 13th-month
+      report, count the same share.
+  how:
+    - Choose a PA and Apply to see its share. Download as CSV gives the same rows.
+    - Open a statewide confirmation to see its lead PAs' filings, or a program's confirmation to see the lead PA's version credited to the PA.
+  see: claims
+  tour:
+    - target: main form.filters
+      title: Whose share
+      text: Choose the program administrator whose share to show.
+    - target: "#status-h"
+      title: Where the statewide confirmations stand
+      text: Each statewide confirmation, its due date, the PAs' confirmation it comes before, and which lead PAs have confirmed it.
+    - target: "#share-h"
+      title: Credited to the PA
+      text: The PA's share of each statewide program, year to date, with the lead PA and the confirmation it comes from.
       optional: true
 
 claims/version:

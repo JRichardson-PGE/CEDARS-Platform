@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from cedars.services import audit
@@ -190,7 +191,7 @@ def field_links() -> dict[str, str]:
 
 
 def _program_or_404(prg_id: str) -> Program:
-    p = get_object_or_404(Program.objects.select_related("administrator"), prg_id=prg_id)
+    p = get_object_or_404(Program.objects.select_related("administrator", "lead"), prg_id=prg_id)
     if p.portfolio_cost:
         raise Http404  # portfolio-level cost IDs are not programs (BR-02.6)
     return p
@@ -334,8 +335,31 @@ def program(request, prg_id):
             "following": notifications.follows_program(request.user, p),
             "about": field_links(),
             "placeholders": [r for r in records.get("documents") or [] if r.get("placeholder")],
+            "lead_form": forms.LeadForm(initial={"lead": p.lead_id}, prefix="lead")
+            if signed_in and registry.can_set_lead(request.user, p, getattr(request, "organisation", None))
+            else None,
         },
     )
+
+
+@login_required
+def lead(request, prg_id):
+    """Record a statewide program's lead PA, with a reason: any PA's administrators while it has none, then only its lead's."""
+    p = _program_or_404(prg_id)
+    org = getattr(request, "organisation", None)
+    if request.method != "POST" or not registry.can_set_lead(request.user, p, org):
+        raise Http404
+    form = forms.LeadForm(request.POST, prefix="lead")
+    if form.is_valid():
+        try:
+            registry.set_lead(request.user, p, form.cleaned_data["lead"], form.cleaned_data["reason"], organisation=org)
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"{p.prg_id}'s lead PA is saved.")
+    else:
+        messages.error(request, "Give the reason for the change.")
+    return redirect(reverse("programs:program", args=[p.prg_id]) + "#lead-h")
 
 
 def _truthy(value) -> bool:

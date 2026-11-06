@@ -74,6 +74,8 @@ _setup_pages: dict[str, dict] = {}
 _nothing_to_file: dict[str, Callable] = {}
 _setup_groups: dict[str, Callable] = {}
 _readers: dict[str, Callable] = {}
+_filers: dict[str, Callable] = {}
+_streams: dict[str, Callable] = {}
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
@@ -150,6 +152,30 @@ def register_nothing_to_file(module: str, check: Callable[[Deadline], bool]) -> 
 def nothing_to_file(deadline: Deadline) -> bool:
     check = _nothing_to_file.get(deadline.module)
     return bool(check and check(deadline))
+
+
+def register_filers(module: str, filers: Callable[[Deadline], set[int] | None]) -> None:
+    """Which organizations file for one of a module's deadlines: filers(deadline) -> their ids, or None for every program administrator.
+    The Filings page shows the others as having nothing to file (statewide claims: only the statewide programs' lead PAs file them)."""
+    _filers[module] = filers
+
+
+def files_for(deadline: Deadline, organisation: Organisation) -> bool:
+    """Whether the organization is one that files for the deadline (register_filers; every PA unless the module says otherwise)."""
+    filers = _filers.get(deadline.module)
+    ids = filers(deadline) if filers else None
+    return ids is None or organisation.pk in ids
+
+
+def register_stream(module: str, stream: Callable[[Deadline], str]) -> None:
+    """A module whose deadlines of one period fall in separate runs of filings: stream(deadline) -> the run's name ("" the main one).
+    A PA's statewide claims stand beside its own claims of the same year, so the snapshots keep a slot for each (`stream`)."""
+    _streams[module] = stream
+
+
+def stream(deadline: Deadline) -> str:
+    fn = _streams.get(deadline.module)
+    return fn(deadline) if fn else ""
 
 
 def register_setup_groups(module: str, groups: Callable[[], list[tuple[str, list[int], Callable[..., None]]]]) -> None:
