@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% block title %}Build a cost-test set{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'refdata:index' %}">Reference data</a></li><li><a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a></li></ol></nav>
@@ -10,10 +11,13 @@ next set is the last one with a change or two.</p>
 <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.start.as_field_group }}
-  {{ form.pack.as_field_group }}{{ form.build.as_field_group }}
-  {% if engine_here %}{{ form.engine_set.as_field_group }}{% endif %}
-  {{ form.file.as_field_group }}
-  {% if form.share %}{{ form.share.as_field_group }}{% endif %}
-  <div class="actions"><button type="submit" class="primary">Start</button></div>
+  {% for key, field in follow %}<div data-start-for="{{ key }}"{% if picked != key %} hidden{% endif %}>{{ field.as_field_group }}</div>
+  {% endfor %}
+  {% if form.share %}<div data-start-for="any"{% if not picked %} hidden{% endif %}>{{ form.share.as_field_group }}</div>{% endif %}
+  <div class="actions">
+    <button type="submit" class="primary" data-start-for="any"{% if not picked %} hidden{% endif %}>Start</button>
+    <button type="submit" name="next" value="1" data-start-next{% if picked %} hidden{% endif %}>Next</button>
+  </div>
 </form>
 {% endblock %}
+{% block scripts %}<script src="{% static 'refdata/builder_start.js' %}" defer></script>{% endblock %}

@@ -596,3 +596,40 @@ def storage_bytes(key):
     from cedars.core import storage
 
     return storage.store("uploads").get_bytes(key)
+
+
+def test_start_from_is_a_list_that_shows_only_the_next_field_it_needs(cpuc_admin, analyst):  # noqa: F811
+    c = Client()
+    sign_in(c, analyst)
+    page = c.get("/reference-data/cost-tests/build/").content.decode()
+    assert '<select name="start"' in page and '<option value="" selected>Choose what to start from</option>' in page
+    assert 'type="radio"' not in page
+    assert '<option value="build">' not in page  # no sets of their own yet: not offered
+    # nothing chosen: every follow-on field and Start are hidden, Next is shown (without scripts it shows the chosen field)
+    assert '<div data-start-for="pack" hidden>' in page and '<div data-start-for="file" hidden>' in page
+    assert 'data-start-for="any" hidden>Start</button>' in page and 'name="next" value="1" data-start-next>' in page
+    assert "refdata/builder_start.js" in page
+    # Next with a file chosen: only the file field and Start show, nothing is checked yet
+    page = c.post("/reference-data/cost-tests/build/", {"start": "file", "next": "1"}).content.decode()
+    assert '<div data-start-for="file">' in page and '<div data-start-for="pack" hidden>' in page
+    assert '<option value="file" selected>' in page and "Choose one to start from" not in page
+    assert 'data-start-for="any">Start</button>' in page and "data-start-next hidden" in page
+    assert not CostTestBuild.objects.exists()
+    # a choice in the address works the same (a link straight to it)
+    assert '<div data-start-for="pack">' in c.get("/reference-data/cost-tests/build/?start=pack").content.decode()
+
+
+def test_each_step_goes_on_to_the_next_one(cpuc_admin, analyst):  # noqa: F811
+    import re
+
+    c = Client()
+    sign_in(c, analyst)
+    c.post("/reference-data/cost-tests/build/", {"start": "file", "file": SimpleUploadedFile("mine.yaml", EE.read_bytes())})
+    b = CostTestBuild.objects.get()
+    links = {}
+    for step, after in zip(builder.PAGES, builder.PAGES[1:], strict=False):
+        page = c.get(f"/reference-data/cost-tests/build/{b.pk}/{step}/").content.decode()
+        for target, label in re.findall(r'<a href="/reference-data/cost-tests/build/\d+/(\w+)/">Go on to ([^<]+)</a>', page):
+            assert (target, label) == (after, builder.STEP_LABELS[after]), step
+            links[step] = target
+    assert links["inputs"] == "aggregates" and links["aggregates"] == "tests" and links["tests"] == "review"
