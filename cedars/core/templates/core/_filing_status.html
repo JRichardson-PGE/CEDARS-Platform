@@ -1,0 +1,25 @@
+<section aria-labelledby="status-h" id="filing-status">
+  <h2 id="status-h">Where each PA's filings stand</h2>
+  <p>For budgets, claims and monthly reports: the filing most recently due and the next one due, and where each program administrator's
+    filing for it stands. {% if board.full %}As CPUC staff you see every PA's filings; select a status to open that filing.{% else %}You
+    see where your organization's filings stand, and select a status to open the filing; for the other PAs, whether each filing is
+    published.{% endif %} The <a href="{% url 'submissions:calendar' %}">filing calendar</a> lists every deadline.</p>
+  {% if board.without %}<p class="small">No deadlines are on the calendar yet for {{ board.without|join:", " }}.</p>{% endif %}
+  {% if board.columns and board.rows %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="Where each PA's filings stand">
+  <table class="list filing-status">
+    <caption class="sr-only">Each program administrator's status on the budget, claims and monthly report filings most recently due and next due</caption>
+    <colgroup><col></colgroup>{% for label, span in board.groups %}<colgroup span="{{ span }}"></colgroup>{% endfor %}
+    <thead>
+      <tr><td></td>{% for label, span in board.groups %}<th scope="colgroup" colspan="{{ span }}">{{ label }}</th>{% endfor %}</tr>
+      <tr><th scope="col">Program administrator</th>{% for c in board.columns %}<th scope="col"><span class="small muted">{{ c.when }}</span><br>{% if c.url %}<a href="{{ c.url }}">{{ c.deadline.kind }}</a>{% else %}{{ c.deadline.kind }}{% endif %}, {% if c.deadline.period %}{{ c.deadline.period }}{% else %}{{ c.deadline.cycle|cycle_label }}{% endif %}<br><span class="small">due <time datetime="{{ c.deadline.due_at|date:'c' }}">{{ c.deadline.due_at|date_words }}</time></span></th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+    {% for row in board.rows %}<tr><th scope="row">{{ row.organisation.code }}<br><span class="small muted">{{ row.organisation.name }}</span></th>{% for cell in row.cells %}
+      <td>{% if cell.link %}<a href="{{ cell.link }}"><span class="status {{ cell.status|status_tone }}">{{ cell.status }}</span><span class="sr-only">: open {{ row.organisation.code }}'s filing</span></a>{% else %}<span class="status {{ cell.status|status_tone }}">{{ cell.status }}</span>{% endif %}{% if cell.detail %}<br><span class="small">{{ cell.detail|capfirst }}</span>{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif not board.rows %}<p class="empty">No program administrators are set up yet.</p>{% endif %}
+</section>

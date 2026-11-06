@@ -196,7 +196,8 @@ PAGES = [
     ("allocation-pa", "/allocations/{allocation}/", "pge_admin"),
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
-    ("reference-data", "/reference-data/", "pge_admin"),
+    ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
+    ("data-packs", "/reference-data/packs/", "pge_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
     ("cost-test-sets", "/reference-data/cost-tests/", "cpuc_admin"),
@@ -235,8 +236,15 @@ PAGES = [
     ("load-shape-upload-rejected", "/impact-profiles/uploads/{rejected}/", "developer"),
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
-    ("calculations", "/calculations/", "analyst"),
+    ("calculations", "/calculations/", "analyst"),  # the menu's own page
     ("calculations-no-organization", "/calculations/", "community"),
+    ("runs", "/calculations/runs/", "analyst"),
+    ("runs-no-organization", "/calculations/runs/", "community"),
+    ("filings", "/filings/", "cpuc_admin"),  # with every PA's filing status
+    ("filings-pa", "/filings/", "pge_admin"),
+    ("published", "/published/", None),
+    ("administration", "/admin/", "cpuc_admin"),
+    ("administration-org-admin", "/admin/", "pge_admin"),
     ("output-templates", "/calculations/templates/", "analyst"),
     ("output-template-new", "/calculations/templates/new/", "analyst"),
     ("new-run", "/calculations/new/", "analyst"),

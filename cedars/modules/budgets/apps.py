@@ -21,7 +21,13 @@ class BudgetsConfig(AppConfig):
         )  # fmt: skip
         from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
-        from cedars.services.submissions.service import register_acc_needs, register_deadline_page, register_publisher, register_setup_page
+        from cedars.services.submissions.service import (
+            register_acc_needs,
+            register_deadline_page,
+            register_publisher,
+            register_reader,
+            register_setup_page,
+        )
 
         from . import service, shifts
 
@@ -35,6 +41,7 @@ class BudgetsConfig(AppConfig):
             about="A business plan application, true-up or mid-cycle advice letter for any span of program years: one deadline.",
             order=1,
         )
+        register_reader("budgets", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
         register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
         register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
         register_concerns("budgets.fundshift", shifts.notice)

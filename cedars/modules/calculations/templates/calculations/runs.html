@@ -1,9 +1,9 @@
 {% extends "core/base.html" %}
 {% load static %}
-{% block title %}Calculations{% endblock %}
+{% block title %}Runs{% endblock %}
 {% block content %}
 <div class="head-row">
-  <div class="page-title"><h1>Calculations</h1>{% page_help "calculations/runs" %}</div>
+  <div class="page-title"><h1>Runs</h1>{% page_help "calculations/runs" %}</div>
   <div class="actions">{% if can_start %}<a class="button primary" href="{% url 'calculations:new' %}">New run</a>{% endif %}
     <a class="button" href="{% url 'calculations:templates' %}">Output templates</a>
     <a class="button" href="{% url 'core:recet_docs' %}">Engine documentation</a></div>

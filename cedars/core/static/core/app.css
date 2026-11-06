@@ -97,15 +97,23 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 }
 .menu-btn { display: none; margin-left: auto; }
 .top nav { display: flex; gap: .15rem; align-self: stretch; align-items: stretch; }
-.top nav > a, .top nav summary { display: flex; align-items: center; gap: .3rem; padding: 0 .75rem; color: var(--fg); text-decoration: none; font-weight: 500;
+.top nav > a, .top nav .nav-head, .top nav summary { display: flex; align-items: center; gap: .3rem; padding: 0 .75rem; color: var(--fg); text-decoration: none; font-weight: 500;
   border-bottom: 3px solid transparent; border-top: 3px solid transparent; cursor: pointer; min-height: 56px; white-space: nowrap; }
-.top nav > a:hover, .top nav summary:hover { color: var(--link); }
-.top nav > a[aria-current], .top nav details.current > summary { color: var(--link); border-bottom-color: var(--primary); }   /* current shown by border and colour, and aria */
+.top nav > a:hover, .top nav .nav-head:hover, .top nav summary:hover { color: var(--link); }
+.top nav > a[aria-current], .top nav .nav-menu.current > .nav-head, .top nav .nav-menu.current > details > summary { color: var(--link); border-bottom-color: var(--primary); }   /* current shown by border and colour, and aria */
 .top nav summary { list-style: none; }
 .top nav summary::-webkit-details-marker { display: none; }
 .top nav summary::after { content: ""; width: .45em; height: .45em; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-.15em) rotate(45deg); flex: none; }
 .top nav details[open] > summary::after { transform: translateY(.1em) rotate(225deg); }
 .top nav details { position: relative; }
+/* A menu: its heading is a link to the menu's own page and the arrow beside it opens the dropdown (24 px wide at least, 2.5.8). The two
+   share the current-page border, and the dropdown hangs under the heading. */
+.top nav .nav-menu { position: relative; display: flex; align-items: stretch; }
+.top nav .nav-menu > details { position: static; display: flex; }
+.top nav .nav-menu > .nav-head { padding-right: .15rem; }
+.top nav .nav-head + details > summary { padding-left: .2rem; padding-right: .5rem; min-width: 24px; justify-content: center; }
+.top nav details > ul .nav-more { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid var(--line-2); }
+.top nav details > ul .nav-more a { font-weight: 600; color: var(--link); }
 .top nav details > ul { position: absolute; left: 0; top: 100%; z-index: 15; margin: 0; padding: .4rem; list-style: none; min-width: 14rem; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
 .top nav details > ul a { display: block; padding: .5rem .7rem; border-radius: var(--r); color: var(--fg); text-decoration: none; min-height: 24px; }
@@ -165,7 +173,9 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .org-badge .label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .org-badge { padding-left: .3rem; }
   .top { gap: .5rem; }
-  .top nav > a, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
+  .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
+  .top nav .nav-menu > .nav-head { padding-right: .1rem; }
+  .top nav .nav-head + details > summary { padding: 0 .3rem 0 .1rem; }
   .who { gap: .3rem; font-size: .85rem; }
   .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
 }
@@ -178,7 +188,9 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   :root { --gutter: 1rem; }
   .top { gap: .35rem; }
   .top nav { gap: 0; }
-  .top nav > a, .top nav summary { padding: 0 .28rem; font-size: .875rem; gap: .2rem; }
+  .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .28rem; font-size: .875rem; gap: .2rem; }
+  .top nav .nav-menu > .nav-head { padding-right: 0; }
+  .top nav .nav-head + details > summary { padding: 0 .2rem 0 0; }
   .who { gap: .2rem; font-size: .82rem; }
   .org-switch { gap: .25rem; }
   .org-badge, .bell { padding-left: .4rem; padding-right: .4rem; }
@@ -189,8 +201,13 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .menu-btn { display: inline-block; order: 2; }
   .who { order: 3; margin-left: 0; width: 100%; padding: .4rem 0 .6rem; border-top: 1px solid var(--line-2); }
   .top nav { order: 4; flex-direction: column; width: 100%; gap: 0; padding-bottom: .5rem; border-top: 1px solid var(--line-2); }
-  .top nav > a, .top nav summary { min-height: 44px; padding: 0 .5rem; border-bottom: 0; border-top: 0; border-left: 3px solid transparent; }
-  .top nav > a[aria-current], .top nav details.current > summary { border-left-color: var(--primary); }
+  .top nav > a, .top nav .nav-head, .top nav summary { min-height: 44px; padding: 0 .5rem; border-bottom: 0; border-top: 0; border-left: 3px solid transparent; }
+  .top nav > a[aria-current], .top nav .nav-menu.current > .nav-head { border-left-color: var(--primary); }
+  /* a menu stacks: its heading's link across the row, the arrow at the row's end, the dropdown opening under them */
+  .top nav .nav-menu { display: block; }
+  .top nav .nav-menu > .nav-head { padding-right: 3.25rem; }
+  .top nav .nav-menu > details { display: block; position: static; }
+  .top nav .nav-head + details > summary { position: absolute; top: 0; right: 0; width: 44px; padding: 0; border-left: 0; justify-content: center; }
   .top nav details > ul { position: static; box-shadow: none; border: 0; border-left: 3px solid var(--line); border-radius: 0; margin: 0 0 .4rem .5rem; padding: 0 0 0 .4rem; min-width: 0; }
   .js .top nav.collapsed { display: none; }
 }
@@ -671,3 +688,14 @@ ul.links.columns li { break-inside: avoid; }
 /* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
    schemes with a white margin (the quiet zone scanners need). */
 .qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }
+
+/* ---------- A header menu's own page (core/_section.html, Jake 2026-11-06): its pages side by side, a sentence under each ---------- */
+.section-pages { list-style: none; margin: 0 0 1.25rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: .75rem 1.25rem; }
+.section-pages li { margin: 0; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.section-pages li > a { font-weight: 600; display: inline-block; min-height: 24px; }
+.section-pages li > p { margin: .25rem 0 0; color: var(--fg-2); font-size: .92rem; }
+/* Where each PA's filings stand: a module's two columns grouped under its name */
+table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom: 1px solid var(--line); }
+table.filing-status td { min-width: 7.5rem; }
+table.filing-status td a { text-decoration: none; }
+table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }

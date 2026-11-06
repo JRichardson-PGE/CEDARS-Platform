@@ -140,7 +140,7 @@ def test_commands(folder, cpuc_admin, tmp_path_factory):
 
 
 def test_pages(signed_in, cpuc_admin, pge_admin, acc):
-    page = signed_in(pge_admin).get("/reference-data/").content.decode()
+    page = signed_in(pge_admin).get("/reference-data/packs/").content.decode()
     assert "2026 ACC" in page and "Draft (analysis only)" in page
     detail = signed_in(pge_admin).get(f"/reference-data/{acc.pk}/").content.decode()
     assert "hourly/electric_2026.parquet" in detail and ">Publish</button>" not in page_only(detail)
@@ -154,4 +154,4 @@ def test_pages(signed_in, cpuc_admin, pge_admin, acc):
     c.post(f"/reference-data/{acc.pk}/", {"action": "publish"})
     acc.refresh_from_db()
     assert acc.status == "published"
-    assert "2026 ACC v1b" in c.get("/reference-data/?kind=acc_electric").content.decode()
+    assert "2026 ACC v1b" in c.get("/reference-data/packs/?kind=acc_electric").content.decode()

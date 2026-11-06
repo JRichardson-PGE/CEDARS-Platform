@@ -12,7 +12,13 @@ class MonthlyConfig(AppConfig):
     verbose_name = "Monthly reports"
 
     def ready(self):
-        from cedars.services.submissions.service import register_acc_needs, register_deadline_page, register_publisher, register_setup_page
+        from cedars.services.submissions.service import (
+            register_acc_needs,
+            register_deadline_page,
+            register_publisher,
+            register_reader,
+            register_setup_page,
+        )
 
         from . import service
 
@@ -26,6 +32,7 @@ class MonthlyConfig(AppConfig):
             about="A program year's twelve monthly reports, each due on the same day of the month after it.",
             order=3,
         )
+        register_reader("monthly", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 
         from cedars.services.registry.service import register_reported_spend
 

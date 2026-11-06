@@ -360,7 +360,7 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
             "Only signed in. Price any job on the ReCET engine: upload it as a .zip of Measure.csv and ProgramCost.csv, choose the "
             "engine release and the ACC, and start the run. The run page shows its progress, then its files and results, and any "
             "two finished runs can be compared. Runs are yours alone or your organization's.",
-            "/calculations/",
+            "/calculations/runs/",
             "Open your runs",
         ),
         Step(

@@ -23,5 +23,5 @@ and a job without it prices it as 0.</p>
 </div>
 {% else %}<p>None yet.</p>{% endif %}
 {% if can_change %}<p><a class="button" href="{% url 'refdata:build_input_new' build.pk %}">Add a stream from input columns</a></p>{% endif %}
-<p><a href="{% url 'refdata:build_step' build.pk 'review' %}">Go on to Review</a></p>
+<p><a href="{% url 'refdata:build_step' build.pk 'aggregates' %}">Go on to Aggregates</a></p>
 {% endblock %}

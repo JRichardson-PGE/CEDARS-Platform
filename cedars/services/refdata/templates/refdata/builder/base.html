@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}{{ step_label }}: {{ build }}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'refdata:index' %}">Reference data</a></li><li><a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a></li></ol></nav>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a></li></ol></nav>
 {% block heading %}{% endblock %}
 <p class="small muted">{% if build.label %}{{ build.label }}. {% endif %}Started from {{ build.source }} by {{ build.owner|person }}{% if build.organisation %}, shared with {{ build.organisation.name }}{% endif %}. Status: {{ build.get_status_display|lower }}.{% if not can_change %} You can read it but not change it{% if build.status == "registered" %}: it is registered{% if build.pack %} as <a href="{% url 'refdata:detail' build.pack.pk %}">{{ build.pack }}</a>{% endif %}; copy it to start the next version{% endif %}.{% endif %}</p>
 <nav class="subnav" aria-label="Steps of the set">
