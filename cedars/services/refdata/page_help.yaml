@@ -20,8 +20,9 @@ refdata/detail:
   title: A data pack
   guide:
     - One data pack, its status, what it holds, its files with their SHA-256 checksums, and the tie-outs it must pass before it is
-      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests, the set in words
-      as the engine reads it, and a link to download its file.
+      published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests, a grid of how they
+      are built (each stream's part in each test, and each test as a formula), the set in words as the engine reads it, and a link to
+      download its file.
     - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed tie-out for each check
       the kind of pack requires.
   how:
@@ -239,7 +240,7 @@ refdata/builder/tests:
   title: "Set builder: tests"
   guide:
     - The set's cost tests, in the order a run writes them and its pages show them. Each is a ratio of the streams it adds as benefits
-      to those it adds as costs, read in its pricing, with a share of the program costs when it has one.
+      to those it adds as costs, read in its pricing, with a share of the program costs when it has one; each is shown as its formula.
   how:
     - Add a test, or Change, Remove, or move a test Up or Down in the list.
   see: reference-data
@@ -249,21 +250,29 @@ refdata/builder/tests:
       text: Go to any step; each shows its open problems.
     - heading: The set's tests
       title: The set's tests
-      text: Each test's pricing, benefits, costs, program costs and variants, in order.
+      text: Each test's pricing, formula and variants, in order.
 
 refdata/builder/test:
   title: "Set builder: a test"
   guide:
-    - One cost test. Its id names its columns (TRCBen, TRCCost, TRCRatio). Tick its benefits and costs among the set's streams, each read
-      in the test's pricing; choose how it takes the program costs (none, its own share of the program's positive benefits, or another
-      test's share); and choose its variants and outputs.
+    - One cost test. Its id names its columns (TRCBen, TRCCost, TRCRatio). Write it as a formula, (benefits) / (costs), or tick its
+      benefits and costs among the set's streams, each read in the test's pricing; choose how it takes the program costs (none, its own
+      share of the program's positive benefits, or another test's share); and choose its variants and outputs.
+    - "In the formula, streams are joined by +. adder(X) adds X to the test's benefits without putting it in the benefits its share of the
+      program costs is divided by (TRC's TaxCredits). share x ProgramCosts is the test's own share of the program costs; share(TRC) x
+      ProgramCosts takes TRC's. Each stream counts once: weights, numbers and minus signs are refused."
   how:
-    - Fill in the fields and select Save the test.
+    - Type the formula; the names you can write are suggested as you type (Up and Down to choose, Enter or Tab to take one, Escape to close
+      the list), and the check under it says what it reads. The lists below follow it, and ticking a list rewrites it.
+    - Fill in the other fields and select Save the test. When you changed the formula, it decides the streams; otherwise the ticked lists do.
   see: reference-data
   tour:
+    - target: "#id_formula"
+      title: Formula
+      text: The test written out, (benefits) / (costs), with suggestions as you type.
     - target: "#id_benefits"
-      title: Benefits
-      text: Each stream with the pricings it is read in.
+      title: The same test as lists
+      text: Each stream with the pricings it is read in; ticking one rewrites the formula.
     - heading: Outputs
       title: Outputs
       text: The lifecycle net benefit, levelized costs, headline and filing choices.
@@ -273,6 +282,9 @@ refdata/builder/review:
   guide:
     - The whole set, as the engine writes it out, with every problem left and a link to its step, and the set's file to download. An
       analysis run on New run takes the file as your own cost-test set.
+    - How the tests are built is a grid of the set's streams against its tests, each cell saying whether the stream is a benefit, an
+      adder or a cost in that test, with each test's pricing, program-cost share and variants, and each test as a formula. Streams no test
+      uses are folded away below it.
     - A set copied from another one lists what changed since, part by part.
     - The CPUC's cost-test pack managers register a set with no problems as a draft pack; the engine installed here records its engine
       check at once, and it is published on its own page. A registered set no longer changes here; copy it to start the next version.

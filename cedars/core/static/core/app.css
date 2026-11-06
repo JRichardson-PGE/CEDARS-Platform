@@ -670,3 +670,23 @@ ul.links.columns li { break-inside: avoid; }
 /* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
    schemes with a white margin (the quiet zone scanners need). */
 .qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }
+
+/* Cost-test builder: the test page's formula bar (refdata/builder_formula.js) */
+.formula-bar { position: relative; }
+textarea.formula, code.formula { font-family: var(--mono); }
+textarea.formula { width: 100%; font-size: .92rem; line-height: 1.5; }
+.formula-suggest { position: absolute; z-index: 5; left: 0; right: 0; max-width: 40rem; margin: .1rem 0 0; padding: .2rem 0; list-style: none;
+  background: var(--surface); border: 1px solid var(--control); border-radius: var(--r); box-shadow: 0 4px 12px rgb(0 0 0 / .15); }
+.formula-suggest li { padding: .3rem .6rem; min-height: 24px; font-family: var(--mono); font-size: .85rem; cursor: pointer; }
+.formula-suggest li[aria-selected="true"] { background: var(--info-bg); color: var(--fg); outline: 2px solid var(--info); outline-offset: -2px; }
+.formula-check { border-left: 4px solid var(--fg-3); padding: .3rem .6rem; margin: .4rem 0 0; background: var(--surface-2); }
+.formula-check.ok { border-left-color: var(--ok); } .formula-check.warn { border-left-color: var(--warn); } .formula-check.bad { border-left-color: var(--bad); }
+.formula-check.ok::before { content: "OK. "; font-weight: 600; } .formula-check.warn::before { content: "Check: "; font-weight: 600; }
+.formula-check.bad::before { content: "Not yet: "; font-weight: 600; }
+.test-grid th[scope="row"] { white-space: nowrap; }
+.test-grid tr.meta th, .test-grid tr.meta td { background: var(--surface-2); }
+.role { display: inline-block; font-weight: 600; padding: 0 .4rem; border-radius: 3px; border-left: 4px solid; }
+.role-benefit { color: var(--ok); background: var(--ok-bg); } .role-benefit::before { content: "+ "; }
+.role-adder { color: var(--info); background: var(--info-bg); } .role-adder::before { content: "+ "; }
+.role-cost { color: var(--bad); background: var(--bad-bg); } .role-cost::before { content: "\2212  "; }
+ul.formulas { list-style: none; padding: 0; } ul.formulas li { margin: .35rem 0; }

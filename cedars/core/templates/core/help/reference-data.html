@@ -21,6 +21,10 @@ other funding PAs are told. A run that names no version uses the most recently c
   force for its first program year.</li>
   <li>Anyone signed in may <a href="{% url 'refdata:build_start' %}">build a set</a>, usually from a copy of a registered set, and price
   their own analysis runs on it from New run. Only the CPUC registers a set for filings.</li>
+  <li>The builder shows each test as a formula, <code>TRC = (ElecBen + GasBen + adder(TaxCredits)) / (ElecSupplyCost + share x
+  ProgramCosts)</code>, and a test can be typed that way. Streams are joined by <code>+</code>, each once; <code>adder(X)</code> adds X to
+  the test's benefits without counting it in the benefits the program costs are shared by; <code>share x ProgramCosts</code> is the
+  test's own share of the program costs and <code>share(TRC) x ProgramCosts</code> takes TRC's.</li>
 </ul>
 <h2>Learn more</h2>
 <ul class="links">

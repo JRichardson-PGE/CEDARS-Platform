@@ -596,3 +596,134 @@ def storage_bytes(key):
     from cedars.core import storage
 
     return storage.store("uploads").get_bytes(key)
+
+
+# ---------- The formula bar (Jake 2026-11-06: "I like the clickable prototype, lets make that change") ----------
+
+
+@needs_catalog
+def test_every_published_test_reads_back_from_its_formula():
+    from cedars.services.refdata import formula
+
+    data = yaml.safe_load(EE.read_text())
+    streams = [n for n, s in builder.readable_streams(data)]
+    shares = [v for v, _ in builder.share_choices(data, None) if v not in ("", "positive_benefits")]
+    assert formula.render("PAC", data["tests"]["PAC"]).endswith("+ share(TRC) x ProgramCosts)")
+    for tid, t in data["tests"].items():
+        p = formula.parse(formula.render(tid, t), streams, shares)
+        pc = t.get("program_costs")
+        assert p.problems == [] and p.test == tid, tid
+        assert (p.benefits, p.numerator_adders, p.costs) == (t["benefits"], t.get("numerator_adders") or [], t["costs"]), tid
+        assert p.share == (pc.get("share") if isinstance(pc, dict) else ""), tid
+
+
+def test_a_formula_says_what_is_wrong_with_it():
+    from cedars.services.refdata.formula import parse
+
+    names = ["ElecBen", "GasBen", "TaxCredits", "ElecSupplyCost", "OtherCost"]
+
+    def problems(text, shares=("TRC",)):
+        return " | ".join(parse(text, names, shares).problems)
+
+    p = parse("(ElecBen + GasBen + adder(TaxCredits)) / (ElecSupplyCost + share × ProgramCosts)", names)
+    assert (p.test, p.benefits, p.numerator_adders, p.costs, p.share) == ("", ["ElecBen", "GasBen"], ["TaxCredits"], ["ElecSupplyCost"],
+                                                                         "positive_benefits")  # fmt: skip
+    assert parse("X = (ElecBen) / (OtherCost + share(TRC) * ProgramCosts)", names, ["TRC"]).share == "TRC"
+    assert "Did you mean ElecBen? Names are written with their capitals" in problems("(elecben) / (OtherCost)")
+    assert "Did you mean ElecSupplyCost?" in problems("(ElecBen) / (ElecSuplyCost)")
+    assert "engine change" in problems("(ElecBen + 0.5 x GasBen) / (OtherCost)")
+    assert "engine change" in problems("(ElecBen - GasBen) / (OtherCost)")
+    assert "below the line" in problems("(ElecBen + share x ProgramCosts) / (OtherCost)")
+    assert "taken through a share" in problems("(ElecBen) / (ProgramCosts)")
+    assert "PAC does not compute its own share" in problems("(ElecBen) / (OtherCost + share(PAC) x ProgramCosts)")
+    assert "above the line" in problems("(ElecBen) / (OtherCost + adder(TaxCredits))")
+    assert "named twice in the benefits" in problems("(ElecBen + ElecBen) / (OtherCost)")
+    assert "brackets" in problems("(ElecBen / (OtherCost)")
+    assert "one /" in problems("ElecBen + OtherCost")
+    assert "at least one cost" in problems("(ElecBen) / ()")
+    assert parse("(ElecBen) / (OtherCost + ElecBen)", names).costs == ["OtherCost", "ElecBen"]  # once on each side is fine
+
+
+@needs_catalog
+def test_a_test_typed_as_a_formula(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    url = f"/reference-data/cost-tests/build/{b.pk}/tests/new/"
+    base = {"id": "JST", "label": "Just transition", "pricing": "primary", "filing": "on"}
+    # the formula alone, with no list ticked, makes the test
+    r = c.post(url, {**base, "formula": "JST = (ElecBen + adder(TaxCredits)) / (RebatesandIncentsPV + share(TRC) x ProgramCosts)"})
+    assert r.status_code == 302
+    b.refresh_from_db()
+    t = b.data["tests"]["JST"]
+    assert (t["benefits"], t["numerator_adders"], t["costs"], t["program_costs"]) == (
+        ["ElecBen"], ["TaxCredits"], ["RebatesandIncentsPV"], {"share": "TRC"})  # fmt: skip
+    assert b.problems == {}
+    # a formula with a problem is not saved, and says why
+    page = page_only(c.post(url, {**base, "id": "JS2", "formula": "JS2 = (ElecBen x 2) / (RebatesandIncentsPV)"}).content.decode())
+    assert "engine change" in page and "JS2" not in b.data["tests"]
+    page = page_only(c.post(url, {**base, "id": "JS2", "formula": "JS3 = (ElecBen) / (RebatesandIncentsPV)"}).content.decode())
+    assert "the test&#x27;s id is JS2" in page
+    # neither a formula nor a list: both are asked for
+    page = page_only(c.post(url, {**base, "id": "JS2"}).content.decode())
+    assert "tick one, or write the formula" in page
+    # the page shows the saved formula; left as it is, the ticked lists decide
+    edit = f"/reference-data/cost-tests/build/{b.pk}/tests/JST/"
+    page = page_only(c.get(edit).content.decode())
+    shown = "JST = (ElecBen + adder(TaxCredits)) / (RebatesandIncentsPV + share(TRC) x ProgramCosts)"
+    assert shown in page
+    r = c.post(edit, {**base, "formula": shown, "benefits": ["ElecBen", "GasBen"], "numerator_adders": ["TaxCredits"],
+                      "costs": ["RebatesandIncentsPV"], "share": "TRC"})  # fmt: skip
+    assert r.status_code == 302
+    b.refresh_from_db()
+    assert b.data["tests"]["JST"]["benefits"] == ["ElecBen", "GasBen"]
+    # the tests page lists each test as its formula
+    page = page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/tests/").content.decode())
+    assert "JST = (ElecBen + GasBen + adder(TaxCredits)) / (RebatesandIncentsPV + share(TRC) x ProgramCosts)" in page
+
+
+def test_the_review_grid_puts_each_stream_in_each_test():
+    from cedars.services.refdata.formula import grid
+
+    data = {
+        "streams": {
+            "ElecBen": {"source": "engine", "kind": "benefit", "pricings": ["primary"]},
+            "Rebates": {"source": "engine", "kind": "cost", "pricings": ["primary"]},
+            "TaxCredits": {"source": "engine", "kind": "benefit", "pricings": ["primary"]},
+            "Unused": {"source": "input", "kind": "benefit", "pricings": ["primary"]},
+            "ProgramCosts": {"source": "program", "kind": "cost"},
+        },
+        "tests": {
+            "TRC": {"label": "Total", "pricing": "primary", "benefits": ["ElecBen"], "numerator_adders": ["TaxCredits"],
+                    "costs": ["Rebates"], "program_costs": {"share": "positive_benefits"}, "headline": True},
+            "PCT": {"label": "Participant", "pricing": "primary", "benefits": ["Rebates"], "costs": ["Rebates"], "program_costs": "none"},
+        },
+    }  # fmt: skip
+    g = grid(data)
+    assert [c["id"] for c in g["tests"]] == ["TRC", "PCT"] and g["tests"][0]["headline"]
+    assert [r["name"] for r in g["rows"]] == ["ElecBen", "TaxCredits", "Rebates"]  # benefits first, then costs
+    roles = {r["name"]: [[x["key"] for x in c["roles"]] for c in r["cells"]] for r in g["rows"]}
+    assert roles == {"ElecBen": [["benefit"], []], "TaxCredits": [["adder"], []], "Rebates": [["cost"], ["benefit", "cost"]]}
+    assert [r["name"] for r in g["unused"]] == ["Unused"]
+    assert [c["text"] for c in g["program"]["cells"]] == ["its own share", "none"]
+    assert g["tests"][1]["formula"] == "PCT = (Rebates) / (Rebates)"
+
+
+@needs_catalog
+def test_review_and_the_published_set_show_how_the_tests_are_built(cpuc_admin, analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    neb = {"name": "HealthNEB", "kind": "benefit", "new_columns": "UnitNEBHealth", "basis": "one_time", "ntg": "kwh",
+           "market_effects": "benefits", "pricings": ["primary"], "naming": "none", "gross": "divide_ntg", "unit": "$",
+           "definition": "Health benefits."}  # fmt: skip
+    assert c.post(f"/reference-data/cost-tests/build/{b.pk}/inputs/new/", neb).status_code == 302
+    page = page_only(c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode())
+    assert "How the tests are built" in page and "Streams no test uses (1)" in page and "<code>HealthNEB</code>:" in page
+    assert '<span class="role role-benefit">Benefit</span> and <span class="role role-cost">Cost</span>' in page  # PCT's rebates
+    assert "PAC = (ElecBen + GasBen + WaterEnergyBen + OtherBen) / (" in page
+    p = cost_tests.register_set(cpuc_admin, EE.read_bytes(), source="test")
+    sign_in(c, cpuc_admin)
+    page = page_only(c.get(f"/reference-data/{p.pk}/").content.decode())
+    assert "How the tests are built" in page and "Streams no test uses" not in page
+    assert "TRC = (ElecBen + GasBen + WaterEnergyBen + OtherBen + adder(TaxCredits)) / (" in page

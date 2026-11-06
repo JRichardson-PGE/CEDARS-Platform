@@ -5,7 +5,7 @@ from django import forms
 
 from cedars.core import uploads
 
-from . import builder
+from . import builder, formula
 from .models import PackVersion
 
 KINDS = [("benefit", "A benefit"), ("cost", "A cost")]
@@ -326,19 +326,32 @@ class TestForm(forms.Form):
     )
     label = forms.CharField(label="Name", max_length=120, help_text="e.g. Total Resource Cost")
     pricing = forms.ChoiceField(label="Pricing", widget=forms.RadioSelect, help_text="Every stream it reads is read in this pricing")
-    benefits = forms.MultipleChoiceField(label="Benefits", widget=forms.CheckboxSelectMultiple)
+    formula = forms.CharField(
+        label="Formula",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4, "spellcheck": "false", "autocomplete": "off", "class": "formula"}),
+        help_text="(benefits) / (costs): stream names joined by +, adder(TaxCredits) for an adder, share x ProgramCosts for this "
+        "test's own share of the program costs or share(TRC) x ProgramCosts for TRC's. When you change it, it decides the streams below.",
+    )
+    benefits = forms.MultipleChoiceField(label="Benefits", required=False, widget=forms.CheckboxSelectMultiple)
     numerator_adders = forms.MultipleChoiceField(
-        label="Added to the benefits (not to TotalSystemBenefit)",
+        label="Added to the benefits (adders)",
         required=False,
         widget=forms.CheckboxSelectMultiple,
-        help_text="e.g. TRC's TaxCredits; never on the gross forms",
+        help_text="In <T>Ben and the ratio, but not in the benefits the test's share of the program costs is divided by, nor in "
+        "its Gross form: e.g. TRC's TaxCredits, RIM's bill increases",
     )
-    costs = forms.MultipleChoiceField(label="Costs", widget=forms.CheckboxSelectMultiple)
+    costs = forms.MultipleChoiceField(label="Costs", required=False, widget=forms.CheckboxSelectMultiple)
     share = forms.ChoiceField(label="Program costs", widget=forms.RadioSelect, required=False)
     variants = forms.MultipleChoiceField(label="Variants", choices=VARIANTS, required=False, widget=forms.CheckboxSelectMultiple)
     lifecycle_net_benefit = forms.BooleanField(label="Write its lifecycle net benefit (<T>LifecycleNetBen)", required=False)
     levelized = forms.MultipleChoiceField(label="Levelized costs", choices=LEVELIZED, required=False, widget=forms.CheckboxSelectMultiple)
-    headline = forms.BooleanField(label="A headline test (on the run page's tiles and the summary's NoAdmin ratios)", required=False)
+    headline = forms.BooleanField(
+        label="A headline test",
+        required=False,
+        help_text="A tile on the run page and a line in the run email, its NoAdmin ratio in the portfolio summary, and the key metrics' "
+        "drivers. The first headline test with its own share also gives the Weighted and Wtd columns their share. No ratio changes.",
+    )
     filing = forms.BooleanField(label="Priced on filings", required=False, initial=True)
     definition = forms.CharField(label="Definition", required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
@@ -348,6 +361,26 @@ class TestForm(forms.Form):
         for k in ("benefits", "numerator_adders", "costs"):
             self.fields[k].choices = _stream_choices(streams)
         self.fields["share"].choices = list(shares)
+        self.stream_names = [n for n, _ in streams]
+        self.share_tests = [v for v, _ in shares if v not in ("", "positive_benefits")]
+
+    def clean(self):
+        d = super().clean()
+        text = (d.get("formula") or "").strip()
+        if text and "formula" in self.changed_data:
+            p = formula.parse(text, self.stream_names, self.share_tests)
+            tid = (d.get("id") or "").strip()
+            if p.test and tid and p.test != tid:
+                p.problems.append(f"The formula is named {p.test} but the test's id is {tid}: change one so they match.")
+            for m in p.problems:
+                self.add_error("formula", m)
+            if not p.problems:
+                d.update(benefits=p.benefits, numerator_adders=p.numerator_adders, costs=p.costs, share=p.share)
+        elif not self.has_error("formula"):
+            for k, what in (("benefits", "benefit"), ("costs", "cost")):
+                if not d.get(k) and not self.has_error(k):
+                    self.add_error(k, f"A test needs at least one {what} stream: tick one, or write the formula.")
+        return d
 
     @staticmethod
     def initial_for(tid: str, t: dict) -> dict:
@@ -356,6 +389,7 @@ class TestForm(forms.Form):
             "id": tid,
             "label": t.get("label", ""),
             "pricing": t.get("pricing"),
+            "formula": formula.render(tid, t),
             "benefits": list(t.get("benefits") or []),
             "numerator_adders": list(t.get("numerator_adders") or []),
             "costs": list(t.get("costs") or []),

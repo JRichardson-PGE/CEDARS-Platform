@@ -1492,6 +1492,36 @@ def test_other_filters_by_keyboard(browser, site, scene):
     context.close()
 
 
+def test_the_formula_bar_by_keyboard(browser, site, scene):
+    """The set builder's test page (refdata/builder_formula.js): a name is suggested as it is typed and taken with Down and Enter, the
+    check under the formula says what it reads, the lists follow the formula, and ticking a list rewrites the formula."""
+    context, page = _open(browser, site, scene, "/reference-data/cost-tests/build/{build}/tests/PAC/", "analyst")
+    ta = page.locator("#id_formula")
+    assert ta.input_value() == "PAC = (ElecBen + NEBHealth) / (RebatesandIncentsPV + share x ProgramCosts)"
+    ta.fill("")
+    ta.focus()
+    page.keyboard.type("PAC = (Ele")
+    assert page.locator("#formula-suggest").is_visible()
+    page.keyboard.press("ArrowDown")
+    assert page.locator("#formula-suggest [aria-selected=true]").inner_text().startswith("ElecBen")
+    assert ta.get_attribute("aria-activedescendant") == "formula-opt-0"
+    page.keyboard.press("Enter")
+    assert page.locator("#formula-suggest").is_hidden() and page.evaluate("document.activeElement.id") == "id_formula"
+    page.keyboard.type(") / (RebatesandIncentsPV)")
+    assert ta.input_value() == "PAC = (ElecBen) / (RebatesandIncentsPV)"
+    check = page.locator("#formula-check")
+    assert "Reads 1 benefit and 1 cost, with no program costs" in check.inner_text()
+    assert page.locator("input[name=benefits][value=ElecBen]").is_checked()
+    assert not page.locator("input[name=benefits][value=NEBHealth]").is_checked()
+    assert page.locator("input[name=share][value='']").is_checked()
+    page.keyboard.type(" + 2 x NEBHealth")
+    assert "1 problem" in check.inner_text() and "engine change" in check.inner_text()
+    page.locator("input[name=benefits][value=NEBHealth]").check()
+    assert ta.input_value() == "PAC = (ElecBen + NEBHealth) / (RebatesandIncentsPV)"
+    page.keyboard.press("Escape")
+    context.close()
+
+
 # ---------- Page help (Jake, 2026-10-31): the (?) beside every page's heading, its guide and the tour of the page ----------
 
 
