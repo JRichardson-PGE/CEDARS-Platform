@@ -100,9 +100,10 @@ refdata/builder/start:
     - target: "#id_start"
       title: Start from
       text: A copy of a set, a file, or a blank set. Once you choose, the page shows the set or file to pick.
-    - target: "main form .actions"
+    - target: "main form .actions button.primary"
       title: Start
-      text: Opens the new set's first step.
+      text: Opens the new set's first step. It shows once you have chosen what to start from.
+      optional: true
 
 refdata/builder/set:
   title: "Set builder: the set"
