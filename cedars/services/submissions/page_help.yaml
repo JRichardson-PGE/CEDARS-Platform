@@ -3,21 +3,23 @@
 submissions/calendar:
   title: The filing calendar
   guide:
-    - Every filing's due date, soonest first, budgets, claims and monthly reports, with when each opens. Signed in, each row says where your
-      organization's filing stands.
+    - Every filing's due date, budgets, claims and monthly reports, with when each opens. It opens on this month as a calendar, each
+      day showing what is due on it; the List view shows the same deadlines soonest first, over a range of dates.
     - >-
-      The calendar opens on the last 3 and next 9 months of every filing type. Choose filing types and due dates above the table; the
-      line above the table says what is shown, and the page's address keeps your choice, so a copied link shows the same view.
+      Choose filing types above the calendar; in the List view, due dates too (the last 3 and next 9 months by default). The line
+      above says what is shown, and the page's address keeps your choice, so a copied link shows the same view.
     - After a due date a confirmed filing is corrected as a new version, through a request to reopen that a CPUC approver decides.
   how:
+    - Select Month or List to change the view.
+    - In the Month view, select the month before or after, This month, or enter a month (YYYY-MM) and select Go.
     - Select Budgets, Claims or Monthly reports to show only those filings; select a chosen type again to take it away, or All types for every filing.
-    - Select Last 3 and next 9 months, This year or All for the due dates, or enter From and To dates and select Show these dates.
-    - Open a filing's row to go to its page, where your organization files it.
+    - In the List view, select Last 3 and next 9 months, This year or All for the due dates, or enter From and To dates and select Show these dates.
+    - Select a filing to go to its page, where your organization files it.
     - >-
       Add a filing (CPUC system administrators) opens a page of what can be set up: a budget filing, a claim year or a year of monthly
       reports. Setting one up puts its deadlines on the calendar; the calendar itself only changes them.
     - >-
-      Change on a deadline's row (CPUC system administrators) opens its page to change its due date, opening date or notes with a
+      Change beside a deadline (CPUC system administrators) opens its page to change its due date, opening date or notes with a
       reason (a budget filing's name and program years too), or to retire it; for everyone else History shows every change made to it. Show retired deadlines lists the retired ones.
   see: getting-started
   tour:
@@ -25,21 +27,31 @@ submissions/calendar:
       title: Add a filing
       text: For CPUC system administrators. Choose what to set up; its set-up puts it on the calendar.
       optional: true
+    - target: "#calendar-view"
+      title: Month or list
+      text: A month as a calendar, or every deadline in a range of dates as a list.
     - target: "#type-filter"
       title: Filing types
       text: Show one filing type or several. The chosen ones are filled and checked; select one again to take it away.
     - target: "#date-filter"
       title: Due dates
-      text: The last 3 and next 9 months (the default), this calendar year, or every date.
+      text: In the List view, the last 3 and next 9 months (the default), this calendar year, or every date.
+      optional: true
     - target: "#custom-range"
       title: Custom dates
       text: Any range of due dates. Leave From or To blank to leave that end open.
+      optional: true
     - target: main p.showing
       title: What is shown
       text: How many deadlines match, for which types and dates, with a link back to every deadline.
+    - target: "#month-grid"
+      title: The month
+      text: Each day with what is due on it, its module and period. Select a filing to open it. Move between months above the calendar.
+      optional: true
     - target: main table.list
       title: Deadlines
       text: Each filing, when it opens and when it is due. Select one to open it, or History (Change for administrators) for its changes.
+      optional: true
     - heading: Corrections after the due date
       title: Corrections after the due date
       text: How a confirmed filing is corrected once its due date has passed.

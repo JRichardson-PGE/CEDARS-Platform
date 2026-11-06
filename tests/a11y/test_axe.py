@@ -400,6 +400,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     legacy_years = _legacy()
     downloads = _downloads(community)
     return {
+        "next_month": f"{timezone.localdate() + timedelta(days=30):%Y-%m}",  # the calendar's month with the TUAL due in it
         **downloads,
         **_saved_views(community, cpuc_admin, pge_admin, pge),
         **legacy_years,

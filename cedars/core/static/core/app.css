@@ -370,6 +370,43 @@ ul.toggle-chips a[aria-current] { background: var(--primary); border-color: var(
 .custom-range label { flex-direction: row; align-items: center; gap: .4rem; }
 .custom-range input[type=date] { max-width: 100%; }
 p.showing { margin: 0 0 .6rem; }
+/* Filing calendar, month view (the default): a server-drawn grid, a table with Sunday first. A deadline's module is in words, with a
+   left rule as well (budgets teal, claims blue, monthly amber; never color alone); today is marked "Today" and aria-current. Below
+   720px the grid becomes a list of the days with something due (and today), each with its weekday. */
+.view-switch { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .8rem; margin: 0 0 .8rem; }
+.month-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.5rem; margin: .8rem 0 .6rem; }
+.month-head h2 { margin: 0; }
+.month-nav { display: flex; flex-wrap: wrap; gap: .4rem 1rem; }
+.month-nav a { display: inline-flex; align-items: center; min-height: 24px; }
+.month-jump { align-items: center; gap: .4rem; }
+.month-jump label { flex-direction: row; align-items: center; gap: .4rem; }
+.month-jump input[type=month] { max-width: 11rem; }
+.month-jump .helptext { margin: 0; }
+table.month-grid { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); margin-bottom: 1rem; }
+.month-grid th { padding: .35rem; font-size: .85rem; color: var(--fg-2); text-align: left; border-bottom: 1px solid var(--line); }
+.month-grid td { vertical-align: top; height: 6.5rem; padding: .3rem; border: 1px solid var(--line); overflow-wrap: anywhere; }
+.month-grid td.other-month { background: var(--surface-2); }
+.month-grid td.other-month .day { color: var(--fg-3); font-weight: 400; }
+.month-grid td.today { box-shadow: inset 0 0 0 2px var(--primary); }
+.month-grid .day { display: block; font-weight: 600; font-size: .9rem; }
+.month-grid .dow { display: none; }
+.today-label { font-size: .75rem; font-weight: 700; color: var(--primary-fg); background: var(--primary); border-radius: 999px; padding: 0 .45rem; }
+ul.due-list { list-style: none; margin: .25rem 0 0; padding: 0; display: grid; gap: .35rem; }
+ul.due-list li { border-left: 4px solid var(--fg-3); padding: .1rem 0 .1rem .4rem; font-size: .85rem; line-height: 1.3; }
+ul.due-list li.mod-budgets { border-left-color: var(--chart-forecast); }
+ul.due-list li.mod-claims { border-left-color: var(--chart-claims); }
+ul.due-list li.mod-monthly { border-left-color: var(--warn); }
+ul.due-list li.retired { border-left-style: dashed; }
+ul.due-list .mod, ul.due-list .period { display: block; color: var(--fg-2); font-size: .78rem; }
+ul.due-list a { display: inline-flex; align-items: center; min-height: 24px; }
+@media (max-width: 720px) {
+  table.month-grid, .month-grid tbody, .month-grid tr, .month-grid td { display: block; width: 100%; }
+  table.month-grid { border: 1px solid var(--line); }
+  .month-grid thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .month-grid td { height: auto; border: 0; border-bottom: 1px solid var(--line); }
+  .month-grid td:not(.has-due):not(.today) { display: none; }
+  .month-grid .dow { display: inline; }
+}
 /* Programs catalog: the Other filters panel (a native <details>, programs/catalog.js swaps the chosen field's inputs in place) */
 .other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
 .other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }

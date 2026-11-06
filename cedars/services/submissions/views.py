@@ -1,4 +1,6 @@
+import calendar as pycalendar
 from calendar import monthrange
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from urllib.parse import urlencode
 
@@ -161,28 +163,75 @@ def calendar_filters(params, today: date) -> dict:
     }
 
 
-def _calendar_link(types, rng, start=None, end=None, retired=False) -> str:
-    """The calendar's URL for these filters, leaving out the defaults (every type, the last 3 and next 9 months, retired deadlines
-    left out)."""
+def _calendar_link(types, rng="window", start=None, end=None, retired=False, *, view="list", month: date | None = None) -> str:
+    """The calendar's URL for these filters, leaving out the defaults (every type, retired deadlines left out). The month view is the
+    page's default (this month unless `month` names another); the list view carries view=list and its due-date range (default: the
+    last 3 and next 9 months)."""
     query = [("type", code) for code, _ in MODULES if code in types]
-    if rng != "window":
-        query.append(("range", rng))
-    if rng == "custom":
-        query += [(k, v.isoformat()) for k, v in (("from", start), ("to", end)) if v]
+    if view == "list":
+        query.append(("view", "list"))
+        if rng != "window":
+            query.append(("range", rng))
+        if rng == "custom":
+            query += [(k, v.isoformat()) for k, v in (("from", start), ("to", end)) if v]
+    elif month is not None:
+        query.append(("month", f"{month:%Y-%m}"))
     if retired:
         query.append(("retired", "1"))
     return reverse("submissions:calendar") + (f"?{urlencode(query)}" if query else "")
 
 
+def _parse_month(value) -> date | None:
+    """The first day of a month written YYYY-MM, or None."""
+    try:
+        y, m = (int(x) for x in (value or "").strip().split("-"))
+        return date(y, m, 1) if 1900 <= y <= 2200 else None
+    except ValueError:
+        return None
+
+
+WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]  # weeks start on Sunday, as US calendars do
+
+
+def month_grid(month: date, rows: list[dict], today: date) -> list[list[dict]]:
+    """The weeks of a month (Sunday first) as calendar cells: each day, whether it is in the month or today, and the rows (deadlines,
+    with their filing page) due on it. Days of the months before and after fill the first and last weeks, without their deadlines."""
+    due: dict[date, list] = defaultdict(list)
+    for row in rows:
+        due[timezone.localtime(row["d"].due_at).date()].append(row)
+    weeks = pycalendar.Calendar(firstweekday=6).monthdatescalendar(month.year, month.month)
+    return [
+        [
+            {
+                "day": day,
+                "weekday": WEEKDAYS[(day.weekday() + 1) % 7],
+                "in_month": day.month == month.month,
+                "today": day == today,
+                "rows": due.get(day, []) if day.month == month.month else [],
+            }
+            for day in week
+        ]
+        for week in weeks
+    ]
+
+
 def calendar(request):
-    """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5); a CPUC system administrator adds deadlines
-    here and opens each one's page to change or retire it. Filtered by filing type and due date (last 3 and next 9 months by default),
-    the filters kept in the URL; retired deadlines are shown only to administrators who ask (`retired=1`). The calendar fills from the
-    modules' set-ups (a budget filing, a claim year, a year of monthly reports: Add a filing leads to them); here a deadline is only
-    changed."""
+    """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5). Two views of the same deadlines: a month
+    grid (the default, Jake 2026-11-06: "more of a true calendar view"), one month at a time (`month=YYYY-MM`, this month by
+    default), and a list (`view=list`, or any due-date range in the address) filtered by due date (last 3 and next 9 months by default).
+    Both filter by filing type; the filters are kept in the URL; retired deadlines are shown only to administrators who ask
+    (`retired=1`). The calendar fills from the modules' set-ups (a budget filing, a claim year, a year of monthly reports: Add a
+    filing leads to them); a deadline's own page changes it."""
     sysadmin = access.is_system_admin(request.user)
-    f = calendar_filters(request.GET, timezone.localdate())
+    today = timezone.localdate()
+    view = request.GET.get("view")
+    if view not in ("month", "list"):
+        view = "list" if any(k in request.GET for k in ("range", "from", "to")) else "month"
+    f = calendar_filters(request.GET, today)
     types, rng, start, end = f["types"], f["range"], f["start"], f["end"]
+    month = _parse_month(request.GET.get("month")) or today.replace(day=1)
+    if view == "month":
+        start, end = month, month.replace(day=monthrange(month.year, month.month)[1])
     retired = sysadmin and request.GET.get("retired") == "1"
     query = Deadline.objects.select_related("period", "cycle")
     if not retired:
@@ -194,43 +243,78 @@ def calendar(request):
         query = query.filter(due_at__gte=datetime.combine(start, time.min, tzinfo=tz))
     if end:
         query = query.filter(due_at__lt=datetime.combine(end + timedelta(days=1), time.min, tzinfo=tz))
-    deadlines = [{"d": d, "url": service.deadline_page(d)} for d in query.order_by("due_at", "module", "period__starts", "kind")]
     labels = dict(MODULES)
-    type_chips = [{"label": "All types", "url": _calendar_link([], rng, start, end, retired), "on": not types}] + [
-        {
-            "label": label,
-            "url": _calendar_link([t for t in types if t != code] if code in types else types + [code], rng, start, end, retired),
-            "on": code in types,
-        }
-        for code, label in MODULES
+    deadlines = [
+        {"d": d, "url": service.deadline_page(d), "module": labels.get(d.module, d.module.capitalize())}
+        for d in query.order_by("due_at", "module", "period__starts", "kind")
+    ]
+    this_month = today.replace(day=1)
+
+    def link(**kw):
+        args = {"types": types, "rng": rng, "start": start, "end": end, "retired": retired, "view": view}
+        if view == "month":
+            args |= {"rng": "window", "start": None, "end": None, "month": None if month == this_month else month}
+        args |= kw
+        if args.get("view") == "month" and args.get("month") == this_month:
+            args["month"] = None
+        return _calendar_link(**args)
+
+    def toggled(code):
+        return [t for t in types if t != code] if code in types else types + [code]
+
+    type_chips = [{"label": "All types", "url": link(types=[]), "on": not types}] + [
+        {"label": label, "url": link(types=toggled(code)), "on": code in types} for code, label in MODULES
     ]
     range_chips = [{"label": label, "url": _calendar_link(types, code, retired=retired), "on": rng == code} for code, label in RANGES]
-    if start and end:
-        when = f"due {start.isoformat()} to {end.isoformat()}"
-    elif start:
-        when = f"due on or after {start.isoformat()}"
-    elif end:
-        when = f"due on or before {end.isoformat()}"
-    else:
-        when = "of every date"
     what = " and ".join(labels[t] for t in types) if types else "every filing type"
+    n = f"{len(deadlines)} deadline{'' if len(deadlines) == 1 else 's'}"
+    if view == "month":
+        showing = f"{n} due in {month:%B %Y} for {what}"
+    else:
+        if start and end:
+            when = f"due {start.isoformat()} to {end.isoformat()}"
+        elif start:
+            when = f"due on or after {start.isoformat()}"
+        elif end:
+            when = f"due on or before {end.isoformat()}"
+        else:
+            when = "of every date"
+        showing = f"{n} for {what}, {when}"
+    prev_month, next_month = _add_months(month, -1), _add_months(month, 1)
     policies = {p.module: p for p in WorkflowPolicy.objects.all()}
     return render(
         request,
         "submissions/calendar.html",
         {
+            "view": view,
             "deadlines": deadlines,
             "filters": f,
             "type_chips": type_chips,
             "range_chips": range_chips,
-            "showing": f"{len(deadlines)} deadline{'' if len(deadlines) == 1 else 's'} for {what}, {when}"
-            + (", retired ones included" if retired else ""),
-            "filtered": bool(types) or rng != "all",
-            "all_url": _calendar_link([], "all", retired=retired),
+            "showing": showing + (", retired ones included" if retired else ""),
+            "filtered": bool(types) or (view == "list" and rng != "all"),
+            "all_url": link(types=[]) if view == "month" else _calendar_link([], "all", retired=retired),
+            "view_urls": {
+                "month": _calendar_link(types, retired=retired, view="month"),
+                "list": _calendar_link(types, retired=retired, view="list"),
+            },
+            "month": month,
+            "weeks": month_grid(month, deadlines, today) if view == "month" else [],
+            "weekdays": WEEKDAYS,
+            "month_urls": {
+                "prev": link(month=prev_month),
+                "next": link(month=next_month),
+                "this": link(month=this_month),
+            },
+            "month_label": f"{month:%B %Y}",
+            "month_value": f"{month:%Y-%m}",
+            "prev_label": f"{prev_month:%B %Y}",
+            "next_label": f"{next_month:%B %Y}",
+            "is_this_month": month == this_month,
             "sysadmin": sysadmin,
             "retired": retired,
             "retired_count": Deadline.objects.filter(retired_at__isnull=False).count() if sysadmin else 0,
-            "retired_url": _calendar_link(types, rng, start, end, not retired),
+            "retired_url": link(retired=not retired),
             "policies": [(code, label, policies.get(code)) for code, label in MODULES],
         },
     )

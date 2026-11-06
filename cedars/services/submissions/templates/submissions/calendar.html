@@ -3,7 +3,14 @@
 {% block content %}
 <div class="page-title"><h1>Filing calendar</h1>{% page_help "submissions/calendar" %}</div>
 {% if sysadmin %}<p id="add-filing"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a> <span class="small muted">Setting up a budget filing, claim year or year of monthly reports puts it on the calendar. To change one, select Change on its row.</span></p>{% endif %}
-<p>Choose the filing types and due dates to show. The address of the page keeps your choice, so a link to it shows the same view.</p>
+<nav class="view-switch" aria-label="Calendar view" id="calendar-view">
+  <span class="chip-label">View</span>
+  <ul class="toggle-chips">
+    <li><a href="{{ view_urls.month }}"{% if view == "month" %} aria-current="true"{% endif %}>{% if view == "month" %}<span aria-hidden="true">&#10003; </span>{% endif %}Month</a></li>
+    <li><a href="{{ view_urls.list }}"{% if view == "list" %} aria-current="true"{% endif %}>{% if view == "list" %}<span aria-hidden="true">&#10003; </span>{% endif %}List</a></li>
+  </ul>
+</nav>
+<p>{% if view == "month" %}Choose the filing types to show, and move from month to month.{% else %}Choose the filing types and due dates to show.{% endif %} The address of the page keeps your choice, so a link to it shows the same view.</p>
 <section class="filters calendar-filters" aria-label="Filters">
   <div role="group" aria-labelledby="types-label" class="chip-group" id="type-filter">
     <span id="types-label" class="chip-label">Filing types</span>
@@ -12,6 +19,7 @@
     </ul>
     <p class="helptext">Select a type to add it or take it away. All types shows every filing.</p>
   </div>
+  {% if view == "list" %}
   <div role="group" aria-labelledby="dates-label" class="chip-group" id="date-filter">
     <span id="dates-label" class="chip-label">Due dates</span>
     <ul class="toggle-chips">{% for c in range_chips %}
@@ -21,14 +29,50 @@
   <form method="get" class="row-form custom-range" id="custom-range" aria-labelledby="custom-label">
     <span id="custom-label" class="chip-label">{% if filters.range == "custom" %}<span aria-hidden="true">&#10003; </span>{% endif %}Custom dates</span>
     {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
-    <input type="hidden" name="range" value="custom">
+    <input type="hidden" name="view" value="list"><input type="hidden" name="range" value="custom">
     <label>From <input type="date" name="from" value="{{ filters.from }}"></label>
     <label>To <input type="date" name="to" value="{{ filters.to }}"></label>
     <button type="submit">Show these dates</button>
   </form>
+  {% endif %}
 </section>
 {% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
 <p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide retired deadlines{% else %}Show retired deadlines ({{ retired_count }}){% endif %}</a>{% endif %}</p>
+{% if view == "month" %}
+<div class="month-head">
+  <h2 id="month-h">{{ month_label }}</h2>
+  <nav aria-label="Months" class="month-nav">
+    <a href="{{ month_urls.prev }}" rel="prev">&larr; {{ prev_label }}</a>
+    {% if not is_this_month %}<a href="{{ month_urls.this }}">This month</a>{% endif %}
+    <a href="{{ month_urls.next }}" rel="next">{{ next_label }} &rarr;</a>
+  </nav>
+  <form method="get" class="row-form month-jump" id="month-jump">
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    {% if retired %}<input type="hidden" name="retired" value="1">{% endif %}
+    <label>Go to month <input type="month" name="month" value="{{ month_value }}" placeholder="YYYY-MM" aria-describedby="month-jump-help"></label>
+    <button type="submit">Go</button>
+    <span class="helptext" id="month-jump-help">As YYYY-MM, e.g. 2028-03.</span>
+  </form>
+</div>
+<table class="month-grid" id="month-grid">
+  <caption class="sr-only">Deadlines due in {{ month_label }}, by day, weeks starting on Sunday</caption>
+  <thead><tr>{% for name in weekdays %}<th scope="col"><span aria-hidden="true">{{ name|slice:":3" }}</span><span class="sr-only">{{ name }}</span></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for week in weeks %}<tr>{% for c in week %}<td class="{% if not c.in_month %}other-month{% endif %}{% if c.today %} today{% endif %}{% if c.rows %} has-due{% endif %}"{% if c.today %} aria-current="date"{% endif %}>
+    <span class="day"><span class="dow">{{ c.weekday|slice:":3" }} </span><time datetime="{{ c.day.isoformat }}">{{ c.day.day }}<span class="sr-only"> {{ c.day|date:"F" }}</span></time>{% if c.today %} <span class="today-label">Today</span>{% endif %}</span>
+    {% if c.rows %}<ul class="due-list">{% for row in c.rows %}{% with d=row.d %}<li class="mod-{{ d.module }}{% if d.retired_at %} retired{% endif %}">
+      <span class="mod">{{ row.module }}</span>
+      <a href="{% if row.url %}{{ row.url }}{% else %}{% url 'submissions:deadline' d.pk %}{% endif %}">{{ d.title }}</a>
+      <span class="period">{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span>
+      {% if d.retired_at %}<strong class="status warn">Retired</strong>{% endif %}
+      {% if row.url %}<a class="small" href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ row.module }} {{ d.title }}</span></a>{% endif %}
+    </li>{% endwith %}{% endfor %}</ul>{% endif %}
+  </td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not deadlines %}<p id="month-empty">{% if filtered %}No deadlines of these types are due in {{ month_label }}.{% else %}No deadlines are due in {{ month_label }}.{% endif %}</p>{% endif %}
+{% else %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Deadlines">
 <table class="list">
   <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
@@ -39,6 +83,7 @@
   </tbody>
 </table>
 </div>
+{% endif %}
 <h2>Corrections after the due date</h2>
 <ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
 {% endblock %}

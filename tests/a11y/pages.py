@@ -143,6 +143,8 @@ PAGES = [
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
     ("filing-calendar-public", "/filings/calendar/", None),
     ("filing-calendar-retired", "/filings/calendar/?retired=1", "cpuc_admin"),
+    ("filing-calendar-list", "/filings/calendar/?view=list", "cpuc_admin"),  # the month grid is the default view
+    ("filing-calendar-next-month", "/filings/calendar/?month={next_month}", None),
     ("filing-deadline", "/filings/calendar/{deadline}/", "cpuc_admin"),
     ("filing-deadline-public", "/filings/calendar/{deadline}/", None),
     ("filing-deadline-retired", "/filings/calendar/{retired_deadline}/", "cpuc_admin"),
