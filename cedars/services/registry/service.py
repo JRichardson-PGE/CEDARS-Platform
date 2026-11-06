@@ -9,7 +9,7 @@ import hashlib
 import io
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import F, Max, Prefetch, Q
@@ -56,6 +56,7 @@ VERSION_FIELDS = [
 ]
 FUNDING_PAS = access.ALLOCATION_MANAGERS  # the IOUs that fund statewide programs, as the factor files have them
 SUM_TOLERANCE = Decimal("0.0005")
+FACTOR_STEP = Decimal("0.0001")  # every factor is kept to 4 decimal places (Jake, 2026-11-06)
 
 
 # --- reading
@@ -625,6 +626,97 @@ def _dec(value: str, what: str) -> Decimal:
         raise ValueError(f"{what}: {value!r} is not a number") from e
 
 
+MAX_FACTOR_PLACES = 4
+MAX_LISTED = 10  # problem cells named in a refused factor file's message
+TOO_MANY_PLACES = f"has more than {MAX_FACTOR_PLACES} decimal places; {MAX_FACTOR_PLACES} is the most a factor file may give"
+
+
+def _factor(value, what: str, problems: list[str], *, required: bool = False) -> Decimal:
+    """A factor or PercentElectric from a factor file. A value with more than 4 decimal places is refused, not rounded (Jake,
+    2026-11-06); trailing zeros do not count, so 0.44400 is 0.444. A blank factor is 0 (a PA that does not fund the program); a blank
+    required value is refused. Each refusal is added to problems (and 0 returned) so that the whole file is reported at once."""
+    text = str(value if value is not None else "").strip()
+    if not text:
+        if required:
+            problems.append(f"{what} is blank; it is required")
+        return Decimal(0)
+    try:
+        d = Decimal(text)
+    except InvalidOperation:
+        d = None
+    if d is None or not d.is_finite():
+        problems.append(f"{what}: {value!r} is not a number")
+        return Decimal(0)
+    if d != 0 and -d.normalize().as_tuple().exponent > MAX_FACTOR_PLACES:
+        problems.append(f"{what}: {text} {TOO_MANY_PLACES}")
+        return Decimal(0)
+    return d.quantize(FACTOR_STEP)
+
+
+def fuel_total_problem(fuel: str, factors: dict[str, Decimal]) -> str:
+    """Why one fuel's factors are refused, or "": they must add up to exactly 1.0000 (Jake, 2026-11-06)."""
+    total = sum(factors.values(), Decimal(0))
+    if total == 1:
+        return ""
+    return f"the {fuel} factors add up to {total:.4f}; they must add up to exactly 1.0000"
+
+
+def single_fuel_problem(percent_electric: Decimal, electric: dict[str, Decimal], gas: dict[str, Decimal]) -> str:
+    """Why a program with one fuel only is refused, or "": a 100% electric program's gas factors must equal its electric factors, and
+    a 0% electric program's electric factors its gas factors (Jake, 2026-11-06), so its savings in the other fuel (e.g. a lighting
+    measure's gas interactive effects) are still allocated, although its weighted factors do not use them."""
+    if percent_electric == 1 and gas != electric:
+        return "PercentElectric is 1, so the gas factors must equal the electric factors (leave them blank and they are copied)"
+    if percent_electric == 0 and electric != gas:
+        return "PercentElectric is 0, so the electric factors must equal the gas factors (leave them blank and they are copied)"
+    return ""
+
+
+def weighted_factors(percent_electric: Decimal, electric: dict[str, Decimal], gas: dict[str, Decimal]) -> dict[str, Decimal]:
+    """Each funding PA's weighted factor, PercentElectric x electric + (1 - PercentElectric) x gas, rounded to 4 decimal places so that
+    the PAs' weighted factors add up to exactly 1.0000 (Jake, 2026-11-06). The inputs have at most 4 decimal places (`_factor`).
+
+    Each is rounded half up first. When the rounded values do not add up to 1.0000, they are moved one 0.0001 step at a time, and the
+    PA moved first is the one whose unrounded value was closest to rounding the other way: closest to rounding up when the total is
+    short, closest to rounding down when it is over (the largest-remainder method). A tie goes to the larger factor (the smaller change
+    relative to its size), then to the PAs' order. A value is never moved below 0, and a PA whose unrounded factor is 0 is never moved up.
+    The total is forced to 1.0000 only when the unrounded factors add up to 1 within SUM_TOLERANCE, as they always do once each fuel's
+    factors add up to 1.0000 (`fuel_total_problem`); otherwise (all 0, or a version loaded before that rule) the rounded values are
+    kept and `check_allocation` reports the totals."""
+    pas = list(electric)
+    order = {pa: i for i, pa in enumerate(pas)}
+    raw = {pa: percent_electric * electric[pa] + (1 - percent_electric) * gas.get(pa, Decimal(0)) for pa in pas}
+    out = {pa: v.quantize(FACTOR_STEP, rounding=ROUND_HALF_UP) for pa, v in raw.items()}
+    if abs(sum(raw.values()) - 1) > SUM_TOLERANCE:
+        return out
+    steps = int((1 - sum(out.values())) / FACTOR_STEP)
+    while steps:
+        if steps > 0:
+            # short of 1: the value that came closest to rounding up (the largest raw - rounded) goes up a step
+            pool = [pa for pa in pas if raw[pa] > 0]
+            pa = max(pool, key=lambda p: (raw[p] - out[p], raw[p], -order[p]))
+            out[pa] += FACTOR_STEP
+            steps -= 1
+        else:
+            # over 1: the value that came closest to rounding down (the smallest raw - rounded) goes down a step
+            pool = [pa for pa in pas if out[pa] >= FACTOR_STEP]
+            pa = min(pool, key=lambda p: (raw[p] - out[p], -raw[p], order[p]))
+            out[pa] -= FACTOR_STEP
+            steps += 1
+    return out
+
+
+FACTOR_FILE_COLUMNS = ["Year", "ProgramID", "ProgramName", "PercentElectric"] + [
+    f"{pa}{k}Factor" for k in ("Gas", "Electric") for pa in ("PGE", "SDGE", "SCE", "SCG")
+]
+
+
+def allocation_template_csv() -> str:
+    """The factor file template: the columns a new version is loaded from, with no rows. The weighted factors are not in it: they are
+    computed from PercentElectric and the electric and gas factors when the file is loaded."""
+    return ",".join(FACTOR_FILE_COLUMNS) + "\n"
+
+
 @transaction.atomic
 def import_allocation_csv(
     actor,
@@ -637,18 +729,55 @@ def import_allocation_csv(
     notes: str = "",
     organisation=None,
 ) -> AllocationVersion:
-    """A draft version from a factor file in CEDARS' export layout (ReCET's statewide_factors_*.csv): Year, ProgramID, ProgramName,
-    PercentElectric, then <PA>GasFactor, <PA>ElectricFactor, <PA>WeightedFactor for PGE, SDGE, SCE, SCG. organisation: the
-    organization the actor acts for (one that manages statewide allocations, unless the actor is a CPUC system administrator)."""
+    """A draft version from a factor file in the template's layout (`allocation_template_csv`): Year, ProgramID, ProgramName,
+    PercentElectric (required), then <PA>GasFactor and <PA>ElectricFactor for PGE, SDGE, SCE, SCG. A value with more than 4 decimal
+    places (trailing zeros aside), a fuel whose factors do not add up to exactly 1.0000 (`fuel_total_problem`), a one-fuel program
+    whose two fuels' factors differ (`single_fuel_problem`; the unused fuel's left blank or all 0 are copied from the other, counted in
+    the version's `fuel_copied`) or a PercentElectric outside 0 to 1 refuses the file, with every such problem listed (up to
+    MAX_LISTED). The weighted factors are computed (`weighted_factors`); a file in CEDARS' export layout (ReCET's statewide_factors_*.csv)
+    is read too, and its <PA>WeightedFactor columns are ignored. The version's `weighted_replaced` says on how many program-years the
+    file's own weighted factors differed from the computed ones. organisation: the organization the actor acts for (one that manages
+    statewide allocations, unless the actor is a CPUC system administrator)."""
     _require_allocation_manager(actor, organisation)
     if AllocationVersion.objects.filter(label=label).exists():
         raise ValueError(f"a version named {label!r} already exists; give this one another name")
     text = content.decode("utf-8-sig")
     rows = list(csv.DictReader(io.StringIO(text)))
-    needed = {"Year", "ProgramID", "PercentElectric"} | {f"{pa}{k}Factor" for pa in FUNDING_PAS for k in ("Gas", "Electric", "Weighted")}
+    needed = {"Year", "ProgramID", "PercentElectric"} | {f"{pa}{k}Factor" for pa in FUNDING_PAS for k in ("Gas", "Electric")}
     missing = needed - set(rows[0].keys() if rows else [])
     if missing:
         raise ValueError(f"the factor file is missing columns: {', '.join(sorted(missing))}")
+    problems: list[str] = []
+    parsed = []
+    replaced = copied = 0
+    for i, r in enumerate(rows, start=2):
+        where = f"line {i}"
+        pe = _factor(r["PercentElectric"], f"{where}: PercentElectric", problems, required=True)
+        electric = {pa: _factor(r[f"{pa}ElectricFactor"], f"{where}: {pa}ElectricFactor", problems) for pa in FUNDING_PAS}
+        gas = {pa: _factor(r[f"{pa}GasFactor"], f"{where}: {pa}GasFactor", problems) for pa in FUNDING_PAS}
+        if not (0 <= pe <= 1):
+            problems.append(f"{where}: PercentElectric {pe.normalize():f} is outside 0 to 1")
+        # one fuel only: the unused fuel's factors, left blank (or all 0), take the other fuel's (Jake, 2026-11-06)
+        if pe == 1 and not any(gas.values()):
+            gas, copied = dict(electric), copied + 1
+        elif pe == 0 and not any(electric.values()):
+            electric, copied = dict(gas), copied + 1
+        for problem in (single_fuel_problem(pe, electric, gas), fuel_total_problem("electric", electric), fuel_total_problem("gas", gas)):
+            if problem:
+                problems.append(f"{where}: {problem}")
+        weighted = weighted_factors(pe, electric, gas)
+        filed = {pa: r.get(f"{pa}WeightedFactor") for pa in FUNDING_PAS}
+        if any(str(v or "").strip() for v in filed.values()):
+            try:
+                if any(_dec(filed[pa] or "0", where) != weighted[pa] for pa in FUNDING_PAS):
+                    replaced += 1
+            except ValueError:
+                replaced += 1
+        parsed.append((r, pe, electric, gas, weighted))
+    if problems:
+        listed = "; ".join(problems[:MAX_LISTED])
+        more = f"; and {len(problems) - MAX_LISTED} more" if len(problems) > MAX_LISTED else ""
+        raise ValueError(f"{len(problems)} value{'s' if len(problems) != 1 else ''} to fix: {listed}{more}")
     version = AllocationVersion.objects.create(
         label=label,
         purpose=purpose,
@@ -659,29 +788,30 @@ def import_allocation_csv(
         source_name=source_name,
         source_sha256=hashlib.sha256(content).hexdigest(),
     )
-    for i, r in enumerate(rows, start=2):
-        where = f"line {i}"
+    for r, pe, electric, gas, weighted in parsed:
         entry = AllocationEntry.objects.create(
             version=version,
             year=int(r["Year"]),
             program_id=r["ProgramID"].strip(),
             program_name=(r.get("ProgramName") or "").strip(),
-            percent_electric=_dec(r["PercentElectric"], where),
+            percent_electric=pe,
         )
         AllocationShare.objects.bulk_create(
-            AllocationShare(
-                entry=entry,
-                funding_pa=pa,
-                electric=_dec(r[f"{pa}ElectricFactor"], where),
-                gas=_dec(r[f"{pa}GasFactor"], where),
-                weighted=_dec(r[f"{pa}WeightedFactor"], where),
-            )
-            for pa in FUNDING_PAS
+            AllocationShare(entry=entry, funding_pa=pa, electric=electric[pa], gas=gas[pa], weighted=weighted[pa]) for pa in FUNDING_PAS
         )
+    version.weighted_replaced, version.fuel_copied = replaced, copied
     audit.record(
         "allocation_version.imported",
         obj=version,
-        after={"label": label, "purpose": purpose, "entries": len(rows), "source": source_name, "sha256": version.source_sha256},
+        after={
+            "label": label,
+            "purpose": purpose,
+            "entries": len(rows),
+            "source": source_name,
+            "sha256": version.source_sha256,
+            "weighted_replaced": replaced,
+            "fuel_copied": copied,
+        },
         actor=actor,
         organisation=_acting_for(actor, organisation),
     )
@@ -689,15 +819,30 @@ def import_allocation_csv(
 
 
 def check_allocation(version: AllocationVersion) -> list[AllocationIssue]:
-    """Each fuel's factors must add up to 1 across the funding PAs (or all be 0: a program with no budget in that fuel), and each
-    weighted factor must equal PercentElectric x electric + (1 - PercentElectric) x gas."""
+    """Each fuel's factors must add up to exactly 1.0000 across the funding PAs (`fuel_total_problem`) and a one-fuel program's two
+    fuels' factors must be equal (`single_fuel_problem`); a file breaking either is refused on upload, so this finds them only in
+    versions loaded before 2026-11-06 (CEDARS' own table leaves the unused fuel's factors at 0); the
+    weighted factors must add up to exactly 1.0000 (or all be 0), and each must be PercentElectric x electric + (1 - PercentElectric) x
+    gas to within the steps that made them add up."""
     issues = []
     for e in version.entries.prefetch_related("shares"):
         shares = list(e.shares.all())
-        for fuel in ("electric", "gas", "weighted"):
-            total = sum(getattr(s, fuel) for s in shares)
-            if total != 0 and abs(total - 1) > SUM_TOLERANCE:
-                issues.append(AllocationIssue(e.year, e.program_id, f"{fuel} factors add up to {total}, not 1"))
+        electric = {s.funding_pa: s.electric for s in shares}
+        gas = {s.funding_pa: s.gas for s in shares}
+        for problem in (
+            fuel_total_problem("electric", electric),
+            fuel_total_problem("gas", gas),
+            single_fuel_problem(e.percent_electric, electric, gas),
+        ):
+            if problem:
+                issues.append(
+                    AllocationIssue(
+                        e.year, e.program_id, problem[0].upper() + problem[1:].replace(" (leave them blank and they are copied)", "")
+                    )
+                )
+        total = sum(s.weighted for s in shares)
+        if total != 0 and total != 1:
+            issues.append(AllocationIssue(e.year, e.program_id, f"The weighted factors add up to {total:.4f}, not 1.0000"))
         for s in shares:
             expected = e.percent_electric * s.electric + (1 - e.percent_electric) * s.gas
             if abs(expected - s.weighted) > Decimal("0.002"):

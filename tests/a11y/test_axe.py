@@ -8,6 +8,7 @@ import io
 import json
 import zipfile
 from datetime import date, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -166,17 +167,19 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     tokens.create_token(pge_admin, pge, name="Claims system", scopes=["calculations", "claims"], days=90)
     tokens.create_token(analyst, pge, name="Analyst laptop", scopes=["calculations"], days=30)
     small_items = _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user)
-    factors = (
-        (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv")
-        .read_bytes()
-        .replace(b"0.4440,0.1550", b"0.4000,0.1550", 1)
-    )
+    factors = (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv").read_bytes()
     dictionary.load_catalog(
         None,
         json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.92.json").read_text()),
         platform=True,
     )
-    allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")  # with a problem to show
+    allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")
+    # with a problem to show: the upload refuses factors that do not add up, so one is changed as in a version loaded before that rule
+    from cedars.services.registry.models import AllocationShare
+
+    AllocationShare.objects.filter(entry__version=allocation, funding_pa="PGE").filter(
+        pk=AllocationShare.objects.filter(entry__version=allocation, funding_pa="PGE").order_by("entry__year", "entry__program_id")[:1]
+    ).update(electric=Decimal("0.4000"))
     from cedars.services.registry import goals
 
     goal_set = goals.import_goals(  # a draft with one problem to show

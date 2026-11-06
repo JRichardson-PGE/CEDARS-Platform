@@ -14,6 +14,13 @@ versions it used, so a result can always be traced to its data.</p>
 program, by year. Anyone can read the confirmed versions; signed in, you see every version. A confirmed version never changes. The
 funding PAs manage the factors: a member with the permission loads a draft from a factor file and confirms or discards it, and the
 other funding PAs are told. A run that names no version uses the most recently confirmed one for its program year.</p>
+<p>A factor file starts from the template on the allocation page: each statewide program and year, its PercentElectric (required) and
+each funding PA's electric and gas factors, with at most 4 decimal places each (a longer value refuses the file). Each fuel's factors
+must add up to exactly 1.0000. A 100% electric program's gas factors equal its electric factors (and a 0% electric program's
+electric factors its gas factors), so its savings in the other fuel are still allocated; left blank, they are copied. The weighted factors
+are not in the file: each is PercentElectric &times; electric + (1 &minus; PercentElectric) &times; gas, rounded to 4 decimal places,
+and where the rounded values do not add up to exactly 1.0000, the PA whose value was closest to rounding the other way moves by 0.0001
+first until they do.</p>
 <h2>Cost-test sets</h2>
 <ul class="links">
   <li>A <a href="{% url 'refdata:cost_tests' %}">cost-test set</a> says which value streams each cost test adds up and how it shares the

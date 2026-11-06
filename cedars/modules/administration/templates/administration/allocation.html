@@ -22,7 +22,11 @@
   <tbody>{% for i in issues %}<tr><th scope="row">{{ i.program_id }}</th><td>{{ i.year }}</td><td>{{ i.message }}</td><td>{% if i.blocking %}Yes{% else %}No{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
-{% else %}<p>Every program-year's factors add up to 1 for each fuel, and every weighted factor matches its electric and gas factors.</p>{% endif %}
+{% else %}<p>Every program-year's electric, gas and weighted factors each add up to exactly 1.0000, a one-fuel program's electric and
+gas factors are equal, and every weighted factor matches its electric and gas factors.</p>{% endif %}
+<p class="small">Factors are kept to 4 decimal places. Each weighted factor is PercentElectric &times; electric + (1 &minus; PercentElectric)
+&times; gas, rounded; where the rounded values did not add up to 1.0000, the PA whose value was closest to rounding the other way was moved
+by 0.0001 first. Versions loaded before 6 November 2026 kept the weighted factors their file gave, and were not held to these totals on upload.</p>
 
 {% if v.status == "draft" %}
 {% if can_manage %}

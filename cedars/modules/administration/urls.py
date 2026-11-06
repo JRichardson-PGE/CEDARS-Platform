@@ -39,6 +39,7 @@ urlpatterns = [
     path("admin/health/", views.health_page, name="health"),
     # everyone signed in reads the factors, and the funding PAs manage them (Jake, 2026-11-02), so they left /admin/
     path("allocations/", views.allocations, name="allocations"),
+    path("allocations/template.csv", views.allocation_template, name="allocation_template"),
     path("allocations/<int:pk>/", views.allocation, name="allocation"),
     path("allocations/<int:pk>/factors.csv", views.allocation_csv, name="allocation_csv"),
     re_path(r"^admin/allocations/(?P<rest>.*)$", RedirectView.as_view(url="/allocations/%(rest)s", query_string=True)),
