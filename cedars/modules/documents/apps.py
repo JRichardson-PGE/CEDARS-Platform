@@ -30,6 +30,10 @@ class DocumentsConfig(AppConfig):
 
         register_program_records("documents", program_page.documents)  # and the documents that name it (BR-07.6)
 
+        from cedars.services.registry.service import register_document_filing
+
+        register_document_filing(program_page.add_document)  # its "Add a document" button
+
         from . import health
 
         health.register()

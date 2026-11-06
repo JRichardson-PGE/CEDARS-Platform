@@ -7,6 +7,7 @@
   <div class="page-title"><h1>{{ p.prg_id }}{% if v %}: {{ v.name }}{% endif %}</h1>{% page_help "programs/program" %}</div>
   <div class="actions">
     {% if can_edit %}<a class="button" href="{% url 'programs:change' p.prg_id %}">Change this program</a>{% endif %}
+    {% if can_add_document %}<a class="button" id="add-document" href="{{ add_document }}">Add a document</a>{% endif %}
     {% if signed_in %}
     <form method="post" action="{% url 'notifications:follow_program' %}" class="inline-form">{% csrf_token %}
       <input type="hidden" name="prg_id" value="{{ p.prg_id }}">
@@ -14,9 +15,11 @@
       {% if following %}<input type="hidden" name="action" value="unfollow"><button type="submit">Stop following<span class="sr-only"> {{ p.prg_id }}</span></button>
       {% else %}<input type="hidden" name="action" value="follow"><button type="submit">Follow this program</button>{% endif %}
     </form>
-    {% else %}<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in to follow this program</a>{% endif %}
+    {% else %}<a href="{% url 'account_login' %}?next={{ request.path|urlencode }}">Sign in to follow this program</a>
+    {% if add_document %}<a id="add-document" href="{% url 'account_login' %}?next={{ add_document|urlencode }}">Sign in to add a document</a>{% endif %}{% endif %}
   </div>
 </div>
+{% if sw %}<div class="card" role="note" id="follows-note"><p><strong>{{ p.prg_id }} is {{ p.administrator.name }}'s part of the statewide program <a href="{% url 'programs:program' sw.prg_id %}">{{ sw.prg_id }}</a>.</strong> Since {{ p.follows_from|date_words }} its definition is {{ sw.prg_id }}'s: a change to {{ sw.prg_id }} reaches it the same day, and {{ pa }} does not change it here{% if sw.lead %} ({{ sw.lead.code }}, the lead PA, changes {{ sw.prg_id }}){% endif %}. It shows {{ sw.prg_id }}'s documents and evaluations; its filings and reports below are its own.</p></div>{% endif %}
 {% if following %}<p>You follow this program: you hear when a filing that includes it is published or corrected, when a fund shift moves its funds, when its details change and when a document about it is published, as you chose on your <a href="{% url 'notifications:settings' %}">notification settings</a>.</p>{% endif %}
 {% for r in pending %}<p>A change from {{ r.effective|date_words }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
 
@@ -71,7 +74,7 @@
 <section aria-labelledby="alloc-h">
 <h2 id="alloc-h">Statewide allocation</h2>
 {% if allocation %}
-<p class="small muted">The program's factors in every allocation version that has it. Filings, claims and runs record the version they used.</p>
+<p class="small muted">{% if sw %}The factors of {{ sw.prg_id }}, the statewide program {{ p.prg_id }} is part of,{% else %}The program's factors{% endif %} in every allocation version that has it. Filings, claims and runs record the version they used.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Statewide allocation factors">
 <table class="list">
   <caption class="sr-only">Weighted allocation factors of {{ p.prg_id }} by version and year</caption>
@@ -89,7 +92,7 @@
   </tbody>
 </table>
 </div>
-{% else %}<p>{% if p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
+{% else %}<p>{% if sw %}No allocation version has factors for {{ sw.prg_id }} yet.{% elif p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
 {% if p.statewide %}
 <h3 id="lead-h">Lead PA</h3>
 <p>{% if p.lead %}{{ p.lead.name }} ({{ p.lead.code }}) leads this program: it alone files its claims, in the statewide claims filed before the PAs' own, and its budget. The funding PAs see their shares once it confirms.{% else %}No lead PA is recorded, so nobody can file this program's claims or budget yet. Any program administrator's administrators can record one.{% endif %}{% if p.lead %} Only {{ p.lead.code }} can change its lead.{% endif %}</p>
@@ -99,6 +102,26 @@
   <button type="submit">Save the lead PA</button>
 </form>
 {% endif %}
+<h3 id="ids-h">Each PA's ID of this program</h3>
+{% if subprograms %}
+<p>The program is allocated to each funding PA under the PA's code in front of its PrgID. An ID that follows it takes its definition from this page: a change here reaches every one of them, and their PAs do not change them. All of them show this program's documents.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Each PA's ID of this program">
+<table class="list">
+  <caption class="sr-only">PA IDs of {{ p.prg_id }}</caption>
+  <thead><tr><th scope="col">PrgID</th><th scope="col">PA</th><th scope="col">Definition</th></tr></thead>
+  <tbody>
+  {% for s in subprograms %}
+  <tr>
+    <th scope="row"><a href="{% url 'programs:program' s.p.prg_id %}">{{ s.p.prg_id }}</a></th>
+    <td>{{ s.pa }}</td>
+    <td>{% if s.follows %}Follows this program since {{ s.since|date_words }}{% else %}Its own: not linked yet{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small muted">Each ID's page keeps its own filings and reports.</p>
+{% else %}<p>No PA's ID of this program is in the registry.</p>{% endif %}
 {% endif %}
 </section>
 
@@ -250,7 +273,7 @@
 <h3 id="doc-h">Documents</h3>
 {% if records.documents is None %}<p>The document library is not part of this site.</p>
 {% elif records.documents %}
-<p class="small muted">Documents that name this program: implementation plans and other program files, PA documents and EM&amp;V documents. An implementation plan marked Placeholder stands in for a plan still to come; the full plan replaces it as a new version.</p>
+<p class="small muted">Documents that name this program{% if p.statewide or sw %} or any PA's ID of the statewide program{% endif %}: implementation plans and other program files, PA documents and EM&amp;V documents. An implementation plan marked Placeholder stands in for a plan still to come; the full plan replaces it as a new version.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Documents table">
 <table class="list">
   <caption class="sr-only">Documents naming {{ p.prg_id }}, newest first</caption>

@@ -90,6 +90,9 @@ SPECS = [
         "registry.Program",
         ("prg_id",),
         fks={"administrator": "accounts.Organisation", "lead": "accounts.Organisation"},
+        # an ID's link to its statewide program points at another row of this table, which may come later: not copied; the IDs'
+        # versions (the statewide program's attributes) are, and `manage.py follow_statewide --apply` links them again in a sandbox
+        clear=("follows", "follows_from"),
         refresh=("statewide", "portfolio_cost"),
     ),
     Spec(

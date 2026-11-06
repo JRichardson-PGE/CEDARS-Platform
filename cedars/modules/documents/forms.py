@@ -107,6 +107,12 @@ def _study(text):
     return found or Study(pk=0)
 
 
+def program_named(text) -> Program | None:
+    """The program a PrgID names (any case), or None; a portfolio-cost ID is not a program."""
+    text = (text or "").strip()
+    return Program.objects.filter(prg_id__iexact=text, portfolio_cost=False).first() if text else None
+
+
 def study_named(text) -> Study | None:
     """The study a study ID or number names, or None."""
     found = _study(text)

@@ -6,7 +6,15 @@
   <li>Open it to see its attributes, every version, its statewide allocation factors and the studies that evaluate it.</li>
   <li>To change it, choose <strong>Change</strong> on its page. A change starts a new version; the earlier one is kept. A
   <a href="{% url 'programs:locked' %}">locked attribute</a> needs a CPUC programs approver's decision.</li>
+  <li>To add a document about it, choose <strong>Add a document</strong> on its page: the program is filled in for you.</li>
 </ol>
+<h2>Statewide programs and each PA's ID of them</h2>
+<p>A statewide program (for example SW_FS) is allocated to each funding PA under the PA's code in front of its PrgID (PGE_SW_FS,
+SCE_SW_FS). The statewide program is the source of truth for those IDs: they follow its definition, their PAs do not change them,
+and every one of them shows the statewide program's documents and evaluations. In the catalog, those IDs open the statewide
+program's page, which lists each PA's ID of it.</p>
+<p>The statewide program's lead PA changes it, and the change reaches every ID that follows it on the same day. Each ID keeps its
+own versions from before it followed, and its own filings and reports.</p>
 <h2>Learn more</h2>
 <ul class="links">
   <li><a href="{% url 'programs:fields' %}">Program fields</a>: what each field means and its valid values.</li>

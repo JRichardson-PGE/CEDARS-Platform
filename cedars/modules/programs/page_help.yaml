@@ -7,7 +7,8 @@ programs/catalog:
       signed in, the same filters apply.
     - Filter by text, PA, sector, status and years, or pick any other attribute under Other filters. The PA list opens to All PAs,
       its IOUs, RENs and CCAs, and statewide programs; tick whole groups or single PAs. A program's ID opens its page,
-      with its versions, allocation factors, evaluations and filings.
+      with its versions, allocation factors, evaluations and filings. A PA's ID of a statewide program (PGE_SW_FS for SW_FS) opens the
+      statewide program's page, whose definition it follows.
   how:
     - Applied filters show as chips; Remove takes one off and Reset all clears them.
     - Program change requests (signed in) lists changes to locked attributes waiting for a CPUC decision.
@@ -33,13 +34,21 @@ programs/program:
     - One program's definition as it stands today, every earlier version, and where it appears across CEDARS. A program is never edited
       in place; a change starts a new version on its effective date, and the version before it is kept as it was.
     - >-
+      A statewide program is the source of truth for each PA's ID of it (the PA's code in front of its PrgID, e.g. PGE_SW_FS for SW_FS):
+      those IDs follow its definition, their PAs do not change them, and every one of them shows the statewide program's documents and
+      evaluations. Its lead PA's administrators change the statewide program, and the change reaches every ID that follows it.
+    - >-
       A statewide program shows its lead PA, the only PA that files its claims and budget, and its allocation factors, the share each
       funding PA carries by year. The last section lists everything on
       record about the program, each linked to its record, for one program year or every year: budget filings by cycle, fund shifts,
       claims, monthly reports, the evaluations that cover it and the documents that name it.
   how:
-    - The program's own administrators change it with Change this program. A change to a locked attribute goes to a CPUC approver as a
-      request; the page says when one is waiting.
+    - >-
+      The program's own administrators change it with Change this program (for a statewide program, its lead PA's administrators). A
+      change to a locked attribute goes to a CPUC approver as a request; the page says when one is waiting. An ID that follows a
+      statewide program has no Change this program: change the statewide program.
+    - Add a document files a document in the library with the program already named, for anyone who files documents for their
+      organization. On an ID that follows a statewide program, the document names the statewide program, so every ID of it shows it.
     - Signed in, Follow this program sends you a notice when a filing that includes it is published or corrected, a fund shift moves its
       funds, its details change or a document about it is published. Your notification settings choose which of these you hear about.
     - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
@@ -51,14 +60,24 @@ programs/program:
       title: The definition
       text: The program's attributes in force today, and since when.
     - target: main .head-row .actions
-      title: Change or follow
-      text: The program's administrators change it here; the change starts a new version on the date you give. Anyone signed in can follow it.
+      title: Change, add a document or follow
+      text: >-
+        The program's administrators change it here; the change starts a new version on the date you give. Add a document files one
+        about the program. Anyone signed in can follow it.
+    - target: "#follows-note"
+      title: Part of a statewide program
+      text: This ID follows its statewide program's definition, documents and evaluations. Its filings and reports are its own.
+      optional: true
     - target: "#ver-h"
       title: Versions
       text: Every version of the program, what changed in each and why.
     - target: "#alloc-h"
       title: Statewide allocation
       text: For a statewide program, each funding PA's share by version and year, and its lead PA.
+    - target: "#ids-h"
+      title: Each PA's ID
+      text: For a statewide program, each PA's ID of it and whether it follows this program's definition.
+      optional: true
     - target: "#rec-h"
       title: Filings, reports and documents
       text: Everything on record about the program. Choose a program year and Show, or see every year.

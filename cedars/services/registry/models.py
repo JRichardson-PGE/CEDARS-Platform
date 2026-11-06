@@ -36,14 +36,34 @@ class Program(models.Model):
         related_name="led_programs",
         help_text="A statewide program's lead PA: the only PA that files its claims and budgets (blank for any other program)",
     )
+    follows = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="subprograms",
+        help_text="The statewide program whose attributes this PA's ID of it follows (PGE_SW_FS follows SW_FS)",
+    )
+    follows_from = models.DateField(null=True, blank=True, help_text="The day it started following; its earlier versions are its own")
     portfolio_cost = models.BooleanField(default=False, help_text="A portfolio-level cost ID, kept out of the program catalog (BR-02.6)")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["prg_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(follows__isnull=True, follows_from__isnull=True) | Q(follows__isnull=False, follows_from__isnull=False),
+                name="registry_follows_has_a_date",
+            ),
+        ]
 
     def __str__(self):
         return self.prg_id
+
+    @property
+    def page_prg_id(self) -> str:
+        """The PrgID whose page shows this program: the statewide program's for an ID that follows one, else its own."""
+        return self.follows.prg_id if self.follows_id else self.prg_id
 
 
 class ProgramVersion(models.Model):

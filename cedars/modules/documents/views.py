@@ -269,12 +269,17 @@ def new(request):
     can_publish = service.is_admin(request.user) or service.access.has_permission(request.user, org, service.CONFIRM)
     # Upload a document on a study's page comes here with the study named (?study=<study ID>), filled in and shown above the form.
     study = forms.study_named(request.GET.get("study")) if collection in service.STUDY_COLLECTIONS else None
+    # Add a document on a program's page comes here with the program named (?program=<PrgID>), filled in and shown above the form.
+    program = forms.program_named(request.GET.get("program"))
+    initial = {"study": study.study_id} if study else {}
+    if program is not None:
+        initial["programs"] = program.prg_id
     form = forms.NewDocumentForm(
         request.POST or None,
         request.FILES or None,
         collection=collection,
         can_publish=can_publish,
-        initial={"study": study.study_id} if study else None,
+        initial=initial or None,
     )
     if request.method == "POST" and form.is_valid():
         try:
@@ -301,6 +306,7 @@ def new(request):
             "collection": collection,
             "collections": [(c, Collection(c).label) for c in allowed],
             "study": study,
+            "program": program,
             # the collection's document types, linked beside the control (navigation review D8, L7)
             "type_list": AttributeList.objects.filter(type_of=collection).first() if collection else None,
         },

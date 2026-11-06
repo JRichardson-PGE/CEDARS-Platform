@@ -2,6 +2,10 @@
 names the program (implementation plans and other program files, PA documents, EM&V deliverables). A published document is public; one
 with nothing published yet is shown only to its owner, the PAs named on it and CPUC staff, as on its own page (BR-15.9)."""
 
+from urllib.parse import urlencode
+
+from django.urls import reverse
+
 from . import service
 from .models import Collection, Document
 
@@ -49,3 +53,12 @@ def documents(program, user, year: int | None = None) -> list[dict]:
         )
     out.sort(key=lambda r: r["when"], reverse=True)
     return out
+
+
+def add_document(program, user, organisation) -> tuple[str, bool]:
+    """The program page's "Add a document" link (registry.register_document_filing): File a document with the program named, in the
+    program files when the acting organization files there (else its first collection), and whether the user may file at all."""
+    allowed = service.collections_for(user, organisation) if user is not None and user.is_authenticated else []
+    collection = Collection.PROGRAM.value if not allowed or Collection.PROGRAM.value in allowed else allowed[0]
+    url = f"{reverse('documents:new')}?{urlencode({'collection': collection, 'program': program.prg_id})}"
+    return url, bool(allowed)
