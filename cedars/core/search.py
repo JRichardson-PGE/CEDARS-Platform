@@ -85,6 +85,11 @@ HELP_KEYS = {
     "mandates:manage": ("releases/mandates_manage", "mandated changes register"),
     "feedback:inbox": ("feedback/inbox", ""),
     "administration:health": ("administration/health", ""),
+    "core:filings": ("core/section_filings", "filings status budgets claims monthly reports every pa"),
+    "core:calculations": ("core/section_calculations", "calculations recet cet cost effectiveness"),
+    "core:published": ("core/section_published", "published data public open data downloads"),
+    "core:reference": ("core/section_reference", "reference data acc avoided costs"),
+    "core:administration": ("core/section_administration", "administration admin"),
     "core:queue": ("core/queue", "my queue work waiting"),
     "notifications:index": ("notifications/index", ""),
     "administration:account": ("administration/account", "my account api token profile"),
@@ -101,6 +106,12 @@ HELP_KEYS = {
 # Pages outside the menus, and who may open them.
 OTHER_PAGES = {
     "core:home": ("",),
+    # each menu's own page, to those who see the menu
+    "core:filings": ("member",),
+    "core:calculations": ("user",),
+    "core:published": ("",),
+    "core:reference": ("user",),
+    "core:administration": ("sysadmin", "org_admin", "steward"),
     "programs:fields": ("",),
     "programs:requests": ("user",),
     "core:queue": ("member",),

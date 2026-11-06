@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import connection
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
@@ -25,13 +26,13 @@ MODULES = [
     ("Budgets", "Budget filings for each four-year cycle, fund shifts and the operating budget.", "budgets:index"),
     ("Claims", "Quarterly and annual claims on the common template.", "claims:index"),
     ("Monthly reports", "Monthly expenditures and commitments against the operating budget.", "monthly:index"),
-    ("Calculations", "Cost-effectiveness runs on the ReCET engine: new runs, results, comparisons.", "calculations:runs"),
+    ("Calculations", "Cost-effectiveness runs on the ReCET engine: new runs, results, comparisons.", "core:calculations"),
     ("Impact profiles", "Deemed load shapes from eTRM and custom impact profiles.", "impact_profiles:library"),
     ("Documents", "PA documents, CPUC guidance, DEER resources, program files and EM&V documents and studies.", "documents:library"),
     (
         "Reference data",
         "The ACCs, eTRM packs, statewide allocation factors and cost-test sets runs and filings are priced on.",
-        "refdata:index",
+        "core:reference",
     ),
     (
         "Data dictionary and validation rules",
@@ -39,6 +40,41 @@ MODULES = [
         "dictionary:index",
     ),
 ]
+
+
+# A menu's own page (Jake, 2026-11-06): the header's headings link here. Each lists the menu's pages the visitor may open, in its
+# groups, with a sentence on each (core/nav.py); Filings adds where every PA's budgets, claims and monthly reports stand.
+SECTIONS = {
+    "filings": "filings",
+    "calculations": "calculations",
+    "published": "published",
+    "reference": "reference",
+    "administration": "admin",
+}
+
+
+@require_GET
+def section(request, page):
+    from django.contrib.auth.views import redirect_to_login
+
+    from . import nav
+
+    key = SECTIONS[page]
+    if page == "reference" and "kind" in request.GET:  # the data packs' list was here, filtered by kind, before it moved
+        from django.shortcuts import redirect
+
+        return redirect(f"{reverse('refdata:index')}?{request.GET.urlencode()}")
+    menu = next((m for m in nav.header(request) if m.key == key), None)
+    if menu is None:  # the visitor sees none of its pages
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        raise Http404
+    ctx = {"menu": menu, "groups": menu.groups}
+    if key == "filings":
+        from cedars.services.submissions import status
+
+        ctx["board"] = status.board(request.user)
+    return render(request, f"core/section_{page}.html", ctx)
 
 
 def about(request):

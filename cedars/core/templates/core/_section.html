@@ -1,0 +1,19 @@
+{% extends "core/base.html" %}
+{% comment %}A header menu's own page (Jake, 2026-11-06; core/nav.py, core/views.section): what the section is for and every page under
+   it the visitor may open, with a sentence on each, in the menu's groups. Each section's template (core/section_<page>.html) gives the
+   heading and its help. Filings adds where each PA's budgets, claims and monthly reports stand (submissions/status.py).{% endcomment %}
+{% block title %}{{ menu.label }}{% endblock %}
+{% block content %}
+{% block heading %}{% endblock %}
+<p>{{ menu.about }}</p>
+{% if user.is_authenticated and nav and not nav.member %}<p class="ask-access">To file or read for a program administrator, <a href="{% url 'administration:request_access' %}">ask it for access</a>.</p>{% endif %}
+{% for title, items in groups %}
+<section class="section-group" aria-labelledby="group-{{ forloop.counter }}">
+  <h2 id="group-{{ forloop.counter }}">{% if title %}{{ title }}{% elif forloop.first %}Pages{% else %}More pages{% endif %}</h2>
+  <ul class="section-pages">{% for item, url in items %}
+    <li><a href="{{ url }}">{{ item.label }}</a>{% if item.about %}<p>{{ item.about }}</p>{% endif %}</li>{% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% if board %}{% include "core/_filing_status.html" %}{% endif %}
+{% endblock %}

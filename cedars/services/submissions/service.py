@@ -70,6 +70,7 @@ _claims_totals: list[Callable] = []
 _acc_needs: dict[str, Callable] = {}
 _restaters: list[tuple[Callable, Callable]] = []
 _deadline_pages: dict[str, Callable] = {}
+_readers: dict[str, Callable] = {}
 
 
 def register_publisher(module: str, publish: Callable[[SubmissionVersion], None], unpublish: Callable[[SubmissionVersion], None]) -> None:
@@ -123,6 +124,22 @@ def register_deadline_page(module: str, page: Callable[[Deadline], str]) -> None
 def deadline_page(deadline: Deadline) -> str:
     page = _deadline_pages.get(deadline.module)
     return page(deadline) if page else ""
+
+
+def register_reader(module: str, can_read: Callable[..., bool]) -> None:
+    """A filing module's rule for who may read a filing that is not published: can_read(user, submission) (the filing organization's
+    readers and CPUC staff). The Filings page's status of every PA's filings (submissions.status) shows the rest only whether a filing
+    is published."""
+    _readers[module] = can_read
+
+
+def can_read_filing(user, submission: Submission) -> bool:
+    """Whether the user may read the submission's unpublished versions and where it stands, by its module's rule (none: CPUC system
+    administrators only)."""
+    reader = _readers.get(submission.deadline.module)
+    if reader is not None:
+        return reader(user, submission)
+    return access.is_system_admin(user)
 
 
 def register_acc_needs(module: str, needs: Callable) -> None:

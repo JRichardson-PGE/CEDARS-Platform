@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
 {% block title %}Change ReCET {{ release.release }}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'calculations:runs' %}">Calculations</a></li><li><a href="{% url 'calculations:engines' %}">Engine releases</a></li></ol></nav>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:engines' %}">Engine releases</a></li></ol></nav>
 <div class="page-title"><h1>Change ReCET {{ release.release }}</h1>{% page_help "calculations/engine_release" %}</div>
 <p>Change what this release offers: its calculations and the ACCs each has, the worker image and the AWS Batch job definition. Its
 number stays, so every run on it ({{ runs }} so far) still names it, and each run keeps the calculation and ACC it ran with. A new ReCET version is a release of its own: add it on <a href="{% url 'calculations:engines' %}">Engine releases</a>.</p>

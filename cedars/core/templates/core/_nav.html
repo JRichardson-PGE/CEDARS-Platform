@@ -1,19 +1,24 @@
 <nav aria-label="Main" id="main-nav">
   {% for m in menus %}{% if m.link %}
   <a href="{{ m.link.1 }}" data-tour="nav-{{ m.key }}"{% if m.current %} aria-current="{% if m.current_exact %}page{% else %}true{% endif %}"{% endif %}>{% if m.short %}<span class="nav-long">{{ m.label }}</span><span class="nav-short" aria-hidden="true">{{ m.short }}</span>{% else %}{{ m.label }}{% endif %}</a>
-  {% else %}
-  <details data-tour="nav-{{ m.key }}"{% if m.current %} class="current"{% endif %}>
-    <summary>{{ m.label }}</summary>
-    <ul>
-      {% for title, items in m.groups %}{% if title %}
-      <li class="nav-group"><span class="nav-group-title" id="nav-{{ m.key }}-{{ forloop.counter }}">{{ title }}</span>
-        <ul aria-labelledby="nav-{{ m.key }}-{{ forloop.counter }}">{% for item, url in items %}
-          <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="{% if m.current_exact %}page{% else %}true{% endif %}"{% endif %}>{{ item.label }}</a></li>{% endfor %}
-        </ul></li>
-      {% else %}{% for item, url in items %}
-      <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="{% if m.current_exact %}page{% else %}true{% endif %}"{% endif %}>{{ item.label }}</a></li>{% endfor %}
-      {% endif %}{% endfor %}
-    </ul>
-  </details>
+  {% else %}{% comment %}A menu: its heading links to the menu's own page (what is under it), and the arrow beside it opens the dropdown
+     (a native disclosure, so it works without scripts).{% endcomment %}
+  <div class="nav-menu{% if m.current %} current{% endif %}" data-tour="nav-{{ m.key }}">
+    {% if m.landing_url %}<a class="nav-head" href="{{ m.landing_url }}"{% with c=m.heading_current %}{% if c %} aria-current="{{ c }}"{% endif %}{% endwith %}>{{ m.label }}</a>{% endif %}
+    <details>
+      <summary>{% if m.landing_url %}<span class="sr-only">{{ m.label }} pages</span>{% else %}{{ m.label }}{% endif %}</summary>
+      <ul>
+        {% for title, items in m.menu_groups %}{% if title %}
+        <li class="nav-group"><span class="nav-group-title" id="nav-{{ m.key }}-{{ forloop.counter }}">{{ title }}</span>
+          <ul aria-labelledby="nav-{{ m.key }}-{{ forloop.counter }}">{% for item, url in items %}
+            <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="{% if m.current_exact %}page{% else %}true{% endif %}"{% endif %}>{{ item.label }}</a></li>{% endfor %}
+          </ul></li>
+        {% else %}{% for item, url in items %}
+        <li><a href="{{ url }}"{% if m.current and m.current_url == url %} aria-current="{% if m.current_exact %}page{% else %}true{% endif %}"{% endif %}>{{ item.label }}</a></li>{% endfor %}
+        {% endif %}{% endfor %}
+        {% if m.more and m.landing_url %}<li class="nav-more"><a href="{{ m.landing_url }}">Every {{ m.label|lower }} page</a></li>{% endif %}
+      </ul>
+    </details>
+  </div>
   {% endif %}{% endfor %}
 </nav>

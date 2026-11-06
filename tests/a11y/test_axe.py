@@ -1430,11 +1430,11 @@ def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
     if who:  # a header menu is opened for its step and closed after it
         i = next(k for k, step in enumerate(steps) if step.target == "nav-filings")
         page.evaluate("(n) => { for (let k = 0; k < n; k++) document.querySelector('[data-tour-next]').click(); }", i - 2)
-        assert page.evaluate("document.querySelector('[data-tour=nav-filings]').open")
+        assert page.evaluate("document.querySelector('[data-tour=nav-filings] details').open")
         found = _run_axe(page)
         assert not found, f"tour, menu open ({scheme}): " + json.dumps(found, indent=1)
         page.evaluate("(n) => { for (let k = 0; k < n; k++) document.querySelector('[data-tour-next]').click(); }", 3)
-        assert not page.evaluate("document.querySelector('[data-tour=nav-filings]').open")
+        assert not page.evaluate("document.querySelector('[data-tour=nav-filings] details').open")
     page.keyboard.press("Escape")
     assert not page.locator("#tour").evaluate("d => d.open")
     assert page.evaluate("document.activeElement.hasAttribute('data-tour-start')")
