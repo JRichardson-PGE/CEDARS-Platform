@@ -20,10 +20,15 @@ the page that breaks it down, and the two agree. The gauges' denominators:
 The goal comes from the confirmed goal set in force (Administration > Goals). What the cards leave out, and where a denominator came
 from, is said once under the cards (`Summary.footnotes`); what each card counts is said under its title (`Card.scope`)."""
 
+import logging
+import threading
+import time
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.core.cache import cache
+from django.db import connection
 
 from cedars.services.registry import goals as goal_sets
 from cedars.services.registry.models import FilingCycle
@@ -36,8 +41,17 @@ CS_SCOPE = "Codes and standards only"
 RA_SCOPE = "Resource acquisition only"
 RA_VALUES = ("resource_acquisition", "Resource Acquisition")  # the segment as filed (code or label), as goal_view.CS_VALUES
 NONE = "None yet"  # a figure with nothing published behind it, in words
-CACHE_SECONDS = 600  # the numbers change only with a new release, a goal set or a budget; the key carries the first two
-CACHE_VERSION = 3  # the cached Summary's shape: bump when Card or Summary changes, so a deploy never reads an old pickle
+# The cards take about 20 queries over every published file, too slow to make while a visitor waits (Jake, 2026-11-06: the front page
+# was sometimes very slow). Each cycle keeps its last cards for KEEP_SECONDS; a copy older than FRESH_SECONDS is still shown while new
+# ones are made after the response (a budget or fund shift changes them without changing the fingerprint). A new release or goal set
+# changes the fingerprint, and the first visit after it makes the cards in the request, so nobody sees the previous release's numbers.
+# `manage.py warm_front_page` makes them before anyone asks (at start-up, after a deploy or a publication).
+FRESH_SECONDS = 600
+KEEP_SECONDS = 7 * 24 * 3600
+REFRESH_LOCK_SECONDS = 300  # one rebuild at a time per cycle; a rebuild that dies frees the lock after this
+CACHE_VERSION = 4  # the cached entry's shape: bump when Card, Summary or the entry changes, so a deploy never reads an old pickle
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -136,24 +150,73 @@ def _view(slug: str, cycle: FilingCycle, **params) -> dashboard.View:
 
 
 def _cache_key(cycle: FilingCycle) -> str:
+    return f"front{CACHE_VERSION}:{'-'.join(dq.DEFAULT_EXCLUDE)}:{cycle.first_year}-{cycle.last_year}"
+
+
+def _fingerprint() -> str:
+    """What the cards were made from that a page can tell cheaply: the current claims, forecast and monthly releases and the confirmed goal
+    sets."""
     releases = [snapshots.current_release(d) for d in ("claims", "forecast", "monthly")]
     numbers = "-".join(str(r.pk) if r else "0" for r in releases)
     sets = "-".join(str(pk) for pk in goal_sets._confirmed().values_list("pk", flat=True)[:5])
-    return f"front{CACHE_VERSION}:{'-'.join(dq.DEFAULT_EXCLUDE)}:{cycle.first_year}-{cycle.last_year}:{numbers}:{sets}"
+    return f"{numbers}:{sets}"
+
+
+def _store(cycle: FilingCycle, cycles: list[FilingCycle], fingerprint: str) -> Summary:
+    s = _build(cycle, cycles)
+    cache.set(_cache_key(cycle), {"fingerprint": fingerprint, "built": time.time(), "summary": s}, KEEP_SECONDS)
+    return s
+
+
+def _refresh(cycle: FilingCycle, cycles: list[FilingCycle], fingerprint: str, lock: str) -> None:
+    try:
+        _store(cycle, cycles, fingerprint)
+    except Exception:  # the old cards stay; the next visit after the lock expires tries again
+        log.exception("front page: rebuilding the %s cards failed", cycle)
+    finally:
+        cache.delete(lock)
+        if threading.current_thread() is not threading.main_thread():
+            connection.close()  # this thread's own database connection
+
+
+def _refresh_later(cycle: FilingCycle, cycles: list[FilingCycle], fingerprint: str) -> None:
+    """Make the cycle's cards again after this response, unless another request already is (FRONT_PAGE_REFRESH_IN_BACKGROUND off, as in
+    the tests: in this request)."""
+    lock = _cache_key(cycle) + ":refreshing"
+    if not cache.add(lock, 1, REFRESH_LOCK_SECONDS):
+        return
+    if not settings.FRONT_PAGE_REFRESH_IN_BACKGROUND:
+        _refresh(cycle, cycles, fingerprint, lock)
+        return
+    threading.Thread(target=_refresh, args=(cycle, cycles, fingerprint, lock), name="front-page-refresh", daemon=True).start()
 
 
 def summary(choice: str = "") -> Summary:
     cycle, cycles = pick_cycle(choice)
     if cycle is None:
         return Summary(None, cycles, [], [], notes=["No program cycle is set up yet, so there is nothing to summarize."])
-    key = _cache_key(cycle)
-    cached = cache.get(key)
-    if cached is not None:
-        cached.cycles = cycles
-        return cached
-    s = _build(cycle, cycles)
-    cache.set(key, s, CACHE_SECONDS)
+    fingerprint = _fingerprint()
+    entry = cache.get(_cache_key(cycle))
+    if not entry or entry.get("fingerprint") != fingerprint:
+        return _store(cycle, cycles, fingerprint)  # nothing kept, or made from another release or goal set
+    if time.time() - entry["built"] > FRESH_SECONDS:
+        _refresh_later(cycle, cycles, fingerprint)
+    s = entry["summary"]
+    s.cycles = cycles
     return s
+
+
+def warm(all_cycles: bool = False) -> list[tuple[FilingCycle, float]]:
+    """Make the default cycle's cards (every cycle's with all_cycles) and keep them; returns each cycle with the seconds it took."""
+    default, cycles = pick_cycle()
+    chosen = cycles if all_cycles else [c for c in [default] if c is not None]
+    fingerprint = _fingerprint()
+    out = []
+    for cycle in chosen:
+        t = time.time()
+        _store(cycle, cycles, fingerprint)
+        out.append((cycle, time.time() - t))
+    return out
 
 
 def _percent(part, whole) -> float | None:
