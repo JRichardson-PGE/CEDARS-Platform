@@ -49,7 +49,7 @@
   },
   "guide:programs": {
     "release": "0.2.0",
-    "sha256": "68d056a0534e3b33afba1c0e2d0767a130bc0210dc3a8562c28d08a4fe177e8e"
+    "sha256": "bee071428e854f2d2972d87dd0f26abe7cad298d83cc948acb3112749bde5a14"
   },
   "guide:published-data": {
     "release": "0.2.0",

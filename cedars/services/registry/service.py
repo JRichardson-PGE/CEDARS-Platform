@@ -103,7 +103,7 @@ def catalog(year: int | None = None):
     program year, or with no year the version in force today (else the latest). Two queries, whatever the number of programs."""
     out = []
     today = timezone.localdate()
-    programs = Program.objects.filter(portfolio_cost=False).select_related("administrator")
+    programs = Program.objects.filter(portfolio_cost=False).select_related("administrator", "follows")
     for p in programs.prefetch_related(Prefetch("versions", queryset=ProgramVersion.objects.order_by("-valid_from"))):
         versions = list(p.versions.all())
         v = _for_year(versions, year) if year else (_in_force(versions, today) or (versions[0] if versions else None))
@@ -202,11 +202,24 @@ def run_programs(year: int | None) -> RunPrograms:
 
 
 def can_edit(actor, program: Program) -> bool:
-    """Whether actor may change the program: a CPUC system administrator, or its administrator's org admins and programs.admin holders."""
+    """Whether actor may change the program: a CPUC system administrator, or the org admins and programs.admin holders of its
+    administrator (of a statewide program, its lead PA). Nobody changes an ID that follows a statewide program: its attributes are the
+    statewide program's (Jake, 2026-11-06), so a change is made there and reaches every ID that follows it."""
+    if program.follows_id is not None:
+        return False
     if actor is None or access.is_system_admin(actor):
         return True
-    org = program.administrator
+    org = program.administrator or lead_of(program)
     return org is not None and (access.is_org_admin(actor, org) or access.has_permission(actor, org, "programs.admin"))
+
+
+def _cannot_edit(program: Program) -> AccessDenied:
+    if program.follows_id is not None:
+        return AccessDenied(
+            f"{program} follows the statewide program {program.follows}: change {program.follows} and the change reaches {program}."
+        )
+    who = program.administrator or lead_of(program)
+    return AccessDenied(f"Only {who.code if who else 'the CPUC'}'s administrators can change {program}.")
 
 
 # --- statewide programs' lead PAs
@@ -278,6 +291,197 @@ def set_lead(actor, program: Program, lead: Organisation | None, reason: str, or
     return program
 
 
+# --- statewide programs as the source of truth for the IDs allocated to them (Jake, 2026-11-06)
+#
+# A statewide program (SW_FS) is allocated to each funding PA under the PA's code in front of its ID (PGE_SW_FS, SCE_SW_FS ...). Those
+# IDs follow the statewide program: from the day they are linked, each of their versions is the statewide program's, written by the
+# registry when the statewide program changes, and their own PA never changes them. Their versions before that day stay as recorded.
+# A statewide program's own record is filled from its lead PA's ID the first time (CEDARS' statewide rows are mostly blank), and from
+# then on its lead PA's administrators change it (`can_edit`).
+
+
+def _codes(organisation: Organisation) -> set[str]:
+    """Every code the organization has had (PGE; EBCE and AVA)."""
+    return {organisation.code, *organisation.codes.values_list("code", flat=True)}
+
+
+def statewide_part_of(program: Program) -> Program | None:
+    """The statewide program whose allocated ID `program` is by its PrgID (its PA's code, an underscore and the statewide PrgID), or
+    None. A portfolio-cost ID and an ID with anything after the statewide PrgID (PGE_SW_FS_PA, the PA's own costs) are not."""
+    if program.statewide or program.portfolio_cost or program.administrator is None:
+        return None
+    for code in _codes(program.administrator):
+        prefix = f"{code}_"
+        if program.prg_id.startswith(prefix) and len(program.prg_id) > len(prefix):
+            sw = Program.objects.filter(statewide=True, prg_id=program.prg_id[len(prefix) :]).first()
+            if sw is not None:
+                return sw
+    return None
+
+
+def allocated_ids(sw: Program):
+    """Every program whose PrgID is a PA's code in front of the statewide program's (`statewide_part_of`), linked or not."""
+    out = []
+    for p in Program.objects.filter(statewide=False, portfolio_cost=False, prg_id__endswith=f"_{sw.prg_id}").select_related(
+        "administrator", "follows"
+    ):
+        if p.administrator is not None and p.prg_id[: -len(sw.prg_id) - 1] in _codes(p.administrator):
+            out.append(p)
+    return sorted(out, key=lambda p: p.prg_id)
+
+
+def lead_id(sw: Program) -> Program | None:
+    """The statewide program's lead PA's own ID of it (PGE_SW_FS when PG&E leads SW_FS), or None."""
+    lead = lead_of(sw)
+    return next((p for p in allocated_ids(sw) if p.administrator_id == lead.pk), None) if lead else None
+
+
+def family(program: Program) -> list[Program]:
+    """The statewide program and every ID that follows it, for a statewide program or one of its IDs; else the program alone. Their
+    pages show the same documents and evaluations."""
+    sw = program.follows if program.follows_id else program
+    if not sw.statewide:
+        return [program]
+    return [sw, *sw.subprograms.order_by("prg_id")]
+
+
+def _newest(program: Program, *, lock: bool = False) -> ProgramVersion | None:
+    qs = program.versions.select_for_update() if lock else program.versions
+    return qs.order_by("-valid_from").first()
+
+
+def _after(program: Program, day: date) -> date:
+    """`day`, or the day after the program's latest version starts when that is later (a version starting in a future year)."""
+    latest = _newest(program)
+    return max(day, latest.valid_from + timedelta(days=1)) if latest is not None else day
+
+
+def _followed_values(sw: Program, source: ProgramVersion) -> dict:
+    """An ID's attributes when it follows `sw`: the statewide program's version, with the statewide program it delivers named."""
+    values = {f: getattr(source, f) for f in VERSION_FIELDS}
+    values["statewide_program"] = f"{sw.prg_id} - {source.name}"
+    return values
+
+
+def _same(version: ProgramVersion | None, values: dict) -> bool:
+    return version is not None and all(getattr(version, f) == val for f, val in values.items())
+
+
+def _mirror(actor, sub: Program, source: ProgramVersion, effective: date, *, reason: str, created_by) -> ProgramVersion | None:
+    """Start `sub`'s version on `effective` as the statewide program's `source` version (None when it already has those attributes).
+    The version before it ends the day before, unless it had ended already."""
+    values = _followed_values(sub.follows or source.program, source)
+    latest = _newest(sub, lock=True)
+    if latest is not None and effective <= latest.valid_from:
+        raise AccessDenied(f"{sub}'s latest version starts on {latest.valid_from:%Y-%m-%d}: a change to it must start later.")
+    if _same(latest, values) and (latest.valid_to is None or latest.valid_to >= effective):
+        return None
+    before = audit.snapshot(latest, ["valid_from", "valid_to", *VERSION_FIELDS]) if latest is not None else None
+    if latest is not None and (latest.valid_to is None or latest.valid_to >= effective):
+        ProgramVersion.objects.filter(pk=latest.pk).update(valid_to=effective - timedelta(days=1))
+    new = ProgramVersion.objects.create(
+        program=sub, valid_from=effective, valid_to=source.valid_to, created_by=created_by, reason=reason, **values
+    )
+    audit.record(
+        "program.changed",
+        obj=sub,
+        before=before,
+        after=audit.snapshot(new, ["valid_from", "valid_to", *VERSION_FIELDS]),
+        reason=reason,
+        actor=actor,
+    )
+    return new
+
+
+@dataclass
+class StatewideSync:
+    """What `follow_statewide` did (or, without apply, would do) to one statewide program."""
+
+    sw: Program
+    skipped: str = ""  # why nothing was done
+    source: Program | None = None  # the lead PA's ID its record was filled from
+    filled: dict = None  # {attribute: (statewide program's value, lead PA's value)} changed on the statewide program
+    filled_from: date | None = None
+    linked: list = None  # [(ID, the day it follows from, {attribute: (its value, the statewide program's)})]
+    already: list = None  # IDs that followed it already
+
+
+def follow_statewide(
+    actor, sw: Program, *, effective: date | None = None, reason: str, apply: bool = False, fill: bool = True
+) -> StatewideSync:
+    """Make the statewide program the source of truth for its IDs (Jake, 2026-11-06). The first time, its record is filled from its lead
+    PA's own ID of it (`lead_id`; fill=False leaves it as it is), as a new version on `effective` (today by default); then every PA's ID
+    of it (`allocated_ids`) follows it from that day: a new version with its attributes, and from then on only the statewide program
+    changes. Nothing is done to a statewide program with no lead PA recorded, or (the first time) none of whose IDs is its lead's.
+    Without apply, the report says what would be done and nothing changes. A CPUC system administrator, or a system job."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator links statewide programs' IDs.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason.")
+    effective = effective or timezone.localdate()
+    out = StatewideSync(sw, filled={}, linked=[], already=[])
+    if not sw.statewide:
+        out.skipped = "not a statewide program"
+        return out
+    if lead_of(sw) is None:
+        out.skipped = "no lead PA recorded: record one on its page, then run this again"
+        return out
+    ids = allocated_ids(sw)
+    out.already = [p.prg_id for p in ids if p.follows_id == sw.pk]
+    todo = [p for p in ids if p.follows_id is None]
+    if not todo:
+        if not out.already:
+            out.skipped = "no PA's ID of it in the registry"
+        return out
+    out.source = lead_id(sw)
+    with transaction.atomic():
+        current = _newest(sw, lock=apply)
+        if fill and not out.already and out.source is not None and out.source.follows_id is None:
+            source_version = _newest(out.source)
+            if current is not None and source_version is not None:
+                wanted = {f: getattr(source_version, f) for f in VERSION_FIELDS if f != "statewide_program"}
+                out.filled = {f: (getattr(current, f), v) for f, v in wanted.items() if getattr(current, f) != v}
+                if out.filled:
+                    out.filled_from = _after(sw, effective)
+                    if apply:
+                        _start_version(
+                            actor,
+                            sw,
+                            effective=out.filled_from,
+                            reason=f"filled from {out.source.prg_id}, its lead PA's ID: {reason}",
+                            changes=wanted,
+                            created_by=actor,
+                        )
+                        current = _newest(sw)
+                    else:
+                        current = ProgramVersion(**{f: getattr(current, f) for f in VERSION_FIELDS} | wanted, valid_to=current.valid_to)
+        elif out.source is None and not out.already:
+            out.skipped = f"no ID of it is its lead PA's ({lead_of(sw).code}_{sw.prg_id}) to fill it from"
+            return out
+        for p in todo:
+            day = _after(p, effective)
+            source = (version_on(sw, day) if apply else None) or current
+            values = _followed_values(sw, source)
+            mine = _newest(p)
+            diff = {f: (getattr(mine, f) if mine else None, v) for f, v in values.items() if mine is None or getattr(mine, f) != v}
+            out.linked.append((p.prg_id, day, diff))
+            if apply:
+                p.follows, p.follows_from = sw, day
+                p.save(update_fields=["follows", "follows_from"])
+                audit.record(
+                    "program.follows_statewide",
+                    obj=p,
+                    before={"follows": None},
+                    after={"follows": sw.prg_id, "from": day.isoformat()},
+                    reason=reason,
+                    actor=actor,
+                )
+                _mirror(actor, p, source, day, reason=f"follows {sw.prg_id}: {reason}", created_by=actor)
+        if not apply:
+            transaction.set_rollback(True)
+    return out
+
+
 # --- changing programs
 
 
@@ -299,14 +503,23 @@ def create_program(
         access.is_system_admin(actor) or (administrator and can_edit(actor, Program(administrator=administrator)))
     ):
         raise AccessDenied("Only the program's administrator or the CPUC can add it.")
-    p = Program.objects.create(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide, portfolio_cost=portfolio_cost)
-    v = ProgramVersion.objects.create(program=p, valid_from=valid_from, created_by=actor, reason=reason, **_clean(fields))
+    _clean(fields)
+    p = Program(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide, portfolio_cost=portfolio_cost)
+    sw = statewide_part_of(p)
+    if sw is not None and sw.subprograms.exists():  # a new ID of a statewide program already followed: it follows it from the start
+        source = version_on(sw, valid_from) or _newest(sw)
+        if source is not None:
+            fields = _followed_values(sw, source)
+            p.follows, p.follows_from = sw, valid_from
+    p.save()
+    v = ProgramVersion.objects.create(program=p, valid_from=valid_from, created_by=actor, reason=reason, **fields)
     audit.record(
         "program.created",
         obj=p,
         after={
             "prg_id": p.prg_id,
             "administrator": administrator.code if administrator else None,
+            "follows": p.follows.prg_id if p.follows_id else None,
             "version": audit.snapshot(v, ["valid_from", *VERSION_FIELDS]),
         },
         reason=reason,
@@ -328,9 +541,7 @@ def change_program(actor, program: Program, *, effective: date, reason: str, **c
     The date may be in the future (a resolution entered before its effective date); it cannot be on or before the latest version's
     start, because versions already in force are history. A change to a locked attribute is a request instead (request_change)."""
     if not can_edit(actor, program):
-        raise AccessDenied(
-            f"Only {program.administrator.code if program.administrator else 'the CPUC'}'s administrators can change {program}."
-        )
+        raise _cannot_edit(program)
     _clean(changes)
     held = needs_approval(actor, changes)
     if held:
@@ -351,9 +562,17 @@ def _latest(program: Program, effective: date, *, lock: bool = False) -> Program
 
 
 def _start_version(actor, program: Program, *, effective: date, reason: str, changes: dict, created_by) -> ProgramVersion:
+    """The new version, and the same change to every ID that follows the program (a statewide program's IDs, `follow_statewide`)."""
     if not reason.strip():
         raise AccessDenied("Give a reason for the change.")
     latest = _latest(program, effective, lock=True)
+    subs = list(program.subprograms.select_related("administrator").order_by("prg_id")) if program.statewide else []
+    blocked = [s.prg_id for s in subs if (v := _newest(s, lock=True)) is not None and effective <= v.valid_from]
+    if blocked:
+        raise AccessDenied(
+            f"A change to {program} reaches {', '.join(blocked)}, whose latest version starts on or after {effective:%Y-%m-%d}: "
+            "give a later effective date."
+        )
     before = audit.snapshot(latest, ["valid_from", "valid_to", *VERSION_FIELDS])
     values = {f: getattr(latest, f) for f in VERSION_FIELDS} | changes
     ProgramVersion.objects.filter(pk=latest.pk).update(valid_to=effective - timedelta(days=1))
@@ -368,6 +587,8 @@ def _start_version(actor, program: Program, *, effective: date, reason: str, cha
         reason=reason,
         actor=actor,
     )
+    for sub in subs:
+        _mirror(actor, sub, new, effective, reason=f"follows {program.prg_id}: {reason}", created_by=created_by)
     return new
 
 
@@ -495,9 +716,7 @@ def _json(value):
 def request_change(actor, program: Program, *, effective: date, reason: str, **changes) -> ProgramChangeRequest:
     """Ask for a change that touches a locked attribute. Checked now as the change itself would be; nothing changes until approved."""
     if not can_edit(actor, program):
-        raise AccessDenied(
-            f"Only {program.administrator.code if program.administrator else 'the CPUC'}'s administrators can change {program}."
-        )
+        raise _cannot_edit(program)
     if not reason.strip():
         raise AccessDenied("Give a reason for the change.")
     _clean(changes)
@@ -510,7 +729,7 @@ def request_change(actor, program: Program, *, effective: date, reason: str, **c
     latest = _latest(program, effective)
     req = ProgramChangeRequest.objects.create(
         program=program,
-        organisation=program.administrator,
+        organisation=program.administrator or lead_of(program),
         requested_by=actor,
         effective=effective,
         reason=reason,
@@ -523,7 +742,7 @@ def request_change(actor, program: Program, *, effective: date, reason: str, **c
         after={"program": program.prg_id, "effective": str(effective), "changes": req.changes},
         reason=reason,
         actor=actor,
-        organisation=program.administrator,
+        organisation=req.organisation,
     )
     return req
 
@@ -1049,10 +1268,20 @@ def register_evaluations(source) -> None:
 
 
 def evaluations(program: Program) -> list[dict]:
-    """Every evaluation study that covers the program, with the years it covers; [] when the study register is not installed."""
+    """Every evaluation study that covers the program, with the years it covers; [] when the study register is not installed. For a
+    statewide program or an ID that follows one, the studies of the statewide program and all its IDs (`family`), each once."""
     if not _evaluation_sources:
         return []
-    return _evaluation_sources[0](program)
+    members = family(program)
+    if len(members) == 1:
+        return _evaluation_sources[0](program)
+    out, seen = [], set()
+    for member in members:
+        for e in _evaluation_sources[0](member):
+            if e.get("study_id") not in seen:
+                seen.add(e.get("study_id"))
+                out.append(e)
+    return out
 
 
 def cycle_for_year(year: int) -> FilingCycle | None:
@@ -1095,5 +1324,46 @@ def program_records(program: Program, user, year: int | None = None) -> dict[str
     out: dict[str, list[dict] | None] = {}
     for section in PROGRAM_SECTIONS:
         source = _program_record_sources.get(section)
-        out[section] = None if source is None else list(source(program, user, year))
+        if source is None:
+            out[section] = None
+        elif section in SHARED_SECTIONS:
+            out[section] = _shared_rows(source, program, user, year)
+        else:
+            out[section] = list(source(program, user, year))
     return out
+
+
+SHARED_SECTIONS = ("documents",)  # shown alike on a statewide program and every ID that follows it (Jake, 2026-11-06)
+
+
+def _shared_rows(source, program: Program, user, year: int | None) -> list[dict]:
+    """A section's rows for the statewide program and every ID that follows it, each record once, newest first."""
+    members = family(program)
+    if len(members) == 1:
+        return list(source(program, user, year))
+    rows, seen = [], set()
+    for member in members:
+        for r in source(member, user, year):
+            if r["url"] not in seen:
+                seen.add(r["url"])
+                rows.append(r)
+    rows.sort(key=lambda r: r["when"], reverse=True)
+    return rows
+
+
+_document_filing: list = []
+
+
+def register_document_filing(source) -> None:
+    """The document library's "add a document" link for a program page: source(program, user, organisation) returns (url, allowed),
+    the address of its new-document form with the program filled in, and whether the user, acting for the organization, may file
+    there (a signed-out user: False). The program page reads it through `add_document`, so Programs never imports Documents."""
+    _document_filing[:] = [source]
+
+
+def add_document(program: Program, user, organisation) -> tuple[str, bool] | None:
+    """(url, allowed) for adding a document about the program (an ID that follows a statewide program: about the statewide program,
+    whose documents every one of its IDs shows), or None when the document library is not installed."""
+    if not _document_filing:
+        return None
+    return _document_filing[0](program.follows if program.follows_id else program, user, organisation)

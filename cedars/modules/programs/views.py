@@ -191,7 +191,7 @@ def field_links() -> dict[str, str]:
 
 
 def _program_or_404(prg_id: str) -> Program:
-    p = get_object_or_404(Program.objects.select_related("administrator", "lead"), prg_id=prg_id)
+    p = get_object_or_404(Program.objects.select_related("administrator", "lead", "follows", "follows__lead"), prg_id=prg_id)
     if p.portfolio_cost:
         raise Http404  # portfolio-level cost IDs are not programs (BR-02.6)
     return p
@@ -301,8 +301,9 @@ def program(request, prg_id):
     evaluations = [e for e in all_evaluations if _covers(e, year)] if year else all_evaluations
     current = registry.current_version(p) or p.versions.order_by("-valid_from").first()
     history = list(reversed(registry.history(p)))
-    allocation = allocation_history(p)
+    allocation = allocation_history(p.follows if p.follows_id else p)
     pas = sorted({pa for row in allocation for pa in row["shares"]})
+    adding = registry.add_document(p, request.user, getattr(request, "organisation", None))
     return render(
         request,
         "programs/program.html",
@@ -338,8 +339,21 @@ def program(request, prg_id):
             "lead_form": forms.LeadForm(initial={"lead": p.lead_id}, prefix="lead")
             if signed_in and registry.can_set_lead(request.user, p, getattr(request, "organisation", None))
             else None,
+            "sw": p.follows,
+            "subprograms": _subprograms(p),
+            "add_document": adding[0] if adding else "",
+            "can_add_document": bool(adding and adding[1]),
         },
     )
+
+
+def _subprograms(p: Program) -> list[dict]:
+    """A statewide program's IDs, one per PA it is allocated to: whether each follows it, and since when."""
+    if not p.statewide:
+        return []
+    return [
+        {"p": s, "pa": s.administrator.code, "follows": s.follows_id == p.pk, "since": s.follows_from} for s in registry.allocated_ids(p)
+    ]
 
 
 @login_required
@@ -371,6 +385,9 @@ def change(request, prg_id):
     """A new effective-dated version of the program (BR-13.3): what changes, from when, and why. Versions in force are never edited.
     A change that touches a locked attribute is sent as a request for a CPUC approver's decision (BR-13.7)."""
     p = _program_or_404(prg_id)
+    if p.follows_id:  # its definition is the statewide program's (Jake, 2026-11-06)
+        messages.info(request, f"{p.prg_id} follows the statewide program {p.follows.prg_id}: a change is made to {p.follows.prg_id}.")
+        return redirect("programs:program", prg_id=p.follows.prg_id)
     if not registry.can_edit(request.user, p):
         raise Http404
     latest = p.versions.order_by("-valid_from").first()
@@ -404,7 +421,14 @@ def change(request, prg_id):
     return render(
         request,
         "programs/change.html",
-        {"p": p, "latest": latest, "form": form, "locked": [form.fields[f].label for f in locked], "about": field_links()},
+        {
+            "p": p,
+            "latest": latest,
+            "form": form,
+            "locked": [form.fields[f].label for f in locked],
+            "about": field_links(),
+            "reaches": list(p.subprograms.values_list("prg_id", flat=True)) if p.statewide else [],
+        },
     )
 
 

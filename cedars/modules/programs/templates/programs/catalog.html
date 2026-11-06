@@ -85,7 +85,7 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
   <tbody>
   {% for p, v, pa, status, segment in rows %}
   <tr>
-    <th scope="row"><a class="id" href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></th>
+    <th scope="row"><a class="id" href="{% url 'programs:program' p.page_prg_id %}">{{ p.prg_id }}</a>{% if p.follows_id %}<br><span class="small muted">part of {{ p.follows.prg_id }}: opens its page</span>{% endif %}</th>
     <td>{{ v.name }}</td>
     <td>{{ pa }}</td>
     <td>{% if status == "Not given" %}<span class="muted">Not given</span>{% else %}<span class="status {{ status|status_tone }}">{{ status }}</span>{% endif %}</td>

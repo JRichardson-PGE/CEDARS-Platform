@@ -361,7 +361,7 @@ def programs(q: str) -> Part:
             continue
         pa = "SW" if p.statewide or p.administrator is None else p.administrator.code
         status = "closed" if v.status == "closed" else "open"
-        hits.append(Hit(f"{p.prg_id}: {v.name}", reverse("programs:program", args=[p.prg_id]), f"{pa} program, {status}"))
+        hits.append(Hit(f"{p.prg_id}: {v.name}", reverse("programs:program", args=[p.page_prg_id]), f"{pa} program, {status}"))
     # an exact PrgID first
     hits.sort(key=lambda h: not h.title.lower().startswith(needle + ":"))
     url = reverse("programs:catalog")

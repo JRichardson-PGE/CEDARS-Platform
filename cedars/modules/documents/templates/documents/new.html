@@ -1,12 +1,14 @@
 {% extends "core/base.html" %}
 {% block title %}File a document{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li>{% if study %}<a href="{{ study.get_absolute_url }}">{{ study.study_id }}</a>{% else %}<a href="{% url 'documents:library' %}">Documents</a>{% endif %}</li></ol></nav>
-<div class="page-title"><h1>{% if study %}Upload a document for {{ study.study_id }}{% else %}File a document{% endif %}</h1>{% page_help "documents/new" %}</div>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li>{% if study %}<a href="{{ study.get_absolute_url }}">{{ study.study_id }}</a>{% elif program %}<a href="{% url 'programs:program' program.prg_id %}">{{ program.prg_id }}</a>{% else %}<a href="{% url 'documents:library' %}">Documents</a>{% endif %}</li></ol></nav>
+<div class="page-title"><h1>{% if study %}Upload a document for {{ study.study_id }}{% elif program %}Add a document to {{ program.prg_id }}{% else %}File a document{% endif %}</h1>{% page_help "documents/new" %}</div>
 {% if study %}<p>For the study <strong>{{ study.title }}</strong>. Its study ID is filled in below; the document is listed on the study's page.</p>{% endif %}
+{% if program %}<p>For the program <strong>{{ program.prg_id }}</strong>. Its PrgID is filled in under Programs below; the document is listed on the program's page{% if program.statewide %} and on the page of every PA's ID of this statewide program{% endif %}.</p>{% endif %}
 {% if collections|length > 1 %}
 <form method="get" class="filters" aria-label="Choose the collection">
   {% if study %}<input type="hidden" name="study" value="{{ study.study_id }}">{% endif %}
+  {% if program %}<input type="hidden" name="program" value="{{ program.prg_id }}">{% endif %}
   <label for="collection">Collection
     <select id="collection" name="collection">{% for code, label in collections %}<option value="{{ code }}"{% if code == collection %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
   </label>
@@ -27,6 +29,6 @@ Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p
   {{ form.comments_close.as_field_group }}
   {% if form.placeholder %}{{ form.placeholder.as_field_group }}{% endif %}
   {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
-  <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% if study %}{{ study.get_absolute_url }}{% else %}{% url 'documents:library' %}{% endif %}">Cancel</a></div>
+  <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% if study %}{{ study.get_absolute_url }}{% elif program %}{% url 'programs:program' program.prg_id %}{% else %}{% url 'documents:library' %}{% endif %}">Cancel</a></div>
 </form>
 {% endblock %}

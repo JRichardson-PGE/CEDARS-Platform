@@ -283,6 +283,8 @@ PAGES = [
     ("program-fields", "/programs/fields/", None),
     ("program-year-public", "/programs/PGE_Res_HVAC/?year=2028", None),
     ("program-statewide", "/programs/{sw}/", "community"),
+    ("program-statewide-ids", "/programs/SW_X/", "pge_admin"),  # each PA's ID of it, which follow it
+    ("program-follows-statewide", "/programs/SCE_SW_X/", None),  # an ID that follows its statewide program
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
     ("program-change-requests", "/programs/requests/", "approver"),
     ("program-change-request", "/programs/requests/{change_request}/", "approver"),
@@ -382,6 +384,7 @@ PAGES = [
     ("document-unpublished", "/documents/{document_draft}/", "cpuc_admin"),
     ("document-new", "/documents/new/?collection=emv", "cpuc_admin"),
     ("document-new-for-study", "/documents/new/?collection=emv&study={study}", "cpuc_admin"),
+    ("document-new-for-program", "/documents/new/?collection=program&program=SW_X", "cpuc_admin"),  # Add a document on a program
     ("document-change", "/documents/{document}/change/", "cpuc_admin"),
     ("document-version-new", "/documents/{document}/versions/new/", "cpuc_admin"),
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),

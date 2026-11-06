@@ -879,10 +879,17 @@ def _fund_shifts(cpuc_admin, pge, analyst, cycle, make_user):
     from ..test_fund_shifts import FACTORS, L
 
     registry.confirm_allocation(cpuc_admin, registry.import_allocation_csv(cpuc_admin, FACTORS.encode(), label="SW X", purpose="filing"))
-    registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="SW X")
+    sw_x = registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2024, 1, 1), name="SW X")
     from cedars.services.accounts.models import Organisation
 
     sce = Organisation.objects.get(code="SCE")
+    # PG&E leads SW_X; PG&E's and SCE's IDs of it follow it (the statewide program as the source of truth)
+    registry.set_lead(cpuc_admin, sw_x, pge, "PG&E leads SW_X")
+    for org, name in ((pge, "Statewide X"), (sce, "SCE's X")):
+        registry.create_program(
+            cpuc_admin, prg_id=f"{org.code}_SW_X", administrator=org, valid_from=date(2024, 1, 1), name=name, segment="market_support"
+        )
+    registry.follow_statewide(None, sw_x, effective=date(2026, 1, 1), reason="the scene", apply=True)
     registry.create_program(cpuc_admin, prg_id="SCE_Ind", administrator=sce, valid_from=date(2024, 1, 1), name="Industrial")
     sce_admin, sce_user = make_user("admin@sce.example.org", "Addy Min"), make_user("budgets@sce.example.org", "Sky Edison")
     service.grant(cpuc_admin, sce_admin, sce, perms.ORG_ADMIN)
