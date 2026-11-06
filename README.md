@@ -5,7 +5,8 @@ budgets, claims and monthly reports. One Django application (a modular monolith)
 calculation service.
 
 The design is the CEDARS Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/`) and the requirements are
-BRD v0.5 (CEDARS-Research `deliverables/`). `docs/ARCHITECTURE.md` maps that design onto this code and tracks what is built.
+BRD v0.5 (CEDARS-Research `deliverables/`). `docs/ARCHITECTURE.md` maps that design onto this code and tracks what is built;
+`docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with diagrams of its context, components, data model and main flows.
 
 ## Running it
 
