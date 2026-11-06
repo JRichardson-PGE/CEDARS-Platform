@@ -67,8 +67,8 @@ class Menu:
         return (self.link,) if self.link else tuple(i for g in self.groups for i in g.items)
 
 
-def _menu(key, label, *items: Item, groups: tuple[Group, ...] = (), landing="", about="") -> Menu:
-    return Menu(key, label, ((Group("", items),) if items else ()) + groups, landing=landing, about=about)
+def _menu(key, label, *items: Item, groups: tuple[Group, ...] = (), landing="", about="", short="") -> Menu:
+    return Menu(key, label, ((Group("", items),) if items else ()) + groups, landing=landing, about=about, short=short)
 
 
 ANON, USER, MEMBER, GUEST, PUBLIC = ("anon",), ("user",), ("member",), ("guest",), ("anon", "guest")
@@ -314,6 +314,7 @@ MENUS = (
         Item("Filing calendar", "submissions:calendar", PUBLIC, pages=CALENDAR, about=CALENDAR_ABOUT),
         groups=(Group("Change logs", tuple(replace(i, who=PUBLIC) for i in CHANGE_LOGS)),),
         landing="core:published",
+        short="Published",  # with the arrow beside each heading, the header needs the room to stay one row from 1280 px
         about="What CEDARS publishes, open to everyone: the records of confirmed filings, documents and studies, and the definitions to "
         "read them by.",
     ),
@@ -363,6 +364,7 @@ MENUS = (
             about="Changes the CPUC requires to fields, rules or lists, and when each one takes effect.",
         ),
         landing="core:reference",
+        short="Reference",
         about="What runs and filings are priced and checked against: avoided costs and the other data packs, cost-test sets, allocation "
         "factors, validation rules and value lists.",
     ),
