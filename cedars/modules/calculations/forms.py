@@ -145,7 +145,7 @@ class NewRunForm(forms.Form):
         label="Years of the combined profile (optional)",
         required=False,
         max_length=60,
-        help_text="e.g. 2028-2035, or 2028, 2029; blank is the First Year",
+        help_text="e.g. 2028-2035, or 2028, 2029; blank is every year the measures cover",
     )
     output_format = forms.ChoiceField(label="Output files", choices=list(service.OUTPUT_FORMATS.items()), initial="csv.zip")
     cet_outputs = forms.FileField(

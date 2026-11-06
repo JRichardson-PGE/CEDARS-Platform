@@ -50,7 +50,8 @@ calculations/new:
     - Which ACCs each engine has, in The job, lists the ACCs each release can price on. Which ACC applies to my filing? lists each ACC's
       budget filings and the program years whose claims use it.
     - Compare with another ACC prices the job on a second ACC too; the run's Results then has a tab for each ACC and one comparing the two.
-    - Years of the combined profile takes years or a range (2028-2035, or 2028-2030, 2035).
+    - Years of the combined profile takes years or a range (2028-2035, or 2028-2030, 2035); left blank, the profile covers every year the
+      run's measures deliver savings in.
     - First Year and Market effects are CET's own settings; Price each ACC component separately and Combined 8,760 electric load profile add
       ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
     - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.

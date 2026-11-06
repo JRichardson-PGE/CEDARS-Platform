@@ -1958,7 +1958,7 @@ One row per component of each fuel, then a check row per fuel. The measure-level
 
 ### 2.4 `portfolio_8760_acc<version>` (combined 8760 mode)
 
-The portfolio's net electric savings hour by hour, for each requested calendar year `Y` (the "Year(s)" setting, `profile_years`; default the First Year).
+The portfolio's net electric savings hour by hour, for each requested calendar year `Y` (the "Year(s)" setting, `profile_years`; default every year a measure delivers net kWh in, C16.2).
 
 | Field | Meaning and unit | Formula |
 |---|---|---|

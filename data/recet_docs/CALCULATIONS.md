@@ -814,7 +814,9 @@ SUM_c ElecValue_<c> = ElecBen - ElecSupplyCost        SUM_c GasValue_<c> = GasBe
 `behind_meter_methane` is zero for a measure that does not include it (C3.2). The components are reported *before* the benefit / supply-cost split, so they always add up.
 `components_summary_*` totals each `ElecValue_*` / `GasValue_*` over the portfolio with its share of the fuel total and a check row (total minus the sum of components).
 
-**C16.2 "Produce combined 8760 electric load profile".** For each requested calendar year `Y`, the net kWh the portfolio delivers in each hour:
+**C16.2 "Produce combined 8760 electric load profile".** For each requested calendar year `Y`, the net kWh the portfolio delivers in each hour. With no
+years requested (`profile_years` blank; Jake, 2026-11-06) the years are every calendar year from the earliest `start` to the last year before the latest `end`
+of a measure with net kWh (`profile8760.covered_years`; in a run in parts, each part's years, joined with every year between), the First Year if there is none:
 
 ```text
 kWh(i, Y) = SUM over measures m of  weight_m(Y) * shape_m,Y(i)
