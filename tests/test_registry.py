@@ -1,6 +1,7 @@
 import csv
 import io
 from datetime import date
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -170,6 +171,11 @@ def test_allocation_round_trips_to_recets_layout(cpuc_admin):
                 continue
             if k in ("Year", "ProgramID", "ProgramName"):
                 assert a[k].strip() == b[k], k
+            elif k.endswith("WeightedFactor"):  # computed: within the one 0.0001 step that makes them add up to 1.0000
+                assert abs(Decimal(a[k] or 0) - Decimal(b[k])) <= Decimal("0.0001"), (a["ProgramID"], k)
+            elif float(a[k] or 0) == 0 and float(a["PercentElectric"]) in (0, 1) and k.endswith(("GasFactor", "ElectricFactor")):
+                other = k.replace("Gas", "Electric") if "Gas" in k else k.replace("Electric", "Gas")
+                assert float(b[k]) == pytest.approx(float(a[other] or 0)), (a["ProgramID"], k)  # a one-fuel program's copied factors
             else:
                 assert float(a[k] or 0) == pytest.approx(float(b[k])), (a["ProgramID"], k)
 
@@ -184,17 +190,159 @@ def test_a_newer_confirmed_version_takes_over_and_the_old_stays(cpuc_admin):
     assert AllocationVersion.objects.get(pk=first.pk).status == "confirmed"
 
 
-def test_factors_that_do_not_add_up_block_confirmation(cpuc_admin):
-    def break_first(rows):
-        rows[0]["PGEElectricFactor"] = "0.9000"
+def test_factors_that_do_not_add_up_are_refused_on_upload(cpuc_admin):
+    """Jake, 2026-11-06: each fuel's factors must add up to exactly 1.0000; a file that breaks it is refused, nothing loaded."""
 
-    v = service.import_allocation_csv(cpuc_admin, _factors(break_first), label="broken", purpose="filing")
+    def break_first(rows):
+        rows[0]["PGEElectricFactor"] = "0.4441"  # the electric factors now add up to 1.0001
+
+    with pytest.raises(ValueError, match=r"line 2: the electric factors add up to 1\.0001; they must add up to exactly 1\.0000"):
+        service.import_allocation_csv(cpuc_admin, _factors(break_first), label="broken", purpose="filing")
+    assert not AllocationVersion.objects.filter(label="broken").exists()
+
+    def gas_missing(rows):
+        rows[1]["PercentElectric"] = "0.8"
+        for pa in service.FUNDING_PAS:
+            rows[1][f"{pa}GasFactor"] = ""  # all 0, but the program has a gas budget
+
+    with pytest.raises(ValueError, match=r"line 3: the gas factors add up to 0\.0000"):
+        service.import_allocation_csv(cpuc_admin, _factors(gas_missing), label="broken", purpose="filing")
+
+
+def test_a_one_fuel_programs_other_fuel_takes_its_factors(cpuc_admin):
+    """Jake, 2026-11-06: a 100% electric program's gas factors equal its electric factors (and the other way round at 0% electric), so
+    its savings in the other fuel are still allocated. CEDARS' table leaves them at 0: they are copied; filled in and different, refused."""
+    v = service.import_allocation_csv(cpuc_admin, _factors(), label="copied", purpose="filing")
+    assert v.fuel_copied == 40  # 29 electric-only and 11 gas-only program-years
+    for e in v.entries.filter(percent_electric__in=[0, 1]).prefetch_related("shares"):
+        assert all(s.gas == s.electric for s in e.shares.all()), (e.program_id, e.year)
+    first = v.entries.get(year=2021, program_id="SW_NC_NonRes_electric")
+    assert {s.funding_pa: s.gas for s in first.shares.all()} == {
+        "PGE": Decimal("0.444"),
+        "SDGE": Decimal("0.155"),
+        "SCE": Decimal("0.401"),
+        "SCG": Decimal("0"),
+    }
+
+    def differ(rows):
+        assert rows[0]["PercentElectric"].startswith("1")
+        rows[0]["PGEGasFactor"], rows[0]["SDGEGasFactor"] = "0.5000", "0.0990"  # adds up to 1, but not the electric factors
+
+    with pytest.raises(ValueError, match="line 2: PercentElectric is 1, so the gas factors must equal the electric factors"):
+        service.import_allocation_csv(cpuc_admin, _factors(differ), label="differ", purpose="filing")
+
+
+def test_a_version_whose_factors_do_not_add_up_cannot_be_confirmed(cpuc_admin):
+    """A version loaded before the upload refused such files is still held to the totals when someone tries to confirm it."""
+    from cedars.services.registry.models import AllocationShare
+
+    v = service.import_allocation_csv(cpuc_admin, _factors(), label="older", purpose="filing")
+    share = AllocationShare.objects.filter(entry__version=v, funding_pa="PGE").order_by("entry__year", "entry__program_id").first()
+    AllocationShare.objects.filter(pk=share.pk).update(
+        electric=share.electric + Decimal("0.0001"), weighted=share.weighted + Decimal("0.0001")
+    )
     issues = service.check_allocation(v)
-    assert any(i.blocking and "electric factors add up to" in i.message for i in issues)
+    assert any(i.blocking and "electric factors add up to 1.0001" in i.message for i in issues)
+    assert any(i.blocking and "weighted factors add up to 1.0001, not 1.0000" in i.message for i in issues)
     with pytest.raises(AccessDenied, match="problems to fix first"):
         service.confirm_allocation(cpuc_admin, v)
     service.discard_draft(cpuc_admin, v, "re-upload")
-    assert not AllocationVersion.objects.filter(label="broken").exists()
+    assert not AllocationVersion.objects.filter(label="older").exists()
+
+
+def test_weighted_factors_are_rounded_to_add_up_to_exactly_one():
+    """Jake, 2026-11-06: weighted factors at 4 decimal places that always add up to 1.0000; when the rounded values do not, the PA
+    closest to rounding the other way moves by 0.0001 first."""
+    d = Decimal
+    # SW_MCWH 2028 in CEDARS' table: 0.37038, 0.1156, 0.24876, 0.26526 round to 1.0001 in all. SCE and SCG were both 0.00004 from
+    # rounding down; the tie goes to the larger factor, SCG.
+    pe = d("0.4")
+    electric = {"PGE": d("0.2871"), "SDGE": d("0.0910"), "SCE": d("0.6219"), "SCG": d("0")}
+    gas = {"PGE": d("0.4259"), "SDGE": d("0.1320"), "SCE": d("0"), "SCG": d("0.4421")}
+    w = service.weighted_factors(pe, electric, gas)
+    assert w == {"PGE": d("0.3704"), "SDGE": d("0.1156"), "SCE": d("0.2488"), "SCG": d("0.2652")}
+    assert sum(w.values()) == 1
+    # short of 1: the value closest to rounding up goes up first
+    pe = d("0.5")
+    electric = {"PGE": d("0.3333"), "SDGE": d("0.3333"), "SCE": d("0.3334"), "SCG": d("0")}
+    gas = {"PGE": d("0.2221"), "SDGE": d("0.4445"), "SCE": d("0.3334"), "SCG": d("0")}
+    # raw: 0.2777, 0.3889, 0.3334, 0 -> exact; and a case with remainders
+    assert sum(service.weighted_factors(pe, electric, gas).values()) == 1
+    pe = d("0.3333")
+    electric = {"PGE": d("0.3333"), "SDGE": d("0.3333"), "SCE": d("0.3334"), "SCG": d("0")}
+    gas = {"PGE": d("0.2500"), "SDGE": d("0.2500"), "SCE": d("0.2500"), "SCG": d("0.2500")}
+    # raw 0.27775..., 0.27775..., 0.27778..., 0.16667...: half-up gives 0.2778 + 0.2778 + 0.2778 + 0.1667 = 1.0001; PGE and SDGE are
+    # exactly on the half (closest to rounding down): PGE, first in order, goes down
+    w = service.weighted_factors(pe, electric, gas)
+    assert sum(w.values()) == 1 and w["PGE"] == d("0.2777") and w["SDGE"] == d("0.2778")
+    # a fuel with no budget: its factors all 0
+    w = service.weighted_factors(
+        d("1"), {"PGE": d("0.444"), "SDGE": d("0.155"), "SCE": d("0.401"), "SCG": d("0")}, dict.fromkeys(electric, d(0))
+    )
+    assert w == {"PGE": d("0.4440"), "SDGE": d("0.1550"), "SCE": d("0.4010"), "SCG": d("0")}
+
+
+def test_every_loaded_version_has_weighted_factors_adding_up_to_one(cpuc_admin):
+    """CEDARS' table has 8 program-years (SW_MCWH and SW_FS, 2028-2031) whose weighted factors add up to 1.0001; the computed ones
+    replace them, and every program-year adds up to exactly 1.0000."""
+    v = service.import_allocation_csv(cpuc_admin, _factors(), label="computed", purpose="filing")
+    assert v.weighted_replaced == 8
+    for e in v.entries.prefetch_related("shares"):
+        assert sum(s.weighted for s in e.shares.all()) == 1, (e.program_id, e.year)
+    assert not [i for i in service.check_allocation(v) if i.blocking]
+
+
+def test_more_than_four_decimals_or_a_blank_percent_electric_refuses_the_file(cpuc_admin):
+    def edit(rows):
+        rows[0]["PGEElectricFactor"] = "0.44400"  # trailing zeros do not count: 0.444
+        rows[0]["SDGEElectricFactor"] = "0.15500000"
+        rows[1]["PGEGasFactor"] = "0.50401"  # five decimal places
+        rows[2]["PercentElectric"] = ""
+
+    with pytest.raises(ValueError) as e:
+        service.import_allocation_csv(cpuc_admin, _factors(edit), label="long", purpose="filing")
+    message = str(e.value)
+    assert "line 3: PGEGasFactor: 0.50401 has more than 4 decimal places; 4 is the most a factor file may give" in message
+    assert "line 4: PercentElectric is blank; it is required" in message
+    assert "line 2" not in message
+    assert not AllocationVersion.objects.filter(label="long").exists()
+
+    def trailing_only(rows):
+        rows[0]["PGEElectricFactor"] = "0.44400"
+        rows[0]["SDGEElectricFactor"] = "0.15500000"
+
+    v = service.import_allocation_csv(cpuc_admin, _factors(trailing_only), label="trailing zeros", purpose="filing")
+    assert v.entries.order_by("year", "pk").first().shares.get(funding_pa="SDGE").electric == Decimal("0.155")
+
+
+def test_a_file_from_the_template_has_no_weighted_factors(cpuc_admin):
+    template = service.allocation_template_csv()
+    header = template.strip().split(",")
+    assert header[:4] == ["Year", "ProgramID", "ProgramName", "PercentElectric"]
+    assert not [c for c in header if "Weighted" in c] and len(template.strip().splitlines()) == 1
+    row = {
+        "Year": "2028",
+        "ProgramID": "SW_TEST",
+        "ProgramName": "A test program",
+        "PercentElectric": "0.75",
+        "PGEElectricFactor": "0.5",
+        "SCEElectricFactor": "0.5",
+        "PGEGasFactor": "0.25",
+        "SCGGasFactor": "0.75",
+    }
+    content = template + ",".join(row.get(c, "") for c in header) + "\n"
+    v = service.import_allocation_csv(cpuc_admin, content.encode(), label="from the template", purpose="claims")
+    shares = {s.funding_pa: s.weighted for s in v.entries.get().shares.all()}
+    assert shares == {"PGE": Decimal("0.4375"), "SCE": Decimal("0.375"), "SCG": Decimal("0.1875"), "SDGE": Decimal("0")}
+    assert v.weighted_replaced == 0
+
+
+def test_the_allocation_page_offers_the_template(signed_in, cpuc_admin, client):
+    page = signed_in(cpuc_admin).get("/allocations/").content.decode()
+    assert 'href="/allocations/template.csv"' in page
+    r = client.get("/allocations/template.csv")
+    assert r.status_code == 200 and r["Content-Disposition"].endswith('statewide_allocation_template.csv"')
+    assert b"WeightedFactor" not in r.content and b"PercentElectric" in r.content
 
 
 def test_managing_allocation_needs_its_own_permission_in_a_managing_organisation(cpuc_admin, pge, pge_admin, make_user):

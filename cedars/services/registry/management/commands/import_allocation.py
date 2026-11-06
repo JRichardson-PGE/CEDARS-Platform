@@ -6,7 +6,10 @@ from cedars.services.registry import service
 
 
 class Command(BaseCommand):
-    help = "Load a statewide allocation factor file (CEDARS' export layout) as a draft version; --confirm confirms it if it checks out."
+    help = (
+        "Load a statewide allocation factor file (the template's layout; weighted factors are computed) as a draft version; "
+        "--confirm confirms it if it checks out."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("csv", type=Path)

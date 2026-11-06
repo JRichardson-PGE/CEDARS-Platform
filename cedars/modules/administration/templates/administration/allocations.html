@@ -29,8 +29,22 @@ The other funding PAs are told when a version is confirmed.{% if nav.sysadmin %}
 {% if form %}
 <section class="card" aria-labelledby="up-h">
   <h2 id="up-h">Load a factor file</h2>
-  <p class="small">Loaded for {% if request.organisation and request.organisation.manages_allocation %}{{ request.organisation.code }}{% else %}the CPUC{% endif %}. The file uses the layout CEDARS exports and ReCET reads: Year, ProgramID, ProgramName, PercentElectric, then each funding PA's gas, electric and weighted factors.</p>
-    {% if example %}{% url 'administration:allocation_csv' example.pk as tmpl %}{% endif %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=tmpl template_label="the latest confirmed factors, in the same layout" fields=infields fields_label="the engine's statewide allocation table" rules_note="the checks run on the draft's page before you confirm it" guide="budgets" guide_label="the budget filings guide" %}
+  <p class="small">Loaded for {% if request.organisation and request.organisation.manages_allocation %}{{ request.organisation.code }}{% else %}the CPUC{% endif %}. Start from the
+  <a href="{% url 'administration:allocation_template' %}" download>factor file template (CSV)</a>: Year, ProgramID, ProgramName and
+  PercentElectric, then each funding PA's gas and electric factors.{% if example %} The latest confirmed version, <a href="{% url 'administration:allocation' example.pk %}">{{ example.label }}</a>, can be downloaded from its page as a starting point.{% endif %}</p>
+  <ul class="small">
+    <li>PercentElectric, the program's electric share of its budget from 0 to 1, is required on every row.</li>
+    <li>Electric, gas and PercentElectric values may have at most 4 decimal places (trailing zeros do not count, so 0.44400 is fine). A
+    file with a longer value is refused, with each such cell listed. A blank factor counts as 0.</li>
+    <li>Each row's electric factors must add up to exactly 1.0000, and so must its gas factors.</li>
+    <li>A program that is 100% electric (PercentElectric 1) has gas factors equal to its electric factors, and one that is 0% electric
+    has electric factors equal to its gas factors, so its savings in the other fuel are still allocated. Leave the other fuel's factors
+    blank and they are copied; filled in and different, the file is refused.</li>
+    <li>The weighted factors are computed: PercentElectric &times; electric + (1 &minus; PercentElectric) &times; gas, rounded to 4 decimal
+    places. When the rounded values do not add up to 1.0000, the PA whose value was closest to rounding the other way moves by 0.0001
+    first, until they do. A file that still has weighted factor columns is read, and those columns are ignored.</li>
+  </ul>
+    {% url 'administration:allocation_template' as tmpl %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=tmpl template_label="the factor file template" fields=infields fields_label="the engine's statewide allocation table" rules_note="the checks run on the draft's page before you confirm it" guide="reference-data" guide_label="the reference data guide" %}
   <form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
     <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>

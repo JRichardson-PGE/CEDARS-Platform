@@ -760,7 +760,15 @@ def allocations(request):
                 return redirect("administration:allocations")
             except AccessDenied as e:
                 return _refused(request, e, "administration:allocations")
-            return _done(request, f"{v.label} loaded as a draft. Check it, then confirm it.", f"/allocations/{v.pk}/")
+            note = ""
+            if v.fuel_copied:
+                n = v.fuel_copied
+                years = f"{n} one-fuel program-year{'s' if n != 1 else ''}"
+                note += f" On {years}, the unused fuel's blank factors were copied from the other fuel."
+            if v.weighted_replaced:
+                n = v.weighted_replaced
+                note += f" The file's own weighted factors were replaced with the computed ones on {n} program-year{'s' if n != 1 else ''}."
+            return _done(request, f"{v.label} loaded as a draft.{note} Check it, then confirm it.", f"/allocations/{v.pk}/")
     versions = _allocation_versions(request).select_related(
         "filing_cycle", "confirmed_by", "confirmed_organisation", "created_by", "created_organisation"
     )
@@ -774,7 +782,7 @@ def allocations(request):
             "can_manage": can_manage,
             "managers": managers,
             "permission": perms.label(perms.ALLOCATION),
-            # the latest confirmed version's factor file: the layout a new file takes (navigation review D3)
+            # the latest confirmed version: its factors are a starting point for a new file (the template is blank)
             "example": _allocation_versions(request).filter(status="confirmed").order_by("-confirmed_at").first(),
         },
     )
@@ -813,6 +821,17 @@ def allocation(request, pk):
             "history": registry.allocation_history(v),
         },
     )
+
+
+def allocation_template(request):
+    """The blank factor file a new version is loaded from (Jake, 2026-11-06): no weighted factor columns, since they are computed."""
+    from django.http import HttpResponse
+
+    from cedars.services.registry import service as registry
+
+    response = HttpResponse(registry.allocation_template_csv(), content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = 'attachment; filename="statewide_allocation_template.csv"'
+    return response
 
 
 def allocation_csv(request, pk):

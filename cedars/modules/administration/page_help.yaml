@@ -259,7 +259,10 @@ administration/allocations:
       with it loads a draft and confirms or discards it, and the other funding PAs are told. The CPUC can do the same.
   how:
     - Open a version for its factors, checks and history, or to download it.
-    - With the permission to manage the factors, Load as a draft takes a factor file; check the draft on its page before you confirm it.
+    - With the permission to manage the factors, download the factor file template, fill in PercentElectric and each PA's electric and
+      gas factors (at most 4 decimal places; each fuel's adding up to exactly 1.0000; a one-fuel program's other fuel left blank is
+      copied from it), and Load as a draft; the weighted factors are computed. Check the draft on its page before
+      you confirm it.
   tour:
     - target: main table.list
       title: Versions
@@ -273,7 +276,8 @@ administration/allocation:
   title: An allocation version
   see: reference-data
   guide:
-    - One version of the statewide allocation factors, its checks (each program's factors add up to 1 each year) and its history. A
+    - One version of the statewide allocation factors, its checks (each program's electric, gas and weighted factors add up to exactly
+      1.0000 each year) and its history. A
       funding PA member with the permission to manage the factors, or the CPUC, confirms a draft or discards it.
   how:
     - Confirm this version once its checks pass, or Discard the draft.
