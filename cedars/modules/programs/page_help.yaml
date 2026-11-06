@@ -43,7 +43,8 @@ programs/program:
     - Signed in, Follow this program sends you a notice when a filing that includes it is published or corrected, a fund shift moves its
       funds, its details change or a document about it is published. Your notification settings choose which of these you hear about.
     - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
-    - CPUC system administrators record a statewide program's lead PA under Lead PA, with a reason.
+    - A statewide program's lead PA is recorded under Lead PA, with a reason. While it has none, any program administrator's administrators
+      can record one; after that only the lead PA's administrators can change it, for example to hand it to another PA.
   see: programs
   tour:
     - target: "#def-h"

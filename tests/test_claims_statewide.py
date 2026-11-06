@@ -139,28 +139,43 @@ def test_the_set_up_page_adds_missing_statewide_due_dates(client, year, cpuc_adm
 # --- the lead PA
 
 
-def test_only_the_cpuc_records_a_statewide_programs_lead(cpuc_admin, pge_admin, pge, programs):  # noqa: F811
+def test_any_pa_records_a_missing_lead_and_only_the_lead_changes_it(cpuc_admin, pge_admin, pge, programs, make_user):  # noqa: F811
+    sce = programs
+    sce_admin = make_user("admin@sce.example.org")
+    access.grant(cpuc_admin, sce_admin, sce, "org.admin")
     p = registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="Y")
     assert "no lead PA recorded" in registry.filing_problem(p, pge)
-    with pytest.raises(AccessDenied, match="CPUC system administrator"):
-        registry.set_lead(pge_admin, p, pge, "mine")
+    assert registry.can_set_lead(pge_admin, p, pge) and registry.can_set_lead(sce_admin, p, sce)
+    assert not registry.can_set_lead(pge_admin, p, None) and not registry.can_set_lead(pge_admin, p, sce)  # acting for its own PA
     with pytest.raises(AccessDenied, match="reason"):
-        registry.set_lead(cpuc_admin, p, pge, " ")
+        registry.set_lead(pge_admin, p, pge, " ", organisation=pge)
     with pytest.raises(AccessDenied, match="not a statewide program"):
         registry.set_lead(cpuc_admin, Program.objects.get(prg_id="PGE_Res"), pge, "r")
-    registry.set_lead(cpuc_admin, p, programs, "SCE leads it")  # `programs` is SCE
-    assert registry.filing_problem(p, programs) == "" and "led by SCE" in registry.filing_problem(p, pge)
-    event = AuditEvent.objects.get(action="program.lead_set")
-    assert event.before == {"lead": None} and event.after == {"lead": "SCE"}
+    registry.set_lead(sce_admin, p, sce, "SCE leads it", organisation=sce)  # no lead yet: any PA records one
+    assert registry.filing_problem(p, sce) == "" and "led by SCE" in registry.filing_problem(p, pge)
+    with pytest.raises(AccessDenied, match="Only SCE, SW_Y's lead PA, changes its lead"):
+        registry.set_lead(pge_admin, p, pge, "ours now", organisation=pge)
+    registry.set_lead(sce_admin, p, pge, "handed to PG&E", organisation=sce)  # the lead hands it on
+    assert not registry.can_set_lead(sce_admin, p, sce) and registry.can_set_lead(pge_admin, p, pge)
+    registry.set_lead(cpuc_admin, p, sce, "CPUC correction")  # a CPUC system administrator can still correct it
+    events = AuditEvent.objects.filter(action="program.lead_set").order_by("pk")
+    assert [(e.before, e.after) for e in events] == [
+        ({"lead": None}, {"lead": "SCE"}), ({"lead": "SCE"}, {"lead": "PGE"}), ({"lead": "PGE"}, {"lead": "SCE"})
+    ]  # fmt: skip
 
 
-def test_the_program_page_records_the_lead(client, cpuc_admin, pge, programs):  # noqa: F811
+def test_the_program_page_records_the_lead(client, cpuc_admin, pge_admin, pge, programs):  # noqa: F811
     registry.create_program(cpuc_admin, prg_id="SW_Y", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="Y")
-    sign_in(client, cpuc_admin)
+    sign_in(client, pge_admin)
     page = client.get(reverse("programs:program", args=["SW_Y"])).content.decode()
     assert "no lead PA recorded yet" in page and 'id="lead-form"' in page
     client.post(reverse("programs:lead", args=["SW_Y"]), {"lead-lead": pge.pk, "lead-reason": "PG&E leads it"})
     assert Program.objects.get(prg_id="SW_Y").lead == pge
+    registry.set_lead(pge_admin, Program.objects.get(prg_id="SW_Y"), programs, "SCE leads it now", organisation=pge)
+    page = client.get(reverse("programs:program", args=["SW_Y"])).content.decode()
+    assert 'id="lead-form"' not in page and "Only SCE can change its lead" in page
+    r = client.post(reverse("programs:lead", args=["SW_Y"]), {"lead-lead": pge.pk, "lead-reason": "back"})
+    assert r.status_code == 404 and Program.objects.get(prg_id="SW_Y").lead == programs
 
 
 # --- filing
@@ -227,3 +242,21 @@ def test_only_lead_pas_owe_the_statewide_filing(year, pge, programs, sw_x, cpuc_
     i = next(i for i, c in enumerate(board.columns) if c.deadline == sw_deadline())  # claims' next due: the statewide Q1
     cells = {r.organisation.code: r.cells[i].status for r in board.rows}
     assert cells["SCE"] == "Nothing to file" and cells["PGE"] == "Not started"
+
+
+def test_leads_load_from_cedars_statewide_programs_download(tmp_path, cpuc_admin, pge, programs):  # noqa: F811
+    from django.core.management import call_command
+
+    for prg in ("SW_A", "SW_B"):
+        registry.create_program(cpuc_admin, prg_id=prg, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name=prg)
+    f = tmp_path / "statewide.csv"
+    f.write_text(
+        "LeadPA,PrgID,ProgramName,LaunchedYear,ClosedYear\n"
+        "Pacific Gas & Electric (PGE),SW_A,A,2026,\nSouthern California Edison (SCE),SW_B,B,2026,\nNobody (XYZ),SW_C,C,2026,\n",
+        encoding="utf-8-sig",
+    )
+    out = io.StringIO()
+    call_command("import_statewide_leads", str(f), "--reason", "CEDARS list", stdout=out)
+    assert "would change 2 leads; skipped 1" in out.getvalue() and Program.objects.get(prg_id="SW_A").lead is None
+    call_command("import_statewide_leads", str(f), "--reason", "CEDARS list", "--apply", stdout=out)
+    assert Program.objects.get(prg_id="SW_A").lead == pge and Program.objects.get(prg_id="SW_B").lead == programs

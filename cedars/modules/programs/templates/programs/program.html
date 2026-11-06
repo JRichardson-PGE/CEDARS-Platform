@@ -92,7 +92,7 @@
 {% else %}<p>{% if p.statewide %}No allocation version has factors for this program yet.{% else %}Not a statewide program: it is not allocated to funding PAs.{% endif %}</p>{% endif %}
 {% if p.statewide %}
 <h3 id="lead-h">Lead PA</h3>
-<p>{% if p.lead %}{{ p.lead.name }} ({{ p.lead.code }}) leads this program: it alone files its claims, in the statewide claims filed before the PAs' own, and its budget. The funding PAs see their shares once it confirms.{% else %}No lead PA is recorded, so nobody can file this program's claims or budget yet.{% endif %}</p>
+<p>{% if p.lead %}{{ p.lead.name }} ({{ p.lead.code }}) leads this program: it alone files its claims, in the statewide claims filed before the PAs' own, and its budget. The funding PAs see their shares once it confirms.{% else %}No lead PA is recorded, so nobody can file this program's claims or budget yet. Any program administrator's administrators can record one.{% endif %}{% if p.lead %} Only {{ p.lead.code }} can change its lead.{% endif %}</p>
 {% if lead_form %}
 <form method="post" action="{% url 'programs:lead' p.prg_id %}" class="stack form-narrow" id="lead-form" novalidate>{% csrf_token %}
   {% for field in lead_form %}{{ field.as_field_group }}{% endfor %}

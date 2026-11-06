@@ -336,7 +336,7 @@ def program(request, prg_id):
             "about": field_links(),
             "placeholders": [r for r in records.get("documents") or [] if r.get("placeholder")],
             "lead_form": forms.LeadForm(initial={"lead": p.lead_id}, prefix="lead")
-            if p.statewide and signed_in and access.is_system_admin(request.user)
+            if signed_in and registry.can_set_lead(request.user, p, getattr(request, "organisation", None))
             else None,
         },
     )
@@ -344,14 +344,15 @@ def program(request, prg_id):
 
 @login_required
 def lead(request, prg_id):
-    """Record a statewide program's lead PA (CPUC system administrators), with a reason."""
+    """Record a statewide program's lead PA, with a reason: any PA's administrators while it has none, then only its lead's."""
     p = _program_or_404(prg_id)
-    if request.method != "POST" or not p.statewide or not access.is_system_admin(request.user):
+    org = getattr(request, "organisation", None)
+    if request.method != "POST" or not registry.can_set_lead(request.user, p, org):
         raise Http404
     form = forms.LeadForm(request.POST, prefix="lead")
     if form.is_valid():
         try:
-            registry.set_lead(request.user, p, form.cleaned_data["lead"], form.cleaned_data["reason"])
+            registry.set_lead(request.user, p, form.cleaned_data["lead"], form.cleaned_data["reason"], organisation=org)
         except AccessDenied as e:
             messages.error(request, str(e))
         else:

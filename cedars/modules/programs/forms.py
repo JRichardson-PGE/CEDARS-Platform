@@ -181,7 +181,7 @@ class LockedFieldsForm(forms.Form):
 
 
 class LeadForm(forms.Form):
-    """A statewide program's lead PA (CPUC system administrators)."""
+    """A statewide program's lead PA: any PA's administrators while it has none, then only the lead's."""
 
     lead = forms.ModelChoiceField(
         label="Lead PA",
