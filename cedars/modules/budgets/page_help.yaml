@@ -77,15 +77,19 @@ budgets/filing:
 budgets/filing_new:
   title: Setting up a budget filing
   guide:
-    - For CPUC system administrators. A filing is due from every PA on one date for a four-year cycle. Choose its kind (application,
-      TUAL or MCAL), the cycle, the due date, and the ACC and statewide allocation version it is priced with.
+    - For CPUC system administrators. A filing is due from every PA on one date for its program years, any number of them (four for
+      most applications, eight for some, one for an annual advice letter). Choose its type (application, TUAL or MCAL), optionally a
+      name, its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
+    - Setting it up puts it on the filing calendar. From then on it is changed there, on its deadline's page (its name, dates and
+      notes, and its program years until a PA starts filing).
   how:
-    - Choose the kind, the cycle, the due date, the ACC and the allocation version, then Set up the filing.
+    - Choose the type, give a name if the years and type do not say enough, enter the first and last program years, the due date, the
+      ACC and the allocation version, then Set up the filing.
   see: budgets
   tour:
     - target: main form
       title: The filing
-      text: Kind, cycle, dates and how it is priced. Every PA sees it on Budgets once it is set up.
+      text: Type, name, program years, dates and how it is priced. Every PA sees it on Budgets and the filing calendar once it is set up.
 
 budgets/setup:
   title: How a budget filing is priced

@@ -13,12 +13,18 @@ submissions/calendar:
     - Select Budgets, Claims or Monthly reports to show only those filings; select a chosen type again to take it away, or All types for every filing.
     - Select Last 3 and next 9 months, This year or All for the due dates, or enter From and To dates and select Show these dates.
     - Open a filing's row to go to its page, where your organization files it.
-    - Add (CPUC system administrators) puts a deadline on the calendar by hand.
+    - >-
+      Add a filing (CPUC system administrators) opens a page of what can be set up: a budget filing, a claim year or a year of monthly
+      reports. Setting one up puts its deadlines on the calendar; the calendar itself only changes them.
     - >-
       Change on a deadline's row (CPUC system administrators) opens its page to change its due date, opening date or notes with a
-      reason, or to retire it; for everyone else History shows every change made to it. Show retired deadlines lists the retired ones.
+      reason (a budget filing's name and program years too), or to retire it; for everyone else History shows every change made to it. Show retired deadlines lists the retired ones.
   see: getting-started
   tour:
+    - target: "#add-filing"
+      title: Add a filing
+      text: For CPUC system administrators. Choose what to set up; its set-up puts it on the calendar.
+      optional: true
     - target: "#type-filter"
       title: Filing types
       text: Show one filing type or several. The chosen ones are filled and checked; select one again to take it away.
@@ -38,10 +44,22 @@ submissions/calendar:
       title: Corrections after the due date
       text: How a confirmed filing is corrected once its due date has passed.
       optional: true
-    - target: "#add-h"
-      title: Add a deadline
-      text: For CPUC system administrators.
-      optional: true
+
+submissions/deadline_new:
+  title: Add a filing
+  guide:
+    - >-
+      For CPUC system administrators. A filing goes on the filing calendar when it is set up: a budget filing (one deadline, for any
+      number of program years), a claim year (four quarterly claims and the annual claim) or a year of monthly reports (twelve).
+      Each set-up page asks for the dates and what the filing is priced on, and puts its deadlines on the calendar.
+    - After that a deadline is changed from the calendar, on its own page.
+  how:
+    - Select Set up on what to add. Its set-up page opens.
+  see: getting-started
+  tour:
+    - target: "#setup-choices"
+      title: What can be set up
+      text: Each kind of filing, what it puts on the calendar, and the page that sets it up.
 
 submissions/reopen_requests:
   title: Requests to correct filings
@@ -169,14 +187,17 @@ submissions/deadline:
   guide:
     - One deadline on the filing calendar, when it opens and is due, its notes and every change made to it, with the reason.
     - >-
-      A CPUC system administrator changes its due date, opening date and notes here. Each change needs a reason and is kept in the
-      history; those who follow the filing calendar are told, and reminders are sent again for a new due date.
+      A CPUC system administrator changes its due date, opening date and notes here; for a budget filing also its name and its
+      program years (any number of them, until a PA starts filing). Each change needs a reason and is kept in the history; those who
+      follow the filing calendar are told, and reminders are sent again for a new due date.
     - >-
-      What is due and its period do not change. A deadline added by hand by mistake is retired (taken off the calendar, kept here with
+      What is due does not change, nor does a claim's or monthly report's period. A deadline added by hand by mistake is retired (taken off the calendar, kept here with
       its history, and restorable) as long as no organization has started filing for it. A claim year's, a monthly reports year's or a
       budget filing's deadline is part of its module's set-up: it is moved, never retired.
   how:
-    - Change this deadline (CPUC system administrators) takes a new due date, opening date or notes and the reason, then Save the change.
+    - >-
+      Change this deadline (CPUC system administrators) takes a new name and program years (a budget filing), due date, opening date
+      or notes and the reason, then Save the change.
     - Retire the deadline takes it off the calendar with a reason; Restore to the calendar puts a retired one back.
   tour:
     - target: "#deadline-facts"
@@ -184,7 +205,7 @@ submissions/deadline:
       text: When it is due and opens, its notes, and the filing's page when a module set it up.
     - heading: Change this deadline
       title: Change this deadline
-      text: For CPUC system administrators. A new due date, opening date or notes, with the reason.
+      text: For CPUC system administrators. A new name or program years (a budget filing), due date, opening date or notes, with the reason.
       optional: true
     - heading: Retire this deadline
       title: Retire this deadline

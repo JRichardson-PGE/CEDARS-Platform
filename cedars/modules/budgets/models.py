@@ -44,7 +44,7 @@ class FilingSetup(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.deadline.kind} {self.deadline.cycle}"
+        return f"{self.deadline.title} {self.deadline.cycle}"
 
 
 class BudgetLine(models.Model):

@@ -760,6 +760,15 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     mcal = budgets.add_filing(
         cpuc_admin, first_year=2028, kind="Mid-cycle advice letter (MCAL)", due_at=timezone.now() + timedelta(days=400), acc_version="2026"
     )
+    application = budgets.add_filing(  # no PA has started it, so its program years still change on its calendar page
+        cpuc_admin,
+        first_year=2032,
+        last_year=2039,
+        name="2032-2039 Business plan application",
+        kind="Business plan application",
+        due_at=timezone.now() + timedelta(days=700),
+        acc_version="2026",
+    )
     v = budgets.upload(analyst, tual, pge, job(), "tual.zip")
     key = "runs/scene/out/_results/group_sums2_measure_level_run.parquet"
     storage.store("results").put_bytes(key, group_sums())
@@ -772,6 +781,7 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     return {
         "tual": tual,
         "mcal": mcal,
+        "application": application,
         "budget_version": v,
         "budget_draft": draft,
         **_fund_shifts(cpuc_admin, pge, analyst, tual.cycle, make_user),

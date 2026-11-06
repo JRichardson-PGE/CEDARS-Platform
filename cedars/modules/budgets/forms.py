@@ -19,10 +19,21 @@ def _allocations():
 
 
 class FilingForm(forms.Form):
-    first_year = forms.IntegerField(
-        label="First year of the cycle", min_value=2020, max_value=2100, help_text="A four-year cycle, e.g. 2028 for 2028-2031"
+    kind = forms.ChoiceField(label="Type of filing", choices=FILING_KINDS)
+    name = forms.CharField(
+        label="Filing name (optional)",
+        max_length=120,
+        required=False,
+        help_text="What the calendar and the filing's pages call it, e.g. 2028-2035 Business plan application. Blank: its program "
+        "years and its type. It can be changed later on the filing calendar.",
     )
-    kind = forms.ChoiceField(label="Filing", choices=FILING_KINDS)
+    first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100)
+    last_year = forms.IntegerField(
+        label="Last program year",
+        min_value=2000,
+        max_value=2100,
+        help_text="Any number of years: e.g. 2028 to 2031, 2028 to 2035, or the same year as the first for a one-year filing.",
+    )
     opens = forms.DateField(label="Opens on", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
     acc_version = forms.ChoiceField(label="ACC it is priced on")
@@ -47,6 +58,14 @@ class FilingForm(forms.Form):
         self.fields["allocation_version"].queryset = _allocations()
         self.fields["cost_test_set"].queryset = _cost_test_sets()
         self.fields["first_year"].initial = timezone.localdate().year + 1
+        self.fields["last_year"].initial = timezone.localdate().year + 4
+
+    def clean(self):
+        d = super().clean()
+        first, last = d.get("first_year"), d.get("last_year")
+        if first and last and last < first:
+            self.add_error("last_year", "The last program year is the same as the first or after it.")
+        return d
 
 
 class SetupForm(forms.Form):

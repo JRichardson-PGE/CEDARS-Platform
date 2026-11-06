@@ -18,7 +18,7 @@ MODULE_NAMES = {"budgets": "Budget filing", "claims": "Claims", "monthly": "Mont
 
 def describe(submission: Submission) -> str:
     d = submission.deadline
-    return f"{MODULE_NAMES.get(d.module, d.module)}: {submission.organisation.code} {d.kind}, {d.period or d.cycle}"
+    return f"{MODULE_NAMES.get(d.module, d.module)}: {submission.organisation.code} {d.title}, {d.period or d.cycle}"
 
 
 def _filing_page(submission: Submission, v: SubmissionVersion | None = None) -> str:

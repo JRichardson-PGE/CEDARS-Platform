@@ -2,7 +2,8 @@
 
 who: None (signed out), "password" (signed in with a password only: the second-factor set-up), or a key of test_axe.SCENE's people
 (signed in with MFA). Paths may name the scene's objects by their keys, e.g. {pge}, {cpuc}, {allocation}, {rules}, {package},
-{upload}, {queued_run}, {sw}, {tual}, {mcal}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting}, {shift_draft},
+{upload}, {queued_run}, {sw}, {tual}, {mcal}, {application}, {budget_version}, {budget_draft}, {shift_effective}, {shift_waiting},
+{shift_draft},
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
@@ -145,6 +146,9 @@ PAGES = [
     ("filing-deadline", "/filings/calendar/{deadline}/", "cpuc_admin"),
     ("filing-deadline-public", "/filings/calendar/{deadline}/", None),
     ("filing-deadline-retired", "/filings/calendar/{retired_deadline}/", "cpuc_admin"),
+    ("filing-deadline-budget", "/filings/calendar/{application}/", "cpuc_admin"),  # name and program years can change
+    ("filing-deadline-budget-started", "/filings/calendar/{tual}/", "cpuc_admin"),  # program years fixed: a PA has filed
+    ("filing-add", "/filings/calendar/new/", "cpuc_admin"),
     ("reopen-requests", "/filings/reopen-requests/", "approver"),
     ("my-queue", "/queue/", "approver"),
     ("my-queue-cofunder", "/queue/", "sce_user"),
@@ -335,9 +339,9 @@ PAGES = [
     ("fund-shift-waiting-cofunder", "/budgets/shifts/{shift_waiting}/", "sce_user"),
     ("fund-shift-acknowledge", "/budgets/shifts/{shift_waiting}/acknowledge/", "sce_user"),
     ("fund-shift-effective-cpuc", "/budgets/shifts/{shift_effective}/", "cpuc_admin"),
-    ("operating-budget", "/budgets/operating/2028/", "analyst"),
-    ("operating-budget-cpuc", "/budgets/operating/2028/?org=PGE&year=2028", "cpuc_admin"),
-    ("operating-budget-regulator", "/budgets/operating/2028/", "cpuc_admin"),  # the PAs to choose from
+    ("operating-budget", "/budgets/operating/2028-2031/", "analyst"),
+    ("operating-budget-cpuc", "/budgets/operating/2028-2031/?org=PGE&year=2028", "cpuc_admin"),
+    ("operating-budget-regulator", "/budgets/operating/2028-2031/", "cpuc_admin"),  # the PAs to choose from
     ("monthly", "/monthly/", "analyst"),
     ("monthly-regulator", "/monthly/", "cpuc_admin"),
     ("monthly-year-new", "/monthly/years/new/", "cpuc_admin"),

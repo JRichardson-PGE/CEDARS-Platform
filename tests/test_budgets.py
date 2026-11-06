@@ -364,7 +364,7 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     assert client.get(reverse("budgets:filing", args=[filing.pk]) + "?org=PGE").status_code == 200
     r = client.post(
         reverse("budgets:filing_new"),
-        {"first_year": 2028, "kind": "Mid-cycle advice letter (MCAL)", "due": "2029-09-01", "acc_version": "2026"},
+        {"first_year": 2028, "last_year": 2031, "kind": "Mid-cycle advice letter (MCAL)", "due": "2029-09-01", "acc_version": "2026"},
     )
     assert r.status_code == 302
     assert client.get(reverse("budgets:setup", args=[filing.pk])).status_code == 200

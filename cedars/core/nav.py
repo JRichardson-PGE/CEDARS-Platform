@@ -70,7 +70,7 @@ CHANGE_LOGS = (
     Item("Monthly report change log", "monthly:changes", pages=("monthly:change*",)),
 )
 
-CALENDAR = ("submissions:deadline",)
+CALENDAR = ("submissions:deadline", "submissions:deadline_new")
 STUDIES = (
     "documents:stud*",
     "documents:new_study",

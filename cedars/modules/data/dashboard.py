@@ -191,7 +191,7 @@ VIEW_PARAMS = (
 
 def current_cycle(today: date | None = None) -> FilingCycle | None:
     year = (today or date.today()).year
-    return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()
+    return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year", "-last_year").first()
 
 
 def default_cycle(today: date | None = None) -> FilingCycle | None:

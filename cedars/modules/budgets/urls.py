@@ -29,6 +29,6 @@ urlpatterns = [
     path("shifts/<int:pk>/submit", shift_views.shift_submit, name="shift_submit"),
     path("shifts/<int:pk>/withdraw", shift_views.shift_withdraw, name="shift_withdraw"),
     path("shifts/<int:pk>/acknowledge/", shift_views.shift_acknowledge, name="shift_acknowledge"),
-    path("operating/<int:first_year>/", shift_views.operating, name="operating"),
-    path("operating/<int:first_year>/operating.csv", shift_views.operating_csv, name="operating_csv"),
+    path("operating/<str:cycle>/", shift_views.operating, name="operating"),
+    path("operating/<str:cycle>/operating.csv", shift_views.operating_csv, name="operating_csv"),
 ]

@@ -87,7 +87,7 @@ def test_an_ordinary_access_denied_still_reaches_the_filer(filer, filing, pge, p
 
 def test_the_budgets_list_and_a_version_link_the_operating_budget(client, filer, pge_admin, pge, filing, programs, release):  # noqa: F811
     """Navigation review D7 (M9): what a filer's budget is now, from Budgets itself."""
-    operating = reverse("budgets:operating", args=[filing.cycle.first_year])
+    operating = reverse("budgets:operating", args=[filing.cycle.slug])
     page = sign_in(client, filer).get(reverse("budgets:index")).content.decode()
     assert f'href="{operating}">PGE\'s operating budget for the' in page.replace("&#x27;", "'")
     assert operating not in sign_in(client, pge_admin).get(reverse("budgets:index")).content.decode()  # not one of its readers

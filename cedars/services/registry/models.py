@@ -86,20 +86,30 @@ class ProgramVersion(models.Model):
 
 
 class FilingCycle(models.Model):
-    """A four-year budget cycle (e.g. 2028-2031) that budgets, fund shifts, monthly reports and claims hang off."""
+    """The program years a budget filing covers (e.g. 2028-2031, or 2028-2035 for an eight-year application, or 2021 for one annual
+    budget advice letter) that budgets, fund shifts, monthly reports and claims hang off. Any number of years; two cycles may start in
+    the same year when they end in different ones."""
 
-    first_year = models.PositiveSmallIntegerField(unique=True)
+    first_year = models.PositiveSmallIntegerField()
     last_year = models.PositiveSmallIntegerField()
 
     class Meta:
-        ordering = ["first_year"]
-        constraints = [models.CheckConstraint(condition=Q(last_year__gte=models.F("first_year")), name="registry_cycle_years_in_order")]
+        ordering = ["first_year", "last_year"]
+        constraints = [
+            models.CheckConstraint(condition=Q(last_year__gte=models.F("first_year")), name="registry_cycle_years_in_order"),
+            models.UniqueConstraint(fields=["first_year", "last_year"], name="registry_one_cycle_per_years"),
+        ]
 
     def __str__(self):
         return f"{self.first_year}-{self.last_year}"
 
     def covers(self, year: int) -> bool:
         return self.first_year <= year <= self.last_year
+
+    @property
+    def slug(self) -> str:
+        """The cycle in a page address: "2028-2031" (registry.cycle_from_slug reads it, and a bare first year)."""
+        return f"{self.first_year}-{self.last_year}"
 
 
 class ReportingPeriod(models.Model):

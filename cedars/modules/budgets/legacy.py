@@ -139,14 +139,18 @@ class Outcome:
 
 
 def _deadline(filing: LegacyFiling) -> Deadline:
-    cycle = registry.ensure_cycle(filing.first_year, filing.years)
+    cycle = registry.ensure_cycle(filing.first_year, last_year=filing.first_year + filing.years - 1)
     deadline = Deadline.objects.filter(module=service.MODULE, kind=filing.kind, cycle=cycle).first()
     if deadline is None:
         deadline = service.add_filing(
-            None, first_year=filing.first_year, kind=filing.kind, due_at=service.due_at(filing.due), acc_version=filing.acc, notes=NOTE
+            None,
+            first_year=filing.first_year,
+            last_year=filing.first_year + filing.years - 1,
+            kind=filing.kind,
+            due_at=service.due_at(filing.due),
+            acc_version=filing.acc,
+            notes=NOTE,
         )
-        if deadline.cycle_id != cycle.pk:  # add_filing ensures a four-year cycle; a one-year cycle already exists, so it is this one
-            raise legacy.LegacyError(f"{filing.key}: the filing landed on {deadline.cycle}, not {cycle}")
     elif not hasattr(deadline, "budget_setup"):
         FilingSetup.objects.create(deadline=deadline, acc_version=filing.acc)
     return deadline

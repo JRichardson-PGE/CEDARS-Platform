@@ -16,7 +16,6 @@ from cedars.core import uploads as core_uploads
 from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.registry import service as registry
 
 from . import comments, corrections, service
 from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
@@ -24,33 +23,24 @@ from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, Work
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
 
 
-class DeadlineForm(forms.Form):
-    module = forms.ChoiceField(label="Module", choices=MODULES)
-    kind = forms.CharField(label="What is due", max_length=80, help_text="e.g. Q1 claim, TUAL, monthly report")
-    year = forms.IntegerField(label="Program year", min_value=2000, max_value=2100)
-    period = forms.ChoiceField(
-        label="Period",
-        choices=[("year", "The year")] + [(f"q{q}", f"Quarter {q}") for q in range(1, 5)] + [(f"m{m}", f"Month {m}") for m in range(1, 13)],
-    )
-    due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
-    opens = forms.DateField(
-        label="Opens (optional)",
-        required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
-        help_text="The first day filings can start. Blank: open now.",
-    )
-    notes = forms.CharField(label="Notes (optional)", required=False, widget=forms.Textarea(attrs={"rows": 2}))
-
-    def clean(self):
-        d = super().clean()
-        if d.get("opens") and d.get("due") and d["opens"] > d["due"]:
-            self.add_error("opens", "A filing opens on or before its due date.")
-        return d
-
-
 class DeadlineChangeForm(forms.Form):
-    """A deadline's due date, opening date and notes, with the reason for the change (what is due and its period never change)."""
+    """A deadline's due date, opening date and notes, with the reason for the change; for a filing on a cycle (a budget filing), also
+    its name and program years (service.renamable). What is due, and a claim's or monthly report's period, never change."""
 
+    name = forms.CharField(
+        label="Filing name",
+        max_length=120,
+        required=False,
+        help_text="What the calendar and the filing's pages call it. Blank: its program years and what is due.",
+    )
+    first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100, required=False)
+    last_year = forms.IntegerField(
+        label="Last program year",
+        min_value=2000,
+        max_value=2100,
+        required=False,
+        help_text="Any number of years: the same as the first year for a one-year filing. Changes only before any filing starts.",
+    )
     due = forms.DateField(label="Due date", widget=forms.DateInput(attrs={"type": "date"}))
     opens = forms.DateField(
         label="Opens (optional)",
@@ -70,10 +60,25 @@ class DeadlineChangeForm(forms.Form):
         help_text="Kept in the deadline's history and sent to those who follow the filing calendar.",
     )
 
+    def __init__(self, *args, renamable=False, years_fixed=False, **kw):
+        super().__init__(*args, **kw)
+        if not renamable:
+            for f in ("name", "first_year", "last_year"):
+                del self.fields[f]
+        elif years_fixed:
+            for f in ("first_year", "last_year"):
+                self.fields[f].disabled = True
+                self.fields[f].help_text = "Filings have started, so the program years no longer change."
+        else:
+            self.fields["first_year"].required = self.fields["last_year"].required = True
+
     def clean(self):
         d = super().clean()
         if d.get("opens") and d.get("due") and d["opens"] > d["due"]:
             self.add_error("opens", "A filing opens on or before its due date.")
+        first, last = d.get("first_year"), d.get("last_year")
+        if first and last and last < first:
+            self.add_error("last_year", "The last program year is the same as the first or after it.")
         return d
 
 
@@ -96,13 +101,6 @@ def _opens_at(day: date | None, keep=None):
     if keep is not None and timezone.localtime(keep).date() == day:
         return keep
     return timezone.make_aware(datetime.combine(day, time.min))
-
-
-def _period(year: int, code: str):
-    periods = {(p.kind, p.number): p for p in registry.ensure_periods(year)}
-    if code == "year":
-        return periods[("year", 0)]
-    return periods[("quarter" if code[0] == "q" else "month", int(code[1:]))]
 
 
 RANGES = [  # the due-date choices on the filing calendar, in the order shown; the first is the default
@@ -179,26 +177,10 @@ def _calendar_link(types, rng, start=None, end=None, retired=False) -> str:
 def calendar(request):
     """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5); a CPUC system administrator adds deadlines
     here and opens each one's page to change or retire it. Filtered by filing type and due date (last 3 and next 9 months by default),
-    the filters kept in the URL; retired deadlines are shown only to administrators who ask (`retired=1`)."""
+    the filters kept in the URL; retired deadlines are shown only to administrators who ask (`retired=1`). The calendar fills from the
+    modules' set-ups (a budget filing, a claim year, a year of monthly reports: Add a filing leads to them); here a deadline is only
+    changed."""
     sysadmin = access.is_system_admin(request.user)
-    form = DeadlineForm(request.POST or None)
-    if request.method == "POST" and sysadmin and form.is_valid():
-        d = form.cleaned_data
-        try:
-            service.add_deadline(
-                request.user,
-                module=d["module"],
-                kind=d["kind"],
-                period=_period(d["year"], d["period"]),
-                due_at=_due_at(d["due"]),
-                opens_at=_opens_at(d["opens"]),
-                notes=d["notes"],
-            )
-        except AccessDenied as e:
-            messages.error(request, str(e))
-        else:
-            messages.success(request, "Deadline added.")
-        return HttpResponseRedirect(request.get_full_path())
     f = calendar_filters(request.GET, timezone.localdate())
     types, rng, start, end = f["types"], f["range"], f["start"], f["end"]
     retired = sysadmin and request.GET.get("retired") == "1"
@@ -245,7 +227,6 @@ def calendar(request):
             + (", retired ones included" if retired else ""),
             "filtered": bool(types) or rng != "all",
             "all_url": _calendar_link([], "all", retired=retired),
-            "form": form if sysadmin else None,
             "sysadmin": sysadmin,
             "retired": retired,
             "retired_count": Deadline.objects.filter(retired_at__isnull=False).count() if sysadmin else 0,
@@ -255,7 +236,18 @@ def calendar(request):
     )
 
 
-FIELD_LABELS = {"due_at": "Due date", "opens_at": "Opens", "notes": "Notes"}
+@login_required
+def deadline_new(request):
+    """Add a filing (CPUC system administrators): what can be set up, each on its module's set-up page, which puts its deadlines on
+    the calendar (service.register_setup_page). The calendar itself only changes what is on it."""
+    if not access.is_system_admin(request.user):
+        raise Http404
+    nav.belongs_to(request, "submissions:calendar")
+    pages = [p | {"url": reverse(p["url_name"])} for p in service.setup_pages()]
+    return render(request, "submissions/deadline_new.html", {"pages": pages})
+
+
+FIELD_LABELS = {"name": "Name", "years": "Program years", "due_at": "Due date", "opens_at": "Opens", "notes": "Notes"}
 EVENT_LABELS = {
     "deadline.created": "Added to the calendar",
     "deadline.moved": "Due date moved",
@@ -284,7 +276,10 @@ def deadline_history(d: Deadline) -> list[dict]:
     for e in audit.changes(d):
         before, after = e.before or {}, e.after or {}
         if e.action == "deadline.created":
-            changes = [f"due {_shown('due_at', after.get('due_at'))}"]
+            changes = [f"named {after['name']}"] if after.get("name") else []
+            if after.get("years"):
+                changes.append(f"program years {after['years']}")
+            changes.append(f"due {_shown('due_at', after.get('due_at'))}")
             if after.get("opens_at"):
                 changes.append(f"opens {_shown('opens_at', after['opens_at'])}")
         else:
@@ -303,9 +298,21 @@ def deadline(request, pk):
     d = get_object_or_404(Deadline.objects.select_related("period", "cycle"), pk=pk)
     sysadmin = access.is_system_admin(request.user)
     local = {k: timezone.localtime(getattr(d, k)).date() if getattr(d, k) else None for k in ("due_at", "opens_at")}
-    initial = {"due": local["due_at"], "opens": local["opens_at"], "notes": d.notes}
+    initial = {"due": local["due_at"], "opens": local["opens_at"], "notes": d.notes, "name": d.name}
+    if d.cycle_id:
+        initial |= {"first_year": d.cycle.first_year, "last_year": d.cycle.last_year}
+    started = d.submissions.count()
+    renamable = service.renamable(d)
     action = request.POST.get("action", "") if request.method == "POST" else ""
-    change_form = DeadlineChangeForm(request.POST if action == "change" else None, initial=initial, auto_id="change_%s")
+    change_form = DeadlineChangeForm(
+        request.POST if action == "change" else None,
+        initial=initial,
+        auto_id="change_%s",
+        renamable=renamable,
+        years_fixed=bool(started),
+    )
+    if renamable:
+        change_form.fields["name"].help_text = f"What the calendar and the filing's pages call it. Blank: {d.kind}."
     retire_form = RetireForm(request.POST if action in ("retire", "restore") else None, auto_id="retire_%s")
     if action and not sysadmin:
         raise Http404
@@ -319,6 +326,8 @@ def deadline(request, pk):
                 opens_at=_opens_at(c["opens"], d.opens_at),
                 notes=c["notes"],
                 reason=c["reason"],
+                name=c["name"] if renamable else None,
+                years=(c["first_year"], c["last_year"]) if renamable and not started else None,
             )
         except AccessDenied as e:
             messages.error(request, str(e))
@@ -334,7 +343,6 @@ def deadline(request, pk):
         else:
             messages.success(request, "Deadline retired." if action == "retire" else "Deadline restored to the calendar.")
             return redirect("submissions:deadline", pk=d.pk)
-    started = d.submissions.count()
     page = service.deadline_page(d)
     return render(
         request,
@@ -346,6 +354,7 @@ def deadline(request, pk):
             "change_form": change_form,
             "retire_form": retire_form,
             "started": started,
+            "renamable": renamable,
             "can_retire": not page and not started,
             "history": deadline_history(d),
         },

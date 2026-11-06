@@ -1,0 +1,15 @@
+{% extends "core/base.html" %}
+{% block title %}Add a filing{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li></ol></nav>
+<div class="page-title"><h1>Add a filing</h1>{% page_help "submissions/deadline_new" %}</div>
+<p>A filing goes on the calendar when it is set up: choose what to set up. Its set-up page asks for its program years, due dates and what it is priced on, and puts its deadlines on the calendar. After that, change a deadline from the calendar (its name, dates and notes; a budget filing's program years too, until a filing starts).</p>
+<ul class="cards" id="setup-choices">
+{% for p in pages %}
+  <li class="card"><h2 id="setup-{{ p.module }}">{{ p.label }}</h2><p>{{ p.about }}</p><p><a class="button primary" href="{{ p.url }}">Set up {{ p.label|lower }}</a></p></li>
+{% empty %}
+  <li>No module sets up filings.</li>
+{% endfor %}
+</ul>
+<p><a href="{% url 'submissions:calendar' %}">Back to the filing calendar</a></p>
+{% endblock %}

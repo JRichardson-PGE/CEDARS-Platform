@@ -9,11 +9,11 @@
   },
   "guide:administering": {
     "release": "0.2.0",
-    "sha256": "d21e29af0c0a0c33c26f68cd28f57bdabe55051db238c500950eac3001fd2dba"
+    "sha256": "376b9cbc2d5accffd997114e458337666e297649787e5268fdfc9ae392227f3a"
   },
   "guide:budgets": {
     "release": "0.2.0",
-    "sha256": "fcefaaa3badece5e529b834cce6e540f3b149e9ef368895cf4dda49bd2506c19"
+    "sha256": "fa0d1b8972c6342a230b91528e25b3577cba1c32f0952a3a6d9030cc6281d4d4"
   },
   "guide:calculations": {
     "release": "0.2.0",
@@ -37,7 +37,7 @@
   },
   "guide:glossary": {
     "release": "0.2.0",
-    "sha256": "1d22d9de9b17748b8561a57cb093fd620dc120501e297fc665dc332ec2b2959f"
+    "sha256": "11f700f1caec719f80e6dec8609f033e62e498344a8f894cd8cae15428c60678"
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
