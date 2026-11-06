@@ -72,6 +72,7 @@ def detail(request, pk):
             "cost_words": words,
             "cost_problem": problem,
             "engine_here": cost_tests.engine_installed(),
+            "cost_grid": cost_tests.grid(pack),
         }
     return render(
         request,

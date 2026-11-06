@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from cedars.core.templatetags.ui import person
 from cedars.services.accounts.service import AccessDenied
 
-from . import builder, cost_tests
+from . import builder, cost_tests, formula
 from . import builder_forms as bf
 from .models import CostTestBuild
 
@@ -327,7 +327,7 @@ def _tests(request, build):
             error = str(e)
         else:
             return redirect("refdata:build_step", pk=build.pk, step="tests")
-    tests = [(t, v) for t, v in (build.data.get("tests") or {}).items() if isinstance(v, dict)]
+    tests = [(t, v, formula.render(t, v)) for t, v in (build.data.get("tests") or {}).items() if isinstance(v, dict)]
     return render(request, "refdata/builder/tests.html", _ctx(request, build, "tests", tests=tests, error=error))
 
 
@@ -364,7 +364,9 @@ def build_test(request, pk, tid=None):
             form.add_error(None, str(e))
         else:
             return _part_saved(request, build, "tests", form.cleaned_data["id"])
-    return render(request, "refdata/builder/test.html", _ctx(request, build, "tests", form=form, tid=tid))
+    listed = _streams_for(build, named)
+    catalog = {"streams": [{"name": n, "pricings": list(s.get("pricings") or [])} for n, s in listed], "shares": form.share_tests}
+    return render(request, "refdata/builder/test.html", _ctx(request, build, "tests", form=form, tid=tid, catalog=catalog))
 
 
 def _part_saved(request, build, step, name):
@@ -396,6 +398,7 @@ def _review(request, build):
             offer=bf.OfferForm(),
             decline=bf.DeclineForm() if builder.is_manager(request.user) and build.status == "offered" else None,
             parent=build.parent or build.parent_build,
+            grid=formula.grid(build.data),
         ),
     )
 

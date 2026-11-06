@@ -1,15 +1,27 @@
 {% extends "refdata/builder/base.html" %}
+{% load static %}
 {% block heading %}<div class="page-title"><h1>{% if tid %}Change {{ tid }}{% else %}Add a test{% endif %}: {{ build }}</h1>{% page_help "refdata/builder/test" %}</div>{% endblock %}
 {% block step %}
 <p><a href="{% url 'refdata:build_step' build.pk 'tests' %}">Back to the tests</a></p>
-<p>Each stream is listed with the pricings it is read in; one not read in the test's pricing is a problem.</p>
+<p>Write the test as a formula, or tick its streams in the lists below it: they are the same test. Each stream is listed with the pricings
+it is read in; one not read in the test's pricing is a problem.</p>
 <form method="post" class="stack form-narrow">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.id.as_field_group }}{{ form.label.as_field_group }}{{ form.pricing.as_field_group }}
-  {{ form.benefits.as_field_group }}{{ form.numerator_adders.as_field_group }}{{ form.costs.as_field_group }}
-  {{ form.share.as_field_group }}{{ form.variants.as_field_group }}
+  <div class="formula-bar" id="formula-bar">
+    {{ form.formula.as_field_group }}
+    <ul class="formula-suggest" id="formula-suggest" role="listbox" aria-label="Names you can write" hidden></ul>
+    <p class="formula-check small" id="formula-check" hidden></p>
+  </div>
+  <fieldset><legend>The same test as lists</legend>
+    {{ form.benefits.as_field_group }}{{ form.numerator_adders.as_field_group }}{{ form.costs.as_field_group }}
+    {{ form.share.as_field_group }}
+  </fieldset>
+  {{ form.variants.as_field_group }}
   <fieldset><legend>Outputs</legend>{{ form.lifecycle_net_benefit.as_field_group }}{{ form.levelized.as_field_group }}{{ form.headline.as_field_group }}{{ form.filing.as_field_group }}</fieldset>
   {{ form.definition.as_field_group }}
   {% if can_change %}<div class="actions"><button type="submit" class="primary">Save the test</button></div>{% endif %}
 </form>
+{{ catalog|json_script:"formula-catalog" }}
 {% endblock %}
+{% block scripts %}<script src="{% static 'refdata/builder_formula.js' %}" defer></script>{% endblock %}

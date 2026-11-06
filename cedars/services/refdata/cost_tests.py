@@ -184,6 +184,17 @@ def in_words(pack: PackVersion, data: bytes | None = None) -> tuple[str | None, 
         return None, str(e)
 
 
+def grid(pack: PackVersion) -> dict | None:
+    """The set's tests as a review grid (`formula.grid`); None when its file cannot be read."""
+    from .formula import grid as test_grid
+
+    try:
+        parsed = yaml.safe_load(file_bytes(pack).decode("utf-8-sig"))
+    except (storage.StorageError, UnicodeDecodeError, yaml.YAMLError):
+        return None
+    return test_grid(parsed) if isinstance(parsed, dict) else None
+
+
 def engine_installed() -> bool:
     try:
         from recet import cost_test_sets  # noqa: F401

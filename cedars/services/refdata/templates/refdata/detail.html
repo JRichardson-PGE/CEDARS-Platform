@@ -28,6 +28,10 @@
 </dl>
 <p class="small muted">The file is the set exactly as runs read it. To make a set of your own, download this one and change it: New run takes it
 as your own cost-test set file for an analysis run. A registered set never changes; the CPUC registers a changed set under a new version.</p>
+{% if cost_grid.tests %}
+<h3 id="grid-h">How the tests are built</h3>
+{% include "refdata/_test_grid.html" with grid=cost_grid grid_id="grid" level="4" %}
+{% endif %}
 {% if cost_words %}
 <h3 id="words-h">The set in words</h3>
 <p>Each test as the engine writes it out: what its benefits and costs add up, column by column.</p>

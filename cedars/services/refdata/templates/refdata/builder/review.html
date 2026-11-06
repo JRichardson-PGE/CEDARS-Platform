@@ -39,6 +39,12 @@
 <ul>{% for k, v in set_aside %}<li><code>{{ k }}</code>: {{ v }}</li>{% endfor %}</ul>
 </section>
 {% endif %}
+{% if grid.tests %}
+<section aria-labelledby="grid-h">
+<h2 id="grid-h">How the tests are built</h2>
+{% include "refdata/_test_grid.html" with grid_id="grid" level="3" %}
+</section>
+{% endif %}
 {% if words %}
 <section aria-labelledby="words-h">
 <h2 id="words-h">The set in words</h2>
