@@ -31,24 +31,30 @@ calculations/new:
     - Upload the job as one .zip holding Measure.csv and, optionally, ProgramCost.csv, or as ReCET's job workbook (.xlsx), or run a
       draft you are editing in Edit inputs.
     - >-
-      ReCET's optional input files (run parameters, 8,760 electric profiles, gas monthly profiles) can be uploaded under Optional input
-      files, put in the job zip (RunParameters.csv, Profiles8760.csv, GasProfiles.csv, or .parquet), or given as sheets of the workbook; a
+      ReCET's optional input files (run parameters, 8,760 electric profiles, gas monthly profiles) can be uploaded under Advanced options,
+      Optional input files, put in the job zip (RunParameters.csv, Profiles8760.csv, GasProfiles.csv, or .parquet), or given as sheets of the workbook; a
       file uploaded on its own wins over the same table in the zip or workbook. A job's own program metadata (Programs) and statewide
       factors (SWAllocation) are not used: the program registry and the allocation version take their place, and the run's page says
       so. A CET replica takes none of the optional files.
-      Choose the engine release and the ACC; the run is queued, the run page shows its progress, and its files and results when it ends.
+    - >-
+      The job box holds what most runs need: a name, who the run is for, the job file, the calculation engine, the ACC, the First
+      Year and market effects. Everything else is under Advanced options, folded away; left as it is, the run takes the engine's
+      defaults. The run is queued, the run page shows its progress, and its files and results when it ends.
     - A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history only. It is never used
       for a filing.
   how:
     - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
-    - Which ACCs each engine has, under Pricing, lists the ACCs each release can price on. Which ACC applies to my filing? lists each ACC's
+    - Advanced options opens with Enter or Space (or a click). Its heading says how many of its settings are not at their defaults (a
+      rerun's own settings), and it opens by itself when one of them needs fixing.
+    - Which ACCs each engine has, in The job, lists the ACCs each release can price on. Which ACC applies to my filing? lists each ACC's
       budget filings and the program years whose claims use it.
     - Compare with another ACC prices the job on a second ACC too; the run's Results then has a tab for each ACC and one comparing the two.
+    - Years of the combined profile takes years or a range (2028-2035, or 2028-2030, 2035).
     - First Year and Market effects are CET's own settings; Price each ACC component separately and Combined 8,760 electric load profile add
       ReCET's own outputs (a CET replica takes neither, nor an ACC comparison).
     - Priced for flags records whose ACC does not apply to their program year for claims, any filing, or one named budget filing.
-    - What each cost-test set prices, under Pricing, lists the registered sets, their program years and the tests each writes. An
+    - What each cost-test set prices, under Advanced options, lists the registered sets, their program years and the tests each writes. An
       analysis run may instead take one of your own sets from the set builder (Or one of my cost-test sets) or a cost-test set file of
       your own (never a filing, or a run with filing checks or Priced for).
     - Left blank, the run's name is the job file's (or draft's) name and its ACC. A large upload shows how much has been sent.
@@ -58,28 +64,21 @@ calculations/new:
       title: Templates
       text: The engine's own templates for the job workbook, Measure.csv and the optional input files.
       optional: true
-    - target: main form
+    - target: "#the-job"
       title: The job
-      text: A name for the run, who it is for (only you, or your organization), and the job's .zip or workbook.
-    - heading: Pricing
-      title: Pricing
-      text: The engine release, the ACC and the cost-test set (or one of your own sets, or a file, for an analysis run). The page says when no worker is running a release.
+      text: >-
+        What most runs need: a name, who the run is for (only you, or your organization), the job's .zip or workbook, the calculation
+        engine, the ACC, the First Year and market effects. The page says when no worker is running a release.
     - target: "#acc-help"
       title: Which ACC applies
       text: Each ACC's budget filings and the program years whose claims use it; dimmed ACCs are not offered here.
       optional: true
-    - heading: Optional input files
-      title: Optional input files
-      text: ReCET's run parameters, 8,760 electric profiles and gas monthly profiles, each a file of its own. Their columns are in ReCET's Input fields, section 4.
-      optional: true
-    - heading: Statewide programs
-      title: Statewide programs
-      text: Whether and how statewide programs are allocated to the funding PAs.
-      optional: true
-    - heading: Checks and outputs
-      title: Checks and outputs
-      text: The filing checks to run, the output format and the output template.
-      optional: true
+    - target: "#advanced-options"
+      title: Advanced options
+      text: >-
+        Everything else, folded away: a comparison with another ACC, Priced for, the cost-test set, ReCET's optional input files,
+        statewide allocation, filing checks, emissions, the combined 8,760 profile and the output files. Left as it is, the run takes the
+        engine's defaults.
 
 calculations/run:
   title: A run

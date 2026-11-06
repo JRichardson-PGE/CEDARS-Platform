@@ -4,20 +4,22 @@
 <ol>
   <li>Open <a href="{% url 'calculations:new' %}">New run</a> and upload one .zip with Measure.csv and, optionally, ProgramCost.csv, or
   ReCET's job workbook (.xlsx) with a Measure sheet and, optionally, a ProgramCost sheet. ReCET's optional input files (run
-  parameters, 8,760 electric profiles, gas monthly profiles) go under <strong>Optional input files</strong>, in the zip, or as sheets
+  parameters, 8,760 electric profiles, gas monthly profiles) go under <strong>Advanced options</strong>, <strong>Optional input files</strong>, in the zip, or as sheets
   of the workbook; their columns are in <a href="{% url 'core:recet_doc' 'input-fields' %}#4-supplied-input-files">ReCET's input
   fields</a>. The program registry and the allocation version stand in for a job's own program metadata and statewide factors.
   <strong>Templates to download</strong>, at the top of New run, has the engine's own template for each file.</li>
-  <li>Choose who the run is for, the engine and the ACC (<strong>Which ACC applies to my filing?</strong> on the page helps). ReCET's
-  own calculation can also price the job on a second ACC (<strong>Compare with another ACC</strong>: Results then has a tab for each
-  ACC and one comparing them), set CET's First Year and market effects, price each ACC component separately, and write the combined
-  8,760 electric load profile for the years you choose. <strong>Priced for</strong> flags records whose ACC does not apply to their
+  <li>In <strong>The job</strong>, choose who the run is for, the calculation engine and the ACC (<strong>Which ACC applies to my
+  filing?</strong> on the page helps), and, if the run needs them, CET's First Year and market effects. That is all most runs need:
+  everything else is under <strong>Advanced options</strong>, folded away, and left as it is the run takes the engine's defaults. There,
+  ReCET's own calculation can also price the job on a second ACC (<strong>Compare with another ACC</strong>: Results then has a tab for each
+  ACC and one comparing them), price each ACC component separately, and write the combined 8,760 electric load profile for the years
+  you choose (a list or a range, such as 2028-2035). <strong>Priced for</strong> flags records whose ACC does not apply to their
   program year for claims, any filing, or one named budget filing; nothing is stopped.</li>
   <li>Choose <strong>Start the run</strong>, or <strong>Check the inputs only</strong>. The run's page shows its progress and the
   engine's log while it runs, then the input check (what stopped the run, what could not be priced and every other finding), its
   files, one at a time or all in one .zip, and its results.</li>
   <li>A run you leave unnamed is named after its job file (or draft) and its ACC. <strong>What each cost-test set prices</strong>, under
-  Pricing, lists the registered sets and their tests; an analysis run may take a cost-test set file of your own instead, recorded with
+  Advanced options, lists the registered sets and their tests; an analysis run may take a cost-test set file of your own instead, recorded with
   its SHA-256 (a filing, or a run with filing checks or <strong>Priced for</strong>, takes a published set). The run page explains its
   totals and says when retention deletes the run.</li>
 </ol>

@@ -199,3 +199,64 @@ def test_a_plain_run_has_no_acc_tabs(analyst, pge, release, worker, tmp_path, we
     run = dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
     html = web.get(f"/calculations/runs/{run.pk}/results/").content.decode()
     assert "?acc=comparison" not in html and 'name="acc"' not in html
+
+
+def test_combined_profile_years_take_a_range(web, tmp_path, release):  # noqa: F811
+    """Jake, 2026-11-06: the combined profile's years may be a range, mixed with single years."""
+    from cedars.modules.calculations.forms import parse_years
+
+    assert parse_years("2028-2031") == [2028, 2029, 2030, 2031]
+    assert parse_years("2028 - 2030, 2035") == [2028, 2029, 2030, 2035]
+    assert parse_years("2028\u20132029") == [2028, 2029]  # an en dash too
+    with pytest.raises(Exception, match="earlier year"):
+        parse_years("2031-2028")
+    with pytest.raises(Exception, match="four-digit"):
+        parse_years("2028-")
+    r = post_new(web, tmp_path, portfolio_8760="on", profile_years="2028-2030")
+    assert r.status_code == 302
+    assert Run.objects.get().settings["profile_years"] == [2028, 2029, 2030]
+
+
+def _section(page, start, end):
+    return page[page.index(start) : page.index(end, page.index(start))]
+
+
+def test_the_job_holds_the_seven_options_and_the_rest_is_folded_away(web, tmp_path, release):  # noqa: F811
+    """Jake, 2026-11-06: The job holds name, run for, job file, engine, ACC, First Year and market effects; every other option is
+    under Advanced options, folded away by default."""
+    page = web.get("/calculations/new/").content.decode()
+    job = _section(page, 'id="the-job"', "</fieldset>")
+    for name in ("name", "run_for", "job", "engine", "acc_version", "base_year", "market_effects"):
+        assert f'name="{name}"' in job, name
+    assert job.count("<select") + job.count("<input") == 7
+    assert '<details id="advanced-options" class="advanced-options">' in page  # closed
+    advanced = _section(page, 'id="advanced-options"', '<p id="check-only-help"')
+    for name in (
+        "compare_with",
+        "acc_purpose",
+        "cost_test_set",
+        "include_societal",
+        "run_parameters",
+        "allocate_statewide",
+        "filing_validation",
+        "emissions",
+        "portfolio_8760",
+        "profile_years",
+        "output_format",
+        "output_template",
+        "cet_outputs",
+    ):
+        assert f'name="{name}"' in advanced, name
+    assert "not at" not in _section(advanced, "<summary>", "</summary>")
+
+
+def test_advanced_options_open_on_an_error_and_count_what_is_set(web, tmp_path, release):  # noqa: F811
+    ticked = {"include_societal": "on", "emissions": "on"}  # as a browser sends the boxes ticked by default
+    html = post_new(web, tmp_path, portfolio_8760="on", profile_years="next year", **ticked).content.decode()
+    assert '<details id="advanced-options" class="advanced-options" open>' in html
+    summary = _section(html, 'id="advanced-options"', "</summary>")
+    assert "(2 not at their defaults, 1 to fix)" in summary  # the combined profile ticked, its years wrong
+    # an error in The job only: the disclosure stays closed, and says what was set inside it
+    html = post_new(web, tmp_path, acc_version="1999", include_societal="on").content.decode()  # Emissions unticked
+    assert '<details id="advanced-options" class="advanced-options">' in html
+    assert "(1 not at its default)" in _section(html, 'id="advanced-options"', "</summary>")
