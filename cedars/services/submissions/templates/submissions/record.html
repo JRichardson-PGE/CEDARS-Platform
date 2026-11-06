@@ -3,7 +3,7 @@
 {% block content %}
 {% include "submissions/_record_crumbs.html" %}
 <div class="page-title"><h1>{% if mode == "add" %}Add a {{ t.name }} record{% else %}{{ t.name }} {{ found.shown }}{% endif %}</h1>{% page_help "submissions/record" %}</div>
-<p class="small muted">{{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }} ({{ v.get_status_display|lower }}).{% if t.note %} {{ t.note }}{% endif %}</p>
+<p class="small muted">{{ v.submission.organisation.code }} {{ v.submission.deadline.title }}, version {{ v.number }} ({{ v.get_status_display|lower }}).{% if t.note %} {{ t.note }}{% endif %}</p>
 {% if mode == "edit" %}
 {% if found.earlier %}
 <div role="note" class="card"><p><strong>Filed in {{ found.earlier }}.</strong> Saving adds the corrected record to this version, where it stands over the earlier one; its key stays.</p></div>

@@ -19,6 +19,7 @@ from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 from cedars.services.vault import service as vault
 from cedars.services.vault.service import PIIError
@@ -156,12 +157,23 @@ def setup(request, year):
     cy = get_object_or_404(ClaimYear, year=year)
     if not access.is_system_admin(request.user):
         raise Http404
+    calendar, done = setup_calendar.calendar_forms(
+        request,
+        service.year_deadlines(cy),
+        removable=service.removable(cy),
+        remove=lambda reason: service.remove_setup(request.user, cy, reason),
+        removed_url=reverse("claims:index"),
+        what=f"{cy.year} claims",
+    )
+    if done:
+        return done
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
     form = forms.SetupForm(
-        request.POST or None,
+        request.POST if own else None,
         accs=accs(),
         initial={"acc_version": cy.acc_version, "allocation_version": cy.allocation_version, "cost_test_set": cy.cost_test_set},
     )
-    if request.method == "POST" and form.is_valid():
+    if own and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
@@ -177,7 +189,7 @@ def setup(request, year):
         else:
             messages.success(request, "Saved. Versions already priced keep what they were priced with.")
             return redirect("claims:index")
-    return render(request, "claims/setup.html", {"cy": cy, "form": form, "default_acc": service.default_acc(cy.year)})
+    return render(request, "claims/setup.html", {"cy": cy, "form": form, "default_acc": service.default_acc(cy.year)} | calendar)
 
 
 # --- a PA's claims for one confirmation

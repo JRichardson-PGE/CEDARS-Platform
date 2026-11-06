@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -19,6 +20,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, jobfile, service, shifts
@@ -181,12 +183,24 @@ def setup(request, pk):
     if not access.is_system_admin(request.user):
         raise Http404
     s = deadline.budget_setup
+    label = service.label(deadline)
+    calendar, done = setup_calendar.calendar_forms(
+        request,
+        [deadline],
+        removable=service.removable(s),
+        remove=lambda reason: service.remove_setup(request.user, s, reason),
+        removed_url=reverse("budgets:index"),
+        what=label,
+    )
+    if done:
+        return done
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
     form = forms.SetupForm(
-        request.POST or None,
+        request.POST if own else None,
         accs=accs(),
         initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version, "cost_test_set": s.cost_test_set},
     )
-    if request.method == "POST" and form.is_valid():
+    if own and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
@@ -202,7 +216,7 @@ def setup(request, pk):
         else:
             messages.success(request, "Saved. Versions already priced keep what they were priced with.")
             return redirect("budgets:filing", pk)
-    return render(request, "budgets/setup.html", {"deadline": deadline, "form": form, "label": service.label(deadline)})
+    return render(request, "budgets/setup.html", {"deadline": deadline, "form": form, "label": label} | calendar)
 
 
 # --- a PA's filing

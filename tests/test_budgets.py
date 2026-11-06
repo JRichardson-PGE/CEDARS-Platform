@@ -22,7 +22,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
 from cedars.services.submissions import service as submissions
-from cedars.services.submissions.models import SubmissionVersion
+from cedars.services.submissions.models import Deadline, SubmissionVersion
 
 from .conftest import sign_in
 from .test_uploads import split
@@ -362,11 +362,18 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     client.logout()
     sign_in(client, cpuc_admin)
     assert client.get(reverse("budgets:filing", args=[filing.pk]) + "?org=PGE").status_code == 200
-    r = client.post(
-        reverse("budgets:filing_new"),
-        {"first_year": 2028, "last_year": 2031, "kind": "Mid-cycle advice letter (MCAL)", "due": "2029-09-01", "acc_version": "2026"},
-    )
+    letter = {"first_year": 2028, "last_year": 2031, "kind": "Advice letter", "due": "2029-09-01", "acc_version": "2026"}
+    r = client.post(reverse("budgets:filing_new"), letter)  # an advice letter is named, to say which one it is
+    assert r.status_code == 200 and "Name the advice letter" in r.content.decode()
+    r = client.post(reverse("budgets:filing_new"), letter | {"name": "2028-2031 Mid-cycle advice letter (MCAL)"})
     assert r.status_code == 302
+    # a second advice letter in the same cycle under another name; the same name again is refused
+    r = client.post(reverse("budgets:filing_new"), letter | {"name": "2028-2031 Second true-up advice letter", "due": "2030-09-01"})
+    assert r.status_code == 302
+    r = client.post(reverse("budgets:filing_new"), letter | {"name": "2028-2031 mid-cycle advice letter (MCAL)"})
+    assert r.status_code == 200 and "already has a filing called" in r.content.decode()
+    names = sorted(d.name for d in Deadline.objects.filter(module="budgets", kind="Advice letter"))
+    assert names == ["2028-2031 Mid-cycle advice letter (MCAL)", "2028-2031 Second true-up advice letter"]
     assert client.get(reverse("budgets:setup", args=[filing.pk])).status_code == 200
 
 

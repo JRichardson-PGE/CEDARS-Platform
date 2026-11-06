@@ -128,21 +128,35 @@ def add_year(
     return cy
 
 
+def year_deadlines(cy: ClaimYear):
+    """The claim year's deadlines (its four quarters and the annual claim), in due order."""
+    return Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).select_related("period").order_by("due_at")
+
+
+def _group(cy: ClaimYear) -> tuple:
+    def remove(actor, reason):
+        audit.record("claim_year.removed", obj=cy, before=_setup_fields(cy), reason=reason, actor=actor)
+        cy.delete()
+
+    return f"{cy.year} claims", [d.pk for d in year_deadlines(cy)], remove
+
+
 def setup_groups() -> list:
     """Each claim year's set-up and its five deadlines (submissions.register_setup_groups, for clearing a demo calendar)."""
+    return [_group(cy) for cy in ClaimYear.objects.order_by("year")]
 
-    def remover(cy):
-        def remove():
-            audit.record("claim_year.removed", obj=cy, before=_setup_fields(cy), actor=None)
-            cy.delete()
 
-        return remove
+def removable(cy: ClaimYear) -> bool:
+    """Whether the claim year's set-up may be removed: no PA has started filing for any of its deadlines."""
+    return not submissions.filed([d.pk for d in year_deadlines(cy)])
 
-    out = []
-    for cy in ClaimYear.objects.order_by("year"):
-        ids = list(Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).values_list("pk", flat=True))
-        out.append((f"{cy.year} claims", ids, remover(cy)))
-    return out
+
+def remove_setup(actor, cy: ClaimYear, reason: str) -> None:
+    """Take a claim year nobody has started filing for off the calendar, set-up and deadlines, with a reason (its set-up page)."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator removes a claim year.")
+    _what, ids, remove = _group(cy)
+    submissions.remove_setup(actor, ids, remove, reason)
 
 
 @transaction.atomic

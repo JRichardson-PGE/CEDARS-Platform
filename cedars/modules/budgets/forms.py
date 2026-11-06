@@ -5,7 +5,7 @@ from cedars.core import uploads
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion, FilingCycle
 
-from .models import FILING_KINDS
+from .models import ADVICE_LETTER, FILING_KINDS
 
 
 def _cost_test_sets():
@@ -21,11 +21,12 @@ def _allocations():
 class FilingForm(forms.Form):
     kind = forms.ChoiceField(label="Type of filing", choices=FILING_KINDS)
     name = forms.CharField(
-        label="Filing name (optional)",
+        label="Filing name",
         max_length=120,
         required=False,
-        help_text="What the calendar and the filing's pages call it, e.g. 2028-2035 Business plan application. Blank: its program "
-        "years and its type. It can be changed later on the filing calendar.",
+        help_text="What the calendar and the filing's pages call it, e.g. 2028-2035 Business plan application, or 2028-2031 "
+        "True-up advice letter (TUAL). Needed for an advice letter, to say which one; for an application, blank is its program years "
+        "and its type. It can be changed later on the filing calendar.",
     )
     first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100)
     last_year = forms.IntegerField(
@@ -65,6 +66,8 @@ class FilingForm(forms.Form):
         first, last = d.get("first_year"), d.get("last_year")
         if first and last and last < first:
             self.add_error("last_year", "The last program year is the same as the first or after it.")
+        if d.get("kind") == ADVICE_LETTER and not (d.get("name") or "").strip():
+            self.add_error("name", "Name the advice letter, e.g. 2028-2031 True-up advice letter (TUAL).")
         return d
 
 

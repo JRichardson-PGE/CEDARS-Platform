@@ -46,7 +46,8 @@
     <div class="actions"><button type="submit">Retire the deadline</button></div>
   </form>
   {% elif page %}
-  <p>This deadline is part of its module's set-up (it has a filing page), so it cannot be retired. Change its due date instead.</p>
+  <p>This deadline is part of its module's set-up (it has a filing page), so it cannot be retired. Change its due date instead, or,
+  while nobody has filed for it, remove the whole set-up from its set-up page.</p>
   {% else %}
   <p>{{ started }} organization{{ started|pluralize }} {{ started|pluralize:"has,have" }} started filing for this deadline, so it cannot be retired. Change its due date instead.</p>
   {% endif %}

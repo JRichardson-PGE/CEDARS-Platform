@@ -12,7 +12,7 @@
     <colgroup><col></colgroup>{% for label, span in board.groups %}<colgroup span="{{ span }}"></colgroup>{% endfor %}
     <thead>
       <tr><td></td>{% for label, span in board.groups %}<th scope="colgroup" colspan="{{ span }}">{{ label }}</th>{% endfor %}</tr>
-      <tr><th scope="col">Program administrator</th>{% for c in board.columns %}<th scope="col"><span class="small muted">{{ c.when }}</span><br>{% if c.url %}<a href="{{ c.url }}">{{ c.deadline.kind }}</a>{% else %}{{ c.deadline.kind }}{% endif %}, {% if c.deadline.period %}{{ c.deadline.period }}{% else %}{{ c.deadline.cycle|cycle_label }}{% endif %}<br><span class="small">due <time datetime="{{ c.deadline.due_at|date:'c' }}">{{ c.deadline.due_at|date_words }}</time></span></th>{% endfor %}</tr>
+      <tr><th scope="col">Program administrator</th>{% for c in board.columns %}<th scope="col"><span class="small muted">{{ c.when }}</span><br>{% if c.url %}<a href="{{ c.url }}">{{ c.deadline.title }}</a>{% else %}{{ c.deadline.title }}{% endif %}{% if not c.deadline.name %}, {% if c.deadline.period %}{{ c.deadline.period }}{% else %}{{ c.deadline.cycle|cycle_label }}{% endif %}{% endif %}<br><span class="small">due <time datetime="{{ c.deadline.due_at|date:'c' }}">{{ c.deadline.due_at|date_words }}</time></span></th>{% endfor %}</tr>
     </thead>
     <tbody>
     {% for row in board.rows %}<tr><th scope="row">{{ row.organisation.code }}<br><span class="small muted">{{ row.organisation.name }}</span></th>{% for cell in row.cells %}

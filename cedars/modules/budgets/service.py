@@ -1,5 +1,6 @@
-"""Budget filings (BR-04). A filing is a deadline of the "budgets" module on a filing cycle (business plan application, TUAL, MCAL;
-the submissions service's calendar) with this module's FilingSetup; each PA's filing is a submission with versions.
+"""Budget filings (BR-04). A filing is a deadline of the "budgets" module on a filing cycle (an application or an advice letter, its
+name saying which: a TUAL, an MCAL; the submissions service's calendar) with this module's FilingSetup; each PA's filing is a
+submission with versions.
 
     upload (.zip or .xlsx) -> lines and checks -> validated -> priced (Calculations, through the submissions service) -> confirm
     -> published: inputs, run settings and results readable by every signed-in user (BR-04.4)
@@ -94,8 +95,8 @@ def add_filing(
     _check_allocation(allocation_version)
     _check_cost_tests(cost_test_set)
     cycle = registry.ensure_cycle(first_year, last_year=last_year)
-    if Deadline.objects.filter(module=MODULE, kind=kind, cycle=cycle).exists():
-        raise AccessDenied(f"The {cycle} cycle already has a {kind} filing.")
+    if submissions.same_filing(MODULE, cycle, (name or "").strip() or kind) is not None:
+        raise AccessDenied(f"The {cycle} cycle already has a filing called {(name or '').strip() or kind}.")
     deadline = submissions.add_deadline(
         actor, module=MODULE, kind=kind, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes, name=name
     )
@@ -106,17 +107,30 @@ def add_filing(
     return deadline
 
 
+def _group(setup: FilingSetup) -> tuple:
+    def remove(actor, reason):
+        audit.record("budget_filing.removed", obj=setup, before=_setup_fields(setup), reason=reason, actor=actor)
+        setup.delete()
+
+    return label(setup.deadline), [setup.deadline_id], remove
+
+
 def setup_groups() -> list:
     """Each budget filing's set-up and its one deadline (submissions.register_setup_groups, for clearing a demo calendar)."""
+    return [_group(s) for s in FilingSetup.objects.select_related("deadline__cycle")]
 
-    def remover(setup):
-        def remove():
-            audit.record("budget_filing.removed", obj=setup, before=_setup_fields(setup), actor=None)
-            setup.delete()
 
-        return remove
+def removable(setup: FilingSetup) -> bool:
+    """Whether the filing's set-up may be removed: no PA has started filing for it."""
+    return not submissions.filed([setup.deadline_id])
 
-    return [(label(s.deadline), [s.deadline_id], remover(s)) for s in FilingSetup.objects.select_related("deadline__cycle")]
+
+def remove_setup(actor, setup: FilingSetup, reason: str) -> None:
+    """Take a budget filing nobody has started filing for off the calendar, set-up and deadline, with a reason (its set-up page)."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator removes a budget filing.")
+    _what, ids, remove = _group(setup)
+    submissions.remove_setup(actor, ids, remove, reason)
 
 
 def _setup_fields(setup: FilingSetup) -> dict:

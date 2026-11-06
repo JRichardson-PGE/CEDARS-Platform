@@ -45,17 +45,28 @@ monthly/year_new:
       text: Each month's report is due after its month ends; the 13th-month report is due with the annual claim.
 
 monthly/setup:
-  title: How a year's monthly reports are priced
+  title: A year of monthly reports' set-up
   guide:
     - The ACC and statewide allocation version the next pricing of the year's estimates uses. Reports already priced keep the ones they
       were priced with; their run records both.
+    - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
+      reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
+      Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
+    - To move due dates, change them under Due dates, give the reason and Save the due dates.
+    - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
   see: monthly-reports
   tour:
-    - target: main form
+    - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-due-dates"
+      title: Due dates
+      text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#remove-setup"
+      title: Remove this set-up
+      text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
 
 monthly/report:
   title: A monthly report

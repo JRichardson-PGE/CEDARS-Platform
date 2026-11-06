@@ -420,7 +420,7 @@ def test_the_budget_set_up_page_takes_a_name_and_both_years(cpuc_admin, signed_i
     from cedars.services.submissions.models import Deadline
 
     c = signed_in(cpuc_admin)
-    form = {"kind": "Business plan application", "name": "Next application", "first_year": 2032, "last_year": 2039,
+    form = {"kind": "Application", "name": "Next application", "first_year": 2032, "last_year": 2039,
             "due": "2031-03-01", "acc_version": "2026"}  # fmt: skip
     page = c.get("/budgets/filings/new/").content.decode()
     assert 'name="first_year"' in page and 'name="last_year"' in page and 'name="name"' in page
@@ -532,3 +532,75 @@ def test_the_clear_command_is_only_for_sandbox_and_demo_sites(settings):
     settings.ENVIRONMENT = "prod"
     with pytest.raises(CommandError, match="only on a sandbox"):
         call_command("clear_filing_calendar", "--reason", "x", "--apply")
+
+
+def test_a_set_up_page_moves_its_due_dates_still_to_come(cpuc_admin, signed_in, analyst, pge):
+    from cedars.modules.claims import service as claims
+    from cedars.services.submissions.models import Deadline
+
+    now = timezone.now()
+    due = {k: now + timedelta(days=40 + 10 * i) for i, (k, _) in enumerate(claims.PERIODS)}
+    due["Q1 claim"] = now - timedelta(days=5)  # already due: listed, not changed here
+    claims.add_year(cpuc_admin, year=2030, acc_version="2026", due=due)
+    q1, q2, q3 = (Deadline.objects.get(module="claims", kind=f"Q{n} claim", period__year=2030) for n in (1, 2, 3))
+    c = signed_in(cpuc_admin)
+    url = "/claims/years/2030/setup/"
+    page = c.get(url).content.decode()
+    assert 'id="past-due-dates"' in page and f'name="due-on_{q1.pk}"' not in page and f'name="due-on_{q2.pk}"' in page
+    form = {"action": "due"} | {
+        f"due-on_{d.pk}": timezone.localtime(d.due_at).date().isoformat() for d in claims.year_deadlines(claims.ClaimYear.objects.get())
+        if d.due_at > now
+    }  # fmt: skip
+    r = c.post(url, form)  # a reason is needed
+    assert r.status_code == 200 and Deadline.objects.get(pk=q2.pk).due_at == q2.due_at
+    new = timezone.localtime(q2.due_at).date() + timedelta(days=7)
+    r = c.post(url, form | {f"due-on_{q2.pk}": new.isoformat(), "due-reason": "Resolution E-5300"})
+    assert r.status_code == 302
+    q2.refresh_from_db()
+    assert timezone.localtime(q2.due_at).date() == new  # the same time of day, a week later
+    e = AuditEvent.objects.get(action="deadline.moved", object_id=str(q2.pk))
+    assert e.reason == "Resolution E-5300" and e.actor == cpuc_admin
+    # all or none: a date before the deadline opens refuses the whole change
+    service.change_deadline(cpuc_admin, q3, due_at=q3.due_at, opens_at=q3.due_at - timedelta(days=3), reason="opens later")
+    q3.refresh_from_db()
+    early = (timezone.localdate() + timedelta(days=1)).isoformat()
+    bad = form | {f"due-on_{q2.pk}": (new + timedelta(days=1)).isoformat(), f"due-on_{q3.pk}": early, "due-reason": "x"}
+    r = c.post(url, bad, follow=True)
+    assert "Q3 claim, 2030Q3: A filing opens before it is due" in r.content.decode()
+    q2.refresh_from_db()
+    assert timezone.localtime(q2.due_at).date() == new
+    with pytest.raises(AccessDenied, match="already due"):
+        service.move_due_dates(cpuc_admin, [(q1, now + timedelta(days=1))], "late")
+    # the pricing form on the same page still saves on its own
+    r = c.post(url, {"acc_version": "2026", "reason": "same ACC"})
+    assert r.status_code in (200, 302)
+
+
+def test_a_set_up_nobody_filed_for_is_removed_from_its_page(cpuc_admin, signed_in, analyst, pge):
+    from cedars.modules.budgets.models import FilingSetup
+    from cedars.modules.monthly import service as monthly
+    from cedars.modules.monthly.models import YearSetup
+    from cedars.services.submissions.models import Deadline, Submission
+
+    letter = _budget_filing(cpuc_admin, kind="Advice letter", name="2028-2031 True-up advice letter (TUAL)")
+    monthly.set_up_year(cpuc_admin, year=2030, acc_version="2026", due_day=20, closing_due=date(2031, 3, 1))
+    c = signed_in(cpuc_admin)
+    page = c.get(f"/budgets/filings/{letter.pk}/setup/").content.decode()
+    assert "Remove 2028-2031 True-up advice letter (TUAL)" in page
+    r = c.post(f"/budgets/filings/{letter.pk}/setup/", {"action": "remove"})  # a reason is needed
+    assert r.status_code == 200 and Deadline.objects.filter(pk=letter.pk).exists()
+    r = c.post(f"/budgets/filings/{letter.pk}/setup/", {"action": "remove", "remove-reason": "Set up by mistake"})
+    assert r.status_code == 302 and r["Location"] == "/budgets/"
+    assert not Deadline.objects.filter(pk=letter.pk).exists() and not FilingSetup.objects.exists()
+    assert AuditEvent.objects.get(action="budget_filing.removed").reason == "Set up by mistake"
+    assert AuditEvent.objects.get(action="deadline.deleted", object_id=str(letter.pk)).actor == cpuc_admin
+    # once a PA has started one of a year's reports, the year stays
+    march = Deadline.objects.get(module="monthly", kind=monthly.KIND, period__year=2030, period__number=3)
+    Submission.objects.create(deadline=march, organisation=pge)
+    page = c.get("/monthly/years/2030/setup/").content.decode()
+    assert "cannot be removed" in page and 'value="remove"' not in page
+    with pytest.raises(AccessDenied, match="stays"):
+        monthly.remove_setup(cpuc_admin, YearSetup.objects.get(), "mistake")
+    assert Deadline.objects.filter(module="monthly", period__year=2030).count() == 13
+    with pytest.raises(AccessDenied):
+        monthly.remove_setup(analyst, YearSetup.objects.get(), "mistake")

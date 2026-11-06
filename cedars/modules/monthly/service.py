@@ -137,21 +137,36 @@ def set_up_year(
     return setup
 
 
+def year_deadlines(setup: YearSetup):
+    """The year's deadlines (each month's report and the 13th-month report), in due order."""
+    qs = Deadline.objects.filter(module=MODULE, kind__in=[KIND, CLOSING_KIND], period__year=setup.year)
+    return qs.select_related("period").order_by("due_at", "pk")
+
+
+def _group(setup: YearSetup) -> tuple:
+    def remove(actor, reason):
+        audit.record("monthly_reports.removed", obj=setup, before=_setup_fields(setup), reason=reason, actor=actor)
+        setup.delete()
+
+    return f"{setup.year} monthly reports", [d.pk for d in year_deadlines(setup)], remove
+
+
 def setup_groups() -> list:
     """Each year of monthly reports' set-up and its deadlines (submissions.register_setup_groups, for clearing a demo calendar)."""
+    return [_group(s) for s in YearSetup.objects.order_by("year")]
 
-    def remover(setup):
-        def remove():
-            audit.record("monthly_reports.removed", obj=setup, before=_setup_fields(setup), actor=None)
-            setup.delete()
 
-        return remove
+def removable(setup: YearSetup) -> bool:
+    """Whether the year's set-up may be removed: no PA has started any of its reports."""
+    return not submissions.filed([d.pk for d in year_deadlines(setup)])
 
-    out = []
-    for s in YearSetup.objects.order_by("year"):
-        ids = list(Deadline.objects.filter(module=MODULE, kind__in=[KIND, CLOSING_KIND], period__year=s.year).values_list("pk", flat=True))
-        out.append((f"{s.year} monthly reports", ids, remover(s)))
-    return out
+
+def remove_setup(actor, setup: YearSetup, reason: str) -> None:
+    """Take a year of monthly reports nobody has started off the calendar, set-up and deadlines, with a reason (its set-up page)."""
+    if actor is not None and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator removes a year of monthly reports.")
+    _what, ids, remove = _group(setup)
+    submissions.remove_setup(actor, ids, remove, reason)
 
 
 def closing_deadline(year: int) -> Deadline | None:

@@ -39,7 +39,10 @@ class Deadline(models.Model):
             models.CheckConstraint(
                 condition=Q(period__isnull=False) | Q(cycle__isnull=False), name="submissions_deadline_has_period_or_cycle"
             ),
-            models.UniqueConstraint(fields=["module", "kind", "period", "cycle"], name="submissions_one_deadline", nulls_distinct=False),
+            # a cycle may hold several filings of one kind under different names (two advice letters); see service.add_deadline
+            models.UniqueConstraint(
+                fields=["module", "kind", "name", "period", "cycle"], name="submissions_one_deadline", nulls_distinct=False
+            ),
         ]
 
     def __str__(self):

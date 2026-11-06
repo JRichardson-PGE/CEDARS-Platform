@@ -500,13 +500,13 @@ def pa_picker(selected: dict, *, statewide: bool = True) -> dict:
 
 
 def filings() -> list[tuple[str, str]]:
-    """The filing selector's choices: each cycle and kind in the current forecast release, newest first."""
+    """The filing selector's choices: each cycle and filing (its name, else its kind) in the current forecast release, newest first."""
     release = snapshots.current_release("forecast")
     if release is None:
         return []
     seen = {}
     for f in sorted(snapshots.release_files(release), key=lambda f: f["due_at"], reverse=True):
-        seen.setdefault(f"{f['cycle']}|{f['kind']}", f"{f['cycle']} {f['kind']}".strip())
+        seen.setdefault(f"{f['cycle']}|{f.get('name') or f['kind']}", f.get("name") or f"{f['cycle']} {f['kind']}".strip())
     return list(seen.items())
 
 

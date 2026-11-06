@@ -78,13 +78,14 @@ budgets/filing_new:
   title: Setting up a budget filing
   guide:
     - For CPUC system administrators. A filing is due from every PA on one date for its program years, any number of them (four for
-      most applications, eight for some, one for an annual advice letter). Choose its type (application, TUAL or MCAL), optionally a
-      name, its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
+      most applications, eight for some, one for an annual advice letter). Choose its type, an application or an advice letter, and
+      its name. An advice letter's name says which one it is (a TUAL, an MCAL, or any later kind), so a new kind needs no change to
+      CEDARS. Then its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
     - Setting it up puts it on the filing calendar. From then on it is changed there, on its deadline's page (its name, dates and
       notes, and its program years until a PA starts filing).
   how:
-    - Choose the type, give a name if the years and type do not say enough, enter the first and last program years, the due date, the
-      ACC and the allocation version, then Set up the filing.
+    - Choose the type and name it (an advice letter needs a name, e.g. 2028-2031 True-up advice letter (TUAL); an application may
+      go without), enter the first and last program years, the due date, the ACC and the allocation version, then Set up the filing.
   see: budgets
   tour:
     - target: main form
@@ -92,17 +93,28 @@ budgets/filing_new:
       text: Type, name, program years, dates and how it is priced. Every PA sees it on Budgets and the filing calendar once it is set up.
 
 budgets/setup:
-  title: How a budget filing is priced
+  title: A budget filing's set-up
   guide:
     - The ACC and the statewide allocation version the next pricing of this filing uses. Versions already priced keep the ones they were
       priced with; their run records both.
+    - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
+      reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
+      Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
+    - To move due dates, change them under Due dates, give the reason and Save the due dates.
+    - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
   see: budgets
   tour:
-    - target: main form
+    - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-due-dates"
+      title: Due dates
+      text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#remove-setup"
+      title: Remove this set-up
+      text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
 
 budgets/version:
   title: A budget version
