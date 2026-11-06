@@ -65,7 +65,7 @@ class NewRunForm(forms.Form):
         ),
         validators=[uploads.check_size],
     )
-    engine = forms.ChoiceField(label="Calculation engine", help_text="ReCET's own, or an exact replica of a past CET release (D13)")
+    engine = forms.ChoiceField(label="Calculation engine", help_text="ReCET's own, or an exact replica of a past CET release")
     acc_version = forms.ChoiceField(label="ACC")
     compare_with = forms.ChoiceField(
         label="Compare with another ACC (optional)",

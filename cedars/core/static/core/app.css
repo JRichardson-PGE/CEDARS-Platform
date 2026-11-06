@@ -356,6 +356,12 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .advanced-options > summary .small { font-weight: 400; }
 .advanced-options[open] { padding-bottom: 1rem; }
 .advanced-options > .stack > fieldset { margin: 0; }
+/* New run's text uses the page's width (Jake, 2026-11-06: Start the run in view at 1920 x 1080 when the page opens), and its two help
+   disclosures share a row until one is opened. */
+main.page .wide-text :is(p:not(.alert, .coming-changes, .tour-offer, .notices, .card, .actions), .helptext, ul:not([class]), ol:not([class])) { max-width: none; }
+.disclosure-row { display: flex; flex-wrap: wrap; gap: .25rem 2.5rem; align-items: flex-start; }
+.disclosure-row > details { flex: 0 1 auto; min-width: 0; }
+.disclosure-row > details[open] { flex-basis: 100%; }
 .inline-form { display: inline; margin: 0; }
 .filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }

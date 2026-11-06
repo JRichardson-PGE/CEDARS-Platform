@@ -1320,10 +1320,12 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     fields flow into columns, in reading order; at 320 px every section is one column (the reflow test checks it does not scroll)."""
     found = {}
     for width in (1920, 320):
-        context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": width, "height": 1000})
+        context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": width, "height": 960})
         folded = page.evaluate("document.querySelector('#advanced-options').open")
         found[width] = page.evaluate(
             """() => {
+              // Start the run in view when the page opens in a 1920 x 1080 browser (about 960 px of page; Jake, 2026-11-06)
+              const start = document.querySelector('main form button.primary').getBoundingClientRect().bottom;
               const closed = document.documentElement.scrollHeight;
               document.querySelector('#advanced-options').open = true;  // Advanced options (Jake, 2026-11-06): laid out the same way
               const form = document.querySelector('main form').getBoundingClientRect().width;
@@ -1332,7 +1334,7 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
               // reading order: each field starts at or after the one before it, left to right within a row
               const fields = [...document.querySelectorAll('main form .field-grid > *')].map(f => f.getBoundingClientRect());
               const backwards = fields.filter((r, i) => i && r.top < fields[i - 1].top - 1 && r.left > fields[i - 1].left).length;
-              return {form, cols, backwards, closed, height: document.documentElement.scrollHeight};
+              return {form, cols, backwards, closed, start, height: document.documentElement.scrollHeight};
             }"""
         )
         context.close()
@@ -1342,6 +1344,7 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     assert min(wide["cols"]) >= 3 and max(wide["cols"]) >= 5, f"field columns at 1920 px: {wide['cols']}"
     assert wide["height"] < 2400, f"New run is {wide['height']} px tall at 1920 px"
     assert wide["closed"] < 1400, f"New run is {wide['closed']} px tall at 1920 px with Advanced options folded"
+    assert wide["start"] <= 960, f"Start the run ends {wide['start']:.0f} px down at 1920 px, below a 1920 x 1080 browser's first screen"
     assert wide["backwards"] == 0, "a field sits above and to the right of the one read before it"
     assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
 

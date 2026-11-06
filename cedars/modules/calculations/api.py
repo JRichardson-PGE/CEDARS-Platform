@@ -170,7 +170,7 @@ class NewRun(serializers.Serializer):
     )
     personal = serializers.BooleanField(default=False, help_text="The caller's own run, not the organization's")
     release = serializers.CharField(required=False, help_text="A ReCET release from /engines; the default release when left out")
-    calculation = serializers.CharField(default=service.RECET, help_text="recet, or a CET replica such as cet-25.1 (D13)")
+    calculation = serializers.CharField(default=service.RECET, help_text="recet, or a CET replica such as cet-25.1")
     acc_version = serializers.CharField(help_text="The ACC by year, e.g. 2024")
     output_format = serializers.ChoiceField(choices=list(service.OUTPUT_FORMATS), default="csv.zip")
     acc_purpose = serializers.CharField(required=False, allow_blank=True)
