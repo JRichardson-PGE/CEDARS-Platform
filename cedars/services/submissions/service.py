@@ -71,6 +71,8 @@ _acc_needs: dict[str, Callable] = {}
 _restaters: list[tuple[Callable, Callable]] = []
 _deadline_pages: dict[str, Callable] = {}
 _setup_pages: dict[str, dict] = {}
+_nothing_to_file: dict[str, Callable] = {}
+_setup_groups: dict[str, Callable] = {}
 _readers: dict[str, Callable] = {}
 
 
@@ -137,6 +139,65 @@ def register_setup_page(module: str, *, label: str, url_name: str, about: str, o
 def setup_pages() -> list[dict]:
     """Every module's set-up page (register_setup_page), in their order."""
     return sorted(_setup_pages.values(), key=lambda p: (p["order"], p["label"]))
+
+
+def register_nothing_to_file(module: str, check: Callable[[Deadline], bool]) -> None:
+    """A module's deadlines that take no filing: check(deadline) -> True for one that only marks a date (the 13th-month report,
+    generated from claims). No filing starts for it, and the Filings page's status leaves it out."""
+    _nothing_to_file[module] = check
+
+
+def nothing_to_file(deadline: Deadline) -> bool:
+    check = _nothing_to_file.get(deadline.module)
+    return bool(check and check(deadline))
+
+
+def register_setup_groups(module: str, groups: Callable[[], list[tuple[str, list[int], Callable[[], None]]]]) -> None:
+    """A module's set-ups and the deadlines each put on the calendar, for clear_calendar: groups() -> [(what, deadline ids,
+    remove)], where remove() deletes the set-up's own records (called just before its deadlines are deleted)."""
+    _setup_groups[module] = groups
+
+
+@transaction.atomic
+def clear_calendar(actor, reason: str, *, apply: bool = False) -> dict:
+    """Empty the filing calendar, for a demo or sandbox site (manage.py clear_filing_calendar). Each module set-up (a budget filing,
+    a claim year, a year of monthly reports) and each deadline added by hand is taken as a whole: when no organization has filed for
+    any of its deadlines, its set-up and deadlines are deleted; otherwise its deadlines are retired (off the calendar, their filings
+    kept and readable, restorable). Every deletion and retirement is audited with the reason. Without apply, nothing changes and the
+    plan is returned."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for clearing the calendar.")
+    groups, grouped = [], set()
+    for _module, fn in sorted(_setup_groups.items()):
+        for what, ids, remove in fn():
+            groups.append((what, list(ids), remove))
+            grouped.update(ids)
+    for d in Deadline.objects.exclude(pk__in=grouped).select_related("period", "cycle").order_by("due_at"):
+        groups.append((f"{d.module} {d.title}, {d.period or d.cycle} (added by hand)", [d.pk], None))
+    every = {pk for _, ids, _ in groups for pk in ids}
+    filed_ids = set(Submission.objects.filter(deadline_id__in=every).values_list("deadline_id", flat=True))
+    plan = {"deleted": [], "retired": []}
+    now = timezone.now()
+    for what, ids, remove in groups:
+        if any(pk in filed_ids for pk in ids):
+            active = list(Deadline.objects.filter(pk__in=ids, retired_at__isnull=True))
+            plan["retired"].append((what, len(active)))
+            if apply:
+                for d in active:
+                    d.retired_at, d.retired_reason = now, reason.strip()
+                    d.save(update_fields=["retired_at", "retired_reason"])
+                    audit.record("deadline.retired", obj=d, after={"retired_at": _when(now)}, reason=reason.strip(), actor=actor)
+        else:
+            plan["deleted"].append((what, len(ids)))
+            if apply:
+                if remove is not None:
+                    remove()
+                for d in Deadline.objects.filter(pk__in=ids):
+                    audit.record("deadline.deleted", obj=d, before=deadline_fields(d) | {"module": d.module, "kind": d.kind},
+                                 reason=reason.strip(), actor=actor)  # fmt: skip
+                    d.delete()
+    return plan
 
 
 def register_reader(module: str, can_read: Callable[..., bool]) -> None:
@@ -492,6 +553,8 @@ def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVe
     """Open a submission for the organization (version 1, draft). Starting again returns the open draft."""
     if deadline.retired_at:
         raise AccessDenied("This deadline was taken off the filing calendar, so no filing starts for it.")
+    if nothing_to_file(deadline):
+        raise AccessDenied(f"Nothing is filed for the {deadline.title}: it marks a date on the calendar.")
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
     _refuse_imported(submission)

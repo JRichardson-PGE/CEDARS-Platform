@@ -26,6 +26,7 @@ class BudgetsConfig(AppConfig):
             register_deadline_page,
             register_publisher,
             register_reader,
+            register_setup_groups,
             register_setup_page,
         )
 
@@ -41,6 +42,7 @@ class BudgetsConfig(AppConfig):
             about="A business plan application, true-up or mid-cycle advice letter for any span of program years: one deadline.",
             order=1,
         )
+        register_setup_groups("budgets", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_reader("budgets", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
         register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
         register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)

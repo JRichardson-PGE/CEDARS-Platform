@@ -66,8 +66,9 @@ def columns(now=None) -> tuple[list[Column], list[str]]:
     cols, without = [], []
     for code, label in MODULES:
         due = Deadline.objects.active().filter(module=code).select_related("period", "cycle")
-        last = due.filter(due_at__lte=now).order_by("-due_at", "-pk").first()
-        nxt = due.filter(due_at__gt=now).order_by("due_at", "pk").first()
+        due = [d for d in due if not service.nothing_to_file(d)]  # the 13th-month report: nothing to file
+        last = max((d for d in due if d.due_at <= now), key=lambda d: (d.due_at, d.pk), default=None)
+        nxt = min((d for d in due if d.due_at > now), key=lambda d: (d.due_at, d.pk), default=None)
         if last is None and nxt is None:
             without.append(label)
         for when, d in ((LAST, last), (NEXT, nxt)):

@@ -50,7 +50,7 @@ submissions/deadline_new:
   guide:
     - >-
       For CPUC system administrators. A filing goes on the filing calendar when it is set up: a budget filing (one deadline, for any
-      number of program years), a claim year (four quarterly claims and the annual claim) or a year of monthly reports (twelve).
+      number of program years), a claim year (four quarterly claims and the annual claim) or a year of monthly reports (twelve months and the 13th-month report).
       Each set-up page asks for the dates and what the filing is priced on, and puts its deadlines on the calendar.
     - After that a deadline is changed from the calendar, on its own page.
   how:

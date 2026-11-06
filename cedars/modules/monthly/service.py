@@ -51,6 +51,7 @@ from .models import (
 
 MODULE = "monthly"
 KIND = "Monthly report"
+CLOSING_KIND = "13th-month report"  # the year's last deadline, on the year's period: due with the annual claim (BR-14.2)
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 YTD_TOLERANCE = Decimal("1")  # dollars: year-to-date spend may move by rounding
 BCA_NOTE = (
@@ -79,7 +80,8 @@ def due_date(year: int, month: int, due_day: int) -> date:
 
 
 def _setup_fields(s: YearSetup) -> dict:
-    return {"acc": s.acc_version, "allocation_version": str(s.allocation_version or "most recent"), "due_day": s.due_day}
+    out = {"acc": s.acc_version, "allocation_version": str(s.allocation_version or "most recent")}
+    return out | ({"due_day": s.due_day} if s.due_day else {})
 
 
 def _check_allocation(version: AllocationVersion | None) -> None:
@@ -88,27 +90,79 @@ def _check_allocation(version: AllocationVersion | None) -> None:
 
 
 @transaction.atomic
-def set_up_year(actor, *, year: int, acc_version: str, due_day: int, allocation_version=None, notes: str = "") -> YearSetup:
-    """A program year's monthly reports: the year's set-up and one deadline per month, each opening when its month ends and due on
-    due_day of the next month."""
+def set_up_year(
+    actor,
+    *,
+    year: int,
+    acc_version: str,
+    due: dict[int, date] | None = None,
+    closing_due: date | None = None,
+    due_day: int | None = None,
+    allocation_version=None,
+    notes: str = "",
+) -> YearSetup:
+    """A program year's monthly reports: the year's set-up and its deadlines on the filing calendar, one per month, each opening when
+    its month ends, and the 13th-month report's (closing_due: the year's final one, due with the annual claim; it opens when the year
+    ends). Each month's due date is due[month] (1-12), or, with due_day instead, that day of the following month."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up monthly reports.")
-    if not 1 <= due_day <= 31:
-        raise AccessDenied("The due day is a day of the month, 1 to 31.")
+    if due is None:
+        if due_day is None or not 1 <= due_day <= 31:
+            raise AccessDenied("The due day is a day of the month, 1 to 31.")
+        due = {m: due_date(year, m, due_day) for m in range(1, 13)}
+    missing = [m for m in range(1, 13) if not due.get(m)]
+    if missing:
+        raise AccessDenied(f"Give a due date for every month: {', '.join(date(year, m, 1).strftime('%B') for m in missing)}.")
+    for m in range(1, 13):
+        if due[m] < date(*_month_after(year, m), 1):
+            raise AccessDenied(f"{date(year, m, 1):%B %Y}'s report is due after its month ends, not on {due[m]:%Y-%m-%d}.")
+    if closing_due is not None and closing_due < date(year + 1, 1, 1):
+        raise AccessDenied(f"The 13th-month report is due after the year ends, not on {closing_due:%Y-%m-%d}.")
     if YearSetup.objects.filter(year=year).exists():
         raise AccessDenied(f"{year}'s monthly reports are already set up.")
     _check_allocation(allocation_version)
-    registry.ensure_periods(year)
+    periods = {(p.kind, p.number): p for p in registry.ensure_periods(year)}
     setup = YearSetup.objects.create(
         year=year, acc_version=acc_version, allocation_version=allocation_version, due_day=due_day, notes=notes
     )
-    for p in ReportingPeriod.objects.filter(kind=ReportingPeriod.Kind.MONTH, year=year).order_by("number"):
-        opens = timezone.make_aware(datetime.combine(date(*_month_after(year, p.number), 1), time()))
+    for m in range(1, 13):
+        opens = timezone.make_aware(datetime.combine(date(*_month_after(year, m), 1), time()))
+        submissions.add_deadline(actor, module=MODULE, kind=KIND, period=periods[("month", m)], due_at=due_at(due[m]), opens_at=opens)
+    if closing_due is not None:
+        opens = timezone.make_aware(datetime.combine(date(year + 1, 1, 1), time()))
         submissions.add_deadline(
-            actor, module=MODULE, kind=KIND, period=p, due_at=due_at(due_date(year, p.number, due_day)), opens_at=opens
+            actor, module=MODULE, kind=CLOSING_KIND, period=periods[("year", 0)], due_at=due_at(closing_due), opens_at=opens
         )
     audit.record("monthly_reports.set_up", obj=setup, after=_setup_fields(setup), actor=actor)
     return setup
+
+
+def setup_groups() -> list:
+    """Each year of monthly reports' set-up and its deadlines (submissions.register_setup_groups, for clearing a demo calendar)."""
+
+    def remover(setup):
+        def remove():
+            audit.record("monthly_reports.removed", obj=setup, before=_setup_fields(setup), actor=None)
+            setup.delete()
+
+        return remove
+
+    out = []
+    for s in YearSetup.objects.order_by("year"):
+        ids = list(Deadline.objects.filter(module=MODULE, kind__in=[KIND, CLOSING_KIND], period__year=s.year).values_list("pk", flat=True))
+        out.append((f"{s.year} monthly reports", ids, remover(s)))
+    return out
+
+
+def closing_deadline(year: int) -> Deadline | None:
+    """The year's 13th-month report deadline (None for a year set up before it had one)."""
+    return Deadline.objects.filter(module=MODULE, kind=CLOSING_KIND, period__kind=ReportingPeriod.Kind.YEAR, period__year=year).first()
+
+
+def nothing_to_file(deadline: Deadline) -> bool:
+    """The 13th-month report is generated from the PA's confirmed claims (closing), so its deadline takes no filing
+    (submissions.register_nothing_to_file)."""
+    return deadline.kind == CLOSING_KIND
 
 
 @transaction.atomic
@@ -1188,7 +1242,11 @@ def deadline_page(deadline) -> str:
     """The report page of a monthly report's deadline, for the filing calendar; "" for a deadline outside a set-up year."""
     from django.urls import reverse
 
-    return reverse("monthly:report", args=[deadline.pk]) if setup_for(deadline) is not None else ""
+    if setup_for(deadline) is None:
+        return ""
+    if deadline.kind == CLOSING_KIND:
+        return reverse("monthly:closing", args=[deadline.period.year])
+    return reverse("monthly:report", args=[deadline.pk])
 
 
 COMMITMENT_KEYS = [

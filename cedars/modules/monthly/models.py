@@ -42,7 +42,11 @@ class YearSetup(models.Model):
     allocation_version = models.ForeignKey(
         "registry.AllocationVersion", null=True, blank=True, on_delete=models.PROTECT, related_name="monthly_years"
     )
-    due_day = models.PositiveSmallIntegerField(help_text="Each month's report is due on this day of the following month")
+    due_day = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Each month's report is due on this day of the following month (blank: its own date on the calendar)",
+    )
     notes = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 

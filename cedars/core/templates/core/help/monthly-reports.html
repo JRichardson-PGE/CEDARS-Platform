@@ -1,7 +1,9 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
 <p>Each month a PA reports its commitments and the year's inputs so far. <a href="{% url 'monthly:index' %}">Monthly reports</a> lists
-the year's months and due dates.</p>
+the year's months and due dates. A program year has thirteen due dates on the filing calendar: one for each month's report, and
+the 13th-month report's, due with the annual claim. Nothing is uploaded for the 13th-month report: it is built from the PA's
+confirmed claims.</p>
 <h2>First steps</h2>
 <ol>
   <li>Prepare the file's three tables: <strong>Commitments</strong> (one row per program), <strong>Measure</strong> and

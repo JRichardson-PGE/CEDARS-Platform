@@ -28,15 +28,21 @@ monthly/index:
 monthly/year_new:
   title: Setting up a program year's monthly reports
   guide:
-    - For CPUC system administrators. This adds twelve reports to the filing calendar, one per month. Each opens when its month ends and is
-      due on the day chosen here of the month after.
+    - >-
+      For CPUC system administrators. This puts one whole program year on the filing calendar: thirteen due dates, one for each
+      month's report and the 13th-month report's, due with the year's annual claim. Each month's report opens when its month ends;
+      the 13th-month report, generated from each PA's confirmed claims, opens when the year ends.
+    - A due date can be moved afterwards on the filing calendar, with a reason.
   how:
-    - Choose the year and the day of the month reports are due, then Set up the year.
+    - Choose the program year and the ACC, enter the thirteen due dates, then Set up the year.
   see: monthly-reports
   tour:
     - target: main form
       title: The year
-      text: The program year and the due day. Every PA sees the reports on Monthly reports once it is set up.
+      text: The program year and what its estimates are priced on. Every PA sees the reports on Monthly reports once it is set up.
+    - target: "#due-dates"
+      title: Due dates
+      text: Each month's report is due after its month ends; the 13th-month report is due with the annual claim.
 
 monthly/setup:
   title: How a year's monthly reports are priced
