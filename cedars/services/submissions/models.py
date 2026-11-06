@@ -16,6 +16,11 @@ class Deadline(models.Model):
 
     module = models.CharField(max_length=40)
     kind = models.CharField(max_length=80, help_text="e.g. Q1 claim, TUAL, monthly report")
+    name = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="The filing's name on the calendar and its pages, which a CPUC system administrator changes (blank: what is due)",
+    )
     period = models.ForeignKey("registry.ReportingPeriod", null=True, blank=True, on_delete=models.PROTECT, related_name="deadlines")
     cycle = models.ForeignKey("registry.FilingCycle", null=True, blank=True, on_delete=models.PROTECT, related_name="deadlines")
     opens_at = models.DateTimeField(null=True, blank=True)
@@ -39,7 +44,12 @@ class Deadline(models.Model):
 
     def __str__(self):
         what = self.period or self.cycle
-        return f"{self.module} {self.kind} {what} due {self.due_at:%Y-%m-%d}"
+        return f"{self.module} {self.title} {what} due {self.due_at:%Y-%m-%d}"
+
+    @property
+    def title(self) -> str:
+        """What people call the filing: its name, else what is due (`kind`, which code matches on and never changes)."""
+        return self.name or self.kind
 
 
 class WorkflowPolicy(models.Model):

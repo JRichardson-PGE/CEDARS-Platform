@@ -26,7 +26,7 @@ to every signed-in user.</p>
   <span class="count">{{ c.filings|length }} filing{{ c.filings|length|pluralize }}{% if c.standing %}, {{ c.standing|length }} standing budget{{ c.standing|length|pluralize }}{% endif %}</span></summary>
 <div class="section-body">
 {% endif %}
-{% if operating %}<p class="operating-link"><a href="{% url 'budgets:operating' c.cycle.first_year %}">{% if org %}{{ org.code }}'s operating budget{% else %}Operating budgets{% endif %} for the {{ c.cycle|cycle_label }} cycle</a>: the approved budget with every fund shift applied.</p>{% endif %}
+{% if operating %}<p class="operating-link"><a href="{% url 'budgets:operating' c.cycle.slug %}">{% if org %}{{ org.code }}'s operating budget{% else %}Operating budgets{% endif %} for the {{ c.cycle|cycle_label }} cycle</a>: the approved budget with every fund shift applied.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Filings of the {{ c.cycle|cycle_label }} cycle">
 <table class="list">
   <caption class="sr-only">Filings of the {{ c.cycle|cycle_label }} cycle{% if org %} and {{ org.code }}'s status{% endif %}</caption>
@@ -34,7 +34,7 @@ to every signed-in user.</p>
   <tbody>
   {% for f in c.filings %}
   <tr>
-    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.kind }}</a>{% else %}{{ f.deadline.kind }}{% endif %}</th>
+    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.title }}</a>{% else %}{{ f.deadline.title }}{% endif %}</th>
     <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date_words }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
     <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
     <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>
@@ -55,7 +55,7 @@ to every signed-in user.</p>
   {% for v in c.standing %}
   <tr>
     <th scope="row"><span class="id">{{ v.submission.organisation.code }}</span></th>
-    <td><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.deadline.kind }}</a></td>
+    <td><a href="{% url 'budgets:version' v.pk %}">{{ v.submission.deadline.title }}</a></td>
     <td class="num">{{ v.number }}</td>
     <td class="nowrap">{{ v.confirmed_at|date_words }}{% if v.imported %}, imported from legacy CEDARS{% endif %}</td>
   </tr>

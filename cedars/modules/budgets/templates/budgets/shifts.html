@@ -11,9 +11,9 @@
 filing and has no cost-effectiveness run. Its amounts must add up to zero. A shift that touches a statewide program takes effect once
 every other PA funding that program has acknowledged it. The approved budget never changes; the operating budget does.</p>
 {% if can_read_operating and cycles %}
-<p>{{ org.code }}'s operating budget: {% for c in cycles %}<a href="{% url 'budgets:operating' c.first_year %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+<p>{{ org.code }}'s operating budget: {% for c in cycles %}<a href="{% url 'budgets:operating' c.slug %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% elif can_read_every_operating and cycles %}
-<p>Program administrators' operating budgets, by cycle: {% for c in cycles %}<a href="{% url 'budgets:operating' c.first_year %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+<p>Program administrators' operating budgets, by cycle: {% for c in cycles %}<a href="{% url 'budgets:operating' c.slug %}">{{ c }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% endif %}
 
 {% if waiting %}

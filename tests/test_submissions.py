@@ -161,7 +161,7 @@ def test_only_the_cpuc_sets_the_calendar(pge_admin):
 def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin, cpuc):
     c = signed_in(cpuc_admin)
     page = c.get("/filings/calendar/").content.decode()
-    assert "quarterly claim" in page and "Add a deadline" in page
+    assert "quarterly claim" in page and 'href="/filings/calendar/new/">Add a filing</a>' in page
     # a deadline added by hand has no module page behind it, so it is not a link; a claim year's periods are
     assert '<th scope="row">quarterly claim</th>' in page and f'href="/claims/periods/{deadline.pk}/"' not in page
     from cedars.modules.claims import service as claims
@@ -172,11 +172,11 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
     assert f'<a href="/claims/periods/{q1.pk}/">Q1 claim</a>' in page  # each row links to the filing's page
     assert c.get(f"/claims/periods/{q1.pk}/").status_code == 200
     assert 'class="due"><time datetime="' in page and "Due in 1" in page  # the date with its urgency in words
-    r = c.post(
+    # the calendar fills from the modules' set-ups only: it takes no deadline added by hand
+    c.post(
         "/filings/calendar/?range=all", {"module": "monthly", "kind": "monthly report", "year": 2028, "period": "m1", "due": "2028-02-15"}
     )
-    assert r.url == "/filings/calendar/?range=all"  # back to the view the deadline was added from
-    assert '<th scope="row">monthly report</th>' in c.get(r.url).content.decode()
+    assert '<th scope="row">monthly report</th>' not in c.get("/filings/calendar/?range=all").content.decode()
     v1 = service.confirm(analyst, _priced(analyst, deadline, pge), "h1")
     service.move_deadline(cpuc_admin, deadline, timezone.now() - timedelta(minutes=1), "passes")
     req = service.request_reopen(analyst, v1.submission, "double counted")
@@ -194,7 +194,7 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
 
 def test_the_filing_calendar_is_public(client, deadline):
     html = client.get("/filings/calendar/").content.decode()
-    assert deadline.kind in html and 'name="module"' not in html  # anyone reads it; only a CPUC system administrator sees the add form
+    assert deadline.kind in html and "/filings/calendar/new/" not in html  # anyone reads it; only a CPUC system administrator adds filings
 
 
 def test_calendar_filters_from_the_query_string():
@@ -369,3 +369,120 @@ def test_reminders_skip_retired_deadlines_and_follow_a_moved_one(cpuc_admin, mak
     notifications.send_deadline_reminders()
     titles = list(Notification.objects.filter(user=u).values_list("title", flat=True))
     assert any("quarterly claim" in t for t in titles) and not any("monthly report" in t for t in titles)
+
+
+# --- adding filings from the calendar, renaming them and changing their program years
+
+
+def test_add_a_filing_is_its_own_page_of_each_modules_set_up(client, signed_in, cpuc_admin, pge_admin):
+    assert client.get("/filings/calendar/new/").status_code == 302  # signed out: sign in first
+    signed_in(pge_admin)
+    assert client.get("/filings/calendar/new/").status_code == 404  # only a CPUC system administrator sets up filings
+    page = signed_in(cpuc_admin).get("/filings/calendar/new/").content.decode()
+    for url, label in (
+        ("/budgets/filings/new/", "Set up a budget filing"),
+        ("/claims/years/new/", "Set up a claim year"),
+        ("/monthly/years/new/", "Set up a year of monthly reports"),
+    ):
+        assert f'href="{url}">{label}</a>' in page
+    assert 'href="/filings/calendar/">Filing calendar</a>' in page  # the breadcrumb back
+
+
+def _budget_filing(cpuc_admin, **kw):
+    from cedars.modules.budgets import service as budgets
+
+    args = {"first_year": 2028, "kind": "Business plan application", "due_at": timezone.now() + timedelta(days=90), "acc_version": "2026"}
+    return budgets.add_filing(cpuc_admin, **(args | kw))
+
+
+def test_a_budget_filing_covers_any_number_of_years_and_goes_on_the_calendar(cpuc_admin, signed_in):
+    from cedars.modules.budgets import service as budgets
+
+    four = _budget_filing(cpuc_admin, first_year=2028, kind="True-up advice letter (TUAL)")
+    assert (four.cycle.first_year, four.cycle.last_year) == (2028, 2031)  # four years when no last year is given
+    eight = _budget_filing(cpuc_admin, first_year=2028, last_year=2035, name="2028-2035 Business plan application")
+    one = _budget_filing(cpuc_admin, first_year=2030, last_year=2030, kind="Mid-cycle advice letter (MCAL)")
+    assert eight.cycle != four.cycle and str(eight.cycle) == "2028-2035"  # two cycles may start in the same year
+    assert (one.cycle.first_year, one.cycle.last_year) == (2030, 2030)
+    assert budgets.label(eight) == "2028-2035 Business plan application" and budgets.label(four) == "2028-2031 True-up advice letter (TUAL)"
+    with pytest.raises(AccessDenied, match="on or after"):
+        _budget_filing(cpuc_admin, first_year=2030, last_year=2029)
+    with pytest.raises(AccessDenied, match="at most 20"):
+        _budget_filing(cpuc_admin, first_year=2030, last_year=2050)
+    e = AuditEvent.objects.filter(action="deadline.created", object_id=str(eight.pk)).get()
+    assert e.after["name"] == "2028-2035 Business plan application" and e.after["years"] == "2028-2035"
+    page = signed_in(cpuc_admin).get("/filings/calendar/?range=all").content.decode()
+    assert f'<a href="/budgets/filings/{eight.pk}/">2028-2035 Business plan application</a>' in page  # set up = on the calendar
+    assert "<td>2028-2035</td>" in page and "<td>2030</td>" in page
+
+
+def test_the_budget_set_up_page_takes_a_name_and_both_years(cpuc_admin, signed_in, monkeypatch):
+    from cedars.services.submissions.models import Deadline
+
+    c = signed_in(cpuc_admin)
+    form = {"kind": "Business plan application", "name": "Next application", "first_year": 2032, "last_year": 2039,
+            "due": "2031-03-01", "acc_version": "2026"}  # fmt: skip
+    page = c.get("/budgets/filings/new/").content.decode()
+    assert 'name="first_year"' in page and 'name="last_year"' in page and 'name="name"' in page
+    from cedars.modules.budgets import views
+
+    monkeypatch.setattr(views, "accs", lambda: ["2026"])
+    r = c.post("/budgets/filings/new/", form | {"last_year": 2031})
+    assert r.status_code == 200 and "same as the first or after it" in r.content.decode()
+    r = c.post("/budgets/filings/new/", form)
+    d = Deadline.objects.get(module="budgets", name="Next application")
+    assert r.status_code == 302 and (d.cycle.first_year, d.cycle.last_year) == (2032, 2039)
+
+
+def test_a_budget_filing_is_renamed_and_its_years_change_until_a_pa_starts_it(cpuc_admin, signed_in, analyst, pge, deadline):
+    d = _budget_filing(cpuc_admin)
+    url = f"/filings/calendar/{d.pk}/"
+    c = signed_in(cpuc_admin)
+    page = c.get(url).content.decode()
+    assert 'name="name"' in page and 'name="first_year"' in page and 'name="last_year"' in page
+    base = {"action": "change", "due": timezone.localtime(d.due_at).date().isoformat(), "reason": "Decision D.27-01-001"}
+    r = c.post(url, base | {"name": "2028-2035 Business plan application", "first_year": 2028, "last_year": 2035})
+    assert r.status_code == 302
+    d.refresh_from_db()
+    assert d.name == "2028-2035 Business plan application" and str(d.cycle) == "2028-2035"
+    e = AuditEvent.objects.filter(action="deadline.changed", object_id=str(d.pk)).latest("id")
+    assert e.before == {"name": "Business plan application", "years": "2028-2031"}
+    assert e.after == {"name": "2028-2035 Business plan application", "years": "2028-2035"} and e.reason == "Decision D.27-01-001"
+    page = c.get(url).content.decode()
+    assert "Name: Business plan application to 2028-2035 Business plan application" in page
+    assert "<h1>Budgets: 2028-2035 Business plan application, 2028-2035</h1>" in page.replace("\n", "")
+    # a blank name goes back to what is due
+    c.post(url, base | {"name": "", "first_year": 2028, "last_year": 2035})
+    d.refresh_from_db()
+    assert d.name == "" and d.title == "Business plan application"
+    # once a PA has started, the years are fixed (the form shows them, disabled) and the service refuses a change
+    from cedars.services.submissions.models import Submission
+
+    Submission.objects.create(deadline=d, organisation=pge)
+    page = c.get(url).content.decode()
+    assert "Filings have started, so the program years no longer change." in page
+    c.post(url, base | {"name": "Renamed", "first_year": 2028, "last_year": 2029})
+    d.refresh_from_db()
+    assert d.name == "Renamed" and str(d.cycle) == "2028-2035"  # the name changed; the disabled years were ignored
+    with pytest.raises(AccessDenied, match="started this filing"):
+        service.change_deadline(cpuc_admin, d, due_at=d.due_at, reason="r", years=(2028, 2029))
+    # a claim's deadline keeps its name (its module reads it) and has no program years to change
+    page = c.get(f"/filings/calendar/{deadline.pk}/").content.decode()
+    assert 'name="name"' not in page and 'name="first_year"' not in page
+    service.change_deadline(cpuc_admin, deadline, due_at=deadline.due_at, reason="r", name="Something else")
+    deadline.refresh_from_db()
+    assert deadline.name == ""
+
+
+def test_cycles_are_found_by_their_years(cpuc_admin):
+    a = registry.ensure_cycle(2028)
+    b = registry.ensure_cycle(2028, last_year=2035)
+    assert registry.ensure_cycle(2028) == b  # without a last year: the longest that starts then
+    assert registry.cycle_from_slug("2028-2031") == a and registry.cycle_from_slug("2028-2035") == b
+    assert registry.cycle_from_slug("2028") == b and registry.cycle_from_slug("2029") is None and registry.cycle_from_slug("x") is None
+    with pytest.raises(ValueError):
+        registry.ensure_cycle(2030, last_year=2029)
+    # a program year in two cycles that start together belongs to the one whose budget filing is due last
+    _budget_filing(cpuc_admin, first_year=2028, last_year=2031, due_at=timezone.now() + timedelta(days=10))
+    _budget_filing(cpuc_admin, first_year=2028, last_year=2035, due_at=timezone.now() + timedelta(days=20))
+    assert registry.cycle_for_year(2029) == b

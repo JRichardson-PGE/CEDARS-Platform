@@ -7,10 +7,10 @@
 {% if not ob %}
 <p>Each program administrator's operating budget is its approved budget (its standing budget filing) plus the fund shifts in effect
 since it was confirmed. Choose a PA to see its operating budget by year and program.</p>
-{% if orgs %}<ul id="operating-pas">{% for o in orgs %}<li><a href="{% url 'budgets:operating' cycle.first_year %}?org={{ o.code|urlencode }}">{{ o.code }}</a> <span class="small muted">{{ o.name }}</span></li>{% endfor %}</ul>
+{% if orgs %}<ul id="operating-pas">{% for o in orgs %}<li><a href="{% url 'budgets:operating' cycle.slug %}?org={{ o.code|urlencode }}">{{ o.code }}</a> <span class="small muted">{{ o.name }}</span></li>{% endfor %}</ul>
 {% else %}<p>No program administrator has a budget filing or a fund shift in this cycle yet.</p>{% endif %}
 {% else %}
-<p>{% if ob.standing_years|length > 1 %}The approved budget is, for each program year, the latest filing that covers it: {% for sv, ys in ob.standing_years %}<a href="{% url 'budgets:version' sv.pk %}">{{ sv.submission.deadline.kind }}, version {{ sv.number }}</a> for {{ ys|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}.{% else %}The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.kind }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date_words }}{% else %}not filed yet (taken as zero){% endif %}.{% endif %}
+<p>{% if ob.standing_years|length > 1 %}The approved budget is, for each program year, the latest filing that covers it: {% for sv, ys in ob.standing_years %}<a href="{% url 'budgets:version' sv.pk %}">{{ sv.submission.deadline.title }}, version {{ sv.number }}</a> for {{ ys|join:", " }}{% if not forloop.last %}; {% endif %}{% endfor %}.{% else %}The approved budget is {% if ob.standing %}<a href="{% url 'budgets:version' ob.standing.pk %}">{{ ob.standing.submission.deadline.title }}, version {{ ob.standing.number }}</a>, confirmed {{ ob.standing.confirmed_at|date_words }}{% else %}not filed yet (taken as zero){% endif %}.{% endif %}
 The operating budget adds {{ ob.organisation.code }}'s part of the {{ ob.shifts|length }} fund shift{{ ob.shifts|length|pluralize }} in effect since then: its own lines, and its portion of each statewide line (by its allocation factor) on that statewide program's row.
 A statewide program's row is {{ ob.organisation.code }}'s portion throughout: its weighted allocation factor of the whole program's approved budget, as its lead PA filed it.</p>
 <div class="card" role="note">
@@ -37,7 +37,7 @@ A statewide program's row is {{ ob.organisation.code }}'s portion throughout: it
 </div>
 
 <h2>By program{% if year %} in {{ year }}{% endif %}</h2>
-<p><a href="{% url 'budgets:operating_csv' ob.cycle.first_year %}?org={{ ob.organisation.code }}{% if year %}&amp;year={{ year }}{% endif %}">Download this view (CSV)</a></p>
+<p><a href="{% url 'budgets:operating_csv' ob.cycle.slug %}?org={{ ob.organisation.code }}{% if year %}&amp;year={{ year }}{% endif %}">Download this view (CSV)</a></p>
 {% if rows %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Operating budget by program">
 <table class="list">

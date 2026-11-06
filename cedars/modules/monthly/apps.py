@@ -12,13 +12,26 @@ class MonthlyConfig(AppConfig):
     verbose_name = "Monthly reports"
 
     def ready(self):
-        from cedars.services.submissions.service import register_acc_needs, register_deadline_page, register_publisher, register_reader
+        from cedars.services.submissions.service import (
+            register_acc_needs,
+            register_deadline_page,
+            register_publisher,
+            register_reader,
+            register_setup_page,
+        )
 
         from . import service
 
         register_publisher("monthly", service.on_publish, service.on_unpublish)
         register_acc_needs("monthly", service.acc_needs)  # Engine releases warns when the default release lacks one
         register_deadline_page("monthly", service.deadline_page)  # the filing calendar links each of its deadlines
+        register_setup_page(  # the filing calendar's Add a filing page leads here
+            "monthly",
+            label="A year of monthly reports",
+            url_name="monthly:year_new",
+            about="A program year's twelve monthly reports, each due on the same day of the month after it.",
+            order=3,
+        )
         register_reader("monthly", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 
         from cedars.services.registry.service import register_reported_spend

@@ -433,7 +433,7 @@ def send_deadline_reminders(today=None) -> int:
             what = FILING_MODULES.get(d.module, d.module)
             n = _create(
                 user,
-                f"{_due_text(days)}: {what} {d.kind} {d.period or d.cycle}, {due:%Y-%m-%d}",
+                f"{_due_text(days)}: {what} {d.title} {d.period or d.cycle}, {due:%Y-%m-%d}",
                 d.notes,
                 "/filings/calendar/",
                 email=r.channel == Subscription.Channel.EMAIL,

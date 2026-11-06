@@ -1,14 +1,16 @@
 {% extends "core/base.html" %}
-{% block title %}{{ d.module|capfirst }} {{ d.kind }} deadline{% endblock %}
+{% block title %}{{ d.module|capfirst }} {{ d.title }} deadline{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li></ol></nav>
-<div class="page-title"><h1>{{ d.module|capfirst }}: {{ d.kind }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</h1>{% page_help "submissions/deadline" %}</div>
+<div class="page-title"><h1>{{ d.module|capfirst }}: {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</h1>{% page_help "submissions/deadline" %}</div>
 {% if d.retired_at %}<p id="retired-note"><span class="status warn">Retired</span> Taken off the filing calendar on {{ d.retired_at|date_words }}. Reason: {{ d.retired_reason }}. No filing can start for it.</p>{% endif %}
 <dl class="facts" id="deadline-facts">
+  {% if d.name %}<dt>What is due</dt><dd>{{ d.kind }}</dd>{% endif %}
+  {% if d.cycle %}<dt>Program years</dt><dd>{{ d.cycle|cycle_label }}</dd>{% endif %}
   <dt>Due</dt><dd><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time> <span class="small muted">{{ d.due_at|due_words }}</span></dd>
   <dt>Opens</dt><dd>{% if d.opens_at %}<time datetime="{{ d.opens_at|date:'c' }}">{{ d.opens_at|date_words }}</time>{% else %}Open now{% endif %}</dd>
   {% if d.notes %}<dt>Notes</dt><dd>{{ d.notes|linebreaksbr }}</dd>{% endif %}
-  <dt>Filing page</dt><dd>{% if page %}<a href="{{ page }}">Open the {{ d.kind }} filing</a>{% else %}None: added by hand on the calendar{% endif %}</dd>
+  <dt>Filing page</dt><dd>{% if page %}<a href="{{ page }}">Open the {{ d.title }} filing</a>{% else %}None: added by hand on the calendar{% endif %}</dd>
   {% if sysadmin %}<dt>Filings started</dt><dd>{{ started }}</dd>{% endif %}
 </dl>
 
@@ -26,7 +28,8 @@
 {% else %}
 <section class="card" aria-labelledby="change-h">
   <h2 id="change-h">Change this deadline</h2>
-  <p>Change when it is due or opens, or its notes. Those who follow the filing calendar are told, and reminders are sent again for a new due date. What is due and its period do not change: add the right deadline on the calendar and retire this one instead.</p>
+  {% if renamable %}<p>Change the filing's name, its program years (until a filing starts), when it is due or opens, or its notes. Those who follow the filing calendar are told, and reminders are sent again for a new due date. What is due does not change.</p>
+  {% else %}<p>Change when it is due or opens, or its notes. Those who follow the filing calendar are told, and reminders are sent again for a new due date. What is due and its period are part of its module's set-up and do not change.</p>{% endif %}
   <form method="post" class="stack form-narrow">{% csrf_token %}
     <input type="hidden" name="action" value="change">
     {% for field in change_form %}{{ field.as_field_group }}{% endfor %}

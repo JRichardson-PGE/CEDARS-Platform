@@ -15,6 +15,7 @@ from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
+from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
@@ -156,6 +157,8 @@ def filing_new(request):
             deadline = service.add_filing(
                 request.user,
                 first_year=d["first_year"],
+                last_year=d["last_year"],
+                name=d["name"],
                 kind=d["kind"],
                 due_at=service.due_at(d["due"]),
                 opens_at=service.due_at(d["opens"]) if d["opens"] else None,
@@ -552,8 +555,10 @@ def changes(request):
     cycle = request.GET.get("cycle", "")
     if org is not None:
         out = out.filter(version__submission__organisation=org)
-    if cycle.isdigit():
-        out = out.filter(version__submission__deadline__cycle__first_year=int(cycle))
+    chosen = registry.cycle_from_slug(cycle) if cycle else None
+    if chosen is not None:
+        out = out.filter(version__submission__deadline__cycle=chosen)
+        cycle = chosen.slug
     return render(
         request,
         "budgets/changes.html",

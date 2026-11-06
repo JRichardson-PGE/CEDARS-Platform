@@ -58,22 +58,47 @@ def filings(cycle=None):
 
 
 def label(deadline: Deadline) -> str:
-    return f"{deadline.cycle} {deadline.kind}"
+    """A filing as people name it: its name when it has one, else its cycle and what is due ("2028-2031 Business plan application")."""
+    return deadline.name or f"{deadline.cycle} {deadline.kind}"
+
+
+MAX_YEARS = 20  # the longest filing a CPUC system administrator sets up: no budget filing has covered more than eight program years
 
 
 @transaction.atomic
 def add_filing(
-    actor, *, first_year: int, kind: str, due_at, acc_version: str, allocation_version=None, opens_at=None, notes="", cost_test_set=None
+    actor,
+    *,
+    first_year: int,
+    kind: str,
+    due_at,
+    acc_version: str,
+    last_year: int | None = None,
+    name: str = "",
+    allocation_version=None,
+    opens_at=None,
+    notes="",
+    cost_test_set=None,
 ) -> Deadline:
-    """A budget filing for a four-year cycle, due on a date, priced on an ACC (and an allocation version, or the most recent)."""
+    """A budget filing for program years first_year to last_year (any number of years; four when last_year is not given), due on a
+    date, priced on an ACC (and an allocation version, or the most recent). It goes on the filing calendar as it is set up
+    (submissions.add_deadline), where a CPUC system administrator changes it afterwards; `name` is what the calendar and its pages
+    call it (blank: its years and what is due)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up budget filings.")
+    last_year = first_year + 3 if last_year is None else last_year
+    if last_year < first_year:
+        raise AccessDenied("A filing's last program year is on or after its first.")
+    if last_year - first_year + 1 > MAX_YEARS:
+        raise AccessDenied(f"A filing covers at most {MAX_YEARS} program years.")
     _check_allocation(allocation_version)
     _check_cost_tests(cost_test_set)
-    cycle = registry.ensure_cycle(first_year)
+    cycle = registry.ensure_cycle(first_year, last_year=last_year)
     if Deadline.objects.filter(module=MODULE, kind=kind, cycle=cycle).exists():
         raise AccessDenied(f"The {cycle} cycle already has a {kind} filing.")
-    deadline = submissions.add_deadline(actor, module=MODULE, kind=kind, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes)
+    deadline = submissions.add_deadline(
+        actor, module=MODULE, kind=kind, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes, name=name
+    )
     setup = FilingSetup.objects.create(
         deadline=deadline, acc_version=acc_version, allocation_version=allocation_version, cost_test_set=cost_test_set
     )

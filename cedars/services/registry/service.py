@@ -12,7 +12,7 @@ from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Prefetch, Q
+from django.db.models import F, Max, Prefetch, Q
 from django.utils import timezone
 
 from cedars.services import audit
@@ -522,9 +522,30 @@ def history(program: Program) -> list[tuple[ProgramVersion, list[tuple[str, obje
 # --- cycles and periods
 
 
-def ensure_cycle(first_year: int, years: int = 4) -> FilingCycle:
-    cycle, _ = FilingCycle.objects.get_or_create(first_year=first_year, defaults={"last_year": first_year + years - 1})
+def ensure_cycle(first_year: int, years: int = 4, *, last_year: int | None = None) -> FilingCycle:
+    """The cycle of these program years, made when missing. With last_year, exactly first_year to last_year (any number of years).
+    Without it, a cycle that starts in first_year when there is one (the longest, when several do), else a new one of `years` years."""
+    if last_year is None:
+        found = FilingCycle.objects.filter(first_year=first_year).order_by("-last_year").first()
+        if found is not None:
+            return found
+        last_year = first_year + years - 1
+    if last_year < first_year:
+        raise ValueError(f"A cycle ends in or after the year it starts: {first_year} to {last_year}.")
+    cycle, _ = FilingCycle.objects.get_or_create(first_year=first_year, last_year=last_year)
     return cycle
+
+
+def cycle_from_slug(slug: str) -> FilingCycle | None:
+    """The cycle a page address names: "2028-2031", or a bare first year ("2028", as addresses had it before cycles could share a
+    first year: the longest cycle that starts then). None when there is no such cycle."""
+    first, _, last = str(slug).partition("-")
+    if not first.isdigit() or (last and not last.isdigit()):
+        return None
+    cycles = FilingCycle.objects.filter(first_year=int(first))
+    if last:
+        cycles = cycles.filter(last_year=int(last))
+    return cycles.order_by("-last_year").first()
 
 
 def ensure_periods(year: int) -> list[ReportingPeriod]:
@@ -821,8 +842,14 @@ def evaluations(program: Program) -> list[dict]:
 
 
 def cycle_for_year(year: int) -> FilingCycle | None:
-    """The filing cycle a program year belongs to."""
-    return FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year).order_by("-first_year").first()
+    """The filing cycle a program year belongs to: of the cycles that cover it, the one that starts latest, and of those that start
+    the same year, the one whose budget filing was due last (a later filing for the same years supersedes an earlier one)."""
+    return (
+        FilingCycle.objects.filter(first_year__lte=year, last_year__gte=year)
+        .annotate(last_due=Max("deadlines__due_at"))
+        .order_by("-first_year", F("last_due").desc(nulls_last=True), "-last_year")
+        .first()
+    )
 
 
 # --- what each module holds about one program (BR-07.6)

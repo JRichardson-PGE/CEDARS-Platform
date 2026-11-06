@@ -245,6 +245,7 @@ button.link:hover { text-decoration-thickness: 2px; }
 .card[role="note"] { width: fit-content; max-width: 100%; box-sizing: border-box; }   /* a note box hugs its text, which keeps the 80-character measure */
 .card > h2:first-child, .card > h3:first-child { margin-top: 0; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 0 1rem; }   /* side by side when they fit, else stacked (320 px) */
+ul.cards { list-style: none; margin: 0; padding: 0; }
 dl.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; margin: .75rem 0 1.25rem; }
 dl.tiles .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .65rem .9rem; }
 dl.tiles dt { font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-3); font-weight: 600; }

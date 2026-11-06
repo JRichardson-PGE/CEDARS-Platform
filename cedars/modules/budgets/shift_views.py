@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.registry.models import FilingCycle
+from cedars.services.registry import service as registry
 
 from . import forms, shifts
 from .models import FundShift
@@ -224,10 +224,12 @@ def shift_withdraw(request, pk):
 # --- the operating budget
 
 
-def _operating(request, first_year):
+def _operating(request, cycle):
     """The operating budget of the PA chosen with ?org=, else the acting PA's; None when neither names a PA (the CPUC's own page, which
     lists the PAs to choose from)."""
-    cycle = get_object_or_404(FilingCycle, first_year=first_year)
+    cycle = registry.cycle_from_slug(cycle)
+    if cycle is None:
+        raise Http404
     code = request.GET.get("org")
     org = access.by_code_or_404(code) if code else request.filing_organisation
     if org is None and not code and shifts.can_read_every_operating(request.user):
@@ -251,8 +253,8 @@ def _year(request, ob) -> int | None:
 
 
 @login_required
-def operating(request, first_year):
-    cycle, ob = _operating(request, first_year)
+def operating(request, cycle):
+    cycle, ob = _operating(request, cycle)
     if ob is None:
         return render(request, "budgets/operating.html", {"ob": None, "cycle": cycle, "orgs": _cycle_pas(cycle)})
     year = _year(request, ob)
@@ -274,8 +276,8 @@ def operating(request, first_year):
 
 
 @login_required
-def operating_csv(request, first_year):
-    ob = _operating(request, first_year)[1]
+def operating_csv(request, cycle):
+    ob = _operating(request, cycle)[1]
     if ob is None:
         raise Http404
     year = _year(request, ob)

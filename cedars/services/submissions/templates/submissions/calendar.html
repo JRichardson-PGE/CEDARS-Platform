@@ -2,6 +2,7 @@
 {% block title %}Filing calendar{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Filing calendar</h1>{% page_help "submissions/calendar" %}</div>
+{% if sysadmin %}<p id="add-filing"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a> <span class="small muted">Setting up a budget filing, claim year or year of monthly reports puts it on the calendar. To change one, select Change on its row.</span></p>{% endif %}
 <p>Choose the filing types and due dates to show. The address of the page keeps your choice, so a link to it shows the same view.</p>
 <section class="filters calendar-filters" aria-label="Filters">
   <div role="group" aria-labelledby="types-label" class="chip-group" id="type-filter">
@@ -33,21 +34,11 @@
   <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
   <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th><th scope="col">{% if sysadmin %}Change{% else %}History{% endif %}</th></tr></thead>
   <tbody>
-  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.kind }}</a>{% else %}{{ d.kind }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Retired</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.kind }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
+  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Retired</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
   {% empty %}<tr><td colspan="5">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
 <h2>Corrections after the due date</h2>
 <ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
-{% if form %}
-<section class="card" aria-labelledby="add-h">
-  <h2 id="add-h">Add a deadline</h2>
-  <p>To change or retire a deadline, select Change on its row.</p>
-  <form method="post" class="stack form-narrow">{% csrf_token %}
-    {% for field in form %}{{ field.as_field_group }}{% endfor %}
-    <div class="actions"><button type="submit" class="primary">Add</button></div>
-  </form>
-</section>
-{% endif %}
 {% endblock %}

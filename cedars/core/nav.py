@@ -89,7 +89,7 @@ CHANGE_LOGS = (
 CALENDAR_ABOUT = "What each kind of filing expects, for which period, and when it is due."
 ALLOCATION_ABOUT = "How each statewide program's budget, costs and savings are shared among the program administrators."
 
-CALENDAR = ("submissions:deadline",)
+CALENDAR = ("submissions:deadline", "submissions:deadline_new")
 STUDIES = (
     "documents:stud*",
     "documents:new_study",

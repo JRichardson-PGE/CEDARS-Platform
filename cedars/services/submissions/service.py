@@ -70,6 +70,7 @@ _claims_totals: list[Callable] = []
 _acc_needs: dict[str, Callable] = {}
 _restaters: list[tuple[Callable, Callable]] = []
 _deadline_pages: dict[str, Callable] = {}
+_setup_pages: dict[str, dict] = {}
 _readers: dict[str, Callable] = {}
 
 
@@ -124,6 +125,18 @@ def register_deadline_page(module: str, page: Callable[[Deadline], str]) -> None
 def deadline_page(deadline: Deadline) -> str:
     page = _deadline_pages.get(deadline.module)
     return page(deadline) if page else ""
+
+
+def register_setup_page(module: str, *, label: str, url_name: str, about: str, order: int = 0) -> None:
+    """A module's page where a CPUC system administrator sets up its filings (a budget filing, a claim year, a year of monthly
+    reports): setting one up puts its deadlines on the filing calendar, whose Add a filing page lists these pages. `label` names
+    what is set up, `about` says in one sentence what it puts on the calendar."""
+    _setup_pages[module] = {"module": module, "label": label, "url_name": url_name, "about": about, "order": order}
+
+
+def setup_pages() -> list[dict]:
+    """Every module's set-up page (register_setup_page), in their order."""
+    return sorted(_setup_pages.values(), key=lambda p: (p["order"], p["label"]))
 
 
 def register_reader(module: str, can_read: Callable[..., bool]) -> None:
@@ -320,25 +333,36 @@ def _when(value) -> str | None:
 
 
 def deadline_fields(deadline: Deadline) -> dict:
-    """What a CPUC system administrator changes on a deadline, as its audit events record it."""
-    return {"due_at": _when(deadline.due_at), "opens_at": _when(deadline.opens_at), "notes": deadline.notes}
+    """What a CPUC system administrator changes on a deadline, as its audit events record it: its name, its program years (a filing
+    on a cycle), its dates and its notes."""
+    out = {"name": deadline.title}
+    if deadline.cycle_id:
+        out["years"] = deadline.cycle.slug
+    return out | {"due_at": _when(deadline.due_at), "opens_at": _when(deadline.opens_at), "notes": deadline.notes}
 
 
 @transaction.atomic
-def add_deadline(actor, *, module: str, kind: str, due_at, period=None, cycle=None, opens_at=None, notes: str = "") -> Deadline:
+def add_deadline(
+    actor, *, module: str, kind: str, due_at, period=None, cycle=None, opens_at=None, notes: str = "", name: str = ""
+) -> Deadline:
+    """Put a deadline on the filing calendar. The modules call it as a CPUC system administrator sets up a claim year, a year of
+    monthly reports or a budget filing, so the calendar fills from those set-ups; on the calendar it is then changed, not added."""
     _calendar_admin(actor)
     same = Deadline.objects.filter(module=module, kind=kind, period=period, cycle=cycle).first()
     if same is not None:
         if same.retired_at:
             raise AccessDenied(f"{same} was retired; restore it from its page instead of adding it again.")
         raise AccessDenied(f"The calendar already has {same}; change its dates on its page.")
-    d = Deadline.objects.create(module=module, kind=kind, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes)
-    audit.record(
-        "deadline.created",
-        obj=d,
-        after={"module": module, "kind": kind, "due_at": due_at.isoformat(), "opens_at": _when(opens_at), "notes": notes},
-        actor=actor,
+    name = (name or "").strip()
+    d = Deadline.objects.create(
+        module=module, kind=kind, name=name, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes
     )
+    after = {"module": module, "kind": kind, "due_at": due_at.isoformat(), "opens_at": _when(opens_at), "notes": notes}
+    if name:
+        after["name"] = name
+    if cycle is not None:
+        after["years"] = cycle.slug
+    audit.record("deadline.created", obj=d, after=after, actor=actor)
     return d
 
 
@@ -348,20 +372,60 @@ def move_deadline(actor, deadline: Deadline, due_at, reason: str) -> Deadline:
     return change_deadline(actor, deadline, due_at=due_at, opens_at=deadline.opens_at, notes=deadline.notes, reason=reason)
 
 
+def renamable(deadline: Deadline) -> bool:
+    """Whether a CPUC system administrator may rename the deadline and change its program years: a filing on a cycle (a budget
+    filing). A claim's or a monthly report's deadline is named by what is due in its period, which its module reads."""
+    return deadline.cycle_id is not None
+
+
+MAX_CYCLE_YEARS = 20
+
+
 @transaction.atomic
-def change_deadline(actor, deadline: Deadline, *, due_at, opens_at=None, notes: str = "", reason: str) -> Deadline:
-    """Change a deadline's due date, opening date or notes, with a reason. A new due date is the audit event deadline.moved (so its
-    subscribers hear of it and reminders are sent again for the new date); any other change is deadline.changed. What is due and its
-    period never change: retire the deadline and add the right one."""
+def change_deadline(
+    actor,
+    deadline: Deadline,
+    *,
+    due_at,
+    opens_at=None,
+    notes: str = "",
+    reason: str,
+    name: str | None = None,
+    years: tuple[int, int] | None = None,
+) -> Deadline:
+    """Change a deadline's due date, opening date or notes, with a reason; for a filing on a cycle (renamable), also its name and its
+    program years, the years only while no organization has started filing for it (what is filed is checked against them). A new
+    due date is the audit event deadline.moved (so its subscribers hear of it and reminders are sent again for the new date); any
+    other change is deadline.changed. What is due and a period's deadline's period never change."""
     _calendar_admin(actor)
     if not (reason or "").strip():
         raise AccessDenied("Give the reason for the change.")
-    deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
+    deadline = Deadline.objects.select_for_update(of=("self",)).select_related("cycle").get(pk=deadline.pk)
     if deadline.retired_at:
         raise AccessDenied("This deadline is retired; restore it before changing it.")
     if opens_at and opens_at >= due_at:
         raise AccessDenied("A filing opens before it is due: choose an opening date before the due date.")
     before = deadline_fields(deadline)
+    if name is not None and renamable(deadline):
+        name = name.strip()
+        deadline.name = "" if name == deadline.kind else name  # blank: called by what is due
+    if years is not None and renamable(deadline) and tuple(years) != (deadline.cycle.first_year, deadline.cycle.last_year):
+        first, last = years
+        if last < first:
+            raise AccessDenied("A filing's last program year is on or after its first.")
+        if last - first + 1 > MAX_CYCLE_YEARS:
+            raise AccessDenied(f"A filing covers at most {MAX_CYCLE_YEARS} program years.")
+        started = deadline.submissions.count()
+        if started:
+            orgs = "organization has" if started == 1 else "organizations have"
+            raise AccessDenied(f"{started} {orgs} started this filing, so its program years no longer change.")
+        from cedars.services.registry import service as registry  # registry imports this service, so here, not at the top
+
+        cycle = registry.ensure_cycle(first, last_year=last)
+        same = Deadline.objects.filter(module=deadline.module, kind=deadline.kind, period=None, cycle=cycle).exclude(pk=deadline.pk)
+        if same.exists():
+            raise AccessDenied(f"The {cycle} cycle already has a {deadline.kind} filing.")
+        deadline.cycle = cycle
     moved = deadline.due_at != due_at
     deadline.due_at, deadline.opens_at, deadline.notes = due_at, opens_at, notes or ""
     after = deadline_fields(deadline)

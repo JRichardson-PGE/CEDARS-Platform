@@ -19,7 +19,13 @@ class ClaimsConfig(AppConfig):
             "claims", checks.RULE_SET, "Quarterly claims", checks.precheck,
             year_help="The claim year; left blank, the one year the records are for.",
         )  # fmt: skip
-        from cedars.services.submissions.service import register_claims_totals, register_deadline_page, register_publisher, register_reader
+        from cedars.services.submissions.service import (
+            register_claims_totals,
+            register_deadline_page,
+            register_publisher,
+            register_reader,
+            register_setup_page,
+        )
 
         from . import service
 
@@ -29,6 +35,13 @@ class ClaimsConfig(AppConfig):
 
         register_acc_needs("claims", service.acc_needs)  # Engine releases warns when the default release lacks one
         register_deadline_page("claims", service.deadline_page)  # the filing calendar links each claim period
+        register_setup_page(  # the filing calendar's Add a filing page leads here
+            "claims",
+            label="A claim year",
+            url_name="claims:year_new",
+            about="A program year's claims: its four quarterly claims and the annual claim, each with its own deadline.",
+            order=2,
+        )
         register_reader("claims", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 
         from cedars.services.notifications.service import register_filing
