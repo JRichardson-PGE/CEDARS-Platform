@@ -1,7 +1,8 @@
 # Architecture in code
 
 The design is the CEDARS Replacement Architecture (version 33, 2026-10-30) in CEDARS-Research. This file says where each part lives here and
-how far it is built. Update the Status column in the PR that changes it.
+how far it is built. Update the Status column in the PR that changes it. The picture of the whole platform as built, with diagrams, is
+`docs/ARCHITECTURE_AS_BUILT.md`.
 
 ## Layout
 

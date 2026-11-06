@@ -3,10 +3,17 @@
 The CEDARS replacement: one Django project (a modular monolith) that the CPUC owns and hosts on its AWS account. Design: the CEDARS
 Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/CEDARS_Replacement_Architecture.html`, settled decisions
 A-M, 2026-10-29). Requirements: BRD v0.5 (CEDARS-Research `deliverables/`). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
-unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps the design onto this code and says what is built.
+unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps the design onto this code and says what is built;
+`docs/ARCHITECTURE_AS_BUILT.md` describes the whole platform as built, with diagrams.
 
 ## Rules
 
+- **The architecture document stays true** (Jake, 2026-11-06). `docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with
+  its Mermaid diagrams. A PR that changes the structure (apps, layers, hooks), the models, a flow (filing states, checks, pricing,
+  publication, statewide claims), roles or permissions, the engine integration, background work, caching or deployment updates the
+  document and its diagrams in the same PR. `tests/test_architecture_doc.py` fails on an app, model, management command or hook it does
+  not name, on an import from one module into another (or from a service into a module), and on a malformed diagram; the rest is
+  the author's to keep true. Check a changed diagram renders (GitHub shows it on the file's page).
 - **Public repository** (MIT, 2026-10-30). Nothing non-public goes into a commit, its message or a PR: no secrets, server addresses, key
   paths, bucket names, personal emails or laptop paths, real PII, or the vendor's name. Commit under a noreply address. CI's secret scan
   (`gitleaks.toml` over the whole history, plus a noreply check on every author) enforces it.
