@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 import pytest
 from django.utils import timezone
@@ -160,7 +160,7 @@ def test_only_the_cpuc_sets_the_calendar(pge_admin):
 
 def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin, cpuc):
     c = signed_in(cpuc_admin)
-    page = c.get("/filings/calendar/").content.decode()
+    page = c.get("/filings/calendar/?view=list").content.decode()
     assert "quarterly claim" in page and 'href="/filings/calendar/new/">Add a filing</a>' in page
     # a deadline added by hand has no module page behind it, so it is not a link; a claim year's periods are
     assert '<th scope="row">quarterly claim</th>' in page and f'href="/claims/periods/{deadline.pk}/"' not in page
@@ -168,7 +168,7 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
 
     claims.add_year(cpuc_admin, year=2029, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
     q1 = claims.periods(2029)[0]
-    page = c.get("/filings/calendar/").content.decode()
+    page = c.get("/filings/calendar/?view=list").content.decode()
     assert f'<a href="/claims/periods/{q1.pk}/">Q1 claim</a>' in page  # each row links to the filing's page
     assert c.get(f"/claims/periods/{q1.pk}/").status_code == 200
     assert 'class="due"><time datetime="' in page and "Due in 1" in page  # the date with its urgency in words
@@ -193,7 +193,7 @@ def test_calendar_and_reopen_pages(signed_in, analyst, deadline, pge, cpuc_admin
 
 
 def test_the_filing_calendar_is_public(client, deadline):
-    html = client.get("/filings/calendar/").content.decode()
+    html = client.get("/filings/calendar/?view=list").content.decode()
     assert deadline.kind in html and "/filings/calendar/new/" not in html  # anyone reads it; only a CPUC system administrator adds filings
 
 
@@ -235,26 +235,64 @@ def test_calendar_filters_by_type_and_due_date(client):
         html = client.get(url).content.decode()
         return {k for k in ("soon claim", "soon budget", "old report", "far claim") if f">{k}<" in html}, html
 
-    shown, html = rows("/filings/calendar/")  # the default: the last 3 and next 9 months, every type
+    shown, html = rows("/filings/calendar/?view=list")  # the list's default: the last 3 and next 9 months, every type
     assert shown == {"soon claim", "soon budget"}
     assert "Showing 2 deadlines for every filing type, due " in html
-    assert '<a href="/filings/calendar/?type=claims">Claims</a>' in html  # each chip is a link to the view with that type added
+    assert (
+        '<a href="/filings/calendar/?type=claims&amp;view=list">Claims</a>' in html
+    )  # each chip is a link to the view with that type added
     assert 'aria-current="true"><span aria-hidden="true">&#10003; </span>Last 3 and next 9 months</a>' in html
-    shown, html = rows("/filings/calendar/?type=claims")
+    shown, html = rows("/filings/calendar/?type=claims&view=list")
     assert shown == {"soon claim"} and "for Claims," in html
     assert (
-        '<a href="/filings/calendar/" aria-current="true"><span aria-hidden="true">&#10003; </span>Claims</a>' in html
+        '<a href="/filings/calendar/?view=list" aria-current="true"><span aria-hidden="true">&#10003; </span>Claims</a>' in html
     )  # select again: away
-    assert '<a href="/filings/calendar/?type=budgets&amp;type=claims">Budgets</a>' in html
+    assert '<a href="/filings/calendar/?type=budgets&amp;type=claims&amp;view=list">Budgets</a>' in html
     assert '<input type="hidden" name="type" value="claims">' in html  # the custom range keeps the chosen types
-    assert rows("/filings/calendar/?type=claims&range=all")[0] == {"soon claim", "far claim"}
+    assert rows("/filings/calendar/?type=claims&range=all")[0] == {"soon claim", "far claim"}  # a date range is the list view
     assert rows("/filings/calendar/?range=all")[0] == {"soon claim", "soon budget", "old report", "far claim"}
     start = (timezone.localdate() - timedelta(days=250)).isoformat()
     end = (timezone.localdate() - timedelta(days=100)).isoformat()
     shown, html = rows(f"/filings/calendar/?range=custom&from={start}&to={end}")
     assert shown == {"old report"} and f'value="{start}"' in html
-    shown, html = rows("/filings/calendar/?type=monthly")
+    shown, html = rows("/filings/calendar/?type=monthly&view=list")
     assert shown == set() and "No deadlines match these filters." in html
+
+
+def test_the_calendar_opens_on_this_month_as_a_calendar(client, signed_in, cpuc_admin):
+    from cedars.services.submissions.models import Deadline
+    from cedars.services.submissions.views import month_grid
+
+    today = timezone.localdate()
+    month = today.replace(day=1)
+    period = [p for p in registry.ensure_periods(today.year) if p.kind == "year"][0]
+    tz = timezone.get_current_timezone()
+
+    def add(module, kind, day):
+        return Deadline.objects.create(module=module, kind=kind, period=period, due_at=datetime.combine(day, time(17), tzinfo=tz))
+
+    first = add("claims", "first claim", month)
+    add("budgets", "month budget", month.replace(day=15))
+    nxt = (month + timedelta(days=32)).replace(day=1)
+    add("monthly", "next report", nxt.replace(day=3))
+    html = client.get("/filings/calendar/").content.decode()
+    assert 'id="month-grid"' in html and 'class="list"' not in html
+    assert f'<h2 id="month-h">{month:%B %Y}</h2>' in html and f"Showing 2 deadlines due in {month:%B %Y} for every filing type" in html
+    assert ">first claim<" in html and ">month budget<" in html and ">next report<" not in html
+    assert 'aria-current="date"' in html and "Today" in html
+    assert f'href="/filings/calendar/{first.pk}/"' in html  # added by hand: no filing page, so its own page
+    assert '<a href="/filings/calendar/?view=list">' in html  # the list is a view away
+    # the next month, and filing types, keep the view in the address
+    html = client.get(f"/filings/calendar/?month={nxt:%Y-%m}").content.decode()
+    assert ">next report<" in html and ">first claim<" not in html and "This month</a>" in html
+    html = client.get(f"/filings/calendar/?month={nxt:%Y-%m}&type=claims").content.decode()
+    assert ">next report<" not in html and f"No deadlines of these types are due in {nxt:%B %Y}." in html
+    assert f'<a href="/filings/calendar/?month={nxt:%Y-%m}" aria-current="true">' in html  # Claims again: every type, same month
+    assert client.get("/filings/calendar/?month=bogus").status_code == 200  # an unreadable month: this one
+    # weeks start on Sunday; days of the months around fill the first and last weeks, without their deadlines
+    weeks = month_grid(date(2026, 11, 1), [{"d": first}], date(2026, 11, 6))
+    assert weeks[0][0]["day"] == date(2026, 11, 1) and weeks[0][0]["weekday"] == "Sunday" and weeks[-1][-1]["day"] == date(2026, 12, 5)
+    assert all(len(w) == 7 for w in weeks) and [c for w in weeks for c in w if c["today"]][0]["day"] == date(2026, 11, 6)
 
 
 # --- changing, retiring and restoring deadlines (CPUC system administrators)
