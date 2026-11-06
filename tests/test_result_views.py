@@ -51,7 +51,7 @@ def test_a_view_on_results_and_the_picker(analyst, pge, release, worker, tmp_pat
     assert r.status_code == 302 and r["Location"] == back
     view = ResultView.objects.get(owner=analyst)
     assert web.post("/calculations/result-views/", {"name": "Evil", "columns": "x", "next": "https://example.org/"})["Location"] == (
-        "/calculations/"
+        "/calculations/runs/"
     )
 
     # choosing the view shows its columns, on any run, and names it
