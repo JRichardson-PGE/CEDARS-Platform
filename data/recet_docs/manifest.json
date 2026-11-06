@@ -1,13 +1,13 @@
 {
   "engine": {
-    "version": "0.1.92",
-    "commit": "19c00533bbe321c9a09deac1c1b48daf1fe0cd18"
+    "version": "0.1.93",
+    "commit": "5eb593db9b9dba772af203f0a35ba4f9f0681959"
   },
   "documents": {
     "INPUT_FORMATS.md": "6bf780d3a8a7e1133fb8f7e008a09d32388cdd94d8d39c1307710734eb1fe0d2",
-    "INPUT_FIELDS.md": "262f53b89fe7cab2341a40701d138fa4b428680110310ac9ba2ed5b0b76ae0b3",
-    "OUTPUT_FIELDS.md": "cefc7a83aa87c1e10822cc6cd8542b7b65b1f9bb8113ca82dbe18fd21206b5bd",
-    "CALCULATIONS.md": "94c664debf28c2f44b7f872886d2ba67fa1f9824e270064aa27c7425aad94b66",
+    "INPUT_FIELDS.md": "ab5640deea0106750ba53666b03b284ccac2429d4e8fd3a57cf506289c4146a9",
+    "OUTPUT_FIELDS.md": "e52c93b77905ccc8ab545fe4b8415cc5de66eb5e22c5d4600038b88f4b00b1f7",
+    "CALCULATIONS.md": "a438d9aef2d6d5cdc757bf98ef21a52c0893290cfdc11772ff9b1bee8c04aecf",
     "COST_TESTS.md": "1b5fba386d9801528e9f67c62bf31129dec7d561084d7c3975857fbb00eb9501",
     "USER_GUIDE.md": "51e50fb9aff6a08d2a10230e576863500073ebfe3edaf147b012239f2a464968",
     "ARCHITECTURE.md": "1bdbdbb1bd11cba0615bb1ae8e4c5729f82fb5c6da7996ee2a692ea3ed9a37c7"

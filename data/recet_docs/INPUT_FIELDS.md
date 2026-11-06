@@ -227,7 +227,7 @@ The JSON key is the name in `RunConfig`; command-line flags override a settings 
 | `reference_dir` | Reference data folder | `--data-dir` | saved default | Folder holding the large reference files (section 5). |
 | `components` | Calculate ACC components separately | `--components` | false | Price each ACC component separately (C16.1). |
 | `portfolio_8760` | Produce combined 8760 electric load profile | `--portfolio-8760` | false | Write the portfolio's hourly net kWh (C16.2). |
-| `profile_years` | Year(s) | `--profile-years` | First Year | Calendar years of the combined profile. |
+| `profile_years` | Year(s) | `--profile-years` | every year the measures cover | Calendar years of the combined profile (blank: every year from the earliest claim year to the end of the longest-lived measure, C16.2). |
 | `market_effects` | Apply 5% market effects (benefits and costs) | `--market-effects` | 0.0 | 0 or 0.05, added to the NTG of benefits and of costs (CET's `MEBens` and `MECost` together; C13). |
 | `include_societal` | Include societal cost tests | `--no-societal` (turns it off) | true | Compute SCB / SCH; off = those columns blank and the run about 3x faster. |
 | `emissions` | Include emissions | `--no-emissions` (turns it off) | true | Compute the CO2 / NOx / PM10 columns (C14). |
