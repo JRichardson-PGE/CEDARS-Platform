@@ -38,7 +38,10 @@ under an open menu.
 Programs, Calculations, Reference, Administration) as native `<details>` disclosures, and a utility cluster (acting-for organization,
 notifications with the unread count, account, sign out), then `main`, then a footer with the agency and the public reference pages.
 Below 860 px the navigation stacks behind a Menu button that `app.js` adds; without scripts the list is simply shown. The open group is
-marked with `.current` and the page inside it with `aria-current="page"`.
+marked with `.current` and the page inside it with `aria-current="page"`. A menu's heading is a link to the menu's own page (its pages,
+each with a sentence on what it is for; `core/nav.py` `Menu.landing`, `Item.about`) and the arrow beside it is the disclosure, a button of
+its own with an accessible name ("Filings pages"), as WAI-ARIA's disclosure navigation with top-level links has it. A long menu keeps its
+dropdown short: items marked `in_menu=False` are on its page only, and the dropdown ends with a link to it (Administration).
 
 `main.page` takes the full window width, less the gutter, as the header and footer do: no fixed maximum, so a wide table scrolls in its
 `.hscroll` box only when it is wider than the window (1920 px gives it 1,872 px, not 1,152). Prose keeps a readable measure on its own:

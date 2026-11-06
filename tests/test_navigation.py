@@ -56,12 +56,12 @@ def test_signed_in_with_no_organization(signed_in, make_user):
     assert (
         'href="/reference-data/cost-tests/"' in reference
         and 'href="/rules/"' not in reference
-        and 'href="/reference-data/"' not in reference
+        and 'href="/reference-data/packs/"' not in reference
     )
     assert 'href="/allocations/"' in menu(html, "published")  # with the public data, as signed out
     assert 'data-tour="queue"' not in html
     # the one step they need, on the front page and the Calculations index
-    for page in ("/", "/calculations/"):
+    for page in ("/", "/calculations/", "/calculations/runs/"):
         assert 'href="/account/request-access/"' in page_only(c.get(page).content.decode()), page
 
 
@@ -73,22 +73,43 @@ def test_a_member(signed_in, pge_admin):
         assert f'href="{url}"' in filings, url
     assert 'href="/filings/reopen-requests/"' not in filings  # approvers only
     reference = menu(html, "reference")
-    for url in ("/reference-data/", "/reference-data/cost-tests/", "/allocations/", "/rules/", "/dictionary/lists/", "/mandates/"):
+    for url in ("/reference-data/packs/", "/reference-data/cost-tests/", "/allocations/", "/rules/", "/dictionary/lists/", "/mandates/"):
         assert f'href="{url}"' in reference, url
     assert 'href="/allocations/"' not in menu(html, "published")  # once: under Reference data for members
     assert 'href="/reference-data/cost-tests/"' not in menu(html, "calculations")  # cost-test sets are listed once (Jake)
     admin = menu(html, "admin")
-    assert "People and access" in admin and 'href="/admin/organizations/"' in admin and "Jobs and health" not in admin
+    assert 'href="/admin/organizations/"' in admin and "Jobs and health" not in admin
+    assert "People and access" not in admin  # a short dropdown, no group titles; the groups are on the landing page
+    assert "Every administration page" not in admin  # an organization administrator's two pages are both in the dropdown
     assert 'data-tour="queue"' in html and 'class="ask-access"' not in html
 
 
 def test_a_cpuc_system_administrator(signed_in, cpuc_admin):
     html = signed_in(cpuc_admin).get("/").content.decode()
     admin = menu(html, "admin")
-    groups = re.findall(r'class="nav-group-title"[^>]*>([^<]+)<', admin)
+    assert not re.findall(r'class="nav-group-title"', admin)  # Jake 2026-11-06: the dropdown is short, the landing page has every page
+    listed = re.findall(r'<li><a href="([^"]+)"', admin)
+    assert listed == [
+        "/admin/organizations/",
+        "/admin/stewardship/",
+        "/admin/audit/",
+        "/publication/holds/",
+        "/admin/feedback/",
+        "/admin/health/",
+    ], listed
+    assert '<li class="nav-more"><a href="/admin/">Every administration page</a></li>' in admin
+    landing = page_only(signed_in(cpuc_admin).get("/admin/").content.decode())
+    groups = re.findall(r'<h2 id="group-\d+">([^<]+)</h2>', landing)
     assert groups == ["People and access", "Data and publishing", "Communications", "System"]
-    for url in ("/releases/manage/", "/mandates/manage/", "/admin/health/", "/publication/holds/", "/admin/goals/"):
-        assert f'href="{url}"' in admin, url
+    for url in (
+        "/releases/manage/",
+        "/mandates/manage/",
+        "/admin/health/",
+        "/publication/holds/",
+        "/admin/goals/",
+        "/admin/role-templates/",
+    ):
+        assert f'href="{url}"' in landing, url
     assert 'href="/calculations/engines/"' in menu(html, "calculations") and "/calculations/engines/" not in admin  # once (Jake)
 
 
@@ -126,7 +147,8 @@ def test_an_approver_sees_what_waits(signed_in, cpuc_admin, cpuc, pge, filer, fi
 def test_the_menu_holding_the_page_is_highlighted(signed_in, pge_admin, path, key):
     html = signed_in(pge_admin).get(path).content.decode()
     h = header(html)
-    current = re.findall(r'data-tour="nav-([a-z]+)"(?: class="current"| aria-current="(?:page|true)")', h)
+    current = re.findall(r'(?:class="nav-menu current" data-tour="nav-([a-z]+)"|data-tour="nav-([a-z]+)" aria-current="(?:page|true)")', h)
+    current = [a or b for a, b in current]
     assert current == [key], (path, current)
     assert len(re.findall(r'aria-current="(?:page|true)"', h)) == 1
 
@@ -197,7 +219,10 @@ def test_every_page_belongs_to_a_menu_item_or_to_none():
     lost = sorted(
         n
         for n in _view_names()
-        if not nav.in_no_menu(n) and not any(fnmatchcase(n, p) for p in nav.SHARED) and not any(i.holds(n) for i in every)
+        if not nav.in_no_menu(n)
+        and n not in nav.landing_names()
+        and not any(fnmatchcase(n, p) for p in nav.SHARED)
+        and not any(i.holds(n) for i in every)
     )
     assert not lost, f"give these pages an item in core/nav.py (Item.pages), or list them in NO_MENU or SHARED: {lost}"
 
@@ -266,6 +291,8 @@ TOP_PAGES = {
     "data/views", "dictionary/index", "feedback/form", "feedback/inbox", "monthly/index", "notifications/index", "programs/catalog",
     "refdata/index", "releases/index", "releases/limits", "releases/mandates", "retention/index", "rules/index", "snapshots/holds",
     "submissions/calendar", "submissions/reopen_requests", "core/about", "core/help/index", "core/queue", "core/search",
+    # a menu's own page (its heading's link): the top of its section
+    "core/section_administration", "core/section_calculations", "core/section_filings", "core/section_published", "core/section_reference",
 }  # fmt: skip
 CRUMBS = ('aria-label="Breadcrumb"', "_record_crumbs", "documents/_subnav.html", "impact_profiles/_nav.html", "refdata/builder/base.html")
 
@@ -303,7 +330,7 @@ def test_section_pages_keep_their_breadcrumb(signed_in, cpuc_admin, path, crumb)
 
 def test_reference_data_has_a_sub_navigation(signed_in, pge_admin, client):
     c = signed_in(pge_admin)
-    for path in ("/reference-data/", "/rules/", "/dictionary/lists/", "/allocations/", "/mandates/"):
+    for path in ("/reference-data/packs/", "/rules/", "/dictionary/lists/", "/allocations/", "/mandates/"):
         html = c.get(path).content.decode()
         sub = html.split('<nav class="subnav" aria-label="Reference data">', 1)[1].split("</nav>", 1)[0]
         assert sub.count("<a ") == 6 and f'href="{path}" aria-current="page"' in sub, path

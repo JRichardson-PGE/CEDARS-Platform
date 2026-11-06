@@ -1,7 +1,7 @@
 # Help for each page (cedars/core/page_help.py): reference data packs and cost-test sets.
 
 refdata/index:
-  title: Reference data
+  title: Data packs
   guide:
     - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
       run and every filing records the packs it used. A draft can be used for analysis runs but not for filings; a published pack is never

@@ -143,6 +143,89 @@ core/about:
       title: The parts of CEDARS
       text: Each part with what it does; select one to open it.
 
+core/section_filings:
+  title: Filings
+  see: getting-started
+  guide:
+    - >-
+      The Filings menu's own page: every filing page you may open, with what each is for, and where each program administrator's
+      budgets, claims and monthly reports stand.
+    - >-
+      The status table takes, for each kind of filing, the deadline most recently due and the next one due on the filing calendar, and
+      gives each PA's status on it: not started, started, draft, validated, confirmed or published, with past due, filed late or a
+      correction under way beside it. CPUC staff see every PA's filings; a PA's members see their own, and for the others only whether
+      each filing is published.
+  how:
+    - Select a page's name to open it; the arrow beside Filings in the header opens the same pages as a menu.
+    - Select a status to open that PA's filing, or a column's heading to open the deadline's page.
+  tour:
+    - target: main .section-pages
+      title: The filing pages
+      text: Each page under Filings, with what it is for.
+    - target: "#filing-status"
+      title: Where each PA's filings stand
+      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it.
+
+core/section_calculations:
+  title: Calculations
+  see: calculations
+  guide:
+    - >-
+      The Calculations menu's own page: every page for cost-effectiveness runs on the ReCET engine, with what each is for. Runs lists
+      your runs and those shared with you; New run starts one.
+  how:
+    - Select a page's name to open it; the arrow beside Calculations in the header opens the same pages as a menu.
+  tour:
+    - target: main .section-pages
+      title: The calculation pages
+      text: Each page under Calculations, with what it is for.
+
+core/section_published:
+  title: Published data
+  see: published-data
+  guide:
+    - >-
+      The Published data menu's own page: everything CEDARS publishes, open to everyone, with what each page is for. Signed in as a
+      member of an organization, the statewide allocation factors and the filing calendar are under Reference data and Filings
+      instead.
+  how:
+    - Select a page's name to open it; the arrow beside Published data in the header opens the same pages as a menu.
+  tour:
+    - target: main .section-pages
+      title: The published data
+      text: Each page under Published data, with what it is for.
+
+core/section_reference:
+  title: Reference data
+  see: reference-data
+  guide:
+    - >-
+      The Reference data menu's own page: what runs and filings are priced and checked against, with what each page is for. Data packs
+      lists the ACCs and the other packs; Cost-test sets the cost tests a run prices.
+  how:
+    - Select a page's name to open it; the arrow beside Reference data in the header opens the same pages as a menu.
+  tour:
+    - target: main .section-pages
+      title: The reference data
+      text: Each page under Reference data, with what it is for.
+
+core/section_administration:
+  title: Administration
+  see: administering
+  guide:
+    - >-
+      The Administration menu's own page: every administration page you may open, in four groups (people and access, data and
+      publishing, communications, the system), with what each is for.
+    - >-
+      The Administration menu in the header lists only the pages used most; this page lists them all, and the menu's last link opens
+      it.
+  how:
+    - Select a page's name to open it.
+  tour:
+    - target: main .section-pages
+      title: The administration pages
+      text: Each group's pages, with what each is for.
+
 core/search:
   title: Searching CEDARS
   see: getting-started

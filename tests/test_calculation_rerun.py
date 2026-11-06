@@ -130,7 +130,7 @@ def test_the_owner_deletes_their_own_ended_run(analyst, pge, release, worker, tm
     prefix = run.storage_prefix
     with django_capture_on_commit_callbacks(execute=True):
         r = web.post(f"/calculations/runs/{run.pk}/delete", {"sure": "1"})
-    assert r.status_code == 302 and r["Location"] == "/calculations/" and not Run.objects.filter(pk=run.pk).exists()
+    assert r.status_code == 302 and r["Location"] == "/calculations/runs/" and not Run.objects.filter(pk=run.pk).exists()
     assert not list(storage.store("results").list(prefix)) and not list(storage.store("uploads").list(prefix))
     e = AuditEvent.objects.get(action="calculation_run.deleted")
     assert e.before["name"] == "2028 claims" and e.actor == analyst
