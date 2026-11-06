@@ -7,6 +7,8 @@
 {% if not form %}
 <p>No engine release is set up yet. A CPUC system administrator adds one on the <a href="{% url 'calculations:engines' %}">engine releases</a> page.</p>
 {% else %}
+{% comment %}Jake, 2026-11-06: the page's text uses the full width, so Start the run is in view at 1920 x 1080 when the page opens.{% endcomment %}
+<div class="wide-text">
 {% if draft %}
 <p>This runs the tables of <a href="{% url 'calculations:draft' draft.pk %}">{{ draft.name }}</a> ({{ draft.measure_count }} measure{{ draft.measure_count|pluralize }}),
 as they stand now; the draft stays, to edit and run again. The run is queued and priced by the engine release you choose.</p>
@@ -48,6 +50,7 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
     {{ form.base_year.as_field_group }}
     {{ form.market_effects.as_field_group }}
     </div>
+    <div class="disclosure-row">
     <details>
       <summary>Which ACCs each engine has</summary>
       <ul>{% for r in releases %}{% for calc in r.calculations %}<li>{% if calc == "recet" %}ReCET{% else %}CET {{ calc|cut:"cet-" }} replica{% endif %} (ReCET {{ r.release }}): {% for c, accs in r.accs.items %}{% if c == calc %}{{ accs|join:", " }}{% endif %}{% endfor %}</li>{% endfor %}{% endfor %}</ul>
@@ -66,6 +69,7 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
       <p class="small">Claims use the ACC of the program year's final budget filing. From the engine's own filing table.</p>
     </details>
     {% endif %}
+    </div>
     </div>
   </fieldset>
   {% comment %}Every other option is folded away (Jake, 2026-11-06: most people only need The job's seven). A native disclosure: keyboard and
@@ -169,6 +173,7 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
     <p class="small" data-upload-text></p>
   </div>
 </form>
+</div>
 {% endif %}
 {% endblock %}
 {% block scripts %}{% if form %}<script src="{% static 'calculations/new_run.js' %}" defer></script>{% endif %}{% endblock %}

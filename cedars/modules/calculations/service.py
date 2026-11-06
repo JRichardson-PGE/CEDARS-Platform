@@ -560,7 +560,7 @@ def create_run(
     st = _check(req)
     custom = custom_cost_tests(req, st, filing=submission_version is not None)
     if submission_version is not None and req.calculation != RECET:
-        raise AccessDenied("A filing is priced only with ReCET's own calculation (D13: replicas are never a filing's engine).")
+        raise AccessDenied("A filing is priced only with ReCET's own calculation; a CET replica is never a filing's engine.")
     if req.cet_outputs is not None and req.calculation != RECET:
         raise AccessDenied("A CET replica does not take a CET outputs comparison: compare the replica's run with ReCET's on Compare.")
     try:
