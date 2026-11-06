@@ -16,6 +16,8 @@
 the records that are new or changed since the last confirmation; it is compiled over the earlier confirmed quarters, checked, priced
 for the year to date and confirmed. Confirmed claims, their inputs and results are open to every signed-in user. After a due date a
 correction is a new version, published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.</p>
+<p>Statewide programs are claimed first, by their lead PA, in statewide confirmations due before the PAs' own (two weeks before a
+quarter's, a month before the annual claim). Each funding PA sees what those claims credit to it before it files, and its totals count it.</p>
 {% for y in years %}
 {# The newest year is open; earlier years are collapsed behind their heading, so the page is one screen for most visits. #}
 {% if forloop.first %}<section class="cycle" aria-labelledby="year-{{ y.cy.year }}">
@@ -25,7 +27,7 @@ correction is a new version, published with a change letter in the <a href="{% u
 </div>
 {% else %}<details class="section">
 <summary><h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
-  <span class="count">{{ y.periods|length }} confirmation{{ y.periods|length|pluralize }}{% if y.legacy %}, imported from legacy CEDARS{% elif y.cy.acc_version %}, {{ y.cy.acc_version }} ACC{% endif %}</span></summary>
+  <span class="count">{{ y.rows|length }} confirmation{{ y.rows|length|pluralize }}{% if y.legacy %}, imported from legacy CEDARS{% elif y.cy.acc_version %}, {{ y.cy.acc_version }} ACC{% endif %}</span></summary>
 <div class="section-body">
 {% if sysadmin %}<p class="small"><a href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a></p>{% endif %}
 {% endif %}
@@ -36,17 +38,19 @@ correction is a new version, published with a change letter in the <a href="{% u
   <caption class="sr-only">Confirmations of {{ y.cy.year }} claims{% if org %} and {{ org.code }}'s status{% endif %}</caption>
   <thead><tr><th scope="col">Confirmation</th><th scope="col">Due</th>{% if org %}<th scope="col">{{ org.code }}</th>{% endif %}{% if approver %}<th scope="col">Waiting for a decision</th>{% endif %}</tr></thead>
   <tbody>
-  {% for p in y.periods %}
+  {% for p in y.rows %}
   <tr>
     <th scope="row">{% if p.can_open %}<a href="{% url 'claims:period' p.deadline.pk %}">{{ p.deadline.kind }}</a>{% else %}{{ p.deadline.kind }}{% endif %}</th>
     <td class="due"><time datetime="{{ p.deadline.due_at|date:'c' }}">{{ p.deadline.due_at|date_words }}</time><small>{{ p.deadline.due_at|due_words }}</small></td>
-    {% if org %}<td>{% if p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
+    {% if org %}<td>{% if not p.files %}<span class="small muted">Nothing to file: {{ org.code }} leads no statewide program</span>{% elif p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
     {% if approver %}<td>{% if p.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ p.waiting }} correction request{{ p.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% if not y.legacy %}<p class="small"><a href="{% url 'claims:statewide' y.cy.year %}">Statewide claims credited to {% if org %}{{ org.code }}{% else %}each PA{% endif %} in {{ y.cy.year }}</a></p>{% endif %}
+{% if sysadmin and y.sw_missing and not y.legacy %}<p class="small">{{ y.cy.year }} claims were set up before statewide claims were filed on their own: <a href="{% url 'claims:setup' y.cy.year %}#statewide-deadlines">add their statewide due dates</a>.</p>{% endif %}
 {% if forloop.first %}</section>{% else %}</div></details>{% endif %}
 {% empty %}
 {% if sysadmin %}{% url 'claims:year_new' as new_url %}{% endif %}

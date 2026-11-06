@@ -549,7 +549,7 @@ def test_clearing_a_demo_calendar_deletes_what_nothing_was_filed_for_and_retires
         service.clear_calendar(analyst, "demo reset")
     plan = service.clear_calendar(cpuc_admin, "demo reset")  # the plan only: nothing changes
     assert {w for w, _ in plan["deleted"]} >= {"2030 claims", "2030 monthly reports", "2032-2035 Business plan application"}
-    assert Deadline.objects.count() == 1 + 2 + 5 + 13 + 1
+    assert Deadline.objects.count() == 1 + 2 + 5 + 5 + 13 + 1  # the claim year's five and its five statewide confirmations
     call_command("clear_filing_calendar", "--reason", "Demo reset", "--apply", stdout=__import__("io").StringIO())
     left = set(Deadline.objects.values_list("pk", flat=True))
     assert left == {deadline.pk, filed_budget.pk}  # filed: kept, retired
@@ -558,7 +558,7 @@ def test_clearing_a_demo_calendar_deletes_what_nothing_was_filed_for_and_retires
     assert not ClaimYear.objects.exists() and not YearSetup.objects.exists()
     assert list(FilingSetup.objects.values_list("deadline_id", flat=True)) == [filed_budget.pk]
     assert unfiled_budget.pk not in left and hand.pk not in left
-    assert AuditEvent.objects.filter(action="deadline.deleted", reason="Demo reset").count() == 1 + 5 + 13 + 1
+    assert AuditEvent.objects.filter(action="deadline.deleted", reason="Demo reset").count() == 1 + 5 + 5 + 13 + 1
     assert AuditEvent.objects.filter(action="claim_year.removed").exists()
     # the years can be set up again
     claims.add_year(cpuc_admin, year=2030, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})

@@ -62,7 +62,7 @@ class ClaimsEditor(corrections.Editor):
 
     def refusal(self, v):
         d = v.submission.deadline
-        if d.module != service.MODULE or d.kind not in service.KINDS:
+        if d.module != service.MODULE or d.kind not in service.ALL_KINDS:
             return "That is not a claims filing."
         try:
             service._require_in_order(v.submission.organisation, d)

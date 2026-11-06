@@ -178,3 +178,22 @@ class LockedFieldsForm(forms.Form):
     def __init__(self, *args, choices=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["fields_locked"].choices = list(choices)
+
+
+class LeadForm(forms.Form):
+    """A statewide program's lead PA (CPUC system administrators)."""
+
+    lead = forms.ModelChoiceField(
+        label="Lead PA",
+        queryset=None,
+        required=False,
+        empty_label="No lead PA",
+        help_text="The PA that files the program's claims (in the statewide claims, before the PAs' own) and its budget",
+    )
+    reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
+
+    def __init__(self, *args, **kw):
+        from cedars.services.accounts.models import Organisation
+
+        super().__init__(*args, **kw)
+        self.fields["lead"].queryset = Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code")

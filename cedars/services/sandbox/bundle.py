@@ -86,7 +86,12 @@ SPECS = [
         refresh=("name", "pa_type", "manages_allocation"),
         children=(Child("accounts.OrganisationCode", "organisation", clear=("recorded_by",)),),
     ),
-    Spec("registry.Program", ("prg_id",), fks={"administrator": "accounts.Organisation"}, refresh=("statewide", "portfolio_cost")),
+    Spec(
+        "registry.Program",
+        ("prg_id",),
+        fks={"administrator": "accounts.Organisation", "lead": "accounts.Organisation"},
+        refresh=("statewide", "portfolio_cost"),
+    ),
     Spec(
         "registry.ProgramVersion",
         ("program", "valid_from"),

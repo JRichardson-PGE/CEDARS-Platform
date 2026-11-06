@@ -299,6 +299,9 @@ PAGES = [
     ("claims-period-cpuc", "/claims/periods/{claims_q1}/?org=PGE", "cpuc_admin"),
     ("claims-period-regulator", "/claims/periods/{claims_q1}/", "cpuc_admin"),  # no PA chosen: the PAs to choose from
     ("claims-period-pii", "/claims/periods/{claims_q1}/", "pii_filer"),
+    ("claims-period-statewide", "/claims/periods/{claims_sw_q1}/", "analyst"),  # statewide claims, filed first by the lead PAs
+    ("claims-statewide", "/claims/years/2028/statewide/", "analyst"),  # what the statewide claims credit to the PA
+    ("claims-statewide-cpuc", "/claims/years/2028/statewide/", "cpuc_admin"),  # no PA chosen yet
     ("claims-period-pii-rejected", "/claims/periods/{claims_q2}/", "pii_filer"),
     # gap 15: correcting a draft's records in place (BR-02.4); the scene's {claims_draft} is Q2's rejected draft, {claims_preview} a
     # partial correction of it waiting in its preview

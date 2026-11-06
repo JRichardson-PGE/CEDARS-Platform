@@ -13,5 +13,17 @@
     <button type="submit" class="primary">Save</button>
   </form>
 </section>
+{% if sw_form %}
+<section class="card" aria-labelledby="sw-dates-h" id="statewide-deadlines">
+  <h2 id="sw-dates-h">Statewide due dates</h2>
+  <p>{{ cy.year }} claims were set up before statewide claims were filed on their own. Add the five statewide confirmations: each is
+  due before the PAs' confirmation of the same period, so the funding PAs see their shares before they file.</p>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    {% if sw_form.non_field_errors %}<div class="alert" role="alert">{{ sw_form.non_field_errors }}</div>{% endif %}
+    {% for field in sw_form %}{{ field.as_field_group }}{% endfor %}
+    <button type="submit" name="add_statewide" value="1" class="primary">Add the statewide due dates</button>
+  </form>
+</section>
+{% endif %}
 {% include "submissions/_setup_calendar.html" %}
 {% endblock %}

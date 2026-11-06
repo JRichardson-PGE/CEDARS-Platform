@@ -13,8 +13,24 @@
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ cy.acc_version }} ACC, statewide programs allocated with {% if cy.allocation_version %}{{ cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ cy.year }}{% endif %}; cost tests: {% if cy.cost_test_set %}{{ cy.cost_test_set }}{% else %}the published set in force for {{ cy.year }}{% endif %}</dd>{% endif %}
 </dl>
+{% if statewide %}
+<section class="card" aria-labelledby="sw-h" id="statewide-filing">
+  <h2 id="sw-h">Statewide claims, filed first</h2>
+  <p>This filing holds only the claims of the statewide programs {% if org %}{{ org.code }} leads{% else %}a PA leads{% endif %}. It is due before the {{ counterpart.kind|default:"PAs' own claim" }}{% if counterpart %} ({{ counterpart.due_at|date_words }}){% endif %}, so each funding PA sees what is credited to it before it files. It is priced with the statewide allocation: each record's results are credited to the funding PAs, and once it is confirmed each of them sees its share on its <a href="{% url 'claims:statewide' cy.year %}">statewide share page</a> and in its year's totals.</p>
+  {% if org %}<p>{% if led %}{{ org.code }} leads {{ led|length }} statewide program{{ led|length|pluralize }}: {% for p in led %}{{ p.prg_id }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% else %}{{ org.code }} leads no statewide program, so it has nothing to file here.{% endif %}</p>{% endif %}
+</section>
+{% elif sw_status %}
+<section class="card" aria-labelledby="sw-h" id="statewide-first">
+  <h2 id="sw-h">Statewide claims credited to {% if org %}{{ org.code }}{% else %}each PA{% endif %}</h2>
+  <p>Statewide programs are claimed by their lead PA in the <a href="{% url 'claims:period' sw_status.deadline.pk %}">{{ sw_status.deadline.kind }}</a>, due {{ sw_status.deadline.due_at|date_words }}, before this one. Don't include them here.
+  {% if sw_status.confirmed %}Confirmed by {{ sw_status.confirmed|join:", " }}.{% endif %}
+  {% if sw_status.open %}Not confirmed yet by {{ sw_status.open|join:", " }}.{% endif %}
+  {% if not sw_status.confirmed and not sw_status.open %}No lead PA has filed it yet.{% endif %}</p>
+  <p><a href="{% url 'claims:statewide' cy.year %}{% if org %}?org={{ org.code }}{% endif %}">What the statewide claims credit to {% if org %}{{ org.code }}{% else %}a PA{% endif %} in {{ cy.year }}</a></p>
+</section>
+{% endif %}
 {% if not org %}{% url 'claims:index' as back %}{% include "submissions/_choose_pa.html" with what="claim" back=back back_text="Every confirmation of the year" %}{% endif %}
-{% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this claim yet. Its filers upload it here.</p>{% endif %}
+{% if org and not v and not can_submit %}<p id="nothing-yet">{{ org.code }} has not started this {% if statewide %}statewide {% endif %}claim yet. Its filers upload it here.</p>{% endif %}
 
 {% if earlier %}
 <section aria-labelledby="earlier-h">

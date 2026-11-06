@@ -44,10 +44,11 @@ def standing(filer, filing, pge, programs, release):  # noqa: F811
 
 
 @pytest.fixture
-def statewide(cpuc_admin, programs):  # noqa: F811
+def statewide(cpuc_admin, programs, pge):  # noqa: F811
     v = registry.import_allocation_csv(cpuc_admin, FACTORS.encode(), label="2028 factors", purpose="filing")
     registry.confirm_allocation(cpuc_admin, v)
-    registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW X")
+    p = registry.create_program(cpuc_admin, prg_id="SW_X", administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW X")
+    registry.set_lead(cpuc_admin, p, pge, "PG&E files it")  # only a statewide program's lead PA files it
     return "SW_X"
 
 
@@ -313,12 +314,13 @@ SW_PAIR = FACTORS + "2028,SW_Y,Statewide Y,1,0,0,0,0,0.3,0,0.7,0,0.3,0,0.7,0\n20
 
 
 @pytest.fixture
-def statewide_pair(cpuc_admin, programs):  # noqa: F811
+def statewide_pair(cpuc_admin, programs, pge):  # noqa: F811
     """SW_X and SW_Z split PGE 60 / SCE 40; SW_Y splits PGE 30 / SCE 70."""
     v = registry.import_allocation_csv(cpuc_admin, SW_PAIR.encode(), label="2028 factors", purpose="filing")
     registry.confirm_allocation(cpuc_admin, v)
     for prg in ("SW_X", "SW_Y", "SW_Z"):
-        registry.create_program(cpuc_admin, prg_id=prg, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name=prg)
+        p = registry.create_program(cpuc_admin, prg_id=prg, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name=prg)
+        registry.set_lead(cpuc_admin, p, pge, "PG&E files it")
 
 
 def test_moving_between_statewide_programs_leaves_each_funder_its_net_gap(

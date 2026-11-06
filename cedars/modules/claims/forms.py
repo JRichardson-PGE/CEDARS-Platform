@@ -5,7 +5,7 @@ from cedars.core import uploads
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion
 
-from .service import PERIODS
+from .service import PERIODS, SW_FOR, SW_PERIODS
 
 
 def _cost_test_sets():
@@ -19,7 +19,19 @@ def _allocations():
 
 
 def due_field(kind: str) -> str:
-    return "due_" + kind.split()[0].lower()
+    return ("sw_due_" if kind in SW_FOR else "due_") + kind.split()[0].lower()
+
+
+def _sw_help(kind: str) -> str:
+    before = "a month" if kind.startswith("Annual") else "two weeks"
+    return f"Blank: {before} before the {SW_FOR[kind]}. It must be due before it: statewide claims are filed first."
+
+
+def sw_date_fields(form) -> None:
+    for kind, _ in SW_PERIODS:
+        form.fields[due_field(kind)] = forms.DateField(
+            label=f"{kind}: due", required=False, help_text=_sw_help(kind), widget=forms.DateInput(attrs={"type": "date"})
+        )
 
 
 class YearForm(forms.Form):
@@ -48,9 +60,21 @@ class YearForm(forms.Form):
         self.fields["year"].initial = timezone.localdate().year + 1
         for kind, _ in PERIODS:
             self.fields[due_field(kind)] = forms.DateField(label=f"{kind}: due", widget=forms.DateInput(attrs={"type": "date"}))
+        sw_date_fields(self)
 
     def due_fields(self):
         return [self[due_field(kind)] for kind, _ in PERIODS]
+
+    def sw_due_fields(self):
+        return [self[due_field(kind)] for kind, _ in SW_PERIODS]
+
+
+class StatewideDatesForm(forms.Form):
+    """The statewide due dates of a claim year set up before statewide claims were filed on their own."""
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        sw_date_fields(self)
 
 
 class SetupForm(forms.Form):

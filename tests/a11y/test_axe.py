@@ -981,6 +981,7 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         "claims_q1": q1,
         "claims_q2": q2,
         "claims_q3": q3,
+        "claims_sw_q1": claims.periods(2028, statewide=True)[0],
         "claims_version": v,
         "claims_corrected": v2,
         "claims_letter": v2.change_letter,

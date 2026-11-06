@@ -265,7 +265,8 @@ def test_a_filing_pins_its_allocation_version(filer, filing, pge, programs, rele
     first = registry.confirm_allocation(cpuc_admin, first)
     service.change_setup(cpuc_admin, filing.budget_setup, acc_version="2026", allocation_version=first, reason="the TUAL's factors")
     sw = factors.split(b"\n")[1].split(b",")[1].decode()
-    registry.create_program(cpuc_admin, prg_id=sw, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW")
+    p = registry.create_program(cpuc_admin, prg_id=sw, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW")
+    registry.set_lead(cpuc_admin, p, pge, "PG&E leads it")  # only a statewide program's lead PA files it
     v = service.upload(
         filer, filing, pge, job(costs=[f"{sw}|2028|2028Q1|PGE|10|0|0|0|0|0|0|0|0|0|0"], measures=[f"M1|{sw}|2028Q1|1|0|0|0|0"]), "t.zip"
     )
