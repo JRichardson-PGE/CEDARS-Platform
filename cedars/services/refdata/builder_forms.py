@@ -40,7 +40,10 @@ class StartForm(forms.Form):
         ("file", "A set file (.yaml) I have"),
         ("blank", "A blank set"),
     ]
-    start = forms.ChoiceField(label="Start from", choices=START, widget=forms.RadioSelect, initial="pack")
+    # The next field shown depends on this choice (FOLLOW): the page shows only that field, at once with scripts (refdata/builder_start.js)
+    # and after Next without them.
+    FOLLOW = {"pack": "pack", "build": "build", "engine": "engine_set", "file": "file", "blank": None}
+    start = forms.ChoiceField(label="Start from", choices=START)
     pack = forms.ModelChoiceField(
         label="Registered set",
         required=False,
@@ -59,6 +62,8 @@ class StartForm(forms.Form):
 
     def __init__(self, *args, builds=(), engine_sets=(), organisation=None, **kwargs):
         super().__init__(*args, **kwargs)
+        offered = [(k, v) for k, v in self.START if (k != "build" or builds) and (k != "engine" or engine_sets)]
+        self.fields["start"].choices = [("", "Choose what to start from")] + offered
         self.fields["build"].choices = [("", "Choose a set")] + [(str(b.pk), f"{b} {b.label}".strip()) for b in builds]
         self.fields["engine_set"].choices = [("", "Choose a set")] + list(engine_sets)
         if organisation is None:
@@ -69,7 +74,7 @@ class StartForm(forms.Form):
 
     def clean(self):
         d = super().clean()
-        need = {"pack": "pack", "build": "build", "engine": "engine_set", "file": "file"}.get(d.get("start"))
+        need = self.FOLLOW.get(d.get("start"))
         if need and not d.get(need):
             self.add_error(need, "Choose one to start from.")
         return d

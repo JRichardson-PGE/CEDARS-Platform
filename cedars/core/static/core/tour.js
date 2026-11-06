@@ -106,9 +106,11 @@
   // A disclosure (a header menu, the filters) is opened while its step is shown, so what it holds is in view, and closed again after.
   function light(el) {
     if (lit) lit.classList.remove("tour-target");
-    if (opened && opened !== el) { opened.open = false; opened = null; }
+    if (opened && opened !== el && !(el && el.contains(opened))) { opened.open = false; opened = null; }
     lit = el;
-    if (el && el.tagName === "DETAILS" && !el.open) { el.open = true; opened = el; }
+    // a header menu is its heading's link beside its disclosure: the disclosure is opened
+    var d = el && (el.tagName === "DETAILS" ? el : el.querySelector(":scope > details"));
+    if (d && !d.open) { d.open = true; opened = d; }
     if (!el) { dialog.classList.remove("tour-top"); return; }
     el.classList.add("tour-target");
     el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });

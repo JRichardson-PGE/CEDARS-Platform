@@ -500,7 +500,7 @@ def test_new_run_page_starts_a_run(tmp_path, signed_in, analyst, release):
     html = c.get(r["Location"]).content.decode()
     assert "Q1 claims" in html and "next in line for small runs" in html and "Stop the run" in html
     assert c.get(f"/calculations/runs/{run.pk}/status.json").json()["status"] == "queued"
-    assert "Q1 claims" in c.get("/calculations/").content.decode()
+    assert "Q1 claims" in c.get("/calculations/runs/").content.decode()
 
 
 def test_new_run_shows_the_reason_a_run_is_refused(tmp_path, signed_in, analyst, release):
@@ -532,7 +532,7 @@ def test_other_organisations_cannot_see_a_run(tmp_path, signed_in, make_user, an
     c = signed_in(make_user("stranger@example.com"))
     assert c.get(f"/calculations/runs/{run.pk}/").status_code == 404
     assert c.get(f"/calculations/runs/{run.pk}/status.json").status_code == 404
-    assert run.name not in c.get("/calculations/").content.decode()
+    assert run.name not in c.get("/calculations/runs/").content.decode()
 
 
 def test_engine_releases_are_configured_by_the_cpuc(signed_in, cpuc_admin, analyst, release):

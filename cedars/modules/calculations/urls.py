@@ -4,7 +4,7 @@ from . import draft_views, template_views, views
 
 app_name = "calculations"
 urlpatterns = [
-    path("", views.runs, name="runs"),
+    path("runs/", views.runs, name="runs"),
     path("new/", views.new_run, name="new"),
     path("input-templates/<slug:kind>", views.input_template, name="input_template"),
     path("templates/", template_views.templates, name="templates"),

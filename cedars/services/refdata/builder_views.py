@@ -65,8 +65,16 @@ def build_start(request):
     """Build a set: start from a copy of a registered set, one of the user's own, the engine's, a file, or nothing."""
     org = _org(request)
     builds = list(builder.visible(request.user))
-    form = bf.StartForm(request.POST or None, request.FILES or None, builds=builds, engine_sets=builder.engine_sets(), organisation=org)
-    if request.method == "POST" and form.is_valid():
+    engine_sets = builder.engine_sets()
+    picked = request.POST.get("start") or request.GET.get("start") or ""
+    if request.method == "POST" and "next" in request.POST:
+        # Without scripts: Next shows the field the choice needs, without checking anything yet
+        form = bf.StartForm(initial={"start": picked}, builds=builds, engine_sets=engine_sets, organisation=org)
+    else:
+        form = bf.StartForm(request.POST or None, request.FILES or None, builds=builds, engine_sets=engine_sets, organisation=org)
+    if picked not in bf.StartForm.FOLLOW:
+        picked = ""
+    if request.method == "POST" and "next" not in request.POST and form.is_valid():
         d = form.cleaned_data
         share = org if d.get("share") else None
         try:
@@ -86,7 +94,8 @@ def build_start(request):
         else:
             messages.success(request, f"Started {build} from {build.source}.")
             return redirect("refdata:build_step", pk=build.pk, step="set")
-    return render(request, "refdata/builder/start.html", {"form": form, "engine_here": builder.engine() is not None})
+    follow = [(k, form[f]) for k, f in bf.StartForm.FOLLOW.items() if f and k in dict(form.fields["start"].choices)]
+    return render(request, "refdata/builder/start.html", {"form": form, "picked": picked, "follow": follow})
 
 
 @login_required

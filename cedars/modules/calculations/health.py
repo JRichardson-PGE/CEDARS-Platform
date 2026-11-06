@@ -41,7 +41,7 @@ def stalled() -> health.Result:
                     f"running {health.ago(r.started_at)} ({r.backend}{', ' + r.backend_job_id if r.backend_job_id else ''})",
                 )
             )
-    result = health.Result("calculations.stalled", "Calculations", "Runs waiting or running too long", link="/calculations/")
+    result = health.Result("calculations.stalled", "Calculations", "Runs waiting or running too long", link="/calculations/runs/")
     if items:
         result.status = health.FAILING
         result.summary = (
@@ -60,7 +60,7 @@ def failed() -> health.Result:
     items = [_item(r, r.finished_at, service.plain_error(r.error) or "no error recorded") for r in runs[:50]]
     n = runs.count()
     hours = settings_minutes("failures") // 60
-    result = health.Result("calculations.failed", "Calculations", "Runs that failed", items=items, link="/calculations/")
+    result = health.Result("calculations.failed", "Calculations", "Runs that failed", items=items, link="/calculations/runs/")
     if n:
         result.status = health.ATTENTION
         result.summary = f"{n} run{'s' if n != 1 else ''} failed in the last {hours} hours (refused inputs are not counted)."

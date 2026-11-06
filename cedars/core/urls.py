@@ -12,6 +12,12 @@ urlpatterns = [
     path("about/", views.about, name="about"),
     path("queue/", views.my_queue, name="queue"),
     path("search/", views.search, name="search"),
+    # Each header menu's own page, its heading's link (Jake, 2026-11-06). Calculations' runs and Reference data's packs moved under them.
+    path("filings/", views.section, {"page": "filings"}, name="filings"),
+    path("calculations/", views.section, {"page": "calculations"}, name="calculations"),
+    path("published/", views.section, {"page": "published"}, name="published"),
+    path("reference-data/", views.section, {"page": "reference"}, name="reference"),
+    path("admin/", views.section, {"page": "administration"}, name="administration"),
     path("help/", views.help_index, name="help"),
     path("help/contact/", views.help_contact, name="help_contact"),
     path("help/tour/", views.help_tour, name="help_tour"),

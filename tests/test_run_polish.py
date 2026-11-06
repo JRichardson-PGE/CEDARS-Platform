@@ -45,7 +45,7 @@ def test_an_analysis_run_may_bring_its_own_cost_test_set_file(tmp_path, analyst,
     sign_in(c, analyst)
     page = c.get(f"/calculations/runs/{run.pk}/").content.decode()
     assert "EE-2026-mine v1 (custom file: mine.yaml)" in page
-    assert "cost tests EE-2026-mine (custom file)" in c.get("/calculations/").content.decode()
+    assert "cost tests EE-2026-mine (custom file)" in c.get("/calculations/runs/").content.decode()
 
 
 @pytest.mark.parametrize(
@@ -131,6 +131,6 @@ def test_the_runs_list_gives_settings_run_time_and_input_checks(tmp_path, worker
         analyst, pge, request(release, name="check", settings={"preflight_only": True, "include_societal": False}), job_zip(tmp_path)
     )
     dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
-    page = signed_in(analyst).get("/calculations/").content.decode()
+    page = signed_in(analyst).get("/calculations/runs/").content.decode()
     assert '<span class="status info">Input check</span>' in page and "SCT off · csv.zip" in page
     assert '<th scope="col">Run time</th>' in page and "Deleted on or after" in page

@@ -1,7 +1,7 @@
 # Help for each page (cedars/core/page_help.py): reference data packs and cost-test sets.
 
 refdata/index:
-  title: Reference data
+  title: Data packs
   guide:
     - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
       run and every filing records the packs it used. A draft can be used for analysis runs but not for filings; a published pack is never
@@ -94,15 +94,17 @@ refdata/builder/start:
       hand or downloaded; one with problems is still read in, and its problems shown), or start from a blank set.
     - Shared with your organization, the set can be opened and changed by its members who may start runs there.
   how:
-    - Choose what to start from, pick the set or the file, and select Start.
+    - Choose what to start from in the Start from list. The page then shows only what that choice needs (which set, or the file);
+      without scripts, select Next to show it. Then select Start.
   see: reference-data
   tour:
-    - heading: Start from
+    - target: "#id_start"
       title: Start from
-      text: A copy of a set, a file, or a blank set.
-    - target: "main form .actions"
+      text: A copy of a set, a file, or a blank set. Once you choose, the page shows the set or file to pick.
+    - target: "main form .actions button.primary"
       title: Start
-      text: Opens the new set's first step.
+      text: Opens the new set's first step. It shows once you have chosen what to start from.
+      optional: true
 
 refdata/builder/set:
   title: "Set builder: the set"
