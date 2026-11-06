@@ -258,6 +258,7 @@ DATA_CACHE = env("DATA_CACHE", str(BASE_DIR / "var" / "cache" / "snapshots"))  #
 DATA_QUERY_THREADS = int(env("DATA_QUERY_THREADS", "2"))  # DuckDB threads per query
 DATA_QUERY_MEMORY = env("DATA_QUERY_MEMORY", "512MB")  # DuckDB memory limit per query (it spills to disk beyond it)
 DATA_QUERY_SPILL = env("DATA_QUERY_SPILL", "")  # where DuckDB spills beyond the limit; blank = a cedars-duckdb folder in the system temp
+FRONT_PAGE_REFRESH_IN_BACKGROUND = env_bool("FRONT_PAGE_REFRESH_IN_BACKGROUND", True)  # stale front page cards: remade after the response
 DATA_DOWNLOAD_MAX_ROWS = int(env("DATA_DOWNLOAD_MAX_ROWS", "200000"))  # rows or records made while the person waits; more: a background job
 DATA_DOWNLOAD_JOBS_PER_USER = int(env("DATA_DOWNLOAD_JOBS_PER_USER", "3"))  # background downloads one person may have waiting at once
 ROBOTS_DISALLOW_ALL = env_bool("ROBOTS_DISALLOW_ALL", False)  # robots.txt turns every crawler away (the sandbox and demos)

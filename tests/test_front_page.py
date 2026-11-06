@@ -138,6 +138,81 @@ def test_the_cycle_choice(both):  # noqa: F811
     assert front.summary("nonsense").cycle is not None  # the default cycle
 
 
+@pytest.fixture
+def builds(both, monkeypatch):  # noqa: F811
+    """Counts how often the cards are made, and a clock the test moves."""
+    made = []
+    real = front._build
+    monkeypatch.setattr(front, "_build", lambda *a: made.append(1) or real(*a))
+    now = [1_000_000.0]
+    monkeypatch.setattr(front.time, "time", lambda: now[0])
+    return made, now
+
+
+def test_kept_cards_are_shown_and_remade_after_the_response(builds, settings, monkeypatch):
+    """Jake, 2026-11-06 (the front page was sometimes very slow): a visitor never waits for the cards once they have been made; a copy
+    older than FRESH_SECONDS is shown while new ones are made in a thread, one at a time."""
+    made, now = builds
+    first = front.summary()
+    assert len(made) == 1
+    now[0] += front.FRESH_SECONDS - 1
+    assert front.summary() is not None and len(made) == 1  # fresh: kept
+
+    settings.FRONT_PAGE_REFRESH_IN_BACKGROUND = True
+    started = []
+
+    class Thread:
+        def __init__(self, target, args, **kw):
+            started.append((target, args))
+
+        def start(self):
+            pass
+
+    monkeypatch.setattr(front.threading, "Thread", Thread)
+    now[0] += 2
+    stale = front.summary()
+    assert [c.key for c in stale.cards] == [c.key for c in first.cards] and len(made) == 1  # shown at once, not made in the request
+    front.summary()
+    assert len(started) == 1  # a second visit does not start a second rebuild
+    target, args = started[0]
+    target(*args)  # the thread's work
+    assert len(made) == 2
+    front.summary()
+    assert len(started) == 1  # fresh again
+
+
+def test_a_new_release_or_goal_set_is_made_in_the_request(builds, monkeypatch):
+    made, _ = builds
+    front.summary()
+    monkeypatch.setattr(front, "_fingerprint", lambda: "another release")
+    front.summary()
+    assert len(made) == 2  # nobody sees the previous release's numbers
+
+
+def test_a_failed_rebuild_keeps_the_cards(builds, monkeypatch):
+    made, now = builds
+    kept = front.summary()
+    now[0] += front.FRESH_SECONDS + 1
+    monkeypatch.setattr(front, "_build", lambda *a: 1 / 0)
+    assert [c.key for c in front.summary().cards] == [c.key for c in kept.cards]
+    assert not front.cache.get(front._cache_key(kept.cycle) + ":refreshing")  # the lock is freed, so a later visit tries again
+
+
+def test_warm_front_page(both, capsys):  # noqa: F811
+    from django.core.management import call_command
+
+    call_command("warm_front_page")
+    assert capsys.readouterr().out.startswith("2028-2031: ")
+    assert front.cache.get(front._cache_key(front.pick_cycle()[0]))["fingerprint"] == front._fingerprint()
+
+
+def test_warm_front_page_with_no_cycle(db, capsys):
+    from django.core.management import call_command
+
+    call_command("warm_front_page", "--all")
+    assert "nothing to make" in capsys.readouterr().out
+
+
 def test_money():
     assert (
         front.money(412_345_678) == "$412.3M"
