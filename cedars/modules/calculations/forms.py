@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -17,18 +19,33 @@ MARKET_EFFECTS = [("0", "0%"), ("0.05", "5% (benefits and costs)")]
 
 
 def parse_years(text: str) -> list[int]:
-    """'2028, 2029' or '2028 2029' as [2028, 2029]; raises ValidationError on anything else."""
+    """'2028, 2029', '2028 2029' or a range '2028-2035' (mixed too: '2028-2030, 2035') as a sorted list of years; raises
+    ValidationError on anything else."""
     out = []
-    for part in (text or "").replace(",", " ").split():
-        if not part.isdigit() or not 2000 <= int(part) <= 2100:
-            raise forms.ValidationError(f"Write the years as four-digit numbers, e.g. 2028, 2029 (got {part!r}).")
-        out.append(int(part))
+    text = re.sub(r"\s*[-\u2013\u2014]\s*", "-", text or "")  # "2028 - 2035" and en / em dashes are ranges too
+    for part in text.replace(",", " ").split():
+        first, dash, last = part.partition("-")
+        ends = [first, last] if dash else [first]
+        if not all(e.isdigit() and 2000 <= int(e) <= 2100 for e in ends):
+            raise forms.ValidationError(f"Write the years as four-digit numbers or a range, e.g. 2028, 2029 or 2028-2035 (got {part!r}).")
+        lo, hi = int(ends[0]), int(ends[-1])
+        if hi < lo:
+            raise forms.ValidationError(f"A range runs from the earlier year to the later one, e.g. 2028-2035 (got {part!r}).")
+        out.extend(range(lo, hi + 1))
     return sorted(set(out))
 
 
 # ReCET's optional input files New run takes as uploads of their own (jobfiles.OPTIONAL). Program metadata and statewide factors are not
 # offered: the program registry and the allocation version are every run's (a job zip's or workbook's own are noted as not used).
 SUPPLIED_FIELDS = ("run_parameters", "profiles_8760", "profiles_gas")
+
+
+def _norm(v) -> str:
+    """A field's value as text for comparing with its default: blank, None and False are the same; a model instance is its key."""
+    v = getattr(v, "pk", v)
+    if v is None or v is False or v == "":
+        return ""
+    return "on" if v is True else str(v)
 
 
 class NewRunForm(forms.Form):
@@ -128,7 +145,7 @@ class NewRunForm(forms.Form):
         label="Years of the combined profile (optional)",
         required=False,
         max_length=60,
-        help_text="e.g. 2028, 2029; blank is the First Year",
+        help_text="e.g. 2028-2035, or 2028, 2029; blank is the First Year",
     )
     output_format = forms.ChoiceField(label="Output files", choices=list(service.OUTPUT_FORMATS.items()), initial="csv.zip")
     cet_outputs = forms.FileField(
@@ -201,6 +218,33 @@ class NewRunForm(forms.Form):
         self.fields["compare_with"].choices = [("", "No comparison")] + [(a, f"{a} ACC") for a in recet_accs]
         self.fields["acc_purpose"].choices = service.acc_purposes()
         self.releases = {r.release: r for r in releases}
+
+    # The job box (Jake, 2026-11-06): what most runs need. Every other field is under Advanced options, folded away.
+    JOB_FIELDS = ("name", "run_for", "job", "engine", "acc_version", "base_year", "market_effects")
+
+    def _advanced(self):
+        return [f for f in self if f.name not in self.JOB_FIELDS]
+
+    @property
+    def advanced_errors(self) -> list[str]:
+        """The Advanced options fields with an error: the disclosure opens itself to show them."""
+        return [f.name for f in self._advanced() if f.errors] if self.is_bound else []
+
+    @property
+    def advanced_changed(self) -> list[str]:
+        """The Advanced options fields not at their defaults (a rerun's own settings, or what was sent with an error elsewhere), named
+        on the disclosure's summary so nothing set is folded away without a word. File fields are left out: a browser never fills one."""
+        out = []
+        for f in self._advanced():
+            if isinstance(f.field, forms.FileField):
+                continue
+            if _norm(f.value()) != _norm(f.field.initial):
+                out.append(f.name)
+        return out
+
+    @property
+    def advanced_open(self) -> bool:
+        return bool(self.advanced_errors)
 
     def clean(self):
         data = super().clean()

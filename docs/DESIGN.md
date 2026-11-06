@@ -51,6 +51,9 @@ A long form uses the width too (New run, `.wide-form`): each fieldset's fields s
 as fit (one at 320 px), filled left to right in the order they are read, so the visual order is the DOM order. Fields that go together
 share a `.field-cell` (a box and the option it turns on, a check and its year), and small sections share a row in a `.fieldset-row`
 (the larger one marked `.grow`). Explanatory paragraphs inside keep the 80-character measure; tables in a section's disclosures use its width.
+A long form keeps what most people need in its first section and folds the rest into one native disclosure (`.advanced-options`; New
+run: The job's seven fields, then Advanced options). The disclosure opens itself when one of its fields has an error, and its summary
+says how many of its fields are not at their defaults, so a setting is never folded away without a word.
 
 ## Components (by class)
 

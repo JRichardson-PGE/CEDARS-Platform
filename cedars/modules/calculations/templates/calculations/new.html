@@ -36,34 +36,17 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
 {% url 'core:recet_doc' 'input-formats' as formats %}{% url 'core:recet_doc' 'input-fields' as infields %}{% before_upload template=formats template_label="the job's input formats" fields=infields fields_label="its input fields" rules_note="the engine checks the inputs before it prices them; filing checks are a run option" guide="calculations" guide_label="the cost-effectiveness runs guide" %}
 <form method="post" enctype="multipart/form-data" class="stack wide-form" novalidate data-upload-progress>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  <fieldset><legend>The job</legend>
+  <fieldset id="the-job"><legend>The job</legend>
+    <div class="stack">
+    {% if unserved %}<p class="small" role="note" id="unserved-note">No worker is running {% for r in unserved %}ReCET {{ r.release }}{% if not forloop.last %}, {% endif %}{% endfor %} right now (none has polled in the last {{ worker_minutes }} minute{{ worker_minutes|pluralize }}). A run on {% if unserved|length == 1 %}it{% else %}one of them{% endif %} waits in the queue until one starts.</p>{% endif %}
     <div class="field-grid">
     {{ form.name.as_field_group }}
     {{ form.run_for.as_field_group }}
     {% if draft %}<input type="hidden" name="draft" value="{{ draft.pk }}">{% else %}{% if rerun %}<input type="hidden" name="from" value="{{ rerun.pk }}">{% endif %}{{ form.job.as_field_group }}{% endif %}
-    </div>
-  </fieldset>
-  {% if form.kept %}<fieldset><legend>The run's own input files</legend>
-    <div class="field-grid">{% for name, label, field in form.kept %}{% for f in form %}{% if f.name == field %}{{ f.as_field_group }}{% endif %}{% endfor %}{% endfor %}</div>
-    <p class="small">An optional file uploaded below is used in place of the run's own.</p>
-  </fieldset>{% endif %}
-  <fieldset><legend>Pricing</legend>
-    <div class="stack">
-    {% if unserved %}<p class="small" role="note" id="unserved-note">No worker is running {% for r in unserved %}ReCET {{ r.release }}{% if not forloop.last %}, {% endif %}{% endfor %} right now (none has polled in the last {{ worker_minutes }} minute{{ worker_minutes|pluralize }}). A run on {% if unserved|length == 1 %}it{% else %}one of them{% endif %} waits in the queue until one starts.</p>{% endif %}
-    <div class="field-grid">
     {{ form.engine.as_field_group }}
     {{ form.acc_version.as_field_group }}
-    {{ form.compare_with.as_field_group }}
     {{ form.base_year.as_field_group }}
     {{ form.market_effects.as_field_group }}
-    {{ form.acc_purpose.as_field_group }}
-    {{ form.cost_test_set.as_field_group }}
-    {{ form.cost_test_build.as_field_group }}
-    {{ form.cost_tests_file.as_field_group }}
-    <div class="field-cell">
-    {{ form.include_societal.as_field_group }}
-    {{ form.components.as_field_group }}
-    </div>
     </div>
     <details>
       <summary>Which ACCs each engine has</summary>
@@ -83,6 +66,33 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
       <p class="small">Claims use the ACC of the program year's final budget filing. From the engine's own filing table.</p>
     </details>
     {% endif %}
+    </div>
+  </fieldset>
+  {% comment %}Every other option is folded away (Jake, 2026-11-06: most people only need The job's seven). A native disclosure: keyboard and
+  screen readers get it for free. It opens itself when one of its fields has an error, and its summary says how many are not at their
+  defaults (a rerun's own settings), so nothing set is hidden without a word.{% endcomment %}
+  <details id="advanced-options" class="advanced-options"{% if form.advanced_open %} open{% endif %}>
+    <summary>Advanced options{% with n=form.advanced_changed|length %}{% if n %} <span class="small">({{ n }} not at {% if n == 1 %}its default{% else %}their defaults{% endif %}{% if form.advanced_errors %}, {{ form.advanced_errors|length }} to fix{% endif %})</span>{% elif form.advanced_errors %} <span class="small">({{ form.advanced_errors|length }} to fix)</span>{% endif %}{% endwith %}</summary>
+    <div class="stack">
+    <p class="small">Comparisons, the cost-test set, ReCET's optional input files, statewide allocation, filing checks and the output files.
+    Left as they are, the run takes the engine's defaults.</p>
+  {% if form.kept %}<fieldset><legend>The run's own input files</legend>
+    <div class="field-grid">{% for name, label, field in form.kept %}{% for f in form %}{% if f.name == field %}{{ f.as_field_group }}{% endif %}{% endfor %}{% endfor %}</div>
+    <p class="small">An optional file uploaded below is used in place of the run's own.</p>
+  </fieldset>{% endif %}
+  <fieldset><legend>Pricing</legend>
+    <div class="stack">
+    <div class="field-grid">
+    {{ form.compare_with.as_field_group }}
+    {{ form.acc_purpose.as_field_group }}
+    {{ form.cost_test_set.as_field_group }}
+    {{ form.cost_test_build.as_field_group }}
+    {{ form.cost_tests_file.as_field_group }}
+    <div class="field-cell">
+    {{ form.include_societal.as_field_group }}
+    {{ form.components.as_field_group }}
+    </div>
+    </div>
     {% if cost_test_sets %}
     <details id="cost-test-sets">
       <summary>What each cost-test set prices</summary>
@@ -147,6 +157,8 @@ go together share a cell (.field-cell: a box and the option it turns on). See do
     <p class="small">Make or change templates on the <a href="{% url 'calculations:templates' %}">output templates</a> page.</p>
     </div>
   </fieldset>
+    </div>
+  </details>
   <p id="check-only-help" class="small">Check the inputs only runs the engine's input checks (and the filing checks, when chosen) without pricing:
   a quick way to see what a run would flag. CET replicas do not offer it.</p>
   <div class="actions"><button type="submit" class="primary">Start the run</button>

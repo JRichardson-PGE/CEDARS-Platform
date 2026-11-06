@@ -1321,22 +1321,27 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     found = {}
     for width in (1920, 320):
         context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": width, "height": 1000})
+        folded = page.evaluate("document.querySelector('#advanced-options').open")
         found[width] = page.evaluate(
             """() => {
+              const closed = document.documentElement.scrollHeight;
+              document.querySelector('#advanced-options').open = true;  // Advanced options (Jake, 2026-11-06): laid out the same way
               const form = document.querySelector('main form').getBoundingClientRect().width;
               const cols = [...document.querySelectorAll('main form .field-grid')]
                 .map(g => getComputedStyle(g).gridTemplateColumns.split(' ').length);
               // reading order: each field starts at or after the one before it, left to right within a row
               const fields = [...document.querySelectorAll('main form .field-grid > *')].map(f => f.getBoundingClientRect());
               const backwards = fields.filter((r, i) => i && r.top < fields[i - 1].top - 1 && r.left > fields[i - 1].left).length;
-              return {form, cols, backwards, height: document.documentElement.scrollHeight};
+              return {form, cols, backwards, closed, height: document.documentElement.scrollHeight};
             }"""
         )
         context.close()
+        assert not folded, "Advanced options is open on a fresh New run page"
     wide, narrow = found[1920], found[320]
     assert wide["form"] > 1800, f"the New run form is {wide['form']:.0f} px wide in a 1920 px window"
     assert min(wide["cols"]) >= 3 and max(wide["cols"]) >= 5, f"field columns at 1920 px: {wide['cols']}"
     assert wide["height"] < 2400, f"New run is {wide['height']} px tall at 1920 px"
+    assert wide["closed"] < 1400, f"New run is {wide['closed']} px tall at 1920 px with Advanced options folded"
     assert wide["backwards"] == 0, "a field sits above and to the right of the one read before it"
     assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
 

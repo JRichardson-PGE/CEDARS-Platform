@@ -349,6 +349,13 @@ legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .fieldset-row > fieldset { flex: 1 1 min(100%, 20rem); margin: 0; }
 .fieldset-row > fieldset.grow { flex: 3 1 min(100%, 40rem); }   /* the larger section: two or three columns of its own beside a small one */
 .wide-form > fieldset { margin: 0; }
+/* New run's Advanced options: the sections most runs leave alone, folded into one native disclosure (Jake, 2026-11-06). Its summary keeps
+   the browser's own triangle and reads as a section heading; 44 px tall, so it is an easy target. */
+.advanced-options { border: 1px solid var(--line); border-radius: var(--r-lg); padding: 0 1rem; background: var(--surface); }
+.advanced-options > summary { cursor: pointer; min-height: 44px; display: list-item; padding: .65rem 0; font-weight: 600; }
+.advanced-options > summary .small { font-weight: 400; }
+.advanced-options[open] { padding-bottom: 1rem; }
+.advanced-options > .stack > fieldset { margin: 0; }
 .inline-form { display: inline; margin: 0; }
 .filters { display: flex; gap: .75rem 1rem; align-items: flex-end; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
 .filters > label, .filters > fieldset, .filters > div { min-width: 0; max-width: 100%; }
