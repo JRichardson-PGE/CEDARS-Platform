@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -16,6 +17,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, service
@@ -154,10 +156,21 @@ def setup(request, year):
     s = get_object_or_404(YearSetup, year=year)
     if not access.is_system_admin(request.user):
         raise Http404
-    form = forms.SetupForm(
-        request.POST or None, accs=accs(), initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version}
+    calendar, done = setup_calendar.calendar_forms(
+        request,
+        service.year_deadlines(s),
+        removable=service.removable(s),
+        remove=lambda reason: service.remove_setup(request.user, s, reason),
+        removed_url=reverse("monthly:index"),
+        what=f"{s.year} monthly reports",
     )
-    if request.method == "POST" and form.is_valid():
+    if done:
+        return done
+    own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
+    form = forms.SetupForm(
+        request.POST if own else None, accs=accs(), initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version}
+    )
+    if own and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
@@ -168,7 +181,7 @@ def setup(request, year):
         else:
             messages.success(request, "Saved. Reports already priced keep what they were priced with.")
             return redirect("monthly:index")
-    return render(request, "monthly/setup.html", {"setup": s, "form": form})
+    return render(request, "monthly/setup.html", {"setup": s, "form": form} | calendar)
 
 
 # --- a PA's report for a month

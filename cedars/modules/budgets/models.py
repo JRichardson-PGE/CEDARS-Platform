@@ -14,11 +14,11 @@ PROGRAM_COST_FIELDS = [
     ("UserInputIncentive", "Incentives entered at program level"),
     ("CostsRecoveredFromOtherSources", "Costs recovered from other sources"),
 ]
-FILING_KINDS = [
-    ("Business plan application", "Business plan application"),
-    ("True-up advice letter (TUAL)", "True-up advice letter (TUAL)"),
-    ("Mid-cycle advice letter (MCAL)", "Mid-cycle advice letter (MCAL)"),
-]
+# What a budget filing is (Jake, 2026-11-06): an application or an advice letter. Which advice letter (a TUAL, an MCAL, or a scheme
+# that comes later) is the filing's name, so a new scheme needs no code. Filings imported from legacy CEDARS keep the kinds they were
+# filed under (legacy.py).
+APPLICATION, ADVICE_LETTER = "Application", "Advice letter"
+FILING_KINDS = [(APPLICATION, APPLICATION), (ADVICE_LETTER, ADVICE_LETTER)]
 
 
 class FilingSetup(models.Model):

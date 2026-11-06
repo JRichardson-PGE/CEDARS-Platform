@@ -3,7 +3,7 @@
 {% block content %}
 {% include "submissions/_record_crumbs.html" %}
 <div class="page-title"><h1>Preview: {{ p.filename }}</h1>{% page_help "submissions/correction" %}</div>
-<p>Nothing has changed yet. Applying it changes {{ v.submission.organisation.code }} {{ v.submission.deadline.kind }}, version {{ v.number }}, as listed here, then checks the records it changes
+<p>Nothing has changed yet. Applying it changes {{ v.submission.organisation.code }} {{ v.submission.deadline.title }}, version {{ v.number }}, as listed here, then checks the records it changes
 and those whose checks they affect.</p>
 <section aria-labelledby="counts-h">
 <h2 id="counts-h">What would change: {{ p.total|floatformat:"0g" }} record{{ p.total|pluralize }}</h2>

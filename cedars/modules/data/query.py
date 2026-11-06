@@ -118,7 +118,7 @@ class Query:
     year_to: int | None = None
     filters: tuple[tuple[str, tuple[str, ...]], ...] = ()  # (dimension, values), each kept as given
     exclude: tuple[str, ...] = DEFAULT_EXCLUDE
-    filing: str = ""  # forecast: a filing kind ("TUAL") or "<cycle>|<kind>" ("2028-2031|TUAL"); blank = each PA's latest
+    filing: str = ""  # forecast: a filing's kind or name ("TUAL") or "<cycle>|<kind or name>" ("2028-2031|TUAL"); blank = each PA's latest
     release: int | None = None  # an earlier release's number; None = the current one
 
     def __post_init__(self):
@@ -269,7 +269,7 @@ class Result:
             "snapshots": [f["snapshot"] for f in self.files_used],
             "filings": sorted(
                 {
-                    f"{f['organisation']} {f['cycle'] or f['year']} {f['kind']} v{f['version_number']}"
+                    f"{f['organisation']} {f.get('name') or str(f['cycle'] or f['year']) + ' ' + f['kind']} v{f['version_number']}"
                     + (f" (years {years_label(f)})" if years_label(f) else "")
                     for f in self.files_used
                 }
@@ -305,7 +305,8 @@ def pick_files(q: Query, files: list[dict]) -> list[dict]:
         return files
     if q.filing:
         cycle, _, kind = q.filing.rpartition("|")
-        return [f for f in files if f["kind"].lower() == kind.lower() and (not cycle or f["cycle"] == cycle)]
+        kind = kind.lower()
+        return [f for f in files if kind in (f["kind"].lower(), f.get("name", "").lower()) and (not cycle or f["cycle"] == cycle)]
     latest: dict[tuple, dict] = {}
     for f in files:
         for y in file_years(f):
@@ -486,7 +487,9 @@ def where_terms(q: Query) -> tuple[list[str], list]:
 
 
 def filing_label(f: dict) -> str:
-    """A snapshot's filing as the pages and files name it ("2028-2031 TUAL", or a claim's kind)."""
+    """A snapshot's filing as the pages and files name it: its name, else its cycle and kind ("2028-2031 TUAL"), or a claim's kind."""
+    if f.get("name"):
+        return f["name"]
     return f"{f['cycle']} {f['kind']}".strip() if f["cycle"] else f["kind"]
 
 

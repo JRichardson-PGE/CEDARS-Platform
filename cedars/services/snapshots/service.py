@@ -55,8 +55,8 @@ def source_key(v: SubmissionVersion) -> str | None:
 
 def label(v: SubmissionVersion) -> str:
     d = v.submission.deadline
-    period = d.period or d.cycle or ""
-    return f"{v.submission.organisation.code} {period} {d.kind} version {v.number}".replace("  ", " ")
+    what = d.name or f"{d.period or d.cycle or ''} {d.kind}"
+    return f"{v.submission.organisation.code} {what} version {v.number}".replace("  ", " ")
 
 
 # --- hooks (registered in apps.py)
@@ -554,7 +554,7 @@ def as_of(dataset: str):
 def release_files(release: Release) -> list[dict]:
     """One entry per snapshot in a release, with what a query needs to label its rows: the file's address (file:// or s3://), the
     submitting organization (under its party's current code: a renamed or merged PA's filings count as the one PA), the year, the
-    filing or claim kind and the version."""
+    filing or claim kind, the filing's name and the version."""
     out = []
     mapping = access.code_map()
     for s in release.snapshots.select_related(
@@ -570,6 +570,7 @@ def release_files(release: Release) -> list[dict]:
                 "year": s.year,
                 "cycle": str(d.cycle) if d.cycle_id else "",
                 "kind": d.kind,
+                "name": d.name,  # which filing of its kind (a TUAL or an MCAL, both advice letters); blank: called by its kind
                 "due_at": d.due_at,
                 "version": s.version_id,
                 "version_number": s.version.number,

@@ -1,0 +1,31 @@
+{# The calendar part of a set-up page (submissions/setup.py): its due dates, and Remove this set-up while nobody has filed for it. #}
+<section class="card" aria-labelledby="due-dates-h" id="setup-due-dates">
+  <h2 id="due-dates-h">Due dates</h2>
+  <p>Change any due date still to come. It moves on the <a href="{% url 'submissions:calendar' %}">filing calendar</a> as if changed
+  there: those who follow the calendar are told, and reminders are sent again for the new date. A date already passed moves on its own
+  page of the calendar.</p>
+  {% if due_form.past %}<ul class="small" id="past-due-dates">{% for d in due_form.past %}<li>{{ d.title }}{% if d.period %}, {{ d.period }}{% endif %}: was due <time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time> (<a href="{% url 'submissions:deadline' d.pk %}">its calendar page<span class="sr-only"> for {{ d.title }}{% if d.period %}, {{ d.period }}{% endif %}</span></a>)</li>{% endfor %}</ul>{% endif %}
+  {% if due_form.coming %}
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    <input type="hidden" name="action" value="due">
+    {% if due_form.non_field_errors %}<div class="alert" role="alert">{{ due_form.non_field_errors }}</div>{% endif %}
+    {% for field in due_form.date_fields %}{{ field.as_field_group }}{% endfor %}
+    {{ due_form.reason.as_field_group }}
+    <div class="actions"><button type="submit" class="primary">Save the due dates</button></div>
+  </form>
+  {% else %}<p>Every due date has passed.</p>{% endif %}
+</section>
+<section class="card" aria-labelledby="remove-setup-h" id="remove-setup">
+  <h2 id="remove-setup-h">Remove this set-up</h2>
+  {% if removable %}
+  <p>Takes {{ setup_what }} off the filing calendar for good, its set-up and every one of its deadlines, for one set up by mistake.
+  Nobody has filed for it yet. The audit trail keeps what was removed and why. It can be set up again afterward.</p>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    <input type="hidden" name="action" value="remove">
+    {{ remove_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Remove {{ setup_what }}</button></div>
+  </form>
+  {% else %}
+  <p>An organization has started filing for {{ setup_what }}, so it cannot be removed: what was filed is kept. Its due dates can still change.</p>
+  {% endif %}
+</section>
