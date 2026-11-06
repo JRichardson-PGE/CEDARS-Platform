@@ -486,3 +486,49 @@ def test_cycles_are_found_by_their_years(cpuc_admin):
     _budget_filing(cpuc_admin, first_year=2028, last_year=2031, due_at=timezone.now() + timedelta(days=10))
     _budget_filing(cpuc_admin, first_year=2028, last_year=2035, due_at=timezone.now() + timedelta(days=20))
     assert registry.cycle_for_year(2029) == b
+
+
+def test_clearing_a_demo_calendar_deletes_what_nothing_was_filed_for_and_retires_the_rest(cpuc_admin, analyst, pge, deadline):
+    from django.core.management import call_command
+
+    from cedars.modules.budgets.models import FilingSetup
+    from cedars.modules.claims import service as claims
+    from cedars.modules.claims.models import ClaimYear
+    from cedars.modules.monthly import service as monthly
+    from cedars.modules.monthly.models import YearSetup
+    from cedars.services.submissions.models import Deadline
+
+    unfiled_budget = _budget_filing(cpuc_admin, first_year=2032, last_year=2035)
+    filed_budget = _budget_filing(cpuc_admin, kind="True-up advice letter (TUAL)")
+    service.start(analyst, deadline, pge)  # the hand-added claim deadline is filed for
+    from cedars.services.submissions.models import Submission
+
+    Submission.objects.create(deadline=filed_budget, organisation=pge)
+    claims.add_year(cpuc_admin, year=2030, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
+    monthly.set_up_year(cpuc_admin, year=2030, acc_version="2026", due_day=20, closing_due=date(2031, 3, 1))
+    hand = _hand_added(cpuc_admin)
+    with pytest.raises(AccessDenied, match="filing calendar"):
+        service.clear_calendar(analyst, "demo reset")
+    plan = service.clear_calendar(cpuc_admin, "demo reset")  # the plan only: nothing changes
+    assert {w for w, _ in plan["deleted"]} >= {"2030 claims", "2030 monthly reports", "2032-2035 Business plan application"}
+    assert Deadline.objects.count() == 1 + 2 + 5 + 13 + 1
+    call_command("clear_filing_calendar", "--reason", "Demo reset", "--apply", stdout=__import__("io").StringIO())
+    left = set(Deadline.objects.values_list("pk", flat=True))
+    assert left == {deadline.pk, filed_budget.pk}  # filed: kept, retired
+    assert all(d.retired_at and d.retired_reason == "Demo reset" for d in Deadline.objects.all())
+    assert not Deadline.objects.active().exists()
+    assert not ClaimYear.objects.exists() and not YearSetup.objects.exists()
+    assert list(FilingSetup.objects.values_list("deadline_id", flat=True)) == [filed_budget.pk]
+    assert unfiled_budget.pk not in left and hand.pk not in left
+    assert AuditEvent.objects.filter(action="deadline.deleted", reason="Demo reset").count() == 1 + 5 + 13 + 1
+    assert AuditEvent.objects.filter(action="claim_year.removed").exists()
+    # the years can be set up again
+    claims.add_year(cpuc_admin, year=2030, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
+
+
+def test_the_clear_command_is_only_for_sandbox_and_demo_sites(settings):
+    from django.core.management import CommandError, call_command
+
+    settings.ENVIRONMENT = "prod"
+    with pytest.raises(CommandError, match="only on a sandbox"):
+        call_command("clear_filing_calendar", "--reason", "x", "--apply")

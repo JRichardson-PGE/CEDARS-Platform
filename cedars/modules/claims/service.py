@@ -128,6 +128,23 @@ def add_year(
     return cy
 
 
+def setup_groups() -> list:
+    """Each claim year's set-up and its five deadlines (submissions.register_setup_groups, for clearing a demo calendar)."""
+
+    def remover(cy):
+        def remove():
+            audit.record("claim_year.removed", obj=cy, before=_setup_fields(cy), actor=None)
+            cy.delete()
+
+        return remove
+
+    out = []
+    for cy in ClaimYear.objects.order_by("year"):
+        ids = list(Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).values_list("pk", flat=True))
+        out.append((f"{cy.year} claims", ids, remover(cy)))
+    return out
+
+
 @transaction.atomic
 def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None) -> ClaimYear:
     """Change how a year's claims are priced. Versions already priced keep what they were priced with; the next pricing uses the new

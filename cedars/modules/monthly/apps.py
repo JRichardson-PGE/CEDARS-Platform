@@ -15,8 +15,10 @@ class MonthlyConfig(AppConfig):
         from cedars.services.submissions.service import (
             register_acc_needs,
             register_deadline_page,
+            register_nothing_to_file,
             register_publisher,
             register_reader,
+            register_setup_groups,
             register_setup_page,
         )
 
@@ -29,9 +31,11 @@ class MonthlyConfig(AppConfig):
             "monthly",
             label="A year of monthly reports",
             url_name="monthly:year_new",
-            about="A program year's twelve monthly reports, each due on the same day of the month after it.",
+            about="A program year's twelve monthly reports and its 13th-month report, due with the annual claim: thirteen deadlines.",
             order=3,
         )
+        register_setup_groups("monthly", service.setup_groups)  # what clear_filing_calendar deletes or retires together
+        register_nothing_to_file("monthly", service.nothing_to_file)  # the 13th-month report is generated from claims
         register_reader("monthly", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 
         from cedars.services.registry.service import register_reported_spend

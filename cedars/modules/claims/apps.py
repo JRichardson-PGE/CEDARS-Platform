@@ -24,6 +24,7 @@ class ClaimsConfig(AppConfig):
             register_deadline_page,
             register_publisher,
             register_reader,
+            register_setup_groups,
             register_setup_page,
         )
 
@@ -42,6 +43,7 @@ class ClaimsConfig(AppConfig):
             about="A program year's claims: its four quarterly claims and the annual claim, each with its own deadline.",
             order=2,
         )
+        register_setup_groups("claims", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_reader("claims", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 
         from cedars.services.notifications.service import register_filing

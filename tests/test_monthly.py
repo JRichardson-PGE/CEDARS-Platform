@@ -439,8 +439,16 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     sign_in(client, cpuc_admin)
     assert client.get(reverse("monthly:report", args=[jan.pk]) + "?org=PGE").status_code == 200
     assert client.get(reverse("monthly:setup", args=[2028])).status_code == 200
-    r = client.post(reverse("monthly:year_new"), {"year": 2029, "due_day": 15, "acc_version": "2026"})
+    form = {"year": 2029, "acc_version": "2026", "closing_due": "2030-03-01"}
+    form |= {f"due_{m}": (date(2029 + m // 12, m % 12 + 1, 15)).isoformat() for m in range(1, 13)}
+    r = client.post(reverse("monthly:year_new"), form | {"due_3": "2029-03-31"})  # March's report is due after March ends
+    assert r.status_code == 200 and "due after March 2029 ends: on or after 2029-04-01" in r.content.decode()
+    r = client.post(reverse("monthly:year_new"), form | {"closing_due": "2029-12-31"})
+    assert r.status_code == 200 and "13th-month report is due after 2029 ends" in r.content.decode()
+    r = client.post(reverse("monthly:year_new"), form)
     assert r.status_code == 302 and service.months(2029).count() == 12
+    closing = service.closing_deadline(2029)
+    assert timezone.localtime(closing.due_at).date() == date(2030, 3, 1) and closing.period.kind == "year"
 
 
 def test_a_monthly_report_in_several_files(client, filer, year, pge, programs):
@@ -471,3 +479,28 @@ def test_a_pricing_run_that_ends_without_pricing_lets_the_report_be_priced_again
     assert submissions.pricing_run(v)["ended"] and not service.priced(v)
     again = Run.objects.get(pk=service.price(filer, v))
     assert again.pk != run.pk and not submissions.pricing_run(v)["ended"]
+
+
+def test_a_year_is_set_up_with_its_thirteen_due_dates(cpuc_admin, filer, pge, client):
+    from cedars.services.submissions import status
+
+    due = {m: date(2028 + m // 12, m % 12 + 1, 10 + m) for m in range(1, 13)}
+    with pytest.raises(AccessDenied, match="every month: May"):
+        service.set_up_year(cpuc_admin, year=2028, acc_version="2026", due={m: d for m, d in due.items() if m != 5})
+    with pytest.raises(AccessDenied, match="due after its month ends"):
+        service.set_up_year(cpuc_admin, year=2028, acc_version="2026", due=due | {6: date(2028, 6, 30)})
+    service.set_up_year(cpuc_admin, year=2028, acc_version="2026", due=due, closing_due=date(2029, 3, 1))
+    deadlines = list(service.months(2028))
+    assert [timezone.localtime(d.due_at).date() for d in deadlines] == [due[m] for m in range(1, 13)]
+    closing = service.closing_deadline(2028)
+    assert closing.kind == "13th-month report" and timezone.localtime(closing.opens_at).date() == date(2029, 1, 1)
+    from cedars.services.submissions import service as submissions
+
+    # the calendar links it to the generated 13th-month report, nothing is filed for it, and the Filings status leaves it out
+    assert submissions.deadline_page(closing) == reverse("monthly:closing", args=[2028])
+    assert submissions.nothing_to_file(closing) and not submissions.nothing_to_file(deadlines[0])
+    with pytest.raises(AccessDenied, match="Nothing is filed"):
+        submissions.start(filer, closing, pge)
+    assert client.get(reverse("monthly:report", args=[closing.pk])).status_code in (302, 404)
+    Deadline.objects.filter(pk=closing.pk).update(due_at=timezone.now() - timedelta(days=1))
+    assert all(c.deadline.pk != closing.pk for c in status.columns()[0])

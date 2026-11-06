@@ -22,7 +22,7 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
     {% if sysadmin %}<a class="button" href="{% url 'monthly:setup' y.setup.year %}">How {{ y.setup.year }} is priced</a>{% endif %}
   </div>
 </div>
-<p class="small muted">Estimates priced on the {{ y.setup.acc_version }} ACC. Each report is due on day {{ y.setup.due_day }} of the following month.</p>
+<p class="small muted">Estimates priced on the {{ y.setup.acc_version }} ACC. {% if y.setup.due_day %}Each report is due on day {{ y.setup.due_day }} of the following month.{% else %}Each report's due date is on the filing calendar.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="{{ y.setup.year }} monthly reports">
 <table class="list">
   <caption class="sr-only">{{ y.setup.year }} monthly reports{% if org %} and {{ org.code }}'s status{% endif %}</caption>

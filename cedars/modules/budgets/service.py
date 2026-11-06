@@ -106,6 +106,19 @@ def add_filing(
     return deadline
 
 
+def setup_groups() -> list:
+    """Each budget filing's set-up and its one deadline (submissions.register_setup_groups, for clearing a demo calendar)."""
+
+    def remover(setup):
+        def remove():
+            audit.record("budget_filing.removed", obj=setup, before=_setup_fields(setup), actor=None)
+            setup.delete()
+
+        return remove
+
+    return [(label(s.deadline), [s.deadline_id], remover(s)) for s in FilingSetup.objects.select_related("deadline__cycle")]
+
+
 def _setup_fields(setup: FilingSetup) -> dict:
     return {
         "acc": setup.acc_version,

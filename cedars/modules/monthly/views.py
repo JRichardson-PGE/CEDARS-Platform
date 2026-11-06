@@ -56,7 +56,7 @@ def _fmt(kind: str, x) -> str:
 
 
 def _deadline(pk) -> Deadline:
-    d = get_object_or_404(Deadline.objects.select_related("period"), pk=pk, module=service.MODULE)
+    d = get_object_or_404(Deadline.objects.select_related("period"), pk=pk, module=service.MODULE, kind=service.KIND)
     if service.setup_for(d) is None:
         raise Http404
     return d
@@ -136,14 +136,15 @@ def year_new(request):
                 request.user,
                 year=d["year"],
                 acc_version=d["acc_version"],
-                due_day=d["due_day"],
+                due=form.due(),
+                closing_due=d["closing_due"],
                 allocation_version=d["allocation_version"],
                 notes=d["notes"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))
         else:
-            messages.success(request, f"{setup.year}'s twelve monthly reports are set up.")
+            messages.success(request, f"{setup.year}'s monthly reports are set up: twelve months and the 13th-month report.")
             return redirect("monthly:index")
     return render(request, "monthly/year_new.html", {"form": form})
 
