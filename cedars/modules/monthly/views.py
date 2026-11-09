@@ -107,6 +107,8 @@ def index(request):
                     "latest": latest,
                     "status": _status(latest),
                     "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
                     "can_open": can_open,
                 }
             )
@@ -142,6 +144,7 @@ def year_new(request):
                 closing_due=d["closing_due"],
                 allocation_version=d["allocation_version"],
                 notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
             )
         except AccessDenied as e:
             messages.error(request, str(e))

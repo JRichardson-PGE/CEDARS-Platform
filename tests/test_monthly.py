@@ -439,7 +439,7 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     sign_in(client, cpuc_admin)
     assert client.get(reverse("monthly:report", args=[jan.pk]) + "?org=PGE").status_code == 200
     assert client.get(reverse("monthly:setup", args=[2028])).status_code == 200
-    form = {"year": 2029, "acc_version": "2026", "closing_due": "2030-03-01"}
+    form = {"year": 2029, "acc_version": "2026", "closing_due": "2030-03-01", "filers": ["PGE"]}
     form |= {f"due_{m}": (date(2029 + m // 12, m % 12 + 1, 15)).isoformat() for m in range(1, 13)}
     r = client.post(reverse("monthly:year_new"), form | {"due_3": "2029-03-31"})  # March's report is due after March ends
     assert r.status_code == 200 and "due after March 2029 ends: on or after 2029-04-01" in r.content.decode()

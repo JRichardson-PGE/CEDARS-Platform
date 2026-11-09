@@ -331,19 +331,29 @@ def deadline_new(request):
     return render(request, "submissions/deadline_new.html", {"pages": pages})
 
 
-FIELD_LABELS = {"name": "Name", "years": "Program years", "due_at": "Due date", "opens_at": "Opens", "notes": "Notes"}
+FIELD_LABELS = {
+    "name": "Name",
+    "years": "Program years",
+    "due_at": "Due date",
+    "opens_at": "Opens",
+    "notes": "Notes",
+    "filers": "Who files",
+}
 EVENT_LABELS = {
     "deadline.created": "Added to the calendar",
     "deadline.moved": "Due date moved",
     "deadline.changed": "Changed",
     "deadline.retired": "Retired (taken off the calendar)",
     "deadline.restored": "Restored to the calendar",
+    "deadline.filers_changed": "Who files changed",
 }
 
 
 def _shown(field: str, value) -> str:
     if value in (None, ""):
         return "none" if field != "notes" else "(blank)"
+    if isinstance(value, list):
+        return ", ".join(value)
     if field in ("due_at", "opens_at"):
         try:
             return f"{timezone.localtime(datetime.fromisoformat(value)):%Y-%m-%d}"

@@ -179,10 +179,12 @@ def add_year(
     notes="",
     cost_test_set=None,
     sw_due: dict | None = None,
+    filers=None,
 ) -> ClaimYear:
     """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same) and the
     five statewide ones before them (`sw_due` = {kind: datetime} for SW_PERIODS; a kind left out takes `default_sw_due`), priced on an
-    ACC and an allocation version (or the most recent)."""
+    ACC and an allocation version (or the most recent). `filers` are the program administrators who file the PAs' own claims
+    (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
     if ClaimYear.objects.filter(year=year).exists():
@@ -204,6 +206,8 @@ def add_year(
         submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=due[kind], opens_at=(opens or {}).get(kind))
     _add_sw_deadlines(actor, year, sw)
     audit.record("claim_year.set_up", obj=cy, after=_setup_fields(cy), actor=actor)
+    if filers is not None:
+        submissions.set_filers(actor, periods(year), filers, "Who files, as set up")
     return cy
 
 

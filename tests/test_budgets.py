@@ -363,7 +363,7 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     client.logout()
     sign_in(client, cpuc_admin)
     assert client.get(reverse("budgets:filing", args=[filing.pk]) + "?org=PGE").status_code == 200
-    letter = {"first_year": 2028, "last_year": 2031, "kind": "Advice letter", "due": "2029-09-01", "acc_version": "2026"}
+    letter = {"first_year": 2028, "last_year": 2031, "kind": "Advice letter", "due": "2029-09-01", "acc_version": "2026", "filers": ["PGE"]}
     r = client.post(reverse("budgets:filing_new"), letter)  # an advice letter is named, to say which one it is
     assert r.status_code == 200 and "Name the advice letter" in r.content.decode()
     r = client.post(reverse("budgets:filing_new"), letter | {"name": "2028-2031 Mid-cycle advice letter (MCAL)"})

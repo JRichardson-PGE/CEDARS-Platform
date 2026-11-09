@@ -1,7 +1,7 @@
 <section aria-labelledby="status-h" id="filing-status">
   <h2 id="status-h">Where each PA's filings stand</h2>
   <p>For budgets, claims and monthly reports: the filing most recently due and the next one due, and where each program administrator's
-    filing for it stands. {% if board.full %}As CPUC staff you see every PA's filings; select a status to open that filing.{% else %}You
+    filing for it stands. Each filing's set-up lists the PAs who file it, so only they are shown for it. {% if board.full %}As CPUC staff you see every PA's filings; select a status to open that filing.{% else %}You
     see where your organization's filings stand, and select a status to open the filing; for the other PAs, whether each filing is
     published.{% endif %} The <a href="{% url 'submissions:calendar' %}">filing calendar</a> lists every deadline.</p>
   {% if board.without %}<p class="small">No deadlines are on the calendar yet for {{ board.without|join:", " }}.</p>{% endif %}
@@ -21,5 +21,5 @@
     </tbody>
   </table>
   </div>
-  {% elif not board.rows %}<p class="empty">No program administrators are set up yet.</p>{% endif %}
+  {% elif not board.rows %}<p class="empty">No program administrators file the filings shown yet.</p>{% endif %}
 </section>

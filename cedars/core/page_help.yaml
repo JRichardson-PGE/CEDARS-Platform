@@ -155,6 +155,9 @@ core/section_filings:
       gives each PA's status on it: not started, started, draft, validated, confirmed or published, with past due, filed late or a
       correction under way beside it. CPUC staff see every PA's filings; a PA's members see their own, and for the others only whether
       each filing is published.
+    - >-
+      Not every PA files every filing: a filing's set-up lists the PAs who file it. A PA not on a filing shown has nothing to file
+      there, and a PA on none of them is not listed.
   how:
     - Select a page's name to open it; the arrow beside Filings in the header opens the same pages as a menu.
     - Select a status to open that PA's filing, or a column's heading to open the deadline's page.

@@ -100,10 +100,12 @@ def set_up_year(
     due_day: int | None = None,
     allocation_version=None,
     notes: str = "",
+    filers=None,
 ) -> YearSetup:
     """A program year's monthly reports: the year's set-up and its deadlines on the filing calendar, one per month, each opening when
     its month ends, and the 13th-month report's (closing_due: the year's final one, due with the annual claim; it opens when the year
-    ends). Each month's due date is due[month] (1-12), or, with due_day instead, that day of the following month."""
+    ends). Each month's due date is due[month] (1-12), or, with due_day instead, that day of the following month.
+    `filers` are the program administrators who file the monthly reports (submissions.set_filers; None: every PA)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up monthly reports.")
     if due is None:
@@ -134,6 +136,9 @@ def set_up_year(
             actor, module=MODULE, kind=CLOSING_KIND, period=periods[("year", 0)], due_at=due_at(closing_due), opens_at=opens
         )
     audit.record("monthly_reports.set_up", obj=setup, after=_setup_fields(setup), actor=actor)
+    if filers is not None:
+        months = [d for d in year_deadlines(setup) if d.kind == KIND]
+        submissions.set_filers(actor, months, filers, "Who files, as set up")
     return setup
 
 

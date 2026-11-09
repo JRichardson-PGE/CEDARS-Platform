@@ -5,6 +5,7 @@ from django.utils import timezone
 
 from cedars.core import uploads
 from cedars.services.registry.models import AllocationVersion
+from cedars.services.submissions import setup as setup_calendar
 
 
 def _allocations():
@@ -37,6 +38,7 @@ class YearForm(forms.Form):
         self.fields["acc_version"].choices = [(a, f"{a} ACC") for a in accs]
         self.fields["allocation_version"].queryset = _allocations()
         self.fields["year"].initial = timezone.localdate().year + 1
+        self.fields["filers"] = setup_calendar.filers_field()  # who files (Jake, 2026-11-09: not every PA files every filing)
         for m, name in enumerate(MONTHS, start=1):
             self.fields[month_field(m)] = forms.DateField(label=f"{name} report: due", widget=forms.DateInput(attrs={"type": "date"}))
         self.fields["closing_due"] = forms.DateField(

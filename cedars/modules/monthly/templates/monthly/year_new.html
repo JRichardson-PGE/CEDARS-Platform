@@ -15,6 +15,7 @@ the most recent confirmed one).</p>
     <legend>Due dates</legend>
     {% for field in form.due_fields %}{{ field.as_field_group }}{% endfor %}
   </fieldset>
+  {{ form.filers.as_field_group }}
   {{ form.notes.as_field_group }}
   <button type="submit" class="primary">Set up the year</button>
 </form>

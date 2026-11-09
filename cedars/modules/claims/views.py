@@ -109,6 +109,8 @@ def index(request):
                     "latest": latest,
                     "files": show_org or latest is not None,
                     "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
                     "can_open": can_open,
                 }
             )
@@ -161,6 +163,7 @@ def year_new(request):
                 due={kind: service.due_at(d[forms.due_field(kind)]) for kind, _ in service.PERIODS},
                 sw_due=_sw_due(d),
                 notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
             )
         except AccessDenied as e:
             messages.error(request, str(e))
@@ -187,6 +190,7 @@ def setup(request, year):
         remove=lambda reason: service.remove_setup(request.user, cy, reason),
         removed_url=reverse("claims:index"),
         what=f"{cy.year} claims",
+        filer_deadlines=service.periods(cy.year),  # the PAs' own claims; the statewide ones are the lead PAs'
     )
     if done:
         return done

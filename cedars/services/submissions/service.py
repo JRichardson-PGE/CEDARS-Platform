@@ -160,8 +160,24 @@ def register_filers(module: str, filers: Callable[[Deadline], set[int] | None]) 
     _filers[module] = filers
 
 
+def expected(deadline: Deadline) -> set[int] | None:
+    """The program administrators the CPUC expects to file for the deadline, as set on its set-up page (`set_filers`), by id; None
+    when none are listed (every PA files)."""
+    ids = {o.pk for o in deadline.filers.all()}
+    return ids or None
+
+
+def on_filing(deadline: Deadline, organisation: Organisation) -> bool:
+    """Whether the organization is one of the PAs on the filing (every PA, unless its set-up lists who files)."""
+    ids = expected(deadline)
+    return ids is None or organisation.pk in ids
+
+
 def files_for(deadline: Deadline, organisation: Organisation) -> bool:
-    """Whether the organization is one that files for the deadline (register_filers; every PA unless the module says otherwise)."""
+    """Whether the organization is one that files for the deadline: one of the PAs on the filing (`on_filing`) and, for a module that
+    narrows it further (register_filers; statewide claims: the statewide programs' lead PAs), one of the module's filers."""
+    if not on_filing(deadline, organisation):
+        return False
     filers = _filers.get(deadline.module)
     ids = filers(deadline) if filers else None
     return ids is None or organisation.pk in ids
@@ -247,6 +263,60 @@ def remove_setup(actor, deadline_ids, remove, reason: str) -> None:
     if filed(ids):
         raise AccessDenied("An organization has started filing for this set-up, so it stays: what was filed is kept.")
     _delete_setup(actor, ids, remove, reason.strip())
+
+
+def filing_pas():
+    """The program administrators a set-up may list as its filers: every active one that files (not the CPUC or the SW pseudo-PA)."""
+    return [o for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code") if o.files]
+
+
+def started_by(deadline_ids) -> set[int]:
+    """The organizations that have started filing for any of these deadlines, by id."""
+    return set(Submission.objects.filter(deadline_id__in=list(deadline_ids)).values_list("organisation_id", flat=True))
+
+
+@transaction.atomic
+def set_filers(actor, deadlines, organisations, reason: str) -> list[Deadline]:
+    """Set which program administrators file for a set-up's deadlines (a budget filing, a claim year's own claims, a year of monthly
+    reports), from its set-up page or as it is set up (Jake, 2026-11-09: not every PA files every filing). Each deadline whose list
+    changes gets the audit event deadline.filers_changed with the PAs before and after. At least one PA files; a PA that has started
+    filing for one of the deadlines stays on it (what it filed is kept). The Filings page's status, the "Choose a program
+    administrator" lists and `start` follow the list. Returns the deadlines that changed."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for the change.")
+    orgs = {o.pk: o for o in organisations}
+    if not orgs:
+        raise AccessDenied("Choose at least one program administrator to file.")
+    bad = sorted(o.code for o in orgs.values() if not (o.files and o.active))
+    if bad:
+        raise AccessDenied(f"Only active program administrators file: {', '.join(bad)} cannot be on a filing.")
+    deadlines = list(deadlines)
+    started = started_by(d.pk for d in deadlines)
+    every = {o.pk for o in filing_pas()}
+    changed = []
+    for d in Deadline.objects.select_for_update().filter(pk__in=[d.pk for d in deadlines]).order_by("due_at", "pk"):
+        before = {o.pk: o for o in d.filers.all()}
+        before_ids = set(before) or every
+        dropped = sorted(o.code for o in Organisation.objects.filter(pk__in=(before_ids - set(orgs)) & started))
+        if dropped:
+            raise AccessDenied(
+                f"{', '.join(dropped)} {'has' if len(dropped) == 1 else 'have'} started filing for {d.title}, "
+                f"{d.period or d.cycle}, so {'it stays' if len(dropped) == 1 else 'they stay'} on it: what was filed is kept."
+            )
+        if set(before) == set(orgs):
+            continue
+        d.filers.set(orgs.values())
+        audit.record(
+            "deadline.filers_changed",
+            obj=d,
+            before={"filers": sorted(o.code for o in before.values()) or "every PA"},
+            after={"filers": sorted(o.code for o in orgs.values())},
+            reason=reason.strip(),
+            actor=actor,
+        )
+        changed.append(d)
+    return changed
 
 
 @transaction.atomic
@@ -407,8 +477,9 @@ def filers(deadline: Deadline, can_read: Callable[[Submission], bool]) -> list[S
 
 def filer_statuses(deadline: Deadline, can_read: Callable[[Submission], bool], *, every: bool = False) -> list[dict]:
     """For the "Choose a program administrator" list (navigation review D8, L8): each PA with where its filing for the deadline stands
-    ({"organisation", "status", "link"}), by code. With every (CPUC staff), every active PA is listed, one that has not started as "Not
-    started"; otherwise only the filings can_read allows, as filers() gives them. Only a filing the reader may open is linked."""
+    ({"organisation", "status", "link"}), by code. With every (CPUC staff), every active PA on the filing is listed, one that has not
+    started as "Not started"; otherwise only the filings can_read allows, as filers() gives them. Only a filing the reader may
+    open is linked."""
     subs = {s.organisation_id: s for s in Submission.objects.filter(deadline=deadline).select_related("organisation")}
     rows = {}
     for s in subs.values():
@@ -422,7 +493,7 @@ def filer_statuses(deadline: Deadline, can_read: Callable[[Submission], bool], *
             }
     if every:
         for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True):
-            if o.files and o.code not in rows:
+            if o.files and o.code not in rows and on_filing(deadline, o):
                 rows[o.code] = {"organisation": o, "status": "Not started", "link": False}
     return [rows[c] for c in sorted(rows)]
 
@@ -638,6 +709,10 @@ def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVe
         raise AccessDenied("This deadline was taken off the filing calendar, so no filing starts for it.")
     if nothing_to_file(deadline):
         raise AccessDenied(f"Nothing is filed for the {deadline.title}: it marks a date on the calendar.")
+    if not on_filing(deadline, organisation) and not Submission.objects.filter(deadline=deadline, organisation=organisation).exists():
+        raise AccessDenied(
+            f"{organisation.code} is not one of the PAs filing {deadline.title}: the CPUC lists who files on the filing's set-up page."
+        )
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
     _refuse_imported(submission)

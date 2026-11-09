@@ -1,5 +1,6 @@
 """The calendar part of a module's set-up page (a budget filing's, a claim year's, a year of monthly reports'): the set-up's due dates,
-changed there as on the filing calendar (Jake, 2026-11-06), and Remove this set-up while nobody has filed for it. The module's view
+changed there as on the filing calendar (Jake, 2026-11-06), the program administrators who file for it (Jake, 2026-11-09: not every
+PA files every filing; `set_filers`), and Remove this set-up while nobody has filed for it. The module's view
 calls `calendar_forms` and its template includes "submissions/_setup_calendar.html"; the changes go through this service's
 move_due_dates and remove_setup, so the calendar, the audit trail and the deadlines' subscribers stay in step."""
 
@@ -56,6 +57,50 @@ class DueDatesForm(forms.Form):
         return [(d, _due_at(self.cleaned_data[f"on_{d.pk}"], d.due_at)) for d in self.coming]
 
 
+def filers_field(initial=None) -> forms.MultipleChoiceField:
+    """The "Who files" checkboxes, one per active program administrator, every one ticked unless `initial` (their codes) says
+    otherwise. A module's form for setting up a filing adds it as `filers`; `chosen_pas` turns its value into organizations."""
+    pas = service.filing_pas()
+    return forms.MultipleChoiceField(
+        label="Program administrators who file",
+        choices=[(o.code, f"{o.code} ({o.name})") for o in pas],
+        initial=list(initial) if initial is not None else [o.code for o in pas],
+        required=bool(pas),
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Not every PA files every filing. Only those ticked are expected to file, and only they are listed on the Filings "
+        "page's status; this can change on the set-up page later.",
+        error_messages={"required": "Choose at least one program administrator to file."},
+    )
+
+
+def chosen_pas(codes) -> list | None:
+    """The organizations a filers_field's value names; None when it names none (a site with no PAs yet: every PA files)."""
+    by_code = {o.code: o for o in service.filing_pas()}
+    return [by_code[c] for c in codes or () if c in by_code] or None
+
+
+class FilersForm(forms.Form):
+    """Who files for a set-up's deadlines, and the reason for a change."""
+
+    reason = forms.CharField(label="Reason for the change", max_length=500, help_text="Kept in each deadline's history.")
+
+    def __init__(self, deadlines, *args, **kw):
+        super().__init__(*args, prefix="filers", **kw)
+        self.deadlines = [d for d in deadlines if d.retired_at is None]
+        listed = {o.code for d in self.deadlines for o in d.filers.all()}
+        reason = self.fields.pop("reason")
+        self.fields["pas"] = filers_field(sorted(listed) if listed else None)
+        self.fields["pas"].help_text = "Only those ticked are expected to file, and only they are listed on the Filings page's status."
+        self.fields["reason"] = reason
+        started = service.started_by(d.pk for d in self.deadlines)
+        self.started = [o for o in service.filing_pas() if o.pk in started]
+
+
+def filers(deadlines):
+    """A set-up's deadlines that take a filing from the PAs (not one that only marks a date)."""
+    return [d for d in deadlines if not service.nothing_to_file(d)]
+
+
 class RemoveForm(forms.Form):
     reason = forms.CharField(label="Reason for removing it", max_length=500, help_text="Kept in the audit trail.")
 
@@ -63,12 +108,27 @@ class RemoveForm(forms.Form):
         super().__init__(*args, prefix="remove", **kw)
 
 
-def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: str, what: str):
-    """The due-dates and remove forms of a set-up page, and the answer to a POST of either: (context, redirect or None).
-    `remove(reason)` removes the set-up (the module's remove_setup); `what` names it in the messages ("2029 claims")."""
+def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: str, what: str, filer_deadlines=None):
+    """The due-dates, who-files and remove forms of a set-up page, and the answer to a POST of any: (context, redirect or None).
+    `remove(reason)` removes the set-up (the module's remove_setup); `what` names it in the messages ("2029 claims");
+    `filer_deadlines` are the deadlines whose filers the page sets (default: every one that takes a filing; claims leave out the
+    statewide confirmations, which the statewide programs' lead PAs file)."""
     action = request.POST.get("action") if request.method == "POST" else None
-    due_form = DueDatesForm(list(deadlines), request.POST if action == "due" else None)
+    deadlines = list(deadlines)
+    filer_deadlines = filers(deadlines) if filer_deadlines is None else list(filer_deadlines)
+    due_form = DueDatesForm(deadlines, request.POST if action == "due" else None)
+    filers_form = FilersForm(filer_deadlines, request.POST if action == "filers" else None)
     remove_form = RemoveForm(request.POST if action == "remove" else None)
+    if action == "filers" and filers_form.is_valid():
+        try:
+            changed = service.set_filers(
+                request.user, filers_form.deadlines, chosen_pas(filers_form.cleaned_data["pas"]) or [], filers_form.cleaned_data["reason"]
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(request, f"Saved who files for {what}." if changed else "Nobody was added or removed.")
+            return {}, redirect(request.path)
     if action == "due" and due_form.is_valid():
         try:
             moved = service.move_due_dates(request.user, due_form.moves(), due_form.cleaned_data["reason"])
@@ -86,9 +146,10 @@ def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: 
         else:
             messages.success(request, f"{what} removed from the filing calendar.")
             return {}, redirect(removed_url)
-    return {"due_form": due_form, "remove_form": remove_form, "removable": removable, "setup_what": what}, None
+    ctx = {"due_form": due_form, "filers_form": filers_form, "remove_form": remove_form, "removable": removable, "setup_what": what}
+    return ctx, None
 
 
 def is_calendar_post(request) -> bool:
     """Whether a POST to a set-up page is for its calendar forms, not for the set-up's own form."""
-    return request.method == "POST" and request.POST.get("action") in ("due", "remove")
+    return request.method == "POST" and request.POST.get("action") in ("due", "filers", "remove")
