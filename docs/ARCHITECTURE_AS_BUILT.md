@@ -292,7 +292,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_reader` | submissions | budgets, claims, monthly | Who may read a filing on the Filings page |
 | `register_deadline_page`, `register_setup_page`, `register_setup_groups` | submissions | budgets, claims, monthly | The calendar's links, its Add a filing choices, and what clearing the calendar removes together |
 | `register_nothing_to_file` | submissions | monthly | Deadlines that only mark a date (the 13th-month report is generated) |
-| `register_filers`, `register_stream` | submissions | claims | Who files a deadline (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
+| `register_filers`, `register_stream` | submissions | claims | Who files a deadline beyond its set-up's list of PAs (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
 | `register_acc_needs` | submissions | budgets, claims, monthly | ACCs the default engine release must carry |
 | `register_claims_totals` | submissions | claims | A PA's confirmed claims for a year (read by Monthly reports) |
 | `register_operating_budget` | registry | budgets | A PA's operating budget (read by Monthly reports, Claims, dashboards) |
@@ -444,6 +444,7 @@ erDiagram
   ReportingPeriod |o--o{ Deadline : "on a period"
   FilingCycle |o--o{ Deadline : "on a cycle"
   Deadline ||--o{ Submission : "one per organization"
+  Organisation }o--o{ Deadline : "expected filers"
   Organisation ||--o{ Submission : files
   Submission ||--o{ SubmissionVersion : "version 1..n"
   Submission ||--o{ ReopenRequest : "after the due date"
@@ -796,6 +797,17 @@ flowchart TD
 Budgets, claims and monthly reports share one state machine in `cedars.services.submissions`. A **deadline** is a calendar entry of a
 module on a reporting period or a filing cycle; an organization's filing for it is a **submission**, whose **versions** carry the
 files, findings, the pricing run and the packs it was priced with.
+
+**Who files.** Not every PA files every filing. A deadline's `filers` (many-to-many to `Organisation`; none listed means every PA)
+are the PAs expected to file it. A CPUC system administrator ticks them as a budget filing, a claim year or a year of monthly reports
+is set up (the module's `add_filing`, `add_year` or `set_up_year` with `filers=`), and adds or removes them later in the set-up page's
+Who files section (`submissions.setup.FilersForm`); both go through `submissions.set_filers`, which writes `deadline.filers_changed`
+with the PAs before and after, needs a reason and at least one PA, and keeps a PA that has started filing on the deadline. A claim
+year's list applies to the PAs' own five claims; its statewide confirmations are filed by the statewide programs' lead PAs
+(`register_filers`). `submissions.on_filing(deadline, organisation)` answers from the list; `files_for` adds the module's own rule.
+`start` refuses a PA not on the filing; the "Choose a program administrator" list (`filer_statuses`), each module's index ("Nothing to
+file: ... is not on this filing") and the Filings page's status (`submissions.status.board`) follow it, and the status table leaves out
+a PA on none of the filings it shows.
 
 ```mermaid
 stateDiagram-v2

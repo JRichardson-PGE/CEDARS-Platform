@@ -32,7 +32,7 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
   <tr>
     <th scope="row">{% if m.can_open %}<a href="{% url 'monthly:report' m.deadline.pk %}">{{ m.deadline.period.starts|date:"F" }}</a>{% else %}{{ m.deadline.period.starts|date:"F" }}{% endif %}</th>
     <td class="due"><time datetime="{{ m.deadline.due_at|date:'c' }}">{{ m.deadline.due_at|date_words }}</time><small>{{ m.deadline.due_at|due_words }}</small></td>
-    {% if org %}<td>{% include "ui/version_status.html" with s=m.status %}</td>{% endif %}
+    {% if org %}<td>{% if m.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% else %}{% include "ui/version_status.html" with s=m.status %}{% endif %}</td>{% endif %}
     {% if approver %}<td>{% if m.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ m.waiting }} correction request{{ m.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}

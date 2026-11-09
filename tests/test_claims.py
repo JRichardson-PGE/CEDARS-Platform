@@ -718,7 +718,9 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert client.get(reverse("claims:year_new")).status_code == 404
     client.logout()
     sign_in(client, cpuc_admin)
-    form = {"year": 2029, "acc_version": "2026", "notes": ""} | {f"due_{k.split()[0].lower()}": "2029-05-01" for k, _ in service.PERIODS}
+    form = {"year": 2029, "acc_version": "2026", "notes": "", "filers": ["PGE"]} | {
+        f"due_{k.split()[0].lower()}": "2029-05-01" for k, _ in service.PERIODS
+    }
     r = client.post(reverse("claims:year_new"), form)
     assert r.status_code == 302 and ClaimYear.objects.filter(year=2029).exists()
     r = client.post(reverse("claims:setup", args=[2029]), {"acc_version": "2024", "reason": "ruling"})

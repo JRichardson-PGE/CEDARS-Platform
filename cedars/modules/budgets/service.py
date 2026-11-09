@@ -80,11 +80,13 @@ def add_filing(
     opens_at=None,
     notes="",
     cost_test_set=None,
+    filers=None,
 ) -> Deadline:
     """A budget filing for program years first_year to last_year (any number of years; four when last_year is not given), due on a
     date, priced on an ACC (and an allocation version, or the most recent). It goes on the filing calendar as it is set up
     (submissions.add_deadline), where a CPUC system administrator changes it afterwards; `name` is what the calendar and its pages
-    call it (blank: its years and what is due)."""
+    call it (blank: its years and what is due). `filers` are the program administrators who file it (submissions.set_filers; None:
+    every PA)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up budget filings.")
     last_year = first_year + 3 if last_year is None else last_year
@@ -104,6 +106,8 @@ def add_filing(
         deadline=deadline, acc_version=acc_version, allocation_version=allocation_version, cost_test_set=cost_test_set
     )
     audit.record("budget_filing.set_up", obj=setup, after=_setup_fields(setup), actor=actor)
+    if filers is not None:
+        submissions.set_filers(actor, [deadline], filers, "Who files, as set up")
     return deadline
 
 

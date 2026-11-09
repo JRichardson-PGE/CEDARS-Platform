@@ -4,6 +4,7 @@ from django.utils import timezone
 from cedars.core import uploads
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion
+from cedars.services.submissions import setup as setup_calendar
 
 from .service import PERIODS, SW_FOR, SW_PERIODS
 
@@ -61,6 +62,7 @@ class YearForm(forms.Form):
         for kind, _ in PERIODS:
             self.fields[due_field(kind)] = forms.DateField(label=f"{kind}: due", widget=forms.DateInput(attrs={"type": "date"}))
         sw_date_fields(self)
+        self.fields["filers"] = setup_calendar.filers_field()  # who files (Jake, 2026-11-09: not every PA files every filing)
 
     def due_fields(self):
         return [self[due_field(kind)] for kind, _ in PERIODS]

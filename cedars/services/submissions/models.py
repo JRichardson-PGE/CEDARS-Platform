@@ -30,6 +30,13 @@ class Deadline(models.Model):
         null=True, blank=True, help_text="Taken off the calendar by a CPUC system administrator (blank: on the calendar)"
     )
     retired_reason = models.TextField(blank=True)
+    filers = models.ManyToManyField(
+        "accounts.Organisation",
+        blank=True,
+        related_name="+",
+        help_text="The program administrators expected to file for it, which a CPUC system administrator sets on the set-up page "
+        "(none listed: every PA)",
+    )
 
     objects = DeadlineQuerySet.as_manager()
 

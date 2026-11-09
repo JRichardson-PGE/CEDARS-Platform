@@ -21,6 +21,7 @@ confirmations, each due before the PAs' own so the funding PAs see their shares 
     <legend>Statewide due dates</legend>
     {% for field in form.sw_due_fields %}{{ field.as_field_group }}{% endfor %}
   </fieldset>
+  {{ form.filers.as_field_group }}
   {{ form.notes.as_field_group }}
   <button type="submit" class="primary">Set up the claim year</button>
 </form>

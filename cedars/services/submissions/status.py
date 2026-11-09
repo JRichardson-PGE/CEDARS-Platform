@@ -18,6 +18,7 @@ from .models import Deadline, Submission, SubmissionVersion
 
 MODULES = (("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports"))
 LAST, NEXT = "Last due", "Next due"
+NOT_ON = "Nothing to file"  # a PA not on a filing (its set-up lists who files), or not one of the module's filers
 
 
 @dataclass
@@ -65,7 +66,7 @@ def columns(now=None) -> tuple[list[Column], list[str]]:
     now = now or timezone.now()
     cols, without = [], []
     for code, label in MODULES:
-        due = Deadline.objects.active().filter(module=code).select_related("period", "cycle")
+        due = Deadline.objects.active().filter(module=code).select_related("period", "cycle").prefetch_related("filers")
         due = [d for d in due if not service.nothing_to_file(d)]  # the 13th-month report: nothing to file
         last = max((d for d in due if d.due_at <= now), key=lambda d: (d.due_at, d.pk), default=None)
         nxt = min((d for d in due if d.due_at > now), key=lambda d: (d.due_at, d.pk), default=None)
@@ -103,7 +104,8 @@ def _cell(readable: bool, org, col: Column, sub: Submission | None, versions: li
 
 
 def board(user, now=None) -> Board:
-    """Every active program administrator's status on each column's filing, by code."""
+    """Every active program administrator's status on each column's filing, by code. A filing's set-up may list who files
+    (submissions.set_filers): a PA not on it has nothing to file there, and a PA on none of the filings shown is left out."""
     from cedars.services.accounts import service as access
 
     now = now or timezone.now()
@@ -125,9 +127,14 @@ def board(user, now=None) -> Board:
             key = (c.module, o.pk)
             if key not in readers:
                 readers[key] = service.can_read_filing(user, sub or Submission(deadline=c.deadline, organisation=o))
+            if sub is None and not service.on_filing(c.deadline, o):
+                cells.append(Cell(NOT_ON, "not on this filing"))
+                continue
             if sub is None and not service.files_for(c.deadline, o):
-                cells.append(Cell("Nothing to file", "not one of its filers"))
+                cells.append(Cell(NOT_ON, "not one of its filers"))
                 continue
             cells.append(_cell(readers[key], o, c, sub, versions.get(sub.pk, []) if sub else [], now))
-        rows.append(Row(o, cells))
+        # a PA its set-ups leave off every filing shown is not listed (Jake, 2026-11-09)
+        if any(service.on_filing(c.deadline, o) or (c.deadline.pk, o.pk) in subs for c in cols):
+            rows.append(Row(o, cells))
     return Board(cols, rows, without, access.is_cpuc_staff(user))
