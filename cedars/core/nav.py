@@ -198,6 +198,12 @@ MENUS = (
         ),
         Item("Filing calendar", "submissions:calendar", MEMBER, pages=CALENDAR, about=CALENDAR_ABOUT),
         Item(
+            "Filing sets",
+            "submissions:filing_sets",
+            SYSADMIN,
+            about="Each budget filing, claim year and year of monthly reports set up: edit one, or cancel one of its filings.",
+        ),
+        Item(
             "Check a file before you file it",
             "rules:check",
             MEMBER,

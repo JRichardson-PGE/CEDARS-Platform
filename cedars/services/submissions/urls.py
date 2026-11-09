@@ -7,6 +7,7 @@ urlpatterns = [
     path("calendar/", views.calendar, name="calendar"),
     path("calendar/<int:pk>/", views.deadline, name="deadline"),
     path("calendar/new/", views.deadline_new, name="deadline_new"),
+    path("calendar/sets/", views.filing_sets, name="filing_sets"),
     path("reopen-requests/", views.reopen_requests, name="reopen_requests"),
     path("reopen-requests/<int:pk>", views.decide, name="decide"),
     path("versions/<int:pk>/comments", views.comment, name="comment"),

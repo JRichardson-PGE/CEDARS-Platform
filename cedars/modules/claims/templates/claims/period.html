@@ -8,6 +8,7 @@
 </div>
 <dl class="facts">
   <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.retired_at %}<dt>Canceled</dt><dd id="filing-canceled"><span class="status warn">Canceled</span> {{ deadline.retired_at|date_words }}: {{ deadline.retired_reason }}. No filing can start for it.</dd>{% endif %}
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   <dt>Records it may carry</dt><dd>ClaimYearQuarter {{ cy.year }}Q1 to {{ cy.year }}Q{{ last_quarter }}</dd>
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if cy.acc_version %} ({{ cy.acc_version }} ACC){% endif %}</dd>

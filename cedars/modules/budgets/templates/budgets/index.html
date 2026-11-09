@@ -34,11 +34,11 @@ to every signed-in user.</p>
   <tbody>
   {% for f in c.filings %}
   <tr>
-    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.title }}</a>{% else %}{{ f.deadline.title }}{% endif %}</th>
+    <th scope="row">{% if f.can_open %}<a href="{% url 'budgets:filing' f.deadline.pk %}">{{ f.deadline.title }}</a>{% else %}{{ f.deadline.title }}{% endif %}{% if f.deadline.retired_at %} <span class="status warn">Canceled</span>{% endif %}{% if sysadmin %}<br><a class="small" href="{% url 'budgets:setup' f.deadline.pk %}">Edit its set-up<span class="sr-only">: {{ f.deadline.title }}</span></a>{% endif %}</th>
     <td class="due"><time datetime="{{ f.deadline.due_at|date:'c' }}">{{ f.deadline.due_at|date_words }}</time><small>{{ f.deadline.due_at|due_words }}</small></td>
     <td class="nowrap">{% if f.deadline.budget_setup.acc_version %}{{ f.deadline.budget_setup.acc_version }} ACC{% else %}Not recorded{% endif %}</td>
     <td>{% if f.legacy %}<span class="status info">Imported from legacy CEDARS</span>{% else %}Filed here{% endif %}</td>
-    {% if org %}<td>{% if f.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% elif f.latest %}<span class="status {{ f.latest.status|status_tone }}">{{ f.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ f.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
+    {% if org %}<td>{% if f.deadline.retired_at and not f.latest %}<span class="small muted">Nothing to file: canceled</span>{% elif f.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% elif f.latest %}<span class="status {{ f.latest.status|status_tone }}">{{ f.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ f.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
     {% if approver %}<td>{% if f.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ f.waiting }} correction request{{ f.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}

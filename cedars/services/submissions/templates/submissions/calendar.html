@@ -2,7 +2,7 @@
 {% block title %}Filing calendar{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Filing calendar</h1>{% page_help "submissions/calendar" %}</div>
-{% if sysadmin %}<p id="add-filing"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a> <span class="small muted">Setting up a budget filing, claim year or year of monthly reports puts it on the calendar. To change one, select Change on its row.</span></p>{% endif %}
+{% if sysadmin %}<p id="add-filing"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a> <a class="button" href="{% url 'submissions:filing_sets' %}">Filing sets</a> <span class="small muted">Setting up a budget filing, claim year or year of monthly reports puts it on the calendar. To change one filing, select Change on its row; to edit a whole set, open Filing sets.</span></p>{% endif %}
 <nav class="view-switch" aria-label="Calendar view" id="calendar-view">
   <span class="chip-label">View</span>
   <ul class="toggle-chips">
@@ -38,7 +38,7 @@
   {% endif %}
 </section>
 {% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
-<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide retired deadlines{% else %}Show retired deadlines ({{ retired_count }}){% endif %}</a>{% endif %}</p>
+<p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide canceled filings{% else %}Show canceled filings ({{ retired_count }}){% endif %}</a>{% endif %}</p>
 {% if view == "year" %}
 <div class="month-head">
   <h2 id="year-h">{{ year }}</h2>
@@ -102,7 +102,7 @@
       <span class="mod">{{ row.module }}</span>
       <a href="{% if row.url %}{{ row.url }}{% else %}{% url 'submissions:deadline' d.pk %}{% endif %}">{{ d.title }}</a>
       <span class="period">{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span>
-      {% if d.retired_at %}<strong class="status warn">Retired</strong>{% endif %}
+      {% if d.retired_at %}<strong class="status warn">Canceled</strong>{% endif %}
       {% if row.url %}<a class="small" href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ row.module }} {{ d.title }}</span></a>{% endif %}
     </li>{% endwith %}{% endfor %}</ul>{% endif %}
   </td>{% endfor %}</tr>
@@ -116,7 +116,7 @@
   <caption class="sr-only">Deadlines, soonest first: {{ showing }}</caption>
   <thead><tr><th scope="col">Due</th><th scope="col">Module</th><th scope="col">What</th><th scope="col">Period</th><th scope="col">{% if sysadmin %}Change{% else %}History{% endif %}</th></tr></thead>
   <tbody>
-  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Retired</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
+  {% for row in deadlines %}{% with d=row.d %}<tr><td class="due"><time datetime="{{ d.due_at|date:'c' }}">{{ d.due_at|date_words }}</time><small>{{ d.due_at|due_words }}</small></td><td>{{ d.module|capfirst }}</td><th scope="row">{% if row.url %}<a href="{{ row.url }}">{{ d.title }}</a>{% else %}{{ d.title }}{% endif %}</th><td>{% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}{% if d.retired_at %} <strong class="status warn">Canceled</strong>{% endif %}</td><td><a href="{% url 'submissions:deadline' d.pk %}">{% if sysadmin %}Change{% else %}History{% endif %}<span class="sr-only"> of {{ d.module }} {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</span></a></td></tr>{% endwith %}
   {% empty %}<tr><td colspan="5">{% if filtered %}No deadlines match these filters.{% else %}No deadlines yet.{% endif %}</td></tr>{% endfor %}
   </tbody>
 </table>

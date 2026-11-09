@@ -19,7 +19,7 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
   <div class="actions">
     <a class="button" href="{% url 'monthly:year' y.setup.year %}">The year in one view</a>
     <a class="button" href="{% url 'monthly:closing' y.setup.year %}">13th-month report</a>
-    {% if sysadmin %}<a class="button" href="{% url 'monthly:setup' y.setup.year %}">How {{ y.setup.year }} is priced</a>{% endif %}
+    {% if sysadmin %}<a class="button" href="{% url 'monthly:setup' y.setup.year %}">Edit the {{ y.setup.year }} set-up</a>{% endif %}
   </div>
 </div>
 <p class="small muted">Estimates priced on the {{ y.setup.acc_version }} ACC. {% if y.setup.due_day %}Each report is due on day {{ y.setup.due_day }} of the following month.{% else %}Each report's due date is on the filing calendar.{% endif %}</p>
@@ -30,9 +30,9 @@ system benefit, which are unvalidated. Fund shifts are made in <a href="{% url '
   <tbody>
   {% for m in y.months %}
   <tr>
-    <th scope="row">{% if m.can_open %}<a href="{% url 'monthly:report' m.deadline.pk %}">{{ m.deadline.period.starts|date:"F" }}</a>{% else %}{{ m.deadline.period.starts|date:"F" }}{% endif %}</th>
+    <th scope="row">{% if m.can_open %}<a href="{% url 'monthly:report' m.deadline.pk %}">{{ m.deadline.period.starts|date:"F" }}</a>{% else %}{{ m.deadline.period.starts|date:"F" }}{% endif %}{% if m.deadline.retired_at %} <span class="status warn">Canceled</span>{% endif %}</th>
     <td class="due"><time datetime="{{ m.deadline.due_at|date:'c' }}">{{ m.deadline.due_at|date_words }}</time><small>{{ m.deadline.due_at|due_words }}</small></td>
-    {% if org %}<td>{% if m.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% else %}{% include "ui/version_status.html" with s=m.status %}{% endif %}</td>{% endif %}
+    {% if org %}<td>{% if m.deadline.retired_at and not m.latest %}<span class="small muted">Nothing to file: canceled</span>{% elif m.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% else %}{% include "ui/version_status.html" with s=m.status %}{% endif %}</td>{% endif %}
     {% if approver %}<td>{% if m.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ m.waiting }} correction request{{ m.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}

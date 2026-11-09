@@ -19,6 +19,7 @@ class MonthlyConfig(AppConfig):
             register_publisher,
             register_reader,
             register_setup_groups,
+            register_setup_link,
             register_setup_page,
         )
 
@@ -35,6 +36,7 @@ class MonthlyConfig(AppConfig):
             order=3,
         )
         register_setup_groups("monthly", service.setup_groups)  # what clear_filing_calendar deletes or retires together
+        register_setup_link("monthly", service.setup_link)  # the calendar and Filing sets link to the set a filing belongs to
         register_nothing_to_file("monthly", service.nothing_to_file)  # the 13th-month report is generated from claims
         register_reader("monthly", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
 

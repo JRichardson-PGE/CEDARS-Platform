@@ -2428,3 +2428,12 @@ def deadline_page(deadline) -> str:
     if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
         return ""
     return reverse("claims:period", args=[deadline.pk])
+
+
+def setup_link(deadline) -> str:
+    """The set-up page of the claim year a deadline belongs to, for the filing calendar and Filing sets; "" for any other."""
+    from django.urls import reverse
+
+    if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
+        return ""
+    return reverse("claims:setup", args=[deadline.period.year])

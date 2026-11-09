@@ -26,12 +26,18 @@ submissions/calendar:
       reports. Setting one up puts its deadlines on the calendar; the calendar itself only changes them.
     - >-
       Change beside a deadline (CPUC system administrators) opens its page to change its due date, opening date or notes with a
-      reason (a budget filing's name and program years too), or to retire it; for everyone else History shows every change made to it. Show retired deadlines lists the retired ones.
+      reason (a budget filing's name and program years too), or to cancel that one filing; for everyone else History shows every
+      change made to it. Show canceled filings lists the canceled ones.
+    - >-
+      Filing sets (CPUC system administrators) lists every budget filing, claim year and year of monthly reports set up, each with
+      an Edit link to its set-up page.
   see: getting-started
   tour:
     - target: "#add-filing"
-      title: Add a filing
-      text: For CPUC system administrators. Choose what to set up; its set-up puts it on the calendar.
+      title: Add a filing, or edit a filing set
+      text: >-
+        For CPUC system administrators. Add a filing chooses what to set up; its set-up puts it on the calendar. Filing sets lists
+        what is set up, to edit one.
       optional: true
     - target: "#calendar-view"
       title: Year, month or list
@@ -207,6 +213,29 @@ submissions/correction:
       title: Apply it
       text: Apply the correction, with an optional reason.
 
+submissions/filing_sets:
+  title: Filing sets
+  see: administering
+  guide:
+    - >-
+      Every filing set on the calendar, for CPUC system administrators: each budget filing, claim year and year of monthly reports
+      that has been set up, with how many filings it holds (and how many are canceled), what it has due next and whether anybody has
+      filed for it yet.
+    - >-
+      Edit opens the set's set-up page. There you change what it is priced on, its due dates and who files, cancel one of its filings
+      or restore a canceled one, and remove the whole set while nobody has filed for it.
+  how:
+    - Select Edit beside a filing set to open its set-up page.
+    - Add a filing sets up a new budget filing, claim year or year of monthly reports.
+  tour:
+    - target: main table.filing-sets
+      title: The filing sets
+      text: Each set, its filings, what is due next and whether anybody has filed. Edit opens its set-up page.
+      optional: true
+    - target: main .head-row .actions
+      title: Add a filing
+      text: Set up a new budget filing, claim year or year of monthly reports.
+
 submissions/deadline:
   title: A filing deadline
   see: administering
@@ -217,14 +246,15 @@ submissions/deadline:
       program years (any number of them, until a PA starts filing). Each change needs a reason and is kept in the history; those who
       follow the filing calendar are told, and reminders are sent again for a new due date.
     - >-
-      What is due does not change, nor does a claim's or monthly report's period. A deadline added by hand by mistake is retired (taken off the calendar, kept here with
-      its history, and restorable) as long as no organization has started filing for it. A claim year's, a monthly reports year's or a
-      budget filing's deadline is part of its module's set-up: it is moved, never retired.
+      What is due does not change, nor does a claim's or monthly report's period. Any one filing, one quarter's claim, one month's
+      report or one budget filing, is canceled (taken off the calendar, kept here with its history, and restorable) as long as no
+      organization has started it; the rest of its filing set stays as it is. Its filing set's page, linked here, edits the whole set.
   how:
     - >-
       Change this deadline (CPUC system administrators) takes a new name and program years (a budget filing), due date, opening date
       or notes and the reason, then Save the change.
-    - Retire the deadline takes it off the calendar with a reason; Restore to the calendar puts a retired one back.
+    - Cancel the filing takes it off the calendar with a reason; Restore to the calendar puts a canceled one back.
+    - Edit the filing set it belongs to opens the set-up page of its claim year, year of monthly reports or budget filing.
   tour:
     - target: "#deadline-facts"
       title: The deadline
@@ -233,13 +263,13 @@ submissions/deadline:
       title: Change this deadline
       text: For CPUC system administrators. A new name or program years (a budget filing), due date, opening date or notes, with the reason.
       optional: true
-    - heading: Retire this deadline
-      title: Retire this deadline
-      text: Takes a deadline added by mistake off the calendar, while no filing has started for it.
+    - heading: Cancel this filing
+      title: Cancel this filing
+      text: Takes this one filing off the calendar, while no organization has started it. The rest of its set stays.
       optional: true
-    - heading: Restore this deadline
-      title: Restore this deadline
-      text: Puts a retired deadline back on the calendar.
+    - heading: Restore this filing
+      title: Restore this filing
+      text: Puts a canceled filing back on the calendar.
       optional: true
     - heading: History
       title: History

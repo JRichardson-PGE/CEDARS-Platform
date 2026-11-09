@@ -1269,6 +1269,15 @@ def deadline_page(deadline) -> str:
     return reverse("monthly:report", args=[deadline.pk])
 
 
+def setup_link(deadline) -> str:
+    """The set-up page of the year of monthly reports a deadline belongs to, for the filing calendar and Filing sets; "" for any other."""
+    from django.urls import reverse
+
+    if deadline.period_id is None or setup_for(deadline) is None:
+        return ""
+    return reverse("monthly:setup", args=[deadline.period.year])
+
+
 COMMITMENT_KEYS = [
     ("PA", "The program administrator's code: the filing organization's."),
     ("PrgID", "The program, as in the program registry."),

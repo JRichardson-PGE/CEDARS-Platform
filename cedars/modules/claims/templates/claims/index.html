@@ -23,13 +23,13 @@ quarter's, a month before the annual claim). Each funding PA sees what those cla
 {% if forloop.first %}<section class="cycle" aria-labelledby="year-{{ y.cy.year }}">
 <div class="head-row">
   <h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
-  {% if sysadmin %}<a class="small" href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a>{% endif %}
+  {% if sysadmin %}<a class="small" href="{% url 'claims:setup' y.cy.year %}">Edit the {{ y.cy.year }} claims set-up</a>{% endif %}
 </div>
 {% else %}<details class="section">
 <summary><h2 id="year-{{ y.cy.year }}">{{ y.cy.year }} claims</h2>
   <span class="count">{{ y.rows|length }} confirmation{{ y.rows|length|pluralize }}{% if y.legacy %}, imported from legacy CEDARS{% elif y.cy.acc_version %}, {{ y.cy.acc_version }} ACC{% endif %}</span></summary>
 <div class="section-body">
-{% if sysadmin %}<p class="small"><a href="{% url 'claims:setup' y.cy.year %}">How {{ y.cy.year }} claims are priced</a></p>{% endif %}
+{% if sysadmin %}<p class="small"><a href="{% url 'claims:setup' y.cy.year %}">Edit the {{ y.cy.year }} claims set-up</a></p>{% endif %}
 {% endif %}
 {% if y.legacy %}<p class="small muted">Imported from legacy CEDARS: each PA's year as CEDARS publishes it, read-only, on the annual (final) claim, with CEDARS' own CET results{% if y.cy.acc_version %} ({{ y.cy.acc_version }} ACC){% endif %}.</p>
 {% else %}<p class="small muted">Priced on the {{ y.cy.acc_version }} ACC; statewide programs allocated with {% if y.cy.allocation_version %}{{ y.cy.allocation_version.label }}{% else %}the most recent confirmed allocation version with factors for {{ y.cy.year }}{% endif %}.</p>{% endif %}
@@ -40,9 +40,9 @@ quarter's, a month before the annual claim). Each funding PA sees what those cla
   <tbody>
   {% for p in y.rows %}
   <tr>
-    <th scope="row">{% if p.can_open %}<a href="{% url 'claims:period' p.deadline.pk %}">{{ p.deadline.kind }}</a>{% else %}{{ p.deadline.kind }}{% endif %}</th>
+    <th scope="row">{% if p.can_open %}<a href="{% url 'claims:period' p.deadline.pk %}">{{ p.deadline.kind }}</a>{% else %}{{ p.deadline.kind }}{% endif %}{% if p.deadline.retired_at %} <span class="status warn">Canceled</span>{% endif %}</th>
     <td class="due"><time datetime="{{ p.deadline.due_at|date:'c' }}">{{ p.deadline.due_at|date_words }}</time><small>{{ p.deadline.due_at|due_words }}</small></td>
-    {% if org %}<td>{% if p.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% elif not p.files %}<span class="small muted">Nothing to file: {{ org.code }} leads no statewide program</span>{% elif p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
+    {% if org %}<td>{% if p.deadline.retired_at and not p.latest %}<span class="small muted">Nothing to file: canceled</span>{% elif p.off_filing %}<span class="small muted">Nothing to file: {{ org.code }} is not on this filing</span>{% elif not p.files %}<span class="small muted">Nothing to file: {{ org.code }} leads no statewide program</span>{% elif p.latest %}<span class="status {{ p.latest.status|status_tone }}">{{ p.latest.get_status_display }}</span> <span class="small muted nowrap">version {{ p.latest.number }}</span>{% else %}<span class="status">Not started</span>{% endif %}</td>{% endif %}
     {% if approver %}<td>{% if p.waiting %}<a href="{% url 'submissions:reopen_requests' %}">{{ p.waiting }} correction request{{ p.waiting|pluralize }}</a>{% else %}None{% endif %}</td>{% endif %}
   </tr>
   {% endfor %}

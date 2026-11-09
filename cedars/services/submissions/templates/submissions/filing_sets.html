@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}Filing sets{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>Filing sets</h1>{% page_help "submissions/filing_sets" %}</div>
+  <div class="actions"><a class="button primary" href="{% url 'submissions:deadline_new' %}">Add a filing</a></div>
+</div>
+<p>Each budget filing, claim year and year of monthly reports set up is a filing set: the filings it put on the calendar. Select
+Edit to open its set-up page, where you change its due dates, who files, what it is priced on, cancel or restore one of its filings,
+or remove the whole set while nobody has filed for it.</p>
+{% for kind, sets in groups %}
+<section aria-labelledby="sets-{{ forloop.counter }}">
+<h2 id="sets-{{ forloop.counter }}">{{ kind }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="sets-{{ forloop.counter }}">
+<table class="list filing-sets">
+  <caption class="sr-only">{{ kind }}: each filing set, its filings and what is due next</caption>
+  <thead><tr><th scope="col">Filing set</th><th scope="col" class="num">Filings</th><th scope="col">Next due</th><th scope="col">Filed</th><th scope="col">Edit</th></tr></thead>
+  <tbody>
+  {% for s in sets %}
+  <tr>
+    <th scope="row">{{ s.what }}</th>
+    <td class="num">{{ s.deadlines|length }}{% if s.canceled %} <span class="small">({{ s.canceled }} canceled)</span>{% endif %}</td>
+    <td>{% if s.next_due %}{{ s.next_due.title }}{% if s.next_due.period and s.deadlines|length > 1 %}, {{ s.next_due.period }}{% endif %}: <time datetime="{{ s.next_due.due_at|date:'c' }}">{{ s.next_due.due_at|date_words }}</time>{% else %}<span class="muted">Nothing still to come</span>{% endif %}</td>
+    <td>{% if s.started %}Started{% else %}Nobody has filed yet{% endif %}</td>
+    <td>{% if s.url %}<a href="{{ s.url }}">Edit<span class="sr-only"> {{ s.what }}</span></a>{% else %}<span class="muted">No set-up page</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+{% empty %}
+{% url 'submissions:deadline_new' as new_url %}
+{% include "ui/empty.html" with title="No filing set is set up yet" text="Budget filings, claim years and years of monthly reports appear here once they are set up." action_url=new_url action="Add a filing" action_primary=True %}
+{% endfor %}
+{% endblock %}
