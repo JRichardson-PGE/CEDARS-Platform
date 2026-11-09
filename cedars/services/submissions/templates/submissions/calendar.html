@@ -6,11 +6,12 @@
 <nav class="view-switch" aria-label="Calendar view" id="calendar-view">
   <span class="chip-label">View</span>
   <ul class="toggle-chips">
+    <li><a href="{{ view_urls.year }}"{% if view == "year" %} aria-current="true"{% endif %}>{% if view == "year" %}<span aria-hidden="true">&#10003; </span>{% endif %}Year</a></li>
     <li><a href="{{ view_urls.month }}"{% if view == "month" %} aria-current="true"{% endif %}>{% if view == "month" %}<span aria-hidden="true">&#10003; </span>{% endif %}Month</a></li>
     <li><a href="{{ view_urls.list }}"{% if view == "list" %} aria-current="true"{% endif %}>{% if view == "list" %}<span aria-hidden="true">&#10003; </span>{% endif %}List</a></li>
   </ul>
 </nav>
-<p>{% if view == "month" %}Choose the filing types to show, and move from month to month.{% else %}Choose the filing types and due dates to show.{% endif %} The address of the page keeps your choice, so a link to it shows the same view.</p>
+<p>{% if view == "year" %}Choose the filing types to show, and move from year to year.{% elif view == "month" %}Choose the filing types to show, and move from month to month.{% else %}Choose the filing types and due dates to show.{% endif %} The address of the page keeps your choice, so a link to it shows the same view.</p>
 <section class="filters calendar-filters" aria-label="Filters">
   <div role="group" aria-labelledby="types-label" class="chip-group" id="type-filter">
     <span id="types-label" class="chip-label">Filing types</span>
@@ -38,7 +39,44 @@
 </section>
 {% if filters.error %}<p class="alert" role="alert">{{ filters.error }}</p>{% endif %}
 <p class="showing"><strong>Showing {{ showing }}.</strong>{% if filtered %} <a href="{{ all_url }}">Show every deadline</a>{% endif %}{% if sysadmin and retired_count or sysadmin and retired %} <a href="{{ retired_url }}" id="retired-toggle">{% if retired %}Hide retired deadlines{% else %}Show retired deadlines ({{ retired_count }}){% endif %}</a>{% endif %}</p>
-{% if view == "month" %}
+{% if view == "year" %}
+<div class="month-head">
+  <h2 id="year-h">{{ year }}</h2>
+  <nav aria-label="Years" class="month-nav">
+    <a href="{{ year_urls.prev }}" rel="prev">&larr; {{ year|add:"-1" }}</a>
+    {% if not is_this_year %}<a href="{{ year_urls.this }}">This year</a>{% endif %}
+    <a href="{{ year_urls.next }}" rel="next">{{ year|add:"1" }} &rarr;</a>
+  </nav>
+  <form method="get" class="row-form month-jump" id="year-jump">
+    <input type="hidden" name="view" value="year">
+    {% for t in filters.types %}<input type="hidden" name="type" value="{{ t }}">{% endfor %}
+    {% if retired %}<input type="hidden" name="retired" value="1">{% endif %}
+    <label>Go to year <input type="number" name="year" value="{{ year }}" min="1900" max="2200" step="1" inputmode="numeric" class="year-input"></label>
+    <button type="submit">Go</button>
+  </form>
+</div>
+<div class="year-key" id="year-legend">
+  <h3 id="legend-h">Key</h3>
+  <ul class="cal-legend" aria-labelledby="legend-h">{% for code, label in legend %}
+    <li><span class="yswatch t-{{ code }}" aria-hidden="true"><span class="mk"></span></span>{{ label }}</li>{% endfor %}
+    <li><span class="yswatch today-swatch" aria-hidden="true"></span>Today</li>
+  </ul>
+  <p class="helptext">Each colored date has something due; its color and mark say which filing type, and a date split in colors has more than one. Point at a date, or move to it with Tab, for what is due; Escape hides it. Select a date to open its month with every deadline spelled out.</p>
+</div>
+<div class="year-grid" id="year-grid">{% for m in months %}
+  <div class="ymonth">
+    <h3 id="ym-{{ m.first|date:'m' }}"><a href="{{ m.url }}">{{ m.label }}</a>{% if m.count %} <span class="ycount">{{ m.count }} due</span>{% endif %}</h3>
+    <table class="mini-month">
+      <caption class="sr-only">{{ m.label }} {{ year }}: {{ m.count }} deadline{{ m.count|pluralize }}, by day, weeks starting on Sunday</caption>
+      <thead><tr>{% for name in weekdays %}<th scope="col"><span aria-hidden="true">{{ name|slice:":1" }}</span><span class="sr-only">{{ name }}</span></th>{% endfor %}</tr></thead>
+      <tbody>{% for week in m.weeks %}
+      <tr>{% for c in week %}{% if not c %}<td></td>{% elif c.rows %}<td class="ycell{% if c.today %} today{% endif %}"{% if c.today %} aria-current="date"{% endif %}><a class="yday" href="{{ m.url }}#d-{{ c.day.isoformat }}" aria-describedby="tip-{{ c.day.isoformat }}"><span class="fills" aria-hidden="true">{% for t in c.types %}<span class="f t-{{ t }}"><span class="mk"></span></span>{% endfor %}</span><span class="n">{{ c.day.day }}</span><span class="sr-only"> {{ c.day|date:"F" }}{% if c.today %}, today{% endif %}: {{ c.rows|length }} deadline{{ c.rows|length|pluralize }}</span></a><span class="ytip" role="tooltip" id="tip-{{ c.day.isoformat }}"><strong>{{ c.weekday }} {{ c.day.isoformat }}</strong>{% for row in c.rows %}{% with d=row.d %}<span class="tip-row"><span class="yswatch t-{{ d.module }}" aria-hidden="true"><span class="mk"></span></span><span><strong>{{ row.module }}:</strong> {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}. {{ d.due_at|due_words }}{% if d.opens_at %}; opens {{ d.opens_at|date_words }}{% endif %}.{% if d.retired_at %} Retired.{% endif %}</span></span>{% endwith %}{% endfor %}</span></td>{% else %}<td{% if c.today %} class="today" aria-current="date"{% endif %}><span class="n">{{ c.day.day }}</span>{% if c.today %}<span class="sr-only"> {{ c.day|date:"F" }}, today</span>{% endif %}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>{% endfor %}
+</div>
+{% if not deadlines %}<p id="year-empty">{% if filtered %}No deadlines of these types are due in {{ year }}.{% else %}No deadlines are due in {{ year }}.{% endif %}</p>{% endif %}
+{% elif view == "month" %}
 <div class="month-head">
   <h2 id="month-h">{{ month_label }}</h2>
   <nav aria-label="Months" class="month-nav">
@@ -58,7 +96,7 @@
   <caption class="sr-only">Deadlines due in {{ month_label }}, by day, weeks starting on Sunday</caption>
   <thead><tr>{% for name in weekdays %}<th scope="col"><span aria-hidden="true">{{ name|slice:":3" }}</span><span class="sr-only">{{ name }}</span></th>{% endfor %}</tr></thead>
   <tbody>
-  {% for week in weeks %}<tr>{% for c in week %}<td class="{% if not c.in_month %}other-month{% endif %}{% if c.today %} today{% endif %}{% if c.rows %} has-due{% endif %}"{% if c.today %} aria-current="date"{% endif %}>
+  {% for week in weeks %}<tr>{% for c in week %}<td{% if c.in_month %} id="d-{{ c.day.isoformat }}"{% endif %} class="{% if not c.in_month %}other-month{% endif %}{% if c.today %} today{% endif %}{% if c.rows %} has-due{% endif %}"{% if c.today %} aria-current="date"{% endif %}>
     <span class="day"><span class="dow">{{ c.weekday|slice:":3" }} </span><time datetime="{{ c.day.isoformat }}">{{ c.day.day }}<span class="sr-only"> {{ c.day|date:"F" }}</span></time>{% if c.today %} <span class="today-label">Today</span>{% endif %}</span>
     {% if c.rows %}<ul class="due-list">{% for row in c.rows %}{% with d=row.d %}<li class="mod-{{ d.module }}{% if d.retired_at %} retired{% endif %}">
       <span class="mod">{{ row.module }}</span>
