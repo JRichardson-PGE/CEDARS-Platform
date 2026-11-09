@@ -127,7 +127,7 @@ def test_a_balanced_shift_changes_the_operating_budget_not_the_approved_one(file
     assert rows[("PGE_Res_HVAC", 2029)].approved == Decimal(1900 + 200) and rows[("PGE_Res_HVAC", 2029)].shifted == 250
     assert rows[("PGE_Com_Ltg", 2028)].operating == Decimal(300 + 100 - 150)
     assert ob.total().approved == approved and ob.total().operating == approved and ob.total([2029]).shifted == 250
-    assert service.table(standing).total.budget == approved  # BR-14.4: the approved budget is unchanged
+    assert service.table(standing).total.budget == approved  # The approved budget is unchanged
     assert ob.standing == standing and ob.shifts == [s]
     with pytest.raises(AccessDenied, match="new shift that moves the money back"):
         shifts.withdraw(filer, s, "oops")

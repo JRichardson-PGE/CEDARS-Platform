@@ -21,7 +21,7 @@ class PlatformUserManager(UserManager):
 
 
 class User(AbstractUser):
-    """One identity per person, whatever organizations they belong to (BR-01.1). Accounts are deactivated, never deleted, so their audit
+    """One identity per person, whatever organizations they belong to. Accounts are deactivated, never deleted, so their audit
     history keeps its actor. An account with no membership is a community account (public read and its own runs)."""
 
     email = models.EmailField("email address", unique=True)
@@ -195,7 +195,7 @@ class Membership(models.Model):
 
 
 class RoleTemplate(models.Model):
-    """A named bundle of module permissions (BR-01.3), e.g. "CPUC reviewer" or "Evaluator", that an organization's administrators apply
+    """A named bundle of module permissions, e.g. "CPUC reviewer" or "Evaluator", that an organization's administrators apply
     when they grant a membership: one grant per permission, each audited and each recording the template it came from. CPUC system
     administrators define the templates (configuration, not code). Changing a template changes what it grants from then on, never the
     grants already made; a template no longer offered is retired, never deleted, so the grants it made still name it."""
@@ -222,7 +222,7 @@ class RoleTemplate(models.Model):
 
 
 class Grant(models.Model):
-    """One permission held by one member: who granted it and when, an optional expiry, and who revoked it, when and why (BR-01.2 to 01.4).
+    """One permission held by one member: who granted it and when, an optional expiry, and who revoked it, when and why.
     A grant is never deleted; its status moves on and every move is an audit event."""
 
     class Status(models.TextChoices):
@@ -282,7 +282,7 @@ class Grant(models.Model):
 
 
 class AccessRequest(models.Model):
-    """A user asking an organization's admins for membership and permissions (D6: they are the only approval step)."""
+    """A user asking an organization's admins for membership and permissions (they are the only approval step)."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -397,7 +397,7 @@ class PolicyChange(models.Model):
 
 
 class ApiToken(models.Model):
-    """A key a member's own systems use to call the API for one organization (decision J; BR-01). Only the SHA-256 of the key is kept:
+    """A key a member's own systems use to call the API for one organization (decision J). Only the SHA-256 of the key is kept:
     the key is shown once, when it is made. A token never holds more than its user does: its permissions are the user's grants in its
     organization, limited to its scopes (modules), and it stops working when it expires, is revoked, or the membership ends."""
 

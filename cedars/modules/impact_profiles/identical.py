@@ -1,4 +1,4 @@
-"""Identical impact profiles: one profile with several names (BRD v0.5 BR-06.18).
+"""Identical impact profiles: one profile with several names.
 
 Jake's rule (2026-10-31): only profiles that match 100% are consolidated, never within a tolerance. Two profiles are the same profile
 when their current versions have the same climate zones, every zone's 8,760 is the same array value for value (the same content-

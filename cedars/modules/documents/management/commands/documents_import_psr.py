@@ -8,7 +8,7 @@ from cedars.modules.documents.service import DocumentError
 
 class Command(BaseCommand):
     help = (
-        "Migrate the PSR's projects into the study register (BR-15.10), from a saved /api/projects response or the site itself, with "
+        "Migrate the PSR's projects into the study register, from a saved /api/projects response or the site itself, with "
         "their free-text lists mapped onto the register's (--map; --write-map lists every value and what it maps to now). Projects "
         "already in the register are skipped. Run the PDA import first, and try --dry-run."
     )

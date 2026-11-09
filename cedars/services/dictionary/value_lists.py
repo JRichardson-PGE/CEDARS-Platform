@@ -1,4 +1,4 @@
-"""Value lists (code sets) as versioned data an administrator edits (BR-12.6). The pinned engine ships CEDARS' lists
+"""Value lists (code sets) as versioned data an administrator edits. The pinned engine ships CEDARS' lists
 (recet/data/value_lists); a list's first version here is a copy of the shipped one, and each later version is a draft copied from the
 newest published version, edited code by code (or from a CSV), and published with the date it takes effect and the reason.
 

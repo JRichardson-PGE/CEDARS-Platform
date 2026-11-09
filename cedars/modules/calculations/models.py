@@ -8,7 +8,7 @@ from django.db.models.functions import Lower
 
 class EngineRelease(models.Model):
     """A ReCET release the platform can run (configured, not coded): its worker image or command, the calculations it offers (ReCET's
-    own and CET replicas, D13) and the ACCs it has. One release is the default for new runs; only ReCET's own calculation is accepted
+    own and CET replicas) and the ACCs it has. One release is the default for new runs; only ReCET's own calculation is accepted
     for filings."""
 
     release = models.CharField(max_length=40, unique=True, help_text="The ReCET version, e.g. 0.1.78; a job asks for exactly this release")
@@ -154,7 +154,7 @@ class Run(models.Model):
 
 
 class OutputTemplate(models.Model):
-    """An output template (BR-06.10): a named list of measure-level columns, in order. A run given one writes only those columns, in
+    """An output template: a named list of measure-level columns, in order. A run given one writes only those columns, in
     that order, to its measure-level file; the Results tables still read every column. A template with no owner is offered to everyone
     and kept by CPUC system administrators (the two ReCET ships with are added by migration); the rest are their owner's own."""
 

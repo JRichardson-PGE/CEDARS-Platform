@@ -79,7 +79,7 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
             audience=f.get("audience", Field.Audience.PUBLIC),
             required_by=f.get("required_by", ""),
             values=f.get("values") or [],
-            # a retirement is not undone by a later export that does not know of it (BR-08.4)
+            # a retirement is not undone by a later export that does not know of it
             **({a: getattr(retired[f["name"].lower()], a) for a in RETIREMENT} if f["name"].lower() in retired else {}),
         )
         Alias.objects.bulk_create(Alias(field=obj, name=a["name"], system=a["system"]) for a in f.get("aliases", []))

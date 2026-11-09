@@ -4,8 +4,8 @@ Export: every profile that is not retired, at its current version, written as Re
 (recet.pipeline.real_impact_profiles, ReCET 0.1.87's consolidated form): catalog.parquet (one row per name: id, end_use_name,
 iou_ac_territory, target_sector, year_represented ..., and shape_id) and hourly.parquet (impact_profile_id, climate_zone, hour_of_year
 1-8760, impact), one row group per STORED profile, which the engine indexes from the file's metadata; each catalog row's shape_id names
-the row group its 8,760s are in. Profiles whose current versions are identical (identical.py: every zone's 8,760 and the calendar,
-BR-06.18) are stored once, under the first one's id, and each keeps its own catalog rows. A profile with no territory gets a catalog row
+the row group its 8,760s are in. Profiles whose current versions are identical (identical.py: every zone's 8,760 and the calendar)
+are stored once, under the first one's id, and each keeps its own catalog rows. A profile with no territory gets a catalog row
 for each of settings.IMPACT_PROFILE_TERRITORIES (CEDARS stores the deemed shapes once per IOU territory). An open mapping row adds a
 catalog row with the alias ID and the target's id and shape_id, so both IDs price on the same shapes. Each export is numbered,
 kept, hashed and registered as a draft impact_profiles pack in the reference-data service (usable for analysis runs at once,

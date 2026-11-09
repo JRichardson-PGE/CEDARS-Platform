@@ -1,4 +1,4 @@
-"""Correcting a filing's records in place (BR-02.4; the architecture's Figure 2: "a cell corrected in place: that row re-validated").
+"""Correcting a filing's records in place (the architecture's Figure 2: "a cell corrected in place: that row re-validated").
 
 An authorized submitter (`<module>.submit` in the filing organization) corrects single records of an open draft (a version not yet
 confirmed, or the new draft an un-confirm or a reopen leaves) without uploading the whole file again: finds a record, changes it on a

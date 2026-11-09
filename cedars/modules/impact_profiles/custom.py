@@ -3,9 +3,9 @@
 A custom profile belongs to the PA that uploaded it and is visible to everyone signed in (the CPUC included). Its file is a CSV, zipped or
 not, with the columns Climate Zone (1 to 16, with or without CZ, or System for a statewide profile), Hour of Year and Impact: one
 8,760 per zone, checked with the same 8,760 rules as load shapes (LS-S01 to LS-S04). Replacing it adds a version (runs and claims that
-named the old one keep it, including a NMEC true-up's revised profile, BR-05.6); retiring keeps every version but leaves it out of the
+named the old one keep it, including a NMEC true-up's revised profile); retiring keeps every version but leaves it out of the
 library the engine reads from then on. A file identical to a profile already in the library (every zone's 8,760 and the calendar) is
-attached to it as another name (identical.py, BR-06.18): the library stores the 8,760s once.
+attached to it as another name (identical.py): the library stores the 8,760s once.
 
 A mapping row lets a permutation's profile ID stand for an existing profile, e.g. a measure's new-construction permutations (BldgVint
 New) using the existing-vintage profile, instead of hard-coding the vintage to Ex in eTRM (architecture: NR and NC sharing one shape).

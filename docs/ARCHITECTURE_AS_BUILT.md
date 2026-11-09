@@ -499,7 +499,7 @@ erDiagram
 ```
 
 Each filing module also has an append-only `ChangeLetter` (budgets, claims and monthly each have their own, one per corrected
-version against the one it replaces). `WorkflowPolicy` holds each module's correction policy (BRD D1) and `Delegation` an approver's
+version against the one it replaces). `WorkflowPolicy` holds each module's correction policy and `Delegation` an approver's
 delegate. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
 
 **Calculations and reference data** (`cedars.modules.calculations`, `cedars.services.refdata`, `cedars.services.snapshots`)
@@ -739,7 +739,7 @@ suspension and revocation; it is never deleted and every change is an audit even
 | Permission | Meaning |
 | --- | --- |
 | `<module>.<action>` | For each module (programs, calculations, impact_profiles, budgets, claims, monthly, data, documents) and action (read, submit, confirm, approve, admin) |
-| `org.admin` | An organization's administrator: manages its members and grants, runs its recertification (the CPUC grants only a PA's first administrator, D6) |
+| `org.admin` | An organization's administrator: manages its members and grants, runs its recertification (the CPUC grants only a PA's first administrator) |
 | `claims.pii` | Reaches the PII vault for the organization's claims; a data steward approves every grant, and the CPUC can require a federated session for it |
 | `allocation.manage` | Loads, confirms and discards statewide allocation versions; only in an organization marked `manages_allocation` |
 | `system.admin` | A CPUC system administrator (CPUC organization only) |
@@ -807,7 +807,7 @@ stateDiagram-v2
   validated --> confirmed : confirm (needs a finished run on exactly these rows)
   confirmed --> published : module publisher, then snapshot listeners
   published --> validated : un-confirm (version 1, before the due date)
-  published --> draft_n : reopen after the due date (policy D1)
+  published --> draft_n : reopen after the due date
   draft_n --> [*] : version n+1 follows the same path
   state "draft (version n+1)" as draft_n
   [*] --> imported : legacy import
@@ -1034,7 +1034,7 @@ flowchart LR
 - Moving the pin means: change the commit, re-export the field catalog and the engine documents, run the tests; on a server, rebuild the
   wheel and the image, then load the new catalog with `load_dictionary`.
 - **Engine releases are data** (`EngineRelease`): a CPUC system administrator adds a release by its version number, with its worker
-  image and Batch job definition, the calculations it offers (`recet` and CET replicas such as `cet-25.1`, BRD D13) and the ACCs each
+  image and Batch job definition, the calculations it offers (`recet` and CET replicas such as `cet-25.1`) and the ACCs each
   has, and makes one the default. Filings are priced only with the default release's own `recet` calculation; replicas are for analysis
   runs. A local worker reports the release it runs (`Worker`), takes only that release's runs, and New run and the health page say when
   a release has no live worker.

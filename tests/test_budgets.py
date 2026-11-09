@@ -277,7 +277,7 @@ def test_a_filing_pins_its_allocation_version(filer, filing, pge, programs, rele
     later = registry.import_allocation_csv(cpuc_admin, factors, label="2028 claims", purpose="claims")
     registry.confirm_allocation(cpuc_admin, later)
     v.refresh_from_db()
-    assert v.calculation["allocation_version"]["label"] == "2028 TUAL"  # BR-04.8: a later version never changes it
+    assert v.calculation["allocation_version"]["label"] == "2028 TUAL"  # A later version never changes it
 
 
 def test_two_versions_compare_by_program(filer, filing, pge, programs, release, cpuc_admin):
@@ -302,7 +302,7 @@ def test_the_appendix_is_built_from_the_version(filer, filing, pge, programs, re
     assert dict((r[0], r[1]) for r in wb["About"].iter_rows(values_only=True))["ACC"] == "2026 ACC"
     from .test_document_accessibility import assert_accessible
 
-    assert_accessible(service.appendix_xlsx(v))  # BR-10.3
+    assert_accessible(service.appendix_xlsx(v))  # accessible workbook
 
 
 def test_after_the_due_date_a_correction_is_a_new_version(

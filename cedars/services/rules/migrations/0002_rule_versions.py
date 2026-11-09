@@ -3,7 +3,7 @@
 import django.db.models.deletion
 from django.db import migrations, models
 
-# A published rule set and its rules never change and are never deleted (BR-03.3, BR-12.6: a change is a new version).
+# A published rule set and its rules never change and are never deleted (a change is a new version).
 GUARDS = """
 CREATE FUNCTION rules_ruleset_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

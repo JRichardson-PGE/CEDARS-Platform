@@ -28,7 +28,7 @@ rules/detail:
   guide:
     - One version of a rule set, every rule in it with its ID, severity (reject or warning), field and message. A rule's ID is a content
       hash, the same wherever the same rule is used.
-    - CPUC system administrators change the rules without a code change (BR-12.6). Start a new version of a published set, with the
+    - CPUC system administrators change the rules without a code change. Start a new version of a published set, with the
       date it takes effect and the reason; in the draft, add rules, change a rule's test or wording, or take a rule out; then publish
       it. A published version never changes, and the version in force stays in force until the new one takes effect.
   how:

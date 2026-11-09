@@ -8,7 +8,7 @@ from cedars.modules.documents.service import DocumentError
 
 class Command(BaseCommand):
     help = (
-        "Migrate CEDARS' Reports & Documents, DEER Resources and program documents (BR-15.10) from a manifest (one row per file of a "
+        "Migrate CEDARS' Reports & Documents, DEER Resources and program documents from a manifest (one row per file of a "
         "version; see documents/cedars_import.py) and a folder of the files, with their versions, dates and old addresses. Already "
         "imported records are skipped. Try --dry-run first."
     )

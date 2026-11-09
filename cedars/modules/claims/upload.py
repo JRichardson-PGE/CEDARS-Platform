@@ -1,9 +1,9 @@
 """A claims upload: a .zip of the template's tables as CSV files (comma-, pipe- or tab-delimited, named after the table: Claim.csv,
-Measure.csv, ...) or an Excel workbook with a sheet per table (BR-02.2). A quarter's upload holds the records that are new or changed
+Measure.csv, ...) or an Excel workbook with a sheet per table. A quarter's upload holds the records that are new or changed
 since the last confirmed quarter, so any of the tables may be left out. Columns are read under their canonical names (CEDARS' names
-and CET's are accepted, decision L); a column the template does not have is ignored, not rejected (BR-02.1).
+and CET's are accepted, decision L); a column the template does not have is ignored, not rejected.
 
-The PII tables never come this way: a file named PII_Contact or PII_Site refuses the whole upload (BR-10.1, BR-10.4)."""
+The PII tables never come this way: a file named PII_Contact or PII_Site refuses the whole upload."""
 
 import csv
 import io
@@ -36,7 +36,7 @@ class Table:
 
 
 def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
-    """Several files chosen at once as the one upload read takes (cedars.core.uploads, BR-06.3); a PII table in any of them refuses
+    """Several files chosen at once as the one upload read takes (cedars.core.uploads); a PII table in any of them refuses
     the whole upload, as in one file."""
     try:
         return uploads.combine(files, spec.table_name, refuse=_no_pii)

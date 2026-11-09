@@ -1,4 +1,4 @@
-"""Pages of subscriptions (BR-15.5) and key dates (BR-15.3): a user's own subscriptions, following a study or a work order from its page,
+"""Pages of subscriptions and key dates: a user's own subscriptions, following a study or a work order from its page,
 CPUC ED's list of subscribers, and the key dates CPUC ED posts on the library's home page."""
 
 import csv

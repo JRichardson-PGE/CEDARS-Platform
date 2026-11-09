@@ -387,7 +387,7 @@ class ProfileVersion(models.Model):
         max_length=64,
         blank=True,
         db_index=True,
-        help_text="Its calendar and every zone's shape (identical.content_key): equal values are the same profile (BR-06.18)",
+        help_text="Its calendar and every zone's shape (identical.content_key): equal values are the same profile",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
@@ -493,7 +493,7 @@ class LibraryExport(models.Model):
     catalog_rows = models.PositiveIntegerField(default=0)
     profiles = models.PositiveIntegerField(default=0, help_text="Profiles (names) in the library")
     stored_profiles = models.PositiveIntegerField(
-        default=0, help_text="Profiles stored: identical profiles under several names are stored once (BR-06.18)"
+        default=0, help_text="Profiles stored: identical profiles under several names are stored once"
     )
     zone_shapes = models.PositiveIntegerField(default=0, help_text="Zone 8,760s stored")
     families = models.JSONField(default=dict, blank=True, help_text="Profiles per family")

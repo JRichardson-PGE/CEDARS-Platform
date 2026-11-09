@@ -1,4 +1,4 @@
-"""Budgets' work in each user's queue (cedars.core.queue, BR-09.5): fund shifts waiting for a co-funder's acknowledgment, for the people
+"""Budgets' work in each user's queue (cedars.core.queue): fund shifts waiting for a co-funder's acknowledgment, for the people
 who may acknowledge them (budgets.confirm in the co-funding PA)."""
 
 from __future__ import annotations

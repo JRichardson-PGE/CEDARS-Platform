@@ -1,4 +1,4 @@
-# Health monitoring (BR-12.2): the application's own checks every 10 minutes (`manage.py check_health`, which also alerts the CPUC's
+# Health monitoring: the application's own checks every 10 minutes (`manage.py check_health`, which also alerts the CPUC's
 # system administrators in the app), and CloudWatch alarms that email the hosting team through one SNS topic (`alarm_emails`):
 # - the app's checks failing (stalled or failed runs and Impact profiles jobs, the eTRM sync), from its JSON line in the app log;
 # - the checks not reporting at all (the scheduler, the task or the database is down);

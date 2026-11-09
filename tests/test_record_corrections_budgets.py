@@ -1,4 +1,4 @@
-"""Correcting a budget filing's records in place (BR-02.4): the submissions service's corrections with the Budgets module's editor."""
+"""Correcting a budget filing's records in place: the submissions service's corrections with the Budgets module's editor."""
 
 import io
 import zipfile

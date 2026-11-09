@@ -1,6 +1,6 @@
 # Accessibility
 
-Target: WCAG 2.2 Level AA on every page and published document (decision K; BRD v0.5 BR-10.3). The criterion-by-criterion conformance
+Target: WCAG 2.2 Level AA on every page and published document (decision K). The criterion-by-criterion conformance
 report, with the evidence and the known exceptions, is `ACCESSIBILITY_CONFORMANCE.md`; update it when a page or a document type changes
 how a criterion is met.
 

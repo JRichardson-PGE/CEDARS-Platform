@@ -10,7 +10,7 @@ from cedars.modules.documents.models import DocumentFile
 
 
 class Command(BaseCommand):
-    help = "Read the text of document files that have none yet (files stored before text was read, or an import), for search (BR-15.2)."
+    help = "Read the text of document files that have none yet (files stored before text was read, or an import), for search."
 
     def add_arguments(self, parser):
         parser.add_argument("--again", action="store_true", help="read every file again, also those already read")

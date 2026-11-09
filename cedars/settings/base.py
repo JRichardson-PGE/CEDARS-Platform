@@ -28,7 +28,7 @@ def env_bool(name: str, default: bool = False) -> bool:
     return env(name, "1" if default else "0").strip().lower() in ("1", "true", "yes", "on")
 
 
-# Which deployment this is: dev, test, sandbox, staging or prod. The sandbox shows a banner on every page (BR-11.2).
+# Which deployment this is: dev, test, sandbox, staging or prod. The sandbox shows a banner on every page.
 ENVIRONMENT = "base"
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", "")
@@ -247,7 +247,7 @@ CALCULATIONS_WORKER_COMMAND = env("CALCULATIONS_WORKER_COMMAND", "recet worker")
 CALCULATIONS_BATCH_QUEUES = {"small": env("CEDARS_BATCH_QUEUE_SMALL", ""), "large": env("CEDARS_BATCH_QUEUE_LARGE", "")}
 CALCULATIONS_BATCH_JOB_DEFINITION = env("CEDARS_BATCH_JOB_DEFINITION", "")  # used when a release names none (infra/terraform)
 CALCULATIONS_SMALL_RUN_RECORDS = int(env("CALCULATIONS_SMALL_RUN_RECORDS", "10000"))  # up to this many measures: the small-runs queue
-CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # BRD v0.5's configurable cap (the engine checks it too)
+CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # the configurable record cap (the engine checks it too)
 CALCULATIONS_RESULTS_CACHE = env(
     "CALCULATIONS_RESULTS_CACHE", str(BASE_DIR / "var" / "cache" / "results")
 )  # local copies of runs' results files
@@ -263,7 +263,7 @@ DATA_DOWNLOAD_MAX_ROWS = int(env("DATA_DOWNLOAD_MAX_ROWS", "200000"))  # rows or
 DATA_DOWNLOAD_JOBS_PER_USER = int(env("DATA_DOWNLOAD_JOBS_PER_USER", "3"))  # background downloads one person may have waiting at once
 ROBOTS_DISALLOW_ALL = env_bool("ROBOTS_DISALLOW_ALL", False)  # robots.txt turns every crawler away (the sandbox and demos)
 DATA_DOWNLOAD_INLINE_JOBS = env_bool("DATA_DOWNLOAD_INLINE_JOBS", False)  # development: make a queued download once its request commits
-DATA_SAVED_VIEWS_PER_USER = int(env("DATA_SAVED_VIEWS_PER_USER", "200"))  # saved dashboard and records views one person may keep (BR-07.4)
+DATA_SAVED_VIEWS_PER_USER = int(env("DATA_SAVED_VIEWS_PER_USER", "200"))  # saved dashboard and records views one person may keep
 DATA_SAVED_VIEW_SHARES = int(env("DATA_SAVED_VIEW_SHARES", "50"))  # people one saved view may be shared with by name
 DATA_API_DEFAULT_ROWS = int(env("DATA_API_DEFAULT_ROWS", "100"))  # rows in a data API page when the call does not say
 DATA_API_MAX_ROWS = int(env("DATA_API_MAX_ROWS", "1000"))  # the most rows one data API page holds (/api/v1/data/query and records)
@@ -285,7 +285,7 @@ CONTENT_SECURITY_POLICY = (
 ETRM_DATABASE_URL = env("ETRM_DATABASE_URL", "")
 ETRM_SCHEMA = env("ETRM_SCHEMA", "etrm")
 ETRM_FIXTURE = env("ETRM_FIXTURE", "")
-# BR-11.3: a nightly sync that fails is tried again after each of these waits (minutes); when the last attempt fails too, the CPUC's
+# A nightly sync that fails is tried again after each of these waits (minutes); when the last attempt fails too, the CPUC's
 # administrators are alerted. Empty = one attempt.
 ETRM_SYNC_RETRY_MINUTES = [float(m) for m in env_list("ETRM_SYNC_RETRY_MINUTES", "10,30")]
 LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")  # earlier measure versions keep DEER impact profile IDs
@@ -294,7 +294,7 @@ LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
 IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # a profile with no territory is written for each
 IMPACT_PROFILES_INLINE_JOBS = env_bool("IMPACT_PROFILES_INLINE_JOBS", False)  # development: run queued jobs in the request
 
-# Job and system health (BR-12.2; cedars/core/health.py, /admin/health/, `manage.py check_health`): minutes before a job counts as
+# Job and system health (cedars/core/health.py, /admin/health/, `manage.py check_health`): minutes before a job counts as
 # stalled, and how far back failures are listed.
 HEALTH = {
     "queued": int(env("HEALTH_QUEUED_MINUTES", "30")),  # a calculation run or Impact profiles job still waiting to start
@@ -308,24 +308,24 @@ HEALTH = {
 # Documents & EM&V module: the largest file a document version may carry (the PDA's largest main files are tens of MB)
 DOCUMENTS_MAX_FILE_MB = int(env("DOCUMENTS_MAX_FILE_MB", "200"))
 
-# Limits people meet (BR-12.1): every one is listed, as it stands, on the public Limits page (/limits/, cedars/services/releases/limits.py),
+# Limits people meet: every one is listed, as it stands, on the public Limits page (/limits/, cedars/services/releases/limits.py),
 # and a planned change to one is announced in the release notes before it takes effect. Uploads: each file sent to Budgets, Claims or
 # Monthly reports, or as a calculation job (.zip), and how many files one filing upload may hold.
 CEDARS_UPLOAD_MAX_MB = int(env("CEDARS_UPLOAD_MAX_MB", "150"))
 CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
 IMPACT_PROFILES_CUSTOM_MAX_MB = int(env("IMPACT_PROFILES_CUSTOM_MAX_MB", "20"))  # a PA's custom impact profile file
-CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version (BR-09.5)
-# Correcting a filing's records in place (BR-02.4): the most records one partial correction may change (a larger one is a new upload),
+CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version
+# Correcting a filing's records in place: the most records one partial correction may change (a larger one is a new upload),
 # and the most records a correction page lists at once (records found, a preview's changes; the rest are counted and downloadable).
 CEDARS_CORRECTION_MAX_ROWS = int(env("CEDARS_CORRECTION_MAX_ROWS", "5000"))
 CEDARS_CORRECTION_LIST_ROWS = int(env("CEDARS_CORRECTION_LIST_ROWS", "200"))
 ETRM_PACKAGE_LIST = int(env("ETRM_PACKAGE_LIST", "300"))  # eTRM measure packages Add a measure from eTRM lists per search
-# Feedback from every page's footer link (BR-12.4): the most characters in one message, the most messages one sender sends an hour,
+# Feedback from every page's footer link: the most characters in one message, the most messages one sender sends an hour,
 # and an optional team inbox that gets a copy of each (the CPUC system administrators are told of each one either way).
 CEDARS_FEEDBACK_MAX_CHARS = int(env("CEDARS_FEEDBACK_MAX_CHARS", "4000"))
 CEDARS_FEEDBACK_PER_HOUR = int(env("CEDARS_FEEDBACK_PER_HOUR", "10"))
 CEDARS_FEEDBACK_EMAIL = env("CEDARS_FEEDBACK_EMAIL", "")
-# Release notes (BR-12.1, cedars/services/releases): a note is published at least this many days before its changes take effect; a
+# Release notes (cedars/services/releases): a note is published at least this many days before its changes take effect; a
 # shorter notice needs a reason, which the note shows. Notes taking effect within this many days are announced on every page.
 CEDARS_RELEASE_NOTICE_DAYS = int(env("CEDARS_RELEASE_NOTICE_DAYS", "14"))
 

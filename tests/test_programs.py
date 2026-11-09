@@ -84,7 +84,7 @@ def test_the_catalog_download_carries_the_same_filter(signed_in, make_user, prog
 
 
 def test_the_catalog_and_program_pages_are_public(client, programs):
-    """BR-01.5 / BR-07.7: anyone finds a program by name or PrgID, signed in or not; changing one still needs an account."""
+    """Anyone finds a program by name or PrgID, signed in or not; changing one still needs an account."""
     page = client.get("/programs/?q=PGE21001")
     assert page.status_code == 200 and "PGE21001" in page.content.decode()
     assert "change requests" not in page_only(page.content.decode())

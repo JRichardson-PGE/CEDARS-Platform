@@ -89,7 +89,7 @@ class Migration(migrations.Migration):
     ]
 
 
-# Starting points the CPUC edits on the Role templates page (BR-01.3): configuration, not code.
+# Starting points the CPUC edits on the Role templates page: configuration, not code.
 STARTERS = [
     (
         "CPUC reviewer",

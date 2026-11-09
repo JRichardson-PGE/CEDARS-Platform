@@ -1,4 +1,4 @@
-"""The FAQ (BR-12.3: "a searchable FAQ and worked examples"): questions by topic, kept as data in core/faq.yaml, shown and searched at
+"""The FAQ ("a searchable FAQ and worked examples"): questions by topic, kept as data in core/faq.yaml, shown and searched at
 /help/faq/ without scripts (?q= words, ?topic= one topic). Answers name limits by key ({limit:upload_mb}) and the release notice period
 ({notice_days}), filled in as they stand when the page is shown, so an answer never states an old number."""
 

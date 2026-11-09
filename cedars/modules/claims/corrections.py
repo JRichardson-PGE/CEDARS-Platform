@@ -1,4 +1,4 @@
-"""The Claims module's record editor (BR-02.4), for the submissions service's corrections: a version's own records are its upload's
+"""The Claims module's record editor, for the submissions service's corrections: a version's own records are its upload's
 (the claims new or changed since the last confirmed quarter); the records filed before it are the year so far, compiled over the earlier
 confirmations, and correcting one adds the corrected record to this version, which then stands over it. A claim filed earlier is taken
 out of the year by withdrawing it (the Withdrawal table), never by deleting its record."""

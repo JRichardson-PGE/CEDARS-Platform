@@ -379,7 +379,7 @@ def grant(request, code):
 @login_required
 @require_POST
 def grant_template(request, code):
-    """Grant a member every permission of a role template (BR-01.3)."""
+    """Grant a member every permission of a role template."""
     org = _org_or_404(request, code)
     back = f"/admin/organizations/{org.code}/"
     templates = service.role_templates_for(org)
@@ -624,7 +624,7 @@ def audit_log(request):
     return render(request, "administration/audit.html", {"page": page, "form": form, "query": query.urlencode()})
 
 
-# --- role templates (BR-01.3)
+# --- role templates
 
 
 TEMPLATE_EVENTS = {
@@ -704,7 +704,7 @@ def role_template(request, pk):
     )
 
 
-# --- statewide allocation versions (BR-06.7, BR-13.8)
+# --- statewide allocation versions
 
 
 def _require_sysadmin(request):
@@ -943,7 +943,7 @@ def goal_set_csv(request, pk):
     return response
 
 
-# --- job and system health (BR-12.2)
+# --- job and system health
 
 STATUS_CLASS = {health.OK: "ok", health.ATTENTION: "warn", health.FAILING: "bad"}
 

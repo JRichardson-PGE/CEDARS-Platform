@@ -36,7 +36,7 @@ def require_engine() -> None:
 
 
 def suggested_fix(kind: str, field: str, definition: dict, message: str) -> str:
-    """A plain-language fix for a finding, from the kind of rule (BR-03.2: every finding says how to fix it)."""
+    """A plain-language fix for a finding, from the kind of rule (every finding says how to fix it)."""
     check = definition.get("check", "")
     if kind == "spec":
         return {
@@ -610,7 +610,7 @@ def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_col
     from cedars.services.dictionary import value_lists
 
     filing_rules, _ = _engine()
-    value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them (BR-12.6)
+    value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
     ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
     results, notes = filing_rules.check_frame(_engine_rule_set(rs), table, df, ctx)
     notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]

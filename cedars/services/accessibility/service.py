@@ -1,4 +1,4 @@
-"""The document accessibility check of uploads (BRD v0.5 BR-10.3: published documents meet WCAG 2.2 AA).
+"""The document accessibility check of uploads (published documents meet WCAG 2.2 AA).
 
 Every PDF and workbook stored as a document's file, or attached to a comment on a document or on a filing, is checked as it is stored
 (checks.check): an untagged or image-only PDF, a PDF with no title or no language, a sheet with no marked header row, merged cells,
@@ -25,7 +25,7 @@ from cedars.services.accounts.service import AccessDenied
 from . import checks
 from .models import CheckSettings, FileCheck
 
-# what refuses an upload when the CPUC turns blocking on, unless it chooses otherwise: the findings BR-10.3's audit treats as critical
+# what refuses an upload when the CPUC turns blocking on, unless it chooses otherwise: the findings an accessibility audit treats as critical
 DEFAULT_BLOCKING = ["pdf_untagged", "pdf_image_only", "pdf_no_title", "pdf_no_language", "workbook_no_headers"]
 
 

@@ -13,7 +13,7 @@ from cedars.services.registry import service as registry
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline
 
-# Program administrators for test filings (names only; their administrators are granted in the platform, D6)
+# Program administrators for test filings (names only; their administrators are granted in the platform)
 ORGANISATIONS = [
     ("PGE", "Pacific Gas and Electric Company", "IOU"),
     ("SCE", "Southern California Edison", "IOU"),

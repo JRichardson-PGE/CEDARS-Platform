@@ -3,7 +3,7 @@
 Reads: the claim years and their confirmations, a PA's versions with their check results, findings, results by program and published
 files, the change letters, and NMEC chains. A call acts for one organization, the API token's (or the session's active one), and reads
 what the pages show it: its own organization's versions with claims.read, .submit or .confirm there, every organization's from the CPUC
-with claims.read or .approve, and every published version (public to signed-in users, BR-05.9).
+with claims.read or .approve, and every published version (public to signed-in users).
 
 Writes, the period page's steps for the organization the call acts for: upload a confirmation's claims (checked at once), check the
 latest version again, price it, confirm it. Each runs the same service function as the page, so the same rules hold (quarters in
@@ -376,7 +376,7 @@ def file(request, pk, which):
 @extend_schema(
     summary="Change letters",
     operation_id="claims_changes_list",
-    description="Every published correction, newest first (BR-09.3); ?org=CODE and ?year= narrow them.",
+    description="Every published correction, newest first; ?org=CODE and ?year= narrow them.",
     parameters=[OpenApiParameter("org", str), OpenApiParameter("year", int), OpenApiParameter("page", int)],
     responses=inline_serializer(
         "ChangeLetters",
@@ -413,7 +413,7 @@ def change(request, pk):
 @extend_schema(
     summary="A confirmed claim's NMEC chain",
     description="From the original claim down through every true-up, in filing order, with each true-up's filed totals against its "
-    "parent's (BR-05.3). Confirmed claims only.",
+    "parent's. Confirmed claims only.",
     responses=inline_serializer(
         "ClaimChain", {"claim": serializers.CharField(), "chain": serializers.ListField(child=serializers.DictField())}
     ),
@@ -577,7 +577,7 @@ def price(request, pk):
 @extend_schema(
     summary="Confirm the latest version",
     description="The sign-off on exactly the priced results: the version is confirmed and published at once (its compiled inputs, own "
-    "upload, job, spec and receipt; BR-05.9). Needs claims.confirm.",
+    "upload, job, spec and receipt). Needs claims.confirm.",
     request=None,
     responses={200: Version, 403: Refusal, 409: Refusal},
 )

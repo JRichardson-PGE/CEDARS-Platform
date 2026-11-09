@@ -1,4 +1,4 @@
-"""Add a measure from eTRM (BR-06.22): the pack's offering keys and packages, the narrowing lookup, the row it fills, and the page."""
+"""Add a measure from eTRM: the pack's offering keys and packages, the narrowing lookup, the row it fills, and the page."""
 
 import html
 import importlib

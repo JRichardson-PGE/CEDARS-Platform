@@ -91,11 +91,11 @@ class BudgetResult(models.Model):
 
 
 class FundShift(models.Model):
-    """A fund shift (BR-14.4): dollars moved between programs within a filing cycle, not part of any filing and with no
+    """A fund shift: dollars moved between programs within a filing cycle, not part of any filing and with no
     cost-effectiveness run. Each PA's part of it adds up to zero. Moving money into or out of a statewide program changes every funding
     PA's portion of it by its allocation factor; each other funding PA (a co-funder) decides where its portion comes from or goes in its
     own portfolio and acknowledges the shift, which takes effect once all have (at once when there is none). The approved filed budget
-    never changes; the operating budgets do (BR-04.7)."""
+    never changes; the operating budgets do."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -191,7 +191,7 @@ class FundShiftAcknowledgement(models.Model):
 
 
 class ChangeLetter(models.Model):
-    """The public change letter of a budget filing's correction (BR-09.3): written when a corrected version (version 2 or later) is
+    """The public change letter of a budget filing's correction: written when a corrected version (version 2 or later) is
     published, dated, with the correction's reason and each program whose budget or priced results changed against the version it
     replaces, before and after, with the totals (service.LETTER_FIGURES). Readable by anyone, like Claims' change letters. Append-only:
     never updated or deleted (a database trigger)."""

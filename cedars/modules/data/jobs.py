@@ -1,4 +1,4 @@
-"""Background record downloads (BR-07.2): a download of more records than DATA_DOWNLOAD_MAX_ROWS is queued instead of made in the
+"""Background record downloads: a download of more records than DATA_DOWNLOAD_MAX_ROWS is queued instead of made in the
 request, written by `manage.py run_data_downloads` (several workers can share the queue: a job is claimed with SKIP LOCKED), kept in
 the results storage area, and announced to the person through the notification service (on the page, and by email unless they turned
 direct messages off). With settings.DATA_DOWNLOAD_INLINE_JOBS (development) a job runs once the request that queued it commits."""

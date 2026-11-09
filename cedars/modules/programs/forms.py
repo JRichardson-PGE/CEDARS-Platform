@@ -65,7 +65,7 @@ class ProgramChangeForm(forms.Form):
     )
     name = forms.CharField(label="Program name", max_length=300)
     commercial_name = forms.CharField(label="Commercial name", max_length=300, required=False)
-    # the listed fields offer the program fields guide's values (BR-13.7: registry/program_fields.yaml), set in __init__
+    # the listed fields offer the program fields guide's values (registry/program_fields.yaml), set in __init__
     status = forms.ChoiceField(label="Status", required=False)
     segment = forms.ChoiceField(label="Segment", required=False)
     primary_sector = forms.ChoiceField(label="Primary sector", required=False)
@@ -169,7 +169,7 @@ class WithdrawForm(forms.Form):
 
 
 class LockedFieldsForm(forms.Form):
-    """A new policy: which attributes a program's administrators change only through a request (BR-13.7)."""
+    """A new policy: which attributes a program's administrators change only through a request."""
 
     fields_locked = forms.MultipleChoiceField(label="Locked attributes", required=False, widget=forms.CheckboxSelectMultiple)
     effective = forms.DateField(label="Effective from", widget=forms.DateInput(attrs={"type": "date"}))

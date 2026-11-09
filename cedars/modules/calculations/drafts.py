@@ -1,4 +1,4 @@
-"""Edit inputs (BR-06.15 small jobs; ReCET's Edit inputs tab): a small job's Measure and ProgramCost tables edited on the platform, row by
+"""Edit inputs (small jobs; ReCET's Edit inputs tab): a small job's Measure and ProgramCost tables edited on the platform, row by
 row, and checked cell by cell with the pinned engine's own editor code (`recet.editor`, imported unchanged: Jake 2026-10-30, the web app
 installs ReCET). The checks are the engine preflight's rules, so what they flag is what a run would; the full input check still runs
 when the job is run.
@@ -423,7 +423,7 @@ def units_value(text: str) -> str:
 
 @transaction.atomic
 def add_from_etrm(actor, draft: InputDraft, permutation, units: str) -> EtrmFill:
-    """Add a measure row filled from an eTRM permutation (BR-06.22): the engine's new-row defaults with row 1's program, IOU, zone,
+    """Add a measure row filled from an eTRM permutation: the engine's new-row defaults with row 1's program, IOU, zone,
     sectors and claim quarter, then every field the permutation gives (refdata.etrm.measure_row) and the number of units. Every field
     stays editable; the cell checks run on it as on any row."""
     import pandas as pd
@@ -612,7 +612,7 @@ def job_zip_bytes(draft: InputDraft) -> bytes:
 def workbook_bytes(draft: InputDraft) -> bytes:
     """The draft as ReCET's job workbook: a Measure and a ProgramCost sheet under ReCET's column names, numbers as numbers, as the
     engine's editor writes it (recet.editor.write_workbook), made the platform's accessible way (cedars.core.workbooks: properties, a
-    header row marked as a table header, BR-10.3). New run and Edit inputs read it back as they read any job workbook."""
+    header row marked as a table header). New run and Edit inputs read it back as they read any job workbook."""
     from cedars.core.workbooks import Book
 
     ed = _editor()

@@ -216,7 +216,7 @@ def month_grid(month: date, rows: list[dict], today: date) -> list[list[dict]]:
 
 
 def calendar(request):
-    """The filing calendar: what each module expects and when (BR-09.4). Public (BR-01.5). Two views of the same deadlines: a month
+    """The filing calendar: what each module expects and when. Public. Two views of the same deadlines: a month
     grid (the default, Jake 2026-11-06: "more of a true calendar view"), one month at a time (`month=YYYY-MM`, this month by
     default), and a list (`view=list`, or any due-date range in the address) filtered by due date (last 3 and next 9 months by default).
     Both filter by filing type; the filters are kept in the URL; retired deadlines are shown only to administrators who ask
@@ -478,7 +478,7 @@ def decide(request, pk):
 @login_required
 @require_POST
 def comment(request, pk):
-    """Post a comment, with any files, on a filing version (BR-09.5), then return to the version's page."""
+    """Post a comment, with any files, on a filing version, then return to the version's page."""
     v = get_object_or_404(SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation"), pk=pk)
     if not comments.can_discuss(request.user, v.submission):
         raise Http404
@@ -515,7 +515,7 @@ def attachment(request, pk):
     return response
 
 
-# --- correcting a filing's records in place (BR-02.4)
+# --- correcting a filing's records in place
 
 
 def _correctable(request, pk) -> tuple[SubmissionVersion, str]:
@@ -578,7 +578,7 @@ def _outcome(request, v: SubmissionVersion, scope) -> None:
 
 @login_required
 def records(request, pk):
-    """Find a version's records to correct, add one, or upload a partial correction (BR-02.4)."""
+    """Find a version's records to correct, add one, or upload a partial correction."""
     v, why = _correctable(request, pk)
     ctx = _base_context(v, why)
     if not why:

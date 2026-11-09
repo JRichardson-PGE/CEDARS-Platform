@@ -1,4 +1,4 @@
-"""A published version's revision stage never changes either (BR-15.11), and comments and responses are a public record (BR-15.4): a
+"""A published version's revision stage never changes either, and comments and responses are a public record: a
 response is never changed or deleted, and a comment is never deleted and changes only once, when its author withdraws it."""
 
 from django.db import migrations

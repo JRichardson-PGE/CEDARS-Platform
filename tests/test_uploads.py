@@ -1,4 +1,4 @@
-"""Several files in one filing upload (cedars.core.uploads, BR-06.3), and Budgets, Claims and Monthly reports taking them."""
+"""Several files in one filing upload (cedars.core.uploads), and Budgets, Claims and Monthly reports taking them."""
 
 import io
 import zipfile

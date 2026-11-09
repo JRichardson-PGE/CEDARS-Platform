@@ -1,4 +1,4 @@
-"""Reading one profile's 8,760s back out of a registered impact-profile library pack (BR-05.6).
+"""Reading one profile's 8,760s back out of a registered impact-profile library pack.
 
 A true-up is priced against the profile its parent claim was priced on: the version that run's pinned library held, which may since
 have been replaced (a custom profile replaced for the true-up is the usual case). The pack's files are the engine's own format

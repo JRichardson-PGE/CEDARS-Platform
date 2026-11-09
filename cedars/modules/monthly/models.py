@@ -17,7 +17,7 @@ PROGRAM_COST_FIELDS = [
 ]
 INCENTIVE_FIELDS = ["UnitIncentiveToOthers", "UnitDirectInstallLab", "UnitDirectInstallMat", "UnitEndUserRebate"]
 SPEND_FIELDS = [f for f, _ in PROGRAM_COST_FIELDS] + ["RebatesAndIncentives", "OnBillFinancing", "YTDExpenditures"]
-# The commitments, their own table (D2), with the committed columns of CEDARS' monthly Program table (2026-03-11 specification) as
+# The commitments, their own table, with the committed columns of CEDARS' monthly Program table (2026-03-11 specification) as
 # they are reported today (Jake, 2026-10-30).
 COMMITMENT_FIELDS = [
     ("PriorCommittedFundsBalance", "Committed funds from prior years, balance"),
@@ -82,7 +82,7 @@ class ReportLine(models.Model):
 
 class MonthlyResult(models.Model):
     """One program's estimated results for one credited PA in one version, summed from the priced run's group sums: unvalidated
-    estimates (BR-14.5), never part of a claim. Kept per run: a re-priced version reads its new run's results."""
+    estimates, never part of a claim. Kept per run: a re-priced version reads its new run's results."""
 
     version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="monthly_results")
     run = models.CharField(max_length=40)
@@ -101,7 +101,7 @@ class MonthlyResult(models.Model):
 
 
 class ChangeLetter(models.Model):
-    """The public change letter of a monthly report's correction (BR-09.3): written when a corrected version (version 2 or later) is
+    """The public change letter of a monthly report's correction: written when a corrected version (version 2 or later) is
     published, dated, with the correction's reason and each program whose year-to-date spend, commitments or estimates changed against
     the version it replaces, before and after, with the totals (service.LETTER_FIGURES). Readable by anyone, like Claims' change
     letters. Append-only: never updated or deleted (a database trigger)."""

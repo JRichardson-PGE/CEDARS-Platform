@@ -1,4 +1,4 @@
-"""The publication scan for personal information (BR-08.5): every text column of a snapshot is searched for values that look like
+"""The publication scan for personal information: every text column of a snapshot is searched for values that look like
 an email address, a phone number, a street address, a Social Security number or an account number before the snapshot joins a public
 release. A hit holds the publication (service.py); this module only finds and describes.
 

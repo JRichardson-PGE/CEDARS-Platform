@@ -15,9 +15,9 @@ published them. They are read-only history: every path that would change, repric
 one refuses (`_refuse_imported`), and no publisher hook runs for them (the loading module writes its own derived lines).
 
 Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
-for a year by program, so another module (Monthly reports' 13th-month report, BR-14.2) reads them without importing Claims.
+for a year by program, so another module (Monthly reports' 13th-month report) reads them without importing Claims.
 
-Restated runs (`register_restater`, `restate`, BR-06.17): the Calculations module registers the function that re-prices a published
+Restated runs (`register_restater`, `restate`): the Calculations module registers the function that re-prices a published
 version's job as an analysis run, owned by whoever asks and never recorded on the version, so a filing module can show restated results
 beside the filed ones without importing the Calculations module. The version itself is never changed: only an audit event says a
 restatement was started on it.
@@ -310,7 +310,7 @@ def claims_totals(organisation: Organisation, year: int) -> list[dict]:
 
 
 def register_restater(restate: Callable, options: Callable, describe: Callable) -> None:
-    """The Calculations module's restater (BR-06.17): restate(actor, organisation, version, job_zip, *, name, release, acc_version,
+    """The Calculations module's restater: restate(actor, organisation, version, job_zip, *, name, release, acc_version,
     record_accs, allocation_version, settings, cost_test_set, profiles_8760) starts an analysis run on the job (a local file) for
     `organisation` (None: the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release",
     "default", "accs"}], the active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status",
@@ -330,7 +330,7 @@ def restate_options() -> list[dict]:
 
 
 def restate(actor, v: SubmissionVersion, job_zip, *, organisation, name: str, release: str, acc_version: str, **kw) -> str:
-    """Start a restated run of a published version's job (BR-06.17): an analysis run for `organisation`, on `release` and `acc_version`
+    """Start a restated run of a published version's job: an analysis run for `organisation`, on `release` and `acc_version`
     (`record_accs`: the ACCs records name in the job's ACCVersion column). The version, its calculation and its results never change;
     the audit trail records the restatement on it. Returns the run's id."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
@@ -438,7 +438,7 @@ def current(submission: Submission) -> SubmissionVersion | None:
 
 def standing_numbers(submission_ids) -> dict[int, tuple[int | None, int]]:
     """{submission id: (the number of its standing published version or None, its latest version's number)} in one query, for pages
-    that list many submissions' versions at once (the program page, BR-07.6)."""
+    that list many submissions' versions at once (the program page)."""
     published = SubmissionVersion.Status.PUBLISHED
     rows = (
         SubmissionVersion.objects.filter(submission_id__in=list(submission_ids))
@@ -700,10 +700,10 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
 
 
 def price(actor, v: SubmissionVersion, job_zip, **options):
-    """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
+    """Start the calculation and statewide allocation run on a validated version's job (priced before confirmation). Returns
     the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed.
     Options: name, acc_version, allocation_version, settings, cost_test_set and `profiles_8760` (a supplied 8,760-profile file the
-    job's records name: a claims true-up's parent profiles, BR-05.6). A refusal the CPUC's set-up causes (PricingUnavailable) is
+    job's records name: a claims true-up's parent profiles). A refusal the CPUC's set-up causes (PricingUnavailable) is
     recorded and sent to the system administrators outside the refused transaction, and the filer is told in their words."""
     try:
         return _price(actor, v, job_zip, **options)
@@ -1060,7 +1060,7 @@ def expired_sandbox_filings(cutoff):
     from cedars.services.sandbox import bundle
 
     subs = list(Submission.objects.filter(created_at__lt=cutoff).select_related("organisation"))
-    copied = bundle.is_copied("submissions.submission", [s.pk for s in subs])  # production's, copied by a refresh (BR-11.2): kept
+    copied = bundle.is_copied("submissions.submission", [s.pk for s in subs])  # production's, copied by a refresh: kept
     for sub in (s for s in subs if str(s.pk) not in copied):
 
         def delete(sub=sub):

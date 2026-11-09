@@ -22,7 +22,7 @@ class Guide:
 
     @property
     def revised(self) -> str:
-        """The platform release this guide was last revised for (BR-12.5; cedars/core/revisions.py)."""
+        """The platform release this guide was last revised for (cedars/core/revisions.py)."""
         from . import revisions
 
         return revisions.revised(f"guide:{self.slug}")

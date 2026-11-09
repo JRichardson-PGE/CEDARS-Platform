@@ -1,4 +1,4 @@
-"""What the program page shows from Monthly reports (BR-07.6), through registry.register_program_records: the program's year-to-date
+"""What the program page shows from Monthly reports, through registry.register_program_records: the program's year-to-date
 spend, paid incentives and commitments in each monthly report. The standing published version of each report is public, as the
 dashboards show its spending; a newer version still being worked on is shown only to those who may read the PA's reports."""
 

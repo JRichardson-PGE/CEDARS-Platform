@@ -257,12 +257,12 @@ claims/links:
 claims/restate:
   title: Restating confirmed claims
   guide:
-    - Prices a confirmed version's year to date again on today's engine (BR-06.17), as an analysis. The confirmed version, its results and
+    - Prices a confirmed version's year to date again on today's engine, as an analysis. The confirmed version, its results and
       its published files never change; the runs are ordinary runs of the organization you choose (or your own).
     - On the filed ACC one run is made, and the whole change from the filed results is the effect of the engine release, today's program
       registry, the claim year's allocation version and cost-test set. On another ACC a second run on the filed ACC is made as well, so
       the change splits into that effect and the effect of the ACC alone.
-    - An ACC per claim (BR-06.5) comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
+    - An ACC per claim comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
   how:
     - Choose who the runs are for, the release (the default is the current engine) and the ACC, optionally upload the ACC by claim file,
       then Restate. The restatement's page fills in as its runs finish.

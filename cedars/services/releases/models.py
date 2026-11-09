@@ -1,4 +1,4 @@
-"""Release notes (BR-12.1): a dated notice of what changes, published before it takes effect.
+"""Release notes: a dated notice of what changes, published before it takes effect.
 
 A note is drafted, then published (it can no longer change: a database trigger refuses any edit, and its changes are fixed with it),
 and may be withdrawn with a reason (it stays on the page, marked withdrawn). A changed plan is a new note. Each note lists its changes:
@@ -70,7 +70,7 @@ class Change(models.Model):
 
 
 class Mandate(models.Model):
-    """An entry of the public register of CPUC-mandated data and calculation changes (BR-12.7): the decision or resolution, what it
+    """An entry of the public register of CPUC-mandated data and calculation changes: the decision or resolution, what it
     requires of CEDARS' data or calculations, when it takes effect and how far CEDARS has implemented it, with links to the rule set,
     dictionary version, value list version, field, data pack or release note that carries it.
 

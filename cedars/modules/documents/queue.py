@@ -1,4 +1,4 @@
-"""Documents' work in each user's queue (cedars.core.queue, BR-09.5): versions filed but not yet published, for the people who may publish
+"""Documents' work in each user's queue (cedars.core.queue): versions filed but not yet published, for the people who may publish
 them (documents.confirm in an organization that manages the document); responses to recommendations CPUC ED asked of the user's PAs and
 not yet published (documents.submit there); and questions nobody has answered, for those who may respond to them."""
 

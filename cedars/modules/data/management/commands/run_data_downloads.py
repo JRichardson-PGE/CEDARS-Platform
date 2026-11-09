@@ -6,7 +6,7 @@ from cedars.modules.data import jobs
 
 
 class Command(BaseCommand):
-    help = "Make queued record downloads (BR-07.2) and tell each person theirs is ready. Several workers can share the queue."
+    help = "Make queued record downloads and tell each person theirs is ready. Several workers can share the queue."
 
     def add_arguments(self, parser):
         parser.add_argument("--loop", action="store_true", help="keep running, checking for new downloads every --sleep seconds")

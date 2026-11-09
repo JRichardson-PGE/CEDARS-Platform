@@ -1,7 +1,7 @@
 """The permission catalog. A grant gives one of these to a member of one organization.
 
 Module permissions are "<module>.<action>". Four more are special:
-  org.admin     an organization's administrator: manages its members and grants, runs its recertification (D6: the CPUC grants only
+  org.admin     an organization's administrator: manages its members and grants, runs its recertification (the CPUC grants only
                 an organization's first admin)
   claims.pii    reaching the PII vault for the organization's claims; any data steward must approve the grant, and the CPUC can require
                 a federated session for it (AccessPolicy.pii_requires_federated, decision F)

@@ -1,4 +1,4 @@
-"""Monthly reports (BR-14). A CPUC system administrator sets up a program year: twelve deadlines of the "monthly" module, one per month
+"""Monthly reports. A CPUC system administrator sets up a program year: twelve deadlines of the "monthly" module, one per month
 (the submissions service's calendar), and what the year's BCA inputs are priced on (YearSetup). Each PA's report for a month is a
 submission with versions.
 
@@ -6,12 +6,12 @@ submission with versions.
     -> priced (Calculations, through the submissions service: estimated savings and TSB) -> confirm -> published
 
 A report is year to date: its BCA inputs are the year's measures and program costs so far, so its estimates show how programs are
-trending toward their goals (BR-14.5). The estimates are labeled unvalidated everywhere and never enter a claim. The BCA inputs get
-BCA-level validation only, the engine's own input check when they are priced, not the claims rules (D2). Before the due date a PA can
-un-confirm, change and re-confirm (BR-14.3); after it a correction is a new version. Each program's spend is read from the BCA inputs
+trending toward their goals. The estimates are labeled unvalidated everywhere and never enter a claim. The BCA inputs get
+BCA-level validation only, the engine's own input check when they are priced, not the claims rules. Before the due date a PA can
+un-confirm, change and re-confirm; after it a correction is a new version. Each program's spend is read from the BCA inputs
 (ProgramCost and the measures' rebates and incentives, as Budgets counts a budget; Jake, 2026-10-30), the month's spend being the change
 in the year to date since the previous month's report, and compared with its operating budget, the approved budget plus fund shifts in
-effect, read from Budgets through the registry service (BR-04.7, BR-14.6). Commitments are their own table, with CEDARS' committed columns.
+effect, read from Budgets through the registry service. Commitments are their own table, with CEDARS' committed columns.
 """
 
 import json
@@ -51,12 +51,12 @@ from .models import (
 
 MODULE = "monthly"
 KIND = "Monthly report"
-CLOSING_KIND = "13th-month report"  # the year's last deadline, on the year's period: due with the annual claim (BR-14.2)
+CLOSING_KIND = "13th-month report"  # the year's last deadline, on the year's period: due with the annual claim
 RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 YTD_TOLERANCE = Decimal("1")  # dollars: year-to-date spend may move by rounding
 BCA_NOTE = (
     "The BCA inputs (Measure and ProgramCost) get BCA-level validation only: the calculation engine's own input check, run when the "
-    "report is priced, not the claims rules (D2). Their savings and TSB are unvalidated estimates."
+    "report is priced, not the claims rules. Their savings and TSB are unvalidated estimates."
 )
 
 
@@ -611,7 +611,7 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
 def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entry: dict, *, corrected: bool = False) -> SubmissionVersion:
     """Keep the report's tables (report.zip) and its BCA inputs (job.zip) as the version's files, in a folder named by the report's
     SHA-256, read its lines, run the module's checks and record the result. The checks are all file-wide (a program's one row, its
-    year-to-date spend against last month's) and quick, so a correction in place (BR-02.4, `corrected`) checks every record again."""
+    year-to-date spend against last month's) and quick, so a correction in place (`corrected`) checks every record again."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
     if v.locked:
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
@@ -648,7 +648,7 @@ def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entr
     return submissions.record_validation(actor, v, None, summary)
 
 
-# --- correcting records in place (BR-02.4)
+# --- correcting records in place
 
 KEYS = {"Commitments": ("PrgID",), "Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
 
@@ -702,7 +702,7 @@ def findings_csv(v: SubmissionVersion) -> str:
 
 
 def price(actor, v: SubmissionVersion) -> str:
-    """Price a validated report's year-to-date BCA inputs on the year's ACC for its estimates (BR-14.5); a report with statewide programs
+    """Price a validated report's year-to-date BCA inputs on the year's ACC for its estimates; a report with statewide programs
     is allocated with the year's allocation version, or the most recent confirmed one. Returns the run's id. A report whose Measure
     table has no rows has nothing to estimate: it is recorded as priced with no run ("none"), so it can be confirmed."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
@@ -894,7 +894,7 @@ def budget_rows(organisation, year: int) -> list[dict]:
 
 def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
     """The version by program: its spend (from the BCA inputs) and commitments, the operating budget for the program year (approved
-    budget plus fund shifts in effect, BR-04.7) and the estimates. The month's spend (MonthExpenditures) is the change in the year-to-date
+    budget plus fund shifts in effect) and the estimates. The month's spend (MonthExpenditures) is the change in the year-to-date
     spend since the previous month's standing report (January: the year to date). Programs in the operating budget but not in the
     report are listed as not reported."""
     ensure_lines(v)
@@ -941,7 +941,7 @@ def report(v: SubmissionVersion, budget: list[dict] | None = None) -> Report:
     return Report(out, total, period.year, bool(budget), any(r.estimated for r in out), month_known)
 
 
-# Paid and committed incentives, reported separately (BR-14.6). Paid incentives are the measures' rebates and incentives in the
+# Paid and committed incentives, reported separately. Paid incentives are the measures' rebates and incentives in the
 # year-to-date BCA inputs (RebatesAndIncentives: NumUnits x the four unit incentive fields), part of spend. Committed incentives are the
 # Commitments table's YTDCommittedFunds: incentives the PA has committed to pay in the future, not spend. The two are not comparable
 # (Jake, 2026-11-01): neither is a share of the other, so no page or file sets one against the other (no difference, ratio or flag).
@@ -954,7 +954,7 @@ PAID_VS_COMMITTED = (
 )
 
 
-# --- change letters (BR-09.3) and what notifications say (BR-09.2)
+# --- change letters and what notifications say
 
 
 LETTER_FIGURES = [
@@ -1020,7 +1020,7 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     changes = correction_changes(previous, v)
     in_place = corrections.summary(v)
     if in_place:
-        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
+        changes["in_place"] = in_place  # what was corrected record by record on the version
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     audit.record(
         "monthly.change_letter_published",
@@ -1076,7 +1076,7 @@ def notice(v: SubmissionVersion, event) -> Concern:
     return Concern(programs=programs, link=link)
 
 
-# --- the year in one view (BR-14.1)
+# --- the year in one view
 
 
 @dataclass
@@ -1114,7 +1114,7 @@ def year_view(organisation, year: int, *, published_only: bool = False) -> list[
     return out
 
 
-# --- the 13th-month report (BR-14.2)
+# --- the 13th-month report
 
 
 CLAIMED = [
@@ -1179,7 +1179,7 @@ class ClosingRow:
 
 @dataclass
 class Closing:
-    """A PA's 13th-month report for a program year, generated from its confirmed claims (BR-14.2): final once the annual claim is
+    """A PA's 13th-month report for a program year, generated from its confirmed claims: final once the annual claim is
     confirmed, provisional (the confirmed quarters' year to date) before."""
 
     year: int

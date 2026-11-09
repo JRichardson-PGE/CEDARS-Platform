@@ -1,4 +1,4 @@
-"""/api/v1/rules: the pre-upload checker as an API (BR-03.4) and the rule library as data.
+"""/api/v1/rules: the pre-upload checker as an API and the rule library as data.
 
 POST check runs a module's rule-set step on one table, exactly as the upload and the /rules/check/ page run it (rules.precheck: the
 module's own code), against the version in force or any other published version, and returns the findings. Nothing sent is kept. It

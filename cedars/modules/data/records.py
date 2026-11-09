@@ -1,4 +1,4 @@
-"""Record-level downloads (BR-07.5, BR-07.2): the published measure-level records a query keeps, with the columns a person picks, as a
+"""Record-level downloads: the published measure-level records a query keeps, with the columns a person picks, as a
 page of a hundred and as one file (CSV, XLSX or Parquet) for every PA together, not one file per IOU.
 
 The rows are the dashboard query's own (`query.where_terms`: dataset, filing, years, filters, exclusions), so a download of a
@@ -216,7 +216,7 @@ class RecordQuery:
 
 def from_params(params, *, today: date | None = None, default_columns: list[str] | None = None) -> RecordQuery:
     """The records a GET asks for. Nothing is excluded unless asked (record downloads hold every published record); with no
-    parameters at all, the current year (BR-07.7). With no column parameter, `default_columns` (a person's own default, BR-07.4) are
+    parameters at all, the current year. With no column parameter, `default_columns` (a person's own default) are
     the columns instead of the key ones."""
     raw = {k: _many(params, k) for k in (params.keys() if hasattr(params, "keys") else [])}
     for k in TEXT_FILTERS:
@@ -248,7 +248,7 @@ def query_string(q: dq.Query, cat: Catalog | None = None, columns: list[str] | N
 
 
 def behind(result: dq.Result, label: str, *, max_rows: int) -> dict:
-    """The record-level download behind one dashboard series (BR-07.5): the records its rows add up, under the same query with every
+    """The record-level download behind one dashboard series: the records its rows add up, under the same query with every
     exclusion stated (records leave nothing out unless asked, so the file matches the totals shown), with the key columns. Up to
     `max_rows` records the files are made while the person waits; more are made in the background (`jobs.request`, from `query`)."""
     q = result.query.but(by=())
@@ -442,7 +442,7 @@ def page(rq: RecordQuery, *, limit: int = 100, offset: int = 0) -> Page:
 
 
 def stamp(p: Page) -> dict:
-    """What a records file records about where its rows came from (BR-07.2), and which PAs it holds (BR-08.3)."""
+    """What a records file records about where its rows came from, and which PAs it holds."""
     s = p.result.stamp()
     for k in ("metrics", "by"):
         s.pop(k, None)
@@ -460,7 +460,7 @@ def stamp(p: Page) -> dict:
 
 def _pas(p: Page) -> dict[str, int]:
     """How many of the records each PA holds (the dashboards' PA: the credited PA, else the filer), so a file says which PAs it
-    combines (BR-08.3)."""
+    combines."""
     if not p.result.files or not p.count:
         return {}
     return {str(r["pa"]): r["_rows"] for r in dq.run(p.result.query.but(by=("pa",))).rows}

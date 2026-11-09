@@ -1,4 +1,4 @@
-"""The open data API (/api/v1/data, BR-11.5): public, the dashboards' and record downloads' own queries, public fields only, paged,
+"""The open data API (/api/v1/data): public, the dashboards' and record downloads' own queries, public fields only, paged,
 stamped, throttled like every API call."""
 
 import json

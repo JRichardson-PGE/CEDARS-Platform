@@ -1,4 +1,4 @@
-"""Program field guidance (BR-13.7) and placeholder implementation plans (BR-13.6): every program field has its definition (the data
+"""Program field guidance and placeholder implementation plans: every program field has its definition (the data
 dictionary's where it has the field), how to fill it in and its valid values, on /programs/fields/, under each field of the change
 form and from each label on the program page; an implementation plan's version can be filed as a placeholder, which the program page
 shows until a full plan replaces it."""
@@ -201,7 +201,7 @@ def test_the_program_page_links_each_field_to_its_guidance(client, hvac):
     assert 'href="/programs/fields/">Program fields</a>' in html
 
 
-# --- placeholder implementation plans (BR-13.6)
+# --- placeholder implementation plans
 
 
 def _plan_type():

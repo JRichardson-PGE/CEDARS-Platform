@@ -19,7 +19,7 @@ class GrantForm(forms.Form):
 
 
 class TemplateGrantForm(forms.Form):
-    """Grant a member every permission of a role template at once (BR-01.3)."""
+    """Grant a member every permission of a role template at once."""
 
     email = forms.EmailField(label="Their email address", help_text="They need an account first.")
     template = forms.ChoiceField(label="Role template")

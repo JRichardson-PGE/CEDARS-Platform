@@ -1,4 +1,4 @@
-"""The platform's own data in the data dictionary (BR-08.1, BR-08.2): every table the platform keeps besides the engine's files.
+"""The platform's own data in the data dictionary: every table the platform keeps besides the engine's files.
 
 ReCET's catalog (data/dictionary/recet-<version>.json) holds the fields a CET job takes in and the engine calculates. The platform keeps
 more: the program registry, the filing calendar, filings and their versions, budget lines and results, fund shifts, claims, monthly
@@ -422,7 +422,7 @@ def _help(f) -> str:
 
 
 def _program_guide(model, f):
-    """The program fields guide's entry for a program record's column (registry/program_fields.yaml, BR-13.7): its definition and valid
+    """The program fields guide's entry for a program record's column (registry/program_fields.yaml): its definition and valid
     values, so the dictionary and the guide say the same."""
     if label(model) not in ("registry.Program", "registry.ProgramVersion"):
         return None

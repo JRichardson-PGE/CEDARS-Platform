@@ -2,7 +2,7 @@
 
 Everyone signed in sees the libraries and the eTRM sync history (as in CEDARS). Load shapes are uploaded under an organization membership
 with impact_profiles.submit, and only for packages whose PA lead is that organization: the PA-lead match is a rule on the package, not a
-separate account per PA (one identity with a membership per PA, BR-01.1). A PA's members see its upload history. Custom profiles belong
+separate account per PA (one identity with a membership per PA). A PA's members see its upload history. Custom profiles belong
 to the PA that uploaded them. The CPUC's system administrators, or its members with impact_profiles.admin, run the sync and write the
 library."""
 

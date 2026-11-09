@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Refresh(models.Model):
-    """One sandbox refresh (BR-11.2): a bundle of production's published, non-PII data loaded into the sandbox. What each table gained,
+    """One sandbox refresh: a bundle of production's published, non-PII data loaded into the sandbox. What each table gained,
     matched or left out is in `counts` and `skipped`; every row it added is in CopiedRecord."""
 
     class Status(models.TextChoices):

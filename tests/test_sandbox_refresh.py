@@ -1,4 +1,4 @@
-"""Sandbox refresh (BR-11.2): production's published, non-PII data written to a bundle and added to the sandbox. Production and the
+"""Sandbox refresh: production's published, non-PII data written to a bundle and added to the sandbox. Production and the
 sandbox are one test database here: production's rows are made inside a savepoint, the bundle written, and the savepoint rolled back,
 which leaves the database as a sandbox that has never seen them."""
 

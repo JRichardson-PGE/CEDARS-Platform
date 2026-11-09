@@ -134,7 +134,7 @@ def _check_choices():
 
 @login_required
 def check(request):
-    """The pre-upload checker (BR-03.4): the rule-set step of a module's validation, run on a file before it is filed, against the
+    """The pre-upload checker: the rule-set step of a module's validation, run on a file before it is filed, against the
     version in force or any other published one (rules.precheck: the same code the upload runs). Nothing uploaded is kept."""
     choices = _check_choices()
     ctx = {"choices": choices, "max_mb": uploads.max_mb()}
@@ -186,7 +186,7 @@ def check(request):
 @login_required
 def rule_set_json(request, pk):
     """A published rule set as JSON with how each rule is checked: the downloadable form of the pre-upload checker, for systems that
-    check files without CEDARS' code (BR-03.4). Signed in, as the rule library is."""
+    check files without CEDARS' code. Signed in, as the rule library is."""
     rs = get_object_or_404(RuleSet, pk=pk, status=RuleSet.Status.PUBLISHED)
     body = json.dumps(precheck.rule_set_json(rs, request.build_absolute_uri("/").rstrip("/")), indent=1, ensure_ascii=False)
     resp = HttpResponse(body, content_type="application/json; charset=utf-8")
@@ -204,7 +204,7 @@ def rule(request, pk, rule_id):
     return render(request, "rules/rule.html", {"r": r, "sysadmin": sysadmin, "replaced": replaced})
 
 
-# --- administrators change the rules as new versions (BR-12.6)
+# --- administrators change the rules as new versions
 
 
 def _admin(request):

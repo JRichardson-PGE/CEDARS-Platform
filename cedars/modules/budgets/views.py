@@ -522,7 +522,7 @@ def published_file(request, pk, which):
 
 @login_required
 def compare(request):
-    """Any two versions the user can read, by program (BR-04.2)."""
+    """Any two versions the user can read, by program."""
     choices = list(service.readable_versions(request.user)[:200])
     by_pk = {str(v.pk): v for v in choices}
     a, b = by_pk.get(request.GET.get("a", "")), by_pk.get(request.GET.get("b", ""))
@@ -558,11 +558,11 @@ def _version_label(v: SubmissionVersion) -> str:
     return f"{v.submission.organisation.code} {service.label(v.submission.deadline)}, version {v.number} ({v.get_status_display().lower()})"
 
 
-# --- change letters (BR-09.3)
+# --- change letters
 
 
 def changes(request):
-    """Every published budget correction's change letter, newest first, by PA and cycle. Public: the record of corrections (BR-09.3)."""
+    """Every published budget correction's change letter, newest first, by PA and cycle. Public: the record of corrections."""
     every = service.change_letters()
     out = every
     org = access.by_code(request.GET.get("org", ""), follow=False)
