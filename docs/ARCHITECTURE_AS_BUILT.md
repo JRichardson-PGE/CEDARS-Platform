@@ -901,7 +901,8 @@ An `AllocationVersion` holds, per year and statewide PrgID (`AllocationEntry`), 
 decimals; weighted factors are computed from PercentElectric and rounded so they too sum to 1.0000), checks and confirms it; the other
 managing organizations are notified. A run that allocates carries the whole factor table of the version it pins as an input, and the
 receipt names its SHA-256. A filing setup or claim year may pin a version; otherwise the most recent confirmed version with factors for
-the year is used.
+the year is used. A version's page (`/allocations/<pk>/`) shows its factors as a table, filtered by year and program on the server,
+beside the same values as a CSV.
 
 ### 7.3 Statewide claims are filed first
 

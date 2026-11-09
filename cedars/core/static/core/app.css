@@ -769,3 +769,9 @@ table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom
 table.filing-status td { min-width: 7.5rem; }
 table.filing-status td a { text-decoration: none; }
 table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
+table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
+table.list.factors .pa-first { border-left: 1px solid var(--line); }
+table.list.factors tbody td.pa-first[colspan] { padding: .55rem .8rem; text-align: right; }
+table.list.factors tbody th { min-width: 13rem; }
+table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padding-right: .5rem; text-align: right; }

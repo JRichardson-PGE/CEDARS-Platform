@@ -28,6 +28,47 @@ gas factors are equal, and every weighted factor matches its electric and gas fa
 &times; gas, rounded; where the rounded values did not add up to 1.0000, the PA whose value was closest to rounding the other way was moved
 by 0.0001 first. Versions loaded before 6 November 2026 kept the weighted factors their file gave, and were not held to these totals on upload.</p>
 
+<h2 id="factors-h">Factors</h2>
+<p>Each statewide program's share of its budget and savings for each funding PA, by program year: the electric factor allocates
+electric savings, the gas factor gas savings, and the weighted factor (PercentElectric &times; electric + (1 &minus; PercentElectric)
+&times; gas) the program's costs. The download above has the same values.</p>
+<form method="get" action="#factors-h" class="filters" aria-label="Filter the factors">
+  <div><label for="f-year">Program year</label>
+  <select id="f-year" name="year"><option value="">Every year</option>{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
+  <div><label for="f-q">Program ID or name contains</label>
+  <input id="f-q" name="q" type="search" value="{{ query }}" maxlength="100"></div>
+  <button type="submit">Apply</button>
+</form>
+<p>{% if filtered %}Showing {{ rows|length }} of {{ count }} program-years. <a href="{% url 'administration:allocation' v.pk %}#factors-h">Show them all</a>{% else %}All {{ count }} program-years.{% endif %}</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="factors-h">
+<table class="list factors">
+  <caption class="sr-only">Statewide allocation factors by program year and program, for each funding PA</caption>
+  <colgroup span="3"></colgroup>{% for pa in pas %}<colgroup span="3"></colgroup>{% endfor %}
+  <thead>
+    <tr>
+      <th scope="col" rowspan="2">Year</th>
+      <th scope="col" rowspan="2">Program</th>
+      <th scope="col" rowspan="2" class="num">Percent<br>electric</th>
+      {% for pa in pas %}<th scope="colgroup" colspan="3" class="pa">{{ pa }}</th>{% endfor %}
+    </tr>
+    <tr>
+      {% for pa in pas %}<th scope="col" class="num pa-first"><span class="sr-only">{{ pa }} </span>Electric</th><th scope="col" class="num"><span class="sr-only">{{ pa }} </span>Gas</th><th scope="col" class="num"><span class="sr-only">{{ pa }} </span>Weighted</th>{% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td>{{ r.entry.year }}</td>
+    <th scope="row">{{ r.entry.program_id }}{% if r.entry.program_name %}<br><span class="small">{{ r.entry.program_name }}</span>{% endif %}</th>
+    <td class="num">{{ r.entry.percent_electric }}</td>
+    {% for s in r.shares %}{% if s %}<td class="num pa-first">{{ s.electric }}</td><td class="num">{{ s.gas }}</td><td class="num">{{ s.weighted }}</td>{% else %}<td class="num pa-first" colspan="3">Not given</td>{% endif %}{% endfor %}
+  </tr>
+  {% empty %}<tr><td colspan="{{ ncols }}">{% if filtered %}No program-years match.{% else %}This version has no factors.{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
 {% if v.status == "draft" %}
 {% if can_manage %}
 <form method="post" class="actions">{% csrf_token %}

@@ -439,3 +439,34 @@ def test_allocation_pages(signed_in, cpuc_admin):
     v.refresh_from_db()
     assert v.status == "confirmed"
     assert c.get(f"/allocations/{v.pk}/factors.csv").content.decode().startswith("Year,ProgramID")
+
+
+def test_allocation_page_shows_the_factors(signed_in, cpuc_admin, client):
+    """The factors are on the page, not only in the CSV (Jake, 2026-11-09), for signed-out visitors too, and filter by year and program."""
+    import re
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    c = signed_in(cpuc_admin)
+    c.post("/allocations/", {"file": SimpleUploadedFile("f.csv", _factors()), "label": "2028 TUAL", "purpose": "filing", "cycle": 2028})
+    v = AllocationVersion.objects.get(label="2028 TUAL")
+    page = c.get(f"/allocations/{v.pk}/").content.decode()
+    body = page.split('class="list factors"')[1].split("</table>")[0]
+    assert body.count("<tr>") == 2 + 304 and "All 304 program-years." in page
+    # The 2021 SW_WET_Work row as filed: PercentElectric, then each PA's electric, gas and weighted factors in the file's PA order.
+    row = next(r for r in body.split("<tr>") if "SW_WET_Work" in r and "<td>2021</td>" in r)
+    cells = re.findall(r'<td class="num[^"]*">([^<]+)</td>', row)
+    assert cells == ["0.8000", "0.4440", "0.5040", "0.4560", "0.1550", "0.0780", "0.1396", "0.4010", "0.0000", "0.3208"] + [
+        "0.0000",
+        "0.4180",
+        "0.0836",
+    ]
+    # Every factor heading names its PA for a screen reader.
+    assert '<span class="sr-only">SCG </span>Weighted' in body
+    year = c.get(f"/allocations/{v.pk}/", {"year": 2021}).content.decode()
+    assert "Showing 16 of 304 program-years." in year
+    found = c.get(f"/allocations/{v.pk}/", {"q": "wet_work", "year": "2021"}).content.decode()
+    assert "Showing 1 of 304 program-years." in found
+    assert "No program-years match." in c.get(f"/allocations/{v.pk}/", {"q": "nothing-like-this"}).content.decode()
+    c.post(f"/allocations/{v.pk}/", {"action": "confirm"})
+    assert "SW_WET_Work" in client.get(f"/allocations/{v.pk}/").content.decode()
