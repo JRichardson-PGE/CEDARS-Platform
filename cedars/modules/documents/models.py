@@ -9,7 +9,7 @@ from django.utils import timezone
 
 
 class Collection(models.TextChoices):
-    """The library's five collections (BR-15.1): one record type, so search, versions, permanent links and downloads work alike."""
+    """The library's five collections: one record type, so search, versions, permanent links and downloads work alike."""
 
     PA = "pa", "PA documents"
     GUIDANCE = "guidance", "CPUC staff guidance"
@@ -19,7 +19,7 @@ class Collection(models.TextChoices):
 
 
 class Stage(models.TextChoices):
-    """The stages of an EM&V deliverable's revision workflow (BR-15.11), in order. The comment stages ("workplan comments", "study-result
+    """The stages of an EM&V deliverable's revision workflow, in order. The comment stages ("workplan comments", "study-result
     comments") are the comment windows of the draft versions, not versions of their own."""
 
     DRAFT_WORKPLAN = "draft_workplan", "Draft workplan"
@@ -31,7 +31,7 @@ class Stage(models.TextChoices):
 
 
 class AttributeList(models.Model):
-    """A controlled list of document attributes kept by CPUC ED (BR-15.3): the PDA's eight categories (sector, stage of work, study type,
+    """A controlled list of document attributes kept by CPUC ED: the PDA's eight categories (sector, stage of work, study type,
     technology type, portfolio cycle, deliverable type, study lead, evaluation firm) and each collection's document types. Data with an
     admin page, not code; options are retired, never deleted, so documents filed with them keep them."""
 
@@ -77,9 +77,9 @@ class AttributeOption(models.Model):
 
 
 class Document(models.Model):
-    """One document of any collection, at its permanent link /documents/<id>/ (BR-15.1, 15.2). Its files live in numbered versions; the
+    """One document of any collection, at its permanent link /documents/<id>/. Its files live in numbered versions; the
     details here (title, summary, PAs, programs, years, attributes) are changed through the service with an audit event. Visible to the
-    public once any version is published; until then only to its owner, the PAs named on it and CPUC staff (BR-15.9)."""
+    public once any version is published; until then only to its owner, the PAs named on it and CPUC staff."""
 
     collection = models.CharField(max_length=10, choices=Collection.choices)
     document_type = models.ForeignKey(AttributeOption, on_delete=models.PROTECT, related_name="typed_documents")
@@ -108,14 +108,14 @@ class Document(models.Model):
     )
     task = models.ForeignKey("Task", null=True, blank=True, on_delete=models.PROTECT, related_name="documents")
     deliverable = models.BooleanField(
-        default=False, help_text="An EM&V deliverable: its versions go through the revision stages (BR-15.11) on this one record"
+        default=False, help_text="An EM&V deliverable: its versions go through the revision stages on this one record"
     )
     published_at = models.DateTimeField(null=True, blank=True, help_text="When its first version was published")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     created_at = models.DateTimeField(default=timezone.now, help_text="When it was filed (a migrated document: its original date)")
     updated_at = models.DateTimeField(auto_now=True)
     pda_id = models.PositiveIntegerField(
-        "PDA document id", null=True, blank=True, unique=True, help_text="The PDA's deliverableID, which its old links carry (BR-15.10)"
+        "PDA document id", null=True, blank=True, unique=True, help_text="The PDA's deliverableID, which its old links carry"
     )
     calmac_id = models.CharField("CALMAC ID", max_length=50, blank=True, help_text="The report's id on calmac.org")
     cedars_key = models.CharField(
@@ -157,8 +157,8 @@ class Document(models.Model):
 
 
 class DocumentVersion(models.Model):
-    """A numbered set of files for a document. Replacing a file adds a version; earlier ones stay listed and downloadable (BR-15.1,
-    BR-09.6). A version is published once and never changes after (the database refuses: migration 0003)."""
+    """A numbered set of files for a document. Replacing a file adds a version; earlier ones stay listed and downloadable. A
+    version is published once and never changes after (the database refuses: migration 0003)."""
 
     document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="versions")
     number = models.PositiveSmallIntegerField()
@@ -170,7 +170,7 @@ class DocumentVersion(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     published_at = models.DateTimeField(null=True, blank=True)
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
-    stage = models.CharField(max_length=20, choices=Stage.choices, blank=True, help_text="A deliverable's revision stage (BR-15.11)")
+    stage = models.CharField(max_length=20, choices=Stage.choices, blank=True, help_text="A deliverable's revision stage")
     stage_number = models.PositiveSmallIntegerField(
         null=True, blank=True, help_text="Draft 1, 2 ... of a draft stage; revision 1, 2 ... of a final; a PA's response 1, 2 ..."
     )
@@ -184,7 +184,7 @@ class DocumentVersion(models.Model):
     )
     placeholder = models.BooleanField(
         default=False,
-        help_text="An implementation plan filed as a placeholder: the full plan is still to come, as a later version (BR-13.6)",
+        help_text="An implementation plan filed as a placeholder: the full plan is still to come, as a later version",
     )
 
     class Meta:
@@ -221,7 +221,7 @@ class DocumentVersion(models.Model):
 
 
 class CommentPeriod(models.Model):
-    """The window in which registered users comment on a published version (BR-15.4; the PDA's Comment Start and Comment End). Set by
+    """The window in which registered users comment on a published version (the PDA's Comment Start and Comment End). Set by
     whoever posts the version and changed only with a reason (an extension is common), so it lives beside the version, which never
     changes once published."""
 
@@ -240,7 +240,7 @@ class CommentPeriod(models.Model):
 
 
 class ResponseRequest(models.Model):
-    """CPUC ED's request that a PA respond to a deliverable's recommendations by a due date (BR-15.11); the PA's response is a version of
+    """CPUC ED's request that a PA respond to a deliverable's recommendations by a due date; the PA's response is a version of
     the deliverable at the stage PA response."""
 
     document = models.ForeignKey(Document, on_delete=models.PROTECT, related_name="response_requests")
@@ -258,7 +258,7 @@ class ResponseRequest(models.Model):
 
 
 class Comment(models.Model):
-    """A comment or question on a published version, posted in its comment period by a registered user (BR-15.4). Public, dated and
+    """A comment or question on a published version, posted in its comment period by a registered user. Public, dated and
     attributed to its author and organization. Never edited; the author may withdraw it until it is answered (it then stops being shown
     but is kept, with its audit event)."""
 
@@ -303,7 +303,7 @@ class Comment(models.Model):
 
 
 class CommentResponse(models.Model):
-    """A response to a comment by CPUC ED, a PA on the document or the study's evaluator (BR-15.4). Public and never edited."""
+    """A response to a comment by CPUC ED, a PA on the document or the study's evaluator. Public and never edited."""
 
     comment = models.ForeignKey(Comment, on_delete=models.PROTECT, related_name="responses")
     text = models.TextField(max_length=2000)
@@ -382,7 +382,7 @@ class WorkOrder(models.Model):
 
 class LegacyLink(models.Model):
     """An address of the old CEDARS site (its Reports & Documents, DEER Resources and program document links) or of the 2006-2013 EM&V
-    site (kept under /edw) and the migrated document or file it now leads to (BR-15.10). The path is kept decoded, as the old sites'
+    site (kept under /edw) and the migrated document or file it now leads to. The path is kept decoded, as the old sites'
     links resolve, with no host."""
 
     path = models.CharField(max_length=500, unique=True)
@@ -410,10 +410,10 @@ class Task(models.Model):
 
 
 class Study(models.Model):
-    """One EM&V study, as the Project Status Report keeps it (BR-15.6): its study ID (year, sector, number) never changes; status,
+    """One EM&V study, as the Project Status Report keeps it: its study ID (year, sector, number) never changes; status,
     type, group, lead and sectors come from value lists CPUC ED keeps, replacing the PSR's free text. Changes go through the service
     with an audit event, which is its status and budget history. Public except the contacts. The study manager's organization and
-    CPUC ED update it (BR-15.9)."""
+    CPUC ED update it."""
 
     number = models.PositiveIntegerField(unique=True, help_text="The PSR project number, continued for new studies")
     study_id = models.CharField("study ID", max_length=80, unique=True, help_text="<year>_<sector>_<number>, as the PSR gives it")
@@ -443,7 +443,7 @@ class Study(models.Model):
     completion_date = models.DateField(null=True, blank=True)
     calmac_id = models.CharField("CALMAC ID", max_length=40, blank=True)
     notes = models.TextField(blank=True, max_length=500)
-    # contacts: not public (BR-15.6)
+    # contacts: not public
     ed_program_manager = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="ED's program manager"
     )
@@ -472,7 +472,7 @@ class Study(models.Model):
 
 
 class StudyProgram(models.Model):
-    """A program a study evaluates, in whole or in part, and the program years it covers (BR-15.7), so the program's page lists the
+    """A program a study evaluates, in whole or in part, and the program years it covers, so the program's page lists the
     study."""
 
     study = models.ForeignKey(Study, on_delete=models.CASCADE, related_name="coverage")
@@ -498,7 +498,7 @@ class StudyProgram(models.Model):
 
 
 class FileText(models.Model):
-    """The words of a document file, read when it is stored, for searching by text (BR-15.2). Kept beside the file, which never changes;
+    """The words of a document file, read when it is stored, for searching by text. Kept beside the file, which never changes;
     `vector` is PostgreSQL's full-text index of it."""
 
     file = models.OneToOneField(DocumentFile, on_delete=models.CASCADE, related_name="text")
@@ -515,7 +515,7 @@ class FileText(models.Model):
 
 
 class DocumentSubscription(models.Model):
-    """A user's wish to hear when a matching document is published, a comment period opens or a study's status changes (BR-15.5):
+    """A user's wish to hear when a matching document is published, a comment period opens or a study's status changes:
     for one collection, one attribute value, one work order or one study. Delivered through the notification service."""
 
     class Channel(models.TextChoices):
@@ -562,7 +562,7 @@ class DocumentSubscription(models.Model):
 
 
 class KeyDate(models.Model):
-    """A key date or event CPUC ED posts on the library's home page (BR-15.3): a workshop, a comment deadline, a report release."""
+    """A key date or event CPUC ED posts on the library's home page: a workshop, a comment deadline, a report release."""
 
     on = models.DateField("date")
     title = models.CharField(max_length=200)

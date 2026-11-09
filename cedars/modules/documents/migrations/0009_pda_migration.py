@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
             name="pda_id",
             field=models.PositiveIntegerField(
                 blank=True,
-                help_text="The PDA's deliverableID, which its old links carry (BR-15.10)",
+                help_text="The PDA's deliverableID, which its old links carry",
                 null=True,
                 unique=True,
                 verbose_name="PDA document id",

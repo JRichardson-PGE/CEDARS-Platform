@@ -1,4 +1,4 @@
-"""The register of CPUC-mandated data and calculation changes (BR-12.7). Public: /mandates/ (every published entry, filterable,
+"""The register of CPUC-mandated data and calculation changes. Public: /mandates/ (every published entry, filterable,
 also as CSV) and /mandates/<id>/ (an entry, its links and its history). CPUC system administrators: /mandates/manage/ (drafts and a new
 entry) and /mandates/manage/<id>/ (change, link, publish, discard a draft; change a published entry with a reason)."""
 

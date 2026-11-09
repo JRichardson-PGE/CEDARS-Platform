@@ -10,7 +10,7 @@ class DeadlineQuerySet(models.QuerySet):
 
 
 class Deadline(models.Model):
-    """One entry in the filing calendar: what a module expects, for which period or cycle, and when it is due (BR-09.4). A CPUC system
+    """One entry in the filing calendar: what a module expects, for which period or cycle, and when it is due. A CPUC system
     administrator changes its dates and notes with a reason, and retires one no organization has started filing for (it stays, with
     its history, and can be restored); what is due and its period never change (submissions.service)."""
 
@@ -56,7 +56,7 @@ class Deadline(models.Model):
 
 
 class WorkflowPolicy(models.Model):
-    """A module's workflow settings, changed without a release. reopen_after_due is the correction policy (BRD D1)."""
+    """A module's workflow settings, changed without a release. reopen_after_due is the correction policy."""
 
     class Reopen(models.TextChoices):
         APPROVAL = "approval", "Allowed with an approver's approval"
@@ -152,7 +152,7 @@ class SubmissionVersion(models.Model):
 
 
 class ReopenRequest(models.Model):
-    """A request to correct a submission after its due date: only this organization and deadline, with a reason (BR-05.2, BR-09.5)."""
+    """A request to correct a submission after its due date: only this organization and deadline, with a reason."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -177,7 +177,7 @@ class ReopenRequest(models.Model):
 
 
 class Delegation(models.Model):
-    """An approver's delegate for a module, for a period (BR-09.5: approvals with delegates)."""
+    """An approver's delegate for a module, for a period (approvals with delegates)."""
 
     module = models.CharField(max_length=40)
     approver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -194,7 +194,7 @@ class Delegation(models.Model):
 
 
 class Comment(models.Model):
-    """A comment on a filing version (BR-09.5), between the filing organization and CPUC staff: never edited (the database refuses,
+    """A comment on a filing version, between the filing organization and CPUC staff: never edited (the database refuses,
     migration 0004); a correction is another comment. Not public, even on a published version. Removed only with a draft version the
     retention policy removes."""
 

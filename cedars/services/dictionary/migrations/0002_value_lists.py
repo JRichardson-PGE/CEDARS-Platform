@@ -5,7 +5,7 @@ import django.db.models.functions.text
 from django.conf import settings
 from django.db import migrations, models
 
-# A published version and its codes never change, and are never deleted (BR-12.6: a change is a new version; retired codes stay).
+# A published version and its codes never change, and are never deleted (a change is a new version; retired codes stay).
 GUARDS = """
 CREATE FUNCTION dictionary_list_version_guard() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN

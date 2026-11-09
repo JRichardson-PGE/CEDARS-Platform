@@ -1,4 +1,4 @@
-"""/api/v1/data: the open data API (BR-11.5, decision J) over the published snapshots, for anyone, with no account.
+"""/api/v1/data: the open data API (decision J) over the published snapshots, for anyone, with no account.
 
 It serves what the dashboards and record downloads serve, through the same code, so an API answer equals the page and the file for the
 same query: the metric catalog (`metrics`), the dimensions, filters and exclusions the dashboards use (`dimensions`), aggregated queries
@@ -6,7 +6,7 @@ same query: the metric catalog (`metrics`), the dimensions, filters and exclusio
 downloads' query and column choice). Every answer that carries data is stamped as the downloads are (release, as-of time, snapshots
 and filings read, filters, exclusions, dictionary version), so a number can be traced to exactly what it was read from.
 
-Public fields only (BR-08.3, BR-11.5): a column, metric, dimension or exclusion is served only when every canonical field it reads is
+Public fields only: a column, metric, dimension or exclusion is served only when every canonical field it reads is
 marked public in the data dictionary in force (`public_fields`). A field the dictionary does not have (a `Legacy_` column, a column a
 run added that the dictionary has not caught up with) is not marked public, so it is never served; nor is one marked restricted or
 confidential. The three columns the platform adds to every record (FiledBy, Filing, CountedPA) say where a record came from and are

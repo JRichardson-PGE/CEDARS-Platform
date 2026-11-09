@@ -49,7 +49,7 @@ def test_templates_follow_the_catalog(catalog):
     assert wb["Fields"]["A2"].value == "PrgID"
     from .test_document_accessibility import assert_accessible
 
-    assert_accessible(service.template_xlsx("calculations", "Measure"))  # BR-10.3
+    assert_accessible(service.template_xlsx("calculations", "Measure"))  # accessible workbook
     schema = service.json_schema("calculations", "Measure")
     assert "AC_Climate_Zone" in schema["properties"] and "NumUnits" in schema["required"]
 

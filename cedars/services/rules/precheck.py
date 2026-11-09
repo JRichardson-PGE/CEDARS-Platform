@@ -1,4 +1,4 @@
-"""The pre-upload checker (BR-03.4): the rule-set step of a module's validation, run on one table before it is filed, by the page
+"""The pre-upload checker: the rule-set step of a module's validation, run on one table before it is filed, by the page
 (/rules/check/), the API (POST /api/v1/rules/check), the `check_file` command and, for those who cannot send a file, as a download
 (the rule set as JSON with the check specification, `rule_set_json`).
 
@@ -238,7 +238,7 @@ def rule_set_json(rs: RuleSet, base_url: str = "") -> dict:
 
 
 def value_lists_for(rules) -> dict[str, list[dict]]:
-    """The codes of every value list the rules read, as the engine holds them with the lists in force here (BR-12.6): {list: [{code,
+    """The codes of every value list the rules read, as the engine holds them with the lists in force here: {list: [{code,
     description, start_year, end_year}]}. PrgID (the program registry) and lists the engine does not ship are left out."""
     try:
         from recet import editor, filing_rules

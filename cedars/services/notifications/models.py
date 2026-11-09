@@ -4,7 +4,7 @@ from django.db.models import Q
 
 
 class Subscription(models.Model):
-    """A user's wish to hear about one kind of event, optionally for one module or organization only (BR-09.2, BR-12.1)."""
+    """A user's wish to hear about one kind of event, optionally for one module or organization only."""
 
     class Channel(models.TextChoices):
         IN_APP = "in_app", "On the notifications page"
@@ -45,7 +45,7 @@ def all_program_events() -> list[str]:
 
 
 class Preference(models.Model):
-    """Per-user settings beside the subscriptions: messages about the user's own runs and access, and what the user follows (BR-09.2).
+    """Per-user settings beside the subscriptions: messages about the user's own runs and access, and what the user follows.
 
     The PAs followed (pa_scope: every PA, the ones chosen, or none) narrow each subscribed event that concerns a PA. The programs
     followed add to the subscriptions: whatever the PA choice, the user hears of the program_events that concern a program they follow

@@ -195,7 +195,7 @@ def current_cycle(today: date | None = None) -> FilingCycle | None:
 
 
 def default_cycle(today: date | None = None) -> FilingCycle | None:
-    """The years a page opens on (BR-07.7): the current cycle, unless the forecast release holds no filing for it, when it is the newest
+    """The years a page opens on: the current cycle, unless the forecast release holds no filing for it, when it is the newest
     cycle the forecast release does hold (a demo or a new cycle's first months would otherwise open on years with no forecast)."""
     cycle = current_cycle(today) if today else current_cycle()
     release = snapshots.current_release("forecast")
@@ -327,7 +327,7 @@ class Comparison:
         return f"{SERIES[s][0]} (as of {timezone.localtime(as_of):%Y-%m-%d %H:%M %Z})" if as_of else f"{SERIES[s][0]} (nothing published)"
 
     def downloads(self) -> list[dict]:
-        """The rows as shown, every series in one file (BR-07.2; Jake, 2026-11-02)."""
+        """The rows as shown, every series in one file (Jake, 2026-11-02)."""
         from . import downloads
 
         by = (self.by or self.view.by,)

@@ -1,6 +1,6 @@
 """The value lists the library starts with. The PDA's eight categories with all 82 options as its public /api/categories gave them on
 2026-10-30 (catID / catOptID kept for the migration of its documents), and the document types of the other collections: CEDARS' eight
-Reports & Documents report types, the DEER Resources sections, and the program files BR-15.1 names. CPUC ED keeps them from here on the
+Reports & Documents report types, the DEER Resources sections, and the program files the library holds. CPUC ED keeps them from here on the
 value-list page; nothing here is fixed in code."""
 
 from django.db import migrations

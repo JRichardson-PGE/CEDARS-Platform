@@ -43,7 +43,7 @@ locals {
       memory  = 1024
       disk    = 21
     }
-    # Record downloads too large to make in a request (BR-07.2): written to scratch disk, then stored in the results bucket.
+    # Record downloads too large to make in a request: written to scratch disk, then stored in the results bucket.
     data-downloads = {
       command = ["python", "manage.py", "run_data_downloads", "--loop", "--sleep", "10"]
       cpu     = 512
@@ -60,12 +60,12 @@ locals {
       close-recertifications = { command = ["python", "manage.py", "close_recertifications"], at = "cron(30 2 * * ? *)", task = "web" }
       documents-read-text    = { command = ["python", "manage.py", "documents_read_text"], at = "cron(45 3 * * ? *)", task = "jobs" }
     },
-    # BR-11.3: nightly, before the working day, as CEDARS' Load Shape Tool pulls it. Only once the CPUC holds eTRM's read-only
+    # Nightly, before the working day, as CEDARS' Load Shape Tool pulls it. Only once the CPUC holds eTRM's read-only
     # database URL (the ETRM_DATABASE_URL key of the app secret); a sync with no source would fail every night.
     var.etrm_database ? {
       sync-etrm = { command = ["python", "manage.py", "sync_etrm"], at = "cron(0 1 * * ? *)", task = "jobs" }
     } : {},
-    # BR-11.2: off unless both the bundle's place and a schedule are set. Production (or staging) writes the bundle of its published,
+    # Off unless both the bundle's place and a schedule are set. Production (or staging) writes the bundle of its published,
     # non-PII data; the sandbox loads it. Both run in the jobs task, which has no PII vault URL, so the export cannot reach the vault.
     local.sandbox_refresh ? {
       (var.environment == "sandbox" ? "sandbox-refresh" : "sandbox-bundle") = {

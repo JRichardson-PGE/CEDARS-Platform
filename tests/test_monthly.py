@@ -158,7 +158,7 @@ def test_spend_is_read_from_the_bca_inputs(filer, year, pge, programs):
 
 
 def test_paid_and_committed_incentives_are_separate_figures(client, filer, year, pge, programs):
-    """BR-14.6: paid incentives (the measures' rebates and incentives, part of spend) and committed incentives (Commitments, to be paid
+    """Paid incentives (the measures' rebates and incentives, part of spend) and committed incentives (Commitments, to be paid
     in the future) are each shown on their own, labeled so neither reads as a share of the other, and never set against each other."""
     v = service.upload(filer, month(1), pge, report(), "january.zip")
     sign_in(client, filer)
@@ -278,7 +278,7 @@ def test_unconfirm_before_the_due_date_and_reopen_after(filer, year, pge, progra
     v = priced(filer, pge, 1, report(measures=[], costs=[]))
     v = service.confirm(filer, v)
     v = submissions.unconfirm(filer, v, "January's lighting costs were wrong")
-    assert v.status == SubmissionVersion.Status.VALIDATED and v.number == 1  # BR-14.3: the same version, back to validated
+    assert v.status == SubmissionVersion.Status.VALIDATED and v.number == 1  # The same version, back to validated
     v = service.confirm(filer, v)
     submissions.move_deadline(cpuc_admin, month(1), timezone.now() - timedelta(minutes=1), "closed")
     with pytest.raises(AccessDenied, match="reopening"):

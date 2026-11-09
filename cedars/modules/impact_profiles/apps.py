@@ -12,4 +12,4 @@ class ImpactProfilesConfig(AppConfig):
     def ready(self):
         from . import health
 
-        health.register()  # stalled and failed jobs and the eTRM sync on the administrators' health page (BR-12.2, BR-11.3)
+        health.register()  # stalled and failed jobs and the eTRM sync on the administrators' health page

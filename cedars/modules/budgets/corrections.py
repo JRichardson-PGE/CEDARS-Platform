@@ -1,4 +1,4 @@
-"""The Budgets module's record editor (BR-02.4), for the submissions service's corrections: a version's records are its job's two
+"""The Budgets module's record editor, for the submissions service's corrections: a version's records are its job's two
 tables, Measure and ProgramCost, whole (a budget filing has no earlier records to carry in: each version is the whole filing), with the
 file's own columns. A correction is kept as the version's new job and checked again (service.correct_records): the module's checks on
 every record, the budget filing rules on the records it changed."""

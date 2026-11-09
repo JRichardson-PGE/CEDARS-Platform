@@ -304,7 +304,7 @@ def statewide_csv(request, year):
 @login_required
 def period(request, pk):
     """One confirmation for one organization: its versions, what its upload changes in the year to date, and the next step (upload,
-    fix, price, confirm, un-confirm, ask to reopen); the earlier confirmations' compiled inputs (BR-02.5)."""
+    fix, price, confirm, un-confirm, ask to reopen); the earlier confirmations' compiled inputs."""
     deadline = _deadline(pk)
     org = _organisation(request, deadline)
     sub = Submission.objects.filter(deadline=deadline, organisation=org).first() if org else None
@@ -616,7 +616,7 @@ def version(request, pk):
 
 
 def _true_ups(v, t) -> dict | None:
-    """The version's true-ups priced against their parents' profiles (BR-05.6): each one's pinned parent profile and, once priced, the
+    """The version's true-ups priced against their parents' profiles: each one's pinned parent profile and, once priced, the
     incremental benefits by program."""
     entries = (v.findings or {}).get("true_ups") or []
     if not entries:
@@ -691,11 +691,11 @@ def published_file(request, pk, which):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
-# --- corrections: the change log (BR-09.3)
+# --- corrections: the change log
 
 
 def changes(request):
-    """Every published correction's change letter, newest first, by PA and claim year. Public: the record of corrections (BR-09.3)."""
+    """Every published correction's change letter, newest first, by PA and claim year. Public: the record of corrections."""
     letters = service.change_letters()
     org = access.by_code(request.GET.get("org", ""), follow=False)
     year = request.GET.get("year", "")
@@ -734,7 +734,7 @@ def _difference(kind: str, before, after) -> str:
 
 
 def change_letter(request, pk):
-    """One correction's change letter: when it was published, why, and what it changed against the version it replaces. Public (BR-09.3)."""
+    """One correction's change letter: when it was published, why, and what it changed against the version it replaces. Public."""
     letter = get_object_or_404(service.change_letters(), pk=pk)
     c = letter.changes or {}
     v = letter.version
@@ -783,7 +783,7 @@ def change_letter(request, pk):
     )
 
 
-# --- links between claims (BR-05.3, 05.5, 05.7, 05.11)
+# --- links between claims
 
 LINK_KINDS = [
     ("claim", "ClaimID: its NMEC chain"),
@@ -794,7 +794,7 @@ LINK_KINDS = [
 
 def links(request):
     """Look up how confirmed claims link up: a NMEC claim's chain from the original claim through every true-up, a project's claims
-    (the project key), or a SEM participant's claims across phases and years. Public, as confirmed claims are (BR-09.3)."""
+    (the project key), or a SEM participant's claims across phases and years. Public, as confirmed claims are."""
     kind = request.GET.get("kind", "claim")
     kind = kind if kind in dict(LINK_KINDS) else "claim"
     q = request.GET.get("q", "").strip()
@@ -860,7 +860,7 @@ def links_csv(request, pk):
     return response
 
 
-# --- restated results (BR-06.17)
+# --- restated results
 
 
 def _restatement(request, pk):

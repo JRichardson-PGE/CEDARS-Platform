@@ -188,7 +188,7 @@ def test_downloads_hold_only_the_chosen_records_and_columns_with_a_stamp(two_pas
     assert response.status_code == 200 and response["Content-Disposition"].endswith('release2_records.csv"')
     stamp, rows = csv_rows(b"".join(response.streaming_content).decode())
     assert rows == [["CEInputID", "TotalSystemBenefit", "MeasureID"], ["S1", "11", "LT-01"], ["S2", "22", "HV-02"]]  # the files' order
-    assert json.loads(stamp["pas"]) == {"SCE": 2}  # the PAs the records hold (BR-08.3)
+    assert json.loads(stamp["pas"]) == {"SCE": 2}  # the PAs the records hold
     assert stamp["records"] == "2" and json.loads(stamp["columns"]) == ["CEInputID", "TotalSystemBenefit", "MeasureID"]
     assert json.loads(stamp["filters"]) == {"pa": ["SCE"]} and stamp["release"] == "2" and stamp["kind"] == "records"
     assert all(f.startswith("SCE ") for f in json.loads(stamp["filings"]))  # only the filings that contribute rows (F26)

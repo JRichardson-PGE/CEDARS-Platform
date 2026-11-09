@@ -1,4 +1,4 @@
-# Frequently asked questions (BR-12.3), shown and searched at /help/faq/ (cedars/core/faq.py).
+# Frequently asked questions, shown and searched at /help/faq/ (cedars/core/faq.py).
 #
 # Each topic has questions; each question has an id (its anchor, never changed once published), q, a (paragraphs), tags (more words
 # to find it by), guide (the user guide that goes further, a slug of core.help.GUIDES), optional links [{text, href}] and an optional

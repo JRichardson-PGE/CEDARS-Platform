@@ -1,4 +1,4 @@
-"""Sandbox refresh (BR-11.2): production's published, non-PII data copied into the sandbox, so PAs test against real programs, packs,
+"""Sandbox refresh: production's published, non-PII data copied into the sandbox, so PAs test against real programs, packs,
 rules and dashboards.
 
 Two steps, each a management command, so the two environments never reach each other's database:

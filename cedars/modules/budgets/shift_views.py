@@ -1,4 +1,4 @@
-"""Fund shift and operating budget pages (BR-14.4, BR-04.7)."""
+"""Fund shift and operating budget pages."""
 
 import csv
 

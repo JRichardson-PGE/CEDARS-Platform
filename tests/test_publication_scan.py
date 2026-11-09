@@ -1,4 +1,4 @@
-"""The scan for personal information before publication (BR-08.5): a snapshot whose text columns hold what look like emails, phone
+"""The scan for personal information before publication: a snapshot whose text columns hold what look like emails, phone
 numbers, street addresses, Social Security numbers or account numbers is held out of the public release, its owner and the CPUC system
 administrators are told, and a system administrator releases it with a reason; every step is audited. No value found is kept."""
 

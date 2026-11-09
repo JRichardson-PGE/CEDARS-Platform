@@ -1,4 +1,4 @@
-"""What the program page shows from Claims (BR-07.6), through registry.register_program_records: the program's year to date in each
+"""What the program page shows from Claims, through registry.register_program_records: the program's year to date in each
 claims confirmation (Q1 to Q4 and the annual claim) of every claim year. The standing published version of each confirmation is public,
 as its figures are on the dashboards; a newer version still being worked on is shown only to those who may read the PA's claims."""
 

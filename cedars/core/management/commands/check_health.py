@@ -5,7 +5,7 @@ from cedars.core import health
 
 class Command(BaseCommand):
     help = (
-        "Run every health check (BR-12.2), write one JSON line for CloudWatch's metric filters, and alert the CPUC's system "
+        "Run every health check, write one JSON line for CloudWatch's metric filters, and alert the CPUC's system "
         "administrators about each check that starts failing. Schedule every 10 minutes."
     )
 

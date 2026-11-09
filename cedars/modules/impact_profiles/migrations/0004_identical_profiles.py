@@ -27,7 +27,7 @@ class Migration(migrations.Migration):
             name="stored_profiles",
             field=models.PositiveIntegerField(
                 default=0,
-                help_text="Profiles stored: identical profiles under several names are stored once (BR-06.18)",
+                help_text="Profiles stored: identical profiles under several names are stored once",
             ),
         ),
         migrations.AddField(
@@ -36,7 +36,7 @@ class Migration(migrations.Migration):
             field=models.CharField(
                 blank=True,
                 db_index=True,
-                help_text="Its calendar and every zone's shape (identical.content_key): equal values are the same profile (BR-06.18)",
+                help_text="Its calendar and every zone's shape (identical.content_key): equal values are the same profile",
                 max_length=64,
             ),
         ),

@@ -1,4 +1,4 @@
-"""Accessible documents (BRD v0.5 BR-10.3): every generated workbook passes the document accessibility check, and uploaded PDFs and
+"""Accessible documents: every generated workbook passes the document accessibility check, and uploaded PDFs and
 workbooks are checked, the uploader warned, the files listed for review, and refused only when the CPUC's settings say so."""
 
 import io

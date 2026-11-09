@@ -1,7 +1,7 @@
 """A monthly report's upload: a .zip holding Commitments.csv, Measure.csv and ProgramCost.csv (comma-, pipe- or tab-delimited), or an
-Excel workbook with those three sheets (BR-02.2). Measure and ProgramCost are the year-to-date BCA inputs: the month's spend is read from
-them (Jake, 2026-10-30), and they become the version's job .zip, two CSVs as a calculation run takes them, priced for the estimates
-(BR-14.5). Commitments is its own table (D2)."""
+Excel workbook with those three sheets. Measure and ProgramCost are the year-to-date BCA inputs: the month's spend is read from
+them (Jake, 2026-10-30), and they become the version's job .zip, two CSVs as a calculation run takes them, priced for the
+estimates. Commitments is its own table."""
 
 import csv
 import hashlib
@@ -45,7 +45,7 @@ def table_of(name: str) -> str | None:
 
 
 def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
-    """Several files chosen at once as the one upload read_upload takes (cedars.core.uploads, BR-06.3)."""
+    """Several files chosen at once as the one upload read_upload takes (cedars.core.uploads)."""
     try:
         return uploads.combine(files, table_of)
     except uploads.CombineError as e:
@@ -72,7 +72,7 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
 
 def read_tables(data: bytes, filename: str) -> dict[str, bytes]:
     """{table: file bytes} of the tables a .zip or .xlsx holds, without requiring all three or their columns: a partial correction's
-    file (BR-02.4) holds only the records it changes."""
+    file holds only the records it changes."""
     if filename.lower().endswith(".xlsx"):
         return _from_workbook(data)
     try:

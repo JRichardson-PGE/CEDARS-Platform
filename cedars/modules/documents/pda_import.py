@@ -1,4 +1,4 @@
-"""The PDA migration (BR-15.10): every published PDA document with its attributes, work order and task, its main file and attachments,
+"""The PDA migration: every published PDA document with its attributes, work order and task, its main file and attachments,
 its comment window, and its comments and responses, with their original dates and authors' names, read from the PDA's own public API
 (the JSON its pages use: /api/categories, /api/work-orders, /api/deliverables, /api/deliverables-comments) and its file links
 (/api/downloads/<id>/<file>).

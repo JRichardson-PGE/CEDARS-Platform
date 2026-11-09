@@ -1,4 +1,4 @@
-"""Every workbook the platform writes (BRD v0.5 BR-10.3: published documents meet WCAG 2.2 AA): the budget filing appendix, the record
+"""Every workbook the platform writes (published documents meet WCAG 2.2 AA): the budget filing appendix, the record
 and dashboard downloads, and the upload templates. One way to write them, so each is accessible the same way:
 
 - the workbook has a title, a subject and a language (en-US) in its properties;

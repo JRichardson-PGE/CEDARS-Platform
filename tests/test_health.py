@@ -1,4 +1,4 @@
-"""BR-12.2: job and system health for administrators (cedars/core/health.py, /admin/health/, manage.py check_health)."""
+"""Job and system health for administrators (cedars/core/health.py, /admin/health/, manage.py check_health)."""
 
 import json
 from datetime import timedelta

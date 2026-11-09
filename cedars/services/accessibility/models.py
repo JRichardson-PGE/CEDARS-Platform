@@ -5,7 +5,7 @@ from . import checks
 
 
 class CheckSettings(models.Model):
-    """The CPUC's settings for the document accessibility check (BR-10.3). One row; changed on the Document accessibility settings page
+    """The CPUC's settings for the document accessibility check. One row; changed on the Document accessibility settings page
     with a reason, audited. By default nothing is refused: the uploader is warned and the file is listed for review. With `block` on,
     an upload with any finding in `blocking` is refused (imports from the legacy sites never are)."""
 

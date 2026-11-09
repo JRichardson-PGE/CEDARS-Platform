@@ -13,7 +13,7 @@ A release is made only when that set changes.
 Imported (legacy) versions run no publisher hook and record no run: their loads build a measure-level file from the tables they stored
 and call `publish` with its storage area and key (`legacy.publish_snapshot`), with `release=False`: a load of many PAs makes one release.
 
-The scan for personal information (BR-08.5, `pii.py`): every new snapshot's text columns are searched before it can join a release. Columns
+The scan for personal information (`pii.py`): every new snapshot's text columns are searched before it can join a release. Columns
 that hold numbers (the dictionary's number fields, legacy amounts kept as text) have their plain-number values left out, so a budget is
 never read as a phone number. A hit (or a file that cannot be read) holds it: its `PIIScan` says `held`, `in_force` leaves it out (the
 dataset keeps what was published before: an earlier version of the same filing, or for claims and monthly the PA's previous period), and
@@ -133,7 +133,7 @@ def _write(v: SubmissionVersion, dataset: str, key: str, area: str = "results") 
     return snap
 
 
-# --- the scan for personal information (BR-08.5)
+# --- the scan for personal information
 
 
 def scan_settings() -> ScanSettings:
@@ -391,7 +391,7 @@ HOLD_RECORDS_HEADER = ["Filing", "Organization", "Record (CEInputID)", "PrgID", 
 
 def hold_records_csv(user, snap: Snapshot) -> str:
     """The records behind a scan's findings as CSV, for the filing's organization to look into (and the CPUC system administrators):
-    one row per record and column with what its value looks like, never the value (BR-08.5). Read from the stored snapshot with the
+    one row per record and column with what its value looks like, never the value. Read from the stored snapshot with the
     findings' columns and patterns, so it lists what the hold page counts. Audited."""
     import csv
     import io

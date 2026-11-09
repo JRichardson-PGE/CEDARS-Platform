@@ -1,4 +1,4 @@
-"""A NMEC true-up priced against the profile its parent claim was priced on (BR-05.6): Claims names the parent's profile, pinned to the
+"""A NMEC true-up priced against the profile its parent claim was priced on: Claims names the parent's profile, pinned to the
 version its run's library held, in ReCET's AC_Elec_Impact_Profile_Parent column, supplies those 8,760s to the run, and shows the
 incremental benefits the engine writes on the version and chain pages."""
 

@@ -1,4 +1,4 @@
-"""What the document accessibility check looks for in a file (BRD v0.5 BR-10.3, WCAG 2.2 AA for published documents). Pure functions over
+"""What the document accessibility check looks for in a file (WCAG 2.2 AA for published documents). Pure functions over
 a file on disk: no database, no settings, so the same check runs on an upload and on every workbook the platform writes (the tests hold
 each generated workbook to no findings at all).
 

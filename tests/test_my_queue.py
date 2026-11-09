@@ -1,4 +1,4 @@
-"""Each module's work in the queue (cedars/core/queue.py, BR-09.5): fund shifts, documents, program changes and access requests."""
+"""Each module's work in the queue (cedars/core/queue.py): fund shifts, documents, program changes and access requests."""
 
 from datetime import date, timedelta
 

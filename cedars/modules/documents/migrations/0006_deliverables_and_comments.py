@@ -121,7 +121,7 @@ class Migration(migrations.Migration):
             name="deliverable",
             field=models.BooleanField(
                 default=False,
-                help_text="An EM&V deliverable: its versions go through the revision stages (BR-15.11) on this one record",
+                help_text="An EM&V deliverable: its versions go through the revision stages on this one record",
             ),
         ),
         migrations.AddField(
@@ -149,7 +149,7 @@ class Migration(migrations.Migration):
                     ("pa_response", "PA response to the recommendations"),
                     ("ed_reply", "CPUC ED reply"),
                 ],
-                help_text="A deliverable's revision stage (BR-15.11)",
+                help_text="A deliverable's revision stage",
                 max_length=20,
             ),
         ),

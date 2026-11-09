@@ -1,4 +1,4 @@
-"""Several files in one filing upload (BR-06.3): Budgets, Claims and Monthly reports take more than one file at a time and consolidate
+"""Several files in one filing upload: Budgets, Claims and Monthly reports take more than one file at a time and consolidate
 them into the one .zip their own reader takes, before any check or pricing. The engine always gets one job (Jake, 2026-10-31: ReCET
 keeps its one job .zip; the filing modules consolidate).
 
@@ -7,7 +7,7 @@ come in parts across the files, or inside one .zip: a part is named after its ta
 `Measure (2).csv`, `Measure-part3.csv`). The parts of a table must have the same columns (in any order and case); their rows are joined
 in the order the files were chosen. One .zip or .xlsx on its own is passed through unchanged, so a single upload is kept exactly as sent.
 
-The module names its tables (`table_of`), and may refuse a name outright (`refuse`: Claims' PII tables, BR-10.1). A file or sheet that
+The module names its tables (`table_of`), and may refuse a name outright (`refuse`: Claims' PII tables). A file or sheet that
 names no table is written into the combined .zip under its own name, so the module's reader refuses it in its own words (a sheet is
 skipped, as the readers skip a workbook's other sheets)."""
 
@@ -30,7 +30,7 @@ from django.utils.functional import lazy
 SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
 TEXT_SUFFIXES = (".csv", ".txt")
 PART_LABEL = re.compile(r"[\s_\-.]*(?:\(\s*\d+\s*\)|(?:part|pt)?[\s_\-.]*\d+)$", re.IGNORECASE)
-# The upload limits are settings, shown as they stand on the Limits page (/limits/) and beside every upload field (BR-12.1).
+# The upload limits are settings, shown as they stand on the Limits page (/limits/) and beside every upload field.
 MAX_FILES = settings.CEDARS_UPLOAD_MAX_FILES  # for the API's field declarations; the checks read the setting itself
 
 

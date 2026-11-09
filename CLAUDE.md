@@ -2,7 +2,7 @@
 
 The CEDARS replacement: one Django project (a modular monolith) that the CPUC owns and hosts on its AWS account. Design: the CEDARS
 Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/CEDARS_Replacement_Architecture.html`, settled decisions
-A-M, 2026-10-29). Requirements: BRD v0.5 (CEDARS-Research `deliverables/`). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
+A-M, 2026-10-29). The requirements document is internal (CEDARS-Research, private). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
 unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps the design onto this code and says what is built;
 `docs/ARCHITECTURE_AS_BUILT.md` describes the whole platform as built, with diagrams.
 
@@ -24,11 +24,15 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
 - **Versions, not edits.** A confirmed submission is never updated in place; a correction is a new version with a reason. The audit trail is
   append-only (no UPDATE or DELETE on its table).
 - **Every change audited.** A service that changes a record writes an audit event (who, active organization, what, why, before, after).
-- **Configure rather than recode.** Rule sets, periods, value lists, templates, retention periods and policy choices (BRD D1-D14) are data with
+- **Configure rather than recode.** Rule sets, periods, value lists, templates, retention periods and policy choices are data with
   effective dates and an admin page, not code paths.
 - **PII stays in the vault.** Only `PII_Contact` and `PII_Site`, in their own database; everything else holds SiteID / ContactID keys only.
 - **Names.** ReCET's renamed field dictionary is canonical (decision L); CET names are accepted on upload through the crosswalk. Name ACCs by year
-  ("2024 ACC"). The BRD never names the development vendor; neither do pages, docs or commits here.
+  ("2024 ACC"). Never name the development vendor in pages, docs or commits.
+- **No requirement references** (Jake, 2026-11-09). The requirements document is internal: never name it, quote it or cite its
+  requirement IDs, decision numbers or review gap numbers anywhere in this repository (pages, page help, the FAQ, release notes, docs,
+  code comments, test names, commit messages, PR text). Say what the code does in plain words instead. `tests/test_no_requirement_refs.py`
+  fails on its abbreviation or a requirement ID in any tracked file but ReCET's exported documents (`data/recet_docs/`, `data/dictionary/`).
 - **US spelling** (Jake, 2026-10-31): every page, label, help text, message, doc and comment uses US English ("organization",
   "color", "canceled", "behavior"). Code identifiers, URL route names, database tables and columns, audit action names and API field
   names keep their original `organisation` spelling (renaming them is a schema and API change); write new identifiers in US spelling.
@@ -56,7 +60,7 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   page's view name is held by an item in `core/nav.py` or listed in its NO_MENU / SHARED (tests/test_navigation.py fails otherwise).
 - **Before you upload** (navigation review D3): every data file control has `{% before_upload %}` beside it (the template, the field
   definitions, the rules in force, the guide); tests/test_before_upload.py fails on a new multipart form without it.
-- **Release notes, limits and guides** (BR-12.1, 12.5; `cedars/services/releases`). A limit people meet is a setting listed in
+- **Release notes, limits and guides** (`cedars/services/releases`). A limit people meet is a setting listed in
   `releases/limits.py`, never a number in a page or message. A change to a user guide (`core/templates/core/help/<slug>.html`) or the
   FAQ (`core/faq.yaml`) is recorded with `uv run python manage.py help_revisions --update` in the same PR (a test fails otherwise); bump
   `cedars.__version__` for a release, and announce user-facing changes as a release note before they take effect.

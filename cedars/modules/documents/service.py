@@ -1,11 +1,11 @@
-"""The document library (BR-15.1, 15.2, 15.9): who may see and change what, filing a document, its versions and their publication, value
-lists, search and downloads. Every change writes an audit event; so does every download (BR-15.9, replacing the PDA's download report).
+"""The document library: who may see and change what, filing a document, its versions and their publication, value
+lists, search and downloads. Every change writes an audit event; so does every download (replacing the PDA's download report).
 
 Who may do what (permissions in the documents module, held in an organization):
   - anyone, signed in or not, reads a published document and its published versions;
   - documents.read, .submit, .confirm or .admin in the owning organization, in a PA named on the document (a joint document) or in the
-    manager of the study it belongs to (BR-15.9: evaluators manage the deliverables of their studies) shows
-    its unpublished versions too, and so does any of them in the CPUC (BR-15.2: "only their owning organization and CPUC ED");
+    manager of the study it belongs to (evaluators manage the deliverables of their studies) shows
+    its unpublished versions too, and so does any of them in the CPUC ("only their owning organization and CPUC ED");
   - documents.submit there adds versions and changes the details; documents.confirm publishes a version;
   - documents.submit in the acting organization files a new document there: a PA files PA documents, program files and EM&V documents,
     another organization (an evaluator) EM&V documents, the CPUC any collection (guidance and DEER resources are the CPUC's alone);
@@ -164,7 +164,7 @@ def current_version(user, doc: Document) -> DocumentVersion | None:
     return published[0] if published else (versions[0] if versions else None)
 
 
-PLACEHOLDER_TYPES = {"implementation plan"}  # the program file types a placeholder version is for (BR-13.6), by label, any case
+PLACEHOLDER_TYPES = {"implementation plan"}  # the program file types a placeholder version is for, by label, any case
 
 
 def takes_placeholder(collection: str, document_type: AttributeOption | None) -> bool:
@@ -326,7 +326,7 @@ def _store_files(
                 raise DocumentError(f"{name} is larger than the {settings.DOCUMENTS_MAX_FILE_MB} MB a file may be.")
             if size == 0:
                 raise DocumentError(f"{name} is empty.")
-            try:  # the document accessibility check (BR-10.3): refuses only when the CPUC's settings say so, never an import
+            try:  # the document accessibility check: refuses only when the CPUC's settings say so, never an import
                 checked_access = accessibility.inspect(Path(tmp.name), name, enforce=not imported)
             except accessibility.Refused as e:
                 raise DocumentError(str(e)) from e
@@ -385,7 +385,7 @@ STUDY_COLLECTIONS = (Collection.EMV, Collection.PROGRAM)
 
 def _check_links(actor, collection: str, d: Details, doc: Document | None = None) -> None:
     """A document joins a study (EM&V documents and program files) only by someone who may update that study; a work order and task
-    only on EM&V documents, the task one of the work order's (BR-15.3)."""
+    only on EM&V documents, the task one of the work order's."""
     from .studies import can_edit
 
     if d.study is not None:
@@ -476,8 +476,8 @@ def create_document(
     placeholder: bool = False,
 ) -> Document:
     """File a document with its first version. A PA's own document names the PA itself among the PAs it applies to. An EM&V deliverable
-    (BR-15.11) belongs to a study and its first version names its revision stage; any version may open a comment period (BR-15.4). An
-    implementation plan may be filed as a placeholder (BR-13.6), the full plan to come as a later version."""
+    belongs to a study and its first version names its revision stage; any version may open a comment period. An
+    implementation plan may be filed as a placeholder, the full plan to come as a later version."""
     from . import deliverables
 
     _require_organisation(actor, organisation, collection)
@@ -607,9 +607,9 @@ def add_version(
     comment_period: tuple[date, date] | None = None,
     placeholder: bool = False,
 ) -> DocumentVersion:
-    """Replace a document's files with a new version; earlier versions stay listed and downloadable (BR-15.1, BR-09.6). A deliverable's
-    version names its stage, which never goes back (deliverables.next_stages). An implementation plan's version may be a placeholder
-    (BR-13.6); the version that brings the full plan is one that is not."""
+    """Replace a document's files with a new version; earlier versions stay listed and downloadable. A deliverable's
+     version names its stage, which never goes back (deliverables.next_stages). An implementation plan's version may be a placeholder
+    ; the version that brings the full plan is one that is not."""
     from . import deliverables
 
     if not can_manage(actor, doc):
@@ -665,7 +665,7 @@ def publish_version(actor, version: DocumentVersion) -> DocumentVersion:
 
 
 def record_download(user, f: DocumentFile, *, viewed: bool = False) -> None:
-    """Every download (or view in the browser) is an audit event, replacing the PDA's Deliverable Download Report (BR-15.9)."""
+    """Every download (or view in the browser) is an audit event, replacing the PDA's Deliverable Download Report."""
     who = user if user is not None and user.is_authenticated else None
     audit.record(
         "documents.file_viewed" if viewed else "documents.file_downloaded",
@@ -686,7 +686,7 @@ def downloads(doc: Document):
     )
 
 
-# --- search (BR-15.2)
+# --- search
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""What each program definition field means, how to fill it in and its valid values (BR-13.7), for the program fields guide
+"""What each program definition field means, how to fill it in and its valid values, for the program fields guide
 (/programs/fields/), the change form and the program page.
 
 The guidance and the valid values are data (`program_fields.yaml` beside this file). Each field's definition comes from the data

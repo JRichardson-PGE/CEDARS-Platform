@@ -1,4 +1,4 @@
-# Old links: the PDA, the PSR, the EM&V archive and CEDARS (BR-15.10)
+# Old links: the PDA, the PSR, the EM&V archive and CEDARS
 
 Commission decisions, EM&V plans and reports cite PDA and PSR addresses (D.23-04-035 cites PDA document links). After cutover each old
 address leads to the same document, file or study here, for as long as CPUC Energy Division keeps the energydataweb.com domains.

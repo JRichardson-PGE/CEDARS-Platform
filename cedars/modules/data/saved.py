@@ -1,4 +1,4 @@
-"""Saved, shared and published views (BR-07.4), and each person's default columns on the records page.
+"""Saved, shared and published views, and each person's default columns on the records page.
 
 A saved view is a page and its query string: a dashboard page's GET parameters, or the records page's (filters and the column choice).
 It keeps no release, so it opens on the data published now ("Given a saved query, when the user returns, then it reruns on current
@@ -341,7 +341,7 @@ def request_publication(user, view: SavedView, note: str = "") -> SavedView:
 
 
 def publish(user, view: SavedView, reason: str) -> SavedView:
-    """Publish the view for everyone, signed in or not (BR-07.4). The view no longer changes until it is unpublished."""
+    """Publish the view for everyone, signed in or not. The view no longer changes until it is unpublished."""
     _require_system_admin(user, "publish a view")
     if view.published:
         raise ViewRefused("This view is already published.")

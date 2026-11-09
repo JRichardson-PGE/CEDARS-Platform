@@ -1,4 +1,4 @@
-"""Change letters (BR-09.3): the public record of a correction to a published filing, written when version 2 or later of it is
+"""Change letters: the public record of a correction to a published filing, written when version 2 or later of it is
 published. Claims keeps its own (with the claims added, changed and withdrawn); Budgets and Monthly reports keep theirs as each
 program's figures before and after. This is what their pages share: the program rows' formatting and `core/_letter_programs.html`."""
 

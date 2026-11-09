@@ -1,4 +1,4 @@
-"""Public comment (BR-15.4), replacing the PDA's comments, questions and Comment and Resolution Report: a registered user comments on or
+"""Public comment, replacing the PDA's comments, questions and Comment and Resolution Report: a registered user comments on or
 asks about a published version while its comment period is open; CPUC ED, the PAs on the document and the study's evaluator respond;
 everything is public, dated and attributed to its author and organization (never an email address). The author may withdraw a comment
 until it is answered. Comments and responses are never edited (the database refuses: migration 0007)."""

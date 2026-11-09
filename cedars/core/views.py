@@ -84,7 +84,7 @@ def about(request):
 @login_required
 @require_GET
 def my_queue(request):
-    """The work waiting on the signed-in user across every module (BR-09.5), read live from each module's records (core/queue.py)."""
+    """The work waiting on the signed-in user across every module, read live from each module's records (core/queue.py)."""
     sections = queue.sections(request.user)
     return render(request, "core/queue.html", {"sections": sections, "total": sum(len(s.items) for s in sections)})
 
@@ -163,7 +163,7 @@ def _pa_codes() -> list[tuple[str, str, str]]:
 
 
 def _revision(guide) -> dict:
-    """The release a guide was revised for, the release the site runs, and the releases in effect since that changed its part (BR-12.5)."""
+    """The release a guide was revised for, the release the site runs, and the releases in effect since that changed its part."""
     from cedars.services.releases import service as releases
 
     behind = next((g.behind for g in releases.guide_revisions() if g.slug == guide.slug), [])
@@ -172,7 +172,7 @@ def _revision(guide) -> dict:
 
 @require_GET
 def help_faq(request):
-    """The FAQ (BR-12.3): every question by topic, or those matching ?q= words, in ?topic= one topic. Works without scripts."""
+    """The FAQ: every question by topic, or those matching ?q= words, in ?topic= one topic. Works without scripts."""
     q = " ".join(request.GET.get("q", "").split())[:200]
     topics = faq.topics()
     topic = request.GET.get("topic", "")

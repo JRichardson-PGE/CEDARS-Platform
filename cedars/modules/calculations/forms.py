@@ -49,7 +49,7 @@ def _norm(v) -> str:
 
 
 class NewRunForm(forms.Form):
-    """New run (BR-06.1, 06.4, 06.5, 06.7): the job zip and the settings a person picks. The API takes the same fields."""
+    """New run: the job zip and the settings a person picks. The API takes the same fields."""
 
     name = forms.CharField(
         label="Run name",

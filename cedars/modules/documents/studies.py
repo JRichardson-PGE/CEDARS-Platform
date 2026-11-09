@@ -1,4 +1,4 @@
-"""The evaluation study register (BR-15.6 to 15.8), replacing the Energy Division's Project Status Report: one record per EM&V study,
+"""The evaluation study register, replacing the Energy Division's Project Status Report: one record per EM&V study,
 the programs and program years each evaluates (so every program's page lists its evaluations), the work orders and tasks EM&V documents
 are delivered under, and the study lists and budget summaries the EM&V plans compile by hand today.
 
@@ -9,7 +9,7 @@ Who may do what:
     evaluation contractor or a PA) updates its studies with Documents: submit;
   - the contacts are seen by CPUC staff and the study manager's organization.
 Every change is an audit event with the fields before and after, labels rather than ids, which is the study's history (status and
-budget history, BR-15.6)."""
+budget history)."""
 
 from __future__ import annotations
 
@@ -299,7 +299,7 @@ def history(study: Study, *, public: bool = True) -> list[dict]:
     return out
 
 
-# --- programs evaluated (BR-15.7)
+# --- programs evaluated
 
 
 @transaction.atomic
@@ -347,7 +347,7 @@ def latest_deliverable(study: Study) -> Document | None:
 
 
 def stage_of(doc: Document) -> str:
-    """A deliverable's current stage (BR-15.11), else the document's type."""
+    """A deliverable's current stage, else the document's type."""
     if doc.deliverable:
         from .deliverables import current, stage_label
 
@@ -384,11 +384,11 @@ def evaluations(program: Program) -> list[dict]:
 
 
 def covering(program: Program, year: int) -> list[Study]:
-    """The studies that evaluated the program in a given program year (for a claims view, BR-15.7)."""
+    """The studies that evaluated the program in a given program year (for a claims view)."""
     return list(Study.objects.filter(coverage__program=program, coverage__first_year__lte=year, coverage__last_year__gte=year))
 
 
-# --- the register (BR-15.6, 15.8)
+# --- the register
 
 
 @dataclass
@@ -453,7 +453,7 @@ SUMMARY_BY = {"type": "Study type", "sector": "Sector", "lead": "Study lead", "s
 
 
 def summary(cycle: AttributeOption | None = None) -> dict:
-    """The EM&V plan's study and budget tables (BR-15.8): for one funding cycle (or all studies), by study type, sector, lead, status and
+    """The EM&V plan's study and budget tables: for one funding cycle (or all studies), by study type, sector, lead, status and
     group, the number of studies and their budgets, planned (every study not canceled) against completed. A study with several sectors
     counts in each sector, so the sector table can add up to more than the total; every other table adds up to it."""
     studies = list(register(RegisterFilter(cycles=[cycle] if cycle else [])))
@@ -488,7 +488,7 @@ def summary(cycle: AttributeOption | None = None) -> dict:
     return {"tables": tables, "total": total}
 
 
-# --- work orders (BR-15.3's second classification)
+# --- work orders (the register's second classification)
 
 
 def _require_admin(actor):

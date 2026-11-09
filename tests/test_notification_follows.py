@@ -1,5 +1,5 @@
 """Following PAs and programs, refile notices with what changed, change letters for Budgets and Monthly reports, and deadline
-reminders at the lead times each user chooses (BR-09.2, BR-09.3)."""
+reminders at the lead times each user chooses."""
 
 from datetime import date, timedelta
 

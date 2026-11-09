@@ -1,4 +1,4 @@
-"""A run's Results and Compare tables (BR-06.9, 06.11, 04.1), built by ReCET's own results code (`recet.results_view`, imported
+"""A run's Results and Compare tables, built by ReCET's own results code (`recet.results_view`, imported
 unchanged) over the group sums the worker keeps beside the measure-level table (`out/_results/group_sums<N>_<file>.parquet`: one row
 per PA, program, sector, segment and program year, with every additive output column summed). So a 1,000,000-measure run's Results
 open from a file of a few hundred rows, never the measure-level table; ratios are recomputed from the summed benefits and costs.

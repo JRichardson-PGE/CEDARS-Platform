@@ -1,4 +1,4 @@
-"""Value lists an administrator edits (BR-12.6): versions with effective dates, retired codes kept, never deleted, every change audited,
+"""Value lists an administrator edits: versions with effective dates, retired codes kept, never deleted, every change audited,
 and the version in force is what the rules and the input editor check against."""
 
 from datetime import date, timedelta

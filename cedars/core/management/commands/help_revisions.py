@@ -5,7 +5,7 @@ from cedars.core import revisions
 
 class Command(BaseCommand):
     help = (
-        "List the user guides and the FAQ whose text changed since the release they were recorded for (BR-12.5); with --update, record "
+        "List the user guides and the FAQ whose text changed since the release they were recorded for; with --update, record "
         "them as revised for the release being built (cedars.__version__), or for --release."
     )
 

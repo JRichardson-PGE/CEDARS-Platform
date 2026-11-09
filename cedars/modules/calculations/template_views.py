@@ -1,4 +1,4 @@
-"""The output templates pages (BR-06.10): the list with the default for new runs, and the page that makes or changes one."""
+"""The output templates pages: the list with the default for new runs, and the page that makes or changes one."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required

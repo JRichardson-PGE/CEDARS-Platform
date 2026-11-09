@@ -187,7 +187,7 @@ def test_statewide_allocation_pins_the_version_used(tmp_path, analyst, pge, cpuc
     assert run.spec["context"]["allocation_version"] == "2028 TUAL draft"
 
 
-# --- the registry's programs in every run (BR-13.1)
+# --- the registry's programs in every run
 
 
 def _registry_programs(cpuc_admin, pge):

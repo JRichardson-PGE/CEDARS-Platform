@@ -1,4 +1,4 @@
-"""The program page's records (BR-07.6): budget filing lines by version, fund shifts, claims by confirmation, monthly reports and
+"""The program page's records: budget filing lines by version, fund shifts, claims by confirmation, monthly reports and
 documents, read through registry.program_records, each linked to its record and shown signed out only where the record is published."""
 
 from datetime import UTC, date, datetime

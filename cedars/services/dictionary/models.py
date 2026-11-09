@@ -23,9 +23,9 @@ class CatalogVersion(models.Model):
 
 
 class Field(models.Model):
-    """A field under its canonical name, with the data-dictionary attributes of BR-08.1.
+    """A field under its canonical name, with its data-dictionary attributes.
 
-    A field is retired, never dropped (BR-08.4): after a usage, audience and regulatory review a CPUC system administrator retires it
+    A field is retired, never dropped: after a usage, audience and regulatory review a CPUC system administrator retires it
     from a date, which makes a new catalog version with the field marked retired and the review kept on it. A retired field stays in
     the catalog (old files and downloads still name it, and uploads still recognize it), but it leaves the upload templates and
     schemas from that date. A later catalog version carries the retirement forward (service.load_catalog)."""
@@ -71,7 +71,7 @@ class Field(models.Model):
         help_text="[[code, label], ...]: the codes a platform record's column may hold (its choices)",
     )
     required_by = models.TextField(
-        blank=True, help_text="The decision or resolution that requires the field, so a retirement review (BR-08.4) can tell"
+        blank=True, help_text="The decision or resolution that requires the field, so a retirement review can tell"
     )
     state = models.CharField(max_length=10, choices=State.choices, default=State.ACTIVE)
     retired_from = models.DateField(null=True, blank=True, help_text="The day it leaves the upload templates (a retired field only)")
@@ -132,7 +132,7 @@ class Usage(models.Model):
 
 
 class ValueList(models.Model):
-    """A code set the rules and the input editor check values against (BR-12.6), under the engine's name for it (e.g. `sector`,
+    """A code set the rules and the input editor check values against, under the engine's name for it (e.g. `sector`,
     `ac_climate_zone`). Until a version is published here, the list the pinned engine ships is the one in force."""
 
     name = models.CharField(max_length=60, unique=True, help_text="The engine's name for the list (its file in recet/data/value_lists)")

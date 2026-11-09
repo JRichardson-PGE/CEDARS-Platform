@@ -1,4 +1,4 @@
-"""My queue (BR-09.5: assignment queues): the work waiting on the signed-in user, across every module, on one page (/queue/). Each kind of
+"""My queue (assignment queues): the work waiting on the signed-in user, across every module, on one page (/queue/). Each kind of
 work is a provider a service or module registers in its AppConfig.ready (core never imports a module): provider(user) -> [Item], the items
 waiting on that user now. Nothing is stored: the queue is read live from each module's own records, so an item leaves it the moment the
 work is done (a request decided, a version confirmed, a shift acknowledged, a draft published).

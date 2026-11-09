@@ -1,4 +1,4 @@
-"""The pre-upload checker on a budget filing (BR-03.4, gap 23): the same findings as the upload's rule-set step, year by year."""
+"""The pre-upload checker on a budget filing: the same findings as the upload's rule-set step, year by year."""
 
 import io
 import zipfile

@@ -110,7 +110,7 @@ class Migration(migrations.Migration):
                     "required_by",
                     models.TextField(
                         blank=True,
-                        help_text="The decision or resolution that requires the field, so a retirement review (BR-08.4) can tell",
+                        help_text="The decision or resolution that requires the field, so a retirement review can tell",
                     ),
                 ),
                 (

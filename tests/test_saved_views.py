@@ -1,4 +1,4 @@
-"""Saved, shared and published views (BR-07.4) and each person's default columns on the records page."""
+"""Saved, shared and published views and each person's default columns on the records page."""
 
 import pytest
 

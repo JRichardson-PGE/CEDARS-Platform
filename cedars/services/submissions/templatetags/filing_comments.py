@@ -1,4 +1,4 @@
-"""`{% filing_comments v %}`: the comments section of a filing version's page (BR-09.5), the same on Budgets, Claims and Monthly reports.
+"""`{% filing_comments v %}`: the comments section of a filing version's page, the same on Budgets, Claims and Monthly reports.
 Shown only to the people who may take part (the filing organization and CPUC staff); everyone else sees nothing of it."""
 
 from django import template

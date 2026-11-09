@@ -1,4 +1,4 @@
-"""Pages of public comment (BR-15.4) and of a deliverable's PA responses (BR-15.11). Reading comments and the comment-and-response report
+"""Pages of public comment and of a deliverable's PA responses. Reading comments and the comment-and-response report
 needs no account, as on the PDA; commenting needs one."""
 
 import csv
@@ -202,7 +202,7 @@ def work_order_report(request, pk):
     return _report(request, _readable_comments(request).filter(version__document__work_order=wo), f"comments_work_order_{wo.number}.csv")
 
 
-# --- the PAs' responses to the recommendations (BR-15.11)
+# --- the PAs' responses to the recommendations
 
 
 @login_required

@@ -106,9 +106,9 @@ def _main_chips(form: forms.CatalogFilter, query) -> list[tuple]:
 
 
 def catalog(request):
-    """Every program, searchable by name or PrgID, closed programs included (BR-13.5); the version shown is the one for the chosen program
+    """Every program, searchable by name or PrgID, closed programs included; the version shown is the one for the chosen program
     year, or the one in force today. Any other program attribute can be filtered on too (filters.py), and every filter is in the link.
-    Public (BR-01.5, BR-07.7): the registry holds published program definitions only."""
+    Public: the registry holds published program definitions only."""
     form = forms.CatalogFilter(request.GET or None)
     rows, base, other, notes = _filtered(form, request.GET)
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
@@ -165,7 +165,7 @@ def catalog_csv(request):
 
 
 def fields(request):
-    """The program fields guide (BR-13.7): every field of the program record with its definition (the data dictionary's where it has
+    """The program fields guide: every field of the program record with its definition (the data dictionary's where it has
     the field), how to fill it in, and its valid values, retired ones marked and each with the number of programs on record that carry
     it. Public, like the catalog."""
     return render(
@@ -193,12 +193,12 @@ def field_links() -> dict[str, str]:
 def _program_or_404(prg_id: str) -> Program:
     p = get_object_or_404(Program.objects.select_related("administrator", "lead", "follows", "follows__lead"), prg_id=prg_id)
     if p.portfolio_cost:
-        raise Http404  # portfolio-level cost IDs are not programs (BR-02.6)
+        raise Http404  # portfolio-level cost IDs are not programs
     return p
 
 
 def allocation_history(program: Program) -> list[dict]:
-    """The program's statewide allocation factors in every version that has it, newest version first (BR-06.7, BR-13.8)."""
+    """The program's statewide allocation factors in every version that has it, newest version first."""
     out = []
     entries = (
         AllocationEntry.objects.filter(program_id=program.prg_id)
@@ -289,9 +289,9 @@ def _shown(records: dict) -> dict:
 
 
 def program(request, prg_id):
-    """A program's page (BR-07.6): its definition, versions and allocation, and every record about it that the reader may see, from the
+    """A program's page: its definition, versions and allocation, and every record about it that the reader may see, from the
     modules through the registry service: budget filing lines by version, fund shifts, claims by confirmation, monthly reports,
-    evaluations and documents, all narrowed to one program year when one is chosen. Public (BR-01.5): signed out, it leaves out who
+    evaluations and documents, all narrowed to one program year when one is chosen. Public: signed out, it leaves out who
     entered each version, any pending change request, fund shifts, and filings not yet published."""
     p = _program_or_404(prg_id)
     signed_in = request.user.is_authenticated
@@ -382,8 +382,8 @@ def _truthy(value) -> bool:
 
 @login_required
 def change(request, prg_id):
-    """A new effective-dated version of the program (BR-13.3): what changes, from when, and why. Versions in force are never edited.
-    A change that touches a locked attribute is sent as a request for a CPUC approver's decision (BR-13.7)."""
+    """A new effective-dated version of the program: what changes, from when, and why. Versions in force are never edited.
+    A change that touches a locked attribute is sent as a request for a CPUC approver's decision."""
     p = _program_or_404(prg_id)
     if p.follows_id:  # its definition is the statewide program's (Jake, 2026-11-06)
         messages.info(request, f"{p.prg_id} follows the statewide program {p.follows.prg_id}: a change is made to {p.follows.prg_id}.")
@@ -432,7 +432,7 @@ def change(request, prg_id):
     )
 
 
-# --- change requests and the locked attributes (BR-13.7)
+# --- change requests and the locked attributes
 
 
 def field_label(name: str) -> str:

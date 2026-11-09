@@ -1,9 +1,9 @@
-"""Access rules (BR-01, D6, decisions F and G). Every change goes through these functions, each writes an audit event, and a refused
+"""Access rules (decisions F and G). Every change goes through these functions, each writes an audit event, and a refused
 action raises AccessDenied with a sentence the page can show as it is.
 
 Who may grant what:
   - an organization's admins grant its module permissions and org.admin, never to themselves;
-  - while an organization has no admin, only a CPUC system administrator can grant its first one (D6), and only then;
+  - while an organization has no admin, only a CPUC system administrator can grant its first one, and only then;
   - claims.pii granted by an organization's admin waits for any data steward's approval;
   - system.admin and pii.steward exist only in the CPUC organization and are granted by a system administrator;
   - the last active data steward cannot be revoked, suspended or removed.
@@ -819,14 +819,14 @@ def decline_pii(steward: User, g: Grant, reason: str) -> Grant:
     )
 
 
-# --- role templates (BR-01.3)
+# --- role templates
 
 ROLE_TEMPLATE_FIELDS = ["name", "description", "permissions", "kinds", "active"]
 
 
 def _template_values(name: str, permissions: list[str], kinds: list[str]) -> tuple[str, list[str], list[str]]:
     """The name, permissions and kinds checked and put in catalog order. A template bundles module permissions only: an organization's
-    first administrator, PII access and the CPUC's own roles each need a decision of their own (D6, decision G), so they are granted
+    first administrator, PII access and the CPUC's own roles each need a decision of their own (decision G), so they are granted
     one by one."""
     name = (name or "").strip()
     if not name:
@@ -954,7 +954,7 @@ def apply_role_template(
     return TemplateResult(template, granted, sorted(held & set(template.permissions)))
 
 
-# --- access requests (D6)
+# --- access requests
 
 
 @transaction.atomic
@@ -974,7 +974,7 @@ def decide_request(
     actor: User, req: AccessRequest, approve: bool, note: str = "", permission_codes: list[str] | None = None
 ) -> AccessRequest:
     """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organization's
-    admins decide; the CPUC is not in the path (D6)."""
+    admins decide; the CPUC is not in the path."""
     _require_org_admin(actor, req.organisation, "decide its access requests")
     if req.status != AccessRequest.Status.PENDING:
         raise AccessDenied("That request has already been decided.")

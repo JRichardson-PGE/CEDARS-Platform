@@ -248,7 +248,7 @@ DATE = {"required": False, "widget": forms.DateInput(attrs={"type": "date"})}
 
 
 class PeriodMixin(forms.Form):
-    """A version's comment period (BR-15.4): registered users comment from the day it opens to the day it closes, both included."""
+    """A version's comment period: registered users comment from the day it opens to the day it closes, both included."""
 
     comments_open = forms.DateField(label="Comments open", help_text="Leave both blank for no public comment", **DATE)
     comments_close = forms.DateField(label="Comments close", **DATE)
@@ -278,7 +278,7 @@ def _stage_field(stages, required=True):
 
 
 def _placeholder_field(replacing: bool = False):
-    """BR-13.6: an implementation plan filed before the full plan is ready is flagged, on its program's page too."""
+    """An implementation plan filed before the full plan is ready is flagged, on its program's page too."""
     return forms.BooleanField(
         label="This is a placeholder plan",
         required=False,
@@ -390,7 +390,7 @@ class RequestResponsesForm(forms.Form):
 
 
 class CommentForm(forms.Form):
-    """The PDA's Add a Comment or Question form, with the section or page BR-15.4 asks for."""
+    """The PDA's Add a Comment or Question form, with the section or page it is about."""
 
     version = forms.ChoiceField(label="On", required=True)
     kind = forms.ChoiceField(label="Comment or question", choices=Comment.Kind.choices, widget=forms.RadioSelect)
@@ -464,7 +464,7 @@ def _cpuc_staff():
 
 
 class StudyForm(forms.Form):
-    """A study's fields (BR-15.6), with the PSR's limits on its text. A PA adding its own study is its manager; only CPUC ED chooses
+    """A study's fields, with the PSR's limits on its text. A PA adding its own study is its manager; only CPUC ED chooses
     another manager."""
 
     title = forms.CharField(label="Study name", max_length=255)

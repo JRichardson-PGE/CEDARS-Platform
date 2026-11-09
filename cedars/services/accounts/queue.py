@@ -1,4 +1,4 @@
-"""The accounts service's work in each user's queue (cedars.core.queue, BR-09.5): access requests waiting on an organization's
+"""The accounts service's work in each user's queue (cedars.core.queue): access requests waiting on an organization's
 administrators, PII grants and access-policy changes waiting on a data steward."""
 
 from __future__ import annotations

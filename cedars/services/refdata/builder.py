@@ -1,4 +1,4 @@
-"""The cost-test set builder (BR-06.8, BR-06.14, D14; design "Cost-test set builder: scope and design", Jake 2026-11-03).
+"""The cost-test set builder (design "Cost-test set builder: scope and design", Jake 2026-11-03).
 
 A set is a ReCET YAML file (ReCET's COST_TESTS.md) that the CPUC would otherwise write by hand. The builder keeps the set being built as
 its YAML's mapping (`CostTestBuild.data`), lets people change it one part at a time, and on every save writes it out and checks it with the

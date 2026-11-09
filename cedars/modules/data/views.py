@@ -264,7 +264,7 @@ FORM_SKIP = ("csrfmiddlewaretoken", "page")
 
 @require_http_methods(["GET", "POST"])
 def records_page(request):
-    """Record-level data (BR-07.5): filters, a column picker, the first records and their downloads. The form posts here and is sent
+    """Record-level data: filters, a column picker, the first records and their downloads. The form posts here and is sent
     on to the short GET address of what it chose, so every choice has a link that reproduces it (and fits in a URL)."""
     from django.shortcuts import redirect, render
 
@@ -368,7 +368,7 @@ def _records_context(request, page, number, error) -> dict:
 
 @require_GET
 def records_download(request, fmt):
-    """Every record the query keeps, with the chosen columns, as one file (BR-07.5)."""
+    """Every record the query keeps, with the chosen columns, as one file."""
     import tempfile
 
     from django.http import FileResponse
@@ -400,7 +400,7 @@ def records_download(request, fmt):
     return FileResponse(out, as_attachment=True, filename=records.filename(page, fmt), content_type=records.FORMATS[fmt])
 
 
-# --- background downloads (BR-07.2): more records than DATA_DOWNLOAD_MAX_ROWS, made by run_data_downloads, announced by notification
+# --- background downloads: more records than DATA_DOWNLOAD_MAX_ROWS, made by run_data_downloads, announced by notification
 
 
 @login_required

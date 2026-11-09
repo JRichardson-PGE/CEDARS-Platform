@@ -67,7 +67,7 @@ def _in_order(options) -> list:
 
 def library(request):
     """The library: every published document, and the unpublished ones the user may see, searchable and filterable by any of its
-    details, with the result list as a file (BR-15.2). Public: no account needed."""
+    details, with the result list as a file. Public: no account needed."""
     form, results = _search(request)
     page = Paginator(results, PER_PAGE).get_page(request.GET.get("page"))
     query = request.GET.copy()
@@ -165,7 +165,7 @@ def _document(request, pk) -> Document:
 
 
 def warn_inaccessible(request, version) -> None:
-    """Tell the uploader what the accessibility check found in the version's files (BR-10.3), if anything."""
+    """Tell the uploader what the accessibility check found in the version's files, if anything."""
     if version is None:
         return
     text = accessibility.upload_warning("document", version.files.values_list("pk", flat=True))
@@ -222,7 +222,7 @@ def document(request, pk):
 
 @login_required
 def downloads(request, pk):
-    """Who downloaded or viewed the document's files, and when (BR-15.9): the audit trail's events, for those who manage it."""
+    """Who downloaded or viewed the document's files, and when: the audit trail's events, for those who manage it."""
     doc = _document(request, pk)
     if not service.can_manage(request.user, doc):
         raise Http404
@@ -386,7 +386,7 @@ def publish(request, pk, number):
     return redirect(doc)
 
 
-# --- value lists (BR-15.3: controlled lists kept by CPUC ED)
+# --- value lists (controlled lists kept by CPUC ED)
 
 
 def value_lists(request):
@@ -451,7 +451,7 @@ def change_option(request, pk, action):
     return _back(o.attribute_list)
 
 
-# --- the old sites' links (BR-15.10): the PDA's and PSR's addresses, mirrored under /documents/pda/ and /documents/psr/, so the old
+# --- the old sites' links: the PDA's and PSR's addresses, mirrored under /documents/pda/ and /documents/psr/, so the old
 # domains redirect with a fixed prefix (docs/LEGACY_LINKS.md)
 
 

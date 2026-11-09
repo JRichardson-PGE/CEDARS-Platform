@@ -1,4 +1,4 @@
-"""Correcting a filing's records in place (BR-02.4): the submissions service's corrections, with the Claims module's editor."""
+"""Correcting a filing's records in place: the submissions service's corrections, with the Claims module's editor."""
 
 import io
 import zipfile

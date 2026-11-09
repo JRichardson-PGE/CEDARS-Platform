@@ -31,7 +31,7 @@ def program(pge, pge_admin):
     )
 
 
-# --- effective-dated versions (BR-13.3, BR-12.7)
+# --- effective-dated versions
 
 
 def test_a_change_starts_a_new_version_and_keeps_the_old(program, pge_admin):

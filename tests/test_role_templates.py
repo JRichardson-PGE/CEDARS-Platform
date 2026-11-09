@@ -1,4 +1,4 @@
-"""Role templates (BR-01.3): named bundles of module permissions a CPUC system administrator defines and an organization's
+"""Role templates: named bundles of module permissions a CPUC system administrator defines and an organization's
 administrators grant at once, each grant recording the template, every step audited."""
 
 import pytest

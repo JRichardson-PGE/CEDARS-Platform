@@ -1,4 +1,4 @@
-"""Cost-test definition sets as data packs (kind `cost_tests`; ReCET's COST_TESTS.md, BRD BR-06.8 / BR-06.14, D14).
+"""Cost-test definition sets as data packs (kind `cost_tests`; ReCET's COST_TESTS.md).
 
 A set is one YAML file (ReCET's `data/cost_tests/<id>/definition.yaml`): which value streams each cost test adds up, how it shares the
 program costs, and the program years it is in force for. Its pack holds that one file, so the pack's fingerprint names the set exactly.

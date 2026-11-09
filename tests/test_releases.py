@@ -1,4 +1,4 @@
-"""Release notes, limits and the FAQ (gap 9: BR-12.1, BR-12.3, BR-12.5): notes published before their changes take effect and sent to
+"""Release notes, limits and the FAQ : notes published before their changes take effect and sent to
 subscribers, fixed once published; the Limits page read from the settings; upload limits enforced and shown; a searchable FAQ with
 worked examples; each guide's release."""
 

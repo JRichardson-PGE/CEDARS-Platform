@@ -1,4 +1,4 @@
-"""The register of CPUC-mandated data and calculation changes (gap 30, BR-12.7): kept by CPUC system administrators, public once
+"""The register of CPUC-mandated data and calculation changes: kept by CPUC system administrators, public once
 published, every change audited with a reason and shown as the entry's history, never deleted, linked to the published records that
 carry it, and only public CPUC documents linked."""
 

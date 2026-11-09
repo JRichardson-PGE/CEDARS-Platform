@@ -1,4 +1,4 @@
-"""The program registry's work in each user's queue (cedars.core.queue, BR-09.5): changes to locked program attributes waiting on a CPUC
+"""The program registry's work in each user's queue (cedars.core.queue): changes to locked program attributes waiting on a CPUC
 programs approver or their delegate."""
 
 from __future__ import annotations

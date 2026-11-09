@@ -1,6 +1,6 @@
-"""Restated results for confirmed claims (BR-06.17): a published version's year to date priced again on the current engine, as an analysis
-that never changes the filed record (BRD v0.5: "re-run prior claims with corrected calculations ... to show restated results, without
-changing the official filed record"), optionally on another ACC, or an ACC per record (BR-06.5), "so a change in results can be separated
+"""Restated results for confirmed claims: a published version's year to date priced again on the current engine, as an analysis
+that never changes the filed record (prior claims re-run with corrected calculations to show restated results, without
+changing the official filed record), optionally on another ACC, or an ACC per record, "so a change in results can be separated
 into the effect of the ACC and the effect of the program".
 
     filed       the version as confirmed: its run (release, ACC, programs, allocation, cost-test set at the time)
@@ -169,7 +169,7 @@ def parse_overrides(data: bytes, claims: set[str], accs: list[str]) -> dict[str,
 
 
 def with_record_accs(job: bytes, overrides: dict[str, str]) -> bytes:
-    """The job with each named claim's measures given their own ACC in ReCET's ACCVersion column (BR-06.5; blank = the run's ACC). The
+    """The job with each named claim's measures given their own ACC in ReCET's ACCVersion column (blank = the run's ACC). The
     other files and every other value are kept as they are."""
     header, rows, others = _read_measure(job)
     i = header.index("CEInputID")
@@ -246,7 +246,7 @@ def start(
     kw = {"organisation": organisation, "release": release, "allocation_version": cy.allocation_version, "settings": settings,
           "cost_test_set": cy.cost_test_set}  # fmt: skip
     parents = service.parent_profiles_file(v)
-    if parents:  # the true-ups are priced again against the same pinned parent profiles (BR-05.6)
+    if parents:  # the true-ups are priced again against the same pinned parent profiles
         kw["profiles_8760"] = parents
     with transaction.atomic(), tempfile.TemporaryDirectory() as tmp:
         rs = Restatement(

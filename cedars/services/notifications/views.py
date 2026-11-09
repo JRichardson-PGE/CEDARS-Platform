@@ -113,7 +113,7 @@ def _save_reminders(request) -> list[str]:
 
 @login_required
 def settings_page(request):
-    """What the user hears about, and how (BR-09.2): the PAs and programs they follow, each event off, on the page, or on the page and
+    """What the user hears about, and how: the PAs and programs they follow, each event off, on the page, or on the page and
     by email, their deadline reminders, and messages about their own work."""
     user = request.user
     pref, _ = Preference.objects.get_or_create(user=user)

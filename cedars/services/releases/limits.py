@@ -1,4 +1,4 @@
-"""The limits people meet in CEDARS (BR-12.1: "the UI shall always show current limits"), each read from the setting that enforces it,
+"""The limits people meet in CEDARS ("the UI shall always show current limits"), each read from the setting that enforces it,
 so the public Limits page (/limits/) and the text beside each upload field say what the site does now. A planned change to a limit is
 a release note's change naming the limit (models.Change.limit); the Limits page shows it as coming, with its date.
 

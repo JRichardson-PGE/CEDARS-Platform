@@ -481,7 +481,7 @@ def published_file(request, pk, which):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
-# --- the year in one view (BR-14.1)
+# --- the year in one view
 
 
 def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
@@ -498,7 +498,7 @@ def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
 
 @login_required
 def year(request, year):
-    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend (BR-14.1)."""
+    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend."""
     get_object_or_404(YearSetup, year=year)
     org, published_only, choices = _year_org(request)
     months = service.year_view(org, year, published_only=published_only) if org else []
@@ -566,7 +566,7 @@ def year_csv(request, year):
     return response
 
 
-# --- the 13th-month report (BR-14.2)
+# --- the 13th-month report
 
 
 def _blank(x):
@@ -638,11 +638,11 @@ def closing_csv(request, year):
     return response
 
 
-# --- change letters (BR-09.3)
+# --- change letters
 
 
 def changes(request):
-    """Every published monthly report correction's change letter, newest first, by PA and program year. Public (BR-09.3)."""
+    """Every published monthly report correction's change letter, newest first, by PA and program year. Public."""
     every = service.change_letters()
     out = every
     org = access.by_code(request.GET.get("org", ""), follow=False)

@@ -88,7 +88,7 @@ def test_a_deliverable_belongs_to_a_study_and_starts_at_a_work_stage(people, stu
 
 
 def test_the_whole_revision_workflow_on_one_record(people, pge, deliverable, client):
-    """BR-15.11's acceptance test: two workplan drafts with comments, the final workplan, draft results with comments, a final revised
+    """The deliverables, end to end: two workplan drafts with comments, the final workplan, draft results with comments, a final revised
     once, one PA response, all on the deliverable's page in order; search lists it once, at the stage PA responses."""
     ev, ed, public = people["evaluator"], people["ed"], people["public"]
     first = deliverable.versions.get()
@@ -202,7 +202,7 @@ def test_pa_responses_are_requested_by_ed_and_filed_by_the_pa(people, pge, deliv
 
 
 def test_comment_periods_gate_comments(people, deliverable, client):
-    """BR-15.4's acceptance test: a public user comments inside the period, the evaluator responds, both show in order; once the period
+    """The comment period end to end: a public user comments inside the period, the evaluator responds, both show in order; once the period
     closes the form is gone; the report lists the comment, the author's organization, the section and the response."""
     ev, public = people["evaluator"], people["public"]
     v = deliverable.versions.get()
@@ -296,7 +296,7 @@ def test_the_new_document_and_version_pages_take_the_stage(people, study, client
     sign_in(client, people["evaluator"])
     page = client.get("/documents/new/?collection=emv").content.decode()
     assert "Track it as a study deliverable" in page and "Comments open" in page
-    assert 'id="type-list-link"' in page and 'href="/documents/lists/' in page  # the document types beside the control (D8, L7)
+    assert 'id="type-list-link"' in page and 'href="/documents/lists/' in page  # the document types beside the control (L7)
     r = client.post(
         "/documents/new/",
         {

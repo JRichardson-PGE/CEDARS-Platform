@@ -8,7 +8,7 @@ def platform(request):
 
     if not hasattr(request, "_coming_changes"):  # once per request: a page can render several templates with this context
         request._coming_changes = banner()
-    ctx["coming_changes"] = request._coming_changes  # announced changes taking effect within the notice period (BR-12.1)
+    ctx["coming_changes"] = request._coming_changes  # announced changes taking effect within the notice period
     if not hasattr(request, "_header"):  # once per request, as the banner
         request._header = _header(request)
     ctx.update(request._header)
