@@ -1,0 +1,4 @@
+{% comment %}An "i" button that shows a field's hint (django/forms/field.html, help_as_info). A native popover: it opens with a click, a tap,
+Enter or Space and closes with Escape or a click elsewhere, without any script (app.js adds opening on hover, and places it under the button).
+It stays open until dismissed, and the pointer can move onto it (WCAG 1.4.13). The hint's id is the one the control's aria-describedby names.{% endcomment %}
+<button type="button" class="info-btn" popovertarget="{{ field.auto_id }}_info"><span aria-hidden="true">i</span><span class="sr-only">About {{ field.label }}</span></button>
