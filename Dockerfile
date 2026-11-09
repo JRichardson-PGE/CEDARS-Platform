@@ -10,6 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/venv/bin:$PATH \
     DJANGO_SETTINGS_MODULE=cedars.settings.prod
 
+# Debian's security fixes land before the python image is rebuilt with them (zlib1g, 2026-11-09), so the image takes them itself.
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir "uv>=0.11,<0.12" \
  && useradd --create-home --uid 10001 cedars
 WORKDIR /app
