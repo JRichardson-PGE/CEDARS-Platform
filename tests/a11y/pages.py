@@ -143,8 +143,10 @@ PAGES = [
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
     ("filing-calendar-public", "/filings/calendar/", None),
     ("filing-calendar-retired", "/filings/calendar/?retired=1", "cpuc_admin"),
-    ("filing-calendar-list", "/filings/calendar/?view=list", "cpuc_admin"),  # the month grid is the default view
+    ("filing-calendar-list", "/filings/calendar/?view=list", "cpuc_admin"),  # the year of small months is the default view
+    ("filing-calendar-month", "/filings/calendar/?view=month", "cpuc_admin"),
     ("filing-calendar-next-month", "/filings/calendar/?month={next_month}", None),
+    ("filing-calendar-next-year", "/filings/calendar/?year={next_month_year}", None),  # the year with the TUAL due in it
     ("filing-deadline", "/filings/calendar/{deadline}/", "cpuc_admin"),
     ("filing-deadline-public", "/filings/calendar/{deadline}/", None),
     ("filing-deadline-retired", "/filings/calendar/{retired_deadline}/", "cpuc_admin"),

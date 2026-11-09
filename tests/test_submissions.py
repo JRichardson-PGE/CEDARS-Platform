@@ -275,7 +275,7 @@ def test_the_calendar_opens_on_this_month_as_a_calendar(client, signed_in, cpuc_
     add("budgets", "month budget", month.replace(day=15))
     nxt = (month + timedelta(days=32)).replace(day=1)
     add("monthly", "next report", nxt.replace(day=3))
-    html = client.get("/filings/calendar/").content.decode()
+    html = client.get("/filings/calendar/?view=month").content.decode()
     assert 'id="month-grid"' in html and 'class="list"' not in html
     assert f'<h2 id="month-h">{month:%B %Y}</h2>' in html and f"Showing 2 deadlines due in {month:%B %Y} for every filing type" in html
     assert ">first claim<" in html and ">month budget<" in html and ">next report<" not in html
@@ -287,12 +287,64 @@ def test_the_calendar_opens_on_this_month_as_a_calendar(client, signed_in, cpuc_
     assert ">next report<" in html and ">first claim<" not in html and "This month</a>" in html
     html = client.get(f"/filings/calendar/?month={nxt:%Y-%m}&type=claims").content.decode()
     assert ">next report<" not in html and f"No deadlines of these types are due in {nxt:%B %Y}." in html
-    assert f'<a href="/filings/calendar/?month={nxt:%Y-%m}" aria-current="true">' in html  # Claims again: every type, same month
+    assert f'<a href="/filings/calendar/?view=month&amp;month={nxt:%Y-%m}" aria-current="true">' in html  # Claims again: every type
     assert client.get("/filings/calendar/?month=bogus").status_code == 200  # an unreadable month: this one
     # weeks start on Sunday; days of the months around fill the first and last weeks, without their deadlines
     weeks = month_grid(date(2026, 11, 1), [{"d": first}], date(2026, 11, 6))
     assert weeks[0][0]["day"] == date(2026, 11, 1) and weeks[0][0]["weekday"] == "Sunday" and weeks[-1][-1]["day"] == date(2026, 12, 5)
     assert all(len(w) == 7 for w in weeks) and [c for w in weeks for c in w if c["today"]][0]["day"] == date(2026, 11, 6)
+
+
+def test_the_calendar_opens_on_this_year_of_small_months(client, signed_in, cpuc_admin):
+    """Jake 2026-11-09: every month at once, due dates colored by filing type with a legend, each date's specifics in its tooltip."""
+    from cedars.services.submissions.models import Deadline
+    from cedars.services.submissions.views import year_grid
+
+    today = timezone.localdate()
+    period = [p for p in registry.ensure_periods(today.year) if p.kind == "year"][0]
+    tz = timezone.get_current_timezone()
+
+    def add(module, kind, day):
+        return Deadline.objects.create(module=module, kind=kind, period=period, due_at=datetime.combine(day, time(17), tzinfo=tz))
+
+    march = date(today.year, 3, 16)
+    add("claims", "march claim", march)
+    add("budgets", "march budget", march)
+    add("monthly", "july report", date(today.year, 7, 20))
+    add("claims", "next year claim", date(today.year + 1, 2, 1))
+    html = client.get("/filings/calendar/").content.decode()
+    assert 'id="year-grid"' in html and 'id="month-grid"' not in html and 'class="list"' not in html
+    assert f'<h2 id="year-h">{today.year}</h2>' in html and f"Showing 3 deadlines due in {today.year} for every filing type" in html
+    assert html.count('class="mini-month"') == 12 and 'id="year-legend"' in html
+    for label in ("Budgets", "Claims", "Monthly reports", "Today"):  # the key names each color and mark in words
+        assert f"</span>{label}</li>" in html
+    # a date with two filing types: both colors and marks, a name for screen readers, and its tooltip spelling out each deadline
+    iso = march.isoformat()
+    assert f'href="/filings/calendar/?view=month&amp;month={today.year}-03#d-{iso}" aria-describedby="tip-{iso}"' in html
+    assert '<span class="f t-budgets"><span class="mk"></span></span><span class="f t-claims">' in html
+    assert "March: 2 deadlines</span>" in html
+    tip = html.split(f'id="tip-{iso}">')[1].split("</td>")[0]
+    assert 'role="tooltip"' in html and "<strong>Claims:</strong> march claim" in tip and "<strong>Budgets:</strong> march budget" in tip
+    assert f"<strong>{march:%A} {iso}</strong>" in tip
+    assert ">next year claim<" not in html and "next year claim" not in html
+    # the month the date links to marks the day, so the link lands on it
+    assert f'id="d-{iso}"' in client.get(f"/filings/calendar/?view=month&month={today.year}-03").content.decode()
+    # filing types narrow the dates and the key; the next year keeps the view and the types
+    html = client.get("/filings/calendar/?type=monthly").content.decode()
+    assert "july report" in html and "march claim" not in html and "</span>Claims</li>" not in html
+    assert f'<a href="/filings/calendar/?type=monthly&amp;year={today.year + 1}" rel="next">' in html
+    html = client.get(f"/filings/calendar/?year={today.year + 1}").content.decode()
+    assert "next year claim" in html and "This year</a>" in html and "march claim" not in html
+    assert client.get("/filings/calendar/?year=bogus").status_code == 200  # an unreadable year: this one
+    # Month and List stay a view away; any month in the address opens the month view
+    assert '<a href="/filings/calendar/?view=month">Month</a>' in html and '<a href="/filings/calendar/?view=list">List</a>' in html
+    assert 'id="month-grid"' in client.get(f"/filings/calendar/?month={today.year}-03").content.decode()
+    # twelve months, Sunday first, days of other months blank, types in the filters' order
+    months = year_grid(2026, [], date(2026, 11, 9))
+    assert [m["label"] for m in months][:2] == ["January", "February"] and len(months) == 12
+    nov = months[10]["weeks"]
+    assert nov[0][0]["day"] == date(2026, 11, 1) and nov[-1][-1] is None and all(len(w) == 7 for w in nov)
+    assert [c for w in nov for c in w if c and c["today"]][0]["day"] == date(2026, 11, 9)
 
 
 # --- changing, retiring and restoring deadlines (CPUC system administrators)

@@ -173,4 +173,22 @@
       if (sw && sw.checked) fd.append("pa", sw.value);
     });
   });
+
+  // Filing calendar, year view: a date's tooltip shows on hover and keyboard focus (CSS); Escape hides it without moving the focus or the
+  // pointer, and it comes back the next time the date is reached (WCAG 1.4.13, dismissible).
+  var yearGrid = document.getElementById("year-grid");
+  if (yearGrid) {
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      yearGrid.querySelectorAll(".ycell").forEach(function (cell) {
+        if (cell.matches(":hover") || cell.contains(document.activeElement)) cell.classList.add("tip-off");
+      });
+    });
+    var reset = function (e) {
+      var cell = e.target.closest && e.target.closest(".ycell");
+      if (cell && !cell.contains(e.relatedTarget)) cell.classList.remove("tip-off");
+    };
+    yearGrid.addEventListener("mouseout", reset);
+    yearGrid.addEventListener("focusout", reset);
+  }
 })();
