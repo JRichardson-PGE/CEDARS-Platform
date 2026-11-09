@@ -88,7 +88,7 @@ def test_a_deliverable_belongs_to_a_study_and_starts_at_a_work_stage(people, stu
 
 
 def test_the_whole_revision_workflow_on_one_record(people, pge, deliverable, client):
-    """The deliverable workflow end to end: two workplan drafts with comments, the final workplan, draft results with comments, a final revised
+    """The deliverables, end to end: two workplan drafts with comments, the final workplan, draft results with comments, a final revised
     once, one PA response, all on the deliverable's page in order; search lists it once, at the stage PA responses."""
     ev, ed, public = people["evaluator"], people["ed"], people["public"]
     first = deliverable.versions.get()

@@ -25,7 +25,7 @@ from cedars.services.accounts.service import AccessDenied
 from . import checks
 from .models import CheckSettings, FileCheck
 
-# what refuses an upload when the CPUC turns blocking on, unless it chooses otherwise: the findings an accessibility audit treats as critical
+# what refuses an upload when the CPUC turns blocking on, unless it chooses otherwise: the findings an audit counts as critical
 DEFAULT_BLOCKING = ["pdf_untagged", "pdf_image_only", "pdf_no_title", "pdf_no_language", "workbook_no_headers"]
 
 

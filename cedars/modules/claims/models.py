@@ -122,9 +122,9 @@ class ChangeLetter(models.Model):
 
 class ClaimRecord(models.Model):
     """One claim of a version's compiled year to date, with the fields that link claims to each other: the NMEC parent it trues up
-   , the SEM participant and phase, the project it belongs to (ProjectID, the project key) and the sites
-    of a population claim. Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
-    The links are read from the standing versions only, so they show confirmed claims."""
+    , the SEM participant and phase, the project it belongs to (ProjectID, the project key) and the sites
+     of a population claim. Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
+     The links are read from the standing versions only, so they show confirmed claims."""
 
     version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_records")
     claim_id = models.CharField("ClaimID", max_length=255)

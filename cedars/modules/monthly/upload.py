@@ -1,6 +1,7 @@
 """A monthly report's upload: a .zip holding Commitments.csv, Measure.csv and ProgramCost.csv (comma-, pipe- or tab-delimited), or an
 Excel workbook with those three sheets. Measure and ProgramCost are the year-to-date BCA inputs: the month's spend is read from
-them (Jake, 2026-10-30), and they become the version's job .zip, two CSVs as a calculation run takes them, priced for the estimates. Commitments is its own table."""
+them (Jake, 2026-10-30), and they become the version's job .zip, two CSVs as a calculation run takes them, priced for the
+estimates. Commitments is its own table."""
 
 import csv
 import hashlib

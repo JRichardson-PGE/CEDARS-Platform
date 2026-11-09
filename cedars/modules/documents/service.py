@@ -608,8 +608,8 @@ def add_version(
     placeholder: bool = False,
 ) -> DocumentVersion:
     """Replace a document's files with a new version; earlier versions stay listed and downloadable. A deliverable's
-    version names its stage, which never goes back (deliverables.next_stages). An implementation plan's version may be a placeholder
-   ; the version that brings the full plan is one that is not."""
+     version names its stage, which never goes back (deliverables.next_stages). An implementation plan's version may be a placeholder
+    ; the version that brings the full plan is one that is not."""
     from . import deliverables
 
     if not can_manage(actor, doc):
