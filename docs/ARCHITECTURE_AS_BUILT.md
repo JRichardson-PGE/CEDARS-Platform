@@ -101,7 +101,7 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 
 ### 2.2 The image
 
-`Dockerfile`: `python:3.12-slim`, uv installs the locked dependencies (`uv sync --locked --no-dev`), then the pinned ReCET wheel if one
+`Dockerfile`: `python:3.12-slim` with its Debian packages upgraded to their published security fixes, uv installs the locked dependencies (`uv sync --locked --no-dev`), then the pinned ReCET wheel if one
 was built into `engine/wheels/` beforehand (`scripts/build_engine_wheel.sh`; the build itself never sees a token), then the code and
 `data/` (the field catalog and ReCET's documents), `collectstatic` (WhiteNoise serves static files), and uv is uninstalled. It runs as
 an unprivileged user (uid 10001), exposes port 8000, and its health check asks `/healthz`. Without the wheel the image still builds, and
@@ -886,9 +886,14 @@ source of truth, and Claims files their claims first so that every funding PA se
   with a reason (`registry.can_set_lead`, `set_lead`).
 - Each PA's ID of it (its code before the statewide PrgID, `PGE_SW_FS` for `SW_FS`: `statewide_part_of`, `allocated_ids`) **follows**
   it (`Program.follows`, `follows_from`). `follow_statewide` (a system administrator, or `manage.py follow_statewide`) fills the
-  statewide program's record once from its lead PA's own ID, then starts a version on every PA's ID with the statewide program's
-  attributes. From then on nobody edits a following ID (`can_edit` is false); a change to the statewide program starts the same
-  version on every ID that follows it (`_start_version`, `_mirror`), refused if one of them already has a later version.
+  statewide program's record once from its lead PA's own ID (over the dates either covers, so a statewide record that ends with its
+  last legacy year reaches its lead's filed years), then gives every PA's ID the statewide program's attributes from that day. Each
+  program keeps the dates it covers, gaps included; only attributes change (`_span`, `_pieces`, `_replace_from`: the version in force
+  on the day ends the day before, later ones give way, every replaced version is kept in the audit event, and a version a change
+  request started is never replaced). From then on nobody edits a following ID (`can_edit` is false); a change to the statewide
+  program reaches every ID that follows it from its date on, across all of that ID's later versions (`_start_version`,
+  `_follow_from`). Without `apply`, `follow_statewide` makes every change inside a transaction and rolls it back, so a dry run
+  reports exactly what the run would do; the command runs each statewide program on its own and goes on past one it cannot link.
 - The statewide program and its IDs share their documents and evaluations on the program page (`family`).
 - `registry.filing_problem(program, organisation)` is the one rule every filing module applies: a PA files its own programs and the
   statewide programs it leads; a statewide program with no lead recorded is filed by nobody.
@@ -900,7 +905,7 @@ flowchart LR
   sw -- "follows" --- p3["SCG_SW_FS"]
   sw -- "follows" --- p4["SDGE_SW_FS"]
   admin["Lead PA's administrators<br/>change SW_FS"] --> sw
-  sw -. "same version mirrored<br/>to every following ID" .-> p1
+  sw -. "its attributes, over each<br/>ID's own dates" .-> p1
   sw -.-> p2
   sw -.-> p3
   sw -.-> p4
