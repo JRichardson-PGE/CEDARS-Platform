@@ -101,7 +101,7 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 
 ### 2.2 The image
 
-`Dockerfile`: `python:3.12-slim`, uv installs the locked dependencies (`uv sync --locked --no-dev`), then the pinned ReCET wheel if one
+`Dockerfile`: `python:3.12-slim` with its Debian packages upgraded to their published security fixes, uv installs the locked dependencies (`uv sync --locked --no-dev`), then the pinned ReCET wheel if one
 was built into `engine/wheels/` beforehand (`scripts/build_engine_wheel.sh`; the build itself never sees a token), then the code and
 `data/` (the field catalog and ReCET's documents), `collectstatic` (WhiteNoise serves static files), and uv is uninstalled. It runs as
 an unprivileged user (uid 10001), exposes port 8000, and its health check asks `/healthz`. Without the wheel the image still builds, and
