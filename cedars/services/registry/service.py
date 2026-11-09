@@ -1044,8 +1044,11 @@ def weighted_factors(percent_electric: Decimal, electric: dict[str, Decimal], ga
     return out
 
 
+# The funding PAs of a factor file, in the order ReCET's layout lists them.
+ALLOCATION_PAS = ("PGE", "SDGE", "SCE", "SCG")
+
 FACTOR_FILE_COLUMNS = ["Year", "ProgramID", "ProgramName", "PercentElectric"] + [
-    f"{pa}{k}Factor" for k in ("Gas", "Electric") for pa in ("PGE", "SDGE", "SCE", "SCG")
+    f"{pa}{k}Factor" for k in ("Gas", "Electric") for pa in ALLOCATION_PAS
 ]
 
 
@@ -1250,8 +1253,8 @@ def allocation_csv(version: AllocationVersion) -> str:
     """The version in the factor-file layout ReCET reads (`--sw-factors`), so a run can be priced with exactly these factors."""
     out = io.StringIO()
     cols = ["Year", "ProgramID", "ProgramName", "PercentElectric"]
-    cols += [f"{pa}GasFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")] + [f"{pa}ElectricFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")]
-    cols += [f"{pa}WeightedFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")] + ["Summary"]
+    cols += [f"{pa}GasFactor" for pa in ALLOCATION_PAS] + [f"{pa}ElectricFactor" for pa in ALLOCATION_PAS]
+    cols += [f"{pa}WeightedFactor" for pa in ALLOCATION_PAS] + ["Summary"]
     w = csv.DictWriter(out, fieldnames=cols, lineterminator="\n")
     w.writeheader()
     for e in version.entries.prefetch_related("shares"):
