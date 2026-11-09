@@ -43,6 +43,8 @@ calculations/new:
     - A CET replica prices the job exactly as that CET release did, its errors included, for comparison and history only. It is never used
       for a filing.
   how:
+    - The i button beside an option's name explains it. Press it (or rest the mouse on it) to read the text; Escape or a click elsewhere
+      closes it.
     - Templates to download, at the top, gives the engine's own job workbook, Measure.csv header and optional-file templates.
     - Check the inputs only runs the input check without pricing, to see the findings first.
     - Advanced options opens with Enter or Space (or a click). Its heading says how many of its settings are not at their defaults (a

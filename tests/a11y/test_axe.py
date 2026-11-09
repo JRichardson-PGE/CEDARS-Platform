@@ -1349,6 +1349,46 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
 
 
+def test_new_run_hints_are_behind_info_buttons(browser, site, scene):
+    """New run's field hints sit behind an "i" button beside each label (Jake, 2026-11-09), not under the controls. Each button is
+    named for its field, opens its hint with the keyboard, a click or a resting mouse; the hint stays open while the pointer is on it
+    and closes with Escape, the focus staying on the button (2.1.1, 1.4.13). The control is still described by the hint."""
+    context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": 1280, "height": 900})
+    shown = page.evaluate("[...document.querySelectorAll('main form .helptext')].filter(h => h.offsetParent).length")
+    assert shown == 0, f"{shown} hints are still shown under the New run controls"
+    button = page.get_by_role("button", name="About Market effects")
+    hint = page.locator("#id_market_effects_info")
+    described = page.evaluate(
+        "document.getElementById(document.getElementById('id_market_effects').getAttribute('aria-describedby')).textContent"
+    )
+    assert "D.12-11-015" in described
+    button.focus()
+    page.keyboard.press("Enter")
+    assert hint.is_visible()
+    assert hint.inner_text().startswith("Budget filing forecasts use 0% market effects and claims actuals use 5% market effects.")
+    hint_box, button_box = hint.bounding_box(), button.bounding_box()
+    assert abs(hint_box["y"] - (button_box["y"] + button_box["height"])) < 12, "the hint is not placed under its button"
+    page.keyboard.press("Escape")
+    assert not hint.is_visible()
+    assert page.evaluate("document.activeElement.getAttribute('popovertarget')") == "id_market_effects_info"
+    button.click()
+    assert hint.is_visible()
+    page.mouse.click(5, 890)
+    assert not hint.is_visible(), "a click elsewhere leaves the hint open"
+    button.hover()
+    page.wait_for_timeout(500)
+    assert hint.is_visible(), "resting the mouse on the button does not open the hint"
+    hint.hover()
+    page.wait_for_timeout(600)
+    assert hint.is_visible(), "the hint closes as the pointer moves onto it (1.4.13)"
+    page.mouse.move(5, 890)
+    page.wait_for_timeout(600)
+    assert not hint.is_visible(), "a hint opened by hovering stays open after the pointer leaves"
+    size = button.bounding_box()
+    context.close()
+    assert size["width"] >= 24 and size["height"] >= 24
+
+
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
 def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewport):
     context, page = _open(browser, site, scene, *STICKY_PAGE, viewport=viewport)

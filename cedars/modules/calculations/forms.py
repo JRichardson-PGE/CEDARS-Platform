@@ -51,6 +51,8 @@ def _norm(v) -> str:
 class NewRunForm(forms.Form):
     """New run: the job zip and the settings a person picks. The API takes the same fields."""
 
+    help_as_info = True  # each field's hint is behind an "i" button beside its label (Jake, 2026-11-09; django/forms/field.html)
+
     name = forms.CharField(
         label="Run name",
         max_length=200,
@@ -86,7 +88,9 @@ class NewRunForm(forms.Form):
         required=False,
         empty_value=None,
         initial="0",
-        help_text="CET's market effects, on benefits and costs",
+        help_text="Budget filing forecasts use 0% market effects and claims actuals use 5% market effects. Market effects were "
+        "established at a default 5% in CPUC decision D.12-11-015. D.19-08-034 further clarified the exclusion of market effects "
+        "from forecasts.",
     )
     acc_purpose = forms.ChoiceField(
         label="Priced for",
