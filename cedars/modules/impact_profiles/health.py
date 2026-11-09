@@ -59,7 +59,7 @@ def failed() -> health.Result:
 
 
 def etrm_sync() -> health.Result:
-    """The nightly eTRM sync (BR-11.3): failing when its last attempt failed or nothing has succeeded for HEALTH etrm minutes."""
+    """The nightly eTRM sync: failing when its last attempt failed or nothing has succeeded for HEALTH etrm minutes."""
     from . import etrm
 
     result = health.Result("impact_profiles.etrm", "Impact profiles", "eTRM sync", link="/impact-profiles/etrm/")

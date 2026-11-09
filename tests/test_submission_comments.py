@@ -1,4 +1,4 @@
-"""Comments and attachments on filing versions, and each user's queue (BR-09.5)."""
+"""Comments and attachments on filing versions, and each user's queue."""
 
 import io
 from datetime import date, timedelta

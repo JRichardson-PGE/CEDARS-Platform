@@ -1,4 +1,4 @@
-"""Release notes (BR-12.1, BR-12.5): the system owner announces each specification, rule, limit or system change before it takes effect.
+"""Release notes: the system owner announces each specification, rule, limit or system change before it takes effect.
 
 A CPUC system administrator drafts a note (title, the platform release it ships in if any, a summary, the date it takes effect) and
 its changes, then publishes it. Publishing needs at least one change and a date after today, and at least CEDARS_RELEASE_NOTICE_DAYS
@@ -302,7 +302,7 @@ class GuideRevision:
 
 
 def guide_revisions(on: date | None = None) -> list[GuideRevision]:
-    """Each user guide's release and the releases in effect that changed its part of CEDARS since (BR-12.5's check)."""
+    """Each user guide's release and the releases in effect that changed its part of CEDARS since."""
     from cedars.core.help import GUIDES
 
     in_effect = list(published().filter(withdrawn_at__isnull=True, effective_on__lte=on or today()).exclude(version=""))

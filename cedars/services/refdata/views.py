@@ -13,7 +13,7 @@ from .models import PackVersion, TieOutRequirement
 
 @login_required
 def index(request):
-    """Every data pack, by kind: what runs can use now, drafts, and withdrawn packs (BR-11.7)."""
+    """Every data pack, by kind: what runs can use now, drafts, and withdrawn packs."""
     kind = request.GET.get("kind", "")
     packs = PackVersion.objects.all()
     if kind in PackVersion.Kind.values:
@@ -129,7 +129,7 @@ class CostTestSetForm(forms.Form):
 
 @login_required
 def cost_test_sets(request):
-    """The cost-test definition sets (BR-06.8, BR-06.14, D14): which tests runs and filings price, by program year. CPUC system
+    """The cost-test definition sets: which tests runs and filings price, by program year. CPUC system
     administrators register a set file as a draft here, then record its engine check and publish it on the pack's page."""
     manager = service.can_manage(request.user, cost_tests.KIND)
     form = CostTestSetForm(request.POST or None, request.FILES or None) if manager else None

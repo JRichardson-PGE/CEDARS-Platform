@@ -1,4 +1,4 @@
-"""Energy efficiency goals (the portfolio dashboard's goal lines, BR-07.3). The CPUC adopts goals by decision about every two years; each
+"""Energy efficiency goals (the portfolio dashboard's goal lines). The CPUC adopts goals by decision about every two years; each
 decision is loaded as a goal set (a CSV of its tables), checked, and confirmed by a second CPUC system administrator. The newest confirmed
 set covering a year replaces the earlier ones for that year; earlier sets stay for the record.
 

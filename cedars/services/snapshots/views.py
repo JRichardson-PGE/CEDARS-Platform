@@ -1,4 +1,4 @@
-"""Publication holds (BR-08.5): the snapshots the scan for personal information held back from the public release, what it found,
+"""Publication holds: the snapshots the scan for personal information held back from the public release, what it found,
 and the system administrators' release and scan settings. A held filing's own organization sees its holds; nothing here shows a value
 the scan found (masked examples and record IDs only)."""
 

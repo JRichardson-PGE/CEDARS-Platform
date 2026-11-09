@@ -1,4 +1,4 @@
-"""Job and system health (BR-12.2): each module and service registers checks here (in its AppConfig.ready, as with the registry's
+"""Job and system health: each module and service registers checks here (in its AppConfig.ready, as with the registry's
 hooks, so nothing here imports a module), the administrators' page /admin/health/ shows them, and `manage.py check_health` (scheduled
 every 10 minutes) runs them, writes one JSON line for CloudWatch's metric filters and alerts the CPUC's system administrators when a
 check starts failing. Thresholds are settings (HEALTH_*), so they change without a release."""

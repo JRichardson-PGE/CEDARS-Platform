@@ -1,4 +1,4 @@
-"""Comments and attachments on filing versions (BR-09.5), for Budgets, Claims and Monthly reports alike: the filing organization and CPUC
+"""Comments and attachments on filing versions, for Budgets, Claims and Monthly reports alike: the filing organization and CPUC
 staff discuss a filing on its version pages, with files attached.
 
 Who: the filing organization's people who may read its filings in the module (`<module>.read`, `.submit` or `.confirm` there), and CPUC
@@ -10,7 +10,7 @@ the version it was written on, and a new one goes on the version being read.
 
 Files are checked and kept as the document library's are (`cedars.core.files`: the same accepted types and size limit, the uploads storage
 area), under the version. Posting a comment and downloading a file each write an audit event on the version (`submission.commented`,
-`submission.attachment_downloaded`), so the version's audit history shows them with its other events (BR-09.1).
+`submission.attachment_downloaded`), so the version's audit history shows them with its other events.
 
 Who hears of a comment: the filing organization's comment goes straight to the module's CPUC reviewers (Jake, 2026-11-01: those who hold
 `<module>.approve` in the CPUC, and their delegates for today, the people whose My queue it lands in), as a direct message emailed unless

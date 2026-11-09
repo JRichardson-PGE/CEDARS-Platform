@@ -1,4 +1,4 @@
-# How each program definition field is filled in (BR-13.7). One entry per field of the program record, in the order the program page
+# How each program definition field is filled in. One entry per field of the program record, in the order the program page
 # shows them. Read by cedars/services/registry/field_guide.py; shown on /programs/fields/, on the change form beside each field and on
 # the program page.
 #
@@ -25,7 +25,7 @@ prg_id:
   guidance:
     - >-
       A PrgID is given once, when the program is added to the registry, and never changes or is reused. Budget filings, claims, monthly
-      reports and documents name the program by its PrgID instead of repeating its attributes (BR-13.1).
+      reports and documents name the program by its PrgID instead of repeating its attributes.
     - >-
       A PA's own program starts with the PA's code and an underscore (PGE_..., SCE_...); a statewide program's starts with SW_. A
       statewide program's allocated rows in a filing carry the funding IOU's code in front (PGE_SW_...).
@@ -59,7 +59,7 @@ name:
 commercial_name:
   label: Commercial name
   dictionary: []
-  definition: The name the program is marketed under to customers, where it differs from the filed name (BR-13.5).
+  definition: The name the program is marketed under to customers, where it differs from the filed name.
   hint: Only when customers know the program by another name; leave it blank otherwise.
   guidance:
     - >-
@@ -78,7 +78,7 @@ status:
       A program moves through the statuses in order: new, active, closed to new commitments, closure pending, closed. Change the status
       from the date it takes effect; the earlier version keeps the earlier status, so reports for earlier years still show it.
     - >-
-      A closed program stays in the registry and in search (BR-13.4). Claims can still be filed against a program that is closed to new
+      A closed program stays in the registry and in search. Claims can still be filed against a program that is closed to new
       commitments for the commitments it made before.
   values:
     - {code: new, label: New, meaning: Approved, and not yet taking participants.}
@@ -115,7 +115,7 @@ primary_sector:
   guidance:
     - >-
       Choose the one sector most of the program's budget serves. A program that serves several sectors gives the split in Budget share
-      by sector; claims still report each measure's actual sector (BR-13.2).
+      by sector; claims still report each measure's actual sector.
   values:
     - {code: Residential, label: Residential, meaning: Homes and their occupants.}
     - {code: Commercial, label: Commercial, meaning: Businesses and commercial buildings.}
@@ -135,7 +135,7 @@ sectors:
     - >-
       Write each sector the program serves with its share of the budget, for example "Commercial: 0.9, Industrial: 0.1". The shares add
       up to 1. A program that serves one sector has one share of 1. Budgets are allocated by these shares; claims report the sector
-      actually served (BR-13.2).
+      actually served.
   values_note: Sector names from the Primary sector list, each with a share between 0 and 1; the shares add up to 1.
 
 implementer:
@@ -266,7 +266,7 @@ parent_program:
 website:
   label: Website
   dictionary: []
-  definition: The program's public web page, for the customer-facing catalog (BR-13.5).
+  definition: The program's public web page, for the customer-facing catalog.
   hint: The program's public page, starting https://.
   guidance:
     - A page a customer can open without signing in that describes the program and how to take part. Leave it blank if there is none.

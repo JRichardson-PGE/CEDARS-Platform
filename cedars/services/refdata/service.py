@@ -204,7 +204,7 @@ def discard_draft(actor, pack: PackVersion, reason: str = "") -> None:
 
 
 def usable(pack: PackVersion, purpose: str) -> tuple[bool, str]:
-    """Whether a new run may use the pack: "filing" takes only published packs, "analysis" drafts too (BR-11.8)."""
+    """Whether a new run may use the pack: "filing" takes only published packs, "analysis" drafts too."""
     if pack.status == Status.WITHDRAWN:
         return False, f"{pack} was withdrawn: {pack.withdrawn_reason}"
     if pack.status == Status.DRAFT and purpose == "filing":

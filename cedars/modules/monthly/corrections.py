@@ -1,4 +1,4 @@
-"""The Monthly reports module's record editor (BR-02.4), for the submissions service's corrections: a version's records are its
+"""The Monthly reports module's record editor, for the submissions service's corrections: a version's records are its
 report's three tables, Commitments and the year-to-date BCA inputs Measure and ProgramCost, whole (each month's report is the whole year
 to date), with the file's own columns. A correction is kept as the report's new files and checked again (service.correct_records)."""
 

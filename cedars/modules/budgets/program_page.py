@@ -1,4 +1,4 @@
-"""What the program page shows from Budgets (BR-07.6), through registry.register_program_records: the program's lines in every
+"""What the program page shows from Budgets, through registry.register_program_records: the program's lines in every
 budget filing version and the fund shifts that move its money. Published filing versions are public, as their figures are on the
 dashboards; a version not yet published is shown only to those who may read its filing. Fund shifts are shown only to those who may
 read the shift (the PA, its co-funders once submitted, and CPUC staff)."""

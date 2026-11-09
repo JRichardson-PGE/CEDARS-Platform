@@ -1,4 +1,4 @@
-"""The input templates New run offers (BR-06.1): the installed engine's own templates (`recet.templates.write_template`, the files
+"""The input templates New run offers: the installed engine's own templates (`recet.templates.write_template`, the files
 ReCET's own New run and `recet template` give), never a copy kept here, so a template always has the pinned engine's columns. Each file
 is written once per engine version and ACC into a temporary folder and served from there.
 

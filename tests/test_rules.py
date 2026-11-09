@@ -149,7 +149,7 @@ def test_findings_use_the_data_dictionarys_field_names(claims, monkeypatch):
     )
 
 
-# --- administrators change rules as new versions (BR-12.6)
+# --- administrators change rules as new versions
 
 
 @pytest.fixture

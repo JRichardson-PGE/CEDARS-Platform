@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 
 class CalculationsConfig(AppConfig):
-    """The Calculations module: cost-effectiveness runs on the ReCET engine (BR-06). The platform keeps the run records, the inputs
+    """The Calculations module: cost-effectiveness runs on the ReCET engine. The platform keeps the run records, the inputs
     and outputs in object storage and the queue; a ReCET worker (`recet worker run`, the engine's job contract) prices each job, locally
     or on AWS Batch, and writes its outputs and a receipt. The engine is never imported here."""
 
@@ -25,9 +25,9 @@ class CalculationsConfig(AppConfig):
 
         register_pricer(service.price_submission)  # filing modules price their versions through the submissions service
         register_run_state(service.run_state)  # and show whether that run still runs, or ended without pricing them
-        # and re-price a published filing as an analysis run that never touches it (BR-06.17: restated results)
+        # and re-price a published filing as an analysis run that never touches it (restated results)
         register_restater(service.restate_version, service.restate_options, service.describe_run)
 
         from . import health
 
-        health.register()  # stalled and failed runs on the administrators' health page (BR-12.2)
+        health.register()  # stalled and failed runs on the administrators' health page

@@ -1,4 +1,4 @@
-"""Retiring fields and the dictionary's change log (BR-08.4, BR-08.2).
+"""Retiring fields and the dictionary's change log.
 
 A field is retired, never dropped, after a usage, audience and regulatory review: `retire` makes a new catalog version, a copy of the
 current one with the field marked retired from a date and the three reviews and the reason kept on it, and `reinstate` makes one
@@ -7,8 +7,7 @@ that entry is superseded or withdrawn (releases.mandates.requiring_field).
 
 `changes(version)` compares a catalog version with the one before it, field by field: added, dropped, retired, reinstated, and every
 attribute, other name and usage that changed. The public Changes page (/dictionary/changes/) lists them for every version, with the
-published versions of the value lists and the rule sets beside them, as the specification change log the register is published with
-(BR-12.7)."""
+published versions of the value lists and the rule sets beside them, as the specification change log the register is published with."""
 
 import csv
 import io
@@ -87,7 +86,7 @@ def _copy(actor, base: CatalogVersion, notes: str, name: str, **changes) -> tupl
 def retire(
     actor, name: str, *, retired_from: date, reason: str, usage: str, audience: str, regulatory: str
 ) -> tuple[CatalogVersion, Field]:
-    """Retire a field of the current catalog from a date (today or later), after the three reviews BR-08.4 asks for."""
+    """Retire a field of the current catalog from a date (today or later), after its three reviews."""
     _require_admin(actor)
     base = service.current()
     f = base and base.fields.filter(name=name).first()

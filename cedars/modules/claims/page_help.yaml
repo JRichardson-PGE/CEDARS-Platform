@@ -45,6 +45,9 @@ claims/year_new:
     - target: main form
       title: The claim year
       text: The year and each confirmation's due date. Every PA sees it on Claims once it is set up.
+    - target: "#id_filers"
+      title: Who files
+      text: Every PA is ticked; untick those not expected to file. Only those ticked can start a filing and are on the Filings page's status.
 
 claims/setup:
   title: A claim year's set-up
@@ -55,10 +58,14 @@ claims/setup:
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
     - A year set up before statewide claims were filed on their own gets its five statewide due dates here.
+    - Not every program administrator files every filing. Who files lists those expected to, and only they can start a filing for it, and
+      only they are listed on the Filings page's status. A PA that has started filing stays on it, since what it filed is kept.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
     - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
+    - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
+      started filing stays on it.
   see: claims
   tour:
     - target: "#setup-pricing"
@@ -71,6 +78,9 @@ claims/setup:
       title: Statewide due dates
       text: For a year set up before statewide claims were filed on their own, add its five statewide confirmations.
       optional: true
+    - target: "#setup-filers"
+      title: Who files
+      text: Tick the program administrators expected to file; only they can start a filing and only they are on the Filings page's status.
     - target: "#remove-setup"
       title: Remove this set-up
       text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.
@@ -257,12 +267,12 @@ claims/links:
 claims/restate:
   title: Restating confirmed claims
   guide:
-    - Prices a confirmed version's year to date again on today's engine (BR-06.17), as an analysis. The confirmed version, its results and
+    - Prices a confirmed version's year to date again on today's engine, as an analysis. The confirmed version, its results and
       its published files never change; the runs are ordinary runs of the organization you choose (or your own).
     - On the filed ACC one run is made, and the whole change from the filed results is the effect of the engine release, today's program
       registry, the claim year's allocation version and cost-test set. On another ACC a second run on the filed ACC is made as well, so
       the change splits into that effect and the effect of the ACC alone.
-    - An ACC per claim (BR-06.5) comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
+    - An ACC per claim comes from a CSV with a ClaimID column and an ACC column; the claims it does not name use the ACC chosen.
   how:
     - Choose who the runs are for, the release (the default is the current engine) and the ACC, optionally upload the ACC by claim file,
       then Restate. The restatement's page fills in as its runs finish.

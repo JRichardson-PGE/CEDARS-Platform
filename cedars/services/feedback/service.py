@@ -1,4 +1,4 @@
-"""Feedback from any page (BR-12.4). The Feedback link in every page's footer opens a short form that records the page it came from,
+"""Feedback from any page. The Feedback link in every page's footer opens a short form that records the page it came from,
 the sender (when signed in) and the organization they act for, and the message; each message is an audit event, and every CPUC system
 administrator is told of it (on their Notifications page, and by email unless they turned direct emails off), as is the team inbox
 CEDARS_FEEDBACK_EMAIL when it is set. Administrators work through the messages on the Feedback page and close each one with a note.

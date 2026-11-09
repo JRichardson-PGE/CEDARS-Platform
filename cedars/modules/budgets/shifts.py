@@ -1,4 +1,4 @@
-"""Fund shifts and the operating budget (BR-14.4, BR-04.7).
+"""Fund shifts and the operating budget.
 
 A fund shift moves dollars between a PA's programs within a filing cycle, across its program years if need be. It is not part of any
 budget filing and has no cost-effectiveness run. Each PA's part of it must add up to zero: an unbalanced shift is rejected when
@@ -20,7 +20,7 @@ co-funders count as spent.
                                        \\-> in effect (no co-funders)
     draft or waiting -> withdrawn
 
-The approved budget (the standing filing, BR-04.2) never changes. A PA's operating budget is its approved budget plus its part of the
+The approved budget (the standing filing) never changes. A PA's operating budget is its approved budget plus its part of the
 shifts that took effect after that filing was confirmed: a later filing is taken to carry the earlier shifts in its own numbers, and the
 pages say so wherever it matters (Jake, 2026-10-30)."""
 
@@ -341,7 +341,7 @@ def _unbalanced(part: Part, organisation_code: str) -> str:
 
 def problems(shift: FundShift) -> list[str]:
     """Why the shift cannot be submitted: fewer than two lines, statewide lines with no factors, the shift's PA's part not adding up
-    to zero with its portion of the statewide lines (BR-14.4), or a line or portion that would leave a program-year's operating
+    to zero with its portion of the statewide lines, or a line or portion that would leave a program-year's operating
     budget below zero, for the shift's PA or for any other funder."""
     own = [ln for ln in shift.lines.all() if ln.pa == shift.organisation.code]
     out = []
@@ -472,7 +472,7 @@ def _submit(actor, shift: FundShift) -> FundShift:
         actor=actor,
         organisation=shift.organisation,
     )
-    if shift.status == FundShift.Status.EFFECTIVE:  # no co-funder: in effect at once (what subscribers hear, BR-09.2)
+    if shift.status == FundShift.Status.EFFECTIVE:  # no co-funder: in effect at once (what subscribers hear)
         audit.record("fund_shift.effective", obj=shift, after=_fields(shift), actor=actor, organisation=shift.organisation)
     for code in shift.cofunders:
         org = access.by_code(code)
@@ -681,7 +681,7 @@ def _factor(organisation, cycle: FilingCycle, prg_id: str, year: int) -> Decimal
 
 
 def operating_budget(organisation, cycle: FilingCycle) -> OperatingBudget:
-    """The PA's operating budget by program and year (BR-04.7): its standing filing's budget lines (approved), plus its part of the
+    """The PA's operating budget by program and year: its standing filing's budget lines (approved), plus its part of the
     shifts in effect since that filing was confirmed: its own lines, and its portion of each statewide line (by allocation factor) on
     the statewide program's row. A statewide program's row is the PA's portion throughout: its weighted factor of the whole program's
     approved budget (filed by the lead PA; the row keeps the whole as `statewide_total`), so a co-funder's row shows what it funds and

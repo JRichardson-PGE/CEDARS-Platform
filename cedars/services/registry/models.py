@@ -16,7 +16,7 @@ class DateRange(Func):
 
 
 class Program(models.Model):
-    """A program, identified by its PrgID for good. Its attributes live in ProgramVersion rows; closed programs stay (BR-13.5)."""
+    """A program, identified by its PrgID for good. Its attributes live in ProgramVersion rows; closed programs stay."""
 
     prg_id = models.CharField("PrgID", max_length=60, unique=True)
     administrator = models.ForeignKey(
@@ -45,7 +45,7 @@ class Program(models.Model):
         help_text="The statewide program whose attributes this PA's ID of it follows (PGE_SW_FS follows SW_FS)",
     )
     follows_from = models.DateField(null=True, blank=True, help_text="The day it started following; its earlier versions are its own")
-    portfolio_cost = models.BooleanField(default=False, help_text="A portfolio-level cost ID, kept out of the program catalog (BR-02.6)")
+    portfolio_cost = models.BooleanField(default=False, help_text="A portfolio-level cost ID, kept out of the program catalog")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -68,7 +68,7 @@ class Program(models.Model):
 
 class ProgramVersion(models.Model):
     """A program's attributes from valid_from to valid_to (inclusive; open-ended when valid_to is blank). Versions never overlap and are
-    never edited: a change closes the current version and starts a new one, possibly on a future date (BR-13.3, BR-12.7)."""
+    never edited: a change closes the current version and starts a new one, possibly on a future date."""
 
     program = models.ForeignKey(Program, on_delete=models.PROTECT, related_name="versions")
     valid_from = models.DateField()
@@ -167,7 +167,7 @@ class ReportingPeriod(models.Model):
 
 
 class AllocationVersion(models.Model):
-    """One version of the statewide allocation factors (BR-06.7, BR-13.8). The factors change between filings and between a filing and
+    """One version of the statewide allocation factors. The factors change between filings and between a filing and
     its claims, so each version is its own immutable table: a draft can be replaced, a confirmed version never changes, and filing
     versions, claim versions and runs pin the version they were priced with. A run naming none takes the most recent confirmed version
     with factors for its program year."""
@@ -240,7 +240,7 @@ class AllocationShare(models.Model):
 
 
 class ProgramChangePolicy(models.Model):
-    """Which program attributes are locked (BR-13.7): a program's administrators change the others themselves, and request a change to
+    """Which program attributes are locked: a program's administrators change the others themselves, and request a change to
     a locked one, which a CPUC programs approver (or their delegate) decides. A dated setting, not code: the policy in force on a day
     is the newest one effective by then; earlier ones are kept."""
 
@@ -259,7 +259,7 @@ class ProgramChangePolicy(models.Model):
 
 
 class ProgramChangeRequest(models.Model):
-    """A requested change to a program that touches a locked attribute (BR-13.7). Approving it starts the new version, as a change by
+    """A requested change to a program that touches a locked attribute. Approving it starts the new version, as a change by
     the program's administrators would; declining or withdrawing it changes nothing. Requests are kept, decided or not."""
 
     class Status(models.TextChoices):

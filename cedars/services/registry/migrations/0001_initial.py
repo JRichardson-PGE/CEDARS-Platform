@@ -182,7 +182,7 @@ class Migration(migrations.Migration):
                     "portfolio_cost",
                     models.BooleanField(
                         default=False,
-                        help_text="A portfolio-level cost ID, kept out of the program catalog (BR-02.6)",
+                        help_text="A portfolio-level cost ID, kept out of the program catalog",
                     ),
                 ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),

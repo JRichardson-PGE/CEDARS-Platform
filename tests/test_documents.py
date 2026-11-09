@@ -216,7 +216,7 @@ def test_a_retired_value_stays_on_documents_but_is_not_offered(people, pge):
     assert list(doc.attributes.all()) == [cycle]
     event = AuditEvent.objects.get(action="documents.details_changed")
     assert event.before["title"] == "PY2021 report" and event.after["title"] == "PY2021 impact report" and event.reason == "Fuller title"
-    service.add_option(ed, cycle.attribute_list, "2024-2027", reason="BR-15.3: the list stopped at 2021")
+    service.add_option(ed, cycle.attribute_list, "2024-2027", reason="The list stopped at 2021")
     with pytest.raises(service.DocumentError, match="already has"):
         service.add_option(ed, cycle.attribute_list, "2024-2027")
     service.rename_option(ed, option("evaluation_firm", "Kema"), "KEMA", reason="spelling")

@@ -1,4 +1,4 @@
-"""The value lists the study register adds (BR-15.6: status, type, group and lead as controlled lists, replacing the PSR's free text).
+"""The value lists the study register adds (status, type, group and lead as controlled lists, replacing the PSR's free text).
 Status: the PSR's eleven project statuses. Group: its sub-sectors. Study lead gains REN, which the PSR has and the PDA does not (27 of
 its 740 studies). Sector gains the PSR's Public and Non-Resource; portfolio cycle its funding cycles the PDA lacks (it stopped at 2021).
 Study type is the PDA's list, which holds the four types the PSR's form offers. Lists with no collection are the register's alone."""

@@ -5,7 +5,7 @@ from django.db.models.functions import Lower
 
 
 class DownloadJob(models.Model):
-    """A record download too large to make while the person waits (BR-07.2): queued, made by `manage.py run_data_downloads`, kept in
+    """A record download too large to make while the person waits: queued, made by `manage.py run_data_downloads`, kept in
     the results storage area under `downloads/<id>/`, and announced through the notification service. Only the person who asked sees
     it; the file goes when its retention period ("data_download") ends."""
 
@@ -40,7 +40,7 @@ class DownloadJob(models.Model):
 
 
 class SavedView(models.Model):
-    """A saved view (BR-07.4): a dashboard page's or the records page's query (its GET parameters, columns included) under a name, so its
+    """A saved view: a dashboard page's or the records page's query (its GET parameters, columns included) under a name, so its
     owner can open it again on the data published now. The owner may share it with named people and with the members of one of their
     organizations; a CPUC system administrator may publish it for everyone, signed in or not. A published view does not change: its
     owner changes or deletes it only after it is unpublished. Every change is an audit event (`data/saved.py`)."""
@@ -88,7 +88,7 @@ class SavedView(models.Model):
 
 
 class RecordColumnDefault(models.Model):
-    """The columns a person's records page starts with when a link names none (BR-07.4: each user's own column view), instead of the
+    """The columns a person's records page starts with when a link names none (each user's own column view), instead of the
     key columns. Names the release does not have are left out and said so."""
 
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="record_column_default")

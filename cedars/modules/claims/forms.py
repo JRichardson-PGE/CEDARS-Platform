@@ -4,6 +4,7 @@ from django.utils import timezone
 from cedars.core import uploads
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion
+from cedars.services.submissions import setup as setup_calendar
 
 from .service import PERIODS, SW_FOR, SW_PERIODS
 
@@ -61,6 +62,7 @@ class YearForm(forms.Form):
         for kind, _ in PERIODS:
             self.fields[due_field(kind)] = forms.DateField(label=f"{kind}: due", widget=forms.DateInput(attrs={"type": "date"}))
         sw_date_fields(self)
+        self.fields["filers"] = setup_calendar.filers_field()  # who files (Jake, 2026-11-09: not every PA files every filing)
 
     def due_fields(self):
         return [self[due_field(kind)] for kind, _ in PERIODS]
@@ -123,7 +125,7 @@ class PIIForm(forms.Form):
 
 
 class RestateForm(forms.Form):
-    """A restatement of confirmed claims (BR-06.17): who it is for, the release and ACC, and optionally an ACC per claim."""
+    """A restatement of confirmed claims: who it is for, the release and ACC, and optionally an ACC per claim."""
 
     organisation = forms.ChoiceField(
         label="Run for", required=False, help_text="The runs and the restatement belong to this organization, as any run does"
@@ -134,7 +136,7 @@ class RestateForm(forms.Form):
         label="ACC by claim (optional)",
         required=False,
         help_text="A CSV with a ClaimID column and an ACC column (comma- or pipe-delimited): each claim it names is priced on its own ACC "
-        "(BR-06.5). Every ClaimID must be one of these claims.",
+        ". Every ClaimID must be one of these claims.",
         widget=forms.ClearableFileInput(attrs={"accept": ".csv,.txt"}),
     )
     name = forms.CharField(label="Name", required=False, max_length=200, help_text="Blank: the claims, the release and the ACC")

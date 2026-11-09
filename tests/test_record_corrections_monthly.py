@@ -1,4 +1,4 @@
-"""Correcting a monthly report's records in place (BR-02.4): the submissions service's corrections with the Monthly reports module's
+"""Correcting a monthly report's records in place: the submissions service's corrections with the Monthly reports module's
 editor."""
 
 from datetime import timedelta

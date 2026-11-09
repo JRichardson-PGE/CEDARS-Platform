@@ -6,7 +6,7 @@ from cedars.services.sandbox import bundle
 class Command(BaseCommand):
     help = (
         "Write production's published, non-PII data (programs, reference packs, dictionary, rule sets, snapshots in force) to a bundle "
-        "for refresh_sandbox: a folder or s3://bucket/prefix. Never people or the PII vault (BR-11.2)."
+        "for refresh_sandbox: a folder or s3://bucket/prefix. Never people or the PII vault."
     )
 
     def add_arguments(self, parser):

@@ -416,19 +416,29 @@ def deadline_new(request):
     return render(request, "submissions/deadline_new.html", {"pages": pages})
 
 
-FIELD_LABELS = {"name": "Name", "years": "Program years", "due_at": "Due date", "opens_at": "Opens", "notes": "Notes"}
+FIELD_LABELS = {
+    "name": "Name",
+    "years": "Program years",
+    "due_at": "Due date",
+    "opens_at": "Opens",
+    "notes": "Notes",
+    "filers": "Who files",
+}
 EVENT_LABELS = {
     "deadline.created": "Added to the calendar",
     "deadline.moved": "Due date moved",
     "deadline.changed": "Changed",
     "deadline.retired": "Retired (taken off the calendar)",
     "deadline.restored": "Restored to the calendar",
+    "deadline.filers_changed": "Who files changed",
 }
 
 
 def _shown(field: str, value) -> str:
     if value in (None, ""):
         return "none" if field != "notes" else "(blank)"
+    if isinstance(value, list):
+        return ", ".join(value)
     if field in ("due_at", "opens_at"):
         try:
             return f"{timezone.localtime(datetime.fromisoformat(value)):%Y-%m-%d}"
@@ -563,7 +573,7 @@ def decide(request, pk):
 @login_required
 @require_POST
 def comment(request, pk):
-    """Post a comment, with any files, on a filing version (BR-09.5), then return to the version's page."""
+    """Post a comment, with any files, on a filing version, then return to the version's page."""
     v = get_object_or_404(SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation"), pk=pk)
     if not comments.can_discuss(request.user, v.submission):
         raise Http404
@@ -600,7 +610,7 @@ def attachment(request, pk):
     return response
 
 
-# --- correcting a filing's records in place (BR-02.4)
+# --- correcting a filing's records in place
 
 
 def _correctable(request, pk) -> tuple[SubmissionVersion, str]:
@@ -663,7 +673,7 @@ def _outcome(request, v: SubmissionVersion, scope) -> None:
 
 @login_required
 def records(request, pk):
-    """Find a version's records to correct, add one, or upload a partial correction (BR-02.4)."""
+    """Find a version's records to correct, add one, or upload a partial correction."""
     v, why = _correctable(request, pk)
     ctx = _base_context(v, why)
     if not why:

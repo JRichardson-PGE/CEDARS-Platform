@@ -2,7 +2,7 @@
 changed). Every message lands on the user's notifications page; email is per subscription (or the user's preference for direct
 messages). Delivery happens after the transaction that wrote the event commits, so a rolled-back change notifies nobody.
 
-What a user follows (BR-09.2): the PAs (every PA, the ones they choose, or none) and any programs by PrgID. A subscribed event that
+What a user follows: the PAs (every PA, the ones they choose, or none) and any programs by PrgID. A subscribed event that
 concerns a PA reaches the subscriber only for a PA they follow; events about no PA (reference data, rules, the calendar) reach every
 subscriber, and approvers' work (a correction or program change waiting on them) is never narrowed. A program's followers also hear,
 whatever their PA choice and subscriptions, of the PROGRAM_EVENTS they kept ticked that concern it: a filing or a correction that
@@ -12,7 +12,7 @@ What an event concerns comes from the record it is about. This service reads its
 own through hooks, so the service never imports a module:
   - `register_filing(module, describe)`: describe(version, event) -> Concern for a filing version's events (its programs, a summary of
     what it holds or, for a correction, what changed, and the page to open). Budgets, Monthly reports and Claims register one; a
-    corrected version's publication (a refile, BR-09.3) then tells every subscriber of its PA or of a program it changed what changed.
+    corrected version's publication (a refile) then tells every subscriber of its PA or of a program it changed what changed.
   - `register_concerns(object_type, describe)`: describe(event) -> Concern for a module's own records (a fund shift, a document).
 
 Deadline reminders: each user keeps their own (`DeadlineReminder`): how many days before a due date, for one module or every module."""
@@ -78,6 +78,7 @@ EVENTS = [
     EventType("deadline.changed", "A deadline's opening date or notes change", "public", "Filing calendar"),
     EventType("deadline.retired", "A deadline is taken off the filing calendar", "public", "Filing calendar"),
     EventType("deadline.restored", "A retired deadline is put back on the filing calendar", "public", "Filing calendar"),
+    EventType("deadline.filers_changed", "The program administrators who file a deadline change", "public", "Filing calendar"),
     EventType("pack.published", "Reference data is published (ACC, impact profiles, DEER, value lists ...)", "public", "Reference data"),
     EventType("pack.withdrawn", "Reference data is withdrawn", "public", "Reference data"),
     EventType(
@@ -170,7 +171,7 @@ def _concerns(event) -> Concern:
                 c.title = more.title or c.title
                 c.body = more.body
                 c.key = more.key
-            if event.action == "submission.commented":  # the discussion on a filing (BR-09.5): who wrote what, on the version's page
+            if event.action == "submission.commented":  # the discussion on a filing: who wrote what, on the version's page
                 from cedars.services.submissions import comments
 
                 after = event.after or {}
@@ -391,7 +392,7 @@ def notify(user, title: str, body: str = "", link: str = "", *, key: str = "") -
 
 
 def send(user, title: str, body: str = "", link: str = "", *, email: bool = True, key: str = "") -> Notification | None:
-    """A message to one user from a module's own subscriptions (e.g. Documents' subscriptions to a study or an attribute, BR-15.5), by
+    """A message to one user from a module's own subscriptions (e.g. Documents' subscriptions to a study or an attribute), by
     the channel that subscription chose. With a key it is sent once per user."""
     if not user.is_active:
         return None

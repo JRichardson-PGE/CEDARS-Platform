@@ -215,8 +215,8 @@ InfrastructureCost,InfraCustomerCompleteDate,InfraCustomerCompleteDate,date,,"If
 InfrastructureCost,GasPipeCappingCost,GasPipeCappingCost,number,,The cost of capping off or removing any gas pipes or flues.
 InfrastructureCost,SourceNonEEDollars,SourceNonEEDollars,text255,,The program(s) name(s) of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
 InfrastructureCost,TotalNonEEDollars,TotalNonEEDollars,number,,The total dollar value of any Federal (ex: IRA) or other state programs (ex: TECH) that provided any monetary support (ex: incentives or rebates) for the fuel substitution measure.
-Withdrawal,ClaimID,ClaimID,text255,yes,"The claim withdrawn: a ClaimID filed earlier in the claim year. Its records stay in the year's history, marked withdrawn, and are no longer priced or counted (BR-05.2)."
+Withdrawal,ClaimID,ClaimID,text255,yes,"The claim withdrawn: a ClaimID filed earlier in the claim year. Its records stay in the year's history, marked withdrawn, and are no longer priced or counted."
 Withdrawal,WithdrawalReason,WithdrawalReason,text255,yes,Why the claim is withdrawn. Shown with the claim in the submission history and on the change letter.
 Withdrawal,WithdrawnIn,WithdrawnIn,text255,,"Filled in by CEDARS, not by the PA: the confirmation and version that withdrew the claim."
-ClaimSite,ClaimID,ClaimID,text255,yes,"The claim: a population NMEC claim (or any claim that covers more than one site) lists each of its sites here, beyond the Claim record's own SiteID (BR-05.5). A claim's rows replace all of its earlier rows."
+ClaimSite,ClaimID,ClaimID,text255,yes,"The claim: a population NMEC claim (or any claim that covers more than one site) lists each of its sites here, beyond the Claim record's own SiteID. A claim's rows replace all of its earlier rows."
 ClaimSite,SiteID,SiteID,text255,yes,A site the claim covers. Must match a SiteID in the Site table.

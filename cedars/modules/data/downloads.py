@@ -1,4 +1,4 @@
-"""Stamped downloads (BR-07.2): a query's rows as CSV, XLSX or Parquet, with the release, its as-of time, the snapshots read, the
+"""Stamped downloads: a query's rows as CSV, XLSX or Parquet, with the release, its as-of time, the snapshots read, the
 filters and exclusions, and each metric's canonical fields, so a file can be traced back to exactly what it shows.
 
 Columns: the dimensions, each metric as shown (scaled, its unit in the heading), then each summed canonical field under its own name

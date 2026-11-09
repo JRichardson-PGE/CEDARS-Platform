@@ -1,4 +1,4 @@
-"""The migration of CEDARS' own documents (BR-15.10): Reports & Documents (the PAs' report uploads and the CPUC staff guidance), DEER
+"""The migration of CEDARS' own documents: Reports & Documents (the PAs' report uploads and the CPUC staff guidance), DEER
 Resources, and the program documents (implementation plans and their redlines and change summaries), each with every version and
 file, their original dates, and their old addresses, which then lead to the migrated record (views.cedars_legacy). The same manifest
 takes the files of the 2006-2013 EM&V site (www.energydataweb.com/cpuc, the PDA's predecessor) that never reached the PDA: the 18

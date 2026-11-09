@@ -1,4 +1,4 @@
-"""Audit and change log (BR-09.1, 09.3, BR-12.7): an append-only stream of events written by every service.
+"""Audit and change log: an append-only stream of events written by every service.
 
     from cedars.services import audit
     audit.record("grant.revoked", obj=grant, before=..., after=..., reason="left the company")

@@ -25,7 +25,7 @@ def _version_or_404():
 
 
 def index(request):
-    """The public data dictionary (BR-08.2): every field, searchable, with its attributes one click away."""
+    """The public data dictionary: every field, searchable, with its attributes one click away."""
     v = _version_or_404()
     q = request.GET.get("q", "").strip()
     kind = request.GET.get("kind", "")
@@ -38,14 +38,14 @@ def index(request):
     group = request.GET.get("group", "")
     if group:
         fields = fields.filter(group=group)
-    # an upload table's fields ("calculations.Measure"), as the "Before you upload" line under each file control links them (D3)
+    # an upload table's fields ("calculations.Measure"), as the "Before you upload" line under each file control links them
     upload_table = request.GET.get("table", "")
     module, _, table = upload_table.partition(".")
     if table:
         fields = fields.filter(usages__module=module, usages__table=table).distinct()
     if state == "retired":
         fields = fields.filter(state=Field.State.RETIRED)
-    elif state != "all":  # in use, and those retiring later (BR-08.4: retired fields stay, shown on request)
+    elif state != "all":  # in use, and those retiring later (retired fields stay, shown on request)
         fields = fields.exclude(state=Field.State.RETIRED, retired_from__lte=timezone.localdate())
     page = Paginator(fields.order_by("kind", "group", "name"), 100).get_page(request.GET.get("page"))
     tables = sorted({(u.module, u.table) for u in Usage.objects.filter(field__version=v)})
@@ -132,7 +132,7 @@ def detail(request, name):
     )
 
 
-# --- retiring a field (BR-08.4) and the change log
+# --- retiring a field and the change log
 
 
 @login_required
@@ -256,7 +256,7 @@ def template(request, module, table, fmt):
     raise Http404
 
 
-# --- value lists (code sets), kept by CPUC system administrators as versions (BR-12.6)
+# --- value lists (code sets), kept by CPUC system administrators as versions
 
 
 def _shipped_or_empty(name: str) -> list[dict]:

@@ -37,7 +37,7 @@ class Snapshot(models.Model):
 
 class Release(models.Model):
     """The snapshots in force for one dataset from `created_at` until the next release. Never changed: each publication or withdrawal
-    makes a new release, numbered per dataset, so a page or download names exactly what it read (BR-07.2)."""
+    makes a new release, numbered per dataset, so a page or download names exactly what it read."""
 
     dataset = models.CharField(max_length=10, choices=Dataset.choices)
     number = models.PositiveIntegerField()
@@ -54,7 +54,7 @@ class Release(models.Model):
 
 
 class ScanSettings(models.Model):
-    """The CPUC's settings for the publication scan (BR-08.5): which patterns run and which columns are left out (keys such as
+    """The CPUC's settings for the publication scan: which patterns run and which columns are left out (keys such as
     CEInputID that are never personal information). One row; changed on the Publication scan page with a reason, audited."""
 
     patterns = models.JSONField(default=list, help_text="The codes of the patterns that run (pii.PATTERNS)")

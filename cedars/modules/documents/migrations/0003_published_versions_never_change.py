@@ -1,4 +1,4 @@
-"""A published version and its files never change (BR-15.1, BR-09.6: a replacement is a new version). The database refuses an UPDATE
+"""A published version and its files never change (a replacement is a new version). The database refuses an UPDATE
 that changes a published version, any UPDATE of a file, and the DELETE of a published version or of one of its files."""
 
 from django.db import migrations

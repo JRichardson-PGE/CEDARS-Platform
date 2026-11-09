@@ -1,5 +1,5 @@
-"""Subscriptions (BR-15.5), replacing the PDA's attribute subscriptions and the PSR's study and work-order notices, and the key dates
-CPUC ED posts on the library's home page (BR-15.3).
+"""Subscriptions, replacing the PDA's attribute subscriptions and the PSR's study and work-order notices, and the key dates
+CPUC ED posts on the library's home page.
 
 A signed-in user follows a collection, a value of any list a document carries (its document type included), a work order or a study.
 They hear, on the notifications page and by email unless they chose the page only:
@@ -173,7 +173,7 @@ def on_study_status(study: Study, before: str, after: str) -> None:
 
 def notice(event) -> notifications.Concern | None:
     """What the notification service tells the followers of a document's PAs and programs when a version is published (registered for
-    documents.documentversion, BR-09.2): the PAs it applies to (else the organization that filed it), its programs and its study's, and
+    documents.documentversion): the PAs it applies to (else the organization that filed it), its programs and its study's, and
     the same message key as on_published, so a user who also follows its collection or study hears once."""
     if event.action != "documents.version_published":
         return None
@@ -203,7 +203,7 @@ def subscribers(collection: str = "") -> QuerySet:
     return qs.filter(user__is_active=True)
 
 
-# --- key dates (BR-15.3)
+# --- key dates
 
 
 def _require_ed(actor) -> None:

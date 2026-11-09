@@ -2,7 +2,7 @@ from django.apps import AppConfig
 
 
 class BudgetsConfig(AppConfig):
-    """The Budgets module (phase 3, BR-04): budget filings for a four-year filing cycle (business plan, TUAL, MCAL), each a submission
+    """The Budgets module (phase 3): budget filings for a four-year filing cycle (business plan, TUAL, MCAL), each a submission
     with versions on the submissions service, priced through it before confirmation; fund shifts follow. Every filed version is kept
     and comparable, excluded programs are filtered and never zeroed, and the confirmed inputs and run settings are published."""
 
@@ -15,7 +15,7 @@ class BudgetsConfig(AppConfig):
 
         from . import service as checks
 
-        register_checker(  # the pre-upload checker runs the rule-set step of a budget filing's validation (BR-03.4)
+        register_checker(  # the pre-upload checker runs the rule-set step of a budget filing's validation
             "budgets", checks.RULE_SET, "Budget and application filings", checks.precheck,
             year_help="Each record is checked as a filing for its own year; give a year to check only that year's records.",
         )  # fmt: skip
@@ -44,26 +44,26 @@ class BudgetsConfig(AppConfig):
         )
         register_setup_groups("budgets", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_reader("budgets", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
-        register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against (BR-04.7)
-        register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told (BR-09.2, 09.3)
+        register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against
+        register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told
         register_concerns("budgets.fundshift", shifts.notice)
 
         from cedars.services.registry.service import register_program_records
 
         from . import program_page
 
-        register_program_records("budgets", program_page.filings)  # each program's page lists its filings and shifts (BR-07.6)
+        register_program_records("budgets", program_page.filings)  # each program's page lists its filings and shifts
         register_program_records("fund_shifts", program_page.fund_shifts)
 
         from cedars.core import queue as my_queue
 
         from . import queue
 
-        # each user's queue (BR-09.5): fund shifts waiting for their PA's acknowledgment
+        # each user's queue: fund shifts waiting for their PA's acknowledgment
         my_queue.register("fund_shift", "Fund shifts to acknowledge", queue.acknowledgements, action="Acknowledge", order=60)
 
         from cedars.services.submissions import corrections as record_corrections
 
         from .corrections import BudgetsEditor
 
-        record_corrections.register(BudgetsEditor())  # records corrected in place on an open draft (BR-02.4)
+        record_corrections.register(BudgetsEditor())  # records corrected in place on an open draft

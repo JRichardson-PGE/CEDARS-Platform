@@ -35,7 +35,7 @@
 {% if earlier %}
 <section aria-labelledby="earlier-h">
 <h2 id="earlier-h">Earlier confirmations this year</h2>
-<p class="small muted">This confirmation's upload is compiled over the latest of them. Their compiled inputs can be downloaded (BR-02.5).</p>
+<p class="small muted">This confirmation's upload is compiled over the latest of them. Their compiled inputs can be downloaded.</p>
 <ul class="links">
   {% for e in earlier %}<li>{{ e.deadline.kind }}: {% if e.standing %}<a href="{% url 'claims:version' e.standing.pk %}">version {{ e.standing.number }}</a>, confirmed {{ e.standing.confirmed_at|date_words }}{% if e.standing.findings.compiled_key %} (<a href="{% url 'claims:file' e.standing.pk 0 %}">year-to-date inputs</a>){% endif %}{% else %}not confirmed{% endif %}</li>{% endfor %}
 </ul>

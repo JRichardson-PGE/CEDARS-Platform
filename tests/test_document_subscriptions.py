@@ -72,7 +72,7 @@ def read(tmp_path, name, data):
     return textract.read(path, name)
 
 
-# --- the text of files (BR-15.2)
+# --- the text of files
 
 
 def test_text_is_read_from_pdf_office_and_plain_files(tmp_path):
@@ -159,7 +159,7 @@ def test_the_backfill_reads_files_stored_before(people, pge):
     assert out.getvalue().startswith("0 files read")
 
 
-# --- subscriptions (BR-15.5)
+# --- subscriptions
 
 
 @pytest.fixture
@@ -281,7 +281,7 @@ def test_cpuc_staff_see_who_subscribes(people, study, client):
     assert "resident@example.org" in csv_text
 
 
-# --- key dates and the home page (BR-15.3)
+# --- key dates and the home page
 
 
 def test_cpuc_ed_posts_key_dates_on_the_home_page(people, pge, client):

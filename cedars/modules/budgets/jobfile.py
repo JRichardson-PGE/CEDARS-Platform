@@ -1,5 +1,5 @@
 """A budget filing's upload: a .zip holding Measure.csv and ProgramCost.csv (as CET takes a job; comma-, pipe- or tab-delimited), or
-an Excel workbook with Measure and ProgramCost sheets (BR-02.2). A workbook becomes a job .zip of two comma-delimited CSVs, so the
+an Excel workbook with Measure and ProgramCost sheets. A workbook becomes a job .zip of two comma-delimited CSVs, so the
 version's job is always a .zip the engine reads; a .zip is kept exactly as uploaded."""
 
 import csv
@@ -28,7 +28,7 @@ def table_of(name: str) -> str | None:
 
 
 def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
-    """Several files chosen at once as the one upload read_upload takes (cedars.core.uploads, BR-06.3)."""
+    """Several files chosen at once as the one upload read_upload takes (cedars.core.uploads)."""
     try:
         return uploads.combine(files, table_of)
     except uploads.CombineError as e:
@@ -55,7 +55,7 @@ def read_upload(data: bytes, filename: str) -> tuple[dict[str, bytes], bytes]:
 
 def read_tables(data: bytes, filename: str) -> dict[str, bytes]:
     """{table: file bytes} of the tables a .zip or .xlsx holds, without requiring both or their columns: a partial correction's file
-    (BR-02.4) holds only the records it changes."""
+    holds only the records it changes."""
     if filename.lower().endswith(".xlsx"):
         return _from_workbook(data)
     try:

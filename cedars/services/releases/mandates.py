@@ -1,4 +1,4 @@
-"""The register of CPUC-mandated data and calculation changes (BR-12.7), published with the specification change log.
+"""The register of CPUC-mandated data and calculation changes, published with the specification change log.
 
 Each entry (models.Mandate) names the decision or resolution, what it requires of CEDARS, when it takes effect and its implementation
 status, and links to where CEDARS carries it: a published rule set, catalog (dictionary) version, value list version, a field, a

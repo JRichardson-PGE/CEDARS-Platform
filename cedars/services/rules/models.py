@@ -4,9 +4,9 @@ from django.db import models
 
 class RuleSet(models.Model):
     """One version of one module's rules (e.g. the claims rules effective 2026-03-12). A draft can be edited (rules added, removed or
-    their tests changed, messages, fixes, module notes); a new version starts as a copy of a published one. A published version never
-    changes (database triggers, migration 0002), and the version in force on a date is the newest published one effective by then
-    (BR-03.3). A submission and a run record the version they were checked against."""
+     their tests changed, messages, fixes, module notes); a new version starts as a copy of a published one. A published version never
+     changes (database triggers, migration 0002), and the version in force on a date is the newest published one effective by then
+    . A submission and a run record the version they were checked against."""
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"

@@ -1,5 +1,5 @@
-"""Restated results for confirmed claims (BR-06.17): analysis runs on a published version's job that never change the filed record, the
-change split into the program and engine effect and the ACC effect, an ACC per claim (BR-06.5), and another year beside it."""
+"""Restated results for confirmed claims: analysis runs on a published version's job that never change the filed record, the
+change split into the program and engine effect and the ACC effect, an ACC per claim, and another year beside it."""
 
 import io
 import zipfile
@@ -51,7 +51,7 @@ def test_a_restatement_on_another_acc_splits_the_change_and_never_touches_the_fi
     assert (r["restated"].acc_version, r["bridge"].acc_version) == ("2024", "2026")  # the bridge is on the filed ACC
     assert all(run.submission_version is None and run.organisation is None and run.owner == filer for run in r.values())
     assert r["bridge"].inputs["job_zip"]["sha256"] == v.calculation["job_sha256"]  # the filed job, byte for byte
-    assert r["restated"].settings["acc_purpose"] == "claims"  # ReCET flags records off the year's ACC (BR-06.5)
+    assert r["restated"].settings["acc_purpose"] == "claims"  # ReCET flags records off the year's ACC
     assert rs.filed["acc"] == "2026" and rs.acc_records == {"2024": 2}
     assert restatements.state(rs) == "running"
 

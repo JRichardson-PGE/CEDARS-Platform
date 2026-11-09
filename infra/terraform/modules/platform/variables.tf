@@ -110,13 +110,13 @@ variable "profile_jobs_disk_gb" {
 }
 
 variable "etrm_database" {
-  description = "eTRM's read-only database URL is in the app secret (ETRM_DATABASE_URL): pass it to the jobs and sync nightly (BR-11.3)"
+  description = "eTRM's read-only database URL is in the app secret (ETRM_DATABASE_URL): pass it to the jobs and sync nightly"
   type        = bool
   default     = false
 }
 
 variable "sandbox_bundle_uri" {
-  description = "BR-11.2: where production writes the sandbox refresh bundle and the sandbox reads it (s3://bucket/prefix). Blank: no refresh"
+  description = "Where production writes the sandbox refresh bundle and the sandbox reads it (s3://bucket/prefix). Blank: no refresh"
   type        = string
   default     = ""
   validation {
@@ -127,7 +127,7 @@ variable "sandbox_bundle_uri" {
 
 variable "sandbox_refresh_schedule" {
   description = <<-EOT
-    BR-11.2: when the sandbox refresh runs (an EventBridge Scheduler expression, Pacific time), e.g. "cron(0 4 ? * SUN *)" in production
+    when the sandbox refresh runs (an EventBridge Scheduler expression, Pacific time), e.g. "cron(0 4 ? * SUN *)" in production
     (writes the bundle) and a few hours later in the sandbox (loads it). Blank, the default: off; the commands can still be run by hand.
   EOT
   type        = string

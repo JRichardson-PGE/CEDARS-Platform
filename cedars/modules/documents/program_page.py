@@ -1,6 +1,6 @@
-"""What the program page shows from the document library (BR-07.6), through registry.register_program_records: every document that
+"""What the program page shows from the document library, through registry.register_program_records: every document that
 names the program (implementation plans and other program files, PA documents, EM&V deliverables). A published document is public; one
-with nothing published yet is shown only to its owner, the PAs named on it and CPUC staff, as on its own page (BR-15.9)."""
+with nothing published yet is shown only to its owner, the PAs named on it and CPUC staff, as on its own page."""
 
 from urllib.parse import urlencode
 
@@ -16,7 +16,7 @@ def _covers(doc: Document, year: int) -> bool:
 
 
 def _placeholder(user, doc: Document) -> bool:
-    """Whether the version the reader is served is a placeholder plan (BR-13.6), from the prefetched versions."""
+    """Whether the version the reader is served is a placeholder plan, from the prefetched versions."""
     versions = sorted(doc.versions.all(), key=lambda v: v.number, reverse=True)
     published = [v for v in versions if v.published]
     if published:

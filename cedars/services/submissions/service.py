@@ -15,9 +15,9 @@ published them. They are read-only history: every path that would change, repric
 one refuses (`_refuse_imported`), and no publisher hook runs for them (the loading module writes its own derived lines).
 
 Claims totals (`register_claims_totals`, `claims_totals`): the Claims module registers the function that gives a PA's confirmed claims
-for a year by program, so another module (Monthly reports' 13th-month report, BR-14.2) reads them without importing Claims.
+for a year by program, so another module (Monthly reports' 13th-month report) reads them without importing Claims.
 
-Restated runs (`register_restater`, `restate`, BR-06.17): the Calculations module registers the function that re-prices a published
+Restated runs (`register_restater`, `restate`): the Calculations module registers the function that re-prices a published
 version's job as an analysis run, owned by whoever asks and never recorded on the version, so a filing module can show restated results
 beside the filed ones without importing the Calculations module. The version itself is never changed: only an audit event says a
 restatement was started on it.
@@ -160,8 +160,24 @@ def register_filers(module: str, filers: Callable[[Deadline], set[int] | None]) 
     _filers[module] = filers
 
 
+def expected(deadline: Deadline) -> set[int] | None:
+    """The program administrators the CPUC expects to file for the deadline, as set on its set-up page (`set_filers`), by id; None
+    when none are listed (every PA files)."""
+    ids = {o.pk for o in deadline.filers.all()}
+    return ids or None
+
+
+def on_filing(deadline: Deadline, organisation: Organisation) -> bool:
+    """Whether the organization is one of the PAs on the filing (every PA, unless its set-up lists who files)."""
+    ids = expected(deadline)
+    return ids is None or organisation.pk in ids
+
+
 def files_for(deadline: Deadline, organisation: Organisation) -> bool:
-    """Whether the organization is one that files for the deadline (register_filers; every PA unless the module says otherwise)."""
+    """Whether the organization is one that files for the deadline: one of the PAs on the filing (`on_filing`) and, for a module that
+    narrows it further (register_filers; statewide claims: the statewide programs' lead PAs), one of the module's filers."""
+    if not on_filing(deadline, organisation):
+        return False
     filers = _filers.get(deadline.module)
     ids = filers(deadline) if filers else None
     return ids is None or organisation.pk in ids
@@ -249,6 +265,60 @@ def remove_setup(actor, deadline_ids, remove, reason: str) -> None:
     _delete_setup(actor, ids, remove, reason.strip())
 
 
+def filing_pas():
+    """The program administrators a set-up may list as its filers: every active one that files (not the CPUC or the SW pseudo-PA)."""
+    return [o for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code") if o.files]
+
+
+def started_by(deadline_ids) -> set[int]:
+    """The organizations that have started filing for any of these deadlines, by id."""
+    return set(Submission.objects.filter(deadline_id__in=list(deadline_ids)).values_list("organisation_id", flat=True))
+
+
+@transaction.atomic
+def set_filers(actor, deadlines, organisations, reason: str) -> list[Deadline]:
+    """Set which program administrators file for a set-up's deadlines (a budget filing, a claim year's own claims, a year of monthly
+    reports), from its set-up page or as it is set up (Jake, 2026-11-09: not every PA files every filing). Each deadline whose list
+    changes gets the audit event deadline.filers_changed with the PAs before and after. At least one PA files; a PA that has started
+    filing for one of the deadlines stays on it (what it filed is kept). The Filings page's status, the "Choose a program
+    administrator" lists and `start` follow the list. Returns the deadlines that changed."""
+    _calendar_admin(actor)
+    if not (reason or "").strip():
+        raise AccessDenied("Give the reason for the change.")
+    orgs = {o.pk: o for o in organisations}
+    if not orgs:
+        raise AccessDenied("Choose at least one program administrator to file.")
+    bad = sorted(o.code for o in orgs.values() if not (o.files and o.active))
+    if bad:
+        raise AccessDenied(f"Only active program administrators file: {', '.join(bad)} cannot be on a filing.")
+    deadlines = list(deadlines)
+    started = started_by(d.pk for d in deadlines)
+    every = {o.pk for o in filing_pas()}
+    changed = []
+    for d in Deadline.objects.select_for_update().filter(pk__in=[d.pk for d in deadlines]).order_by("due_at", "pk"):
+        before = {o.pk: o for o in d.filers.all()}
+        before_ids = set(before) or every
+        dropped = sorted(o.code for o in Organisation.objects.filter(pk__in=(before_ids - set(orgs)) & started))
+        if dropped:
+            raise AccessDenied(
+                f"{', '.join(dropped)} {'has' if len(dropped) == 1 else 'have'} started filing for {d.title}, "
+                f"{d.period or d.cycle}, so {'it stays' if len(dropped) == 1 else 'they stay'} on it: what was filed is kept."
+            )
+        if set(before) == set(orgs):
+            continue
+        d.filers.set(orgs.values())
+        audit.record(
+            "deadline.filers_changed",
+            obj=d,
+            before={"filers": sorted(o.code for o in before.values()) or "every PA"},
+            after={"filers": sorted(o.code for o in orgs.values())},
+            reason=reason.strip(),
+            actor=actor,
+        )
+        changed.append(d)
+    return changed
+
+
 @transaction.atomic
 def move_due_dates(actor, moves, reason: str) -> list[Deadline]:
     """Move several deadlines' due dates at once, from a set-up page: moves is [(deadline, new due moment)]. Each is change_deadline
@@ -310,7 +380,7 @@ def claims_totals(organisation: Organisation, year: int) -> list[dict]:
 
 
 def register_restater(restate: Callable, options: Callable, describe: Callable) -> None:
-    """The Calculations module's restater (BR-06.17): restate(actor, organisation, version, job_zip, *, name, release, acc_version,
+    """The Calculations module's restater: restate(actor, organisation, version, job_zip, *, name, release, acc_version,
     record_accs, allocation_version, settings, cost_test_set, profiles_8760) starts an analysis run on the job (a local file) for
     `organisation` (None: the actor's own) and returns its id; the run is never recorded on the version. options() -> [{"release",
     "default", "accs"}], the active releases that offer ReCET's own calculation and the ACCs each has. describe(run_id) -> {"status",
@@ -330,7 +400,7 @@ def restate_options() -> list[dict]:
 
 
 def restate(actor, v: SubmissionVersion, job_zip, *, organisation, name: str, release: str, acc_version: str, **kw) -> str:
-    """Start a restated run of a published version's job (BR-06.17): an analysis run for `organisation`, on `release` and `acc_version`
+    """Start a restated run of a published version's job: an analysis run for `organisation`, on `release` and `acc_version`
     (`record_accs`: the ACCs records name in the job's ACCVersion column). The version, its calculation and its results never change;
     the audit trail records the restatement on it. Returns the run's id."""
     v = SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation").get(pk=v.pk)
@@ -407,8 +477,9 @@ def filers(deadline: Deadline, can_read: Callable[[Submission], bool]) -> list[S
 
 def filer_statuses(deadline: Deadline, can_read: Callable[[Submission], bool], *, every: bool = False) -> list[dict]:
     """For the "Choose a program administrator" list (navigation review D8, L8): each PA with where its filing for the deadline stands
-    ({"organisation", "status", "link"}), by code. With every (CPUC staff), every active PA is listed, one that has not started as "Not
-    started"; otherwise only the filings can_read allows, as filers() gives them. Only a filing the reader may open is linked."""
+    ({"organisation", "status", "link"}), by code. With every (CPUC staff), every active PA on the filing is listed, one that has not
+    started as "Not started"; otherwise only the filings can_read allows, as filers() gives them. Only a filing the reader may
+    open is linked."""
     subs = {s.organisation_id: s for s in Submission.objects.filter(deadline=deadline).select_related("organisation")}
     rows = {}
     for s in subs.values():
@@ -422,7 +493,7 @@ def filer_statuses(deadline: Deadline, can_read: Callable[[Submission], bool], *
             }
     if every:
         for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True):
-            if o.files and o.code not in rows:
+            if o.files and o.code not in rows and on_filing(deadline, o):
                 rows[o.code] = {"organisation": o, "status": "Not started", "link": False}
     return [rows[c] for c in sorted(rows)]
 
@@ -438,7 +509,7 @@ def current(submission: Submission) -> SubmissionVersion | None:
 
 def standing_numbers(submission_ids) -> dict[int, tuple[int | None, int]]:
     """{submission id: (the number of its standing published version or None, its latest version's number)} in one query, for pages
-    that list many submissions' versions at once (the program page, BR-07.6)."""
+    that list many submissions' versions at once (the program page)."""
     published = SubmissionVersion.Status.PUBLISHED
     rows = (
         SubmissionVersion.objects.filter(submission_id__in=list(submission_ids))
@@ -638,6 +709,10 @@ def start(actor, deadline: Deadline, organisation: Organisation) -> SubmissionVe
         raise AccessDenied("This deadline was taken off the filing calendar, so no filing starts for it.")
     if nothing_to_file(deadline):
         raise AccessDenied(f"Nothing is filed for the {deadline.title}: it marks a date on the calendar.")
+    if not on_filing(deadline, organisation) and not Submission.objects.filter(deadline=deadline, organisation=organisation).exists():
+        raise AccessDenied(
+            f"{organisation.code} is not one of the PAs filing {deadline.title}: the CPUC lists who files on the filing's set-up page."
+        )
     submission, _ = Submission.objects.get_or_create(deadline=deadline, organisation=organisation)
     _require(actor, submission, "submit")
     _refuse_imported(submission)
@@ -700,10 +775,10 @@ def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = Tr
 
 
 def price(actor, v: SubmissionVersion, job_zip, **options):
-    """Start the calculation and statewide allocation run on a validated version's job (BR-02.5: priced before confirmation). Returns
+    """Start the calculation and statewide allocation run on a validated version's job (priced before confirmation). Returns
     the run's id; when it finishes, the Calculations module records it here (record_calculation) and the version can be confirmed.
     Options: name, acc_version, allocation_version, settings, cost_test_set and `profiles_8760` (a supplied 8,760-profile file the
-    job's records name: a claims true-up's parent profiles, BR-05.6). A refusal the CPUC's set-up causes (PricingUnavailable) is
+    job's records name: a claims true-up's parent profiles). A refusal the CPUC's set-up causes (PricingUnavailable) is
     recorded and sent to the system administrators outside the refused transaction, and the filer is told in their words."""
     try:
         return _price(actor, v, job_zip, **options)
@@ -1060,7 +1135,7 @@ def expired_sandbox_filings(cutoff):
     from cedars.services.sandbox import bundle
 
     subs = list(Submission.objects.filter(created_at__lt=cutoff).select_related("organisation"))
-    copied = bundle.is_copied("submissions.submission", [s.pk for s in subs])  # production's, copied by a refresh (BR-11.2): kept
+    copied = bundle.is_copied("submissions.submission", [s.pk for s in subs])  # production's, copied by a refresh: kept
     for sub in (s for s in subs if str(s.pk) not in copied):
 
         def delete(sub=sub):

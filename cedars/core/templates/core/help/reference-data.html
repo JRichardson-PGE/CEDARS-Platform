@@ -13,7 +13,8 @@ versions it used, so a result can always be traced to its data.</p>
 <p>The <a href="{% url 'administration:allocations' %}">statewide allocation factors</a> are each funding PA's share of each statewide
 program, by year. Anyone can read the confirmed versions; signed in, you see every version. A confirmed version never changes. The
 funding PAs manage the factors: a member with the permission loads a draft from a factor file and confirms or discards it, and the
-other funding PAs are told. A run that names no version uses the most recently confirmed one for its program year.</p>
+other funding PAs are told. A run that names no version uses the most recently confirmed one for its program year. A version's page
+shows its factors in a table (narrow it by program year or program) and offers them as a CSV in the layout ReCET reads.</p>
 <p>A factor file starts from the template on the allocation page: each statewide program and year, its PercentElectric (required) and
 each funding PA's electric and gas factors, with at most 4 decimal places each (a longer value refuses the file). Each fuel's factors
 must add up to exactly 1.0000. A 100% electric program's gas factors equal its electric factors (and a 0% electric program's

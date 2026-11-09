@@ -1,4 +1,4 @@
-"""The PSR migration (BR-15.10): every Project Status Report project as a study in the register, under its PSR project number and
+"""The PSR migration: every Project Status Report project as a study in the register, under its PSR project number and
 study ID, with its lists mapped onto the register's controlled lists, read from the PSR's own public API (/api/projects, the JSON its
 pages use) saved to a file or read from the site.
 

@@ -260,7 +260,7 @@ class Result:
         return list(dict.fromkeys(f for m in self.metric_list for f in m.fields))
 
     def stamp(self) -> dict:
-        """What a download records about where its rows came from (BR-07.2)."""
+        """What a download records about where its rows came from."""
         q = self.query
         return {
             "dataset": q.dataset,

@@ -77,7 +77,7 @@ budgets/filing:
 budgets/filing_new:
   title: Setting up a budget filing
   guide:
-    - For CPUC system administrators. A filing is due from every PA on one date for its program years, any number of them (four for
+    - For CPUC system administrators. A filing is due from the PAs ticked under Who files (every PA unless some are unticked) on one date for its program years, any number of them (four for
       most applications, eight for some, one for an annual advice letter). Choose its type, an application or an advice letter, and
       its name. An advice letter's name says which one it is (a TUAL, an MCAL, or any later kind), so a new kind needs no change to
       CEDARS. Then its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
@@ -91,6 +91,9 @@ budgets/filing_new:
     - target: main form
       title: The filing
       text: Type, name, program years, dates and how it is priced. Every PA sees it on Budgets and the filing calendar once it is set up.
+    - target: "#id_filers"
+      title: Who files
+      text: Every PA is ticked; untick those not expected to file. Only those ticked can start a filing and are on the Filings page's status.
 
 budgets/setup:
   title: A budget filing's set-up
@@ -100,10 +103,14 @@ budgets/setup:
     - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
+    - Not every program administrator files every filing. Who files lists those expected to, and only they can start a filing for it, and
+      only they are listed on the Filings page's status. A PA that has started filing stays on it, since what it filed is kept.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
     - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
+    - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
+      started filing stays on it.
   see: budgets
   tour:
     - target: "#setup-pricing"
@@ -112,6 +119,9 @@ budgets/setup:
     - target: "#setup-due-dates"
       title: Due dates
       text: Every due date still to come, changed here as on the filing calendar.
+    - target: "#setup-filers"
+      title: Who files
+      text: Tick the program administrators expected to file; only they can start a filing and only they are on the Filings page's status.
     - target: "#remove-setup"
       title: Remove this set-up
       text: Takes it off the calendar while nobody has filed for it; once someone has, it stays.

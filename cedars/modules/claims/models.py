@@ -102,7 +102,7 @@ class ClaimResult(models.Model):
 
 
 class ChangeLetter(models.Model):
-    """The public change letter of a claims correction (BR-09.3): written when a corrected version (version 2 or later) of a confirmation
+    """The public change letter of a claims correction: written when a corrected version (version 2 or later) of a confirmation
     is published, dated, with the correction's reason and what it changed against the version it replaces: the claims added, changed,
     removed, withdrawn (with their reasons) or reinstated, each table's records, and each program's year to date before and after.
     Readable by every signed-in user, like the versions it compares. Append-only: never updated or deleted (a database trigger)."""
@@ -122,9 +122,9 @@ class ChangeLetter(models.Model):
 
 class ClaimRecord(models.Model):
     """One claim of a version's compiled year to date, with the fields that link claims to each other: the NMEC parent it trues up
-    (BR-05.3), the SEM participant and phase (BR-05.7), the project it belongs to (ProjectID, the project key, BR-05.11) and the sites
-    of a population claim (BR-05.5). Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
-    The links are read from the standing versions only, so they show confirmed claims."""
+    , the SEM participant and phase, the project it belongs to (ProjectID, the project key) and the sites
+     of a population claim. Derived data of the version, like ClaimProgramLine: rebuilt when it is checked, deleted with it.
+     The links are read from the standing versions only, so they show confirmed claims."""
 
     version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="claim_records")
     claim_id = models.CharField("ClaimID", max_length=255)
@@ -155,9 +155,9 @@ class ClaimRecord(models.Model):
 
 
 class Restatement(models.Model):
-    """A confirmed version's claims priced again on the current engine (BR-06.17): an analysis that never changes the filed record. It
+    """A confirmed version's claims priced again on the current engine: an analysis that never changes the filed record. It
     holds up to two analysis runs on the version's published job: `restated` on the chosen release and ACC (an ACC per record when some
-    records name their own, BR-06.5) and, when that ACC differs from the filed one, `bridge`, the same release on the filed ACC. Filed to
+    records name their own) and, when that ACC differs from the filed one, `bridge`, the same release on the filed ACC. Filed to
     bridge is the effect of the engine, the program registry, the allocation and the cost-test set; bridge to restated is the effect of
     the ACC. The runs belong to `organisation` (blank: the owner's own), like any run; so does the restatement."""
 

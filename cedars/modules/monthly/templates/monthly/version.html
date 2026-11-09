@@ -13,7 +13,7 @@
 </dl>
 {% publication_hold v %}
 <div class="card" role="note"><p><strong>{{ unvalidated }}s.</strong> Savings, total system benefit and ratios here are estimated from the
-report's year-to-date BCA inputs, checked only as a calculation run checks them, not as claims are (D2). They show how programs are
+report's year-to-date BCA inputs, checked only as a calculation run checks them, not as claims are. They show how programs are
 trending and are never part of a claim.</p></div>
 {% if not report.budget %}<p>No operating budget was found for {{ v.submission.organisation.code }}'s {{ report.year }} cycle (no confirmed budget filing or fund shift), so spend is not compared with a budget.</p>{% endif %}
 {% if not report.month_known %}<p>The previous month's report is not confirmed, so this month's spend (the change in the year-to-date spend) is not known yet.</p>{% endif %}

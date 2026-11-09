@@ -107,6 +107,8 @@ def index(request):
                     "latest": latest,
                     "status": _status(latest),
                     "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
                     "can_open": can_open,
                 }
             )
@@ -142,6 +144,7 @@ def year_new(request):
                 closing_due=d["closing_due"],
                 allocation_version=d["allocation_version"],
                 notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
             )
         except AccessDenied as e:
             messages.error(request, str(e))
@@ -481,7 +484,7 @@ def published_file(request, pk, which):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
-# --- the year in one view (BR-14.1)
+# --- the year in one view
 
 
 def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
@@ -498,7 +501,7 @@ def _year_org(request) -> tuple[Organisation | None, bool, list[Organisation]]:
 
 @login_required
 def year(request, year):
-    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend (BR-14.1)."""
+    """A PA's year of monthly reports in one place, with the accuracy check of the year-to-date spend."""
     get_object_or_404(YearSetup, year=year)
     org, published_only, choices = _year_org(request)
     months = service.year_view(org, year, published_only=published_only) if org else []
@@ -566,7 +569,7 @@ def year_csv(request, year):
     return response
 
 
-# --- the 13th-month report (BR-14.2)
+# --- the 13th-month report
 
 
 def _blank(x):
@@ -638,11 +641,11 @@ def closing_csv(request, year):
     return response
 
 
-# --- change letters (BR-09.3)
+# --- change letters
 
 
 def changes(request):
-    """Every published monthly report correction's change letter, newest first, by PA and program year. Public (BR-09.3)."""
+    """Every published monthly report correction's change letter, newest first, by PA and program year. Public."""
     every = service.change_letters()
     out = every
     org = access.by_code(request.GET.get("org", ""), follow=False)

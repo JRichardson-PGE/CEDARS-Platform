@@ -1,4 +1,4 @@
-"""Pages for saved, shared and published views (BR-07.4; logic in saved.py): the Saved views list, one view's page with its sharing and
+"""Pages for saved, shared and published views (logic in saved.py): the Saved views list, one view's page with its sharing and
 publication, the save form every dashboard page and the records page carry, and the records page's default columns."""
 
 from django.contrib import messages

@@ -1,4 +1,4 @@
-"""Pages of the study register (BR-15.6 to 15.8) and the work orders (BR-15.3). The register, each study, the budget summary and the work
+"""Pages of the study register and the work orders. The register, each study, the budget summary and the work
 orders are public, as the PSR is; changes need an account (studies.py says who)."""
 
 import csv
@@ -105,7 +105,7 @@ def register(request):
 
 
 def register_csv(request):
-    """The register as a file (BR-15.6, BR-15.8: a public data download), every public field, from the same filter."""
+    """The register as a file (a public data download), every public field, from the same filter."""
     rows = studies.register(forms.RegisterForm(request.GET or None).filter())
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="evaluation_studies.csv"'
@@ -279,7 +279,7 @@ def remove_coverage(request, number, pk):
 
 
 def summary(request):
-    """The EM&V plan's study and budget tables for a funding cycle (BR-15.8)."""
+    """The EM&V plan's study and budget tables for a funding cycle."""
     cycles = AttributeOption.objects.filter(attribute_list__code="portfolio_cycle")
     cycle = None
     if request.GET.get("cycle"):

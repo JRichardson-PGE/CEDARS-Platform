@@ -292,7 +292,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_reader` | submissions | budgets, claims, monthly | Who may read a filing on the Filings page |
 | `register_deadline_page`, `register_setup_page`, `register_setup_groups` | submissions | budgets, claims, monthly | The calendar's links, its Add a filing choices, and what clearing the calendar removes together |
 | `register_nothing_to_file` | submissions | monthly | Deadlines that only mark a date (the 13th-month report is generated) |
-| `register_filers`, `register_stream` | submissions | claims | Who files a deadline (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
+| `register_filers`, `register_stream` | submissions | claims | Who files a deadline beyond its set-up's list of PAs (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
 | `register_acc_needs` | submissions | budgets, claims, monthly | ACCs the default engine release must carry |
 | `register_claims_totals` | submissions | claims | A PA's confirmed claims for a year (read by Monthly reports) |
 | `register_operating_budget` | registry | budgets | A PA's operating budget (read by Monthly reports, Claims, dashboards) |
@@ -444,6 +444,7 @@ erDiagram
   ReportingPeriod |o--o{ Deadline : "on a period"
   FilingCycle |o--o{ Deadline : "on a cycle"
   Deadline ||--o{ Submission : "one per organization"
+  Organisation }o--o{ Deadline : "expected filers"
   Organisation ||--o{ Submission : files
   Submission ||--o{ SubmissionVersion : "version 1..n"
   Submission ||--o{ ReopenRequest : "after the due date"
@@ -499,7 +500,7 @@ erDiagram
 ```
 
 Each filing module also has an append-only `ChangeLetter` (budgets, claims and monthly each have their own, one per corrected
-version against the one it replaces). `WorkflowPolicy` holds each module's correction policy (BRD D1) and `Delegation` an approver's
+version against the one it replaces). `WorkflowPolicy` holds each module's correction policy and `Delegation` an approver's
 delegate. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
 
 **Calculations and reference data** (`cedars.modules.calculations`, `cedars.services.refdata`, `cedars.services.snapshots`)
@@ -739,7 +740,7 @@ suspension and revocation; it is never deleted and every change is an audit even
 | Permission | Meaning |
 | --- | --- |
 | `<module>.<action>` | For each module (programs, calculations, impact_profiles, budgets, claims, monthly, data, documents) and action (read, submit, confirm, approve, admin) |
-| `org.admin` | An organization's administrator: manages its members and grants, runs its recertification (the CPUC grants only a PA's first administrator, D6) |
+| `org.admin` | An organization's administrator: manages its members and grants, runs its recertification (the CPUC grants only a PA's first administrator) |
 | `claims.pii` | Reaches the PII vault for the organization's claims; a data steward approves every grant, and the CPUC can require a federated session for it |
 | `allocation.manage` | Loads, confirms and discards statewide allocation versions; only in an organization marked `manages_allocation` |
 | `system.admin` | A CPUC system administrator (CPUC organization only) |
@@ -797,6 +798,17 @@ Budgets, claims and monthly reports share one state machine in `cedars.services.
 module on a reporting period or a filing cycle; an organization's filing for it is a **submission**, whose **versions** carry the
 files, findings, the pricing run and the packs it was priced with.
 
+**Who files.** Not every PA files every filing. A deadline's `filers` (many-to-many to `Organisation`; none listed means every PA)
+are the PAs expected to file it. A CPUC system administrator ticks them as a budget filing, a claim year or a year of monthly reports
+is set up (the module's `add_filing`, `add_year` or `set_up_year` with `filers=`), and adds or removes them later in the set-up page's
+Who files section (`submissions.setup.FilersForm`); both go through `submissions.set_filers`, which writes `deadline.filers_changed`
+with the PAs before and after, needs a reason and at least one PA, and keeps a PA that has started filing on the deadline. A claim
+year's list applies to the PAs' own five claims; its statewide confirmations are filed by the statewide programs' lead PAs
+(`register_filers`). `submissions.on_filing(deadline, organisation)` answers from the list; `files_for` adds the module's own rule.
+`start` refuses a PA not on the filing; the "Choose a program administrator" list (`filer_statuses`), each module's index ("Nothing to
+file: ... is not on this filing") and the Filings page's status (`submissions.status.board`) follow it, and the status table leaves out
+a PA on none of the filings it shows.
+
 ```mermaid
 stateDiagram-v2
   [*] --> draft : start (version 1)
@@ -807,7 +819,7 @@ stateDiagram-v2
   validated --> confirmed : confirm (needs a finished run on exactly these rows)
   confirmed --> published : module publisher, then snapshot listeners
   published --> validated : un-confirm (version 1, before the due date)
-  published --> draft_n : reopen after the due date (policy D1)
+  published --> draft_n : reopen after the due date
   draft_n --> [*] : version n+1 follows the same path
   state "draft (version n+1)" as draft_n
   [*] --> imported : legacy import
@@ -906,7 +918,8 @@ An `AllocationVersion` holds, per year and statewide PrgID (`AllocationEntry`), 
 decimals; weighted factors are computed from PercentElectric and rounded so they too sum to 1.0000), checks and confirms it; the other
 managing organizations are notified. A run that allocates carries the whole factor table of the version it pins as an input, and the
 receipt names its SHA-256. A filing setup or claim year may pin a version; otherwise the most recent confirmed version with factors for
-the year is used.
+the year is used. A version's page (`/allocations/<pk>/`) shows its factors as a table, filtered by year and program on the server,
+beside the same values as a CSV.
 
 ### 7.3 Statewide claims are filed first
 
@@ -1039,7 +1052,7 @@ flowchart LR
 - Moving the pin means: change the commit, re-export the field catalog and the engine documents, run the tests; on a server, rebuild the
   wheel and the image, then load the new catalog with `load_dictionary`.
 - **Engine releases are data** (`EngineRelease`): a CPUC system administrator adds a release by its version number, with its worker
-  image and Batch job definition, the calculations it offers (`recet` and CET replicas such as `cet-25.1`, BRD D13) and the ACCs each
+  image and Batch job definition, the calculations it offers (`recet` and CET replicas such as `cet-25.1`) and the ACCs each
   has, and makes one the default. Filings are priced only with the default release's own `recet` calculation; replicas are for analysis
   runs. A local worker reports the release it runs (`Worker`), takes only that release's runs, and New run and the health page say when
   a release has no live worker.

@@ -2,7 +2,7 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-# A published release note never changes and is never deleted, whoever runs the SQL (BR-12.1): only its withdrawal may be recorded,
+# A published release note never changes and is never deleted, whoever runs the SQL: only its withdrawal may be recorded,
 # once. A published note's changes are fixed with it.
 FORWARD = """
 CREATE FUNCTION releases_note_guard() RETURNS trigger LANGUAGE plpgsql AS $$

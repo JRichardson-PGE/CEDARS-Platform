@@ -99,7 +99,7 @@ def _for_year(versions, year: int) -> ProgramVersion | None:
 
 
 def catalog(year: int | None = None):
-    """(program, version) for every program not flagged as a portfolio cost, closed programs included (BR-13.5): the version for the
+    """(program, version) for every program not flagged as a portfolio cost, closed programs included: the version for the
     program year, or with no year the version in force today (else the latest). Two queries, whatever the number of programs."""
     out = []
     today = timezone.localdate()
@@ -159,7 +159,7 @@ class RunPrograms:
 
 def run_programs(year: int | None) -> RunPrograms:
     """Every program in the registry, portfolio-cost IDs included, as the whole program table a run for program year `year` is priced
-    with (BR-13.1; the engine's programs_replace, so its shipped copy of CEDARS' Programs list is never used: Jake, 2026-10-31): each
+    with (the engine's programs_replace, so its shipped copy of CEDARS' Programs list is never used: Jake, 2026-10-31): each
     program's version for that year (`version_for_year`), or for a program with none that year (not started yet, or closed before it)
     its latest version. With no year, the version in force today. A registry with no programs gives the header alone, and every PrgID
     is then unknown to the run."""
@@ -693,7 +693,7 @@ def add_history(
     return program, len(added)
 
 
-# --- locked attributes and change requests (BR-13.7)
+# --- locked attributes and change requests
 
 APPROVALS = "programs"  # programs.approve in the CPUC organization decides requests (submissions' approvers and delegates)
 
@@ -905,7 +905,7 @@ def ensure_periods(year: int) -> list[ReportingPeriod]:
     return out
 
 
-# --- statewide allocation versions (BR-06.7, BR-13.8)
+# --- statewide allocation versions
 
 
 @dataclass
@@ -1044,8 +1044,11 @@ def weighted_factors(percent_electric: Decimal, electric: dict[str, Decimal], ga
     return out
 
 
+# The funding PAs of a factor file, in the order ReCET's layout lists them.
+ALLOCATION_PAS = ("PGE", "SDGE", "SCE", "SCG")
+
 FACTOR_FILE_COLUMNS = ["Year", "ProgramID", "ProgramName", "PercentElectric"] + [
-    f"{pa}{k}Factor" for k in ("Gas", "Electric") for pa in ("PGE", "SDGE", "SCE", "SCG")
+    f"{pa}{k}Factor" for k in ("Gas", "Electric") for pa in ALLOCATION_PAS
 ]
 
 
@@ -1250,8 +1253,8 @@ def allocation_csv(version: AllocationVersion) -> str:
     """The version in the factor-file layout ReCET reads (`--sw-factors`), so a run can be priced with exactly these factors."""
     out = io.StringIO()
     cols = ["Year", "ProgramID", "ProgramName", "PercentElectric"]
-    cols += [f"{pa}GasFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")] + [f"{pa}ElectricFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")]
-    cols += [f"{pa}WeightedFactor" for pa in ("PGE", "SDGE", "SCE", "SCG")] + ["Summary"]
+    cols += [f"{pa}GasFactor" for pa in ALLOCATION_PAS] + [f"{pa}ElectricFactor" for pa in ALLOCATION_PAS]
+    cols += [f"{pa}WeightedFactor" for pa in ALLOCATION_PAS] + ["Summary"]
     w = csv.DictWriter(out, fieldnames=cols, lineterminator="\n")
     w.writeheader()
     for e in version.entries.prefetch_related("shares"):
@@ -1270,7 +1273,7 @@ def allocation_csv(version: AllocationVersion) -> str:
     return out.getvalue()
 
 
-# --- the operating budget (BR-04.7)
+# --- the operating budget
 
 _operating_budget_sources: list = []
 
@@ -1296,7 +1299,7 @@ _reported_spend_sources: list = []
 def register_reported_spend(source) -> None:
     """The Monthly reports module's spending: source(organisation, year) returns one dict per program, {prg_id, ytd, through}
     (year-to-date expenditure in Decimal dollars from the PA's latest published report of the year, and that report's month as
-    "YYYY-MM"). Dashboards read it through `reported_spend` (BR-07.3), so they never import Monthly reports."""
+    "YYYY-MM"). Dashboards read it through `reported_spend`, so they never import Monthly reports."""
     _reported_spend_sources[:] = [source]
 
 
@@ -1313,7 +1316,7 @@ _evaluation_sources: list = []
 def register_evaluations(source) -> None:
     """The Documents & EM&V module's study register: source(program) returns one dict per evaluation study covering the program in
     whole or in part, {study_id, title, url, first_year, last_year, whole, status, lead, deliverable: {title, url, stage} or None}, newest
-    first. The program page reads it through `evaluations` (BR-15.7), so Programs never imports Documents."""
+    first. The program page reads it through `evaluations`, so Programs never imports Documents."""
     _evaluation_sources[:] = [source]
 
 
@@ -1345,7 +1348,7 @@ def cycle_for_year(year: int) -> FilingCycle | None:
     )
 
 
-# --- what each module holds about one program (BR-07.6)
+# --- what each module holds about one program
 
 PROGRAM_SECTIONS = ("budgets", "fund_shifts", "claims", "monthly", "documents")
 _program_record_sources: dict[str, object] = {}

@@ -512,7 +512,7 @@ def test_a_correction_publishes_a_change_letter(
     assert not ChangeLetter.objects.exists()
     finish_run(Run.objects.get(pk=service.price(filer, v2)), scale=2.0)
     v2.refresh_from_db()
-    implementer = make_user("implementer@example.org")  # follows one of the programs only: hears of the refile (BR-09.2, 09.3)
+    implementer = make_user("implementer@example.org")  # follows one of the programs only: hears of the refile
     notifications.set_follows(implementer, pa_scope="none")
     notifications.follow_program(implementer, Program.objects.get(prg_id="PGE_Res"))
     with django_capture_on_commit_callbacks(execute=True):
@@ -544,7 +544,7 @@ def test_a_correction_publishes_a_change_letter(
         ChangeLetter.objects.filter(pk=letter.pk).update(reason="edited")
     v1.refresh_from_db()
     assert v1.status == SubmissionVersion.Status.PUBLISHED and service.standing(pge, deadline()) == v2
-    # the change log, the letter and the linked-claims lookup are the public record of corrections (BR-09.3): no sign-in needed
+    # the change log, the letter and the linked-claims lookup are the public record of corrections: no sign-in needed
     for path in ("/claims/changes/", f"/claims/changes/{letter.pk}/", "/claims/links/?kind=claim&q=PGE-2028-001"):
         r = client.get(path)
         assert r.status_code == 200, path
@@ -718,7 +718,9 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert client.get(reverse("claims:year_new")).status_code == 404
     client.logout()
     sign_in(client, cpuc_admin)
-    form = {"year": 2029, "acc_version": "2026", "notes": ""} | {f"due_{k.split()[0].lower()}": "2029-05-01" for k, _ in service.PERIODS}
+    form = {"year": 2029, "acc_version": "2026", "notes": "", "filers": ["PGE"]} | {
+        f"due_{k.split()[0].lower()}": "2029-05-01" for k, _ in service.PERIODS
+    }
     r = client.post(reverse("claims:year_new"), form)
     assert r.status_code == 302 and ClaimYear.objects.filter(year=2029).exists()
     r = client.post(reverse("claims:setup", args=[2029]), {"acc_version": "2024", "reason": "ruling"})

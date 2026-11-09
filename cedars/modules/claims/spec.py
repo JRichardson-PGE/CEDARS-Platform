@@ -1,12 +1,12 @@
 """The claims template: CEDARS' 2026 Claims specification (cedars.cpuc.ca.gov/claims/specification/, six tables) plus the fuel-substitution
-infrastructure cost table, which joins it as an ordinary non-PII claims table (BR-05.13), and a Withdrawal table, which names the claims
-an upload withdraws and why (BR-05.2: a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out), and
-a ClaimSite table, which lists the sites of a claim that covers more than one (population NMEC, BR-05.5).
+infrastructure cost table, which joins it as an ordinary non-PII claims table, and a Withdrawal table, which names the claims
+an upload withdraws and why (a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out), and
+a ClaimSite table, which lists the sites of a claim that covers more than one (population NMEC).
 `spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary, decision L:
 AC_Climate_Zone for E3ClimateZone and so on), the name CEDARS gives it (accepted on upload), its type, whether it is required and
 CEDARS' description.
 
-The PII tables (PII_Contact, PII_Site) are not part of it: they never travel with the claim records (BR-10.1, BR-10.4)."""
+The PII tables (PII_Contact, PII_Site) are not part of it: they never travel with the claim records."""
 
 import csv
 from dataclasses import dataclass
@@ -94,7 +94,7 @@ def _lookup(table: str) -> dict[str, str]:
 
 
 def canonical(table: str, header: str) -> str | None:
-    """The canonical name of an uploaded column, or None when the table has no such field (ignored, not rejected: BR-02.1)."""
+    """The canonical name of an uploaded column, or None when the table has no such field (ignored, not rejected)."""
     return _lookup(table).get(str(header).strip().lower())
 
 

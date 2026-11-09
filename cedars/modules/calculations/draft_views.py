@@ -520,7 +520,7 @@ def draft_download(request, pk):
     return resp
 
 
-# --- add a measure from eTRM (BR-06.22)
+# --- add a measure from eTRM
 
 
 def _year(request, ed, df) -> tuple[int | None, str]:

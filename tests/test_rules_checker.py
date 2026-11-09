@@ -1,4 +1,4 @@
-"""The pre-upload checker (BR-03.4, gap 23): the page, the API and the check_file command run the module's own rule-set step, so a file
+"""The pre-upload checker: the page, the API and the check_file command run the module's own rule-set step, so a file
 gets the same findings there as on upload; and each rule set downloads as JSON with how each rule is checked."""
 
 import io

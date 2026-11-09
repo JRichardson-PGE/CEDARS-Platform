@@ -1,4 +1,4 @@
-"""The publication scan's work in each user's queue (cedars.core.queue, BR-09.5; navigation review D7): held publications, for the
+"""The publication scan's work in each user's queue (cedars.core.queue; navigation review D7): held publications, for the
 filing organization's confirmers and the CPUC system administrators."""
 
 from __future__ import annotations

@@ -1,10 +1,10 @@
-"""eTRM's published permutations as a reference-data pack (BR-05.8): the deemed values of every permutation, by Measure Detail ID, read
+"""eTRM's published permutations as a reference-data pack: the deemed values of every permutation, by Measure Detail ID, read
 from eTRM's permutations downloads (the measure pages' CSV, eTRM's own column labels). The bulk channel will be the eTRM database
 replica the impact-profile sync reads (architecture: "the bulk permutation channel stays the database replica"); until then a CPUC
 system administrator loads the downloads with `manage.py load_etrm_permutations`, and publishes the pack before filings use it.
 
 The field maps say which claims-template field (the canonical dictionary names) each eTRM column fills: Claims fills a deemed claim's
-blank fields from them and flags filed values that differ, and the input editor's measure-row lookup (BR-06.22) uses the same maps.
+blank fields from them and flags filed values that differ, and the input editor's measure-row lookup uses the same maps.
 
 That lookup narrows a measure package's permutations one offering key at a time (`OFFERING_KEYS`, the Measure Detail ID's own order).
 The keys are columns of their own under one index in that order, so each choice's values are read by a loose index scan (`choices`):
@@ -300,7 +300,7 @@ def versions(pack: PackVersion, measure_versions) -> set[str]:
     )
 
 
-# --- the input editor's lookup (BR-06.22): a package, then its offering one key at a time
+# --- the input editor's lookup: a package, then its offering one key at a time
 
 MAX_CHOICES = 5000  # a guard: eTRM's offering keys have tens of values
 

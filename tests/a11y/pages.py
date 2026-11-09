@@ -63,7 +63,7 @@ PAGES = [
     ("search-results", "/search/?q=program", None),
     ("search-results-signed-in", "/search/?q=claims", "pge_admin"),
     ("search-nothing", "/search/?q=zzqx", None),
-    # release notes, limits and the FAQ (gap 9); the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
+    # release notes, limits and the FAQ; the scene's {release_note} (coming), {release_done} (in effect), {release_draft}
     ("releases", "/releases/", None),
     ("releases-signed-in", "/releases/", "community"),
     ("release-coming", "/releases/{release_note}/", None),
@@ -71,7 +71,7 @@ PAGES = [
     ("releases-manage", "/releases/manage/", "cpuc_admin"),
     ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
     ("limits", "/limits/", None),
-    # gap 30: the register of CPUC-mandated changes (BR-12.7); the scene's {mandate} (published, with history), {mandate_draft}
+    # The register of CPUC-mandated changes; the scene's {mandate} (published, with history), {mandate_draft}
     ("mandates", "/mandates/", None),
     ("mandates-filtered", "/mandates/?status=implemented&q=tax", "community"),
     ("mandate", "/mandates/{mandate}/", None),
@@ -87,7 +87,7 @@ PAGES = [
     ("dictionary-field-codes-paged", "/dictionary/fields/AC_Elec_Impact_Profile/?page=2", None),
     ("dictionary-records", "/dictionary/?kind=record&group=Budgets%3A+fund+shift+lines", None),
     ("dictionary-field-record", "/dictionary/fields/submissions.SubmissionVersion.status/", None),
-    # gap 33: retired fields and the change log (BR-08.4); the scene's {catalog_retired} retires LevNetBenRIMGas in 30 days
+    # Retired fields and the change log; the scene's {catalog_retired} retires LevNetBenRIMGas in 30 days
     ("dictionary-retired", "/dictionary/?state=all&q=LevNetBen", None),
     ("dictionary-field-retiring", "/dictionary/fields/LevNetBenRIMGas/", None),
     ("dictionary-field-admin", "/dictionary/fields/TaxCredits/", "cpuc_admin"),
@@ -114,7 +114,7 @@ PAGES = [
     ("downloads", "/data/downloads/", "community"),
     ("download-ready", "/data/downloads/{ready_download}/", "community"),
     ("download-queued", "/data/downloads/{queued_download}/", "community"),
-    # saved, shared and published views (gap 28): the scene's {saved_view} (community's, shared and asked to publish), {published_view}
+    # saved, shared and published views: the scene's {saved_view} (community's, shared and asked to publish), {published_view}
     ("saved-views", "/data/views/", None),
     ("saved-views-signed-in", "/data/views/", "community"),
     ("saved-views-admin", "/data/views/", "cpuc_admin"),
@@ -128,7 +128,7 @@ PAGES = [
     ("rule", "/rules/{rules}/W4d5e6f/", "pge_admin"),
     ("rule-differences", "/rules/differences/?a={rules}&b={rules}", "pge_admin"),
     ("rule-checker", "/rules/check/", "pge_admin"),
-    # gap 10: administrators edit value lists and rules as new versions (BR-12.6)
+    # Administrators edit value lists and rules as new versions
     ("rule-set-admin", "/rules/{rules}/", "cpuc_admin"),
     ("rule-set-draft", "/rules/{rules_draft}/", "cpuc_admin"),
     ("rule-draft", "/rules/{rules_draft}/V7a8b9c/", "cpuc_admin"),
@@ -174,14 +174,14 @@ PAGES = [
     ("organisation-renamed", "/admin/organizations/AVA/", "cpuc_admin"),
     ("organisation-merged", "/admin/organizations/AVA2/", "cpuc_admin"),
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
-    # gap 20: publication holds (BR-08.5); the scene's {held_snapshot} is a held snapshot
+    # Publication holds; the scene's {held_snapshot} is a held snapshot
     ("publication-holds", "/publication/holds/", "cpuc_admin"),
     ("publication-holds-owner", "/publication/holds/", "pge_admin"),
     ("publication-hold", "/publication/holds/{held_snapshot}/", "cpuc_admin"),
     ("publication-hold-owner", "/publication/holds/{held_snapshot}/", "pge_admin"),
     ("publication-scan-settings", "/publication/scan-settings/", "cpuc_admin"),
     ("settings", "/admin/settings/", "cpuc_admin"),
-    # BR-01.3 role templates and BR-12.4 feedback; the scene's {role_template} (Consultant, granted once), {feedback} (new, from a
+    # Role templates and feedback; the scene's {role_template} (Consultant, granted once), {feedback} (new, from a
     # member), {feedback_closed} (closed, sent signed out)
     ("role-templates", "/admin/role-templates/", "cpuc_admin"),
     ("role-template", "/admin/role-templates/{role_template}/", "cpuc_admin"),
@@ -258,7 +258,7 @@ PAGES = [
     ("edit-inputs-draft", "/calculations/drafts/{draft}/", "analyst"),
     ("edit-inputs-row-by-row", "/calculations/drafts/{draft}/?view=rows&table=ProgramCost", "analyst"),
     ("edit-inputs-row", "/calculations/drafts/{draft}/Measure/1/", "analyst"),
-    # gap 25 (BR-06.22): add a measure from the eTRM pack: packages, the offering's open choice, the permutation and its row
+    # Add a measure from the eTRM pack: packages, the offering's open choice, the permutation and its row
     ("edit-inputs-etrm", "/calculations/drafts/{draft}/etrm/?year=all", "analyst"),
     ("edit-inputs-etrm-offering", "/calculations/drafts/{draft}/etrm/?year=all&package=swhc052-02", "analyst"),
     ("edit-inputs-etrm-row", "/calculations/drafts/{draft}/etrm/?year=all&package=swhc052-02&delivery_type=DnDeemed", "analyst"),
@@ -307,7 +307,7 @@ PAGES = [
     ("claims-statewide", "/claims/years/2028/statewide/", "analyst"),  # what the statewide claims credit to the PA
     ("claims-statewide-cpuc", "/claims/years/2028/statewide/", "cpuc_admin"),  # no PA chosen yet
     ("claims-period-pii-rejected", "/claims/periods/{claims_q2}/", "pii_filer"),
-    # gap 15: correcting a draft's records in place (BR-02.4); the scene's {claims_draft} is Q2's rejected draft, {claims_preview} a
+    # Correcting a draft's records in place; the scene's {claims_draft} is Q2's rejected draft, {claims_preview} a
     # partial correction of it waiting in its preview
     ("records", "/filings/versions/{claims_draft}/records/", "analyst"),
     ("records-found", "/filings/versions/{claims_draft}/records/?table=&q=2028", "analyst"),
@@ -425,7 +425,7 @@ PAGES = [
     ("claims-restatements", "/claims/restatements/", "analyst"),
     ("claims-restatement", "/claims/restatements/{restatement}/", "analyst"),
     ("claims-restatement-figure", "/claims/restatements/{restatement}/?metric=TRC&pa=PGE", "analyst"),
-    # BR-10.3 document accessibility: the scene's {access_check} (findings, needing review), {access_reviewed} (reviewed)
+    # Document accessibility: the scene's {access_check} (findings, needing review), {access_reviewed} (reviewed)
     ("accessibility-files", "/admin/document-accessibility/", "cpuc_admin"),
     ("accessibility-files-all", "/admin/document-accessibility/?state=all&kind=pdf", "cpuc_admin"),
     ("accessibility-file", "/admin/document-accessibility/{access_check}/", "cpuc_admin"),

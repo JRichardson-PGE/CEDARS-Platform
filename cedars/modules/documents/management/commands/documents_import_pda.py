@@ -19,7 +19,7 @@ def _records(data):
 
 class Command(BaseCommand):
     help = (
-        "Migrate the PDA's published documents, their files, work orders, comment windows, comments and responses (BR-15.10), from saved "
+        "Migrate the PDA's published documents, their files, work orders, comment windows, comments and responses, from saved "
         "API responses and a folder of files, or from the site itself. Already imported documents are skipped. Try --dry-run first."
     )
 

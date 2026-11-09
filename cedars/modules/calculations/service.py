@@ -1,7 +1,7 @@
 """Calculation runs: who may start and see them, how a job is put together for the ReCET worker, and what a run's record says as it
 moves from queued to finished. Pages and the API call these functions; every change is an audit event.
 
-Who sees what (BR-01, Jake 2026-10-29): a run made for an organization belongs to it, and its members with calculations.read or
+Who sees what (Jake 2026-10-29): a run made for an organization belongs to it, and its members with calculations.read or
 calculations.submit see it, so it stays with the organization when its owner leaves; a run with no organization (a community account's
 own) is its owner's alone. Starting a run for an organization takes calculations.submit there; stopping one takes being its owner (still
 a member) or calculations.admin / org.admin there."""
@@ -43,7 +43,7 @@ RECET = "recet"
 REPLICA_REFUSED_SHEETS = ("RunParameters", "SWAllocation", "GasProfiles", "Profiles8760")
 OUTPUT_FORMATS = {"csv.zip": "CSV in zip files", "parquet": "Parquet", "xlsx": "Excel (up to 50,000 measures)"}
 FILING_CHECKS = {"": "None", "claims": "Claims rules", "budget_filing": "Budget filing rules"}
-# Settings a replica (a past CET release, D13) does not take: ReCET's engine refuses them for replicas (cet_versions/job.REFUSED).
+# Settings a replica (a past CET release) does not take: ReCET's engine refuses them for replicas (cet_versions/job.REFUSED).
 REPLICA_REFUSES = ("allocate_statewide", "filing_validation", "preflight_only", "compare_with", "components", "portfolio_8760")
 MARKET_EFFECTS = (0.0, 0.05)  # CET's Market Effects: none, or 5% of benefits and costs (ReCET RunConfig.market_effects)
 
@@ -326,8 +326,8 @@ class RunRequest:
     allocation_version: AllocationVersion | None = None
     cet_outputs: object = None  # a CET run's outputs CSV (a local path or an UploadedFile): a parallel run, compared measure by measure
     cost_test_set: PackVersion | None = None  # a cost_tests pack (blank: the set in force for the job's first program year)
-    record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column (BR-06.5), pinned like the run's
-    # a supplied 8,760-profile file (ReCET's profiles_8760, Parquet): the profile versions true-ups are priced against (BR-05.6)
+    record_accs: tuple[str, ...] = ()  # other ACCs the job's records name in their ACCVersion column, pinned like the run's
+    # a supplied 8,760-profile file (ReCET's profiles_8760, Parquet): the profile versions true-ups are priced against
     profiles_8760: bytes | None = None
     # ReCET's optional input files uploaded on their own (New run, the API): {input name (jobfiles.OPTIONAL): a local path or an
     # UploadedFile}. They win over the same table in the job zip or workbook, as a file given separately wins over its sheet in ReCET.
@@ -388,7 +388,7 @@ def _check(req: RunRequest) -> dict:
             "does not have."
         )
     if other and req.calculation != RECET:
-        raise AccessDenied("A CET replica prices every record on one ACC; an ACC per record (BR-06.5) is ReCET's own calculation.")
+        raise AccessDenied("A CET replica prices every record on one ACC; an ACC per record is ReCET's own calculation.")
     if req.output_format not in OUTPUT_FORMATS:
         raise AccessDenied(f"Output format {req.output_format} is not offered.")
     st = {k: v for k, v in (req.settings or {}).items() if v not in (None, "")}
@@ -441,7 +441,7 @@ def input_hash(
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
 
-# --- the reference data a run is pinned to (BR-11.8, BR-06.21)
+# --- the reference data a run is pinned to
 
 # The reference-folder files each pack kind holds for ReCET's own calculation, by their paths in the engine's reference folder (ReCET
 # ARCHITECTURE 7.1: manifest.json keys every file by that path, and a job spec's packs.files pins those keys). A pack's manifest entries
@@ -451,7 +451,7 @@ REFERENCE_PREFIXES = {PackVersion.Kind.ACC_ELECTRIC: "acc/{acc}/", PackVersion.K
 
 def packs_for(req: RunRequest, *, filing: bool) -> list[PackVersion]:
     """The registered packs a run uses: the electric ACC pack of its ACC year and the impact-profile library in force. A filing takes
-    only published packs; an analysis run takes the newest published one, or a draft when nothing is published (BR-11.8). A replica
+    only published packs; an analysis run takes the newest published one, or a draft when nothing is published. A replica
     reads its own release's tables, so it is pinned to none. Kinds with no registered pack are not pinned (the worker's folder is used
     as it is), and the run record says which kinds were pinned."""
     if req.calculation != RECET:
@@ -497,7 +497,7 @@ def record_acc_packs(req: RunRequest, *, filing: bool) -> list[PackVersion]:
 
 
 def cost_test_pack(req: RunRequest, st: dict, first_year: int | None, *, filing: bool) -> PackVersion | None:
-    """The cost-test set a ReCET run is priced on (BR-06.8, BR-06.14; ReCET COST_TESTS.md): the pack the request names (by pack, or by
+    """The cost-test set a ReCET run is priced on (ReCET COST_TESTS.md): the pack the request names (by pack, or by
     its id in settings.cost_test_set), else the set in force for the job's first program year. A filing, or a run with CEDARS filing
     checks or priced for a filing, takes a published set only (the engine refuses anything else for them); an analysis run may take a
     draft. None when no set is registered: the engine's own default set is used, as for any kind with no pack. Takes cost_test_set out
@@ -591,7 +591,7 @@ def create_run(
             f"{', '.join(jobfiles.OPTIONAL[n][1] for n in twice)} given twice, in the job zip and as a file of its own: keep one."
         )
     if info.records > max_records():
-        raise AccessDenied(f"The job has {info.records:,} measure records; a run takes at most {max_records():,} (BRD v0.5). Split it.")
+        raise AccessDenied(f"The job has {info.records:,} measure records; a run takes at most {max_records():,}. Split it.")
 
     run = Run(
         organisation=organisation,
@@ -670,7 +670,7 @@ def create_run(
         key = run.storage_prefix + "sw_factors.csv"
         inputs["sw_factors"] = {"key": key, "sha256": allocation_sha, "bytes": uploads.put_bytes(key, factors).size}
         run.allocation_version = version
-    # the registry's programs for the job's program year (BR-13.1) as the engine's WHOLE program table (programs_replace, set in the
+    # the registry's programs for the job's program year as the engine's WHOLE program table (programs_replace, set in the
     # spec): the Prg_ columns, Exclude_From_CE and the PrgID checks read the registry, never the engine's shipped copy of CEDARS' list
     programs = registry.run_programs(info.first_year)
     table = programs.csv.encode()
@@ -960,7 +960,7 @@ NOTICE_TITLES = {
 
 
 def _notify_owner(run: Run) -> None:
-    """Tell the run's owner it ended (BR-06.2): on their notifications page, and by email unless they turned that off. The key keeps a
+    """Tell the run's owner it ended: on their notifications page, and by email unless they turned that off. The key keeps a
     retried worker from telling them twice."""
     from django.urls import reverse
 
@@ -1066,7 +1066,7 @@ def price_submission(
     """The pricer the submissions service calls (registered in apps.py): a filing version's job on the default release, ReCET's own
     calculation; with settings allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most
     recent confirmed one for the program year). `cost_test_set`: the published set the filing's setup requires (blank: the published
-    set in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles (BR-05.6), a supplied 8,760 file."""
+    set in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
     release = default_release()
     if release is None:
         raise PricingUnavailable("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
@@ -1118,7 +1118,7 @@ def restate_version(
     cost_test_set: PackVersion | None = None,
     profiles_8760: bytes | None = None,
 ):
-    """The restater the submissions service calls (BR-06.17, registered in apps.py): a published filing's job priced again as an
+    """The restater the submissions service calls (registered in apps.py): a published filing's job priced again as an
     analysis run for `organisation` (None: the actor's own), ReCET's own calculation on `release`. The run is not linked to the version
     (submission_version stays empty), so its end never records anything on the filing; it is an ordinary run its owner and organization
     see on Runs. Returns the run's id."""
@@ -1259,7 +1259,7 @@ def plain_error(text: str) -> str:
     """What a failed run's page tells the person: the engine's message, whole (UI review 2, #6: it was cut to its last line and 300
     characters, often mid-sentence), with file paths cut to their names and a plain reading of the common failures. The message is the
     last exception line and what follows it ("ValueError: ..."), else the last paragraph. The full text stays on the page for the
-    run's owner and administrators (BR-06.2: a failure says why in words a filer can act on)."""
+    run's owner and administrators (a failure says why in words a filer can act on)."""
     lines = [line.rstrip() for line in (text or "").strip().splitlines()]
     if not lines:
         return ""

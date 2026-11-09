@@ -11,7 +11,7 @@ class PackVersion(models.Model):
     storage_uri; the manifest lists each with its SHA-256, and the fingerprint is the SHA-256 of the manifest, so a run that records it
     names its inputs exactly.
 
-    A draft is usable for analysis runs and refused for filings (BR-11.8). Publishing needs the tie-outs its kind requires (BR-06.21).
+    A draft is usable for analysis runs and refused for filings. Publishing needs the tie-outs its kind requires.
     Once published, nothing that identifies the data changes (a database trigger refuses it); a pack is withdrawn, never deleted."""
 
     class Kind(models.TextChoices):
@@ -117,7 +117,7 @@ class EtrmPermutation(models.Model):
     end_date = models.DateField(null=True, blank=True)
     values = models.JSONField(default=dict)
     # the offering keys, in the Measure Detail ID's order (refdata.etrm.OFFERING_KEYS), as their own columns so the input editor's
-    # narrowing lookup (BR-06.22) reads them from one index: each choice's values are a few index probes, whatever the pack's size
+    # narrowing lookup reads them from one index: each choice's values are a few index probes, whatever the pack's size
     offering = models.CharField(max_length=60, blank=True)
     meas_app_type = models.CharField(max_length=60, blank=True)
     delivery_type = models.CharField(max_length=60, blank=True)

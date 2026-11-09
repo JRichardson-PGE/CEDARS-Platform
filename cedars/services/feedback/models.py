@@ -3,7 +3,7 @@ from django.db import models
 
 
 class Feedback(models.Model):
-    """One message sent from a page's Feedback link (BR-12.4): the page it was sent from, who sent it (blank: signed out) and the
+    """One message sent from a page's Feedback link: the page it was sent from, who sent it (blank: signed out) and the
     organization they were acting for, and the message. CPUC system administrators are told of each one and work through them on the
     Feedback page; closing one records who closed it, when and a note. A message is never edited or deleted by hand: it goes when its
     retention period ends (record class "feedback")."""

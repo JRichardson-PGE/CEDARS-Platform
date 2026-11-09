@@ -1,4 +1,4 @@
-"""Feedback from every page (BR-12.4): the footer link, the message recorded with its page and sender, the CPUC system
+"""Feedback from every page: the footer link, the message recorded with its page and sender, the CPUC system
 administrators told, the admin list, limits and retention."""
 
 from datetime import timedelta

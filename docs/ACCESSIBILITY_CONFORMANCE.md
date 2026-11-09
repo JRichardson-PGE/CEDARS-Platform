@@ -3,8 +3,8 @@
 The CEDARS platform against WCAG 2.2 Level AA, criterion by criterion, with how each is met, the evidence for it, and the known
 exceptions. The architecture requires this report before program administrators' users are onboarded (CEDARS Replacement Architecture,
 security and delivery: "an independent penetration test and an accessibility conformance report before PA users are onboarded").
-Target: decision K, WCAG 2.2 AA, a California state agency requirement; BRD v0.5 BR-10.3 ("all public and authenticated pages and
-published documents"). How the checks run day to day is in `ACCESSIBILITY.md`; the visual rules that keep them are in `DESIGN.md`.
+Target: decision K, WCAG 2.2 AA, a California state agency requirement, for all public and authenticated pages and
+published documents. How the checks run day to day is in `ACCESSIBILITY.md`; the visual rules that keep them are in `DESIGN.md`.
 
 It follows the shape of an ACR in the VPAT 2.5 WCAG edition. It is written from the code and the tests in this
 repository; an independent audit (below, under "Before PA onboarding") is still to be done, and its findings replace any claim here
@@ -49,7 +49,7 @@ they contradict.
 | 1.1.1 Non-text Content | A | Supports | Icons and the cedar mark are decorative (`aria-hidden`, `focusable="false"`) or named; every chart (dashboards, restatement figures) has a table with the same numbers beside it; generated workbooks have no pictures | axe; rule |
 | 1.2.1 Audio-only and Video-only | A | Not applicable | No audio or video on any page | |
 | 1.2.2 Captions (Prerecorded) | A | Not applicable | No video | |
-| 1.2.3 Audio Description or Media Alternative | A | Not applicable | No video. Training videos (BR-12.3) are not built; when they are, they need captions and a transcript | |
+| 1.2.3 Audio Description or Media Alternative | A | Not applicable | No video. Training videos are not built; when they are, they need captions and a transcript | |
 | 1.2.4 Captions (Live) | AA | Not applicable | No live media | |
 | 1.2.5 Audio Description (Prerecorded) | AA | Not applicable | No video | |
 | 1.3.1 Info and Relationships | A | Supports | Server-rendered semantic HTML: one `h1` per page and sections with headings in order, landmarks (`header`, `nav`, `main`, `footer`), tables with captions and `th scope`, fields with labels and `aria-describedby` hints, fieldsets with legends, lists as lists, breadcrumbs as an ordered list | axe; test (captions, labels); ReCET NVDA |
@@ -119,7 +119,7 @@ they contradict.
 
 ## Published documents
 
-BR-10.3 covers published documents as well as pages. The platform publishes two kinds: files it writes itself, and files people upload
+The target covers published documents as well as pages. The platform publishes two kinds: files it writes itself, and files people upload
 to the document library or attach to comments.
 
 ### Files the platform writes
@@ -128,8 +128,8 @@ Every workbook is written by `cedars/core/workbooks.py`, so each is accessible t
 
 | What | Where |
 | --- | --- |
-| Budget filing appendix (BR-04.5) | `budgets.service.appendix_xlsx` |
-| Record downloads, XLSX (BR-07.2) | `data.records._xlsx` |
+| Budget filing appendix | `budgets.service.appendix_xlsx` |
+| Record downloads, XLSX | `data.records._xlsx` |
 | Dashboard downloads, XLSX | `data.downloads._xlsx` |
 | Claims upload template | `claims.spec.template_xlsx` |
 | Data dictionary upload templates | `dictionary.service.template_xlsx` |
@@ -150,7 +150,7 @@ letters and pages (change letters, release notes, the limits page) are HTML page
 ### Files people upload
 
 PDFs and workbooks stored as a document's file, or attached to a public comment on a document or to a comment on a filing, are checked
-as they are stored (`cedars/services/accessibility`, BR-10.3):
+as they are stored (`cedars/services/accessibility`):
 
 | Finding | Kind | WCAG 2.2 |
 | --- | --- | --- |
@@ -185,7 +185,7 @@ PDA, the PSR, CEDARS' own documents) are checked and listed but never refused.
    with NVDA or JAWS. See below.
 5. **axe finds about a third to a half of WCAG failures.** The criteria marked *rule* or *manual* rest on review and on checks by hand
    before a page ships (`ACCESSIBILITY.md`); they are not re-checked on every change.
-6. **Training videos (BR-12.3) are not built.** When they are, they need captions, a transcript and audio description where the
+6. **Training videos are not built.** When they are, they need captions, a transcript and audio description where the
    picture carries information (1.2.2, 1.2.3, 1.2.5).
 
 ## Before PA onboarding

@@ -1,4 +1,4 @@
-"""Time the input editor's eTRM lookup (BR-06.22) on a pack: the package search, each offering choice (a loose index scan) and the walk
+"""Time the input editor's eTRM lookup on a pack: the package search, each offering choice (a loose index scan) and the walk
 from a package to one permutation, over a sample of packages, smallest to largest. With --synthetic N it first loads a draft pack of N
 made-up permutations shaped like eTRM's (several hundred measure packages, a few very large; offering keys with eTRM's kinds of values)
 through the same loader as a real download, times that load too, and discards the pack afterwards unless --keep. eTRM's CET downloads

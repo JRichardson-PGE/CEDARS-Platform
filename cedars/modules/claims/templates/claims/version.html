@@ -58,7 +58,7 @@
 <section aria-labelledby="true-ups-h">
 <h2 id="true-ups-h">True-ups priced against their parents' profiles</h2>
 <p>Each NMEC true-up below is priced twice: on its own 8,760 profile, and on the profile its parent claim was priced on, with the same
-ACC, timing and quantities. The difference is what the revised profile changes (BR-05.6). It is reported only: the table above, the
+ACC, timing and quantities. The difference is what the revised profile changes. It is reported only: the table above, the
 ratios and the cost tests use each claim's own values.</p>
 {% if true_ups.programs %}
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="true-ups-programs-caption">
@@ -104,7 +104,7 @@ ratios and the cost tests use each claim's own values.</p>
 <section aria-labelledby="restated-h">
 <h2 id="restated-h">Restated results</h2>
 <p>Price these confirmed claims again on today's engine, on the filed ACC or another, as an analysis that never changes this version. The
-change is split into the effect of the engine and programs and the effect of the ACC (BR-06.17).</p>
+change is split into the effect of the engine and programs and the effect of the ACC.</p>
 {% if restatable %}<p><a class="button" href="{% url 'claims:restate' v.pk %}">Restate these claims</a></p>{% endif %}
 {% if restatements %}<ul class="links">{% for rs in restatements %}<li><a href="{% url 'claims:restatement' rs.pk %}">{{ rs.name }}</a>, {{ rs.created_at|date_words }}</li>{% endfor %}</ul>{% endif %}
 </section>

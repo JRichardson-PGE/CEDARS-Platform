@@ -110,6 +110,8 @@ def index(request):
                     "deadline": d,
                     "latest": latest,
                     "past_due": submissions.past_due(d),
+                    # not one of the PAs its set-up lists as filing (Jake, 2026-11-09), and nothing started
+                    "off_filing": org is not None and latest is None and not submissions.on_filing(d, org),
                     "can_open": can_open,
                 }
             )
@@ -168,6 +170,7 @@ def filing_new(request):
                 allocation_version=d["allocation_version"],
                 cost_test_set=d["cost_test_set"],
                 notes=d["notes"],
+                filers=setup_calendar.chosen_pas(d["filers"]),
             )
         except AccessDenied as e:
             messages.error(request, str(e))
@@ -522,7 +525,7 @@ def published_file(request, pk, which):
 
 @login_required
 def compare(request):
-    """Any two versions the user can read, by program (BR-04.2)."""
+    """Any two versions the user can read, by program."""
     choices = list(service.readable_versions(request.user)[:200])
     by_pk = {str(v.pk): v for v in choices}
     a, b = by_pk.get(request.GET.get("a", "")), by_pk.get(request.GET.get("b", ""))
@@ -558,11 +561,11 @@ def _version_label(v: SubmissionVersion) -> str:
     return f"{v.submission.organisation.code} {service.label(v.submission.deadline)}, version {v.number} ({v.get_status_display().lower()})"
 
 
-# --- change letters (BR-09.3)
+# --- change letters
 
 
 def changes(request):
-    """Every published budget correction's change letter, newest first, by PA and cycle. Public: the record of corrections (BR-09.3)."""
+    """Every published budget correction's change letter, newest first, by PA and cycle. Public: the record of corrections."""
     every = service.change_letters()
     out = every
     org = access.by_code(request.GET.get("org", ""), follow=False)

@@ -10,7 +10,7 @@ ORG_SESSION_KEY = "cedars_organisation"
 
 
 class ActiveOrganisationMiddleware:
-    """request.organisation: the organization the user is acting for, switched in the session (BR-01.1), always one they are an active
+    """request.organisation: the organization the user is acting for, switched in the session, always one they are an active
     member of (None for a community account). request.filing_organisation: the same when it files (a PA), else None, for the pages
     that show "your" filings, budgets and reports (service.filing_organisation). request.assurance: how the session was established
     (assurance.py)."""

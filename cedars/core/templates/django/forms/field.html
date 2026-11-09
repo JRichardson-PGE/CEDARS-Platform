@@ -1,7 +1,31 @@
 {% comment %}Every form field rendered with as_field_group (docs/DESIGN.md): one .field block per field, so a field stays together when a form
 wraps (the filter bars), in the order label, control, errors, hint, the order the hand-written fields use (UI review 2, 2026-10-31). The hint
 sits under the control it describes, and the control's aria-describedby names it. The label is written here rather than by label_tag, so it
-carries no colon, like the hand-written labels. A checkbox is one line with the box inside its label, like the .checks lists.{% endcomment %}
+carries no colon, like the hand-written labels. A checkbox is one line with the box inside its label, like the .checks lists.
+
+A form with help_as_info = True (New run, Jake 2026-11-09) shows each hint behind an "i" button beside the label instead of under the control
+(core/_info_button.html). The hint keeps its id, so the control's aria-describedby still reads it to a screen reader.{% endcomment %}
+{% if field.help_text and field.form.help_as_info %}
+<div class="field{% if field.errors %} has-errors{% endif %}">
+{% if field.use_fieldset %}
+  <fieldset{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>
+  {% if field.label %}<legend><span class="label-row">{{ field.label }}{% include "core/_info_button.html" %}</span></legend>{% endif %}
+  {{ field }}
+  {{ field.errors }}
+  {% include "core/_info_pop.html" %}
+  </fieldset>
+{% elif field.field.widget.input_type == "checkbox" %}
+  <div class="label-row"><label class="check"{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>{{ field }} {{ field.label }}</label>{% include "core/_info_button.html" %}</div>
+  {{ field.errors }}
+  {% include "core/_info_pop.html" %}
+{% else %}
+  <div class="label-row">{% if field.label %}<label{% if field.id_for_label %} for="{{ field.id_for_label }}"{% endif %}>{{ field.label }}</label>{% endif %}{% include "core/_info_button.html" %}</div>
+  {{ field }}
+  {{ field.errors }}
+  {% include "core/_info_pop.html" %}
+{% endif %}
+</div>
+{% else %}
 <div class="field{% if field.errors %} has-errors{% endif %}">
 {% if field.use_fieldset %}
   <fieldset{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>
@@ -21,3 +45,4 @@ carries no colon, like the hand-written labels. A checkbox is one line with the 
   {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
 {% endif %}
 </div>
+{% endif %}

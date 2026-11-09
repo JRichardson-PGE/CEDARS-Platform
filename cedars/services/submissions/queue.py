@@ -1,4 +1,4 @@
-"""The submissions service's work in each user's queue (cedars.core.queue, BR-09.5): correction requests waiting on an approver or their
+"""The submissions service's work in each user's queue (cedars.core.queue): correction requests waiting on an approver or their
 delegate, priced versions waiting for someone who may confirm them, and filings whose latest comment came from the other side."""
 
 from __future__ import annotations

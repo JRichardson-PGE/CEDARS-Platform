@@ -72,7 +72,7 @@ def _impact_profiles(cpuc_admin, pge, pge_admin, make_user):
     mine = custom.create_custom(
         dev, pge, profile_key="PGE Office NMEC", target_sector="Commercial", territory="PGE", data=profile_file(), file_name="p.csv"
     )
-    custom.create_custom(  # identical to it: the page lists it as another name of the profile (BR-06.18)
+    custom.create_custom(  # identical to it: the page lists it as another name of the profile
         dev, pge, profile_key="SCE Office NMEC", target_sector="Commercial", territory="SCE", data=profile_file(), file_name="s.csv"
     )
     library.export(cpuc_admin)
@@ -450,7 +450,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):
-    """BR-01.3 and BR-12.4: the starter role templates (seeded by a migration, which the transactional tests flush, so seeded again),
+    """The starter role templates (seeded by a migration, which the transactional tests flush, so seeded again),
     a member granted one, a retired template; a new feedback message from a member and a closed one sent signed out."""
     import importlib
 
@@ -471,7 +471,7 @@ def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user)
 
 
 def _admin_drafts(rules):
-    """Gap 10 (BR-12.6): a draft copy of the published rules with a changed rule, and the sector value list with a published
+    """Gap 10: a draft copy of the published rules with a changed rule, and the sector value list with a published
     version and a draft that adds a code. Made directly (the scene has no engine to copy the shipped list from)."""
     from cedars.services.dictionary.models import Code, ValueList, ValueListVersion
 
@@ -591,7 +591,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         documents.Details(opt("pa_report_type", "Joint Cooperation Memo"), "PG&E and BayREN Joint Cooperation Memo 2026", first_year=2026),
         files("jcm_2026.pdf"),
     )
-    documents.create_document(  # a placeholder implementation plan (BR-13.6), shown on the program's page
+    documents.create_document(  # a placeholder implementation plan, shown on the program's page
         None,
         pge,
         "program",
@@ -644,7 +644,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         stage="draft_results",
         comment_period=(today - timedelta(days=1), today + timedelta(days=13)),
     )
-    # Search by a file's text, key dates on the home page, and subscriptions (BR-15.2, 15.3, 15.5).
+    # Search by a file's text, key dates on the home page, and subscriptions.
     documents.create_document(
         cpuc_admin,
         cpuc,
@@ -707,7 +707,7 @@ def _saved_views(community, cpuc_admin, pge_admin, pge):
 
 
 def _publication_hold(pge):
-    """A published filing whose snapshot the scan for personal information held (BR-08.5), for the Publication holds pages. Not
+    """A published filing whose snapshot the scan for personal information held, for the Publication holds pages. Not
     released, so the dashboards' releases are unchanged."""
     from cedars.services.snapshots.models import PIIScan, Snapshot
     from cedars.services.submissions.models import SubmissionVersion
@@ -820,7 +820,7 @@ def _monthly(cpuc_admin, pge, pge_admin, analyst):
 
 def _corrections(cpuc_admin, pge, analyst, budgets_scene, monthly_scene):
     """A business plan corrected after its due date and April's monthly report corrected after its due date: each correction's
-    publication writes its change letter (BR-09.3). Neither touches the filings the other pages show."""
+    publication writes its change letter. Neither touches the filings the other pages show."""
     from cedars.modules.budgets import service as budgets
     from cedars.modules.monthly import service as monthly
 
@@ -968,14 +968,14 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     wrong = {"PII_Contact.csv": "ContactID,ContactName,ContactPhoneNumber\nPGE-C9,A. Customer,415-555-0100\n",
              "PII_Site.csv": "SiteID,SiteAddress\nPGE-S1,1 Market St\n"}  # fmt: skip
     claims.upload_pii(pii_filer, q2v, _zip(wrong), "pii.zip", "mfa")
-    # the filing's discussion (BR-09.5): CPUC staff ask, with a file; PG&E answers, so the reply waits on the claims approver's queue
+    # the filing's discussion: CPUC staff ask, with a file; PG&E answers, so the reply waits on the claims approver's queue
     from cedars.services.submissions import comments
 
     note = ("review_notes.txt", io.BytesIO(b"PGE-2028-002: 4 units filed, 3 installed."))
     comments.post(cpuc_admin, v, "Please check PGE-2028-002's unit count before the next quarter.", [note])
     comments.post(analyst, v, "It was canceled.\nThe correction withdraws it.")
     restatement = _restatement(analyst, pge, v2, group_sums)
-    # correcting the Q2 draft's records in place (BR-02.4): a partial correction waiting in its preview
+    # correcting the Q2 draft's records in place: a partial correction waiting in its preview
     from cedars.services.submissions import corrections
 
     fix = _zip({"Measure.csv": "ClaimID,PrgID,NumUnits\nPGE-2028-003,PGE_Res_HVAC,4\n",
@@ -997,7 +997,7 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
 
 
 def _restatement(analyst, pge, v, group_sums):
-    """The corrected Q1 restated on the 2024 ACC (BR-06.17) for PG&E, both runs finished, so the page shows the split."""
+    """The corrected Q1 restated on the 2024 ACC for PG&E, both runs finished, so the page shows the split."""
     from cedars.modules.calculations import service as calculations
     from cedars.modules.calculations.models import Run
     from cedars.modules.claims import restatements
@@ -1348,6 +1348,46 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     assert wide["start"] <= 960, f"Start the run ends {wide['start']:.0f} px down at 1920 px, below a 1920 x 1080 browser's first screen"
     assert wide["backwards"] == 0, "a field sits above and to the right of the one read before it"
     assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
+
+
+def test_new_run_hints_are_behind_info_buttons(browser, site, scene):
+    """New run's field hints sit behind an "i" button beside each label (Jake, 2026-11-09), not under the controls. Each button is
+    named for its field, opens its hint with the keyboard, a click or a resting mouse; the hint stays open while the pointer is on it
+    and closes with Escape, the focus staying on the button (2.1.1, 1.4.13). The control is still described by the hint."""
+    context, page = _open(browser, site, scene, "/calculations/new/", "analyst", viewport={"width": 1280, "height": 900})
+    shown = page.evaluate("[...document.querySelectorAll('main form .helptext')].filter(h => h.offsetParent).length")
+    assert shown == 0, f"{shown} hints are still shown under the New run controls"
+    button = page.get_by_role("button", name="About Market effects")
+    hint = page.locator("#id_market_effects_info")
+    described = page.evaluate(
+        "document.getElementById(document.getElementById('id_market_effects').getAttribute('aria-describedby')).textContent"
+    )
+    assert "D.12-11-015" in described
+    button.focus()
+    page.keyboard.press("Enter")
+    assert hint.is_visible()
+    assert hint.inner_text().startswith("Budget filing forecasts use 0% market effects and claims actuals use 5% market effects.")
+    hint_box, button_box = hint.bounding_box(), button.bounding_box()
+    assert abs(hint_box["y"] - (button_box["y"] + button_box["height"])) < 12, "the hint is not placed under its button"
+    page.keyboard.press("Escape")
+    assert not hint.is_visible()
+    assert page.evaluate("document.activeElement.getAttribute('popovertarget')") == "id_market_effects_info"
+    button.click()
+    assert hint.is_visible()
+    page.mouse.click(5, 890)
+    assert not hint.is_visible(), "a click elsewhere leaves the hint open"
+    button.hover()
+    page.wait_for_timeout(500)
+    assert hint.is_visible(), "resting the mouse on the button does not open the hint"
+    hint.hover()
+    page.wait_for_timeout(600)
+    assert hint.is_visible(), "the hint closes as the pointer moves onto it (1.4.13)"
+    page.mouse.move(5, 890)
+    page.wait_for_timeout(600)
+    assert not hint.is_visible(), "a hint opened by hovering stays open after the pointer leaves"
+    size = button.bounding_box()
+    context.close()
+    assert size["width"] >= 24 and size["height"] >= 24
 
 
 @pytest.mark.parametrize("viewport", [{"width": 320, "height": 640}, {"width": 1280, "height": 400}], ids=["narrow", "short"])
@@ -1777,7 +1817,7 @@ def test_a_page_tour_starts_from_its_link(browser, site, scene):
 
 
 def _accessibility_checks(cpuc_admin, document):
-    """The document accessibility check (BR-10.3): the scene's files are not real PDFs, so their checks say "not checked"; the report's
+    """The document accessibility check: the scene's files are not real PDFs, so their checks say "not checked"; the report's
     main file is given findings (shown on its document page and as {access_check}), and one is reviewed."""
     from cedars.services.accessibility import service as accessibility
     from cedars.services.accessibility.models import FileCheck

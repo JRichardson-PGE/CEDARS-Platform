@@ -3,6 +3,7 @@ from datetime import datetime, time
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -379,7 +380,7 @@ def grant(request, code):
 @login_required
 @require_POST
 def grant_template(request, code):
-    """Grant a member every permission of a role template (BR-01.3)."""
+    """Grant a member every permission of a role template."""
     org = _org_or_404(request, code)
     back = f"/admin/organizations/{org.code}/"
     templates = service.role_templates_for(org)
@@ -624,7 +625,7 @@ def audit_log(request):
     return render(request, "administration/audit.html", {"page": page, "form": form, "query": query.urlencode()})
 
 
-# --- role templates (BR-01.3)
+# --- role templates
 
 
 TEMPLATE_EVENTS = {
@@ -704,7 +705,7 @@ def role_template(request, pk):
     )
 
 
-# --- statewide allocation versions (BR-06.7, BR-13.8)
+# --- statewide allocation versions
 
 
 def _require_sysadmin(request):
@@ -809,11 +810,30 @@ def allocation(request, pk):
         except AccessDenied as e:
             return _refused(request, e, f"/allocations/{v.pk}/")
     years = sorted(set(v.entries.values_list("year", flat=True)))
+    year = request.GET.get("year", "")
+    year = int(year) if year.isdigit() and int(year) in years else None
+    query = request.GET.get("q", "").strip()[:100]
+    entries = v.entries.prefetch_related("shares")
+    if year:
+        entries = entries.filter(year=year)
+    if query:
+        entries = entries.filter(Q(program_id__icontains=query) | Q(program_name__icontains=query))
+    pas = list(registry.ALLOCATION_PAS)
+    rows = []
+    for e in entries:
+        by_pa = {s.funding_pa: s for s in e.shares.all()}
+        rows.append({"entry": e, "shares": [by_pa.get(pa) for pa in pas]})
     return render(
         request,
         "administration/allocation.html",
         {
             "v": v,
+            "pas": pas,
+            "ncols": 3 + 3 * len(pas),
+            "rows": rows,
+            "year": year,
+            "query": query,
+            "filtered": bool(year or query),
             "issues": registry.check_allocation(v),
             "years": years,
             "count": v.entries.count(),
@@ -943,7 +963,7 @@ def goal_set_csv(request, pk):
     return response
 
 
-# --- job and system health (BR-12.2)
+# --- job and system health
 
 STATUS_CLASS = {health.OK: "ok", health.ATTENTION: "warn", health.FAILING: "bad"}
 

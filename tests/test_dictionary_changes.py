@@ -1,4 +1,4 @@
-"""Retiring dictionary fields and the per-version change log (gap 33, BR-08.4, BR-08.2): a field is retired after its usage, audience
+"""Retiring dictionary fields and the per-version change log: a field is retired after its usage, audience
 and regulatory review, in a new catalog version, never dropped; it leaves the templates from its date; a later load keeps the
 retirement; every version's changes are listed field by field on public pages and as CSV."""
 

@@ -1,10 +1,10 @@
-"""The budget and spending page (spec page 5, BR-07.3): budget against actual for the PAs chosen, by year and by program.
+"""The budget and spending page (spec page 5): budget against actual for the PAs chosen, by year and by program.
 
 Four series, each from where it is kept:
   operating budget     the standing budget filing plus the fund shifts in effect (registry.operating_budget, filled by Budgets)
   forecast budget      the chosen filing's TotalExpenditures (the forecast snapshots)
   monthly reported     each PA's latest published monthly report of the year, year to date (registry.reported_spend); estimates
-                       not yet validated (BR-14.5)
+                       not yet validated
   claimed              confirmed claims' TotalExpenditures (the claims snapshots)
 The budget lines are filtered by PA and program only: sector, segment and the other filters apply to forecast and claims."""
 

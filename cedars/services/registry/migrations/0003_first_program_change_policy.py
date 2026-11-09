@@ -1,4 +1,4 @@
-"""The first program change policy (BR-13.7): the attributes that decide which filings, tests and allocations a program falls into are
+"""The first program change policy: the attributes that decide which filings, tests and allocations a program falls into are
 locked; the rest stay with the program's administrators. It is data: a CPUC system administrator sets a newer policy on the locked
 attributes page, and this one is kept as history."""
 

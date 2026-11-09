@@ -4,7 +4,7 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-# A comment and its files are never changed (BR-09.5: a correction is another comment). Rows go only with the draft version the retention
+# A comment and its files are never changed (a correction is another comment). Rows go only with the draft version the retention
 # policy removes (the version's delete cascades), so DELETE stays allowed.
 FORWARD = """
 CREATE FUNCTION submissions_comment_guard() RETURNS trigger LANGUAGE plpgsql AS $$

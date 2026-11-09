@@ -4,6 +4,7 @@ from django.utils import timezone
 from cedars.core import uploads
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import AllocationVersion, FilingCycle
+from cedars.services.submissions import setup as setup_calendar
 
 from .models import ADVICE_LETTER, FILING_KINDS
 
@@ -58,6 +59,9 @@ class FilingForm(forms.Form):
         self.fields["acc_version"].choices = [(a, f"{a} ACC") for a in accs]
         self.fields["allocation_version"].queryset = _allocations()
         self.fields["cost_test_set"].queryset = _cost_test_sets()
+        notes = self.fields.pop("notes")
+        self.fields["filers"] = setup_calendar.filers_field()  # who files it (Jake, 2026-11-09: not every PA files every filing)
+        self.fields["notes"] = notes
         self.fields["first_year"].initial = timezone.localdate().year + 1
         self.fields["last_year"].initial = timezone.localdate().year + 4
 

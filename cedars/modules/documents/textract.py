@@ -1,4 +1,4 @@
-"""The text of a document's files, read when a file is stored, so search finds documents by the words inside them (BR-15.2). PDF
+"""The text of a document's files, read when a file is stored, so search finds documents by the words inside them. PDF
 through pypdf; Word, PowerPoint and Excel (the 2007 formats) from the text runs of their XML; plain text and CSV as they are. Older
 Office formats, images and zip files are not read (a scanned PDF has no text either): their documents are still found by title, summary
 and file name. Reading never stops a file being stored: a file whose text cannot be read gets the reason instead."""

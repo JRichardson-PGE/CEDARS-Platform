@@ -1,4 +1,4 @@
-"""The release notes' health check (cedars/core/health.py, BR-12.1 and BR-12.5): the release the site runs has its notes, every limit
+"""The release notes' health check (cedars/core/health.py): the release the site runs has its notes, every limit
 change in effect is what the site enforces, and the guides were revised for the releases that changed their part of CEDARS. Quiet
 until the first note is published."""
 

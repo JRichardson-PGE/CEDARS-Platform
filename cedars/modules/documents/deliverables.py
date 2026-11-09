@@ -1,4 +1,4 @@
-"""EM&V deliverables (BR-15.11): one document whose versions go through the revision stages in order (draft workplan, final workplan,
+"""EM&V deliverables: one document whose versions go through the revision stages in order (draft workplan, final workplan,
 draft study results, final study results), each draft open for comments in its own window, finals revised as further numbered versions
 with a reason, then the PAs' responses to the recommendations against CPUC ED's due dates and an optional CPUC ED reply.
 

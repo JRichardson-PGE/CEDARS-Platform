@@ -277,7 +277,7 @@ def test_a_filing_pins_its_allocation_version(filer, filing, pge, programs, rele
     later = registry.import_allocation_csv(cpuc_admin, factors, label="2028 claims", purpose="claims")
     registry.confirm_allocation(cpuc_admin, later)
     v.refresh_from_db()
-    assert v.calculation["allocation_version"]["label"] == "2028 TUAL"  # BR-04.8: a later version never changes it
+    assert v.calculation["allocation_version"]["label"] == "2028 TUAL"  # A later version never changes it
 
 
 def test_two_versions_compare_by_program(filer, filing, pge, programs, release, cpuc_admin):
@@ -302,7 +302,7 @@ def test_the_appendix_is_built_from_the_version(filer, filing, pge, programs, re
     assert dict((r[0], r[1]) for r in wb["About"].iter_rows(values_only=True))["ACC"] == "2026 ACC"
     from .test_document_accessibility import assert_accessible
 
-    assert_accessible(service.appendix_xlsx(v))  # BR-10.3
+    assert_accessible(service.appendix_xlsx(v))  # accessible workbook
 
 
 def test_after_the_due_date_a_correction_is_a_new_version(
@@ -363,7 +363,7 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     client.logout()
     sign_in(client, cpuc_admin)
     assert client.get(reverse("budgets:filing", args=[filing.pk]) + "?org=PGE").status_code == 200
-    letter = {"first_year": 2028, "last_year": 2031, "kind": "Advice letter", "due": "2029-09-01", "acc_version": "2026"}
+    letter = {"first_year": 2028, "last_year": 2031, "kind": "Advice letter", "due": "2029-09-01", "acc_version": "2026", "filers": ["PGE"]}
     r = client.post(reverse("budgets:filing_new"), letter)  # an advice letter is named, to say which one it is
     assert r.status_code == 200 and "Name the advice letter" in r.content.decode()
     r = client.post(reverse("budgets:filing_new"), letter | {"name": "2028-2031 Mid-cycle advice letter (MCAL)"})

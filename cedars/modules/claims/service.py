@@ -1,4 +1,4 @@
-"""Quarterly and annual claims (BR-05). A claim year has five confirmations, each a deadline of the "claims" module in the submissions
+"""Quarterly and annual claims. A claim year has five confirmations, each a deadline of the "claims" module in the submissions
 service's calendar: Q1 to Q4 on the year's quarters, then the final annual one on the year (due the following spring), as CEDARS has
 them. Each PA's filing for one of them is a submission with versions.
 
@@ -11,16 +11,16 @@ of the statewide claims credited to it (`statewide_share`) before it files, and 
     upload (.zip or .xlsx: the records new or changed since the last confirmed quarter)
     -> compiled year to date (the earlier quarters' confirmed records, this upload's over them by primary key) -> checks -> validated
     -> priced (Calculations, through the submissions service: the year to date, allocated) -> confirm
-    -> published: the compiled non-PII inputs, run settings and results readable by every signed-in user (BR-05.9)
+    -> published: the compiled non-PII inputs, run settings and results readable by every signed-in user
 
 A quarter is compiled on the standing version of the quarter before it, so the quarters are filed in order: a quarter is confirmed only
 on the earlier quarter it was checked against, and only the most recently confirmed quarter is reopened (CEDARS' own guard). Records an
 upload changes from an earlier quarter are counted and listed, never silently replaced.
 
-An upload withdraws a claim filed earlier in the year by naming it in its Withdrawal table with the reason (BR-05.2): the claim's records
+An upload withdraws a claim filed earlier in the year by naming it in its Withdrawal table with the reason: the claim's records
 stay in the compiled year, marked with the confirmation that withdrew it, but are no longer priced or counted. After the due date a
 correction is a new version of the most recently confirmed confirmation (once the year's final claim is confirmed, of that one), and its
-publication writes a public change letter (BR-09.3) of what it changed against the version it replaces."""
+publication writes a public change letter of what it changed against the version it replaces."""
 
 import csv
 import hashlib
@@ -179,10 +179,12 @@ def add_year(
     notes="",
     cost_test_set=None,
     sw_due: dict | None = None,
+    filers=None,
 ) -> ClaimYear:
     """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same) and the
     five statewide ones before them (`sw_due` = {kind: datetime} for SW_PERIODS; a kind left out takes `default_sw_due`), priced on an
-    ACC and an allocation version (or the most recent)."""
+    ACC and an allocation version (or the most recent). `filers` are the program administrators who file the PAs' own claims
+    (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
     if ClaimYear.objects.filter(year=year).exists():
@@ -204,6 +206,8 @@ def add_year(
         submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=due[kind], opens_at=(opens or {}).get(kind))
     _add_sw_deadlines(actor, year, sw)
     audit.record("claim_year.set_up", obj=cy, after=_setup_fields(cy), actor=actor)
+    if filers is not None:
+        submissions.set_filers(actor, periods(year), filers, "Who files, as set up")
     return cy
 
 
@@ -346,7 +350,7 @@ def can_read_submission(user, submission: Submission) -> bool:
 
 
 def can_read(user, v: SubmissionVersion) -> bool:
-    """A published version is public to every signed-in user (BR-05.9); the rest only to the organization and CPUC staff."""
+    """A published version is public to every signed-in user; the rest only to the organization and CPUC staff."""
     if not user.is_authenticated:
         return False
     return v.status == SubmissionVersion.Status.PUBLISHED or can_read_submission(user, v.submission)
@@ -492,7 +496,7 @@ def compile_tables(
 
 
 def withdrawn(tables: dict[str, upload.Table]) -> set[str]:
-    """The claims the tables withdraw (BR-05.2), as compared keys: their records stay, marked withdrawn, but are not priced or counted."""
+    """The claims the tables withdraw, as compared keys: their records stay, marked withdrawn, but are not priced or counted."""
     return {_claim(r) for r in tables.get("Withdrawal", upload.Table("Withdrawal", [], [])).rows if _claim(r)}
 
 
@@ -521,7 +525,7 @@ def upload_claims(
     actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None
 ) -> SubmissionVersion:
     """Take a PA's upload for one confirmation: start the submission (or use its open draft), keep the upload as this version's records
-    (the version's earlier upload is deleted: superseded uploads are not kept, BR-05.9), then compile and check it (`check`).
+    (the version's earlier upload is deleted: superseded uploads are not kept), then compile and check it (`check`).
     `sources`: the files a combined upload was made of (upload.combine), kept with the version's file entry."""
     if deadline.module != MODULE or deadline.kind not in ALL_KINDS or deadline.period_id is None:
         raise AccessDenied("That is not a claims deadline.")
@@ -543,7 +547,7 @@ def upload_claims(
 
 def _store_upload(actor, v: SubmissionVersion, tables: dict[str, upload.Table], extra: dict) -> SubmissionVersion:
     """Keep `tables` as the version's records (its claims.zip, in a folder named by its SHA-256) and attach it as the version's file;
-    the version's earlier upload is deleted once this is recorded (superseded uploads are not kept, BR-05.9)."""
+    the version's earlier upload is deleted once this is recorded (superseded uploads are not kept)."""
     content = upload.to_zip(tables)
     sha = hashlib.sha256(content).hexdigest()
     folder = f"{_prefix(v)}{sha[:12]}/"
@@ -610,7 +614,7 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     checks and the claims rule set on its own records, write the compiled tables and the job to price, and record the result: validated
     when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since.
 
-    After a correction in place (BR-02.4) `scope` says which records changed and `before` is the version's summary before it: only
+    After a correction in place `scope` says which records changed and `before` is the version's summary before it: only
     the changed records and those whose checks they can affect are checked again (`_scoped`); every other record keeps its findings.
     The compiled tables, the job, the program lines and the claim index are always rebuilt whole."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
@@ -698,7 +702,7 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
 
 
-# --- correcting records in place (BR-02.4)
+# --- correcting records in place
 
 
 def _old_findings(previous: dict | None) -> list[dict] | None:
@@ -771,7 +775,7 @@ def _moved(p, back: dict[str, list[int]]):
 
 
 def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None, statewide=False):
-    """A correction's check (BR-02.4: "that row re-validated"): the module's checks on the records `_related` names, the claims rule
+    """A correction's check ("that row re-validated"): the module's checks on the records `_related` names, the claims rule
     set on the changed Measure and ProgramCost records, and every other record's findings carried over to its new line. None when the
     whole version must be checked instead: no earlier findings, another rule set in force since, or a table's columns changed."""
     old = _old_findings(previous)
@@ -830,7 +834,7 @@ def correct_records(actor, v: SubmissionVersion, tables: dict, scope: Scope) -> 
     return check(actor, v, scope=scope, before=previous)
 
 
-# --- deemed claims against eTRM (BR-05.8)
+# --- deemed claims against eTRM
 
 
 def _decimals(text: str) -> int:
@@ -852,7 +856,7 @@ def _same(f: spec.Field, filed: str, etrm_value: str) -> bool:
 
 def fill_deemed(own: dict[str, upload.Table], base: dict[str, upload.Table]) -> tuple[list[Problem], dict]:
     """Check the upload's deemed claims (ClaimType Deemed with a MeasDetailID) against the published eTRM permutations pack in force,
-    by MeasDetailID (BR-05.8): a blank Claim or Measure field that eTRM gives is filled in from it (in `own`, so the compiled tables and
+    by MeasDetailID: a blank Claim or Measure field that eTRM gives is filled in from it (in `own`, so the compiled tables and
     the job carry it, while the stored upload stays as filed), and a filed value that differs from eTRM's rejects the record (Jake,
     2026-10-30: deemed values are eTRM's), except the NTG fields, which can vary and are a warning (`etrm.WARN_ONLY`). Where eTRM says
     "Any", any value is valid and the PA supplies it: the field is neither filled nor compared, so a blank one is still required. A
@@ -984,7 +988,7 @@ def _quarter_dates(text: str) -> tuple[date, date] | None:
 def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = None) -> bytes:
     """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) less the withdrawn claims, and the ProgramCost
     table. b"" when there are no measures to price. `parents`: the true-ups' parent profiles, written to ReCET's
-    AC_Elec_Impact_Profile_Parent columns (BR-05.6; the columns only when some true-up has one)."""
+    AC_Elec_Impact_Profile_Parent columns (the columns only when some true-up has one)."""
     m = tables.get("Measure")
     gone = withdrawn(tables)
     rows = [r for r in (m.rows if m else []) if _claim(r) not in gone]
@@ -1012,7 +1016,7 @@ def _as_ceinput(row: dict) -> dict:
     return out
 
 
-# --- a true-up priced against its parent's profile (BR-05.6)
+# --- a true-up priced against its parent's profile
 
 # ReCET's Measure columns (0.1.89): a record naming a parent profile is priced again on it, and the run writes the difference
 # (<X>Incremental: ElecBen, ElecSupplyCost, the water-energy streams and every test's benefits) beside its own values.
@@ -1048,7 +1052,7 @@ def _true_up_parents(tables: dict[str, upload.Table]) -> dict[str, str]:
 
 
 def parent_profiles(tables: dict[str, upload.Table]) -> ParentProfiles:
-    """Each true-up's parent profile, pinned to the version the parent was priced on (BR-05.6). The parent's Measure record and library
+    """Each true-up's parent profile, pinned to the version the parent was priced on. The parent's Measure record and library
     are its standing confirmed version's (this year's earlier confirmation or an earlier year's): the profile it names is read back from
     the impact-profile library that version's run pinned and supplied to the engine as "<profile> (v<version>)", so the true-up is priced
     against those 8,760s whatever the library holds when it runs. A parent only these tables file (not confirmed yet, priced in the same
@@ -1122,14 +1126,14 @@ def parent_profiles(tables: dict[str, upload.Table]) -> ParentProfiles:
 
 
 def true_up_programs(t: "Table") -> list[tuple["Row", dict]]:
-    """The programs of a version's table whose true-ups were priced against a parent profile, with their incremental sums (BR-05.6)."""
+    """The programs of a version's table whose true-ups were priced against a parent profile, with their incremental sums."""
     keys = [k for k, _ in INCREMENTAL_SHOWN]  # a program with no true-up sums to 0 (the group sums skip the blanks)
     return [(r, {k: r.sums.get(k) for k in keys}) for r in t.rows if any(r.sums.get(k) for k in keys)]
 
 
 def incremental_by_claim(v: SubmissionVersion, claim_ids) -> dict[str, dict]:
     """{compared ClaimID: {incremental column: value}} for the claims asked for, from the measure-level results of the run the version
-    was priced on (BR-05.6); {} when it has none or wrote no incremental columns (no true-up named a parent profile)."""
+    was priced on; {} when it has none or wrote no incremental columns (no true-up named a parent profile)."""
     import pyarrow as pa
     import pyarrow.compute as pc
     import pyarrow.parquet as pq
@@ -1394,7 +1398,7 @@ def derive_checks(
             add("Participant", i, rid_of("Participant", r), "SiteID", "CLM-REF", f"Site {site} has no Site record",
                 "Add the Site record, or leave SiteID blank for a count that covers all of the program's sites.", site)  # fmt: skip
 
-    # withdrawals (BR-05.2): only a claim filed in an earlier confirmation (or in the version a correction replaces), once, with its
+    # withdrawals: only a claim filed in an earlier confirmation (or in the version a correction replaces), once, with its
     # records left as they were filed; a withdrawn ClaimID is never filed again
     earlier = {_claim(r): r.get("WithdrawnIn", "") for r in (base or {}).get("Withdrawal", upload.Table("Withdrawal", [], [])).rows}
     gone = withdrawn(own)
@@ -1424,7 +1428,7 @@ def derive_checks(
                 add(name, i, cid, "ClaimID", "CLM-WD", f"Claim {cid} was withdrawn in the {earlier[k]}",
                     "File it again under a new ClaimID: a withdrawn claim keeps its ID in the year's history.", cid)  # fmt: skip
 
-    # NMEC chains (BR-05.3): a true-up's parent is a claim the PA filed, this year so far or in a confirmed earlier year, not withdrawn,
+    # NMEC chains: a true-up's parent is a claim the PA filed, this year so far or in a confirmed earlier year, not withdrawn,
     # and never the claim itself or one of its own true-ups
     if any(r.get("ParentClaimID") for r in own.get("Claim", upload.Table("Claim", [], [])).rows):
         before = earlier_records(organisation, year)
@@ -1705,9 +1709,9 @@ def ensure_checked(v: SubmissionVersion) -> None:
 
 
 def price(actor, v: SubmissionVersion) -> str:
-    """Price a validated version's year to date on the year's ACC (BR-02.5), with ACC-per-record checks for claims; a year with
+    """Price a validated version's year to date on the year's ACC, with ACC-per-record checks for claims; a year with
     statewide programs is allocated with the year's allocation version, or the most recent confirmed one with factors for the year, and
-    the run records which (BR-13.8). Returns the run's id."""
+    the run records which. Returns the run's id."""
     import tempfile
     from pathlib import Path
 
@@ -1736,7 +1740,7 @@ def price(actor, v: SubmissionVersion) -> str:
 
 
 def parent_profiles_file(v: SubmissionVersion) -> bytes | None:
-    """The supplied 8,760s of the version's true-ups' parent profiles (BR-05.6), or None when its job names none."""
+    """The supplied 8,760s of the version's true-ups' parent profiles, or None when its job names none."""
     key = (v.findings or {}).get("parent_profiles_key")
     return storage.store("uploads").get_bytes(key) if key else None
 
@@ -1864,7 +1868,7 @@ def pii_versions(v: SubmissionVersion) -> list[int]:
 
 
 def upload_pii(actor, v: SubmissionVersion, data: bytes, filename: str, assurance: str | None):
-    """Check a PII file against the version's compiled claims and keep it in the vault (BR-10.1, BR-10.4). Only while the version is
+    """Check a PII file against the version's compiled claims and keep it in the vault. Only while the version is
     open, and only once its claims are checked: the PII joins them by ContactID and SiteID."""
     if v.locked:
         raise AccessDenied("This version is confirmed. Ask to reopen it to change its personal information.")
@@ -2006,7 +2010,7 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     changes = correction_changes(previous, v)
     in_place = corrections.summary(v)
     if in_place:
-        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
+        changes["in_place"] = in_place  # what was corrected record by record on the version
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     c = changes["claims"]
     audit.record(
@@ -2071,7 +2075,7 @@ def notice(v: SubmissionVersion, event) -> Concern:
     return Concern(programs=programs, link=link)
 
 
-# --- links between claims: NMEC chains, SEM participants, projects (BR-05.3, 05.5, 05.7, 05.11)
+# --- links between claims: NMEC chains, SEM participants, projects
 
 
 def standing_versions(*, organisation=None, year: int | None = None) -> list[SubmissionVersion]:
@@ -2121,7 +2125,7 @@ class ChainLink:
 
 
 def chain(claim_id: str) -> list[ChainLink]:
-    """A NMEC claim's chain end to end (BR-05.3): from the original claim down through every true-up, in filing order, with each
+    """A NMEC claim's chain end to end: from the original claim down through every true-up, in filing order, with each
     true-up's filed totals against its parent's (the true-up's adjustment). Empty when the claim is not confirmed."""
     start = find_claim(claim_id)
     if start is None:
@@ -2150,12 +2154,12 @@ def chain(claim_id: str) -> list[ChainLink]:
 
 
 def participant_claims(participant_id: str):
-    """Every confirmed claim of one SEM participant, across years and phases (BR-05.7)."""
+    """Every confirmed claim of one SEM participant, across years and phases."""
     return _standing_records(participant_id__iexact=participant_id.strip())
 
 
 def project_claims(project_id: str, organisation=None):
-    """Every confirmed claim of one project (ProjectID, the project key, BR-05.11): the meters of a multi-meter project, a population
+    """Every confirmed claim of one project (ProjectID, the project key): the meters of a multi-meter project, a population
     cohort and its projects, a claim before and after it was reclassified."""
     qs = _standing_records(project_id__iexact=project_id.strip())
     return qs.filter(version__submission__organisation=organisation) if organisation is not None else qs
@@ -2284,8 +2288,8 @@ def table(v: SubmissionVersion, *, pa: str = "") -> Table:
 
 
 def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
-    """(label, area, key) of what a confirmed version publishes so it can be reproduced (BR-05.9): the compiled non-PII year-to-date
-    inputs (every table of the template, the infrastructure cost table among them, BR-05.13), this version's own upload, the job priced,
+    """(label, area, key) of what a confirmed version publishes so it can be reproduced: the compiled non-PII year-to-date
+    inputs (every table of the template, the infrastructure cost table among them), this version's own upload, the job priced,
     the run's job spec and its receipt. A version imported from legacy CEDARS publishes the tables it was loaded as and its
     reconciliation report."""
     if v.imported:

@@ -1,13 +1,13 @@
-"""Budget filings (BR-04). A filing is a deadline of the "budgets" module on a filing cycle (an application or an advice letter, its
+"""Budget filings. A filing is a deadline of the "budgets" module on a filing cycle (an application or an advice letter, its
 name saying which: a TUAL, an MCAL; the submissions service's calendar) with this module's FilingSetup; each PA's filing is a
 submission with versions.
 
     upload (.zip or .xlsx) -> lines and checks -> validated -> priced (Calculations, through the submissions service) -> confirm
-    -> published: inputs, run settings and results readable by every signed-in user (BR-04.4)
+    -> published: inputs, run settings and results readable by every signed-in user
 
-Every filed version is kept and comparable (BR-04.2); results are read by program year and totaled over the years chosen (BR-04.1);
-programs flagged exclude-from-budget or exclude-from-C/E keep their values and are filtered, never zeroed (BR-04.3); each version
-records the allocation version it was priced with, and a later one never changes it (BR-04.8)."""
+Every filed version is kept and comparable; results are read by program year and totaled over the years chosen;
+programs flagged exclude-from-budget or exclude-from-C/E keep their values and are filtered, never zeroed; each version
+records the allocation version it was priced with, and a later one never changes it."""
 
 import hashlib
 import json
@@ -80,11 +80,13 @@ def add_filing(
     opens_at=None,
     notes="",
     cost_test_set=None,
+    filers=None,
 ) -> Deadline:
     """A budget filing for program years first_year to last_year (any number of years; four when last_year is not given), due on a
     date, priced on an ACC (and an allocation version, or the most recent). It goes on the filing calendar as it is set up
     (submissions.add_deadline), where a CPUC system administrator changes it afterwards; `name` is what the calendar and its pages
-    call it (blank: its years and what is due)."""
+    call it (blank: its years and what is due). `filers` are the program administrators who file it (submissions.set_filers; None:
+    every PA)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up budget filings.")
     last_year = first_year + 3 if last_year is None else last_year
@@ -104,6 +106,8 @@ def add_filing(
         deadline=deadline, acc_version=acc_version, allocation_version=allocation_version, cost_test_set=cost_test_set
     )
     audit.record("budget_filing.set_up", obj=setup, after=_setup_fields(setup), actor=actor)
+    if filers is not None:
+        submissions.set_filers(actor, [deadline], filers, "Who files, as set up")
     return deadline
 
 
@@ -191,7 +195,7 @@ def can_read_submission(user, submission: Submission) -> bool:
 
 
 def can_read(user, v: SubmissionVersion) -> bool:
-    """A published version is public to every signed-in user (BR-04.4); the rest only to the organization and CPUC staff."""
+    """A published version is public to every signed-in user; the rest only to the organization and CPUC staff."""
     if not user.is_authenticated:
         return False
     return v.status == SubmissionVersion.Status.PUBLISHED or can_read_submission(user, v.submission)
@@ -209,7 +213,7 @@ def readable_versions(user):
 
 
 def standing(organisation, cycle) -> SubmissionVersion | None:
-    """The budget that stands for a PA's cycle: the published version of its latest filing (BR-04.2: the most recent by default)."""
+    """The budget that stands for a PA's cycle: the published version of its latest filing (the most recent by default)."""
     return (
         SubmissionVersion.objects.filter(
             submission__organisation=organisation,
@@ -224,7 +228,7 @@ def standing(organisation, cycle) -> SubmissionVersion | None:
 
 
 def standing_by_year(organisation, cycle) -> dict[int, SubmissionVersion]:
-    """The budget that stands for each program year of a PA's cycle: the published version of the latest filing (BR-04.2) whose budget
+    """The budget that stands for each program year of a PA's cycle: the published version of the latest filing whose budget
     lines hold that year. A filing that covers only some of the cycle's years (legacy CEDARS' 2024-2025 true-up and 2026-2027 mid-cycle
     filing, or a true-up of the later years) stands for those; the years it leaves out keep the earlier filing's budget."""
     out: dict[int, SubmissionVersion] = {}
@@ -533,7 +537,7 @@ def _summary(problems: list, records: int, notes: list[str], rule_set: str, key:
 @transaction.atomic
 def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, *, sources: list[dict] | None = None) -> SubmissionVersion:
     """Take a PA's upload for a filing: start the submission (or use its open draft), keep the job (the version's earlier file is
-    deleted: superseded uploads are not kept, BR-04.4), read its budget lines, run the module's checks and the budget filing rule set,
+    deleted: superseded uploads are not kept), read its budget lines, run the module's checks and the budget filing rule set,
     and record the result: validated when nothing is rejected. `sources`: the files a combined upload was made of (jobfile.combine),
     kept with the version's file entry."""
     if not hasattr(deadline, "budget_setup"):
@@ -551,7 +555,7 @@ def _store_and_check(
     actor, v: SubmissionVersion, tables: dict[str, bytes], job: bytes, entry: dict, *, scope: Scope | None = None, before=None
 ) -> SubmissionVersion:
     """Keep `job` as the version's file (in a folder named by its SHA-256), read its budget lines, run the module's checks and the rule
-    set, and record the result. After a correction in place (BR-02.4) `scope` says which records changed and `before` is the version's
+    set, and record the result. After a correction in place `scope` says which records changed and `before` is the version's
     summary before it: the module's checks, which are file-wide (a program's year, its rows, its PrgIDs) and quick, still run on every
     record, and the rule set runs only on the changed records and those with the same key (`_scoped`); every other record keeps its
     rule-set findings, moved to its new line."""
@@ -593,7 +597,7 @@ def _store_and_check(
     return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
 
 
-# --- correcting records in place (BR-02.4)
+# --- correcting records in place
 
 KEYS = {"Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
 MODULE_RULES = {"BUD-PRG", "BUD-ORG", "BUD-YEAR", "BUD-NUM", "BUD-DUP", "BUD-NOCOST"}  # derive's; the rule-set step's are the rest
@@ -725,8 +729,8 @@ def findings_csv(v: SubmissionVersion) -> str:
 
 
 def price(actor, v: SubmissionVersion) -> str:
-    """Price a validated version on its filing's ACC (BR-02.5); a version with statewide programs is allocated with the filing's
-    allocation version, or the most recent confirmed one for the program year, and the run records which (BR-04.8). Returns the run's
+    """Price a validated version on its filing's ACC; a version with statewide programs is allocated with the filing's
+    allocation version, or the most recent confirmed one for the program year, and the run records which. Returns the run's
     id."""
     import tempfile
 
@@ -888,9 +892,9 @@ class Table:
 
 
 def table(v: SubmissionVersion, *, years=None, pa: str = "", hide_budget_excluded=False, hide_ce_excluded=False) -> Table:
-    """The version by program over the chosen program years (BR-04.1; none = every year): its filed budget from its own lines and its
+    """The version by program over the chosen program years (none = every year): its filed budget from its own lines and its
     priced results summed over the years and credited PAs (or one credited PA). Programs flagged exclude-from-budget or exclude-from-C/E
-    in any chosen year are marked and, when asked, left out of the rows and the total; their values are never changed (BR-04.3). The
+    in any chosen year are marked and, when asked, left out of the rows and the total; their values are never changed. The
     reconciliation always covers every line: the filed total, the part excluded from the budget, and the total without it."""
     ensure_lines(v)
     import_results(v)
@@ -952,7 +956,7 @@ def table(v: SubmissionVersion, *, years=None, pa: str = "", hide_budget_exclude
 
 
 def compare(a: SubmissionVersion, b: SubmissionVersion, *, years=None, changed_only=False) -> list[dict]:
-    """Two versions side by side by program (BR-04.2): each metric in a, in b and the difference; programs in one version only are
+    """Two versions side by side by program: each metric in a, in b and the difference; programs in one version only are
     blank for the other. Neither version is changed."""
     ta, tb = table(a, years=years), table(b, years=years)
     ra, rb = {r.prg_id: r for r in ta.rows}, {r.prg_id: r for r in tb.rows}
@@ -977,7 +981,7 @@ def compare(a: SubmissionVersion, b: SubmissionVersion, *, years=None, changed_o
     return out
 
 
-# --- change letters (BR-09.3) and what notifications say (BR-09.2)
+# --- change letters and what notifications say
 
 
 LETTER_FIGURES = [
@@ -1052,7 +1056,7 @@ def write_change_letter(v: SubmissionVersion) -> ChangeLetter | None:
     changes = correction_changes(previous, v)
     in_place = corrections.summary(v)
     if in_place:
-        changes["in_place"] = in_place  # what was corrected record by record on the version (BR-02.4)
+        changes["in_place"] = in_place  # what was corrected record by record on the version
     letter = ChangeLetter.objects.create(version=v, previous=previous, reason=v.reason, published_at=timezone.now(), changes=changes)
     audit.record(
         "budgets.change_letter_published",
@@ -1116,7 +1120,7 @@ def notice(v: SubmissionVersion, event) -> Concern:
 
 
 def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
-    """(label, area, key) of what a confirmed version publishes so it can be reproduced (BR-04.4): its job, the run's job spec (the
+    """(label, area, key) of what a confirmed version publishes so it can be reproduced: its job, the run's job spec (the
     settings, release, ACC, packs and allocation table it was priced with) and the run's receipt. A version imported from legacy CEDARS
     publishes the tables it was loaded as and its reconciliation report."""
     if v.imported:
@@ -1133,7 +1137,7 @@ def published_files(v: SubmissionVersion) -> list[tuple[str, str, str]]:
 
 
 def appendix_xlsx(v: SubmissionVersion) -> bytes:
-    """The filing appendix tables generated from the version's data (BR-04.5): budget by program and year with the cost categories,
+    """The filing appendix tables generated from the version's data: budget by program and year with the cost categories,
     cost-effectiveness by program, savings by program and year, and what the version was priced with. Written accessibly
     (cedars.core.workbooks: titled, every sheet's header row marked as a table header, no merged cells)."""
     from cedars.core import workbooks
@@ -1142,7 +1146,7 @@ def appendix_xlsx(v: SubmissionVersion) -> bytes:
     deadline = v.submission.deadline
     book = workbooks.Book(
         f"Budget filing appendix: {v.submission.organisation.code}, {label(deadline)}, version {v.number}",
-        subject="CEDARS budget filing appendix (BR-04.5)",
+        subject="CEDARS budget filing appendix",
     )
     book.sheet(
         "About",

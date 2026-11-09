@@ -20,7 +20,7 @@ def test_permission_catalogue():
     assert not perms.is_valid("claims.fly")
 
 
-# --- D6: the CPUC assigns only an organization's first admin
+# --- the CPUC assigns only an organization's first admin
 
 
 def test_cpuc_grants_the_first_admin_and_then_cannot(cpuc_admin, pge, make_user):

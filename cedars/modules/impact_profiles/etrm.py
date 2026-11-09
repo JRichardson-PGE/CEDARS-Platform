@@ -360,7 +360,7 @@ def _sync_records(run: EtrmSyncRun, records: list[PackageRecord]) -> None:
 
 
 def nightly(source=None, *, waits: list[float] | None = None, sleep=time.sleep) -> EtrmSyncRun:
-    """The scheduled sync (BR-11.3): tried again after each wait in settings.ETRM_SYNC_RETRY_MINUTES while it fails, and when the last
+    """The scheduled sync: tried again after each wait in settings.ETRM_SYNC_RETRY_MINUTES while it fails, and when the last
     attempt fails too, every CPUC administrator who runs the sync is alerted (`alert_failure`). Each attempt is its own run in the
     sync history. Returns the last run."""
     waits = list(settings.ETRM_SYNC_RETRY_MINUTES if waits is None else waits)

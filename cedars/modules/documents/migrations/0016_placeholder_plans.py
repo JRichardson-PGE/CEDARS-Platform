@@ -1,4 +1,4 @@
-"""Placeholder implementation plans (BR-13.6): a version can be filed as a placeholder, the full plan to come as a later version. Whether
+"""Placeholder implementation plans: a version can be filed as a placeholder, the full plan to come as a later version. Whether
 a published version is a placeholder never changes, like the rest of it (the version guard of 0003 and 0007 now checks the flag too)."""
 
 from django.db import migrations, models
@@ -35,7 +35,7 @@ class Migration(migrations.Migration):
             name="placeholder",
             field=models.BooleanField(
                 default=False,
-                help_text="An implementation plan filed as a placeholder: the full plan is still to come, as a later version (BR-13.6)",
+                help_text="An implementation plan filed as a placeholder: the full plan is still to come, as a later version",
             ),
         ),
         migrations.RunSQL(FORWARD, BACKWARD),

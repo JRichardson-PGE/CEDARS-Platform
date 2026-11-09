@@ -1,4 +1,4 @@
-"""BR-11.3: the nightly eTRM sync retries a failure and alerts the CPUC's administrators when the last attempt fails too."""
+"""The nightly eTRM sync retries a failure and alerts the CPUC's administrators when the last attempt fails too."""
 
 from io import StringIO
 from pathlib import Path

@@ -1,4 +1,4 @@
-"""Which platform release each user guide and the FAQ were last revised for (BR-12.5: "user guides shall be updated with each release
+"""Which platform release each user guide and the FAQ were last revised for ("user guides shall be updated with each release
 so they match system behavior").
 
 help_revisions.json holds, for each guide template (core/templates/core/help/<slug>.html) and the FAQ (core/faq.yaml), the release it

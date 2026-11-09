@@ -335,6 +335,19 @@ summary { min-height: 24px; box-sizing: border-box; }   /* 2.5.8: a disclosure's
 .field .check { display: flex; gap: .5rem; align-items: center; font-weight: 400; color: var(--fg); }
 .field-errors ul, ul.errorlist { margin: 0; padding-left: 1.1rem; color: var(--bad); font-size: .9rem; }
 .helptext { font-size: .85rem; color: var(--fg-2); font-weight: 400; }
+/* A field's hint behind an "i" button beside its label (New run; django/forms/field.html with help_as_info, core/_info_button.html). The hint is
+   a native popover: app.js places it under its button; without the script the browser centers it. 24 px target (2.5.8), 3:1 border (1.4.11). */
+.label-row { display: flex; align-items: center; gap: .4rem; }   /* the button stays beside a label that wraps */
+.label-row > label { display: inline-flex; flex: 0 1 auto; min-width: 0; }
+.field .label-row > .check { display: flex; }
+button.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; min-height: 24px; padding: 0;
+  border: 1px solid var(--control); border-radius: 50%; background: var(--surface); color: var(--link); font-family: Georgia, "Times New Roman", serif;
+  font-style: italic; font-weight: 700; font-size: .9rem; line-height: 1; flex: none; margin-block: -3px; }   /* keeps a label row as tall as a plain label */
+button.info-btn:hover, button.info-btn[aria-expanded="true"] { border-color: var(--link); background: var(--bg); }
+.info-pop { margin: 0; inset: auto; position: fixed; max-width: min(28rem, calc(100vw - 2rem)); padding: .6rem .8rem; border: 1px solid var(--control);
+  border-radius: var(--r); background: var(--surface); color: var(--fg); box-shadow: 0 4px 16px rgb(0 0 0 / .18); }
+.info-pop:not([data-placed]) { inset: 0; margin: auto; height: fit-content; }   /* no script: the browser's own centered place */
+main.page .info-pop .helptext { font-size: .9rem; color: var(--fg); margin: 0; max-width: none; }
 fieldset { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; min-width: 0; margin: 0 0 .5rem; background: var(--surface); }   /* min-content wide by default, which overflows at 320 px */
 legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .form-narrow { max-width: 40rem; }
@@ -811,3 +824,9 @@ table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom
 table.filing-status td { min-width: 7.5rem; }
 table.filing-status td a { text-decoration: none; }
 table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
+table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
+table.list.factors .pa-first { border-left: 1px solid var(--line); }
+table.list.factors tbody td.pa-first[colspan] { padding: .55rem .8rem; text-align: right; }
+table.list.factors tbody th { min-width: 13rem; }
+table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padding-right: .5rem; text-align: right; }
