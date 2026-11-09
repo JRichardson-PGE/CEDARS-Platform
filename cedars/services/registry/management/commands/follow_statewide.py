@@ -1,7 +1,9 @@
 from datetime import date
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import DatabaseError
 
+from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry import service
 from cedars.services.registry.models import Program
 
@@ -30,8 +32,9 @@ class Command(BaseCommand):
         "Make each statewide program the source of truth for the IDs allocated to it (a PA's code in front of its PrgID, e.g. "
         "PGE_SW_FS for SW_FS): the first time, fill the statewide program's record from its lead PA's ID, then have every PA's ID follow "
         "it from the effective date (today by default), as a system change with a reason. Statewide programs with no lead PA recorded are "
-        "listed and skipped. Run it again after recording more leads; IDs already following are left alone. Without --apply it only "
-        "says what it would change."
+        "listed and skipped. Each ID keeps the dates it covers; only its attributes change. Run it again after recording more leads; IDs "
+        "already following are left alone. Without --apply it makes every change and rolls it back, so it says exactly what --apply "
+        "would change."
     )
 
     def add_arguments(self, parser):
@@ -48,9 +51,14 @@ class Command(BaseCommand):
             missing = set(prg_ids) - set(programs.values_list("prg_id", flat=True))
             if missing:
                 raise CommandError(f"Not statewide programs in the registry: {', '.join(sorted(missing))}")
-        filled = linked = skipped = 0
+        filled = linked = skipped = failed = 0
         for sw in programs:
-            r = service.follow_statewide(None, sw, effective=effective, reason=reason, apply=apply, fill=not no_fill)
+            try:  # each statewide program in its own transaction: one that cannot be linked leaves the rest
+                r = service.follow_statewide(None, sw, effective=effective, reason=reason, apply=apply, fill=not no_fill)
+            except (AccessDenied, DatabaseError) as e:
+                self.stderr.write(f"failed {sw.prg_id}: {e}; nothing changed for it")
+                failed += 1
+                continue
             if r.skipped:
                 self.stdout.write(f"skipped {sw.prg_id}: {r.skipped}")
                 skipped += 1
@@ -73,5 +81,5 @@ class Command(BaseCommand):
         fill_word, link_word = ("filled", "linked") if apply else ("would fill", "would link")
         self.stdout.write(
             f"{fill_word} {filled} statewide program{'s' if filled != 1 else ''} and {link_word} {linked} ID{'s' if linked != 1 else ''}; "
-            f"skipped {skipped}"
+            f"skipped {skipped}" + (f"; failed {failed}" if failed else "")
         )
