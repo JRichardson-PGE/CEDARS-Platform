@@ -10,6 +10,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH=/opt/venv/bin:$PATH \
     DJANGO_SETTINGS_MODULE=cedars.settings.prod
 
+# Debian's security fixes the base image does not carry yet (CI's image scan fails on a fixed High, e.g. zlib1g in 2026-11)
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir "uv>=0.11,<0.12" \
  && useradd --create-home --uid 10001 cedars
 WORKDIR /app
