@@ -16,7 +16,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
-from cedars.services.registry.models import Program
+from cedars.services.registry.models import Program, ProgramVersion
 
 from .conftest import create_user, page_only, sign_in
 
@@ -193,3 +193,83 @@ def test_the_command_says_what_it_would_do_then_does_it(scene):
     assert not Program.objects.filter(follows__isnull=False).exists()
     call_command("follow_statewide", "--reason", "SW is the source of truth", "--apply", stdout=StringIO())
     assert Program.objects.filter(follows__prg_id="SW_X").count() == 2
+
+
+@pytest.fixture
+def legacy(cpuc_admin, pge, sce):
+    """The shape the CEDARS loads leave (the demo, 2026-11-09): the statewide record ends with its last legacy year, each PA's ID has
+    its legacy years and then its filed years (2028-2031) after a gap, and one PA's ID starts only with its filing."""
+    sdge = access.create_organisation(cpuc_admin, code="SDGE", name="San Diego Gas & Electric", kind="pa", pa_type="IOU")
+    sw = registry.create_program(cpuc_admin, prg_id="SW_Z", administrator=None, statewide=True, valid_from=START, name="SW Z")
+    registry.set_lead(cpuc_admin, sw, pge, "PG&E leads SW_Z")
+    ids = {}
+    for org, years in ((pge, (START, date(2028, 1, 1))), (sce, (START, date(2028, 1, 1))), (sdge, (date(2028, 1, 1),))):
+        p = registry.create_program(cpuc_admin, prg_id=f"{org.code}_SW_Z", administrator=org, valid_from=years[0], name=f"{org.code} Z")
+        if len(years) == 2:
+            p.versions.update(valid_to=date(2026, 12, 31))
+            ProgramVersion.objects.create(program=p, valid_from=years[1], valid_to=date(2031, 12, 31), name=f"{org.code} Z filed")
+        ids[org.code] = p
+    ProgramVersion.objects.filter(program__prg_id__in=["SW_Z", "PGE_SW_Z", "SCE_SW_Z"], valid_from=START).update(
+        valid_to=date(2026, 12, 31)
+    )
+    ProgramVersion.objects.filter(program=ids["SDGE"]).update(valid_to=date(2031, 12, 31))
+    return {"sw": sw, **ids}
+
+
+def _spans(p):
+    return [(v.valid_from, v.valid_to, v.name) for v in Program.objects.get(pk=p.pk).versions.order_by("valid_from")]
+
+
+def test_ids_keep_their_own_dates_when_the_records_are_closed_years(legacy, pge_admin):
+    day = date(2026, 11, 9)
+    cut = day - timedelta(days=1)
+    dry = registry.follow_statewide(None, legacy["sw"], effective=day, reason="r", apply=False)
+    r = registry.follow_statewide(None, legacy["sw"], effective=day, reason="r", apply=True)
+    assert (dry.filled, dry.filled_from, dry.linked) == (r.filled, r.filled_from, r.linked)  # the dry run is the run, rolled back
+    # the statewide record now reaches its lead's filed years too
+    assert _spans(legacy["sw"]) == [
+        (START, cut, "SW Z"),
+        (day, date(2026, 12, 31), "PGE Z"),
+        (date(2028, 1, 1), date(2031, 12, 31), "PGE Z filed"),
+    ]
+    assert _spans(legacy["SCE"]) == [
+        (START, cut, "SCE Z"),
+        (day, date(2026, 12, 31), "PGE Z"),
+        (date(2028, 1, 1), date(2031, 12, 31), "PGE Z filed"),
+    ]
+    assert _spans(legacy["SDGE"]) == [(date(2028, 1, 1), date(2031, 12, 31), "PGE Z filed")]  # starts with its filing still
+    assert registry.version_on(Program.objects.get(pk=legacy["SDGE"].pk), date(2029, 1, 1)).statewide_program == "SW_Z - PGE Z filed"
+    # a later change to the statewide program reaches the IDs' filed years from its date on
+    sw = Program.objects.get(pk=legacy["sw"].pk)
+    registry.change_program(pge_admin, sw, effective=date(2029, 1, 1), reason="new contractor", implementation_contractor="Acme")
+    for key in ("PGE", "SCE", "SDGE"):
+        p = Program.objects.get(pk=legacy[key].pk)
+        assert registry.version_on(p, date(2028, 6, 1)).implementation_contractor == ""
+        assert registry.version_on(p, date(2030, 6, 1)).implementation_contractor == "Acme"
+        assert registry.version_on(p, date(2027, 6, 1)) is None  # the gap stays a gap
+    again = registry.follow_statewide(None, Program.objects.get(pk=legacy["sw"].pk), effective=day, reason="r", apply=True)
+    assert again.linked == [] and set(again.already) == {"PGE_SW_Z", "SCE_SW_Z", "SDGE_SW_Z"}
+
+
+def test_a_dry_run_on_legacy_records_leaves_them_as_they_were(legacy):
+    before = {k: _spans(p) for k, p in legacy.items()}
+    r = registry.follow_statewide(None, legacy["sw"], effective=date(2026, 11, 9), reason="r", apply=False)
+    assert [x[0] for x in r.linked] == ["PGE_SW_Z", "SCE_SW_Z", "SDGE_SW_Z"]
+    assert {k: _spans(p) for k, p in legacy.items()} == before
+    assert not Program.objects.filter(follows__isnull=False).exists()
+
+
+def test_the_command_goes_on_past_a_statewide_program_it_cannot_link(scene, legacy, monkeypatch):
+    real = registry.follow_statewide
+
+    def fails_on_sw_x(actor, sw, **kw):
+        if sw.prg_id == "SW_X":
+            raise AccessDenied("SW_X has a version a change request started")
+        return real(actor, sw, **kw)
+
+    monkeypatch.setattr(registry, "follow_statewide", fails_on_sw_x)
+    out, err = StringIO(), StringIO()
+    call_command("follow_statewide", "--reason", "r", "--apply", stdout=out, stderr=err)
+    assert "failed SW_X: SW_X has a version a change request started; nothing changed for it" in err.getvalue()
+    assert "failed 1" in out.getvalue()
+    assert Program.objects.filter(follows__prg_id="SW_Z").count() == 3
