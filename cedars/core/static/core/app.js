@@ -85,6 +85,69 @@
     apply();
   }
 
+  // Info buttons (core/_info_button.html): each opens its hint, a native popover, with a click, a tap, Enter or Space, and Escape or a click
+  // elsewhere closes it, all without this script. This places the hint just under its button (kept inside the window, and kept there while
+  // the page scrolls), and opens it when a mouse rests on the button. A hint opened by hovering closes when the pointer has left both the
+  // button and the hint (so the pointer can move onto it, 1.4.13); a click on the button keeps it open until dismissed.
+  var infoButtons = document.querySelectorAll("button.info-btn[popovertarget]");
+  if (infoButtons.length && HTMLElement.prototype.hasOwnProperty("popover")) {
+    var place = function (btn, pop) {
+      var r = btn.getBoundingClientRect();
+      pop.setAttribute("data-placed", "");
+      pop.style.left = "0px";
+      pop.style.top = "0px";
+      var w = pop.offsetWidth, h = pop.offsetHeight, gap = 6, edge = 8;
+      var vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
+      var left = Math.max(edge, Math.min(r.left, vw - w - edge));
+      var top = r.bottom + gap;
+      if (top + h > vh - edge && r.top - gap - h >= edge) top = r.top - gap - h;  // no room below: above the button
+      pop.style.left = left + "px";
+      pop.style.top = top + "px";
+    };
+    infoButtons.forEach(function (btn) {
+      var pop = document.getElementById(btn.getAttribute("popovertarget"));
+      if (!pop) return;
+      var byHover = false, closeTimer = null, openTimer = null;
+      var isOpen = function () { return pop.matches(":popover-open"); };
+      var cancelClose = function () { window.clearTimeout(closeTimer); };
+      var closeSoon = function () {
+        window.clearTimeout(openTimer);
+        if (!byHover) return;
+        cancelClose();
+        closeTimer = window.setTimeout(function () { if (byHover && isOpen()) pop.hidePopover(); }, 300);
+      };
+      var onScroll = function () { place(btn, pop); };
+      pop.addEventListener("toggle", function (e) {
+        if (e.newState === "open") {
+          place(btn, pop);
+          window.addEventListener("scroll", onScroll, true);
+          window.addEventListener("resize", onScroll);
+        } else {
+          byHover = false;
+          window.removeEventListener("scroll", onScroll, true);
+          window.removeEventListener("resize", onScroll);
+        }
+      });
+      btn.addEventListener("pointerenter", function (e) {
+        if (e.pointerType !== "mouse") return;  // a touch opens it with the tap
+        cancelClose();
+        if (isOpen()) return;
+        openTimer = window.setTimeout(function () {
+          if (isOpen()) return;
+          byHover = true;
+          pop.showPopover();
+        }, 250);
+      });
+      btn.addEventListener("pointerleave", closeSoon);
+      pop.addEventListener("pointerenter", cancelClose);
+      pop.addEventListener("pointerleave", closeSoon);
+      btn.addEventListener("click", function (e) {
+        window.clearTimeout(openTimer);
+        if (byHover && isOpen()) { e.preventDefault(); byHover = false; cancelClose(); }  // opened by hovering: the click keeps it open
+      });
+    });
+  }
+
   // The PA picker (core/_pa_picker.html). Without this script it is a list of plain checkboxes in a <details>. With it: the All PAs and
   // group boxes are tri-state (half ticked when some of their PAs are), ticking one ticks everything under it, each level shows and hides
   // with a button, the closed picker names what it keeps, Escape closes it, and on submit a whole PA type goes as its pa_type (it keeps
@@ -173,67 +236,4 @@
       if (sw && sw.checked) fd.append("pa", sw.value);
     });
   });
-
-  // Info buttons (core/_info_button.html): each opens its hint, a native popover, with a click, a tap, Enter or Space, and Escape or a click
-  // elsewhere closes it, all without this script. This places the hint just under its button (kept inside the window, and kept there while
-  // the page scrolls), and opens it when a mouse rests on the button. A hint opened by hovering closes when the pointer has left both the
-  // button and the hint (so the pointer can move onto it, 1.4.13); a click on the button keeps it open until dismissed.
-  var infoButtons = document.querySelectorAll("button.info-btn[popovertarget]");
-  if (infoButtons.length && HTMLElement.prototype.hasOwnProperty("popover")) {
-    var place = function (btn, pop) {
-      var r = btn.getBoundingClientRect();
-      pop.setAttribute("data-placed", "");
-      pop.style.left = "0px";
-      pop.style.top = "0px";
-      var w = pop.offsetWidth, h = pop.offsetHeight, gap = 6, edge = 8;
-      var vw = document.documentElement.clientWidth, vh = document.documentElement.clientHeight;
-      var left = Math.max(edge, Math.min(r.left, vw - w - edge));
-      var top = r.bottom + gap;
-      if (top + h > vh - edge && r.top - gap - h >= edge) top = r.top - gap - h;  // no room below: above the button
-      pop.style.left = left + "px";
-      pop.style.top = top + "px";
-    };
-    infoButtons.forEach(function (btn) {
-      var pop = document.getElementById(btn.getAttribute("popovertarget"));
-      if (!pop) return;
-      var byHover = false, closeTimer = null, openTimer = null;
-      var isOpen = function () { return pop.matches(":popover-open"); };
-      var cancelClose = function () { window.clearTimeout(closeTimer); };
-      var closeSoon = function () {
-        window.clearTimeout(openTimer);
-        if (!byHover) return;
-        cancelClose();
-        closeTimer = window.setTimeout(function () { if (byHover && isOpen()) pop.hidePopover(); }, 300);
-      };
-      var onScroll = function () { place(btn, pop); };
-      pop.addEventListener("toggle", function (e) {
-        if (e.newState === "open") {
-          place(btn, pop);
-          window.addEventListener("scroll", onScroll, true);
-          window.addEventListener("resize", onScroll);
-        } else {
-          byHover = false;
-          window.removeEventListener("scroll", onScroll, true);
-          window.removeEventListener("resize", onScroll);
-        }
-      });
-      btn.addEventListener("pointerenter", function (e) {
-        if (e.pointerType !== "mouse") return;  // a touch opens it with the tap
-        cancelClose();
-        if (isOpen()) return;
-        openTimer = window.setTimeout(function () {
-          if (isOpen()) return;
-          byHover = true;
-          pop.showPopover();
-        }, 250);
-      });
-      btn.addEventListener("pointerleave", closeSoon);
-      pop.addEventListener("pointerenter", cancelClose);
-      pop.addEventListener("pointerleave", closeSoon);
-      btn.addEventListener("click", function (e) {
-        window.clearTimeout(openTimer);
-        if (byHover && isOpen()) { e.preventDefault(); byHover = false; cancelClose(); }  // opened by hovering: the click keeps it open
-      });
-    });
-  }
 })();
