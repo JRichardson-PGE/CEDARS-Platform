@@ -294,9 +294,10 @@ def set_lead(actor, program: Program, lead: Organisation | None, reason: str, or
 # --- statewide programs as the source of truth for the IDs allocated to them (Jake, 2026-11-06)
 #
 # A statewide program (SW_FS) is allocated to each funding PA under the PA's code in front of its ID (PGE_SW_FS, SCE_SW_FS ...). Those
-# IDs follow the statewide program: from the day they are linked, each of their versions is the statewide program's, written by the
-# registry when the statewide program changes, and their own PA never changes them. Their versions before that day stay as recorded.
-# A statewide program's own record is filled from its lead PA's ID the first time (CEDARS' statewide rows are mostly blank), and from
+# IDs follow the statewide program: from the day they are linked, their attributes are the statewide program's, written by the
+# registry whenever the statewide program changes, and their own PA never changes them. An ID keeps its own span (the years its
+# versions cover, which legacy filings and claims set) and its versions before that day; only the attributes follow. A statewide
+# program's own record is filled the first time from its lead PA's ID the same way (CEDARS' statewide rows are mostly blank), and from
 # then on its lead PA's administrators change it (`can_edit`).
 
 
@@ -345,52 +346,106 @@ def family(program: Program) -> list[Program]:
     return [sw, *sw.subprograms.order_by("prg_id")]
 
 
-def _newest(program: Program, *, lock: bool = False) -> ProgramVersion | None:
-    qs = program.versions.select_for_update() if lock else program.versions
-    return qs.order_by("-valid_from").first()
-
-
-def _after(program: Program, day: date) -> date:
-    """`day`, or the day after the program's latest version starts when that is later (a version starting in a future year)."""
-    latest = _newest(program)
-    return max(day, latest.valid_from + timedelta(days=1)) if latest is not None else day
+def _values(v: ProgramVersion) -> dict:
+    return {f: getattr(v, f) for f in VERSION_FIELDS}
 
 
 def _followed_values(sw: Program, source: ProgramVersion) -> dict:
     """An ID's attributes when it follows `sw`: the statewide program's version, with the statewide program it delivers named."""
-    values = {f: getattr(source, f) for f in VERSION_FIELDS}
-    values["statewide_program"] = f"{sw.prg_id} - {source.name}"
-    return values
+    return _values(source) | {"statewide_program": f"{sw.prg_id} - {source.name}"}
 
 
-def _same(version: ProgramVersion | None, values: dict) -> bool:
-    return version is not None and all(getattr(version, f) == val for f, val in values.items())
+def _source_on(sources: list[ProgramVersion], day: date) -> ProgramVersion:
+    """The source version for `day`: the one in force then, else the last one before it, else the first one (sources oldest first)."""
+    earlier = [s for s in sources if s.valid_from <= day]
+    in_force = [s for s in earlier if s.valid_to is None or s.valid_to >= day]
+    return (in_force or earlier or sources)[-1 if (in_force or earlier) else 0]
 
 
-def _mirror(actor, sub: Program, source: ProgramVersion, effective: date, *, reason: str, created_by) -> ProgramVersion | None:
-    """Start `sub`'s version on `effective` as the statewide program's `source` version (None when it already has those attributes).
-    The version before it ends the day before, unless it had ended already."""
-    values = _followed_values(sub.follows or source.program, source)
-    latest = _newest(sub, lock=True)
-    if latest is not None and effective <= latest.valid_from:
-        raise AccessDenied(f"{sub}'s latest version starts on {latest.valid_from:%Y-%m-%d}: a change to it must start later.")
-    if _same(latest, values) and (latest.valid_to is None or latest.valid_to >= effective):
-        return None
-    before = audit.snapshot(latest, ["valid_from", "valid_to", *VERSION_FIELDS]) if latest is not None else None
-    if latest is not None and (latest.valid_to is None or latest.valid_to >= effective):
-        ProgramVersion.objects.filter(pk=latest.pk).update(valid_to=effective - timedelta(days=1))
-    new = ProgramVersion.objects.create(
-        program=sub, valid_from=effective, valid_to=source.valid_to, created_by=created_by, reason=reason, **values
-    )
+def _span(versions, day: date) -> list[list]:
+    """The dates `versions` cover from `day` on, as [start, end] runs (end None = open-ended); touching or overlapping ones are one."""
+    runs: list[list] = []
+    for v in sorted(versions, key=lambda v: v.valid_from):
+        if v.valid_to is not None and v.valid_to < day:
+            continue
+        a, b = max(v.valid_from, day), v.valid_to
+        if runs and (runs[-1][1] is None or runs[-1][1] + timedelta(days=1) >= a):
+            if runs[-1][1] is not None and (b is None or b > runs[-1][1]):
+                runs[-1][1] = b
+        else:
+            runs.append([a, b])
+    return runs
+
+
+def _merged(pieces) -> list[tuple]:
+    """(start, end, values) pieces, oldest first, with touching pieces of the same values made one."""
+    out: list[list] = []
+    for a, b, vals in pieces:
+        if out and out[-1][2] == vals and out[-1][1] is not None and out[-1][1] + timedelta(days=1) == a:
+            out[-1][1] = b
+        else:
+            out.append([a, b, vals])
+    return [tuple(p) for p in out]
+
+
+def _pieces(span: list[list], sources: list[ProgramVersion], values) -> list[tuple]:
+    """The versions for the dates `span` covers (gaps kept), cut where a source version starts, each piece with `values(the source
+    version for its start)` (`_source_on`)."""
+    out = []
+    for start, end in span:
+        cuts = sorted({s.valid_from for s in sources if start < s.valid_from and (end is None or s.valid_from <= end)})
+        starts = [start, *cuts]
+        for i, a in enumerate(starts):
+            b = starts[i + 1] - timedelta(days=1) if i + 1 < len(starts) else end
+            out.append((a, b, values(_source_on(sources, a))))
+    return _merged(out)
+
+
+def _on_or_after(program: Program, day: date) -> ProgramVersion | None:
+    """The program's version in force on `day`, else its first one after it."""
+    return version_on(program, day) or program.versions.filter(valid_from__gt=day).order_by("valid_from").first()
+
+
+def _replace_from(actor, target: Program, day: date, pieces: list[tuple], *, reason: str, created_by) -> bool:
+    """Give `target` the versions `pieces` from `day` on: the version in force on `day` ends the day before and the ones after it give
+    way (each kept in the audit event), so its record from that day is the source's. False when it already is."""
+    versions = list(target.versions.select_for_update().order_by("valid_from"))
+    affected = [v for v in versions if v.valid_to is None or v.valid_to >= day]
+    if _merged([(max(v.valid_from, day), v.valid_to, _values(v)) for v in affected]) == list(pieces):
+        return False
+    replaced = [v for v in affected if v.valid_from >= day]
+    if ProgramChangeRequest.objects.filter(version__in=replaced).exists():
+        raise AccessDenied(f"{target} has a version from {day:%Y-%m-%d} on that a change request started; it cannot be replaced.")
+    fields = ["valid_from", "valid_to", *VERSION_FIELDS]
+    before = [audit.snapshot(v, fields) for v in affected]
+    for v in affected:
+        if v.valid_from < day:
+            ProgramVersion.objects.filter(pk=v.pk).update(valid_to=day - timedelta(days=1))
+    ProgramVersion.objects.filter(pk__in=[v.pk for v in replaced]).delete()
+    new = [
+        ProgramVersion.objects.create(program=target, valid_from=a, valid_to=b, created_by=created_by, reason=reason, **vals)
+        for a, b, vals in pieces
+    ]
+    after = [audit.snapshot(v, fields) for v in new]
     audit.record(
         "program.changed",
-        obj=sub,
-        before=before,
-        after=audit.snapshot(new, ["valid_from", "valid_to", *VERSION_FIELDS]),
+        obj=target,
+        before={**(before[0] if before else {}), "versions": before},
+        after={**(after[0] if after else {}), "versions": after},
         reason=reason,
         actor=actor,
     )
-    return new
+    return True
+
+
+def _follow_from(actor, sub: Program, sw: Program, day: date, *, reason: str, created_by) -> bool:
+    """Bring `sub`'s attributes from `day` on (never before it started following) into line with the statewide program's."""
+    day = max(day, sub.follows_from or day)
+    sources = list(sw.versions.order_by("valid_from"))
+    if not sources:
+        return False
+    pieces = _pieces(_span(sub.versions.all(), day), sources, lambda s: _followed_values(sw, s))
+    return _replace_from(actor, sub, day, pieces, reason=f"follows {sw.prg_id}: {reason}", created_by=created_by)
 
 
 @dataclass
@@ -400,20 +455,31 @@ class StatewideSync:
     sw: Program
     skipped: str = ""  # why nothing was done
     source: Program | None = None  # the lead PA's ID its record was filled from
-    filled: dict = None  # {attribute: (statewide program's value, lead PA's value)} changed on the statewide program
+    filled: dict = None  # {attribute: (statewide program's value, lead PA's value)} on the day, for the statewide program
     filled_from: date | None = None
     linked: list = None  # [(ID, the day it follows from, {attribute: (its value, the statewide program's)})]
     already: list = None  # IDs that followed it already
+
+
+class _DryRun(Exception):
+    pass
+
+
+def _diff(before: ProgramVersion | None, after: dict | None) -> dict:
+    if after is None:
+        return {}
+    return {f: (getattr(before, f) if before else None, v) for f, v in after.items() if before is None or getattr(before, f) != v}
 
 
 def follow_statewide(
     actor, sw: Program, *, effective: date | None = None, reason: str, apply: bool = False, fill: bool = True
 ) -> StatewideSync:
     """Make the statewide program the source of truth for its IDs (Jake, 2026-11-06). The first time, its record is filled from its lead
-    PA's own ID of it (`lead_id`; fill=False leaves it as it is), as a new version on `effective` (today by default); then every PA's ID
-    of it (`allocated_ids`) follows it from that day: a new version with its attributes, and from then on only the statewide program
-    changes. Nothing is done to a statewide program with no lead PA recorded, or (the first time) none of whose IDs is its lead's.
-    Without apply, the report says what would be done and nothing changes. A CPUC system administrator, or a system job."""
+    PA's own ID of it (`lead_id`; fill=False leaves it as it is): from `effective` (today by default) its attributes are that ID's; then
+    every PA's ID of it (`allocated_ids`) follows it from that day, and from then on only the statewide program changes. Each keeps its
+    own span: only attributes change. Nothing is done to a statewide program with no lead PA recorded, or (the first time) none of whose
+    IDs is its lead's. Without apply, everything is done and rolled back, so the report is exactly what apply would do. A CPUC system
+    administrator, or a system job."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator links statewide programs' IDs.")
     if not reason.strip():
@@ -434,57 +500,47 @@ def follow_statewide(
             out.skipped = "no PA's ID of it in the registry"
         return out
     out.source = lead_id(sw)
-    with transaction.atomic():
-        current = _newest(sw, lock=apply)
-        if fill and not out.already and out.source is not None and out.source.follows_id is None:
-            source_version = _newest(out.source)
-            if current is not None and source_version is not None:
-                wanted = {f: getattr(source_version, f) for f in VERSION_FIELDS if f != "statewide_program"}
-                out.filled = {f: (getattr(current, f), v) for f, v in wanted.items() if getattr(current, f) != v}
-                if out.filled:
-                    out.filled_from = _after(sw, effective)
-                    if apply:
-                        _start_version(
-                            actor,
-                            sw,
-                            effective=out.filled_from,
-                            reason=f"filled from {out.source.prg_id}, its lead PA's ID: {reason}",
-                            changes=wanted,
-                            created_by=actor,
-                        )
-                        current = _newest(sw)
-                    else:
-                        current = ProgramVersion(**{f: getattr(current, f) for f in VERSION_FIELDS} | wanted, valid_to=current.valid_to)
-        elif out.source is None and not out.already:
-            out.skipped = f"no ID of it is its lead PA's ({lead_of(sw).code}_{sw.prg_id}) to fill it from"
-            return out
-        for p in todo:
-            day = _after(p, effective)
-            source = (version_on(sw, day) if apply else None) or current
-            values = _followed_values(sw, source)
-            mine = _newest(p)
-            diff = {f: (getattr(mine, f) if mine else None, v) for f, v in values.items() if mine is None or getattr(mine, f) != v}
-            out.linked.append((p.prg_id, day, diff))
-            if apply:
-                p.follows, p.follows_from = sw, day
+    if not out.already and out.source is None and fill:
+        out.skipped = f"no ID of it is its lead PA's ({lead_of(sw).code}_{sw.prg_id}) to fill it from"
+        return out
+    try:
+        with transaction.atomic():
+            if fill and not out.already and out.source.follows_id is None:
+                lead_versions = list(out.source.versions.order_by("valid_from"))
+                own_versions = list(sw.versions.order_by("valid_from"))
+                own = own_versions[-1].statewide_program if own_versions else ""
+                # the dates either covers: a statewide record that ends before its lead's ID's filed years reaches them too
+                span = _span(own_versions + lead_versions, effective)
+                pieces = _pieces(span, lead_versions, lambda s: _values(s) | {"statewide_program": own}) if lead_versions else []
+                if pieces and _replace_from(
+                    actor, sw, effective, pieces, reason=f"filled from {out.source.prg_id}, its lead PA's ID: {reason}", created_by=actor
+                ):
+                    was = next((v for v in own_versions if v.valid_to is None or v.valid_to >= effective), None)
+                    out.filled = _diff(was, pieces[0][2])
+                    out.filled_from = pieces[0][0]
+            for p in todo:
+                p.follows, p.follows_from = sw, effective
                 p.save(update_fields=["follows", "follows_from"])
                 audit.record(
                     "program.follows_statewide",
                     obj=p,
                     before={"follows": None},
-                    after={"follows": sw.prg_id, "from": day.isoformat()},
+                    after={"follows": sw.prg_id, "from": effective.isoformat()},
                     reason=reason,
                     actor=actor,
                 )
-                _mirror(actor, p, source, day, reason=f"follows {sw.prg_id}: {reason}", created_by=actor)
-        if not apply:
-            transaction.set_rollback(True)
+                mine = _on_or_after(p, effective)
+                _follow_from(actor, p, sw, effective, reason=reason, created_by=actor)
+                out.linked.append((p.prg_id, effective, _diff(mine, _values(_on_or_after(p, effective))) if mine else {}))
+            if not apply:
+                raise _DryRun
+    except _DryRun:
+        for p in todo:
+            p.follows, p.follows_from = None, None
     return out
 
 
 # --- changing programs
-
-
 @transaction.atomic
 def create_program(
     actor,
@@ -506,11 +562,9 @@ def create_program(
     _clean(fields)
     p = Program(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide, portfolio_cost=portfolio_cost)
     sw = statewide_part_of(p)
-    if sw is not None and sw.subprograms.exists():  # a new ID of a statewide program already followed: it follows it from the start
-        source = version_on(sw, valid_from) or _newest(sw)
-        if source is not None:
-            fields = _followed_values(sw, source)
-            p.follows, p.follows_from = sw, valid_from
+    if sw is not None and sw.subprograms.exists() and sw.versions.exists():  # a new ID of a followed statewide program: from the start
+        p.follows, p.follows_from = sw, valid_from
+        fields = _followed_values(sw, _source_on(list(sw.versions.order_by("valid_from")), valid_from))
     p.save()
     v = ProgramVersion.objects.create(program=p, valid_from=valid_from, created_by=actor, reason=reason, **fields)
     audit.record(
@@ -525,6 +579,8 @@ def create_program(
         reason=reason,
         actor=actor,
     )
+    if p.follows_id:  # the statewide program's later versions too
+        _follow_from(actor, p, sw, valid_from, reason=reason or "a new ID of it", created_by=actor)
     return p
 
 
@@ -566,13 +622,7 @@ def _start_version(actor, program: Program, *, effective: date, reason: str, cha
     if not reason.strip():
         raise AccessDenied("Give a reason for the change.")
     latest = _latest(program, effective, lock=True)
-    subs = list(program.subprograms.select_related("administrator").order_by("prg_id")) if program.statewide else []
-    blocked = [s.prg_id for s in subs if (v := _newest(s, lock=True)) is not None and effective <= v.valid_from]
-    if blocked:
-        raise AccessDenied(
-            f"A change to {program} reaches {', '.join(blocked)}, whose latest version starts on or after {effective:%Y-%m-%d}: "
-            "give a later effective date."
-        )
+    subs = list(program.subprograms.order_by("prg_id")) if program.statewide else []
     before = audit.snapshot(latest, ["valid_from", "valid_to", *VERSION_FIELDS])
     values = {f: getattr(latest, f) for f in VERSION_FIELDS} | changes
     ProgramVersion.objects.filter(pk=latest.pk).update(valid_to=effective - timedelta(days=1))
@@ -588,7 +638,7 @@ def _start_version(actor, program: Program, *, effective: date, reason: str, cha
         actor=actor,
     )
     for sub in subs:
-        _mirror(actor, sub, new, effective, reason=f"follows {program.prg_id}: {reason}", created_by=created_by)
+        _follow_from(actor, sub, program, effective, reason=reason, created_by=created_by)
     return new
 
 

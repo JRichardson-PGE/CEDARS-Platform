@@ -133,7 +133,7 @@ def _program_concern(event) -> Concern:
 
     p = Program.objects.get(pk=event.object_id)
     before, after = event.before or {}, event.after or {}
-    changed = [k for k in after if k not in ("valid_from", "valid_to") and before.get(k) != after.get(k)]
+    changed = [k for k in after if k not in ("valid_from", "valid_to", "versions") and before.get(k) != after.get(k)]
     lines = []
     if changed:
         lines.append("Changed: " + ", ".join(k.replace("_", " ") for k in changed) + ".")
