@@ -140,6 +140,7 @@ class Step:
     notes: list[str] = field(default_factory=list)
     table: dict | None = None  # {"caption", "columns", "rows"} for a small table of numbers
     tests: list[TestCard] = field(default_factory=list)
+    charts: list = field(default_factory=list)  # walkchart.Chart: how the step's numbers build up over the life
 
 
 @dataclass(frozen=True)
@@ -1467,11 +1468,23 @@ def _program_field_words(col: str) -> str:
     return PROGRAM_FIELDS.get(col, col.removeprefix("Wtd"))
 
 
-def build(row: dict, settings: dict, cset=None, repeated: int = 1, engine: Engine | None = None) -> list[Step]:
+def build(row: dict, settings: dict, cset=None, repeated: int = 1, engine: Engine | None = None, packs: dict | None = None) -> list[Step]:
     """The ten steps for one measure, with a count of the arithmetic that agrees on the last. `engine`: the calculation that priced the
-    run (default: the one run_settings.json names, else ReCET's own)."""
+    run (default: the one run_settings.json names, else ReCET's own). `packs`: the numbers read from the run's packs for the load-shape
+    and value charts (walkchart.pack_series), None to leave those two charts out."""
+    from . import walkchart
+
     w = Walk(row, settings, cset, repeated, engine or Engine.of(None, settings))
     steps = [getattr(w, f"step_{k}")(Step(k, title, i + 1)) for i, (k, title) in enumerate(STEPS) if k != "summary"]
+    for s in steps:
+        if s.key == "life":
+            s.charts = [c for c in [walkchart.life_chart(w)] if c]
+        elif s.key == "timing":
+            s.charts = walkchart.shape_charts(packs)
+        elif s.key == "discounting":
+            s.charts = [c for c in [walkchart.discount_chart(w)] if c]
+        elif s.key == "value":
+            s.charts = walkchart.value_charts(w, packs)
     calcs = [c for s in steps for c in s.calcs] + [c for s in steps for t in s.tests for c in t.calcs]
     steps.append(w.step_summary(Step("summary", dict(STEPS)["summary"], len(STEPS)), calcs))
     if w.names:  # name each column as the replica wrote it

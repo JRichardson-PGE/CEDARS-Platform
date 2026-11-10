@@ -843,3 +843,25 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 .walk-test h4 { margin: .5rem 0 .25rem; font-size: 1rem; }
 .walk-notes { margin-top: .75rem; }
 .walk-pager { justify-content: space-between; flex-wrap: wrap; }
+/* The walkthrough's charts (calculations/_walk_chart.html): two series colors, 3:1 or better on the surface in both schemes and told apart
+   with color-vision deficiencies (validated as a pair: light 24.7, dark 26.8 delta E); text in the text colors, never the series color.
+   Below 30rem wide the chart scrolls sideways in its region rather than shrinking its text. */
+:root { --viz-1: #2a78d6; --viz-2: #eb6834; }
+@media (prefers-color-scheme: dark) { :root { --viz-1: #3987e5; --viz-2: #d95926; } }
+.walk-chart { margin: 1rem 0; padding: .75rem 1rem; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface); }
+.walk-chart-title { font-weight: 600; margin: 0 0 .4rem; }
+.walk-chart-plot { margin: 0; }
+.walk-chart-plot svg { display: block; width: 100%; min-width: 30rem; max-width: 46rem; height: auto; overflow: visible; }
+.walk-chart svg .grid { stroke: var(--line-2); stroke-width: 1; }
+.walk-chart svg .axis { stroke: var(--control); stroke-width: 1; }
+.walk-chart svg .tick { fill: var(--fg-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.walk-chart svg .end { fill: var(--fg); font-size: 12px; font-weight: 600; }
+.walk-chart .s1 { fill: var(--viz-1); }
+.walk-chart .s2 { fill: var(--viz-2); }
+.walk-chart svg .line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.walk-chart svg .line.s1 { stroke: var(--viz-1); }
+.walk-chart svg .line.s2 { stroke: var(--viz-2); }
+.walk-chart svg .dot { stroke: var(--surface); stroke-width: 2; }
+.walk-chart-data { margin-top: .4rem; }
+.walk-chart-data summary { min-height: 24px; cursor: pointer; }
+@media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } }

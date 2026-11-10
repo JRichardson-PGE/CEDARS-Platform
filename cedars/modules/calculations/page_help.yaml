@@ -209,8 +209,17 @@ calculations/walkthrough:
       load shape); why later dollars count for less (discounting); what the savings are worth on the avoided costs; what the measure
       costs; its share of the program's costs; each cost test's benefits, costs and ratio; and the verdict.
     - Every number is read from the run's own outputs. Where a step multiplies, adds or divides, the result is set beside the value the
-      engine wrote for that output and the page says whether they agree, so the walkthrough explains the engine's numbers and never
-      prices anything itself. Each number names its output column, to find it in the run's measure-level file.
+      engine wrote for that output and the page says whether they agree, so the walkthrough explains the engine's numbers. Each number
+      names its output column, to find it in the run's measure-level file.
+    - Steps 3 to 6 have charts of how the numbers build up over the measure's life, each with its numbers in a table under it. How long
+      the savings last stacks each year's savings on the years before, up to the lifetime savings. When the savings happen shows the
+      load shape's share of the year's savings by month and by hour of the day. Why later dollars count for less runs the savings as
+      they come beside the same savings counted in today's terms. What the savings are worth stacks each year's electric benefit, in
+      today's dollars, up to the measure's total, and shows what a kWh saved on its load shape is worth in each year. For those last
+      two pages the measure is priced again here, quarter by quarter, by the engine's own pricing on the load-shape library and ACC
+      the run used. A chart is shown only when its years add up to the engine's own total for the measure, so a measure that cannot be
+      rebuilt that way (a profile supplied with the run, for example, or a run on a CET replica, which prices on its release's
+      quarterly tables) shows the step without that chart.
     - Any measure of any run can be walked through. A run priced on two ACCs has a tab for each.
     - A claim, budget filing or monthly report priced on the platform links its own walkthrough from its version page, so its records can
       be followed as priced. Whoever may read the filing may open it (every signed-in user, once the filing is published), though the
@@ -239,6 +248,10 @@ calculations/walkthrough:
     - target: main section.walk-step
       title: One step
       text: What the step does in plain words, the measure's own numbers, and each sum or product beside the engine's value for it.
+      optional: true
+    - target: main .walk-chart
+      title: How it builds up
+      text: On steps 3 to 6, a chart of the measure's numbers year by year. The numbers in this chart opens them as a table.
       optional: true
     - target: main nav.walk-pager
       title: Previous and next

@@ -1,0 +1,27 @@
+{% comment %}One of a step's charts (walkchart.Chart), drawn on the server. The SVG is one image named by its summary; the numbers are in the
+table under it. Each column's or point's values also show as a tooltip under the pointer, a convenience only.{% endcomment %}
+<figure class="walk-chart" aria-labelledby="chart-{{ c.key }}-h">
+  <figcaption id="chart-{{ c.key }}-h" class="walk-chart-title">{{ c.title }}</figcaption>
+  {% if c.legend %}<ul class="chart-legend" aria-hidden="true">{% for cls, label in c.legend %}<li><svg width="18" height="12" focusable="false"><rect class="{{ cls }}" width="18" height="12" rx="2"/></svg> {{ label }}</li>{% endfor %}</ul>{% endif %}
+  <div class="hscroll walk-chart-plot" tabindex="0" role="region" aria-label="{{ c.title }}, chart">
+    <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="{{ c.summary }} The numbers are in the table under the chart." focusable="false">
+      {% for y, label in c.yticks %}<line class="grid" x1="{{ c.plot.0 }}" x2="{{ c.plot.2 }}" y1="{{ y }}" y2="{{ y }}"/><text class="tick" x="{{ c.plot.0|add:"-8" }}" y="{{ y }}" text-anchor="end" dominant-baseline="middle">{{ label }}</text>{% endfor %}
+      {% for x, label in c.xlabels %}<text class="tick" x="{{ x }}" y="{{ c.plot.3|add:"18" }}" text-anchor="middle">{{ label }}</text>{% endfor %}
+      <line class="axis" x1="{{ c.plot.0 }}" x2="{{ c.plot.2 }}" y1="{{ c.plot.3 }}" y2="{{ c.plot.3 }}"/>
+      {% for m in c.marks %}<path class="{{ m.cls }}" d="{{ m.d }}"><title>{{ m.tip }}</title></path>{% endfor %}
+      {% for l in c.lines %}<path class="line {{ l.cls }}" d="{{ l.d }}"/>{% endfor %}
+      {% for d in c.dots %}<circle class="dot {{ d.cls }}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/><text class="end" x="{{ d.x }}" y="{{ d.label_y }}" text-anchor="end">{{ d.label }}</text>{% endfor %}
+    </svg>
+  </div>
+  {% if c.note %}<p class="small muted">{{ c.note }}</p>{% endif %}
+  <details class="walk-chart-data">
+    <summary>The numbers in this chart</summary>
+    <div class="hscroll" tabindex="0" role="region" aria-labelledby="chart-{{ c.key }}-t">
+    <table class="list data">
+      <caption id="chart-{{ c.key }}-t">{{ c.table.caption }}</caption>
+      <thead><tr>{% for col in c.table.columns %}<th scope="col">{{ col }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for r in c.table.rows %}<tr>{% for v in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td class="num">{{ v }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+    </div>
+  </details>
+</figure>
