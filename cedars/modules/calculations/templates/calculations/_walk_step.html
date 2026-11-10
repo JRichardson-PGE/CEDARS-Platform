@@ -1,0 +1,51 @@
+<section class="card walk-step" aria-labelledby="step-{{ s.key }}-h">
+  <h2 id="step-{{ s.key }}-h">Step {{ s.number }} of {{ steps|length }}: {{ s.title }}</h2>
+  {% for p in s.plain %}<p>{{ p }}</p>{% endfor %}
+  {% if s.facts %}
+  <dl class="facts walk-facts">
+    {% for f in s.facts %}<dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.column %} <code class="small">{{ f.column }}</code>{% endif %}</dd>{% endfor %}
+  </dl>
+  {% endif %}
+  {% if s.calcs %}
+  <ul class="walk-calcs">
+    {% for c in s.calcs %}{% include "calculations/_walk_calc.html" with c=c %}{% endfor %}
+  </ul>
+  {% endif %}
+  {% if s.table %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="step-{{ s.key }}-t">
+  <table class="list data">
+    <caption id="step-{{ s.key }}-t">{{ s.table.caption }}</caption>
+    <thead><tr>{% for c in s.table.columns %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in s.table.rows %}<tr>{% for v in r %}{% if forloop.first %}<th scope="row">{{ v }}</th>{% else %}<td{% if not forloop.last or s.key != "summary" %} class="num"{% endif %}>{{ v }}</td>{% endif %}{% endfor %}</tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% for t in s.tests %}
+  <section class="walk-test" aria-labelledby="test-{{ s.key }}-{{ t.id }}-h">
+    <h3 id="test-{{ s.key }}-{{ t.id }}-h">{{ t.label }} ({{ t.id }}): {{ t.ratio_text }}, {{ t.verdict }}</h3>
+    {% if t.question %}<p>{{ t.question }}</p>{% endif %}
+    {% if t.benefits or t.costs or t.program_part %}
+    <div class="cards">
+      <div>
+        <h4>Benefits it counts</h4>
+        <ul>{% for b in t.benefits %}<li>{{ b.label }}: {{ b.shown }} <code class="small">{{ b.column }}</code></li>{% empty %}<li>None for this measure.</li>{% endfor %}</ul>
+        {% if t.benefits_zero %}<p class="small muted">Also counted, zero for this measure: {{ t.benefits_zero|join:"; " }}.</p>{% endif %}
+      </div>
+      <div>
+        <h4>Costs it counts</h4>
+        <ul>
+          {% if t.program_part %}<li>This measure's share of the program's costs, in present value: {{ t.program_part }}</li>{% endif %}
+          {% for c in t.costs %}<li>{{ c.label }}: {{ c.shown }} <code class="small">{{ c.column }}</code></li>{% empty %}{% if not t.program_part %}<li>None for this measure.</li>{% endif %}{% endfor %}
+        </ul>
+        {% if t.costs_zero %}<p class="small muted">Also counted, zero for this measure: {{ t.costs_zero|join:"; " }}.</p>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% if t.calcs %}<ul class="walk-calcs">{% for c in t.calcs %}{% include "calculations/_walk_calc.html" with c=c %}{% endfor %}</ul>{% endif %}
+    {% if t.note %}<p class="small">{{ t.note }}</p>{% endif %}
+  </section>
+  {% endfor %}
+  {% if s.notes %}
+  <ul class="walk-notes">{% for n in s.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>

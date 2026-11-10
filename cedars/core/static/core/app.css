@@ -830,3 +830,16 @@ table.list.factors .pa-first { border-left: 1px solid var(--line); }
 table.list.factors tbody td.pa-first[colspan] { padding: .55rem .8rem; text-align: right; }
 table.list.factors tbody th { min-width: 13rem; }
 table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padding-right: .5rem; text-align: right; }
+/* Walk through a measure: the numbered steps, each piece of arithmetic with whether it agrees with the engine's output */
+.walk-steps ol { list-style: none; margin: 0 0 .5rem; padding: 0; display: flex; flex-wrap: wrap; gap: .35rem .5rem; }
+.walk-steps li a { display: inline-flex; align-items: center; gap: .35rem; min-height: 24px; padding: .2rem .55rem; border: 1px solid var(--control); border-radius: 999px; text-decoration: none; font-size: .9rem; }
+.walk-steps li a[aria-current] { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); font-weight: 600; }
+.walk-steps .walk-num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.walk-calcs { list-style: none; margin: .75rem 0; padding: 0; }
+.walk-calc { display: flex; flex-direction: column; gap: .15rem; padding: .5rem .75rem; margin: 0 0 .5rem; border-left: 4px solid var(--line); background: var(--surface-2); border-radius: var(--r); }
+.walk-calc-label { font-weight: 600; }
+.walk-calc-expr { overflow-wrap: anywhere; }
+.walk-test { border-top: 1px solid var(--line); margin-top: 1rem; padding-top: .5rem; }
+.walk-test h4 { margin: .5rem 0 .25rem; font-size: 1rem; }
+.walk-notes { margin-top: .75rem; }
+.walk-pager { justify-content: space-between; flex-wrap: wrap; }

@@ -1028,7 +1028,7 @@ split among the funding PAs by the weighted factors (section 8.1).
 | Module | What it does | Key mechanics |
 | --- | --- | --- |
 | Programs | Public catalog and program pages; effective-dated change form; change requests for locked attributes decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
-| Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
+| Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
 | Impact profiles | Nightly eTRM sync into versioned snapshots; load-shape uploads with four validation stages; generated profiles with CEDARS' formula; custom profiles; identical profiles stored once under several names; the library written in the engine's format and registered as an `impact_profiles` pack | `ProcessingJob` queues per PA; every 8,760 stored once by SHA-256 (`Shape`) |
 | Documents and EM&V | One library for PA documents, CPUC guidance, DEER resources, program files and EM&V documents; numbered versions; publication; full-text search over extracted file text; EM&V deliverable stages; study register; work orders; public comment; subscriptions; PDA, PSR and CEDARS imports with old addresses redirected | `FileText` with a PostgreSQL full-text index; triggers keep published versions unchanged |
 | Data | Front page, dashboards, record downloads, background downloads, saved views, the open data API (`/api/v1/data/`), parity checks against CEDARS' published totals | Section 11 |
@@ -1126,6 +1126,7 @@ ones the large lane; more than `CALCULATIONS_MAX_RECORDS` are refused before que
 | Where | Engine code | For |
 | --- | --- | --- |
 | `calculations/results.py` | `recet.results_view`, `recet.outputs` | Results and Compare over the worker's group sums (copied once into `CALCULATIONS_RESULTS_CACHE`) |
+| `calculations/walkthrough.py` | `recet.cost_test_sets`, `recet.pipeline.discount_settings`, the release tables shipped in `recet/data/cet_versions/` | Walk through a measure: one measure's steps from its row of the kept measure-level table, every sum set beside the engine's output; a CET replica's run is explained as that release prices it (its column names, its discount rates, CET's own tests, the CET errors the replica keeps named) |
 | `calculations/drafts.py`, `draft_views.py` | `recet.editor`, `recet.fieldnames`, `recet.versions` | Edit inputs: cell checks and dropdowns |
 | `services/rules/service.py`, `precheck.py` | `recet.filing_rules`, `recet.editor`, `recet.fieldnames`, `recet.pipeline.real_impact_profiles` | Running stored rule sets with the engine's own rule runner, so the platform, ReCET runs and the checker never disagree |
 | `services/dictionary/value_lists.py` | `recet.editor`, `recet.paths` | Handing the value lists in force to the engine |
