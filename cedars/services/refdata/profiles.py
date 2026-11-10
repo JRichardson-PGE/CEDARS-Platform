@@ -13,8 +13,8 @@ from dataclasses import dataclass
 
 import pyarrow as pa
 import pyarrow.parquet as pq
-from django.core.files.storage import default_storage
 
+from . import files
 from .models import PackVersion
 
 SUPPLIED_SCHEMA = pa.schema(
@@ -58,7 +58,7 @@ def library_of(calculation: dict, pack_versions: dict) -> PackVersion | None:
 
 
 def _open(pack: PackVersion, name: str):
-    return default_storage.open(f"{pack.storage_uri.rstrip('/')}/{name}", "rb")
+    return files.open_file(pack, files.manifest_name(pack, name) or name)
 
 
 def catalog(pack: PackVersion) -> list[PackedProfile]:

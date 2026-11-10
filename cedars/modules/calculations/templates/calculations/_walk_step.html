@@ -11,6 +11,7 @@
     {% for c in s.calcs %}{% include "calculations/_walk_calc.html" with c=c %}{% endfor %}
   </ul>
   {% endif %}
+  {% for c in s.charts %}{% include "calculations/_walk_chart.html" with c=c %}{% endfor %}
   {% if s.table %}
   <div class="hscroll" tabindex="0" role="region" aria-labelledby="step-{{ s.key }}-t">
   <table class="list data">

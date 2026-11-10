@@ -19,7 +19,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import cost_tests
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, input_templates, result_views, service
+from . import dispatch, drafts, forms, input_templates, result_views, service, walkchart
 from . import results as results_mod
 from . import walkthrough as walk
 from .models import EngineRelease, InputDraft, Run
@@ -880,7 +880,10 @@ def walkthrough(request, pk):
                 settings = walk.run_settings(run, acc or None)
                 engine = walk.Engine.of(run, settings)
                 cset = None if engine.replica else walk.cost_test_set(run, acc or None, row)  # a replica prices CET's own tests
-                steps = walk.build(row, settings, cset, repeated, engine)
+                packs = None  # the load-shape and value charts read the run's packs: only on the steps that show them
+                if show_all or step_key in ("timing", "value"):
+                    packs = walkchart.pack_series(run, acc, row, settings, engine)
+                steps = walk.build(row, settings, cset, repeated, engine, packs)
                 index = walk.STEP_KEYS.index(step_key)
                 link = lambda k: "?" + _query(acc=acc, measure=measure, step=k)  # noqa: E731
                 ctx.update(
