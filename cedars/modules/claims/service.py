@@ -224,7 +224,7 @@ def already_set_up(cy: ClaimYear) -> str:
     if deadlines and all(d.retired_at for d in deadlines):
         return (
             f"{cy.year} claims are already set up, but their deadlines were taken off the filing calendar. Restore them from the "
-            "filing calendar (show retired deadlines) instead of setting the year up again."
+            "year's set-up page (Restore a canceled filing) instead of setting the year up again."
         )
     return f"{cy.year} claims are already set up. Change their dates and pricing on the year's set-up page."
 
