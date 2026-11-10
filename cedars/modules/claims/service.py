@@ -187,8 +187,9 @@ def add_year(
     (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
-    if ClaimYear.objects.filter(year=year).exists():
-        raise AccessDenied(f"{year} claims are already set up.")
+    existing = ClaimYear.objects.filter(year=year).first()
+    if existing is not None:
+        raise AccessDenied(already_set_up(existing))
     if not acc_version:
         raise AccessDenied("Choose the ACC the year's claims are priced on.")
     _check_allocation(allocation_version)
@@ -209,6 +210,23 @@ def add_year(
     if filers is not None:
         submissions.set_filers(actor, periods(year), filers, "Who files, as set up")
     return cy
+
+
+def already_set_up(cy: ClaimYear) -> str:
+    """Why a claim year cannot be set up again, and where to look instead: a year loaded from legacy CEDARS' downloads (read-only, filed
+    in CEDARS), a year whose deadlines were all taken off the calendar, or one set up here (changed on its set-up page)."""
+    deadlines = list(year_deadlines(cy))
+    if legacy.imported_deadlines(deadlines):
+        return (
+            f"{cy.year} claims are already on the platform: they were imported from legacy CEDARS (each PA's year as CEDARS publishes "
+            "it, read-only), so they are filed in CEDARS, not set up here. Set up a later year to file it on the platform."
+        )
+    if deadlines and all(d.retired_at for d in deadlines):
+        return (
+            f"{cy.year} claims are already set up, but their deadlines were taken off the filing calendar. Restore them from the "
+            "filing calendar (show retired deadlines) instead of setting the year up again."
+        )
+    return f"{cy.year} claims are already set up. Change their dates and pricing on the year's set-up page."
 
 
 def _add_sw_deadlines(actor, year: int, sw: dict) -> None:

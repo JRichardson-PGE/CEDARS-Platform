@@ -24,7 +24,7 @@ from cedars.services.notifications.models import Notification
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program
 from cedars.services.submissions import service as submissions
-from cedars.services.submissions.models import SubmissionVersion
+from cedars.services.submissions.models import Deadline, SubmissionVersion
 
 from .conftest import sign_in
 from .test_budgets import release  # noqa: F401 - the engine release fixture
@@ -212,7 +212,7 @@ def test_only_a_cpuc_system_administrator_sets_up_claim_years(cpuc_admin, pge_ad
     due = {k: timezone.now() for k, _ in service.PERIODS}
     with pytest.raises(AccessDenied, match="system administrator"):
         service.add_year(pge_admin, year=2029, acc_version="2026", due=due)
-    with pytest.raises(AccessDenied, match="already set up"):
+    with pytest.raises(AccessDenied, match="already set up. Change their dates"):
         service.add_year(cpuc_admin, year=2028, acc_version="2026", due=due)
     with pytest.raises(AccessDenied, match="due date"):
         service.add_year(cpuc_admin, year=2029, acc_version="2026", due={"Q1 claim": timezone.now()})
@@ -221,6 +221,13 @@ def test_only_a_cpuc_system_administrator_sets_up_claim_years(cpuc_admin, pge_ad
     assert AuditEvent.objects.filter(action="claim_year.set_up").exists()
     cy = service.change_setup(cpuc_admin, year, acc_version="2024", reason="ruling")
     assert cy.acc_version == "2024" and AuditEvent.objects.filter(action="claim_year.setup_changed").exists()
+
+
+def test_a_year_whose_deadlines_were_all_retired_is_restored_not_set_up_again(cpuc_admin, year):
+    due = {k: timezone.now() for k, _ in service.PERIODS}
+    Deadline.objects.filter(module=service.MODULE, period__year=2028).update(retired_at=timezone.now(), retired_reason="clear")
+    with pytest.raises(AccessDenied, match="taken off the filing calendar. Restore them"):
+        service.add_year(cpuc_admin, year=2028, acc_version="2026", due=due)
 
 
 def test_the_default_acc_is_the_years_final_budget_filing():
