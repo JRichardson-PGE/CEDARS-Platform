@@ -862,6 +862,21 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 .walk-chart svg .line.s1 { stroke: var(--viz-1); }
 .walk-chart svg .line.s2 { stroke: var(--viz-2); }
 .walk-chart svg .dot { stroke: var(--surface); stroke-width: 2; }
+/* Each year's tooltip (calculations/walkthrough.js): the band under the pointer or picked with the arrow keys is shaded, a line chart's
+   points in it are marked, and its values show beside it. The hit areas sit on top of the marks, see-through. */
+.walk-chart-box { position: relative; }
+.walk-chart svg .band { fill: transparent; }
+.walk-chart svg .band.on { fill: var(--surface-2); }
+.walk-chart svg .hit { fill: transparent; }
+.walk-chart svg .pts { display: none; }
+.walk-chart svg .pts.on { display: inline; }
+.walk-tip.shown { position: absolute; z-index: 5; display: flex; flex-direction: column; gap: .15rem; width: max-content;
+  max-width: min(20rem, 100%); padding: .5rem .7rem; background: var(--surface); color: var(--fg); border: 1px solid var(--control);
+  border-radius: var(--r); box-shadow: 0 4px 14px rgba(0, 0, 0, .18); font-size: .88rem; line-height: 1.35; }
+.walk-tip .tip-label { font-weight: 600; }
+.walk-tip .tip-row { display: flex; align-items: center; gap: .4rem; font-variant-numeric: tabular-nums; }
+.walk-tip .tip-row svg { flex: none; }
+.walk-chart-hint { margin: 0 0 .3rem; }
 .walk-chart-data { margin-top: .4rem; }
 .walk-chart-data summary { min-height: 24px; cursor: pointer; }
-@media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } }
+@media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } .walk-chart svg .band.on { fill: Highlight; fill-opacity: .25; } }

@@ -1,4 +1,4 @@
-{% extends "core/base.html" %}
+{% extends "core/base.html" %}{% load static %}
 {% block title %}Walk through a measure · {% if run_readable %}{{ run.name }}{% else %}{{ filings.0.label }}{% endif %}{% endblock %}
 {% block content %}
 {% if run_readable %}
@@ -75,3 +75,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
+{% block scripts %}<script src="{% static 'calculations/walkthrough.js' %}" defer></script>{% endblock %}

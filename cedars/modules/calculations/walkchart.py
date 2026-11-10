@@ -369,12 +369,21 @@ class Chart:
     height: int = HEIGHT
     yticks: list[tuple[float, str]] = field(default_factory=list)
     xlabels: list[tuple[float, str]] = field(default_factory=list)
-    marks: list[dict] = field(default_factory=list)  # {"d": path, "cls": series, "tip": text}
+    marks: list[dict] = field(default_factory=list)  # {"d": path, "cls": series}
     lines: list[dict] = field(default_factory=list)  # {"d": path, "cls"}
     dots: list[dict] = field(default_factory=list)  # {"x", "y", "cls", "label", "anchor"}
     table: dict = field(default_factory=dict)  # {"caption", "columns", "rows"}
     plot: tuple[float, float, float, float] = (LEFT, TOP, WIDTH - RIGHT, HEIGHT - BOTTOM)
     note: str = ""
+    # One per column or point along the x axis: its band ({"x", "w"}), a title ("Year 3 (Q1 2030)") and its values as rows
+    # [{"cls": series or "", "text"}], plus "text" (all of it in one line) and, on a line chart, the points to mark ({"x", "y", "cls"}).
+    # The page shows them as a tooltip for the year under the pointer or picked with the arrow keys.
+    slots: list[dict] = field(default_factory=list)
+    slot_word: str = "year"  # what one slot is, for the page's hint ("year", "month", "hour")
+
+    @property
+    def plot_height(self) -> float:
+        return self.plot[3] - self.plot[1]
 
 
 def _nice(hi: float) -> tuple[float, list[float]]:
@@ -421,6 +430,26 @@ def _frame(chart: Chart, n: int, top: float, ticks: list[float], labels: list[st
     return band, y
 
 
+def tip(title: str, *rows: tuple[str, str]) -> dict:
+    """A slot's words: its title and its rows, each (series class or "", text)."""
+    return {"title": title, "rows": [{"cls": c, "text": t} for c, t in rows]}
+
+
+def _slots(chart: Chart, band: float, tips: list[dict], points: list[list[dict]] | None = None) -> None:
+    x0 = chart.plot[0]
+    chart.slots = [
+        {
+            **t,
+            "x": round(x0 + band * i, 2),
+            "w": round(band, 2),
+            "cx": round(x0 + band * (i + 0.5), 2),
+            "text": t["title"] + ": " + "; ".join(r["text"] for r in t["rows"]) + ".",
+            "points": (points[i] if points else []),
+        }
+        for i, t in enumerate(tips)
+    ]
+
+
 def _column(x: float, w: float, y_top: float, y_base: float, rounded: bool) -> str:
     """A column from y_base up to y_top: 4 px rounded at its data end, square at the baseline."""
     h = y_base - y_top
@@ -448,12 +477,13 @@ def stacked_columns(key, title, summary, unit, labels, below, this, tips, legend
         if b > 0:
             d = _column(x, w, yb, base, rounded=t <= 0)
             if d:
-                chart.marks.append({"d": d, "cls": "s1", "tip": tips[i]})
+                chart.marks.append({"d": d, "cls": "s1"})
         if t > 0:
             gap = 2.0 if b > 0 and yb - yt > 3 else 0.0
             d = _column(x, w, yt, yb - gap, rounded=True)
             if d:
-                chart.marks.append({"d": d, "cls": "s2", "tip": tips[i]})
+                chart.marks.append({"d": d, "cls": "s2"})
+    _slots(chart, band, tips)
     return chart
 
 
@@ -466,18 +496,21 @@ def columns(key, title, summary, unit, labels, values, tips, table) -> Chart:
         x = chart.plot[0] + band * i + (band - w) / 2
         d = _column(x, w, y(v), chart.plot[3], rounded=True)
         if d:
-            chart.marks.append({"d": d, "cls": "s1", "tip": tips[i]})
+            chart.marks.append({"d": d, "cls": "s1"})
+    _slots(chart, band, tips)
     return chart
 
 
-def lines(key, title, summary, unit, labels, series, legend, table, end_labels) -> Chart:
+def lines(key, title, summary, unit, labels, series, legend, table, end_labels, tips) -> Chart:
     """One line per series ([(class, values)]), each with a dot and its value at its end."""
     chart = Chart(key, title, summary, legend, unit, table=table)
     top, ticks = _nice(max((v for _, vals in series for v in vals), default=0))
     band, y = _frame(chart, len(labels), top, ticks, labels)
-    ends = []
+    ends, marked = [], [[] for _ in labels]
     for (cls, vals), text in zip(series, end_labels, strict=True):
         pts = [(chart.plot[0] + band * (i + 0.5), y(v)) for i, v in enumerate(vals)]
+        for i, (px, py) in enumerate(pts):
+            marked[i].append({"x": round(px, 2), "y": round(py, 2), "cls": cls})
         if not pts:
             continue
         chart.lines.append({"d": "M" + " L".join(f"{px:.2f},{py:.2f}" for px, py in pts), "cls": cls})
@@ -490,6 +523,7 @@ def lines(key, title, summary, unit, labels, series, legend, table, end_labels) 
         e.setdefault("label_y", e["y"])
         e["label_y"] = round(e["label_y"] - 8, 2)
     chart.dots = ends
+    _slots(chart, band, tips, marked)
     return chart
 
 
@@ -528,8 +562,14 @@ def life_chart(w) -> Chart | None:
         below.append(running)
         this.append(r["saved"] * sign)
         running += r["saved"] * sign
+        part = "" if r["share"] >= 1 - 1e-9 else f", part of a year ({r['share']:.2f})"
         tips.append(
-            f"Year {r['year']} ({r['starts']}): {quantity(r['saved'] * sign, unit)} {word} that year, {quantity(running, unit)} so far"
+            tip(
+                f"Year {r['year']} (starts {r['starts']}{part})",
+                ("s2", f"{word.capitalize()} that year: {quantity(r['saved'] * sign, unit)}"),
+                ("s1", f"{word.capitalize()} in the years before: {quantity(below[-1], unit)}"),
+                ("", f"Running total: {quantity(running, unit)}"),
+            )
         )
     cols, table = _life_table(w, rows, unit, w.dual)
     title = f"Net {what} savings piling up, year by year" if sign > 0 else f"Added {what} use piling up, year by year (a negative saving)"
@@ -565,12 +605,25 @@ def discount_chart(w) -> Chart | None:
     if not rows or fuel is None or not sign:
         return None
     unit = fuel[0]
-    saved, counted, s, c, table = [], [], 0.0, 0.0, []
+    saved, counted, s, c, table, tips = [], [], 0.0, 0.0, [], []
     for r in rows:
         s += r["saved"] * sign
         c += r["counted"] * sign
         saved.append(s)
         counted.append(c)
+        tips.append(
+            tip(
+                f"Year {r['year']} (starts {r['starts']})",
+                ("s1", f"Running total, as the savings come: {quantity(s, unit)}"),
+                ("s2", f"Running total, counted in today's terms: {quantity(c, unit)}"),
+                ("", f"That year: {quantity(r['saved'] * sign, unit)} saved, counted as {quantity(r['counted'] * sign, unit)}")
+                if r["factor"] is None
+                else (
+                    "",
+                    f"That year: {quantity(r['saved'] * sign, unit)} × {r['factor']:.4f} = {quantity(r['counted'] * sign, unit)} today",
+                ),
+            )
+        )
         table.append(
             [
                 str(r["year"]),
@@ -596,6 +649,7 @@ def discount_chart(w) -> Chart | None:
             "rows": table,
         },
         [quantity(s, unit), quantity(c, unit)],
+        tips,
     )
     chart.note = "The gap between the two lines is what discounting takes off: it grows with every year that passes."
     return chart
@@ -617,7 +671,7 @@ def shape_charts(data: dict | None) -> list[Chart]:
         "share",
         MONTHS,
         months,
-        [f"{calendar.month_name[i + 1]}: {pct(v)}" for i, v in enumerate(months)],
+        [tip(calendar.month_name[i + 1], ("s1", f"{pct(v)} of the year's savings")) for i, v in enumerate(months)],
         {
             "caption": "Share of the year's savings by month",
             "columns": ["Month", "Share"],
@@ -632,13 +686,14 @@ def shape_charts(data: dict | None) -> list[Chart]:
         "share",
         [str(h) for h in range(24)],
         hours,
-        [f"{hour_name(h)}: {pct(v)}" for h, v in enumerate(hours)],
+        [tip(f"Hour {h}, {hour_name(h)}", ("s1", f"{pct(v)} of the year's savings")) for h, v in enumerate(hours)],
         {
             "caption": "Share of the year's savings by hour of the day",
             "columns": ["Hour", "Share"],
             "rows": [[hour_name(h), pct(v)] for h, v in enumerate(hours)],
         },
     )
+    by_month.slot_word, by_hour.slot_word = "month", "hour"
     by_hour.note = "Hour 0 is midnight to 1 am, hour 17 is 5 pm to 6 pm (standard time, as the profile's 8,760 hours run)."
     return [by_month, by_hour]
 
@@ -663,7 +718,14 @@ def value_charts(w, data: dict | None) -> list[Chart]:
         below.append(running)
         this.append(pv)
         running += pv
-        tips.append(f"Year {r['year']} ({r['starts']}): {dollars(pv)} in today's dollars, {dollars(running)} so far")
+        tips.append(
+            tip(
+                f"Year {r['year']} (starts {r['starts']})",
+                ("s2", f"Value that year: {dollars(pv)} in today's dollars ({dollars(value)} as paid)"),
+                ("s1", f"Value in the years before: {dollars(below[-1])}"),
+                ("", f"Running total: {dollars(running)}"),
+            )
+        )
         table.append([str(r["year"]), r["starts"], dollars(value), dollars(pv), dollars(running)])
     built = stacked_columns(
         "value",
@@ -711,6 +773,19 @@ def value_charts(w, data: dict | None) -> list[Chart]:
                 "rows": [[str(p["year"]), f"${p['value']:,.4f}", str(p["acc_year"])] for p in per],
             },
             [f"${per[-1]['value']:,.4f}"],
+            [
+                tip(
+                    str(p["year"]),
+                    ("s1", f"A kWh saved is worth ${p['value']:,.4f}"),
+                    (
+                        "",
+                        f"Priced on the {p['acc_year']} prices of the ACC"
+                        if p["acc_year"] != p["year"]
+                        else "Priced on that year's ACC prices",
+                    ),
+                )
+                for p in per
+            ],
         )
         if last and per[-1]["year"] > last:
             worth.note = f"The ACC's prices run to {last}; a later year is priced at {last}'s, as the engine does."

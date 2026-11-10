@@ -232,6 +232,9 @@ calculations/walkthrough:
     - Next and Previous move between the steps; the numbered steps at the top go straight to one. Show every step on one page puts them
       all on one page, to read through or print.
     - Pick another measure goes back to the list.
+    - Point at a chart to see the values of the year (month, hour) under the pointer. With the keyboard, tab to the chart, then use the
+      left and right arrow keys to go from year to year (Home and End for the first and last); each year's values show beside it and a
+      screen reader reads them. Escape hides them.
   see: calculations
   tour:
     - target: main .head-row .actions
@@ -251,7 +254,8 @@ calculations/walkthrough:
       optional: true
     - target: main .walk-chart
       title: How it builds up
-      text: On steps 3 to 6, a chart of the measure's numbers year by year. The numbers in this chart opens them as a table.
+      text: On steps 3 to 6, a chart of the measure's numbers year by year. Point at a year, or select the chart and use the arrow keys,
+        to see its values; The numbers in this chart opens them all as a table.
       optional: true
     - target: main nav.walk-pager
       title: Previous and next

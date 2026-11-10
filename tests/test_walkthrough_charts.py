@@ -82,6 +82,27 @@ def test_the_steps_carry_their_charts_and_the_charts_their_numbers():
     assert steps["timing"].charts == [] and steps["value"].charts == []  # no packs given
 
 
+def test_every_year_of_a_chart_has_its_tooltip():
+    steps = {s.key: s for s in walk.build(MEASURES[0], SETTINGS)}
+    (life,) = steps["life"].charts
+    (disc,) = steps["discounting"].charts
+    for chart in (life, disc):
+        assert len(chart.slots) == len(chart.table["rows"]) == 12
+        xs = [s["x"] for s in chart.slots]
+        assert xs[0] == chart.plot[0] and xs == sorted(xs)
+        assert xs[-1] + chart.slots[-1]["w"] == pytest.approx(chart.plot[2], abs=0.02)  # the bands cover the plot, end to end
+    last = life.slots[-1]
+    assert last["title"].startswith("Year 12 (starts ")
+    assert last["rows"][-1] == {"cls": "", "text": "Running total: " + walk.quantity(MEASURES[0]["LifecycleNetKWhSite"], "kWh")}
+    assert [r["cls"] for r in last["rows"]] == ["s2", "s1", ""] and last["text"].endswith(".")
+    # A line chart marks each series' point in the year, where the line is drawn.
+    assert [p["cls"] for p in disc.slots[-1]["points"]] == ["s1", "s2"]
+    ends = {d["cls"]: (d["x"], d["y"]) for d in disc.dots}
+    assert all((p["x"], p["y"]) == ends[p["cls"]] for p in disc.slots[-1]["points"])
+    assert disc.slots[-1]["rows"][1]["text"].endswith(walk.quantity(MEASURES[0]["DiscountedSavingsNetkWh"], "kWh"))
+    assert " × " in disc.slots[1]["rows"][2]["text"]
+
+
 def test_a_replica_run_draws_savings_and_discounting_only():
     e = json.loads((Path(__file__).parent / "data" / "walkthrough_replica_measures.json").read_text())[0]
     steps = {s.key: s for s in walk.build(e["row"], e["settings"], None, engine=walk.Engine.of(None, e["settings"]))}
@@ -253,6 +274,10 @@ def test_the_load_shape_and_the_value_charts_from_the_runs_packs(analyst, pge, r
     html = page_only(page.content.decode())
     assert page.status_code == 200 and "The electric benefit building up, year by year" in html
     assert 'role="img"' in html and "The numbers in this chart" in html and "What a kWh saved in each year is worth" in html
+    # Each year's tooltip: a band to point at (its values as the <title> without scripts), its words for the script, and the script.
+    assert html.count('class="hit"') == len(value.slots) + len(worth.slots) and html.count('class="band"') == html.count('class="hit"')
+    assert 'class="walk-tips" hidden' in html and "to see each year's values" in html
+    assert "calculations/walkthrough.js" in page.content.decode()
     html = page_only(web.get(f"/calculations/runs/{run.pk}/walkthrough/", {"measure": "W1", "step": "timing"}).content.decode())
     assert "Share of the year&#x27;s savings in each month" in html and "Share of the year&#x27;s savings in each hour of the day" in html
     html = page_only(web.get(f"/calculations/runs/{run.pk}/walkthrough/", {"measure": "W2", "step": "value"}).content.decode())

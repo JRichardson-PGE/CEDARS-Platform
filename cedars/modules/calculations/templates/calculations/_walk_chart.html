@@ -1,17 +1,27 @@
 {% comment %}One of a step's charts (walkchart.Chart), drawn on the server. The SVG is one image named by its summary; the numbers are in the
-table under it. Each column's or point's values also show as a tooltip under the pointer, a convenience only.{% endcomment %}
+table under it. Each year's (month's, hour's) values also show as a tooltip (calculations/walkthrough.js): for the band under the pointer, or
+picked with the arrow keys once the chart has the focus, and spoken through the page's one live region. Without scripts each band's values
+are its <title>, which browsers show on hover.{% endcomment %}
 <figure class="walk-chart" aria-labelledby="chart-{{ c.key }}-h">
   <figcaption id="chart-{{ c.key }}-h" class="walk-chart-title">{{ c.title }}</figcaption>
   {% if c.legend %}<ul class="chart-legend" aria-hidden="true">{% for cls, label in c.legend %}<li><svg width="18" height="12" focusable="false"><rect class="{{ cls }}" width="18" height="12" rx="2"/></svg> {{ label }}</li>{% endfor %}</ul>{% endif %}
-  <div class="hscroll walk-chart-plot" tabindex="0" role="region" aria-label="{{ c.title }}, chart">
+  {% if c.slots %}<p class="walk-chart-hint small muted" id="chart-{{ c.key }}-hint" hidden>Point at the chart, or select it and use the left and right arrow keys, to see each {{ c.slot_word }}'s values. Escape hides them.</p>{% endif %}
+  <div class="walk-chart-box">
+  <div class="hscroll walk-chart-plot" tabindex="0" role="region" aria-label="{{ c.title }}, chart"{% if c.slots %} data-slots="{{ c.slots|length }}"{% endif %}>
     <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="{{ c.summary }} The numbers are in the table under the chart." focusable="false">
       {% for y, label in c.yticks %}<line class="grid" x1="{{ c.plot.0 }}" x2="{{ c.plot.2 }}" y1="{{ y }}" y2="{{ y }}"/><text class="tick" x="{{ c.plot.0|add:"-8" }}" y="{{ y }}" text-anchor="end" dominant-baseline="middle">{{ label }}</text>{% endfor %}
       {% for x, label in c.xlabels %}<text class="tick" x="{{ x }}" y="{{ c.plot.3|add:"18" }}" text-anchor="middle">{{ label }}</text>{% endfor %}
+      {% for s in c.slots %}<rect class="band" data-i="{{ forloop.counter0 }}" x="{{ s.x }}" y="{{ c.plot.1 }}" width="{{ s.w }}" height="{{ c.plot_height }}"/>{% endfor %}
       <line class="axis" x1="{{ c.plot.0 }}" x2="{{ c.plot.2 }}" y1="{{ c.plot.3 }}" y2="{{ c.plot.3 }}"/>
-      {% for m in c.marks %}<path class="{{ m.cls }}" d="{{ m.d }}"><title>{{ m.tip }}</title></path>{% endfor %}
+      {% for m in c.marks %}<path class="{{ m.cls }}" d="{{ m.d }}"/>{% endfor %}
       {% for l in c.lines %}<path class="line {{ l.cls }}" d="{{ l.d }}"/>{% endfor %}
       {% for d in c.dots %}<circle class="dot {{ d.cls }}" cx="{{ d.x }}" cy="{{ d.y }}" r="4"/><text class="end" x="{{ d.x }}" y="{{ d.label_y }}" text-anchor="end">{{ d.label }}</text>{% endfor %}
+      {% for s in c.slots %}{% if s.points %}<g class="pts" data-i="{{ forloop.counter0 }}">{% for p in s.points %}<circle class="dot {{ p.cls }}" cx="{{ p.x }}" cy="{{ p.y }}" r="5"/>{% endfor %}</g>{% endif %}{% endfor %}
+      {% for s in c.slots %}<rect class="hit" data-i="{{ forloop.counter0 }}" x="{{ s.x }}" y="{{ c.plot.1 }}" width="{{ s.w }}" height="{{ c.plot_height }}"><title>{{ s.text }}</title></rect>{% endfor %}
     </svg>
+  </div>
+  {% if c.slots %}<div class="walk-tip" aria-hidden="true" hidden></div>
+  <ol class="walk-tips" hidden>{% for s in c.slots %}<li data-text="{{ s.text }}"><span class="tip-label">{{ s.title }}</span>{% for r in s.rows %}<span class="tip-row">{% if r.cls %}<svg width="12" height="12" focusable="false"><rect class="{{ r.cls }}" width="12" height="12" rx="2"/></svg>{% endif %}{{ r.text }}</span>{% endfor %}</li>{% endfor %}</ol>{% endif %}
   </div>
   {% if c.note %}<p class="small muted">{{ c.note }}</p>{% endif %}
   <details class="walk-chart-data">
