@@ -7,7 +7,6 @@ two baselines, W3 a gas measure. Every piece of arithmetic a step shows must agr
 import json
 from pathlib import Path
 
-import pandas as pd
 import pytest
 from django.test import Client
 
@@ -94,6 +93,8 @@ def test_a_supplied_run_parameters_file_is_named_not_guessed():
 
 def _with_measures(run, rows):
     """Replace the run's kept measure-level parquet with these rows (the fake worker's has only a few columns)."""
+    import pandas as pd  # with the engine only (the accessibility job runs without it)
+
     key = walk._measure_key(run, "")
     storage.store("results").put_bytes(key, b"")
     path = storage.store("results").path(key)
