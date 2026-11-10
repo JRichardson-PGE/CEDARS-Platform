@@ -25,6 +25,9 @@ class CalculationsConfig(AppConfig):
 
         register_pricer(service.price_submission)  # filing modules price their versions through the submissions service
         register_run_state(service.run_state)  # and show whether that run still runs, or ended without pricing them
+        from cedars.services.submissions.service import register_run_walkthrough
+
+        register_run_walkthrough(service.walkthrough_url)  # a priced version's page links its run's measure walkthrough
         # and re-price a published filing as an analysis run that never touches it (restated results)
         register_restater(service.restate_version, service.restate_options, service.describe_run)
 

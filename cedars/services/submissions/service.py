@@ -75,6 +75,8 @@ _nothing_to_file: dict[str, Callable] = {}
 _setup_groups: dict[str, Callable] = {}
 _setup_links: dict[str, Callable] = {}
 _readers: dict[str, Callable] = {}
+_version_pages: dict[str, Callable] = {}
+_run_walkthroughs: list[Callable] = []
 _filers: dict[str, Callable] = {}
 _streams: dict[str, Callable] = {}
 
@@ -94,6 +96,20 @@ def register_pricer(price: Callable) -> None:
     cost_test_set, profiles_8760) starts a run on the job (a local file) for the version and returns the run's id; the run's end calls
     record_calculation. cost_test_set is the published cost-test set (a refdata pack) the filing's setup requires, or None."""
     _pricers[:] = [price]
+
+
+def register_run_walkthrough(page: Callable[[str], str]) -> None:
+    """The Calculations module's measure walkthrough for a pricing run: page(run_id) -> its URL, or "" when the run has none (it did not
+    finish, or kept no measure-level table). A filing module's version page links it."""
+    _run_walkthroughs[:] = [page]
+
+
+def run_walkthrough(v: SubmissionVersion) -> str:
+    """The measure walkthrough of the run that priced this version ("" for an imported version, one not priced, or no Calculations)."""
+    run_id = (v.calculation or {}).get("run")
+    if v.imported or not run_id or not _run_walkthroughs:
+        return ""
+    return _run_walkthroughs[0](str(run_id))
 
 
 def register_run_state(state: Callable[[str], dict | None]) -> None:
@@ -404,6 +420,37 @@ def can_read_filing(user, submission: Submission) -> bool:
     if reader is not None:
         return reader(user, submission)
     return access.is_system_admin(user)
+
+
+def register_version_page(module: str, page: Callable[[SubmissionVersion], str]) -> None:
+    """A filing module's page for one version: page(version) -> its URL. Pages about a version's pricing run (Calculations' measure
+    walkthrough) link back to the filing through it."""
+    _version_pages[module] = page
+
+
+def version_page(v: SubmissionVersion) -> str:
+    page = _version_pages.get(v.submission.deadline.module)
+    return page(v) if page else ""
+
+
+def can_read_version(user, v: SubmissionVersion) -> bool:
+    """A published version is open to every signed-in user (as each filing module's version page has it); the rest only to those its
+    module lets read the filing."""
+    if not user.is_authenticated:
+        return False
+    return v.status == SubmissionVersion.Status.PUBLISHED or can_read_filing(user, v.submission)
+
+
+def versions_priced_by(user, run_id) -> list[SubmissionVersion]:
+    """The filed versions (claims, budget filings, monthly reports) whose results came from this calculation run and that the user may
+    read, newest first. Their readers may follow the run's measures (Calculations' measure walkthrough) although the run itself
+    belongs to the filing organization."""
+    qs = (
+        SubmissionVersion.objects.filter(origin=SubmissionVersion.Origin.FILED, calculation__run=str(run_id))
+        .select_related("submission__deadline", "submission__organisation")
+        .order_by("-pk")
+    )
+    return [v for v in qs if can_read_version(user, v)]
 
 
 def register_acc_needs(module: str, needs: Callable) -> None:

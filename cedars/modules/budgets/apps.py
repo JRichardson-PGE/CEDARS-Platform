@@ -46,6 +46,11 @@ class BudgetsConfig(AppConfig):
         register_setup_groups("budgets", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_setup_link("budgets", service.setup_link)  # the calendar and Filing sets link to the set a filing belongs to
         register_reader("budgets", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
+        from django.urls import reverse
+
+        from cedars.services.submissions.service import register_version_page
+
+        register_version_page("budgets", lambda v: reverse("budgets:version", args=[v.pk]))  # a pricing run's walkthrough links back
         register_operating_budget(shifts.operating_rows)  # what monthly reports, claims and dashboards compare against
         register_filing("budgets", service.notice)  # what subscribers and the programs' followers are told
         register_concerns("budgets.fundshift", shifts.notice)

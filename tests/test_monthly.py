@@ -504,3 +504,13 @@ def test_a_year_is_set_up_with_its_thirteen_due_dates(cpuc_admin, filer, pge, cl
     assert client.get(reverse("monthly:report", args=[closing.pk])).status_code in (302, 404)
     Deadline.objects.filter(pk=closing.pk).update(due_at=timezone.now() - timedelta(days=1))
     assert all(c.deadline.pk != closing.pk for c in status.columns()[0])
+
+
+def test_a_priced_report_links_the_walkthrough_of_its_measures(client, filer, year, pge, programs, release):  # noqa: F811
+    v = priced(filer, pge)
+    sign_in(client, filer)
+    run = v.calculation["run"]
+    page = client.get(reverse("monthly:version", args=[v.pk])).content.decode()
+    assert f'href="{reverse("calculations:walkthrough", args=[run])}"' in page
+    unpriced = service.upload(filer, month(2), pge, report("202802"), "r.zip")
+    assert "Follow any of its measures" not in client.get(reverse("monthly:version", args=[unpriced.pk])).content.decode()

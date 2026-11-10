@@ -39,6 +39,11 @@ class MonthlyConfig(AppConfig):
         register_setup_link("monthly", service.setup_link)  # the calendar and Filing sets link to the set a filing belongs to
         register_nothing_to_file("monthly", service.nothing_to_file)  # the 13th-month report is generated from claims
         register_reader("monthly", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
+        from django.urls import reverse
+
+        from cedars.services.submissions.service import register_version_page
+
+        register_version_page("monthly", lambda v: reverse("monthly:version", args=[v.pk]))  # a pricing run's walkthrough links back
 
         from cedars.services.registry.service import register_reported_spend
 

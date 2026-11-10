@@ -609,6 +609,7 @@ def version(request, pk):
             "files": [(lbl, i) for i, (lbl, _, _) in enumerate(service.published_files(v))],
             "public": v.status == SubmissionVersion.Status.PUBLISHED,
             "calc": v.calculation or {},
+            "walk_href": submissions.run_walkthrough(v),
             "s": v.findings or {},
             "csv_query": f"?pa={pa}" if pa else "",
             "legacy": legacy.imported(v) if v.imported else None,

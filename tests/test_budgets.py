@@ -436,3 +436,35 @@ def test_a_budget_filing_in_several_files(client, filing, pge, programs, filer):
     assert "sources" not in service.job_file(one)
     r = client.post(reverse("budgets:upload", args=[filing.pk]), {"file": [SimpleUploadedFile("Measure.csv", b"CEInputID\n")]}, follow=True)
     assert b"There is no ProgramCost file" in r.content
+
+
+def test_a_priced_filing_links_the_walkthrough_of_its_measures(
+    filer, filing, pge, programs, release, make_user, django_capture_on_commit_callbacks
+):
+    pytest.importorskip("recet.cost_test_sets", reason="the walkthrough reads the measures with the ReCET engine")
+    import pandas as pd
+    from django.test import Client
+
+    v, run = priced_version(filer, filing, pge, release)
+    rows = json.loads((DATA / "walkthrough_measures.json").read_text())
+    key = run.storage_prefix + "out/_results/measure_level_run.parquet"
+    storage.store("results").put_bytes(key, b"")
+    pd.DataFrame(rows).to_parquet(storage.store("results").path(key), index=False)
+    c = Client()
+    sign_in(c, filer)
+    walk = reverse("calculations:walkthrough", args=[run.pk])
+    page = c.get(reverse("budgets:version", args=[v.pk])).content.decode()
+    assert f'href="{walk}"' in page and "Follow any of its measures step by step" in page
+    html = c.get(walk, {"measure": "W1", "step": "savings"}).content.decode()
+    assert "Agrees</span> with the engine's <code>AC_Net_kWh_1st_Baseline</code>" in html
+    assert reverse("budgets:version", args=[v.pk]) in html  # back to the filing it priced
+
+    # another organization's reader: not while the version is unpublished, then as every signed-in user may read a published one
+    outsider = Client()
+    sign_in(outsider, make_user("reader@sce.example.org"))
+    assert outsider.get(walk).status_code == 404
+    SubmissionVersion.objects.filter(pk=v.pk).update(status=SubmissionVersion.Status.PUBLISHED)
+    html = outsider.get(walk, {"measure": "W1"}).content.decode()
+    assert "Walking through W1" in html and reverse("budgets:version", args=[v.pk]) in html
+    assert f'href="{reverse("calculations:run", args=[run.pk])}"' not in html  # the run itself stays the filing organization's
+    assert outsider.get(reverse("calculations:run", args=[run.pk])).status_code == 404

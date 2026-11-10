@@ -286,10 +286,12 @@ Every point where a service calls back into a module is a registration function.
 | --- | --- | --- | --- |
 | `register_pricer` | submissions | calculations | Price a validated filing version (`price_submission`) |
 | `register_run_state` | submissions | calculations | Whether a version's pricing run is still running or ended without pricing it |
+| `register_run_walkthrough` | submissions | calculations | The measure walkthrough of the run that priced a version, linked from the version's page |
 | `register_restater` | submissions | calculations | Price a published filing again as an analysis run (restatements) |
 | `register_publisher` | submissions | budgets, claims, monthly | Publish or withdraw a confirmed version's module data |
 | `register_listener` | submissions | snapshots | Snapshot a published version after commit, or drop it on un-confirm |
 | `register_reader` | submissions | budgets, claims, monthly | Who may read a filing on the Filings page |
+| `register_version_page` | submissions | claims, budgets, monthly | A version's page, which the walkthrough of its pricing run links back to |
 | `register_deadline_page`, `register_setup_page`, `register_setup_groups`, `register_setup_link` | submissions | budgets, claims, monthly | The calendar's links, its Add a filing choices, what clearing the calendar removes together, and the set-up page each filing belongs to (the Filing sets page and each deadline's page link it) |
 | `register_nothing_to_file` | submissions | monthly | Deadlines that only mark a date (the 13th-month report is generated) |
 | `register_filers`, `register_stream` | submissions | claims | Who files a deadline beyond its set-up's list of PAs (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
@@ -1126,7 +1128,7 @@ ones the large lane; more than `CALCULATIONS_MAX_RECORDS` are refused before que
 | Where | Engine code | For |
 | --- | --- | --- |
 | `calculations/results.py` | `recet.results_view`, `recet.outputs` | Results and Compare over the worker's group sums (copied once into `CALCULATIONS_RESULTS_CACHE`) |
-| `calculations/walkthrough.py` | `recet.cost_test_sets`, `recet.pipeline.discount_settings`, the release tables shipped in `recet/data/cet_versions/` | Walk through a measure: one measure's steps from its row of the kept measure-level table, every sum set beside the engine's output; a CET replica's run is explained as that release prices it (its column names, its discount rates, CET's own tests, the CET errors the replica keeps named) |
+| `calculations/walkthrough.py` | `recet.cost_test_sets`, `recet.pipeline.discount_settings`, the release tables shipped in `recet/data/cet_versions/` | Walk through a measure: one measure's steps from its row of the kept measure-level table, every sum set beside the engine's output (a run that priced a claim, budget filing or monthly report is linked from that version's page and open to the filing's readers, a published one to every signed-in user, through `submissions.versions_priced_by`); a CET replica's run is explained as that release prices it (its column names, its discount rates, CET's own tests, the CET errors the replica keeps named) |
 | `calculations/drafts.py`, `draft_views.py` | `recet.editor`, `recet.fieldnames`, `recet.versions` | Edit inputs: cell checks and dropdowns |
 | `services/rules/service.py`, `precheck.py` | `recet.filing_rules`, `recet.editor`, `recet.fieldnames`, `recet.pipeline.real_impact_profiles` | Running stored rule sets with the engine's own rule runner, so the platform, ReCET runs and the checker never disagree |
 | `services/dictionary/value_lists.py` | `recet.editor`, `recet.paths` | Handing the value lists in force to the engine |

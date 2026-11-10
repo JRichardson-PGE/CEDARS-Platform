@@ -1051,6 +1051,19 @@ def run_state(run_id: str) -> dict | None:
     return {"status": run.status, "label": run.get_status_display(), "ended": run.status in Run.ENDED, "error": run.error or ""}
 
 
+def walkthrough_url(run_id: str) -> str:
+    """The measure walkthrough of a finished run, for the version page of the filing it priced ("" for an unknown or unfinished run)."""
+    try:
+        run = Run.objects.filter(pk=run_id).only("pk", "status").first()
+    except (ValueError, ValidationError):
+        return ""
+    if run is None or run.status != Run.Status.SUCCEEDED:
+        return ""
+    from django.urls import reverse
+
+    return reverse("calculations:walkthrough", args=[run.pk])
+
+
 def price_submission(
     actor,
     version,

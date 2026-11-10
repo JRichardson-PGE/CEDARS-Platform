@@ -1,14 +1,22 @@
 {% extends "core/base.html" %}
-{% block title %}Walk through a measure · {{ run.name }}{% endblock %}
+{% block title %}Walk through a measure · {% if run_readable %}{{ run.name }}{% else %}{{ filings.0.label }}{% endif %}{% endblock %}
 {% block content %}
+{% if run_readable %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:runs' %}">Runs</a></li><li><a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></li></ol></nav>
+{% else %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:filings' %}">Filings</a></li><li><a href="{{ filings.0.href }}">{{ filings.0.label }}</a></li></ol></nav>
+{% endif %}
 <div class="head-row">
-  <div class="page-title"><h1>Walk through a measure: {{ run.name }}</h1>{% page_help "calculations/walkthrough" %}</div>
+  <div class="page-title"><h1>Walk through a measure: {% if run_readable %}{{ run.name }}{% else %}{{ filings.0.label }}{% endif %}</h1>{% page_help "calculations/walkthrough" %}</div>
   <div class="actions">
+    {% for f in filings %}<a class="button" href="{{ f.href }}">{{ f.label }}</a>{% endfor %}
+    {% if run_readable %}
     <a class="button" href="{% url 'calculations:results' run.pk %}{% if acc %}?acc={{ acc }}{% endif %}">Results</a>
     <a class="button" href="{% url 'calculations:run' run.pk %}">Run page and files</a>
+    {% endif %}
   </div>
 </div>
+{% if filings %}<p class="small muted">This run priced {% if filings|length == 1 %}the filing{% else %}the filings{% endif %} named above, so its measures are that filing's records as priced.</p>{% endif %}
 {% if acc_tabs %}
 <nav class="subnav" aria-label="ACCs of this comparison">
   {% for t in acc_tabs %}<a href="{{ t.href }}"{% if t.on %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}

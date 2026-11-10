@@ -757,3 +757,10 @@ def test_claims_in_several_files_and_a_pii_table_among_them(client, filer, year,
     pii = SimpleUploadedFile("PII_Contact_2.csv", b"ContactID\nPGE-C1\n")
     r = client.post(url, {"file": [*split(q1()), pii]}, follow=True)
     assert b"holds personal information" in r.content
+
+
+def test_a_priced_claim_links_the_walkthrough_of_its_measures(client, filer, year, pge, programs, release):  # noqa: F811
+    v = confirmed(filer, pge, q1())
+    sign_in(client, filer)
+    page = client.get(reverse("claims:version", args=[v.pk])).content.decode()
+    assert f'href="{reverse("calculations:walkthrough", args=[v.calculation["run"]])}"' in page
