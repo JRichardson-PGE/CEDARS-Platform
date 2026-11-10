@@ -33,7 +33,8 @@ only; it reads, submits and confirms in every module of that PA, and can be re-r
     docker compose exec web python manage.py demo_account filer@pge.example.org --org PGE --name "Test Filer" --password "<choose one>"
 
 `--org` can be repeated, and `--pa-type REN` (or IOU, CCA) adds every active PA of that type, so one account can file for all of the
-RENs. Add `--org-admin` to make it each PA's administrator as well.
+RENs. Add `--org-admin` to make it each PA's administrator as well. To try the site as the CPUC, `--cpuc` (instead of `--org`)
+makes a CPUC administrator: system administrator, data steward and every permission in the CPUC organization.
 
 ## Calculations locally
 

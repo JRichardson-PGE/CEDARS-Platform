@@ -249,7 +249,7 @@ how far it is built. Update the Status column in the PR that changes it. The pic
   `snapshot.hold_records_downloaded`.
 - The sandbox is the production stack with `cedars.settings.sandbox`: no PII vault, a banner on every page, [SANDBOX] in every email
   subject, test filings deleted after the sandbox_data period, `seed_sandbox` to fill it, `demo_account` for a test filer for one or more
-  program administrators (`--org`, `--pa-type`) (read, submit and confirm in every module; sandbox and developer databases only), and `refresh_sandbox` to add production's
+  program administrators (`--org`, `--pa-type`) (read, submit and confirm in every module) or, with `--cpuc`, a CPUC administrator (system administrator, data steward and every permission in the CPUC organization) (sandbox and developer databases only), and `refresh_sandbox` to add production's
   published, non-PII data from the bundle `export_sandbox_bundle` writes (copied filings are kept past that period).
 - CI (`.github/workflows/ci.yml`) on every pull request, on main and weekly on Mondays: ruff, the tests on PostgreSQL, axe on every page,
   the Docker image (built with the pinned engine, then scanned by grype for High or Critical vulnerabilities that have a fix), pip-audit

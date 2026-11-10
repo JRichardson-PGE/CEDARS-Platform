@@ -1190,7 +1190,7 @@ One-off and administrative commands:
 | Command | What it does |
 | --- | --- |
 | `bootstrap_cpuc` | First run only: creates the CPUC organization and its first system administrator, organization administrator and data steward |
-| `demo_account`, `seed_sandbox` | Test filers and demo organizations (sandbox and developer databases only) |
+| `demo_account`, `seed_sandbox` | Test filers, a test CPUC administrator (`--cpuc`) and demo organizations (sandbox and developer databases only) |
 | `load_dictionary` | Publishes a field catalog version from the engine's export |
 | `import_rules`, `check_file` | Imports CEDARS' claims or budget-filing rules from the pinned engine as a draft rule set; checks a file as the pre-upload checker does |
 | `import_programs`, `import_allocation`, `import_statewide_leads`, `follow_statewide` | Loads programs from a CEDARS Programs export, allocation factors, and statewide lead PAs from CEDARS' statewide programs download; links statewide programs' IDs to them |
