@@ -1205,6 +1205,13 @@ def deadline_page(deadline) -> str:
     return reverse("budgets:filing", args=[deadline.pk]) if FilingSetup.objects.filter(deadline=deadline).exists() else ""
 
 
+def setup_link(deadline) -> str:
+    """The set-up page of a budget filing's deadline, for the filing calendar and Filing sets; "" for one with no budget set-up."""
+    from django.urls import reverse
+
+    return reverse("budgets:setup", args=[deadline.pk]) if FilingSetup.objects.filter(deadline=deadline).exists() else ""
+
+
 def template_xlsx() -> bytes:
     """The budget filing template: Measure and ProgramCost as the field catalog has them (the engine's input tables), with a Fields
     sheet defining each column (navigation review D2). Without a catalog loaded, each table's required columns."""

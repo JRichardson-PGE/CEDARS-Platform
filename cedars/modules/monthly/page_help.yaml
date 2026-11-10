@@ -57,17 +57,26 @@ monthly/setup:
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
     - Not every program administrator files every filing. Who files lists those expected to, and only they can start a filing for it, and
       only they are listed on the Filings page's status. A PA that has started filing stays on it, since what it filed is kept.
+    - >-
+      Filings in this set lists each filing the set-up put on the calendar and whether it is on the calendar or canceled. Any one of
+      them that no organization has started can be canceled with a reason, leaving the rest of the set as it is: no filing starts for
+      it and no reminders are sent. A canceled filing is restored the same way.
   how:
     - Choose the ACC and the allocation version, then Save. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
     - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
     - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
       started filing stays on it.
+    - To cancel one filing, choose it under Cancel one filing, give the reason and press Cancel the filing; to bring one back, choose
+      it under Restore a canceled filing.
   see: monthly-reports
   tour:
     - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-filings"
+      title: Filings in this set
+      text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.
     - target: "#setup-due-dates"
       title: Due dates
       text: Every due date still to come, changed here as on the filing calendar.

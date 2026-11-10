@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -7,6 +8,7 @@ from cedars.modules.claims import legacy
 from cedars.modules.claims import service as claims
 from cedars.modules.claims.models import ClaimProgramLine, ClaimRecord, ClaimResult, ClaimYear
 from cedars.services.accounts.models import Organisation
+from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as staging
 from cedars.services.legacy.models import LegacyImport
 from cedars.services.registry.models import Program
@@ -225,3 +227,11 @@ def test_the_pages_show_a_legacy_year_as_imported_and_read_only(tmp_path, signed
     assert "Imported from legacy CEDARS, 2 records" in period
     assert "Ask to reopen" not in period and "Un-confirm" not in period and "records checked" not in period
     assert "Imported from legacy CEDARS: each PA's year" in client.get("/claims/").content.decode()
+
+
+def test_a_legacy_year_is_not_set_up_again_and_the_refusal_says_it_was_imported(tmp_path, cpuc_admin):
+    _year(tmp_path)
+    legacy.load(2023)
+    due = {k: claims.due_at(date(2024, 3, 1)) for k, _ in claims.PERIODS}
+    with pytest.raises(AccessDenied, match="imported from legacy CEDARS"):
+        claims.add_year(cpuc_admin, year=2023, acc_version="2022", due=due)

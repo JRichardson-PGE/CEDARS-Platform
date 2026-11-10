@@ -4,10 +4,11 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li></ol></nav>
 <div class="head-row">
   <div class="page-title"><h1>{{ label }}{% if org %}: {{ org.code }}{% endif %}</h1>{% page_help "budgets/filing" %}</div>
-  {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">How it is priced</a>{% endif %}
+  {% if sysadmin %}<a class="button" href="{% url 'budgets:setup' deadline.pk %}">Edit its set-up</a>{% endif %}
 </div>
 <dl class="facts">
   <dt>Due</dt><dd>{{ deadline.due_at|date_words }}, {{ deadline.due_at|due_words|lower }}</dd>
+  {% if deadline.retired_at %}<dt>Canceled</dt><dd id="filing-canceled"><span class="status warn">Canceled</span> {{ deadline.retired_at|date_words }}: {{ deadline.retired_reason }}. No filing can start for it.</dd>{% endif %}
   {% if deadline.opens_at %}<dt>Opens</dt><dd>{{ deadline.opens_at|date_words }}</dd>{% endif %}
   {% if legacy %}<dt>Results</dt><dd>CEDARS' own CET outputs, as filed in legacy CEDARS{% if setup.acc_version %} ({{ setup.acc_version }} ACC){% endif %}</dd>
   {% else %}<dt>Priced on</dt><dd>{{ setup.acc_version }} ACC, statewide programs allocated with {% if setup.allocation_version %}{{ setup.allocation_version.label }}{% else %}the most recent confirmed allocation version for each program year{% endif %}; cost tests: {% if setup.cost_test_set %}{{ setup.cost_test_set }}{% else %}the published set in force for the program year{% endif %}</dd>{% endif %}

@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li></ol></nav>
 <div class="page-title"><h1>{{ d.module|capfirst }}: {{ d.title }}, {% if d.period %}{{ d.period }}{% else %}{{ d.cycle|cycle_label }}{% endif %}</h1>{% page_help "submissions/deadline" %}</div>
-{% if d.retired_at %}<p id="retired-note"><span class="status warn">Retired</span> Taken off the filing calendar on {{ d.retired_at|date_words }}. Reason: {{ d.retired_reason }}. No filing can start for it.</p>{% endif %}
+{% if d.retired_at %}<p id="retired-note"><span class="status warn">Canceled</span> Taken off the filing calendar on {{ d.retired_at|date_words }}. Reason: {{ d.retired_reason }}. No filing can start for it.</p>{% endif %}
 <dl class="facts" id="deadline-facts">
   {% if d.name %}<dt>What is due</dt><dd>{{ d.kind }}</dd>{% endif %}
   {% if d.cycle %}<dt>Program years</dt><dd>{{ d.cycle|cycle_label }}</dd>{% endif %}
@@ -11,14 +11,15 @@
   <dt>Opens</dt><dd>{% if d.opens_at %}<time datetime="{{ d.opens_at|date:'c' }}">{{ d.opens_at|date_words }}</time>{% else %}Open now{% endif %}</dd>
   {% if d.notes %}<dt>Notes</dt><dd>{{ d.notes|linebreaksbr }}</dd>{% endif %}
   <dt>Filing page</dt><dd>{% if page %}<a href="{{ page }}">Open the {{ d.title }} filing</a>{% else %}None: added by hand on the calendar{% endif %}</dd>
+  {% if sysadmin and setup_url %}<dt>Filing set</dt><dd id="deadline-set"><a href="{{ setup_url }}">Edit the filing set it belongs to</a>: every filing in it, their due dates, who files, and how they are priced</dd>{% endif %}
   {% if sysadmin %}<dt>Filings started</dt><dd>{{ started }}</dd>{% endif %}
 </dl>
 
 {% if sysadmin %}
 {% if d.retired_at %}
 <section class="card" aria-labelledby="restore-h">
-  <h2 id="restore-h">Restore this deadline</h2>
-  <p>Puts it back on the calendar, as it was before it was retired.</p>
+  <h2 id="restore-h">Restore this filing</h2>
+  <p>Puts it back on the calendar, as it was before it was canceled.</p>
   <form method="post" class="stack form-narrow">{% csrf_token %}
     <input type="hidden" name="action" value="restore">
     {% for field in retire_form %}{{ field.as_field_group }}{% endfor %}
@@ -36,20 +37,19 @@
     <div class="actions"><button type="submit" class="primary">Save the change</button></div>
   </form>
 </section>
-<section class="card" aria-labelledby="retire-h">
-  <h2 id="retire-h">Retire this deadline</h2>
+<section class="card" aria-labelledby="cancel-h" id="cancel-filing">
+  <h2 id="cancel-h">Cancel this filing</h2>
   {% if can_retire %}
-  <p>Takes it off the calendar, for a deadline added by mistake or one the CPUC no longer asks for. It stays here with its history and can be restored.</p>
+  <p>Takes this one filing off the calendar{% if setup_url %}; the rest of its filing set stays as it is{% endif %}: for one the CPUC no
+  longer asks for, or a deadline added by mistake. No filing can start for it and no reminders are sent. It stays here with its
+  history and can be restored.</p>
   <form method="post" class="stack form-narrow">{% csrf_token %}
     <input type="hidden" name="action" value="retire">
     {% for field in retire_form %}{{ field.as_field_group }}{% endfor %}
-    <div class="actions"><button type="submit">Retire the deadline</button></div>
+    <div class="actions"><button type="submit">Cancel the filing</button></div>
   </form>
-  {% elif page %}
-  <p>This deadline is part of its module's set-up (it has a filing page), so it cannot be retired. Change its due date instead, or,
-  while nobody has filed for it, remove the whole set-up from its set-up page.</p>
   {% else %}
-  <p>{{ started }} organization{{ started|pluralize }} {{ started|pluralize:"has,have" }} started filing for this deadline, so it cannot be retired. Change its due date instead.</p>
+  <p>{{ started }} organization{{ started|pluralize }} {{ started|pluralize:"has,have" }} started this filing, so it cannot be canceled: what was filed is kept. Change its due date instead.</p>
   {% endif %}
 </section>
 {% endif %}

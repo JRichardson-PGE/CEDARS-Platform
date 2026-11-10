@@ -243,8 +243,13 @@ def test_the_front_page(both, goal_set, client):  # noqa: F811
     assert "Sign in" in page and "Create an account" in page
     # Help, the guides and the tour
     assert 'href="/help/tour/" data-tour-start' in page and 'id="tour"' in page and "core/tour.js" in page
-    for g in site_help.GUIDES:
-        assert f'href="/help/{g.slug}/"' in page
+    # The first three guides, then All of Help; the help index lists the rest
+    guides = page.split("<h3>User guides</h3>")[1].split("</div>")[0]
+    for g in site_help.GUIDES[:3]:
+        assert f'href="/help/{g.slug}/"' in guides
+    for g in site_help.GUIDES[3:]:
+        assert f'href="/help/{g.slug}/"' not in guides
+    assert '<a href="/help/">All of Help</a>' in guides
     assert "This site has no support address set yet." in page
 
 

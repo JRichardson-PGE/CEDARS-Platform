@@ -290,7 +290,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_publisher` | submissions | budgets, claims, monthly | Publish or withdraw a confirmed version's module data |
 | `register_listener` | submissions | snapshots | Snapshot a published version after commit, or drop it on un-confirm |
 | `register_reader` | submissions | budgets, claims, monthly | Who may read a filing on the Filings page |
-| `register_deadline_page`, `register_setup_page`, `register_setup_groups` | submissions | budgets, claims, monthly | The calendar's links, its Add a filing choices, and what clearing the calendar removes together |
+| `register_deadline_page`, `register_setup_page`, `register_setup_groups`, `register_setup_link` | submissions | budgets, claims, monthly | The calendar's links, its Add a filing choices, what clearing the calendar removes together, and the set-up page each filing belongs to (the Filing sets page and each deadline's page link it) |
 | `register_nothing_to_file` | submissions | monthly | Deadlines that only mark a date (the 13th-month report is generated) |
 | `register_filers`, `register_stream` | submissions | claims | Who files a deadline beyond its set-up's list of PAs (statewide: lead PAs), and the run of confirmations it belongs to (`statewide` or the PAs' own) |
 | `register_acc_needs` | submissions | budgets, claims, monthly | ACCs the default engine release must carry |
@@ -808,6 +808,15 @@ year's list applies to the PAs' own five claims; its statewide confirmations are
 `start` refuses a PA not on the filing; the "Choose a program administrator" list (`filer_statuses`), each module's index ("Nothing to
 file: ... is not on this filing") and the Filings page's status (`submissions.status.board`) follow it, and the status table leaves out
 a PA on none of the filings it shows.
+
+**Filing sets and canceling one filing.** Each module set-up (a budget filing, a claim year, a year of monthly reports) is a filing
+set: the deadlines it put on the calendar. The Filing sets page (`/filings/calendar/sets/`, CPUC system administrators;
+`submissions.filing_sets` over `register_setup_groups` and `register_setup_link`) lists each with its filings, how many are canceled,
+what is due next and an Edit link to its set-up page. A CPUC system administrator cancels any one filing of a set, from the set-up
+page's Filings in this set section (`submissions.setup.CancelForm` / `RestoreForm`) or the deadline's own page, with a reason, while
+no organization has started it: `submissions.retire_deadline` sets `Deadline.retired_at` and writes `deadline.retired` (shown as
+"Canceled"); `restore_deadline` undoes it (`deadline.restored`). The rest of the set is untouched. A canceled deadline is left off the
+calendar (unless asked for), reminders, the Filings page's status and `start`; the modules' index and filing pages mark it Canceled.
 
 ```mermaid
 stateDiagram-v2

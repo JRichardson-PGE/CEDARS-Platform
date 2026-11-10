@@ -26,6 +26,7 @@ class ClaimsConfig(AppConfig):
             register_publisher,
             register_reader,
             register_setup_groups,
+            register_setup_link,
             register_setup_page,
             register_stream,
         )
@@ -47,6 +48,7 @@ class ClaimsConfig(AppConfig):
             order=2,
         )
         register_setup_groups("claims", service.setup_groups)  # what clear_filing_calendar deletes or retires together
+        register_setup_link("claims", service.setup_link)  # the calendar and Filing sets link to the set a filing belongs to
         register_reader("claims", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
         register_filers("claims", service.filers)  # statewide claims are filed by the statewide programs' lead PAs only
         register_stream("claims", service.stream)  # a lead PA's statewide claims stand beside its own (snapshots)

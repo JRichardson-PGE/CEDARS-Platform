@@ -49,6 +49,10 @@ HELP_KEYS = {
     "claims:index": ("claims/index", "filings claim"),
     "monthly:index": ("monthly/index", "filings monthly report"),
     "submissions:calendar": ("submissions/calendar", "filings due dates deadlines"),
+    "submissions:filing_sets": (
+        "submissions/filing_sets",
+        "filing sets set-up edit cancel a filing claim year budget filing monthly reports",
+    ),
     "rules:check": ("rules/check", "filings validation rules check upload"),
     "submissions:reopen_requests": ("submissions/reopen_requests", "filings correction corrections reopen approve"),
     "budgets:changes": ("budgets/changes", "change log letters corrections"),
