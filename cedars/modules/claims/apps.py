@@ -50,6 +50,11 @@ class ClaimsConfig(AppConfig):
         register_setup_groups("claims", service.setup_groups)  # what clear_filing_calendar deletes or retires together
         register_setup_link("claims", service.setup_link)  # the calendar and Filing sets link to the set a filing belongs to
         register_reader("claims", service.can_read_submission)  # the Filings page shows where its filings stand to their readers
+        from django.urls import reverse
+
+        from cedars.services.submissions.service import register_version_page
+
+        register_version_page("claims", lambda v: reverse("claims:version", args=[v.pk]))  # a pricing run's walkthrough links back
         register_filers("claims", service.filers)  # statewide claims are filed by the statewide programs' lead PAs only
         register_stream("claims", service.stream)  # a lead PA's statewide claims stand beside its own (snapshots)
 

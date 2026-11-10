@@ -9,6 +9,7 @@
   {% if v.number > 1 %}<dt>Correction</dt><dd>{{ v.reason }}{% if letter %} (<a href="{% url 'monthly:change_letter' letter.pk %}">change letter</a>, published {{ letter.published_at|date_words }}){% endif %}</dd>{% endif %}
   {% if calc.nothing_priced %}<dt>Estimates</dt><dd>None: the report's Measure table has no rows</dd>
   {% elif calc.acc %}<dt>Estimates priced on</dt><dd>{{ calc.acc }} ACC, ReCET {{ calc.release }}</dd>
+  {% if walk_href %}<dt>Walk through a measure</dt><dd><a href="{{ walk_href }}">Follow any of its measures step by step</a>, from its savings to its cost-test ratios</dd>{% endif %}
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
 </dl>
 {% publication_hold v %}

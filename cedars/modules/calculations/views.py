@@ -825,8 +825,26 @@ def _csv_response(table, name):
 @login_required
 def walkthrough(request, pk):
     """Walk through one measure's cost-effectiveness calculation, step by step (walkthrough.py): first pick a measure of the run (any
-    measure, searched by ID, description, program or measure code), then follow its steps one at a time or all on one page."""
-    run = _run_or_404(request, pk)
+    measure, searched by ID, description, program or measure code), then follow its steps one at a time or all on one page. A run that
+    priced a claim, budget filing or monthly report is open to that filing's readers too (a published one to every signed-in user),
+    who reach it from the filing's version page and may not read the run itself."""
+    from cedars.services.submissions import service as submissions
+
+    run = get_object_or_404(Run.objects.select_related("organisation", "owner", "allocation_version"), pk=pk)
+    run_readable = service.can_read(request.user, run)
+    filings = [
+        {
+            "label": " ".join(
+                str(x) for x in (v.submission.organisation.code, v.submission.deadline.title, v.submission.deadline.period or "") if x
+            )
+            + f", version {v.number}",
+            "href": submissions.version_page(v),
+        }
+        for v in submissions.versions_priced_by(request.user, run.pk)
+    ]
+    filings = [f for f in filings if f["href"]]
+    if not run_readable and not filings:
+        raise Http404
     parts = results_mod.acc_parts(run)
     acc = request.GET.get("acc", "") if request.GET.get("acc", "") in parts else (parts[0] if parts else "")
     measure = request.GET.get("measure", "").strip()[:200]
@@ -835,6 +853,8 @@ def walkthrough(request, pk):
     step_key = request.GET.get("step") if request.GET.get("step") in walk.STEP_KEYS else walk.STEP_KEYS[0]
     ctx = {
         "run": run,
+        "run_readable": run_readable,
+        "filings": filings,
         "acc": acc,
         "acc_tabs": [
             {

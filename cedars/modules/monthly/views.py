@@ -417,6 +417,7 @@ def version(request, pk):
             "files": [(lbl, i) for i, (lbl, _, _) in enumerate(service.published_files(v))],
             "public": v.status == SubmissionVersion.Status.PUBLISHED,
             "calc": v.calculation or {},
+            "walk_href": submissions.run_walkthrough(v),
             "commitment_fields": COMMITMENT_FIELDS,
             "cost_fields": PROGRAM_COST_FIELDS,
             "unvalidated": UNVALIDATED,

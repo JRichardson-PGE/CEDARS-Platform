@@ -453,6 +453,7 @@ def version(request, pk):
             "public": v.status == SubmissionVersion.Status.PUBLISHED,
             "csv_query": f"?{query}" if query else "",
             "calc": v.calculation or {},
+            "walk_href": submissions.run_walkthrough(v),
             "cost_fields": PROGRAM_COST_FIELDS,
             "legacy": legacy.imported(v) if v.imported else None,
             "letter": ChangeLetter.objects.filter(version=v).first(),

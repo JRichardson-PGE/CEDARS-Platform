@@ -212,6 +212,9 @@ calculations/walkthrough:
       engine wrote for that output and the page says whether they agree, so the walkthrough explains the engine's numbers and never
       prices anything itself. Each number names its output column, to find it in the run's measure-level file.
     - Any measure of any run can be walked through. A run priced on two ACCs has a tab for each.
+    - A claim, budget filing or monthly report priced on the platform links its own walkthrough from its version page, so its records can
+      be followed as priced. Whoever may read the filing may open it (every signed-in user, once the filing is published), though the
+      run itself stays the filing organization's.
     - The steps follow the engine that priced the run. On a run priced by a replica of a past CET release, they use that release's
       column names, discount rates and quarterly avoided-cost tables and its own cost tests, and where the release's value differs from
       the arithmetic because of an error CET made (the replicas keep CET's errors on purpose), the step names the error.
