@@ -57,3 +57,22 @@ def test_demo_account_files_for_every_pa_of_a_type():
     assert sorted(User.objects.get(email="two@example.org").memberships.values_list("organisation__code", flat=True)) == ["MCE", "PGE"]
     with pytest.raises(CommandError, match="no active program administrator of type XYZ"):
         call_command("demo_account", EMAIL, "--pa-type", "XYZ", "--password", "p")
+
+
+def test_demo_account_cpuc_is_an_administrator_that_signs_in(client, settings):
+    settings.CEDARS_REQUIRE_MFA = False
+    call_command("seed_sandbox", "--year", "2028")
+    call_command("demo_account", "admin@cpuc.example.org", "--cpuc", "--name", "Ada Min", "--password", "a demo password 1")
+    user = User.objects.get(email="admin@cpuc.example.org")
+    cpuc = service.cpuc()
+    held = service.effective_permissions(user, cpuc)
+    assert {"claims.approve", "budgets.admin", "documents.read", "org.admin", "system.admin", "pii.steward"} <= held
+    assert service.is_system_admin(user) and service.is_steward(user) and service.is_cpuc_staff(user)
+    assert list(user.memberships.values_list("organisation__code", flat=True)) == ["CPUC"]
+    r = client.post("/accounts/login/", {"login": "admin@cpuc.example.org", "password": "a demo password 1"})
+    assert r.status_code == 302 and "_auth_user_id" in client.session
+    call_command("demo_account", "admin@cpuc.example.org", "--cpuc", "--password", "a second password 2")
+    user.refresh_from_db()
+    assert user.check_password("a second password 2") and user.memberships.count() == 1
+    with pytest.raises(CommandError, match="leave out --org"):
+        call_command("demo_account", "admin@cpuc.example.org", "--cpuc", "--org", "PGE", "--password", "p")
