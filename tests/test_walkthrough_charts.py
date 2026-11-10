@@ -5,7 +5,7 @@ discounted savings. Steps 4 and 6 read the run's packs: here a load-shape librar
 shape, prices that rise each year), registered as file:// packs as `register_pack` does on a server. The engine's own per-measure
 pricing is the oracle for the electric benefit those packs give; the chart is drawn only when its years add up to the row's ElecBen.
 (On the engine's 1,270-measure regression job and its sliced reference data, every measure's years add up to its ElecBen or, for added
-load, its ElecSupplyCost.)"""
+load, its ElecSupplyCost when it is a fuel substitution, else a negative ElecBen.)"""
 
 import copy
 import datetime
@@ -257,3 +257,12 @@ def test_the_load_shape_and_the_value_charts_from_the_runs_packs(analyst, pge, r
     assert "Share of the year&#x27;s savings in each month" in html and "Share of the year&#x27;s savings in each hour of the day" in html
     html = page_only(web.get(f"/calculations/runs/{run.pk}/walkthrough/", {"measure": "W2", "step": "value"}).content.decode())
     assert "building up, year by year" not in html and "Step 6 of 10" in html
+
+
+def test_added_load_is_charted_by_its_size_as_a_supply_cost_or_a_negative_benefit():
+    w = w_of(0)
+    quarters = [{"year": 2028, "quarter": q, "pv": -10.0, "value": -10.0} for q in range(1, 5)]
+    cost = walkchart.value_charts(w, {"priced": {"quarters": quarters, "per_kwh": [], "total": -40.0, "cost": True}})
+    negative = walkchart.value_charts(w, {"priced": {"quarters": quarters, "per_kwh": [], "total": -40.0, "cost": False}})
+    assert cost[0].title.startswith("The cost of supplying the added electricity") and cost[0].table["rows"][-1][-1] == "$40.00"
+    assert negative[0].title.startswith("The value of the added electricity use (a negative electric benefit)")

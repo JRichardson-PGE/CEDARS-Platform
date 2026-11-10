@@ -317,8 +317,10 @@ def _priced(run, acc, row, settings, values, represents, zone) -> tuple[dict | N
     )
     q = result.values
     total = float(q["QuarterValuePV"].sum()) if len(q) else 0.0
-    cost = total < 0  # added load (fuel substitution): the engine counts its value as a supply cost, not a negative benefit
-    if not total or not _close(abs(total), num(row.get("ElecSupplyCost" if cost else "ElecBen")), TOLERANCE):
+    # Added load (a negative total): a fuel-substitution measure's is counted as a supply cost (ElecSupplyCost), any other's as a
+    # negative electric benefit.
+    cost = total < 0 and not _close(total, num(row.get("ElecBen")), TOLERANCE)
+    if not total or not _close(-total if cost else total, num(row.get("ElecSupplyCost" if cost else "ElecBen")), TOLERANCE):
         return None, "does not add up"
     rq = 1 + rates["DiscountRateQtr"]
     quarters = []
@@ -646,10 +648,15 @@ def value_charts(w, data: dict | None) -> list[Chart]:
 
     priced = (data or {}).get("priced")
     rows = value_years(w, priced)
-    sign = -1 if priced and priced.get("cost") else 1
+    sign = -1 if priced and priced.get("total", 0) < 0 else 1
     if not rows or _sign([r["pv"] * sign for r in rows]) != 1:
         return []
-    what = "the cost of supplying the added electricity" if sign < 0 else "the electric benefit"
+    if sign > 0:
+        what = "the electric benefit"
+    elif priced.get("cost"):
+        what = "the cost of supplying the added electricity"
+    else:
+        what = "the value of the added electricity use (a negative electric benefit)"
     running, below, this, tips, table = 0.0, [], [], [], []
     for r in rows:
         pv, value = r["pv"] * sign, r["value"] * sign
