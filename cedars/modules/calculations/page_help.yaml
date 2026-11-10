@@ -97,6 +97,7 @@ calculations/run:
     - Your own runs (for Only me) can be deleted with their files once they end; an organization's runs stay until retention removes them.
   how:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
+    - Walk through a measure follows any one measure of a finished run through its cost-effectiveness calculation, step by step.
     - Stop the run ends a queued or running run. Edit inputs and rerun opens a small job's tables to change and run again.
     - Rerun with different settings opens New run filled in from this run.
     - Delete this run, beside Results on one of your own ended runs, asks you to confirm, then removes the run and its files for good.
@@ -108,7 +109,7 @@ calculations/run:
       text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
     - target: main .head-row .actions
       title: Results, compare and delete
-      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, and, on your own ended run, Delete this run (it asks first).
+      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, a walk through any one measure's calculation, and, on your own ended run, Delete this run (it asks first).
       optional: true
     - target: "#totals-h"
       title: Portfolio totals
@@ -196,6 +197,49 @@ calculations/results:
     - target: main table.data
       title: The table
       text: Sort by a column heading, filter the rows, and download the table as CSV.
+      optional: true
+
+calculations/walkthrough:
+  title: Walking through a measure
+  guide:
+    - Follows one measure of a finished run from its inputs to its cost-test ratios in ten steps, with what each step does in plain words
+      and the run's own numbers for that measure. It is a way to learn how cost-effectiveness is worked out, and to see why a particular
+      measure came out the way it did.
+    - The steps are the measure; the energy it saves in a year; how long the savings last; when in the day and year they happen (the
+      load shape); why later dollars count for less (discounting); what the savings are worth on the avoided costs; what the measure
+      costs; its share of the program's costs; each cost test's benefits, costs and ratio; and the verdict.
+    - Every number is read from the run's own outputs. Where a step multiplies, adds or divides, the result is set beside the value the
+      engine wrote for that output and the page says whether they agree, so the walkthrough explains the engine's numbers and never
+      prices anything itself. Each number names its output column, to find it in the run's measure-level file.
+    - Any measure of any run can be walked through. A run priced on two ACCs has a tab for each.
+    - The steps follow the engine that priced the run. On a run priced by a replica of a past CET release, they use that release's
+      column names, discount rates and quarterly avoided-cost tables and its own cost tests, and where the release's value differs from
+      the arithmetic because of an error CET made (the replicas keep CET's errors on purpose), the step names the error.
+  how:
+    - Find a measure by its record ID, description, program or measure code, then pick its ID.
+    - Next and Previous move between the steps; the numbered steps at the top go straight to one. Show every step on one page puts them
+      all on one page, to read through or print.
+    - Pick another measure goes back to the list.
+  see: calculations
+  tour:
+    - target: main .head-row .actions
+      title: Back to the run
+      text: The run's Results and its page with the files.
+    - target: main form.walk-pick
+      title: Pick a measure
+      text: Find any measure of the run by its record ID, description, program or measure code, then pick its ID in the list.
+      optional: true
+    - target: main nav.walk-steps
+      title: The steps
+      text: The ten steps from the measure's inputs to its ratios. Pick one, or show them all on one page.
+      optional: true
+    - target: main section.walk-step
+      title: One step
+      text: What the step does in plain words, the measure's own numbers, and each sum or product beside the engine's value for it.
+      optional: true
+    - target: main nav.walk-pager
+      title: Previous and next
+      text: Move through the steps in order.
       optional: true
 
 calculations/compare:

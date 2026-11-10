@@ -1,0 +1,69 @@
+{% extends "core/base.html" %}
+{% block title %}Walk through a measure · {{ run.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:runs' %}">Runs</a></li><li><a href="{% url 'calculations:run' run.pk %}">{{ run.name }}</a></li></ol></nav>
+<div class="head-row">
+  <div class="page-title"><h1>Walk through a measure: {{ run.name }}</h1>{% page_help "calculations/walkthrough" %}</div>
+  <div class="actions">
+    <a class="button" href="{% url 'calculations:results' run.pk %}{% if acc %}?acc={{ acc }}{% endif %}">Results</a>
+    <a class="button" href="{% url 'calculations:run' run.pk %}">Run page and files</a>
+  </div>
+</div>
+{% if acc_tabs %}
+<nav class="subnav" aria-label="ACCs of this comparison">
+  {% for t in acc_tabs %}<a href="{{ t.href }}"{% if t.on %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if note %}
+<p>{{ note }}</p>
+{% else %}
+{% if missing %}<p class="alert" role="alert">This run has no measure with the ID {{ missing }}. Pick one below.</p>{% endif %}
+
+{% if not steps %}
+<p>Follow one measure of this run from its inputs to its cost-test ratios, one step at a time, with what each step does in plain words and the run's own numbers. Pick any measure.</p>
+<form method="get" class="row-form walk-pick" aria-label="Find a measure">
+  {% if acc %}<input type="hidden" name="acc" value="{{ acc }}">{% endif %}
+  <label>Find a measure <input type="search" name="q" value="{{ q }}" aria-describedby="pick-help"></label>
+  <button type="submit">Find</button>
+  <span class="small muted" id="pick-help">By record ID, description, program or measure code.</span>
+</form>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="pick-caption">
+<table class="list data">
+  <caption id="pick-caption">{% if q %}Measures matching "{{ q }}"{% else %}Measures of this run{% endif %}: {{ matches|floatformat:"0g" }}{% if matches > choices|length %}, the first {{ choices|length }} shown{% endif %}</caption>
+  <thead><tr><th scope="col">Record ID</th><th scope="col">Measure</th><th scope="col">Program</th><th scope="col">Claimed</th><th scope="col">Territory</th><th scope="col">TRC ratio</th></tr></thead>
+  <tbody>
+  {% for c in choices %}
+  <tr><th scope="row"><a href="?{% if acc %}acc={{ acc|urlencode }}&amp;{% endif %}measure={{ c.id|urlencode }}">{{ c.id }}</a></th><td>{{ c.description }}</td><td>{{ c.program }}</td><td>{{ c.quarter }}</td><td>{{ c.pa }}</td><td class="num">{{ c.trc }}</td></tr>
+  {% empty %}
+  <tr><td colspan="6">No measure{% if q %} matches "{{ q }}"{% endif %}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="walk-measure">
+  <p><strong>Walking through {{ measure }}</strong>{% if row_title %}: {{ row_title }}{% endif %}.
+    <a href="?{% if acc %}acc={{ acc|urlencode }}{% endif %}">Pick another measure</a></p>
+  <p class="small muted">Every number below is this run's own, from its kept measure-level table{% if file %} ({{ file }}){% endif %}. Each sum, product and ratio is set beside the engine's value for the same output: {{ checked|length }} of them on these pages.</p>
+</div>
+
+<nav aria-label="Steps" class="walk-steps">
+  <ol>
+    {% for n in nav %}<li><a href="{{ n.href }}"{% if n.on %} aria-current="step"{% endif %}><span class="walk-num">{{ n.number }}</span> {{ n.title }}</a></li>{% endfor %}
+  </ol>
+  <p class="small">{% if show_all %}<a href="{{ one_href }}">One step at a time</a>{% else %}<a href="{{ all_href }}">Show every step on one page</a>{% endif %}</p>
+</nav>
+
+{% if show_all %}
+{% for s in steps %}{% include "calculations/_walk_step.html" with s=s %}{% endfor %}
+{% else %}
+{% include "calculations/_walk_step.html" with s=step %}
+<nav class="pager walk-pager" aria-label="Previous and next step">
+  {% if previous %}<a href="{{ previous.href }}" rel="prev">Previous: {{ previous.title }}</a>{% endif %}
+  {% if next %}<a class="button primary" href="{{ next.href }}" rel="next">Next: {{ next.title }}</a>{% endif %}
+</nav>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -270,6 +270,10 @@ PAGES = [
     ("results-program-level", "/calculations/runs/{finished_run}/results/?level=program&sort=TotalSystemBenefit&desc=1", "analyst"),
     ("results-measure-level", "/calculations/runs/{finished_run}/results/?level=measure&pa=PGE", "analyst"),
     ("compare", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program", "analyst"),
+    # Walk through a measure: the picker (searched), one step, and every step on one page
+    ("walkthrough", "/calculations/runs/{finished_run}/walkthrough/?q=measure", "analyst"),
+    ("walkthrough-step", "/calculations/runs/{finished_run}/walkthrough/?measure=M2&step=tests", "analyst"),
+    ("walkthrough-all", "/calculations/runs/{finished_run}/walkthrough/?measure=M2&all=1", "analyst"),
     ("results-view-find", "/calculations/runs/{finished_run}/results/?view={result_view}&find=benefit", "analyst"),
     ("compare-view", "/calculations/runs/{finished_run}/compare/?with={finished_run}&level=program&view={result_view}&q=pge", "analyst"),
     ("engine-releases", "/calculations/engines/", "cpuc_admin"),

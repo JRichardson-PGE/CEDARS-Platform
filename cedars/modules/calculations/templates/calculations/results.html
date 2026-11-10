@@ -7,6 +7,7 @@
   <div class="actions">
     <a class="button" href="{% url 'calculations:run' run.pk %}">Run page and files</a>
     {% if res %}<a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}
+    {% if res %}<a class="button" href="{% url 'calculations:walkthrough' run.pk %}{% if acc and acc != "comparison" %}?acc={{ acc }}{% endif %}">Walk through a measure</a>{% endif %}
   </div>
 </div>
 {% if acc_tabs %}

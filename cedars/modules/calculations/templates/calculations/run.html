@@ -6,7 +6,7 @@
 <div class="head-row">
   <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
   {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
-  {% if run.status == "succeeded" or can_delete %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a>{% endif %}
+  {% if run.status == "succeeded" or can_delete %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a> <a class="button" href="{% url 'calculations:walkthrough' run.pk %}">Walk through a measure</a>{% endif %}
     {% if can_delete %}<a class="button danger" id="delete-run" href="{% url 'calculations:delete' run.pk %}">Delete this run</a>{% endif %}</div>{% endif %}
 </div>
 

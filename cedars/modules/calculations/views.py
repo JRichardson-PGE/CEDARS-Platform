@@ -21,6 +21,7 @@ from cedars.services.refdata.models import PackVersion
 
 from . import dispatch, drafts, forms, input_templates, result_views, service
 from . import results as results_mod
+from . import walkthrough as walk
 from .models import EngineRelease, InputDraft, Run
 
 PER_PAGE = 50
@@ -819,6 +820,71 @@ def _csv_response(table, name):
     resp = HttpResponse(table.to_csv(index=False), content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{name}"'
     return resp
+
+
+@login_required
+def walkthrough(request, pk):
+    """Walk through one measure's cost-effectiveness calculation, step by step (walkthrough.py): first pick a measure of the run (any
+    measure, searched by ID, description, program or measure code), then follow its steps one at a time or all on one page."""
+    run = _run_or_404(request, pk)
+    parts = results_mod.acc_parts(run)
+    acc = request.GET.get("acc", "") if request.GET.get("acc", "") in parts else (parts[0] if parts else "")
+    measure = request.GET.get("measure", "").strip()[:200]
+    q = request.GET.get("q", "").strip()[:100]
+    show_all = request.GET.get("all") == "1"
+    step_key = request.GET.get("step") if request.GET.get("step") in walk.STEP_KEYS else walk.STEP_KEYS[0]
+    ctx = {
+        "run": run,
+        "acc": acc,
+        "acc_tabs": [
+            {
+                "label": f"{a} ACC" + (" (the run's own)" if a == run.acc_version else ""),
+                "href": "?" + _query(acc=a, measure=measure),
+                "on": a == acc,
+            }
+            for a in parts
+        ],
+        "measure": measure,
+        "q": q,
+        "show_all": show_all,
+        "pick_limit": walk.PICK_LIMIT,
+    }
+    try:
+        if measure:
+            found = walk.measure_row(run, acc or None, measure)
+            if found is None:
+                ctx["missing"] = measure
+                ctx["measure"] = measure = ""
+            else:
+                row, repeated = found
+                settings = walk.run_settings(run, acc or None)
+                engine = walk.Engine.of(run, settings)
+                cset = None if engine.replica else walk.cost_test_set(run, acc or None, row)  # a replica prices CET's own tests
+                steps = walk.build(row, settings, cset, repeated, engine)
+                index = walk.STEP_KEYS.index(step_key)
+                link = lambda k: "?" + _query(acc=acc, measure=measure, step=k)  # noqa: E731
+                ctx.update(
+                    {
+                        "row_title": walk.text(row.get("MeasDescription")) or walk.text(row.get("MeasCode")),
+                        "steps": steps,
+                        "step": steps[index],
+                        "nav": [
+                            {"number": s.number, "title": s.title, "href": link(s.key), "on": s.key == step_key and not show_all}
+                            for s in steps
+                        ],
+                        "previous": {"title": steps[index - 1].title, "href": link(steps[index - 1].key)} if index > 0 else None,
+                        "next": {"title": steps[index + 1].title, "href": link(steps[index + 1].key)} if index + 1 < len(steps) else None,
+                        "all_href": "?" + _query(acc=acc, measure=measure, all="1"),
+                        "one_href": link(step_key),
+                        "file": walk.file_name(run, acc or None),
+                        "checked": walk.checks(steps),
+                    }
+                )
+        if not measure:
+            ctx["choices"], ctx["matches"] = walk.choices(run, acc or None, q)
+    except walk.NoWalkthrough as e:
+        ctx["note"] = str(e)
+    return render(request, "calculations/walkthrough.html", ctx)
 
 
 @login_required

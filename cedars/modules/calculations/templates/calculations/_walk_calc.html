@@ -1,0 +1,5 @@
+<li class="walk-calc">
+  <span class="walk-calc-label">{{ c.label }}</span>
+  <span class="walk-calc-expr">{{ c.expr }} = <strong>{{ c.result }}</strong></span>
+  {% if c.output %}<span class="small">{% if c.ok is True %}<span class="status ok">Agrees</span> with the engine's <code>{{ c.output }}</code>: {{ c.output_value }}{% elif c.ok is False and c.known %}<span class="status warn">Differs, a known CET error</span> from the replica's <code>{{ c.output }}</code>: {{ c.output_value }}. {{ c.known }}, and the replica keeps it.{% elif c.ok is False %}<span class="status bad">Differs</span> from the engine's <code>{{ c.output }}</code>: {{ c.output_value }}{% else %}The engine's <code>{{ c.output }}</code>{% endif %}</span>{% endif %}
+</li>
