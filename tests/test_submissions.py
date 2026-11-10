@@ -376,15 +376,17 @@ def test_a_deadline_changes_with_a_reason_and_each_change_is_audited(cpuc_admin,
     assert AuditEvent.objects.count() == n  # nothing changed, nothing recorded
 
 
-def test_a_deadline_is_retired_only_when_no_filing_started_and_no_module_set_it_up(cpuc_admin, analyst, deadline, pge):
+def test_a_filing_is_canceled_only_while_no_filing_started(cpuc_admin, analyst, deadline, pge):
     service.start(analyst, deadline, pge)
     with pytest.raises(AccessDenied, match="1 organization has started"):
         service.retire_deadline(cpuc_admin, deadline, "mistake")
     from cedars.modules.claims import service as claims
 
     claims.add_year(cpuc_admin, year=2030, acc_version="2026", due={k: timezone.now() + timedelta(days=40) for k, _ in claims.PERIODS})
-    with pytest.raises(AccessDenied, match="module's set-up"):
-        service.retire_deadline(cpuc_admin, claims.periods(2030)[0], "mistake")
+    q1 = claims.periods(2030)[0]
+    service.retire_deadline(cpuc_admin, q1, "No first quarter this year")  # one filing of a set-up cancels too
+    q1.refresh_from_db()
+    assert q1.retired_at and all(d.retired_at is None for d in claims.periods(2030)[1:])
     d = _hand_added(cpuc_admin)
     with pytest.raises(AccessDenied, match="reason"):
         service.retire_deadline(cpuc_admin, d, "")
@@ -396,7 +398,7 @@ def test_a_deadline_is_retired_only_when_no_filing_started_and_no_module_set_it_
     assert d not in Deadline.objects.active()
     with pytest.raises(AccessDenied, match="taken off"):
         service.start(analyst, d, pge)
-    with pytest.raises(AccessDenied, match="retired"):
+    with pytest.raises(AccessDenied, match="canceled"):
         service.change_deadline(cpuc_admin, d, due_at=d.due_at, reason="r")
     with pytest.raises(AccessDenied, match="restore it"):
         _hand_added(cpuc_admin)  # the same deadline again: restore it instead
@@ -419,7 +421,7 @@ def test_the_deadline_page(client, signed_in, cpuc_admin, pge_admin, deadline):
     assert client.post(url, {"action": "retire", "reason": "x"}).status_code == 404
     c = signed_in(cpuc_admin)
     page = c.get(url).content.decode()
-    assert 'id="change-h"' in page and 'id="retire-h"' in page
+    assert 'id="change-h"' in page and 'id="cancel-h"' in page
     due_time = timezone.localtime(deadline.due_at).time()
     r = c.post(url, {"action": "change", "due": "2028-05-15", "opens": "2028-04-01", "notes": "Bring the summary", "reason": "D.26-01-001"})
     assert r.status_code == 302 and r.url == url
@@ -435,9 +437,9 @@ def test_the_deadline_page(client, signed_in, cpuc_admin, pge_admin, deadline):
     r = c.post(url, {"action": "retire", "reason": "Wrong period"})
     assert r.status_code == 302 and 'id="restore-h"' in c.get(url).content.decode()
     cal = c.get("/filings/calendar/?range=all").content.decode()
-    assert f'href="{url}"' not in cal and "Show retired deadlines (1)" in cal
+    assert f'href="{url}"' not in cal and "Show canceled filings (1)" in cal
     cal = c.get("/filings/calendar/?range=all&retired=1").content.decode()
-    assert f'href="{url}"' in cal and "Retired</strong>" in cal and "Hide retired deadlines" in cal
+    assert f'href="{url}"' in cal and "Canceled</strong>" in cal and "Hide canceled filings" in cal
 
 
 def test_the_public_calendar_hides_retired_deadlines(client, cpuc_admin, deadline):

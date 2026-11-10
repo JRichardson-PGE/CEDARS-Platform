@@ -85,7 +85,9 @@ class DeadlineChangeForm(forms.Form):
 
 
 class RetireForm(forms.Form):
-    reason = forms.CharField(label="Reason", max_length=500, help_text="Kept in the deadline's history.")
+    """The reason for canceling a filing or restoring it."""
+
+    reason = forms.CharField(label="Reason", max_length=500, help_text="Kept in the filing's history.")
 
 
 def _due_at(day: date, keep=None):
@@ -366,7 +368,7 @@ def calendar(request):
             "filters": f,
             "type_chips": type_chips,
             "range_chips": range_chips,
-            "showing": showing + (", retired ones included" if retired else ""),
+            "showing": showing + (", canceled ones included" if retired else ""),
             "filtered": bool(types) or (view == "list" and rng != "all"),
             "all_url": link(types=[]) if view in ("month", "year") else _calendar_link([], "all", retired=retired),
             "view_urls": {
@@ -416,6 +418,22 @@ def deadline_new(request):
     return render(request, "submissions/deadline_new.html", {"pages": pages})
 
 
+@login_required
+def filing_sets(request):
+    """Every filing set on the calendar (each budget filing, claim year and year of monthly reports set up), for CPUC system
+    administrators: its filings, how many are canceled, what is due next, and a link to edit it on its set-up page (Jake, 2026-11-09:
+    edit the filing sets directly)."""
+    if not access.is_system_admin(request.user):
+        raise Http404
+    sets = service.filing_sets()
+    kinds = []
+    for s in sets:
+        if s["kind"] not in kinds:
+            kinds.append(s["kind"])
+    groups = [(k, [s for s in sets if s["kind"] == k]) for k in kinds]
+    return render(request, "submissions/filing_sets.html", {"groups": groups, "count": len(sets)})
+
+
 FIELD_LABELS = {
     "name": "Name",
     "years": "Program years",
@@ -428,7 +446,7 @@ EVENT_LABELS = {
     "deadline.created": "Added to the calendar",
     "deadline.moved": "Due date moved",
     "deadline.changed": "Changed",
-    "deadline.retired": "Retired (taken off the calendar)",
+    "deadline.retired": "Canceled (taken off the calendar)",
     "deadline.restored": "Restored to the calendar",
     "deadline.filers_changed": "Who files changed",
 }
@@ -520,7 +538,7 @@ def deadline(request, pk):
         except AccessDenied as e:
             messages.error(request, str(e))
         else:
-            messages.success(request, "Deadline retired." if action == "retire" else "Deadline restored to the calendar.")
+            messages.success(request, "Filing canceled." if action == "retire" else "Filing restored to the calendar.")
             return redirect("submissions:deadline", pk=d.pk)
     page = service.deadline_page(d)
     return render(
@@ -534,7 +552,8 @@ def deadline(request, pk):
             "retire_form": retire_form,
             "started": started,
             "renamable": renamable,
-            "can_retire": not page and not started,
+            "can_retire": not started,
+            "setup_url": service.setup_link(d),
             "history": deadline_history(d),
         },
     )

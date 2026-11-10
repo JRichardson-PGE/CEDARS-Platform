@@ -73,6 +73,7 @@ _deadline_pages: dict[str, Callable] = {}
 _setup_pages: dict[str, dict] = {}
 _nothing_to_file: dict[str, Callable] = {}
 _setup_groups: dict[str, Callable] = {}
+_setup_links: dict[str, Callable] = {}
 _readers: dict[str, Callable] = {}
 _filers: dict[str, Callable] = {}
 _streams: dict[str, Callable] = {}
@@ -200,6 +201,47 @@ def register_setup_groups(module: str, groups: Callable[[], list[tuple[str, list
     _setup_groups[module] = groups
 
 
+def register_setup_link(module: str, link: Callable[[Deadline], str]) -> None:
+    """A module's set-up page for one of its deadlines: link(deadline) -> the URL of the set-up it belongs to (a claim year's, a year
+    of monthly reports', a budget filing's), or "" for one no set-up put on the calendar. The calendar's pages and Filing sets link
+    there, so a CPUC system administrator edits a filing set from wherever they meet one of its filings."""
+    _setup_links[module] = link
+
+
+def setup_link(deadline: Deadline) -> str:
+    link = _setup_links.get(deadline.module)
+    return link(deadline) if link else ""
+
+
+def filing_sets() -> list[dict]:
+    """Every filing set on the calendar (each module set-up: a budget filing, a claim year, a year of monthly reports), for the Filing
+    sets page: what it is, its module, its set-up page, its filings in due order, how many are canceled and whether any organization
+    has started filing for it."""
+    labels = {p["module"]: p["label"] for p in setup_pages()}
+    out = []
+    for module, fn in sorted(_setup_groups.items()):
+        for what, ids, _remove in fn():
+            deadlines = list(Deadline.objects.filter(pk__in=list(ids)).select_related("period", "cycle").order_by("due_at", "pk"))
+            if not deadlines:
+                continue
+            active = [d for d in deadlines if d.retired_at is None]
+            coming = [d for d in active if d.due_at > timezone.now()]
+            out.append(
+                {
+                    "module": module,
+                    "kind": labels.get(module, module),
+                    "what": what,
+                    "url": setup_link(deadlines[0]),
+                    "deadlines": deadlines,
+                    "canceled": len(deadlines) - len(active),
+                    "next_due": coming[0] if coming else None,
+                    "last_due": deadlines[-1].due_at,
+                    "started": filed(ids),
+                }
+            )
+    return sorted(out, key=lambda s: (-s["last_due"].timestamp(), s["what"]))
+
+
 @transaction.atomic
 def clear_calendar(actor, reason: str, *, apply: bool = False) -> dict:
     """Empty the filing calendar, for a demo or sandbox site (manage.py clear_filing_calendar). Each module set-up (a budget filing,
@@ -273,6 +315,14 @@ def filing_pas():
 def started_by(deadline_ids) -> set[int]:
     """The organizations that have started filing for any of these deadlines, by id."""
     return set(Submission.objects.filter(deadline_id__in=list(deadline_ids)).values_list("organisation_id", flat=True))
+
+
+def started_counts(deadline_ids) -> dict[int, int]:
+    """How many organizations have started filing for each of these deadlines, by deadline id (those none has started left out)."""
+    from django.db.models import Count
+
+    rows = Submission.objects.filter(deadline_id__in=list(deadline_ids)).values("deadline_id").annotate(n=Count("pk"))
+    return {r["deadline_id"]: r["n"] for r in rows}
 
 
 @transaction.atomic
@@ -557,7 +607,7 @@ def add_deadline(
         same = Deadline.objects.filter(module=module, kind=kind, period=period, cycle=None).first()
     if same is not None:
         if same.retired_at:
-            raise AccessDenied(f"{same} was retired; restore it from its page instead of adding it again.")
+            raise AccessDenied(f"{same} was canceled; restore it from its page instead of adding it again.")
         raise AccessDenied(f"The calendar already has {same}; change its dates on its page.")
     d = Deadline.objects.create(
         module=module, kind=kind, name=name, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes
@@ -617,7 +667,7 @@ def change_deadline(
         raise AccessDenied("Give the reason for the change.")
     deadline = Deadline.objects.select_for_update(of=("self",)).select_related("cycle").get(pk=deadline.pk)
     if deadline.retired_at:
-        raise AccessDenied("This deadline is retired; restore it before changing it.")
+        raise AccessDenied("This filing is canceled; restore it before changing it.")
     if opens_at and opens_at >= due_at:
         raise AccessDenied("A filing opens before it is due: choose an opening date before the due date.")
     before = deadline_fields(deadline)
@@ -661,22 +711,24 @@ def change_deadline(
 
 @transaction.atomic
 def retire_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
-    """Take a deadline off the calendar, with a reason: one added by hand by mistake, or for a period the CPUC no longer asks for. Only
-    a deadline no module set up (one with no module page, deadline_page: a claim year's, a monthly reports year's and a budget filing's
-    are part of that set-up and are moved, not retired), and only while no organization has started a filing for it. The deadline
-    stays, with its history, and no filing can start for it until it is restored."""
+    """Cancel one filing (take its deadline off the calendar), with a reason: one quarter's claim, one month's report or one budget
+    filing of a filing set the CPUC no longer asks for (Jake, 2026-11-09: a single filing of any filing set, from its set-up page or
+    the calendar), or a deadline added by hand by mistake. Only while no organization has started filing for it (what was filed is
+    kept). The deadline stays, with its history and the rest of its set, and no filing can start for it until it is restored; the
+    calendar, reminders, the Filings page's status and its module's pages leave it out or mark it canceled."""
     _calendar_admin(actor)
     if not (reason or "").strip():
-        raise AccessDenied("Give the reason for retiring the deadline.")
+        raise AccessDenied("Give the reason for canceling the filing.")
     deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
     if deadline.retired_at:
         return deadline
-    if deadline_page(deadline):
-        raise AccessDenied("This deadline is part of its module's set-up, so it cannot be retired; change its due date instead.")
     started = deadline.submissions.count()
     if started:
         orgs = "organization has" if started == 1 else "organizations have"
-        raise AccessDenied(f"{started} {orgs} started filing for this deadline, so it cannot be retired; change its due date instead.")
+        raise AccessDenied(
+            f"{started} {orgs} started filing {deadline.title}, {deadline.period or deadline.cycle}, so it cannot be canceled: "
+            "what was filed is kept. Change its due date instead."
+        )
     deadline.retired_at, deadline.retired_reason = timezone.now(), reason.strip()
     deadline.save(update_fields=["retired_at", "retired_reason"])
     audit.record("deadline.retired", obj=deadline, after={"retired_at": _when(deadline.retired_at)}, reason=reason.strip(), actor=actor)
@@ -685,10 +737,10 @@ def retire_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
 
 @transaction.atomic
 def restore_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
-    """Put a retired deadline back on the calendar, with a reason."""
+    """Put a canceled filing's deadline back on the calendar, with a reason."""
     _calendar_admin(actor)
     if not (reason or "").strip():
-        raise AccessDenied("Give the reason for restoring the deadline.")
+        raise AccessDenied("Give the reason for restoring the filing.")
     deadline = Deadline.objects.select_for_update().get(pk=deadline.pk)
     if not deadline.retired_at:
         return deadline

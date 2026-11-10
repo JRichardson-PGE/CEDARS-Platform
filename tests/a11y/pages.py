@@ -153,6 +153,7 @@ PAGES = [
     ("filing-deadline-budget", "/filings/calendar/{application}/", "cpuc_admin"),  # name and program years can change
     ("filing-deadline-budget-started", "/filings/calendar/{tual}/", "cpuc_admin"),  # program years fixed: a PA has filed
     ("filing-add", "/filings/calendar/new/", "cpuc_admin"),
+    ("filing-sets", "/filings/calendar/sets/", "cpuc_admin"),
     ("reopen-requests", "/filings/reopen-requests/", "approver"),
     ("my-queue", "/queue/", "approver"),
     ("my-queue-cofunder", "/queue/", "sce_user"),

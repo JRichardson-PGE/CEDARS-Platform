@@ -1,6 +1,7 @@
 """The calendar part of a module's set-up page (a budget filing's, a claim year's, a year of monthly reports'): the set-up's due dates,
 changed there as on the filing calendar (Jake, 2026-11-06), the program administrators who file for it (Jake, 2026-11-09: not every
-PA files every filing; `set_filers`), and Remove this set-up while nobody has filed for it. The module's view
+PA files every filing; `set_filers`), its filings one by one (Jake, 2026-11-09: cancel a single filing of any filing set, and
+restore it; `retire_deadline` / `restore_deadline`), and Remove this set-up while nobody has filed for it. The module's view
 calls `calendar_forms` and its template includes "submissions/_setup_calendar.html"; the changes go through this service's
 move_due_dates and remove_setup, so the calendar, the audit trail and the deadlines' subscribers stay in step."""
 
@@ -101,6 +102,36 @@ def filers(deadlines):
     return [d for d in deadlines if not service.nothing_to_file(d)]
 
 
+class CancelForm(forms.Form):
+    """Cancel one filing of the set: one no organization has started (what was filed is kept)."""
+
+    filing = forms.TypedChoiceField(label="Filing to cancel", coerce=int)
+    reason = forms.CharField(label="Reason for canceling it", max_length=500, help_text="Kept in the filing's history.")
+
+    def __init__(self, deadlines, started, *args, **kw):
+        super().__init__(*args, prefix="cancel", **kw)
+        self.deadlines = [d for d in deadlines if d.retired_at is None and d.pk not in started]
+        self.fields["filing"].choices = [("", "Choose a filing")] + [(d.pk, _label(d)) for d in self.deadlines]
+
+
+class RestoreForm(forms.Form):
+    """Put a canceled filing of the set back on the calendar."""
+
+    filing = forms.TypedChoiceField(label="Filing to restore", coerce=int)
+    reason = forms.CharField(label="Reason for restoring it", max_length=500, help_text="Kept in the filing's history.")
+
+    def __init__(self, deadlines, *args, **kw):
+        super().__init__(*args, prefix="restore", **kw)
+        self.deadlines = [d for d in deadlines if d.retired_at is not None]
+        self.fields["filing"].choices = [("", "Choose a filing")] + [(d.pk, _label(d)) for d in self.deadlines]
+
+
+def filing_rows(deadlines, started_counts) -> list[dict]:
+    """The set's filings for its "Filings in this set" table: each with its label, whether it is canceled and how many organizations
+    have started it."""
+    return [{"d": d, "label": _label(d), "started": started_counts.get(d.pk, 0), "canceled": d.retired_at is not None} for d in deadlines]
+
+
 class RemoveForm(forms.Form):
     reason = forms.CharField(label="Reason for removing it", max_length=500, help_text="Kept in the audit trail.")
 
@@ -119,6 +150,22 @@ def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: 
     due_form = DueDatesForm(deadlines, request.POST if action == "due" else None)
     filers_form = FilersForm(filer_deadlines, request.POST if action == "filers" else None)
     remove_form = RemoveForm(request.POST if action == "remove" else None)
+    counts = service.started_counts(d.pk for d in deadlines)
+    cancel_form = CancelForm(deadlines, set(counts), request.POST if action == "cancel" else None)
+    restore_form = RestoreForm(deadlines, request.POST if action == "restore" else None)
+    for form, do, done in (
+        (cancel_form, service.retire_deadline, "canceled; the rest of {what} stays as it is"),
+        (restore_form, service.restore_deadline, "restored to the filing calendar"),
+    ):
+        if action == form.prefix and form.is_valid():
+            d = next(d for d in form.deadlines if d.pk == form.cleaned_data["filing"])
+            try:
+                do(request.user, d, form.cleaned_data["reason"])
+            except AccessDenied as e:
+                messages.error(request, str(e))
+            else:
+                messages.success(request, f"{_label(d)} {done.format(what=what)}.")
+                return {}, redirect(request.path)
     if action == "filers" and filers_form.is_valid():
         try:
             changed = service.set_filers(
@@ -146,10 +193,19 @@ def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: 
         else:
             messages.success(request, f"{what} removed from the filing calendar.")
             return {}, redirect(removed_url)
-    ctx = {"due_form": due_form, "filers_form": filers_form, "remove_form": remove_form, "removable": removable, "setup_what": what}
+    ctx = {
+        "due_form": due_form,
+        "filers_form": filers_form,
+        "remove_form": remove_form,
+        "cancel_form": cancel_form,
+        "restore_form": restore_form,
+        "filing_rows": filing_rows(deadlines, counts),
+        "removable": removable,
+        "setup_what": what,
+    }
     return ctx, None
 
 
 def is_calendar_post(request) -> bool:
     """Whether a POST to a set-up page is for its calendar forms, not for the set-up's own form."""
-    return request.method == "POST" and request.POST.get("action") in ("due", "filers", "remove")
+    return request.method == "POST" and request.POST.get("action") in ("due", "filers", "cancel", "restore", "remove")
