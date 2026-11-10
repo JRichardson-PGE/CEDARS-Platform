@@ -2098,3 +2098,92 @@ def test_the_edit_inputs_grid_by_keyboard(browser, axe_source, site, scene, sche
     found = _violations(page, axe_source)
     context.close()
     assert not found, f"grid ({scheme}): " + json.dumps(found, indent=1)
+
+
+def _charted_run(scene):
+    """A finished run whose kept measure-level table has a real measure (tests/data/walkthrough_measures.json), so the walkthrough draws
+    its charts. The walkthrough reads measures with the ReCET engine, so this needs it (the accessibility job runs without it)."""
+    from cedars.modules.calculations import results as results_mod
+
+    if results_mod.engine() is None:
+        pytest.skip("the walkthrough reads a run's measures with the ReCET engine")
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from cedars.modules.calculations import walkthrough as walk
+    from cedars.modules.calculations.models import EngineRelease
+
+    job = Path(settings.CEDARS_STORAGE["root"]).parent / "job.zip"
+    req = calculations.RunRequest(
+        name="Charted run", release=EngineRelease.objects.get(release="0.1.78"), calculation="recet", acc_version="2024"
+    )
+    run = calculations.create_run(scene["analyst"], scene["pge"], req, job)
+    calculations.mark_started(run, worker="scene")
+    out = run.storage_prefix + "out/"
+    storage.store("results").put_bytes(out + "measure_level_run.csv.zip", b"PK")
+    write_results(storage.store("results").path(out), 1.0)
+    rows = json.loads((Path(__file__).parent.parent / "data" / "walkthrough_measures.json").read_text())
+    storage.store("results").put_bytes(
+        out + "run_settings.json",
+        json.dumps({"inputs": {"first_year": 2028}, "acc": {"settings_acc_version": 2024}, "config": {"market_effects": 0}}).encode(),
+    )
+    receipt = {
+        "engine": {"release": "0.1.78", "commit": "91a88f5e43"},
+        "cost_tests": ((run.spec or {}).get("context") or {}).get("cost_tests") or {},
+    }
+    calculations.finish(run, exit_code=0, receipt=receipt)
+    run.refresh_from_db()
+    key = walk._measure_key(run, "")
+    pq.write_table(pa.Table.from_pylist(rows), storage.store("results").path(key))
+    return run
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_walkthrough_chart_tooltips_by_keyboard_and_pointer(browser, axe_source, site, scene, scheme):
+    """A walkthrough chart (calculations/walkthrough.js) is one tab stop: with the focus on it the arrow keys move from year to year, each
+    year's values show beside its band and are spoken through the page's one live region, Home and End jump, Escape hides them. The
+    pointer shows the year under it, and the values stay while the pointer rests on them. axe finds nothing with a tooltip shown."""
+    run = _charted_run(scene)
+    context, page = _open(
+        browser,
+        site,
+        scene,
+        f"/calculations/runs/{run.pk}/walkthrough/?measure=W1&step=life",
+        "analyst",
+        color_scheme=scheme,
+        bypass_csp=True,
+    )
+    page.add_script_tag(content=axe_source)
+    plot = page.locator(".walk-chart-plot[data-slots]").first
+    fig = page.locator(".walk-chart").first
+    n = int(plot.get_attribute("data-slots"))
+    assert n > 1 and fig.locator(".walk-chart-hint").is_visible()
+    assert plot.get_attribute("aria-describedby") == fig.locator(".walk-chart-hint").get_attribute("id")
+    assert fig.locator("rect.hit title").count() == 0  # no second, native tooltip
+    tip = fig.locator(".walk-tip")
+    plot.focus()
+    assert tip.is_visible() and tip.inner_text().startswith("Year 1 (starts ")
+    page.keyboard.press("ArrowRight")
+    assert tip.inner_text().startswith("Year 2 (starts ")
+    page.wait_for_function("document.getElementById('announcer').textContent.startsWith('Year 2 (starts ')")
+    assert fig.locator("rect.band.on").get_attribute("data-i") == "1"
+    found = _run_axe(page)
+    assert not found, f"walkthrough tooltip ({scheme}): " + json.dumps(found, indent=1)
+    page.keyboard.press("End")
+    assert tip.inner_text().startswith(f"Year {n} (starts ") and "Running total" in tip.inner_text()
+    page.keyboard.press("Home")
+    assert tip.inner_text().startswith("Year 1 (starts ")
+    page.keyboard.press("Escape")
+    assert tip.is_hidden() and page.evaluate("document.activeElement.classList.contains('walk-chart-plot')")
+    page.evaluate("document.activeElement.blur()")
+    third = fig.locator("rect.hit").nth(2)
+    third.hover()
+    assert tip.is_visible() and tip.inner_text().startswith("Year 3 (starts ")
+    box = tip.bounding_box()
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    page.wait_for_timeout(400)
+    assert tip.is_visible() and tip.inner_text().startswith("Year 3 (starts ")  # hoverable
+    page.mouse.move(0, 0)
+    page.wait_for_timeout(400)
+    assert tip.is_hidden()
+    context.close()
