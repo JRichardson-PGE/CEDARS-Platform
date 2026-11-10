@@ -77,7 +77,7 @@
     <div class="card">
       <h3>User guides</h3>
       <ul class="links">
-        {% for g in guides %}<li><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></li>{% endfor %}
+        {% for g in guides|slice:":3" %}<li><a href="{% url 'core:help_guide' g.slug %}">{{ g.title }}</a></li>{% endfor %}
       </ul>
       <p><a href="{% url 'core:help' %}">All of Help</a></p>
     </div>
