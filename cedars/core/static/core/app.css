@@ -129,7 +129,7 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .org-badge b { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; padding: .08rem .45rem; font-weight: 700; letter-spacing: .02em; }
 .bell { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; min-height: 32px; font-size: .85rem; }
 .bell[aria-current="page"], .bell:hover { color: var(--link); border-color: var(--control); }
-.bell .count { background: var(--bad); color: #fff; border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
+.bell .count { background: var(--bad); color: var(--bg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }   /* 7.2:1 light, 8.1:1 dark (white on the dark scheme's red was 2.2:1) */
 /* My queue's count of items waiting (navigation review, D1): the primary pair, as buttons use it, so it reads as work rather than an alert. */
 .queue-link { display: inline-flex; align-items: center; gap: .3rem; }
 .queue-link .count { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }

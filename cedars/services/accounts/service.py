@@ -980,6 +980,57 @@ def apply_role_template(
 # --- access requests
 
 
+def access_deciders(organisation: Organisation) -> tuple[list[User], bool]:
+    """Who is told of a request to join the organization: its administrators, else (an organization with no administrator yet) the
+    CPUC system administrators, who name its first one. (people, the CPUC's instead)"""
+    people = list(org_admins(organisation).order_by("pk"))
+    if people:
+        return people, False
+    org = cpuc()
+    return (list(holders(org, perms.SYSTEM_ADMIN).order_by("pk")) if org is not None else []), True
+
+
+def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", granted: list[str] | None = None) -> None:
+    """Tell the people an access request concerns, directly (on by default; Notification settings): a new request reaches the
+    organization's administrators (or the CPUC's, when it has none), a decision the person who asked, and a withdrawal the people told
+    of the request."""
+    from cedars.services.notifications import service as notifications
+
+    org, person = req.organisation, req.user
+    who = (person.name or "").strip() or person.email
+    wanted = ", ".join(perms.label(p) for p in req.permissions)
+    key = notifications.request_key("accounts.accessrequest", req.pk, step)
+    page = f"/admin/organizations/{org.code}/#req-h"
+    if step == "requested":
+        people, for_cpuc = access_deciders(org)
+        body = f"{who} asked to join {org.code} with: {wanted}." + (f"\n\nTheir message: {req.message}" if req.message else "")
+        if for_cpuc:
+            body += f"\n\n{org.code} has no administrator yet: name its first administrator on its page, who then decides the request."
+        notifications.tell_about_request(
+            [u for u in people if u != person], f"Access requested: {who}, {org.code}", body, page, key=key, about=notifications.DECIDE
+        )
+    elif step == "withdrawn":
+        people = notifications.told(notifications.request_key("accounts.accessrequest", req.pk, "requested"))
+        notifications.tell_about_request(
+            list(people),
+            f"Access request withdrawn: {who}, {org.code}",
+            "Nothing is left to decide.",
+            page,
+            key=key,
+            about=notifications.DECIDE,
+        )
+    else:
+        if step == "approved":
+            body = f"You can now act for {org.code} with: {', '.join(perms.label(p) for p in granted or [])}."
+            if note.strip():
+                body += f"\n\nNote: {note}"
+        else:
+            body = f"Reason: {note}" if note.strip() else f"{org.code}'s administrators gave no reason."
+        notifications.tell_about_request(
+            [person], f"Your access request to {org.code} was {step}", body, "/account/", key=key, about=notifications.OWN
+        )
+
+
 @transaction.atomic
 def request_access(user: User, organisation: Organisation, permission_codes: list[str], message: str = "") -> AccessRequest:
     bad = [p for p in permission_codes if not perms.is_valid(p) or p in perms.CPUC_ONLY]
@@ -988,6 +1039,7 @@ def request_access(user: User, organisation: Organisation, permission_codes: lis
     if AccessRequest.objects.filter(user=user, organisation=organisation, status=AccessRequest.Status.PENDING).exists():
         raise AccessDenied(f"You already have a request waiting with {organisation.code}.")
     req = AccessRequest.objects.create(user=user, organisation=organisation, permissions=sorted(set(permission_codes)), message=message)
+    _tell_about_access_request(req, "requested")
     audit.record("access_request.created", obj=req, after={"permissions": req.permissions, "message": message}, actor=user)
     return req
 
@@ -1009,6 +1061,7 @@ def decide_request(
     req.status = AccessRequest.Status.APPROVED if approve else AccessRequest.Status.DECLINED
     req.decided_by, req.decided_at, req.decision_note = actor, timezone.now(), note
     req.save()
+    _tell_about_access_request(req, req.status, note, granted=chosen if approve else None)
     audit.record(f"access_request.{req.status}", obj=req, reason=note, actor=actor)
     return req
 
@@ -1021,6 +1074,7 @@ def withdraw_request(user: User, req: AccessRequest) -> AccessRequest:
         raise AccessDenied("That request has already been decided.")
     req.status, req.decided_at = AccessRequest.Status.WITHDRAWN, timezone.now()
     req.save()
+    _tell_about_access_request(req, "withdrawn")
     audit.record("access_request.withdrawn", obj=req, actor=user)
     return req
 

@@ -27,7 +27,11 @@ notifications/settings:
       events reach you only for organizations you belong to.
   how:
     - Tick what to hear about and whether each is emailed too, then Save.
+    - Under Requests, choose how you hear the decision on your own requests and of requests waiting on you (on by default).
   tour:
     - target: main form
       title: What you are sent
       text: Tick each kind of notice, and Email for the ones to email. Save.
+    - heading: Requests
+      title: Requests
+      text: How you hear the decision on a request you made, and of a request waiting for your decision. On, with email, unless you change it.
