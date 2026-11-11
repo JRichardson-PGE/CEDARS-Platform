@@ -2390,3 +2390,24 @@ def test_the_set_up_page_sizes_the_code_field_and_shows_the_whole_key(browser, s
     assert code["width"] < 200, f"the six-digit field is {code['width']} px wide"
     assert key[0] <= key[1], "the key is clipped"
     assert "Set up your second factor" in steps
+
+
+def test_notification_settings_set_a_whole_group_by_keyboard(browser, site, scene):
+    """Notification settings (UI review 3, U15): choosing a value for a whole group ticks it on every row of the group and is announced;
+    changing a row puts the group choice back; the Save bar stays in view; nothing is wider than a phone."""
+    context, page = _open(browser, site, scene, "/notifications/settings/", "pge_admin", viewport={"width": 1280, "height": 800})
+    group = page.locator("#eg1-all")
+    group.focus()
+    group.select_option("email")
+    rows = page.locator("#eg1 tbody tr")
+    checked = page.locator("#eg1 input[type=radio][value=email]:checked")
+    assert checked.count() == rows.count() > 1
+    page.wait_for_selector("#announcer:has-text('events set to')", state="attached")
+    page.locator("#eg1 tbody tr").first.locator("input[value=off]").check()
+    assert group.input_value() == ""
+    bar = page.locator(".save-bar").bounding_box()
+    assert bar["y"] + bar["height"] <= 800 + 1, "the Save bar is not in view"
+    page.set_viewport_size({"width": 320, "height": 640})
+    wide = page.evaluate("document.documentElement.scrollWidth")
+    context.close()
+    assert wide <= 320, f"the page is {wide} px wide at 320 px"
