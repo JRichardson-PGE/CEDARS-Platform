@@ -1,5 +1,6 @@
 import io
 import json
+import re
 import sys
 import zipfile
 from pathlib import Path
@@ -579,7 +580,9 @@ def test_a_new_release_of_the_same_engine_replaces_the_old_one(signed_in, cpuc_a
     old_run = service.create_run(analyst, pge, request(release), job_zip(tmp_path))
     c = signed_in(cpuc_admin)
     page = c.get("/calculations/engines/").content.decode()
-    assert "recet: 2021, 2022, 2024, 2026\ncet-25.1: 2024, 2026" in page  # the Add form starts from the default's calculations
+    # the Add form starts from the default's calculations: a row each, its ACCs ticked
+    assert 'name="calc_0" value="recet"' in page and 'name="calc_1" value="cet-25.1"' in page
+    assert re.search(r'name="accs_1" value="2026" id="id_accs_1_\d+" checked', page)
     assert "Retire ReCET 0.1.78, the current default" in page
     r = c.post(
         "/calculations/engines/",
@@ -622,13 +625,51 @@ def test_the_add_form_says_what_a_calculations_line_should_be(signed_in, cpuc_ad
     assert not EngineRelease.objects.filter(release="0.1.91").exists()
 
 
+def test_a_release_is_changed_in_rows_of_calculations_and_ticked_accs(signed_in, cpuc_admin, release):
+    """Each calculation a row: its name (suggested from the releases') and its ACCs ticked from a list, with a box for a year the list
+    lacks; empty rows add nothing."""
+    c = signed_in(cpuc_admin)
+    page = c.get(f"/calculations/engines/{release.pk}/").content.decode()
+    assert '<datalist id="calculation-codes"><option value="recet"></option>' in page
+    assert 'name="calc_2"' in page and 'name="calc_3"' not in page  # the release's two rows and an empty one
+    rows = {
+        "calc_0": "ReCET",
+        "accs_0": ["2024", "2026"],
+        "more_0": "2028",
+        "calc_1": "cet-24.3",
+        "accs_1": ["2022"],
+        "calc_2": "",
+    }
+    r = c.post(f"/calculations/engines/{release.pk}/", {**rows, "reason": "2028 ACC added"})
+    assert r.status_code == 302
+    release.refresh_from_db()
+    assert release.accs == {"recet": ["2024", "2026", "2028"], "cet-24.3": ["2022"]}
+    page = c.get(f"/calculations/engines/{release.pk}/").content.decode()
+    assert re.search(r'name="accs_0" value="2028" id="id_accs_0_\d+" checked', page)  # a year a release names joins the list
+    bad = {"calc_0": "recet", "accs_0": ["2024"], "calc_1": "OpenBCA", "accs_1": ["2024"], "calc_2": "", "accs_2": ["2026"], "reason": "x"}
+    html = c.post(f"/calculations/engines/{release.pk}/", bad).content.decode()
+    assert "&#x27;OpenBCA&#x27; is not a calculation" in html and "Name the calculation these ACCs are for" in html
+    html = c.post(f"/calculations/engines/{release.pk}/", {"calc_0": "cet-25.1", "accs_0": ["2024"], "reason": "x"}).content.decode()
+    assert "Add ReCET&#x27;s own calculation" in html
+    html = c.post(f"/calculations/engines/{release.pk}/", {"calc_0": "recet", "more_0": "next", "reason": "x"}).content.decode()
+    assert "Name each ACC by its year" in html
+    html = c.post(
+        f"/calculations/engines/{release.pk}/",
+        {"calc_0": "recet", "calc_1": "recet", "accs_0": ["2024"], "accs_1": ["2026"], "reason": "x"},
+    ).content.decode()
+    assert "recet is in two rows" in html
+    release.refresh_from_db()
+    assert release.accs["recet"] == ["2024", "2026", "2028"]  # nothing refused was saved
+
+
 def test_a_release_is_changed_with_a_reason_and_keeps_its_number(signed_in, cpuc_admin, analyst, release):
     from cedars.services.audit.models import AuditEvent
 
     assert signed_in(analyst).get(f"/calculations/engines/{release.pk}/").status_code == 404
     c = signed_in(cpuc_admin)
     page = c.get(f"/calculations/engines/{release.pk}/").content.decode()
-    assert "Change ReCET 0.1.78" in page and "recet: 2021, 2022, 2024, 2026" in page
+    assert "Change ReCET 0.1.78" in page and 'name="calc_0" value="recet"' in page
+    assert re.search(r'name="accs_0" value="2021" id="id_accs_0_\d+" checked', page)
     r = c.post(
         f"/calculations/engines/{release.pk}/",
         {"calculations": "recet: 2024, 2026\ncet-24.3: 2022", "image": "worker:0.1.78", "reason": "2021 and 2022 packs withdrawn"},

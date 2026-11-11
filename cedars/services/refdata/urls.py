@@ -15,6 +15,7 @@ urlpatterns = [
     path("cost-tests/build/", builder_views.build_start, name="build_start"),
     path("cost-tests/build/<int:pk>/definition.yaml", builder_views.build_file, name="build_file"),
     path("cost-tests/build/<int:pk>/action/", builder_views.build_action, name="build_action"),
+    path("cost-tests/build/<int:pk>/discard/", builder_views.build_discard, name="build_discard"),
     path("cost-tests/build/<int:pk>/inputs/new/", builder_views.build_input, name="build_input_new"),
     path("cost-tests/build/<int:pk>/inputs/<str:name>/", builder_views.build_input, name="build_input"),
     path("cost-tests/build/<int:pk>/aggregates/new/", builder_views.build_aggregate, name="build_aggregate_new"),

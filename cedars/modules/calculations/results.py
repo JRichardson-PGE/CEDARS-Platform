@@ -41,15 +41,22 @@ HEADLINE_HELP = {
     "RIM_ratio": "Ratepayer Impact Measure test: RIM benefits over RIM costs, recomputed from the summed benefits and costs.",
     "SCB_ratio": "Societal Cost Test, base case: SCT benefits over SCT costs (blank on the TRC-only 2021 and 2022 ACCs).",
 }
+# The headline totals in dollars, shown with "$" as the Results page shows them.
+MONEY = {"TotalSystemBenefit", "TotalExpenditures"}
 
 
 def headline_totals(totals: dict, measures: int | None) -> list[dict]:
     """The run page's tiles from the receipt's portfolio totals, labeled and formatted as the Results page shows them: the measure
-    count, then HEADLINE's columns the run has (whole dollars; ratios to two decimals)."""
+    count, then HEADLINE's columns the run has (whole dollars with "$"; ratios to two decimals)."""
     out = [] if measures is None else [{"label": "Measures", "value": f"{int(measures):,}", "help": HEADLINE_HELP["Measures"]}]
     for key, label in HEADLINE:
         if key in totals and totals[key] is not None:
-            out.append({"label": label, "value": format_total(key, totals[key]), "help": HEADLINE_HELP.get(key, "")})
+            value = format_total(key, totals[key])
+            if key in MONEY and value[:1].isdigit():
+                value = "$" + value
+            elif key in MONEY and value.startswith("-") and value[1:2].isdigit():
+                value = "-$" + value[1:]
+            out.append({"label": label, "value": value, "help": HEADLINE_HELP.get(key, "")})
     return out
 
 
