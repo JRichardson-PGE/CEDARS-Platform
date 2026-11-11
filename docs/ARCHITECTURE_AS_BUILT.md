@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -270,7 +270,7 @@ flowchart TB
   svcs -. "call back through hooks the<br/>modules register in ready()" .-> mods
   mods --> core
   svcs --> core
-  core -. "front page (data),<br/>search (documents)" .-> mods
+  core -. "front page (data)" .-> mods
   mods -- "Results, Edit inputs,<br/>ACC tables" --> eng
   svcs -- "rule runner, value lists,<br/>cost-test sets" --> eng
   mods -- "job spec (calculations)" --> worker
@@ -280,8 +280,8 @@ flowchart TB
   another module.** A search of `cedars/modules` finds no import of one module by another.
 - **A service never imports a module.** Where a service needs a module's work (pricing a filing, publishing it, describing it in a
   notification, adding its rows to a program page), the module registers a function with the service in its `AppConfig.ready()`.
-- `cedars.core` is the site shell above both: its URL configuration takes the front page from `cedars.modules.data`, and site search
-  calls the document library's search in `cedars.modules.documents`.
+- `cedars.core` is the site shell above both: its URL configuration takes the front page from `cedars.modules.data`. Site search
+  imports no module: the parts a service or module offers (filings, runs, confirmed claims, documents) are registered with it.
 - The engine is a package dependency, never copied: the web process imports it for results, Edit inputs, rules, value lists,
   cost-test sets and the ACC tables; pricing always goes through the worker (see [ReCET engine integration](#10-recet-engine-integration)).
 
@@ -316,6 +316,7 @@ Every point where a service calls back into a module is a registration function.
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
+| `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
 
 ```mermaid
 sequenceDiagram
@@ -375,6 +376,8 @@ erDiagram
   User {
     string email UK
     string name
+    bool is_active
+    datetime deactivated_at
   }
   Organisation {
     string code UK
@@ -382,6 +385,7 @@ erDiagram
     string pa_type "IOU, REN, CCA"
     bool manages_allocation
     bool federated
+    bool active "false once retired"
   }
   Grant {
     string permission "module.action or special"
@@ -399,7 +403,9 @@ erDiagram
 ```
 
 `AccessPolicy` and `PolicyChange` hold the access settings (two data stewards confirm a change); they have no relationships worth
-drawing.
+drawing. A `PolicyChange` with the setting `organisation_federation` is a system administrator's proposal to switch an organization's
+directory sign-in while its members hold or wait for PII access; its value names the organization, and a data steward other than the
+proposer confirms it before it takes effect.
 
 **Programs, periods and statewide allocation** (`cedars.services.registry`)
 
@@ -522,8 +528,10 @@ erDiagram
 ```
 
 Each filing module also has an append-only `ChangeLetter` (budgets, claims and monthly each have their own, one per corrected
-version against the one it replaces). `WorkflowPolicy` holds each module's correction policy and `Delegation` an approver's
-delegate. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
+version against the one it replaces). `WorkflowPolicy` holds each module's correction policy, which a system administrator changes
+on the workflow settings page (`/filings/workflow-settings/`, with a reason, audited). `Delegation` names an approver's delegate for
+one module and a date range, with who named it and why; it is never deleted: ending it early sets `ended_at`, `ended_by` and a reason,
+and `Delegation.objects.in_force(day)` is the one rule every reader (the approver check, the reviewer list, the header) uses. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
 
 **Calculations and reference data** (`cedars.modules.calculations`, `cedars.services.refdata`, `cedars.services.snapshots`)
 
@@ -757,6 +765,16 @@ erDiagram
 - A **user** is one identity per person (email, unique without regard to case), whatever organizations they belong to. Accounts are
   deactivated, never deleted. An account with no membership is a **community account**: it reads what is public and runs its own
   calculations.
+- **People pages** (`/admin/people/`, system administrators): find any account, correct its name (with a reason), deactivate or
+  reactivate it. `accounts.deactivate_user` needs a reason, refuses the last system administrator and the last data steward, revokes
+  the account's API tokens, ends its sessions and records who did it and why on the user (`deactivated_at`, `deactivated_by`,
+  `deactivation_reason`); the account's runs, filings and history stay. A community account may close itself from its account page;
+  only the CPUC reopens it (`reactivate_user`).
+- People set their own **name** on their account page (`set_name`, audited). An **email change** is allauth's: the new address is
+  verified by a link before it replaces the old one, the user signs in again to start it (`ACCOUNT_REAUTHENTICATION_REQUIRED`), and
+  once it is made the platform audits `user.email_changed` (before and after), ends the user's other sessions and mails a notice to
+  the old address (`accounts/signals.py`). A user created without an address record gets one, verified, the next time they sign in or
+  open their account page (`ensure_email_record`), so the change page always has the current address.
 - An **organization** is of kind `pa` (program administrator), `cpuc` (exactly one) or `other` (evaluators, implementers,
   consultants). A PA has a type, IOU, REN or CCA, which the dashboards and pickers group by, and the claims checks use (a REN's or CCA's
   claim must carry `CCAREN_Flag`). `SW` is the statewide pseudo-PA: statewide programs and the records CEDARS loaded under it; it does
@@ -764,6 +782,12 @@ erDiagram
 - An organization's **codes** have dates (`OrganisationCode`): a rename closes the old code, a former code can be recorded, and two
   records of one party are merged (`successor`). Data keep the code as filed; `code_map` / `by_code` read any code as its party's.
 - `manages_allocation` marks the funding PAs (the four IOUs by default) whose members may hold `allocation.manage`.
+- A system administrator changes how an organization's members **sign in** on its page (`change_federation`: directory sign-in with
+  its provider, or password and a second factor). It applies at once, unless the organization holds open `claims.pii` grants: then
+  it is a proposal (`PolicyChange`, above) that a data steward confirms on the stewardship page.
+- An organization is **retired** (`retire_organisation`, with a reason) when it stops filing without merging into another: `active`
+  goes false, so it leaves the pickers, filing lists and token checks, while its codes, memberships, data and history stay. It can be
+  brought back (`reinstate_organisation`). The CPUC and a merged organization cannot be retired.
 
 ### 5.2 Permissions and grants
 
@@ -796,7 +820,7 @@ How the usual roles map onto grants:
 | Funding PA allocation manager | An IOU | `allocation.manage` |
 | PII handler | The PA (upload), PA or CPUC (read) | `claims.pii`, approved by a data steward |
 | CPUC reviewer | CPUC | `<module>.read` |
-| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); may delegate for a period (`Delegation`) |
+| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); names delegates for a module and a period on the delegates page (`/filings/delegates/`; a delegate is CPUC staff with `<module>.read`; a system administrator can name or end one on an approver's behalf, with a reason) |
 | CPUC system administrator | CPUC | `system.admin`: set-up (claim years, filing setups, calendar), engine releases, reference packs, rules, value lists, release notes, organizations |
 | Data steward | CPUC | `pii.steward` |
 | Community account | none | Public pages, its own runs |
@@ -830,7 +854,8 @@ flowchart TD
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
 - The **header** is data (`cedars/core/nav.py`): every item names who sees it (`anon`, `user`, `member`, `guest`, `public`,
-  `sysadmin`, `org_admin`, `steward`, `approver`); a page's view name picks the highlighted menu.
+  `sysadmin`, `org_admin`, `steward`, `approver`, `delegator`: a CPUC approver of a module that can be delegated); a page's view name
+  picks the highlighted menu.
 - **API tokens** (`ApiToken`, `Authorization: Bearer cedars_...`, only the SHA-256 stored) act for one organization, reach only their
   scopes and never more than the user's grants there, and never PII or administration.
 
@@ -886,11 +911,16 @@ stateDiagram-v2
 - **Before the due date** the first version can be un-confirmed and changed as often as needed; nothing superseded before the due date
   is kept. **After it**, a correction is version n+1 under the module's `WorkflowPolicy.reopen_after_due`: `approval` (a request an
   approver or their delegate decides), `open` (at once, with a reason) or `closed`. A late first confirmation is allowed and marked
-  unless `late_confirmation` is off.
+  unless `late_confirmation` is off. A system administrator changes both on the workflow settings page; a change that tightens the
+  rule offers a release note.
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
+- **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
+  trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
+  filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the
+  page that filing is worked on (the module's page for the deadline, else the version's page).
 
 The whole path of one filing, with the calculation and publication:
 
@@ -1173,7 +1203,7 @@ ones the large lane; more than `CALCULATIONS_MAX_RECORDS` are refused before que
 | `calculations/drafts.py`, `draft_views.py` | `recet.editor`, `recet.fieldnames`, `recet.versions` | Edit inputs: cell checks and dropdowns |
 | `services/rules/service.py`, `precheck.py` | `recet.filing_rules`, `recet.editor`, `recet.fieldnames`, `recet.pipeline.real_impact_profiles` | Running stored rule sets with the engine's own rule runner, so the platform, ReCET runs and the checker never disagree |
 | `services/dictionary/value_lists.py` | `recet.editor`, `recet.paths` | Handing the value lists in force to the engine |
-| `services/refdata/cost_tests.py`, `builder.py` | `recet.cost_test_sets` | Validating, describing and building cost-test sets |
+| `services/refdata/cost_tests.py`, `builder.py` | `recet.cost_test_sets` | Validating, describing and building cost-test sets; the builder files each validator message under its step and shows it beside the form field it names, in that field's label (`builder_forms.problem`) |
 | `calculations/service.py`, `claims/service.py` | `recet.versions` | The ACC tables (the claims ACC of a year, Priced for, which ACC applies) |
 | `budgets/service.py`, `claims/service.py` | `recet.fieldnames` | Reading CET and older names as the canonical ones |
 | `calculations/input_templates.py`, `releases/limits.py` | `recet.templates`, `recet.editor` | Upload templates and the Edit inputs row limit |
@@ -1309,7 +1339,8 @@ flowchart TD
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
-  programs, fields and documents. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
+  the glossary, programs, fields, confirmed claims and documents, and a signed-in person's own filings and runs, with what the query
+  names exactly (a PrgID, field name, ClaimID, run name or page title) first as the best match. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
   their integrity checked.
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user
   and per-address throttles. Pages and the API call the same service functions.

@@ -347,7 +347,17 @@ def test_the_pages(cpuc_admin, analyst):  # noqa: F811
     assert other.get(f"/reference-data/cost-tests/build/{b.pk}/set/").status_code == 404  # not shared: the CPUC does not see it either
     assert c.post(f"/reference-data/cost-tests/build/{b.pk}/action/", {"action": "copy"}).status_code == 302
     assert CostTestBuild.objects.count() == 2
-    assert c.post(f"/reference-data/cost-tests/build/{b.pk}/action/", {"action": "discard"})["Location"] == "/reference-data/cost-tests/"
+    # Discard asks first: the review page links to a page that says what goes; only its confirmation discards
+    discard = f"/reference-data/cost-tests/build/{b.pk}/discard/"
+    assert f'href="{discard}"' in review
+    assert c.post(f"/reference-data/cost-tests/build/{b.pk}/action/", {"action": "discard"})["Location"] == discard
+    ask = c.get(discard).content.decode()
+    assert "Discard the set for good" in ask and "Keep the set" in ask and "Download the set file" in ask
+    assert CostTestBuild.objects.get(pk=b.pk).status == "building"
+    assert c.post(discard)["Location"] == discard  # without the confirmation nothing goes
+    assert other.post(discard).status_code == 404  # nor for someone who cannot see it
+    assert CostTestBuild.objects.get(pk=b.pk).status == "building"
+    assert c.post(discard, {"sure": "1"})["Location"] == "/reference-data/cost-tests/"
     assert CostTestBuild.objects.get(pk=b.pk).status == "discarded"
 
 
@@ -764,3 +774,98 @@ def test_each_step_goes_on_to_the_next_one(cpuc_admin, analyst):  # noqa: F811
             assert (target, label) == (after, builder.STEP_LABELS[after]), step
             links[step] = target
     assert links["inputs"] == "aggregates" and links["aggregates"] == "tests" and links["tests"] == "review"
+
+
+# --- UI review 3: problems in the form's words, step 3 as a table, only columns that add up, discard asks first
+
+
+def test_a_problem_names_the_forms_own_label():
+    data = yaml.safe_load(EE.read_bytes())
+    data["streams"]["NEB"] = {"source": "input"}
+    p = bf.problem("label: text is required", data)
+    assert (p.step, p.field, str(p)) == ("set", "label", "Name: text is required")
+    assert str(bf.problem("id: <workstream>-<first program year>, e.g. EE-2026", data)).startswith("Id: ")
+    assert bf.problem("program_years: to is before from", data).field == "years_to"
+    p = bf.problem("tests.TRC.costs: NEB is not priced in 'primary'", data)
+    assert (p.step, p.part, p.name, p.field, p.where) == ("tests", "tests", "TRC", "costs", "Test TRC, Costs")
+    assert bf.problem("tests.TRC.program_costs.share: PAC is priced in 'x'", data).label == "Program costs"
+    assert str(bf.problem("pricings.sct_base.acc_rows: one of trc", data)) == "Pricing sct_base, ACC rows: one of trc"
+    assert str(bf.problem("streams.NEB.columns: the Measure.csv column(s)", data)).startswith("Stream NEB, Measure columns it adds up: ")
+    p = bf.problem("streams.ElecBen.pricings: the engine prices ElecBen on the trc rows only", data)
+    assert (p.step, p.where) == ("engine", "Stream ElecBen, Read in the pricings")
+    assert str(bf.problem("tests.TRC: unknown key 'x'", data)) == "Test TRC: unknown key 'x'"
+    assert str(bf.problem("unknown top-level key 'x'", data)) == "unknown top-level key 'x'"  # names no part: the engine's words
+
+
+def test_a_problem_sits_beside_its_field_and_links_to_it(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    b.data["label"] = ""
+    b.data["tests"]["TRC"]["costs"] = ["NoSuchStream"]
+    b.problems, b.checked_by = builder.check(b.data)
+    b.save()
+    c = Client()
+    sign_in(c, analyst)
+    page = c.get(f"/reference-data/cost-tests/build/{b.pk}/set/").content.decode()
+    link = f"/reference-data/cost-tests/build/{b.pk}/set/#id_label"
+    assert f'<a href="{link}">Name</a>: text is required' in page
+    assert 'id="id_label_error"' in page and 'aria-invalid="true"' in page and "in the engine's words" not in page
+    tests = c.get(f"/reference-data/cost-tests/build/{b.pk}/tests/").content.decode()
+    trc = f"/reference-data/cost-tests/build/{b.pk}/tests/TRC/#id_costs"
+    assert f'<a href="{trc}">Test TRC, Costs</a>' in tests  # at the top of the step
+    assert f'<a href="{trc}">Costs</a>: no stream' in tests  # and in TRC's row
+    one = c.get(f"/reference-data/cost-tests/build/{b.pk}/tests/TRC/").content.decode()
+    assert 'id="id_costs_error"' in one and "no stream &#x27;NoSuchStream&#x27;" in one
+    review = c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode()
+    assert f'<a href="{link}">Name</a>' in review and f'<a href="{trc}">Test TRC, Costs</a>' in review
+
+
+@needs_catalog
+def test_step_three_is_a_table_with_the_streams_left_out_folded(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    page = c.get(f"/reference-data/cost-tests/build/{b.pk}/engine/").content.decode()
+    rows = builder.engine_rows(b.data)
+    included = sum(r["included"] for r in rows)
+    assert f"In the set ({included})</h2>" in page and f"Streams not in the set ({len(rows) - included})</summary>" in page
+    assert page.count('<table class="list stream-table">') == 2 and page.count("Change the wording<span") == len(rows)
+    inside, folded = page.split('<details class="streams-left-out"', 1)
+    assert 'id="stream-ElecBen"' in inside and 'id="stream-NetParticipantCostPV"' in folded
+    assert '<details class="streams-left-out" id="left-out" open' not in page  # folded until it is wanted
+    # a problem with a stream's definition opens its wording and sits beside the field
+    b.data["streams"]["ElecBen"]["definition"] = 3
+    b.problems, b.checked_by = builder.check(b.data)
+    b.save()
+    page = c.get(f"/reference-data/cost-tests/build/{b.pk}/engine/").content.decode()
+    row = page.split('id="stream-ElecBen"', 1)[1].split("</tr>", 1)[0]
+    assert "<details open>" in row and 'id="id_definition_ElecBen_error"' in row
+
+
+def test_an_input_stream_offers_only_columns_that_add_up():
+    assert all(bf.adds_up(c) for c in ("UnitMeaCost1stBaseline", "UnitMiscBens", "UnitTaxCredits", "UnitGasInfraBens", "UnitNEBHealth"))
+    assert not any(
+        bf.adds_up(c)
+        for c in ("NumUnits", "NTGRkW", "EUL_Yrs", "RUL_Yrs", "MeasInflation", "RealizationRatekWh", "InstallationRateTherm",
+                  "UnitkWh1stBaseline", "UnitkW2ndBaseline", "UnitTherm1stBaseline", "UnitkWhIOUWater1stBaseline")
+    )  # fmt: skip
+    post = {"name": "HealthNEB", "kind": "benefit", "columns": ["UnitMiscBens"], "new_columns": "NumUnits", "basis": "one_time",
+            "ntg": "kwh", "market_effects": "benefits", "pricings": ["primary"], "naming": "none", "gross": "divide_ntg"}  # fmt: skip
+    f = bf.InputStreamForm(post, measure_columns=["UnitMiscBens"], not_offered=["NumUnits"], pricings=["primary"])
+    assert not f.is_valid() and "NumUnits is a count" in f.errors["new_columns"][0]
+    assert [c for c, _ in f.fields["columns"].choices] == ["UnitMiscBens"]
+    f = bf.InputStreamForm({**post, "new_columns": "UnitNEBHealth"}, measure_columns=["UnitMiscBens"], not_offered=["NumUnits"],
+                           pricings=["primary"])  # fmt: skip
+    assert f.is_valid() and f.cleaned_data["columns"] == ["UnitMiscBens", "UnitNEBHealth"]
+
+
+def test_only_its_starter_discards_a_set_and_is_asked_first(analyst):  # noqa: F811
+    b = builder.start_from_engine(analyst, "EE-2026")
+    c = Client()
+    sign_in(c, analyst)
+    review = c.get(f"/reference-data/cost-tests/build/{b.pk}/review/").content.decode()
+    assert 'class="button danger" href="/reference-data/cost-tests/build/' in review and 'value="discard"' not in review
+    assert builder.can_discard(analyst, b)
+    b.status = CostTestBuild.Status.REGISTERED
+    b.save()
+    assert not builder.can_discard(analyst, b)
+    assert c.get(f"/reference-data/cost-tests/build/{b.pk}/discard/")["Location"].endswith(f"/build/{b.pk}/review/")

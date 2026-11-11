@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
@@ -174,8 +177,21 @@ def test_policy_change_needs_two_stewards_through_the_page(signed_in, make_user,
 def test_settings_and_audit_pages(signed_in, cpuc_admin, pge, pge_admin):
     c = signed_in(cpuc_admin)
     c.post("/admin/settings/", {"recertification_interval_days": 180, "reason": "twice a year"})
-    page = c.get("/admin/audit/?action=access_policy").content.decode()
+    page = c.get("/admin/audit/?action=access_policy.").content.decode()
     assert "access_policy.changed" in page and "twice a year" in page
+    rows = page.split("<tbody>", 1)[1]
+    assert "grant.created" not in rows  # only the chosen kind of action
+    # the lists hold what the log has: each action and its kind, record types, organizations; a date range
+    assert '<option value="access_policy." selected>access_policy: every action</option>' in page
+    assert '<option value="access_policy.changed">access_policy.changed</option>' in page
+    assert '<option value="accounts.grant">accounts.grant</option>' in page and '<option value="PGE">PGE: ' in page
+    assert 'type="date" name="since"' in page and 'type="date" name="until"' in page
+    today = timezone.localdate()
+    assert "twice a year" in c.get(f"/admin/audit/?since={today}&until={today}").content.decode().split("<tbody>", 1)[1]
+    later = (today + timedelta(days=1)).isoformat()
+    assert "No events match" in c.get(f"/admin/audit/?since={later}").content.decode()
+    assert "To is before From" in c.get(f"/admin/audit/?since={later}&until={today}").content.decode()
+    assert "access_policy.changed" not in c.get("/admin/audit/?organisation=PGE").content.decode().split("<tbody>", 1)[1]
     assert signed_in(pge_admin).get("/admin/settings/").status_code == 404
     pge_view = signed_in(pge_admin).get("/admin/audit/").content.decode()
     assert "grant.created" in pge_view and "access_policy.changed" not in pge_view

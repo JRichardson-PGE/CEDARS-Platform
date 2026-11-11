@@ -1,0 +1,3 @@
+{% comment %}A picker (core/pickers.py PickerInput): a text box and its choices as a native datalist, so the list narrows as you type with no
+script. The value is read on the server, which names the near matches when nothing fits.{% endcomment %}
+{% include "django/forms/widgets/input.html" %}<datalist id="{{ widget.list_id }}">{% for c in widget.choices %}<option value="{{ c.value }}">{% if c.label %}{{ c.label }}{% endif %}{% if c.note %}{% if c.label %} · {% endif %}{{ c.note }}{% endif %}</option>{% endfor %}</datalist>

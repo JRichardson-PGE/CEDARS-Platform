@@ -1,0 +1,44 @@
+{% extends "core/base.html" %}
+{% block title %}Approver delegates{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:filings' %}">Filings</a></li></ol></nav>
+<div class="page-title"><h1>Approver delegates</h1>{% page_help "submissions/delegations" %}</div>
+<p>An approver names a delegate to decide for them for a set of days, for example while on leave: correction requests after a due date and,
+for programs, change requests. The delegate decides in the approver's name, and each decision records that it was made as a delegate.
+Ending a delegation early stops it at once; decisions already made stay as made.</p>
+
+{% if form %}
+<section class="card" aria-labelledby="name-h">
+  <h2 id="name-h">Name a delegate</h2>
+  {% if modules %}<p class="small">You approve: {{ modules|join:", " }}.</p>{% endif %}
+  <form method="post" class="stack form-narrow">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Name the delegate</button></div>
+  </form>
+</section>
+{% endif %}
+
+{% if for_me %}
+<section aria-labelledby="for-me-h">
+<h2 id="for-me-h">You decide for</h2>
+{% include "submissions/_delegation_table.html" with rows=for_me caption="Approvers you decide for" label="for-me-h" %}
+</section>
+{% endif %}
+
+{% if form or own %}
+<section aria-labelledby="own-h">
+<h2 id="own-h">Your delegates</h2>
+{% if own %}{% include "submissions/_delegation_table.html" with rows=own caption="Your delegates, newest first" label="own-h" %}
+{% else %}<p>You have named no delegates.</p>{% endif %}
+</section>
+{% endif %}
+
+{% if sysadmin %}
+<section aria-labelledby="every-h">
+<h2 id="every-h">Every delegation in force or coming</h2>
+{% if every %}{% include "submissions/_delegation_table.html" with rows=every caption="Every delegation in force or coming, soonest first" label="every-h" %}
+{% else %}<p>No delegation is in force or coming.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

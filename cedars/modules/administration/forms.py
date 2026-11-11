@@ -179,9 +179,33 @@ class PolicyChangeForm(forms.Form):
 
 
 class AuditFilterForm(forms.Form):
-    action = forms.CharField(label="Action starts with", required=False)
+    """The audit log's filters, each list holding only what the log has: actions (each family, such as every grant action, then each
+    action), record types and organizations, with a date range and the actor."""
+
+    # lists to choose from; any value is still taken, so an earlier link's "action starts with" (?action=grant) keeps working
+    action = forms.CharField(label="Action", required=False, widget=forms.Select)
+    object_type = forms.CharField(label="Record type", required=False, widget=forms.Select)
+    organisation = forms.CharField(label="Organization", required=False, widget=forms.Select)
     actor = forms.CharField(label="Actor email contains", required=False)
-    object_type = forms.CharField(label="Record type", required=False)
+    since = forms.DateField(label="From", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    until = forms.DateField(label="To", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, actions=(), types=(), organisations=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        families = sorted({a.split(".")[0] for a in actions if "." in a})
+        self.fields["action"].widget.choices = [
+            ("", "Any action"),
+            ("Every action of a kind", [(f"{f}.", f"{f}: every action") for f in families]),
+            ("One action", [(a, a) for a in actions]),
+        ]
+        self.fields["object_type"].widget.choices = [("", "Any record type"), *[(t, t) for t in types]]
+        self.fields["organisation"].widget.choices = [("", "Any organization"), *[(o.code, f"{o.code}: {o.name}") for o in organisations]]
+
+    def clean(self):
+        d = super().clean()
+        if d.get("since") and d.get("until") and d["since"] > d["until"]:
+            self.add_error("until", "To is before From.")
+        return d
 
 
 class AllocationUploadForm(forms.Form):
@@ -218,3 +242,42 @@ class ApiTokenForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organization: my own calculations")]
         self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]
+
+
+class NameForm(forms.Form):
+    """The name the pages show for a person; a CPUC system administrator correcting someone else's gives a reason."""
+
+    name = forms.CharField(
+        label="Full name", max_length=200, required=False, help_text="As colleagues know you. Blank shows your email address instead."
+    )
+    reason = forms.CharField(label="Reason for the correction", max_length=500, required=False)
+
+    def __init__(self, *args, correcting=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if correcting:
+            self.fields["name"].help_text = "Blank shows their email address instead."
+            self.fields["reason"].required = True
+        else:
+            del self.fields["reason"]
+
+
+class PeopleFilterForm(forms.Form):
+    q = forms.CharField(label="Name or email", required=False, max_length=200)
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Every account"), ("active", "Active"), ("deactivated", "Deactivated"), ("community", "In no organization")],
+    )
+
+
+class FederationForm(forms.Form):
+    """Whether an organization's members sign in through its own directory, and the provider they use."""
+
+    federated = forms.BooleanField(label="Its members sign in through the organization's own directory", required=False)
+    provider = forms.CharField(
+        label="Sign-in provider id",
+        max_length=100,
+        required=False,
+        help_text="The directory's provider id, as the platform's operators set it up. Needed when its members sign in through it.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500)

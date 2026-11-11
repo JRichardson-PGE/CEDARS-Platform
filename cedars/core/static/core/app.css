@@ -549,6 +549,23 @@ ul.bars li { display: grid; grid-template-columns: minmax(6rem, 14rem) 1fr max-c
 .bar-track { display: block; width: 100%; background: var(--surface-2); border-radius: 3px; height: .9rem; }   /* an SVG: its bar's width is an attribute, never an inline style (the CSP forbids those) */
 .bar { fill: var(--primary); }
 .bar.negative { fill: var(--bad); fill-opacity: .55; }   /* and "(negative)" in text */
+/* Engine releases: a row for each calculation and the ACCs it has (calculations/_release_fields.html) */
+fieldset.calc-rows { border: 0; padding: 0; margin: 0; min-width: 0; }
+fieldset.calc-rows > legend { font-weight: 600; padding: 0; }
+fieldset.calc-row { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .5rem 1rem .75rem; margin: .6rem 0 0; min-width: 0; }
+fieldset.calc-row > legend { font-weight: 600; padding: 0 .3rem; }
+fieldset.calc-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0 1rem; }   /* name and other years side by side when there is room */
+fieldset.calc-row > .field:has(fieldset) { grid-column: 1 / -1; order: 2; }   /* the ACC ticks below them, full width */
+fieldset.calc-row div[id^="id_accs_"] { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; }   /* the ACC ticks on one line, wrapping */
+fieldset.calc-row div[id^="id_accs_"] label { display: inline-flex; align-items: center; gap: .3rem; min-height: 24px; }
+
+/* Impact profiles: a shape's share of the year by month as columns beside the table of its percentages (impact_profiles/_month_chart.html) */
+.month-shape { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; align-items: center; }
+.month-shape > .hscroll { flex: 1 1 24rem; min-width: 0; }
+svg.month-chart { max-width: 100%; height: auto; flex: none; }
+svg.month-chart .month-axis { stroke: var(--line); stroke-width: 1; }
+svg.month-chart .month-label { fill: var(--fg-2); font-size: 11px; }
+svg.month-chart.small { vertical-align: middle; }
 @media (max-width: 480px) { ul.bars li { grid-template-columns: 1fr max-content; } .bar-track { grid-column: 1 / -1; grid-row: 2; } }
 
 /* ---------- Due-date cell, identifiers, collapsed sections, empty states ---------- */
@@ -616,6 +633,17 @@ li.pa-statewide { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid
 .pa-twisty[aria-expanded="true"]::before { transform: rotate(45deg) translate(-1px, -1px); }
 /* Without the script the show/hide buttons stay hidden; a row without one lines up with those that have one once it runs. */
 .js-pa .pa-row > label:first-child { margin-left: calc(24px + .25rem); }
+/* Pickers (core/pickers.py, core/_program_picker.html; UI review 3): the chosen ones as ticked boxes, then a box that narrows a list as
+   you type. The box is sized for what it holds (a PrgID and part of a name), not the window. */
+fieldset.picker { border: 0; padding: 0; margin: .25rem 0; min-width: 0; display: flex; flex-direction: column; gap: .3rem; max-width: 34rem; }
+fieldset.picker > legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .2rem; }
+fieldset.picker > legend .muted { font-weight: 400; }
+ul.picker-chosen { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem .5rem; }
+ul.picker-chosen[hidden] { display: none; }
+ul.picker-chosen li { border: 1px solid var(--control); border-radius: var(--r, 6px); background: var(--surface); padding: .1rem .5rem; }
+ul.picker-chosen label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .1rem .4rem;
+  font-weight: 400; min-height: 24px; }
+input.picker-input { width: 100%; max-width: 22rem; }   /* a percentage, so the box never widens its container at 320 px (1.4.10) */
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
@@ -682,6 +710,15 @@ ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(-
 .faq { border-top: 1px solid var(--line-2); margin-top: 1rem; max-width: 72ch; }
 .faq .example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem 1rem; margin: .5rem 0 .75rem; }
 .faq .example table caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
+/* The whole FAQ: each answer folded under its question (a native <details>; app.js opens the one a link to it names) */
+details.faq { margin-top: 0; }
+details.faq > summary { display: flex; align-items: baseline; gap: .5rem; padding: .55rem 0; cursor: pointer; list-style: none; min-height: 24px; }
+details.faq > summary::-webkit-details-marker { display: none; }
+details.faq > summary::before { content: ""; width: .5em; height: .5em; border: solid var(--fg-2); border-width: 0 2px 2px 0; transform: rotate(-45deg); flex: none; align-self: center; }
+details.faq[open] > summary::before { transform: rotate(45deg); }
+details.faq > summary h3 { margin: 0; font-size: 1rem; }
+details.faq > summary:hover h3 { color: var(--link); }
+details.faq > .faq-answer { padding: 0 0 .5rem 1.1rem; }
 /* Portfolio trends (data/front.py, Jake 2026-11-11): metric and PA-type switches, a tile per metric, then four charts drawn on the
    server as SVG. Colours: the chosen series --chart-claims (8.3:1 light, 5.8:1 dark on the surface); the second series of the indexed
    chart --chart-second, dashed as well so the two differ by more than colour (5.0:1 light, 8.0:1 dark). Text in the charts uses the
@@ -861,6 +898,19 @@ textarea.formula { width: 100%; font-size: .92rem; line-height: 1.5; }
 .formula-check.ok { border-left-color: var(--ok); } .formula-check.warn { border-left-color: var(--warn); } .formula-check.bad { border-left-color: var(--bad); }
 .formula-check.ok::before { content: "OK. "; font-weight: 600; } .formula-check.warn::before { content: "Check: "; font-weight: 600; }
 .formula-check.bad::before { content: "Not yet: "; font-weight: 600; }
+/* Cost-test builder: step 3's streams as a table (UI review 3). The pricings sit on one line in their cell; the wording opens under its
+   "Change the wording" disclosure, wide enough for its definition box; a row's problems sit under the stream's name. */
+.stream-table fieldset { border: 0; padding: 0; margin: 0; background: none; }
+.inline-checks { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+.inline-checks label { min-height: 24px; }
+.stream-table th[scope="row"] { min-width: 12rem; max-width: 26rem; }
+.stream-facts { display: block; font-weight: 400; margin: .2rem 0 0 calc(24px + .45rem); }
+.stream-table th[scope="row"] .errorlist, table.list th[scope="row"] .errorlist { font-weight: 400; margin-top: .3rem; }
+.stream-table td.wording { min-width: 12rem; }
+.stream-table td.wording details[open] { min-width: min(24rem, 70vw); }
+.stream-table td.wording p { margin: 0 0 .2rem; }
+.streams-left-out > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: list-item; padding: .65rem 0; }
+.discard-set { margin-top: 1rem; }
 .test-grid th[scope="row"] { white-space: nowrap; }
 .test-grid tr.meta th, .test-grid tr.meta td { background: var(--surface-2); }
 .role { display: inline-block; font-weight: 600; padding: 0 .4rem; border-radius: 3px; border-left: 4px solid; }

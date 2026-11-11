@@ -250,14 +250,20 @@ core/search:
   guide:
     - >-
       The search box at the top of every page finds, in one list, the pages you can open, the help (user guides, each page's help and
-      the frequently asked questions), glossary terms, programs, data dictionary fields and documents. Every word you give must match;
-      a word also matches the start of a longer one, so "upload" finds "uploads".
+      the frequently asked questions), glossary terms, programs, confirmed claims by their ClaimID, data dictionary fields and
+      documents, and, signed in, your own organizations' filings and the runs you can see. Every word you give must match; a word also
+      matches the start of a longer one, so "upload" finds "uploads".
+    - >-
+      When your words name one thing exactly (a PrgID, a field's name or its CET name, a ClaimID, a run's name or a page's title), it
+      comes first, under Best match.
     - >-
       Results include only what you may see: signed out, the public pages and published documents; signed in, also the pages your
-      account opens and the unpublished documents of your organizations. Each part shows its best matches; See every match opens that
-      part's own page with the same words, where you can filter further.
+      account opens, your organizations' filings and runs, and the unpublished documents of your organizations. Each part shows its
+      best matches; See every match opens that part's own page with the same words, where you can filter further.
   how:
     - Type a PrgID or part of a program's name to go to the program, or a field name such as NTGRkWh to go to its definition.
+    - Type a ClaimID to see how that confirmed claim links to its true-ups, its project and its participant.
+    - Type a filing's name, such as "2027 Q1 claim", or a run's name to open it.
     - Search for an acronym, such as TSB or EUL, to find its glossary entry.
   tour:
     - target: main form
@@ -267,6 +273,10 @@ core/search:
       title: What was found
       text: How many results each part has, with a link to each part.
       optional: true  # only after a search
+    - target: "#part-best"
+      title: Best match
+      text: What your words name exactly, such as a program by its PrgID or a field by its name.
+      optional: true  # only when the words name something exactly
     - target: section.search-part
       title: A part
       text: Its best matches, each with one line about it, and a link to see every match on that part's own page.
@@ -398,17 +408,19 @@ core/help/faq:
   guide:
     - >-
       Short answers by topic, several with a worked example, each linked to the user guide that goes further. The limits they mention
-      are the site's as they stand now. Search finds the questions with every word you give, in the question, its answer or its example.
+      are the site's as they stand now. The whole list shows the questions, each opening to its answer; a search shows the answers
+      that match, open. Search finds the questions with every word you give, in the question, its answer or its example.
   how:
+    - Select a question to open its answer, and again to fold it away.
     - Type a few words and choose Search, or pick a topic. Show every question clears the search.
     - Link to this answer under each answer is a permanent link to it.
   tour:
     - target: form[role="search"]
       title: Search
       text: Words to look for and, optionally, one topic. It works without scripts.
-    - target: article.faq
-      title: An answer
-      text: The question, its answer, any worked example, and links to the user guide and to this answer.
+    - target: .faq
+      title: A question
+      text: The question, which opens to its answer, any worked example, and links to the user guide and to this answer.
       optional: true  # a search that matches nothing shows none
 
 core/help/tour:
@@ -432,6 +444,8 @@ account/security:
   guide:
     - The pages for your account's security, your second factor (the authenticator app), recovery codes, security keys, email addresses and
       password. Changing any of them asks you to confirm it is you first.
+    - A new email address takes over once you open the link sent to it, and the old address is told of the change. You are then
+      signed out everywhere else.
     - Recovery codes sign you in once each if you lose your authenticator app. Keep them somewhere safe, and make new ones when they run low;
       making new ones replaces the old. Download the codes or Print the codes saves them; right after you set up your first second
       factor, Continue takes you where you were going, or to Ask for access if you belong to no organization yet.

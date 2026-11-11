@@ -1091,6 +1091,217 @@ def reinstate(actor: User, g: Grant, reason: str) -> Grant:
     )
 
 
+# --- people: names, deactivation, sessions
+
+
+NAME_MAX = 200
+
+
+def end_sessions(user: User, keep: str | None = None) -> int:
+    """Sign the user out everywhere but the session `keep` (a session key; None: everywhere). Returns how many sessions ended."""
+    from django.contrib.sessions.models import Session
+
+    ended = 0
+    for s in Session.objects.filter(expire_date__gt=timezone.now()).exclude(session_key=keep or ""):
+        if str(s.get_decoded().get("_auth_user_id")) == str(user.pk):
+            s.delete()
+            ended += 1
+    return ended
+
+
+@transaction.atomic
+def set_name(actor: User | None, user: User, name: str, reason: str = "") -> User:
+    """Set the name the pages show for a person: the person themselves, or a CPUC system administrator correcting it (with a reason).
+    Blank shows their email address instead."""
+    if actor is not None and actor.pk != user.pk:
+        _require_system_admin(actor, "change someone else's name")
+        if not reason.strip():
+            raise AccessDenied("Give the reason for correcting their name.")
+    name = " ".join(name.split())
+    if len(name) > NAME_MAX:
+        raise AccessDenied(f"A name is at most {NAME_MAX} characters.")
+    if name == user.name:
+        return user
+    before = {"name": user.name}
+    user.name = name
+    user.save(update_fields=["name"])
+    audit.record("user.name_changed", obj=user, before=before, after={"name": name}, reason=reason.strip(), actor=actor)
+    return user
+
+
+def _last_holder(user: User, permission: str) -> bool:
+    """Whether the user is the only active account holding a CPUC permission (system administrator, data steward) now."""
+    org = cpuc()
+    if org is None or permission not in effective_permissions(user, org):
+        return False
+    return not holders(org, permission).exclude(pk=user.pk).exists()
+
+
+def can_close_own_account(user: User) -> bool:
+    """A community account (a member of no organization) may close itself; a member asks the CPUC instead."""
+    return user.is_active and not user.memberships.filter(ended_at__isnull=True).exists()
+
+
+@transaction.atomic
+def deactivate_user(actor: User | None, user: User, reason: str, keep_session: str | None = None) -> User:
+    """Deactivate an account (a CPUC system administrator, with a reason; or a person closing their own community account): it can no
+    longer sign in or use the API, its API tokens are revoked and its sessions end. Nothing is deleted: its memberships, grants and
+    history stay, so it can be reactivated. The last system administrator or data steward cannot be deactivated."""
+    own = actor is not None and actor.pk == user.pk
+    if own:
+        if not can_close_own_account(user):
+            raise AccessDenied("You belong to an organization: ask its administrators or the CPUC to close your account.")
+    else:
+        _require_system_admin(actor, "deactivate an account")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for deactivating the account.")
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if not user.is_active:
+        raise AccessDenied(f"{user.email} is already deactivated.")
+    if _last_holder(user, perms.SYSTEM_ADMIN):
+        raise AccessDenied(f"{user.email} is the last CPUC system administrator. Grant another one first.")
+    if _last_holder(user, perms.STEWARD):
+        raise AccessDenied(f"{user.email} is the last data steward. Grant another steward first.")
+    from .models import ApiToken
+
+    now = timezone.now()
+    revoked = []
+    for t in ApiToken.objects.select_for_update().filter(user=user, revoked_at__isnull=True, expires_at__gt=now):
+        t.revoked_at, t.revoked_by, t.revoke_reason = now, actor, f"account deactivated: {reason.strip()}"
+        t.save(update_fields=["revoked_at", "revoked_by", "revoke_reason"])
+        audit.record("api_token.revoked", obj=t, organisation=t.organisation, reason=t.revoke_reason, actor=actor)
+        revoked.append(t.prefix)
+    user.is_active, user.deactivated_at, user.deactivated_by, user.deactivation_reason = False, now, actor, reason.strip()
+    user.save(update_fields=["is_active", "deactivated_at", "deactivated_by", "deactivation_reason"])
+    sessions = end_sessions(user, keep=None if not own else keep_session)
+    audit.record(
+        "user.deactivated",
+        obj=user,
+        before={"is_active": True},
+        after={"is_active": False, "tokens_revoked": revoked, "sessions_ended": sessions, "closed_by_themselves": own},
+        reason=reason.strip(),
+        actor=actor,
+    )
+    return user
+
+
+@transaction.atomic
+def reactivate_user(actor: User | None, user: User, reason: str) -> User:
+    """Let a deactivated account sign in again (a CPUC system administrator, with a reason). Its memberships and grants work again as
+    they stood; revoked API tokens stay revoked."""
+    _require_system_admin(actor, "reactivate an account")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for reactivating the account.")
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if user.is_active:
+        raise AccessDenied(f"{user.email} is already active.")
+    before = {"is_active": False, "deactivated_at": user.deactivated_at.isoformat() if user.deactivated_at else None}
+    user.is_active, user.deactivated_at, user.deactivated_by, user.deactivation_reason = True, None, None, ""
+    user.save(update_fields=["is_active", "deactivated_at", "deactivated_by", "deactivation_reason"])
+    audit.record("user.reactivated", obj=user, before=before, after={"is_active": True}, reason=reason.strip(), actor=actor)
+    return user
+
+
+# --- organizations: retiring, directory sign-in
+
+
+@transaction.atomic
+def retire_organisation(actor: User | None, org: Organisation, reason: str) -> Organisation:
+    """Retire an organization that no longer takes part, without merging it into another (a CPUC system administrator, with a reason):
+    it stops filing and leaves the pickers, its members can no longer act for it and its API tokens stop working. Its data, filings,
+    members and history stay, and it can be brought back."""
+    _require_system_admin(actor, "retire an organization")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for retiring the organization.")
+    if org.kind == Organisation.Kind.CPUC:
+        raise AccessDenied("The CPUC's own organization cannot be retired.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; it is already inactive.")
+    if not org.active:
+        raise AccessDenied(f"{org.code} is already retired.")
+    org.active = False
+    org.save(update_fields=["active"])
+    audit.record("organisation.retired", obj=org, before={"active": True}, after={"active": False}, reason=reason.strip(), actor=actor)
+    return org
+
+
+@transaction.atomic
+def reinstate_organisation(actor: User | None, org: Organisation, reason: str) -> Organisation:
+    """Bring a retired organization back (a CPUC system administrator, with a reason): its members act for it again with the grants
+    they held. A merged organization stays merged."""
+    _require_system_admin(actor, "bring back an organization")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for bringing the organization back.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; a merge is not undone here.")
+    if org.active:
+        raise AccessDenied(f"{org.code} is active.")
+    org.active = True
+    org.save(update_fields=["active"])
+    audit.record("organisation.reinstated", obj=org, before={"active": False}, after={"active": True}, reason=reason.strip(), actor=actor)
+    return org
+
+
+FEDERATION_CHANGE = "organisation_federation"  # a PolicyChange that switches one organization's directory sign-in
+
+
+def holds_pii_grants(org: Organisation) -> bool:
+    """Whether any member holds, or waits for, PII access in the organization (its directory sign-in then matters to the PII rule)."""
+    return Grant.objects.filter(membership__organisation=org, permission=perms.PII, status__in=Grant.OPEN).exists()
+
+
+def _federation_values(org: Organisation, federated: bool, provider: str) -> dict:
+    provider = provider.strip()
+    if federated and not provider:
+        raise AccessDenied("Name the sign-in provider its members use (the directory's provider id).")
+    if len(provider) > 100:
+        raise AccessDenied("A provider id is at most 100 characters.")
+    return {"federated": bool(federated), "federation_provider": provider if federated else ""}
+
+
+def _apply_federation(actor: User | None, org: Organisation, values: dict, reason: str, confirmed_by: User | None = None) -> Organisation:
+    before = audit.snapshot(org, ["federated", "federation_provider"])
+    for k, v in values.items():
+        setattr(org, k, v)
+    org.save(update_fields=list(values))
+    after = audit.snapshot(org, ["federated", "federation_provider"])
+    if confirmed_by is not None:
+        after["confirmed_by"] = confirmed_by.email
+    audit.record("organisation.federation_changed", obj=org, before=before, after=after, reason=reason, actor=actor)
+    return org
+
+
+@transaction.atomic
+def change_federation(
+    actor: User | None, org: Organisation, *, federated: bool, provider: str = "", reason: str
+) -> Organisation | PolicyChange:
+    """Switch whether an organization's members sign in through its own directory, and the provider they use (a CPUC system
+    administrator, with a reason). When a member holds or waits for PII access in it, the PII rule depends on the switch, so the change
+    is proposed instead (returned) and takes effect when a data steward other than the proposer confirms it on the stewardship page."""
+    _require_system_admin(actor, "change an organization's directory sign-in")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for the change.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; change {org.successor.code} instead.")
+    values = _federation_values(org, federated, provider)
+    if values == {"federated": org.federated, "federation_provider": org.federation_provider}:
+        raise AccessDenied(f"{org.code}'s directory sign-in is already set that way.")
+    if not holds_pii_grants(org):
+        return _apply_federation(actor, org, values, reason.strip())
+    waiting = PolicyChange.objects.filter(setting=FEDERATION_CHANGE, status=PolicyChange.Status.PROPOSED, value__organisation=org.pk)
+    if waiting.exists():
+        raise AccessDenied(f"A change to {org.code}'s directory sign-in is already waiting for a data steward.")
+    value = {"organisation": org.pk, "code": org.code, **values}
+    change = PolicyChange.objects.create(setting=FEDERATION_CHANGE, value=value, reason=reason.strip(), proposed_by=actor)
+    audit.record("policy_change.proposed", obj=change, after=value, reason=reason.strip(), actor=actor, organisation=org)
+    return change
+
+
+def federation_changes_waiting(org: Organisation | None = None):
+    qs = PolicyChange.objects.filter(setting=FEDERATION_CHANGE, status=PolicyChange.Status.PROPOSED).select_related("proposed_by")
+    return qs.filter(value__organisation=org.pk) if org is not None else qs
+
+
 # --- policy (decision G: two stewards for rules that change everyone's PII access)
 
 
@@ -1132,6 +1343,13 @@ def confirm_policy_change(steward: User, change: PolicyChange) -> AccessPolicy:
         raise AccessDenied("That change is no longer waiting for confirmation.")
     if change.proposed_by_id == steward.pk:
         raise AccessDenied("A second data steward must confirm a change you proposed.")
+    if change.setting == FEDERATION_CHANGE:
+        org = Organisation.objects.select_for_update().get(pk=change.value["organisation"])
+        values = {k: change.value[k] for k in ("federated", "federation_provider")}
+        change.status, change.decided_by, change.decided_at = PolicyChange.Status.CONFIRMED, steward, timezone.now()
+        change.save()
+        _apply_federation(change.proposed_by, org, values, change.reason, confirmed_by=steward)
+        return AccessPolicy.current()
     policy = AccessPolicy.current()
     before = {change.setting: getattr(policy, change.setting)}
     setattr(policy, change.setting, change.value)
@@ -1146,7 +1364,9 @@ def confirm_policy_change(steward: User, change: PolicyChange) -> AccessPolicy:
 
 @transaction.atomic
 def withdraw_policy_change(steward: User, change: PolicyChange, reason: str = "") -> PolicyChange:
-    if not is_steward(steward):
+    """A data steward declines a proposed change; a CPUC system administrator may also withdraw a directory sign-in change they proposed."""
+    own_federation = change.setting == FEDERATION_CHANGE and change.proposed_by_id == steward.pk
+    if not (is_steward(steward) or own_federation):
         raise AccessDenied("Only a data steward can withdraw this change.")
     if change.status != PolicyChange.Status.PROPOSED:
         raise AccessDenied("That change is no longer waiting for confirmation.")
