@@ -120,6 +120,22 @@ def test_findings_by_rule_lists_every_missing_column_and_counts_records_once(fil
     assert all(len(g.records) <= 1 for g in shown) and any(g.more for g in shown)
 
 
+def test_a_check_written_in_code_links_to_its_row_on_the_built_in_checks_page(client, filer, year, pge, programs):  # noqa: F811
+    from cedars.services.rules import coded
+
+    v = service.upload_claims(filer, deadline(), pge, bad(), "bad.zip")
+    checks = {c.rule_id: c for g in coded.groups() for c in g.checks}
+    prg = {g.rule_id: g for g in filing_parts.findings_by_rule(v)}["CLM-PRG"]
+    assert prg.url == reverse("rules:built_in") + "#CLM-PRG"
+    assert prg.text == checks["CLM-PRG"].finds and prg.fix
+    assert filing_parts.rule_url(v, "NOT-A-RULE", False) == ""
+    sign_in(client, filer)
+    body = main(client.get(reverse("claims:period", args=[deadline().pk])).content.decode())
+    assert f'<a class="id" href="{reverse("rules:built_in")}#CLM-PRG">CLM-PRG</a>' in body
+    # the row the link points at is on the Built-in checks page
+    assert 'id="CLM-PRG"' in client.get(reverse("rules:built_in")).content.decode()
+
+
 def test_the_stage_words():
     v = SubmissionVersion(number=1, status=SubmissionVersion.Status.VALIDATED, findings={"records": 3, "rejected": 0, "warnings": 1})
     assert filing_parts.stage(None, has_file=False, priced=False).key == "upload"

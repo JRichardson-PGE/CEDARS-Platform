@@ -158,16 +158,25 @@ def _canonical(text: str) -> str:
         return text
 
 
-def rule_url(v: SubmissionVersion, rule_id: str, in_set: bool) -> str:
+def rule_url(v: SubmissionVersion, rule_id: str, in_set: bool, coded: dict | None = None) -> str:
     """The page that says what a rule checks: the rule set's rule page for a rule of the set the version was checked against, else the
     built-in checks list when the platform's code raises it; "" when neither knows it."""
     if in_set and v.rule_set_id:
         return reverse("rules:rule", args=[v.rule_set_id, rule_id])
-    return _coded_check_url(rule_id)
+    return _coded_check_url(rule_id, coded)
 
 
-def _coded_check_url(rule_id: str) -> str:
-    return ""
+def _coded_checks() -> dict:
+    """The checks written in code (rules.coded), by rule ID."""
+    from cedars.services.rules import coded
+
+    return {c.rule_id: c for g in coded.groups() for c in g.checks}
+
+
+def _coded_check_url(rule_id: str, known: dict | None = None) -> str:
+    """The rule's row on the Built-in checks page, when the platform's code raises it; "" otherwise."""
+    known = _coded_checks() if known is None else known
+    return reverse("rules:built_in") + "#" + rule_id if rule_id in known else ""
 
 
 def _key_query(t, key) -> str:
@@ -184,6 +193,7 @@ def findings_by_rule(v: SubmissionVersion, *, link_records: bool = False, limit:
         return []
     limit = records_shown() if limit is None else limit
     texts = _rule_set_texts(v)
+    coded = _coded_checks()
     own, defs = {}, {}
     if link_records:
         try:
@@ -199,13 +209,17 @@ def findings_by_rule(v: SubmissionVersion, *, link_records: bool = False, limit:
         g = groups.get(rid)
         if g is None:
             column_rule = rid.endswith("-COL")
-            text = texts.get(rid) or str(f.get("message", ""))
+            check = None if rid in texts else coded.get(rid)
+            if texts.get(rid):
+                text = _canonical(texts[rid])
+            else:  # a check written in code says what it finds in general; else the first finding's own words
+                text = check.finds if check else str(f.get("message", ""))
             g = groups[rid] = RuleGroup(
                 rid,
                 str(f.get("severity", "")),
-                _canonical(text) if rid in texts else text,
-                str(f.get("fix", "")),
-                rule_url(v, rid, rid in texts),
+                text,
+                str(f.get("fix", "")) or (check.fix if check else ""),
+                rule_url(v, rid, rid in texts, coded),
                 column_rule,
             )
             seen[rid] = set()

@@ -939,7 +939,8 @@ stateDiagram-v2
 (Upload, Check, Price, Confirm, Published) and a sentence, drawn as the step line with the current step marked `aria-current="step"`;
 the outcome card under it carries the one next action as the page's only primary button (Upload and check, Check again, Price,
 Confirm and publish). `findings_by_rule` groups a version's findings by rule, using the corrections editor's record keys: the rule ID
-links to the rule in the version's rule set, each rule lists its records (up to the `CEDARS_FINDING_RECORDS_SHOWN` limit) with a link
+links to the rule in the version's rule set, or, for a check written in code (`rules.coded`), to its row on Built-in checks with
+that check's own wording and fix; each rule lists its records (up to the `CEDARS_FINDING_RECORDS_SHOWN` limit) with a link
 to correct each one, and a column rule lists every missing column. The upload form, the file's details, the statewide card and
 earlier confirmations fold below once they are not the next step. While a pricing run is going, the page polls
 `submissions:pricing_status` (`/filings/versions/<pk>/pricing.json?run=<id>`, readers of the filing only; it reports only a run
