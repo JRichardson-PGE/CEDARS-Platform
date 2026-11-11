@@ -6,9 +6,13 @@
 <ol>
   <li>Download the <a href="{% url 'claims:template' %}">claims template</a> (Excel) for the tables and fields.</li>
   <li><strong>Upload</strong> only the records new or changed since the last confirmation; CEDARS compiles them with the earlier quarters.</li>
-  <li><strong>Check</strong>: records are checked against the claims rules and deemed measures against eTRM. Fix and upload again.</li>
-  <li><strong>Price</strong> the year to date, then <strong>confirm</strong>. Quarters are confirmed in order.</li>
+  <li><strong>Check</strong>: records are checked against the claims rules and deemed measures against eTRM. The claim's page lists the
+    findings by rule, each rule linked to what it checks and each record to the page where you correct it. Correct them there, or upload
+    a corrected file. When the file lacks some columns, every rule that does not need them still runs.</li>
+  <li><strong>Price</strong> the year to date. The page follows the run and shows the results when it finishes.</li>
+  <li><strong>Confirm</strong>, on the claim's page or on its results page (By program). Quarters are confirmed in order.</li>
 </ol>
+<p>The line of steps under the claim's heading says which of these the claim is at, and the box below it holds the one thing to do next.</p>
 <p>Contacts and sites never go in the claims file: upload them separately on the period's page (needs the PII permission). To withdraw a
 claim, list its ClaimID in the next upload's Withdrawal table.</p>
 <h2>Statewide programs</h2>

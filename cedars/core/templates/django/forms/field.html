@@ -4,8 +4,17 @@ sits under the control it describes, and the control's aria-describedby names it
 carries no colon, like the hand-written labels. A checkbox is one line with the box inside its label, like the .checks lists.
 
 A form with help_as_info = True (New run, Jake 2026-11-09) shows each hint behind an "i" button beside the label instead of under the control
-(core/_info_button.html). The hint keeps its id, so the control's aria-describedby still reads it to a screen reader.{% endcomment %}
-{% if field.help_text and field.form.help_as_info %}
+(core/_info_button.html). The hint keeps its id, so the control's aria-describedby still reads it to a screen reader.
+
+A widget that names itself (own_label: a compact tick list, whose summary carries the name, and the several-programs picker, with its
+legend) is drawn with no label here; its hint and errors follow it as for any field.{% endcomment %}
+{% if field.field.widget.own_label %}
+<div class="field{% if field.errors %} has-errors{% endif %}">
+  {{ field }}
+  {{ field.errors }}
+  {% if field.help_text %}<div class="helptext"{% if field.auto_id %} id="{{ field.auto_id }}_helptext"{% endif %}>{{ field.help_text|safe }}</div>{% endif %}
+</div>
+{% elif field.help_text and field.form.help_as_info %}
 <div class="field{% if field.errors %} has-errors{% endif %}">
 {% if field.use_fieldset %}
   <fieldset{% if field.aria_describedby %} aria-describedby="{{ field.aria_describedby }}"{% endif %}>

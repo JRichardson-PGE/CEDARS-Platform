@@ -1,0 +1,63 @@
+{% comment %}A filing's outcome and its one next action, first on the filing page (UI review 3, U1). The next action is the page's only
+primary button; un-confirming and asking to reopen are secondary. Context: v, stage, status_words, tiles, can_submit, can_confirm,
+can_correct, records_url, pricing_run, pending_reopen, past_due, later_locked (Claims), legacy, and out: the module's addresses and
+words (price_url, price_label, price_help, confirm_url, confirm_help, check_url, unconfirm_url, reopen_url, results_url,
+results_heading, results_link, results_about, what: "these claims", "this filing", "this report").{% endcomment %}
+<section class="card outcome" aria-labelledby="now-h" id="outcome">
+  <h2 id="now-h">Version {{ v.number }}: {{ status_words }}</h2>
+  {% if stage.key == "legacy" %}
+  <p>Imported from legacy CEDARS{% if legacy.records or legacy.outside_totals %}, {{ legacy.records|default:legacy.outside_totals|floatformat:"0g" }} records{% if legacy.outside_totals %} kept outside every total{% endif %}{% endif %}. It is read-only: <a href="{{ out.results_url }}">its page</a> shows what it holds, its source and its reconciliation.</p>
+  {% elif stage.key == "upload" %}
+  <p>Nothing has been uploaded yet.{% if can_submit %} <a href="#upload-h">Upload the file</a>: it is checked as soon as it arrives.{% endif %}</p>
+  {% elif stage.key == "stale" %}
+  <div role="note"><p><strong>An earlier confirmation has changed since this version was compiled on it.</strong> Check it again to compile it over the confirmation that stands now; it then needs pricing again.</p></div>
+  {% if can_submit %}<form method="post" action="{{ out.check_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Check again</button></form>{% endif %}
+  {% elif stage.key == "fix" %}
+  <p><strong>{{ v.findings.rejected|default:0|floatformat:"0g" }} record{{ v.findings.rejected|default:0|pluralize }} rejected</strong>, {{ v.findings.warnings|default:0|floatformat:"0g" }} with warnings only. The findings below say which rule rejected each record and how to fix it.</p>
+  {% if can_submit %}<p>Fix them: <a href="#upload-h">upload a corrected file</a>{% if can_correct %}, or correct them one by one without uploading the whole file again{% endif %}.</p>
+  {% if can_correct %}<p><a class="button" href="{{ records_url }}">Correct records</a></p>{% endif %}
+  {% else %}<p>Its filers fix them.</p>{% endif %}
+  {% elif stage.key == "pricing" %}
+  {% include "submissions/_filing_pricing.html" %}
+  {% elif stage.key == "nothing" %}
+  <p>There are no measures in the year to date yet, so there is nothing to price.</p>
+  {% elif stage.key == "price" or stage.key == "failed" %}
+  {% if stage.key == "failed" %}<div class="alert" role="alert"><p>The pricing run <a href="{% url 'calculations:run' pricing_run.id %}">{{ pricing_run.label|lower }}</a>{% if pricing_run.error %}: {{ pricing_run.error }}{% endif %} It did not price this version{% if can_submit %}; price it again once what it says is put right{% endif %}.</p></div>
+  {% else %}<p>Every record passed its checks{% if v.findings.warnings %} ({{ v.findings.warnings|floatformat:"0g" }} with warnings only){% endif %}.</p>{% endif %}
+  {% if can_submit %}<form method="post" action="{{ out.price_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">{{ out.price_label }}</button> <span class="small muted">{{ out.price_help }}</span></form>
+  {% else %}<p>It is ready to be priced by a submitter.</p>{% endif %}
+  {% endif %}
+
+  {% if tiles %}
+  <h3 id="results-h">{{ out.results_heading }}{% if v.status == "validated" %} to review{% endif %}</h3>
+  <dl class="tiles">{% for name, value in tiles %}<div class="tile"><dt>{{ name }}</dt><dd>{{ value|default:"none" }}</dd></div>{% endfor %}</dl>
+  <p><a href="{{ out.results_url }}">{{ out.results_link }}</a>{{ out.results_about }}</p>
+  {% endif %}
+
+  {% if can_correct and stage.key != "fix" %}<p class="small"><a href="{{ records_url }}">Correct records</a>: change, add or delete single records without uploading the whole file again; the version is then checked{% if stage.key != "upload" %} and priced{% endif %} again.</p>{% endif %}
+
+  {% if stage.key == "confirm" %}
+  {% if can_confirm %}<form method="post" action="{{ out.confirm_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Confirm and publish</button> <span class="small muted">{{ out.confirm_help }}</span></form>
+  {% else %}<p>Priced and ready for someone who may confirm {{ out.what }} for {{ v.submission.organisation.code }}.</p>{% endif %}
+  {% elif stage.key == "confirmed" or stage.key == "published" %}
+  <p>{% if v.status == "published" %}Published{% else %}Confirmed{% endif %}{% if v.confirmed_at %} {{ v.confirmed_at|date_words }}{% if v.confirmed_by %} by {{ v.confirmed_by|person_name }}{% endif %}{% endif %}{% if v.late %} (late){% endif %}.</p>
+  {% if can_confirm and not past_due and v.number == 1 and not later_locked %}
+  <details class="inline-form"><summary>Un-confirm before the due date</summary>
+  <form method="post" action="{{ out.unconfirm_url }}" class="stack form-narrow">{% csrf_token %}
+    <div class="field"><label for="unconfirm-reason">Reason for un-confirming</label><textarea id="unconfirm-reason" name="reason" rows="2"></textarea></div>
+    <div class="actions"><button type="submit">Un-confirm</button> <span class="small muted">Before the due date: the version returns to validated and is no longer published.</span></div>
+  </form></details>
+  {% endif %}
+  {% if past_due and can_submit %}
+    {% if later_locked %}<p>{{ later_locked.kind }} is confirmed on top of this one, so corrections to these records go in the latest confirmation.</p>
+    {% elif pending_reopen %}<p>A request to reopen {{ out.what }}, sent {{ pending_reopen.requested_at|date_words }}, is waiting for a CPUC approver.</p>
+    {% else %}
+    <details class="inline-form"><summary>Ask to reopen {{ out.what }} for a correction</summary>
+    <form method="post" action="{{ out.reopen_url }}" class="stack form-narrow">{% csrf_token %}
+      <div class="field"><label for="reopen-reason">Reason for the correction</label><textarea id="reopen-reason" name="reason" rows="2" required></textarea></div>
+      <div class="actions"><button type="submit">Ask to reopen</button> <span class="small muted">After the due date a correction is a new version; version {{ v.number }} stays as {{ out.kept|default:"filed" }}.</span></div>
+    </form></details>
+    {% endif %}
+  {% endif %}
+  {% endif %}
+</section>

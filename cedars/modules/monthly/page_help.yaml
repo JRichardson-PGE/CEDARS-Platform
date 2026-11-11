@@ -64,13 +64,15 @@ monthly/setup:
       them that no organization has started can be canceled with a reason, leaving the rest of the set as it is: no filing starts for
       it and no reminders are sent. A canceled filing is restored the same way.
   how:
-    - Choose the ACC and the allocation version, then Save. The next pricing uses them.
+    - The links at the top go to each part of the page. Each part saves on its own, with its own reason.
+    - Choose the ACC and the allocation version, give the reason, then Save how they are priced. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
-    - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
+    - To remove the set-up, open Remove under Remove this set-up, give the reason and press its button. It can be set up again
+      afterward.
     - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
       started filing stays on it.
-    - To cancel one filing, choose it under Cancel one filing, give the reason and press Cancel the filing; to bring one back, choose
-      it under Restore a canceled filing.
+    - To cancel one filing, open Cancel one filing under Filings in this set, choose it, give the reason and press Cancel the filing;
+      to bring one back, choose it under Restore a canceled filing.
   see: monthly-reports
   tour:
     - target: "#setup-pricing"
@@ -114,15 +116,23 @@ monthly/report:
       title: Not started yet
       text: The PA has not started this report, and you cannot upload it; its filers do that here.
       optional: true
+    - target: "#filing-steps"
+      title: Where the report stands
+      text: The five steps from upload to publication, with the one it is at said in words.
+      optional: true
     - target: "#now-h"
-      title: The version in progress
-      text: Its status, the findings by rule, and the next step, which is price, confirm, un-confirm or ask to reopen.
+      title: The outcome and the next step
+      text: >-
+        What the last check or pricing found, and the one thing to do next: upload or correct, price, confirm, or ask to reopen after the
+        due date. While it is priced the page follows the run and shows the results when it finishes.
       optional: true
-    - heading: The report
-      title: The report
-      text: Spend and commitments against the operating budget, and the estimates, which confirming signs off on.
+    - target: "#findings-h"
+      title: Findings by rule
+      text: >-
+        Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
+        correct that record.
       optional: true
-    - target: "#upload-h"
+    - target: "#upload"
       title: Upload
       text: The three tables as one file, or several chosen together. It replaces this version's earlier upload.
       optional: true
@@ -148,6 +158,10 @@ monthly/version:
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: monthly-reports
   tour:
+    - target: "#confirm-here-h"
+      title: Ready to confirm
+      text: Once this version is priced, review its results here and confirm them to publish, without going back to the filing page.
+      optional: true  # the latest version, priced, for someone who may confirm it
     - target: dl.tiles, main .tile
       title: Totals
       text: The month's and the year's spend, paid and committed incentives, and estimates.

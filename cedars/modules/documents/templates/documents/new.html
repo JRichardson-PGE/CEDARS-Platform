@@ -3,32 +3,23 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li>{% if study %}<a href="{{ study.get_absolute_url }}">{{ study.study_id }}</a>{% elif program %}<a href="{% url 'programs:program' program.prg_id %}">{{ program.prg_id }}</a>{% else %}<a href="{% url 'documents:library' %}">Documents</a>{% endif %}</li></ol></nav>
 <div class="page-title"><h1>{% if study %}Upload a document for {{ study.study_id }}{% elif program %}Add a document to {{ program.prg_id }}{% else %}File a document{% endif %}</h1>{% page_help "documents/new" %}</div>
-{% if study %}<p>For the study <strong>{{ study.title }}</strong>. Its study ID is filled in below; the document is listed on the study's page.</p>{% endif %}
-{% if program %}<p>For the program <strong>{{ program.prg_id }}</strong>. Its PrgID is filled in under Programs below; the document is listed on the program's page{% if program.statewide %} and on the page of every PA's ID of this statewide program{% endif %}.</p>{% endif %}
-{% if collections|length > 1 %}
-<form method="get" class="filters" aria-label="Choose the collection">
-  {% if study %}<input type="hidden" name="study" value="{{ study.study_id }}">{% endif %}
-  {% if program %}<input type="hidden" name="program" value="{{ program.prg_id }}">{% endif %}
-  <label for="collection">Collection
-    <select id="collection" name="collection">{% for code, label in collections %}<option value="{{ code }}"{% if code == collection %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
-  </label>
-  <button type="submit">Choose</button>
-</form>
-{% endif %}
-<p>Filing in <strong>{% for code, label in collections %}{% if code == collection %}{{ label }}{% endif %}{% endfor %}</strong> for {{ request.organisation.code }}.
-The document is kept as version 1. A later file is added as a new version: nothing is deleted or overwritten.
-Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p>
-<form method="post" enctype="multipart/form-data" class="stack form-narrow" novalidate>{% csrf_token %}
+<p>{% if study %}For the study <strong>{{ study.title }}</strong>, filled in under step 2; the document is listed on the study's page.
+{% elif program %}For the program <strong>{{ program.prg_id }}</strong>, filled in under step 2; the document is listed on the program's page{% if program.statewide %} and on the page of every PA's ID of this statewide program{% endif %}.
+{% endif %}Four short steps. The document is kept as version 1; a later file is added as a new version, and nothing is overwritten.</p>
+<form method="post" enctype="multipart/form-data" class="stack form-narrow form-steps" novalidate>{% csrf_token %}
   <input type="hidden" name="collection" value="{{ collection }}">
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  {% include "documents/_details_fields.html" %}
-  {% if form.deliverable %}{{ form.deliverable.as_field_group }}{{ form.stage.as_field_group }}{% endif %}
-  {{ form.main_file.as_field_group }}
-  {{ form.attachments.as_field_group }}
-  {{ form.comments_open.as_field_group }}
-  {{ form.comments_close.as_field_group }}
-  {% if form.placeholder %}{{ form.placeholder.as_field_group }}{% endif %}
-  {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
+  {% include "documents/_details_fields.html" with step=True %}
+  <div class="form-step" id="step-files">
+    <h2><span class="step-n">{% if form.attribute_fields %}4{% else %}3{% endif %}</span> The files</h2>
+    {% if form.deliverable %}{{ form.deliverable.as_field_group }}{{ form.stage.as_field_group }}{% endif %}
+    {{ form.main_file.as_field_group }}
+    {{ form.attachments.as_field_group }}
+    <p class="small">Accepted file types: PDF, Word, Excel, PowerPoint, CSV, text, zip and images.</p>
+    <div class="row-fields">{{ form.comments_open.as_field_group }}{{ form.comments_close.as_field_group }}</div>
+    {% if form.placeholder %}{{ form.placeholder.as_field_group }}{% endif %}
+    {% if form.publish %}{{ form.publish.as_field_group }}{% endif %}
+  </div>
   <div class="actions"><button type="submit" class="primary">File the document</button> <a href="{% if study %}{{ study.get_absolute_url }}{% elif program %}{% url 'programs:program' program.prg_id %}{% else %}{% url 'documents:library' %}{% endif %}">Cancel</a></div>
 </form>
 {% endblock %}

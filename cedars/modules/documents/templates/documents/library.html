@@ -9,35 +9,8 @@
 <p>PA documents, CPUC staff guidance, DEER resources, program files and EM&amp;V documents in one library. Published documents are open to
 everyone; each has a permanent link, and every earlier version stays listed. <a href="{% url 'documents:lists' %}">The value lists</a>
 behind the filters are kept by CPUC Energy Division.</p>
-{% if home %}
-<div class="cards">
-<section class="card" aria-labelledby="dates-h">
-  <h2 id="dates-h">Key dates</h2>
-  {% if upcoming or recent %}
-  {% if upcoming %}<h3>Coming up</h3>
-  <ul class="links">{% for kd in upcoming %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
-  {% if recent %}<h3>In the last 30 days</h3>
-  <ul class="links">{% for kd in recent %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
-  {% else %}<p>No key dates are posted.</p>{% endif %}
-  {% if key_date_form %}
-  <details>
-    <summary>Post a key date</summary>
-    <form method="post" action="{% url 'documents:add_key_date' %}">{% csrf_token %}
-      {{ key_date_form.as_div }}
-      <p><button type="submit">Post the key date</button></p>
-    </form>
-  </details>
-  {% endif %}
-</section>
-<section class="card" aria-labelledby="open-h">
-  <h2 id="open-h">Open for comment now</h2>
-  {% if open_for_comment %}
-  <ul class="links">{% for v in open_for_comment %}<li><a href="{% url 'documents:comments' v.document_id %}">{{ v.document.title }}</a>{% if v.stage %}, {{ v.stage_label|lower }}{% else %}, version {{ v.number }}{% endif %}: until {{ v.comment_period.closes|date_words }}</li>{% endfor %}</ul>
-  {% else %}<p>Nothing is open for comment today.</p>{% endif %}
-  <p class="small">{% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}">Choose what you hear about</a>{% else %}<a href="{% url 'account_login' %}?next={% url 'documents:subscriptions' %}">Sign in to subscribe</a>{% endif %}: new documents by collection or attribute, studies and work orders.</p>
-</section>
-</div>
-{% endif %}
+<div{% if home %} class="library-layout"{% endif %}>
+<div class="library-main">
 <form method="get" class="filters" aria-label="Search the documents">
   {{ form.q.as_field_group }}
   {{ form.collection.as_field_group }}
@@ -89,4 +62,35 @@ behind the filters are kept by CPUC Energy Division.</p>
 {% include "ui/empty.html" with title="No documents match" text="Published documents are open to everyone; change or clear the search to see more of the library." action_url=clear_url action="Clear the search" %}
 {% endif %}
 {% pager page query=query label="Result pages" where="below" %}
+</div>
+{% if home %}
+<aside class="library-side" aria-label="Key dates and comment periods">
+<section class="card" aria-labelledby="dates-h">
+  <h2 id="dates-h">Key dates</h2>
+  {% if upcoming or recent %}
+  {% if upcoming %}<h3>Coming up</h3>
+  <ul class="links">{% for kd in upcoming %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
+  {% if recent %}<h3>In the last 30 days</h3>
+  <ul class="links">{% for kd in recent %}{% include "documents/_key_date.html" %}{% endfor %}</ul>{% endif %}
+  {% else %}<p>No key dates are posted.</p>{% endif %}
+  {% if key_date_form %}
+  <details>
+    <summary>Post a key date</summary>
+    <form method="post" action="{% url 'documents:add_key_date' %}">{% csrf_token %}
+      {{ key_date_form.as_div }}
+      <p><button type="submit">Post the key date</button></p>
+    </form>
+  </details>
+  {% endif %}
+</section>
+<section class="card" aria-labelledby="open-h">
+  <h2 id="open-h">Open for comment now</h2>
+  {% if open_for_comment %}
+  <ul class="links">{% for v in open_for_comment %}<li><a href="{% url 'documents:comments' v.document_id %}">{{ v.document.title }}</a>{% if v.stage %}, {{ v.stage_label|lower }}{% else %}, version {{ v.number }}{% endif %}: until {{ v.comment_period.closes|date_words }}</li>{% endfor %}</ul>
+  {% else %}<p>Nothing is open for comment today.</p>{% endif %}
+  <p class="small">{% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}">Choose what you hear about</a>{% else %}<a href="{% url 'account_login' %}?next={% url 'documents:subscriptions' %}">Sign in to subscribe</a>{% endif %}: new documents by collection or attribute, studies and work orders.</p>
+</section>
+</aside>
+{% endif %}
+</div>
 {% endblock %}

@@ -705,9 +705,19 @@ def test_the_claims_rules_run_on_measure_and_program_cost(filer, year, pge, prog
     assert {"PrgID", "PrgYear"} <= set(rules.spec_columns(rs, "ProgramCost")) and "PrgID + PrgYear" not in rules.spec_columns(
         rs, "ProgramCost"
     )
-    # a Measure file without the specification's columns is rejected on them before its rules run
+    # a Measure file without some of the specification's columns is rejected on each of them, and the rules that do not read one still
+    # run (UI review 3, U1): no finding blames a record for a column the file lacks
     v = service.upload_claims(filer, deadline(), pge, q1(), "q1.zip")
-    assert {f["rule_id"] for f in service.findings(v) if f["table"] == "Measure" and f["severity"] == "reject"} == {"CLM-COL"}
+    found = service.findings(v)
+    missing = {f["field"] for f in found if f["rule_id"] == "CLM-COL" and f["table"] == "Measure"}
+    assert {"E3MeaElecEndUseShape", "Version"} <= missing
+    assert "Measure has no AC_Elec_Impact_Profile (E3MeaElecEndUseShape) column" in {f["message"] for f in found}  # both names
+    others = [f for f in found if f["table"] == "Measure" and f["rule_id"] != "CLM-COL"]
+    assert others and not [f for f in others if f["field"] in missing]
+    skipped = rules.needing(rs, "Measure", missing)
+    assert skipped and not {f["rule_id"] for f in others} & skipped
+    note = next(n for n in v.findings["notes"] if "Measure rules were not run" in n)
+    assert f"lacks {len(missing)} of the claims specification's columns" in note and "More findings may appear" in note
 
 
 # --- pages
