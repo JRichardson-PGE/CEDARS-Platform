@@ -812,7 +812,12 @@ suspension and revocation; it is never deleted and every change is an audit even
 
 `has_permission(user, organisation, permission)` is the one check: the user's active, unexpired grants in that organization (plus the
 federated-session rule for `claims.pii`). **Role templates** (`RoleTemplate`) are named bundles of module permissions a system
-administrator defines and an organization's administrator applies, one grant per permission. Organization administrators run
+administrator defines and an organization's administrator applies, one grant per permission. An **access request**
+(`AccessRequest`) asks one organization for one or more of its role templates or for single read and submit permissions; its
+administrators decide it, or, while it has none, the CPUC's system administrators (`request_deciders`, `can_decide_request`; until then a
+system administrator may grant that organization's permissions), and the request shows in the deciders' My queue. The CPUC and the
+statewide (SW) pseudo-PA take no requests. Every permission has a name and a sentence on what it lets a person do
+(`permissions.label`, `describe`), used wherever a person chooses or reads one. Organization administrators run
 periodic **recertification**; when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
 access policy says so (never the last data steward).
 

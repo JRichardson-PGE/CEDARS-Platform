@@ -498,6 +498,12 @@ fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of 
 .checks label, label.inline, label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }   /* a box and its words on one line */
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
+/* Ask for access (UI review 3, U6): a role or permission, its box and name on one line, what it is for below, lined up with the name */
+.request-access .option { display: grid; grid-template-columns: auto 1fr; column-gap: .5rem; align-items: center; margin: .35rem 0; }
+.request-access .option > label { font-weight: 600; color: var(--fg); }
+.request-access .option > p { grid-column: 2; margin: .1rem 0 0; }
+.request-access details.request-singles > summary { cursor: pointer; padding: .35rem 0; min-height: 24px; }
+.request-to a { margin-left: .5rem; }
 .column-group { margin: .3rem 0; }
 /* Compact tick lists (core/_tick_list.html; UI review 3): a closed disclosure that names what is chosen, the chosen values first, a
    narrowing box on a long list. In the page's flow, so it covers nothing and reflows at 320 px. */

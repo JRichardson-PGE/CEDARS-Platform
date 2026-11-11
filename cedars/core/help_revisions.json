@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "226658bb3b39689df168445ba76e0e1a4fbac85e71bb7210f4f2753540809425"
+    "sha256": "107b578a313e7a3a6ee8ddc5706d51fb1c6d46d9eed2b26a5ef1b36b4b477ca3"
   },
   "guide:accessibility": {
     "release": "0.2.0",
@@ -9,7 +9,7 @@
   },
   "guide:administering": {
     "release": "0.2.0",
-    "sha256": "df7b4a220020360bff8c874e3f7bccacbcc286f8d11dfd23ac17ed32777432bc"
+    "sha256": "a6fafff6aa09d26ae575292b7c373da8c32f2ba8b7c8e4ca32f9410020c6a595"
   },
   "guide:budgets": {
     "release": "0.2.0",
@@ -33,7 +33,7 @@
   },
   "guide:getting-started": {
     "release": "0.2.0",
-    "sha256": "e3e23b613b69ab22c8238a8674b6032f2d51e3a06d99dc0dfd14abcc578fc5b9"
+    "sha256": "ed1166d07d19f5e74173660d25782314840284898fd62950a39b008b577ca1de"
   },
   "guide:glossary": {
     "release": "0.2.0",
