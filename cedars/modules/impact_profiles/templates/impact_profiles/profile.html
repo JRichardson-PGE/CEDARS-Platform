@@ -21,11 +21,12 @@
 <h2>Current version by climate zone</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Current version by climate zone">
 <table class="list">
-  <caption class="sr-only">Each climate zone's 8,760: its total, largest hour and percent of the year's savings in each month</caption>
-  <thead><tr><th scope="col">Zone</th><th scope="col">Total</th><th scope="col">Largest hour</th>{% for m in months %}<th scope="col">{{ m|slice:":3" }}</th>{% endfor %}</tr></thead>
+  <caption class="sr-only">Each climate zone's 8,760: its total, largest hour, its shape by month as small columns, and percent of the year's savings in each month</caption>
+  <thead><tr><th scope="col">Zone</th><th scope="col">Total</th><th scope="col">Largest hour</th><th scope="col">Shape by month</th>{% for m in months %}<th scope="col">{{ m|slice:":3" }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for d in detail %}
   <tr><th scope="row">{{ d.zone }}</th><td>{{ d.sum|floatformat:6 }}</td><td class="nowrap">{{ d.peak.1 }}</td>
+    <td>{% include "impact_profiles/_month_chart.html" with chart=d.chart decorative=True %}<span class="sr-only">the percentages follow</span></td>
     {% for m, pct in d.months %}<td>{{ pct|floatformat:1 }}%</td>{% endfor %}</tr>
   {% endfor %}
   </tbody>
