@@ -266,12 +266,17 @@ def _organisation(request):
     return getattr(request, "organisation", None)
 
 
+def can_file(request) -> bool:
+    """File a document opens: the acting organization files in at least one collection (core/page_access.py asks too)."""
+    return bool(service.collections_for(request.user, _organisation(request)))
+
+
 @login_required
 def new(request):
     """File a new document in one of the collections the acting organization files in."""
-    allowed = service.collections_for(request.user, _organisation(request))
-    if not allowed:
+    if not can_file(request):
         raise Http404
+    allowed = service.collections_for(request.user, _organisation(request))
     collection = request.GET.get("collection") or request.POST.get("collection") or allowed[0]
     if collection not in allowed:
         raise Http404

@@ -1021,3 +1021,6 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 .walk-chart-data { margin-top: .4rem; }
 .walk-chart-data summary { min-height: 24px; cursor: pointer; }
 @media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } .walk-chart svg .band.on { fill: Highlight; fill-opacity: .25; } }
+
+/* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
+.who-opens { color: var(--fg-2); }
