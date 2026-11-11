@@ -354,6 +354,7 @@ def run(request, pk):
             "can_edit_inputs": _can_edit_inputs(request.user, run),
             "can_rerun": bool(service.job_input(run)),
             "can_delete": _can_delete(request.user, run),
+            "can_rename": run.owner_id == request.user.pk,
             "cet_comparison": results_mod.cet_comparison(run, files),
             "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
             "log": log,
@@ -427,6 +428,20 @@ def stop(request, pk):
         messages.error(request, str(e))
     else:
         messages.success(request, "Stopping the run." if run.status == Run.Status.RUNNING else "The run is stopped.")
+    return redirect("calculations:run", pk=run.pk)
+
+
+@login_required
+@require_POST
+def rename(request, pk):
+    """The owner renames a run or changes its note (nothing else about a run changes)."""
+    run = _run_or_404(request, pk)
+    try:
+        service.rename_run(request.user, run, name=request.POST.get("name", ""), note=request.POST.get("note", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, "Name and note saved.")
     return redirect("calculations:run", pk=run.pk)
 
 

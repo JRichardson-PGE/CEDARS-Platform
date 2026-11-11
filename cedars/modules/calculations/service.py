@@ -816,6 +816,29 @@ def reusable_inputs(run: Run) -> list[tuple[str, str]]:
     return [(n, labels.get(n, n)) for n in REUSABLE[2:] if (run.inputs or {}).get(n) and n in labels]
 
 
+NAME_MAX, NOTE_MAX = 200, 2000
+
+
+def rename_run(actor, run: Run, *, name: str, note: str) -> Run:
+    """Change a run's name and note: only its owner, at any time. Its inputs, settings and results never change."""
+    if actor is None or run.owner_id != actor.pk:
+        raise AccessDenied("Only the person who started the run renames it or changes its note.")
+    name, note = " ".join((name or "").split()), (note or "").strip()
+    if not name:
+        raise AccessDenied("Give the run a name.")
+    if len(name) > NAME_MAX or len(note) > NOTE_MAX:
+        raise AccessDenied(f"A name is at most {NAME_MAX} characters and a note at most {NOTE_MAX}.")
+    if name == run.name and note == run.note:
+        raise AccessDenied("Nothing changed.")
+    before = {"name": run.name, "note": run.note}
+    run.name, run.note = name, note
+    run.save(update_fields=["name", "note"])
+    audit.record(
+        "calculation_run.renamed", obj=run, organisation=run.organisation, before=before, after={"name": name, "note": note}, actor=actor
+    )
+    return run
+
+
 def delete_run(actor, run: Run) -> None:
     """Delete a person's own run ("Only me") with its files, before retention would (R9): only its owner, only once it has ended,
     never one a filing was priced with or one under a legal hold. Organization runs stay until retention removes them."""
