@@ -8,7 +8,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from . import engine_docs, faq, queue, revisions
+from . import engine_docs, faq, queue, revisions, yourwork
 from . import help as site_help
 from . import page_help as pages
 from . import search as site_search
@@ -70,10 +70,13 @@ def section(request, page):
             return redirect_to_login(request.get_full_path())
         raise Http404
     ctx = {"menu": menu, "groups": menu.groups}
-    if key == "filings":
+    if key == "filings":  # the person's own organization's filings first, then every PA's (UI review 3, U5)
         from cedars.services.submissions import status
 
-        ctx["board"] = status.board(request.user)
+        ctx["board"] = board = status.board(request.user, org=getattr(request, "filing_organisation", None))
+        ctx["own_filings"] = status.own_filings(board)
+    elif page in yourwork.PAGES:  # the person's own recent work in the section first (UI review 3, U5)
+        ctx["your_work"] = yourwork.parts(request, page)
     return render(request, f"core/section_{page}.html", ctx)
 
 

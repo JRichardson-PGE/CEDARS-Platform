@@ -11,6 +11,8 @@ monthly/index:
     - Monthly report template (Excel) is the workbook to fill in, Commitments, Measure and ProgramCost with a Fields sheet defining
       every column.
     - The change log lists every correction to a published monthly report, each with a change letter.
+    - When you act for a PA, the next report to file is marked "Next to file", and each month ends with what to do on it (Start,
+      Continue, or Open one that is confirmed).
   see: monthly-reports
   tour:
     - target: main > .head-row > .actions
@@ -22,7 +24,7 @@ monthly/index:
       text: Every month of a year side by side, and the 13th-month report.
     - target: main table.list
       title: The reports
-      text: Each month's report, its due date and status. Select one to upload, check, price and confirm it.
+      text: Each month's report, its due date and status, the next one to file marked. Select one to upload, check, price and confirm it.
       optional: true
 
 monthly/year_new:
