@@ -45,6 +45,7 @@ from .models import (
     DocumentFile,
     DocumentVersion,
     FileText,
+    LegacyLink,
     Study,
     Task,
     WorkOrder,
@@ -841,3 +842,38 @@ def listed_version(doc: Document, *, unpublished: bool) -> DocumentVersion | Non
     if published:
         return published[0]
     return versions[0] if versions and unpublished else None
+
+
+# --- old links
+
+
+def _link_target(link: LegacyLink) -> dict:
+    f = link.file
+    return {"document": link.document_id, "title": link.document.title[:200], "file": f.name if f else ""}
+
+
+def file_named(doc: Document, name: str) -> DocumentFile | None:
+    """The document's file with this name (its stored name, or its name in the old site's links), newest version first."""
+    name = name.strip()
+    if not name:
+        return None
+    files_ = DocumentFile.objects.filter(version__document=doc).order_by("-version__number", "position")
+    return files_.filter(name__iexact=name).first() or files_.filter(legacy_name__iexact=name).first()
+
+
+def repoint_legacy_link(actor, link: LegacyLink, *, document: Document, file: DocumentFile | None = None, reason: str) -> LegacyLink:
+    """Point an old CEDARS or EM&V site address at another migrated document, or at one of its files (None: the document's page),
+    where the import mapped it wrongly. CPUC ED's document administrators only; the reason and the old and new target are audited."""
+    if not is_admin(actor):
+        raise AccessDenied("Only CPUC Energy Division's document administrators repoint old links.")
+    if not reason.strip():
+        raise DocumentError("Give the reason for the change.")
+    if file is not None and file.version.document_id != document.pk:
+        raise DocumentError(f"{file.name} is not a file of document {document.pk}.")
+    if (link.document_id, link.file_id) == (document.pk, getattr(file, "pk", None)):
+        raise DocumentError("It already leads there.")
+    before = _link_target(link)
+    link.document, link.file = document, file
+    link.save(update_fields=["document", "file"])
+    audit.record("documents.legacy_link_repointed", obj=link, before=before, after=_link_target(link), reason=reason.strip(), actor=actor)
+    return link

@@ -135,8 +135,9 @@ def test_a_cpuc_system_administrator_sets_up_a_year(cpuc_admin, pge_admin):
     assert timezone.localtime(deadlines[2].opens_at).date() == date(2028, 4, 1)  # March's report opens when March ends
     with pytest.raises(AccessDenied, match="already set up"):
         service.set_up_year(cpuc_admin, year=2028, acc_version="2026", due_day=20)
-    service.change_setup(cpuc_admin, s, acc_version="2024", reason="claims ACC for 2028")
-    assert AuditEvent.objects.filter(action="monthly_reports.setup_changed").exists()
+    service.change_setup(cpuc_admin, s, acc_version="2024", reason="claims ACC for 2028", notes="Estimates on the claims ACC.")
+    e = AuditEvent.objects.get(action="monthly_reports.setup_changed")
+    assert s.notes == "Estimates on the claims ACC." and e.after["notes"] == s.notes and e.before["notes"] == ""
 
 
 def test_spend_is_read_from_the_bca_inputs(filer, year, pge, programs):

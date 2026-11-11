@@ -13,6 +13,8 @@ claims/index:
       claims follows NMEC chains, projects and SEM participants across quarters and years.
   how:
     - Open a confirmation to see where your PA's claims stand and to file or correct them. CPUC staff choose the PA there.
+    - When you act for a PA, the next one to file is marked "Next to file", and each row ends with what to do on it (Start, Continue,
+      or Open one that is confirmed).
     - Claims template (Excel) lists every table and field; Change log lists every correction; Linked claims follows claims across quarters
       and years; Restated claims lists confirmed claims priced again on today's engine.
     - Set up a claim year (CPUC system administrators) adds the next year's five confirmations and the five statewide ones before them.
@@ -24,7 +26,7 @@ claims/index:
       text: The claims template, every correction made so far, claims that link across years, and restatements. CPUC administrators set up claim years here.
     - target: main section.cycle
       title: The current claim year
-      text: Each confirmation with its due date and, when you act for a PA, its status. Select one to open it.
+      text: Each confirmation with its due date and, when you act for a PA, its status, the next one to file marked and what to do on each. Select one to open it.
     - target: main details.section
       title: Earlier years
       text: Open a year to see its confirmations.
@@ -53,7 +55,7 @@ claims/setup:
   title: A claim year's set-up
   guide:
     - The ACC and statewide allocation version the year's next pricing uses. Versions already priced keep the ones they were priced with;
-      their run records both.
+      their run records both. Its notes change in the same form, with the reason for the change, which the audit trail keeps.
     - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.

@@ -16,3 +16,11 @@ class DataConfig(AppConfig):
         from . import jobs
 
         register_purger("data_download", jobs.expired)
+
+        from cedars.core import yourwork as your_work
+
+        from . import yourwork
+
+        # Your work on the Published data page: the person's saved views and record downloads
+        your_work.register("saved_views", yourwork.saved_views, order=60, pages=("published",))
+        your_work.register("downloads", yourwork.downloads, order=65, pages=("published",))

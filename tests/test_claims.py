@@ -221,6 +221,23 @@ def test_only_a_cpuc_system_administrator_sets_up_claim_years(cpuc_admin, pge_ad
     assert AuditEvent.objects.filter(action="claim_year.set_up").exists()
     cy = service.change_setup(cpuc_admin, year, acc_version="2024", reason="ruling")
     assert cy.acc_version == "2024" and AuditEvent.objects.filter(action="claim_year.setup_changed").exists()
+    assert cy.notes == ""  # left as they were when not given
+    cy = service.change_setup(cpuc_admin, year, acc_version="2024", reason="the ruling's date", notes="  Priced per the ruling.  ")
+    e = AuditEvent.objects.filter(action="claim_year.setup_changed").order_by("-pk").first()
+    assert cy.notes == "Priced per the ruling." and e.before["notes"] == "" and e.after["notes"] == "Priced per the ruling."
+    assert e.reason == "the ruling's date"
+
+
+def test_a_claim_years_notes_change_on_its_set_up_page(client, signed_in, cpuc_admin, year):
+    signed_in(cpuc_admin)
+    url = reverse("claims:setup", args=[year.year])
+    html = client.get(url).content.decode()
+    assert 'name="notes"' in html and 'name="reason"' in html
+    data = {"acc_version": year.acc_version, "notes": "Set up early for the pilot.", "reason": "note the pilot"}
+    client.post(url, data)
+    year.refresh_from_db()
+    assert year.notes == "Set up early for the pilot."
+    assert "Set up early for the pilot.</textarea>" in client.get(url).content.decode()
 
 
 def test_a_year_whose_deadlines_were_all_retired_is_restored_not_set_up_again(cpuc_admin, year):

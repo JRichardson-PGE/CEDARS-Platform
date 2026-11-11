@@ -407,6 +407,204 @@ def calendar(request):
     )
 
 
+class WorkflowPolicyForm(forms.Form):
+    """One filing module's workflow settings, with the reason for changing them."""
+
+    reopen_after_due = forms.ChoiceField(
+        label="Correcting a confirmed filing after its due date",
+        choices=WorkflowPolicy.Reopen.choices,
+        widget=forms.RadioSelect,
+        help_text="A correction is always a new version; the version filed stays readable.",
+    )
+    late_confirmation = forms.BooleanField(
+        label="A first version may still be confirmed after the due date (it is marked late)",
+        required=False,
+    )
+    reason = forms.CharField(
+        label="Reason for the change",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Kept in the audit trail and shown in the history below.",
+    )
+
+
+def _policy_words(module: str, before: dict, after: dict) -> str:
+    """A change in words, for the message after saving and a release note's summary."""
+    parts = []
+    if "reopen_after_due" in after:
+        parts.append(f"correcting a confirmed filing after its due date: {WorkflowPolicy.Reopen(after['reopen_after_due']).label.lower()}")
+    if "late_confirmation" in after:
+        parts.append("a late first confirmation is " + ("allowed (marked late)" if after["late_confirmation"] else "no longer allowed"))
+    return f"{dict(MODULES)[module]}: " + "; ".join(parts)
+
+
+def _settings_words(values: dict | None) -> str:
+    out = []
+    for k, v in (values or {}).items():
+        if k == "reopen_after_due" and v in WorkflowPolicy.Reopen.values:
+            out.append(f"corrections: {WorkflowPolicy.Reopen(v).label.lower()}")
+        elif k == "late_confirmation":
+            out.append("late first confirmation " + ("allowed" if v else "not allowed"))
+    return "; ".join(out)
+
+
+@login_required
+def workflow_settings(request):
+    """Each filing module's correction policy and late-confirmation rule (CPUC system administrators), with the history of changes."""
+    if not access.is_system_admin(request.user):
+        raise Http404
+    modules = []
+    for code, label in MODULES:
+        p = service.policy(code)
+        initial = {"reopen_after_due": p.reopen_after_due, "late_confirmation": p.late_confirmation}
+        bound = request.method == "POST" and request.POST.get("module") == code
+        form = WorkflowPolicyForm(request.POST if bound else None, initial=initial, prefix=code)
+        if bound and form.is_valid():
+            d = form.cleaned_data
+            after = {k: d[k] for k in service.POLICY_SETTINGS if d[k] != initial[k]}
+            if not after:
+                messages.info(request, f"{label}: nothing changed.")
+                return redirect("submissions:workflow_settings")
+            before = {k: initial[k] for k in after}
+            try:
+                service.set_policy(request.user, code, reason=d["reason"], **after)
+            except AccessDenied as e:
+                messages.error(request, str(e))
+                return redirect("submissions:workflow_settings")
+            words = _policy_words(code, before, after)
+            messages.success(request, f"Saved. {words}.")
+            if service.policy_tightens(before, after):
+                note = urlencode({"title": f"{label}: workflow change", "summary": f"{words}. {d['reason'].strip()}"})
+                request.session["workflow_note"] = note
+            return redirect("submissions:workflow_settings")
+        history = [
+            {"event": e, "before": _settings_words(e.before), "after": _settings_words(e.after)} for e in service.policy_history(code)
+        ]
+        modules.append({"code": code, "label": label, "policy": p, "form": form, "history": history})
+    note = request.session.pop("workflow_note", "")
+    return render(
+        request,
+        "submissions/workflow_settings.html",
+        {"modules": modules, "note_url": f"{reverse('releases:manage')}?{note}" if note else ""},
+    )
+
+
+class DelegationForm(forms.Form):
+    """Name a delegate: who decides for the approver in a module, and for which days."""
+
+    module = forms.ChoiceField(label="Approvals for")
+    approver = forms.EmailField(
+        label="Approver's email",
+        required=False,
+        help_text="For a CPUC system administrator naming a delegate on an approver's behalf. Blank: yourself.",
+    )
+    delegate = forms.EmailField(label="Delegate's email", help_text="A member of the CPUC who can read this module.")
+    starts = forms.DateField(label="First day", widget=forms.DateInput(attrs={"type": "date"}))
+    ends = forms.DateField(
+        label="Last day", widget=forms.DateInput(attrs={"type": "date"}), help_text="The delegate decides through this day."
+    )
+    reason = forms.CharField(
+        label="Reason (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="e.g. leave from 2 to 13 March. Needed when you name a delegate on someone else's behalf.",
+    )
+
+    def __init__(self, *args, modules, on_behalf, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["module"].choices = [(m, service.DELEGABLE[m]) for m in modules]
+        if not on_behalf:
+            del self.fields["approver"]
+
+
+def _delegation_rows(qs, user, today):
+    return [
+        {"d": d, "state": d.state(today), "can_end": service.can_end_delegation(user, d) and d.state(today) in ("in force", "upcoming")}
+        for d in qs
+    ]
+
+
+@login_required
+def delegations(request):
+    """Approvers name delegates to decide for them for a period (e.g. leave), and end them early; CPUC system administrators can do
+    it on an approver's behalf. A delegate sees whom they decide for."""
+    from cedars.services.accounts.models import User
+
+    from .models import Delegation
+
+    user = request.user
+    sysadmin = access.is_system_admin(user)
+    mine = service.delegable_modules(user)
+    today = timezone.localdate()
+    current = Delegation.objects.filter(ended_at__isnull=True, ends__gte=today).select_related("approver", "delegate", "created_by")
+    for_me = current.filter(delegate=user)
+    if not (sysadmin or mine or for_me.exists()):
+        raise Http404
+    modules = list(service.DELEGABLE) if sysadmin else mine
+    form = DelegationForm(request.POST or None, modules=modules, on_behalf=sysadmin, initial={"starts": today}) if modules else None
+    if request.method == "POST" and form is not None and form.is_valid():
+        d = form.cleaned_data
+        people = {}
+        for key in ("approver", "delegate"):
+            email = d.get(key) or ""
+            if email:
+                people[key] = User.objects.filter(email__iexact=email).first()
+                if people[key] is None:
+                    messages.error(request, f"There is no account for {email}.")
+                    return redirect("submissions:delegations")
+        try:
+            made = service.delegate(
+                user,
+                module=d["module"],
+                delegate_to=people["delegate"],
+                starts=d["starts"],
+                ends=d["ends"],
+                approver=people.get("approver") or user,
+                reason=d["reason"],
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(
+                request,
+                f"{made.delegate.email} decides {service.DELEGABLE[made.module]} approvals for {made.approver.email} from "
+                f"{made.starts:%Y-%m-%d} to {made.ends:%Y-%m-%d}.",
+            )
+            return redirect("submissions:delegations")
+    own = Delegation.objects.filter(approver=user).select_related("delegate", "created_by", "ended_by")[:50]
+    return render(
+        request,
+        "submissions/delegations.html",
+        {
+            "form": form,
+            "sysadmin": sysadmin,
+            "own": _delegation_rows(own, user, today),
+            "for_me": _delegation_rows(for_me, user, today),
+            "every": _delegation_rows(current.order_by("starts"), user, today) if sysadmin else [],
+            "modules": [service.DELEGABLE[m] for m in mine],
+        },
+    )
+
+
+@login_required
+@require_POST
+def end_delegation(request, pk):
+    from .models import Delegation
+
+    d = get_object_or_404(Delegation.objects.select_related("approver", "delegate"), pk=pk)
+    if not service.can_end_delegation(request.user, d):
+        raise Http404
+    try:
+        service.end_delegation(request.user, d, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(
+            request,
+            f"Ended: {d.delegate.email} no longer decides {service.DELEGABLE.get(d.module, d.module)} approvals for {d.approver.email}.",
+        )
+    return redirect("submissions:delegations")
+
+
 @login_required
 def deadline_new(request):
     """Add a filing (CPUC system administrators): what can be set up, each on its module's set-up page, which puts its deadlines on
@@ -561,16 +759,31 @@ def deadline(request, pk):
 
 @login_required
 def reopen_requests(request):
-    """Requests to correct filings after their due date, for approvers and their delegates."""
+    """Requests to correct filings after their due date, for approvers and their delegates. Each filing is named once, plainly
+    (Submission.plain_name), with what the approver needs to decide: a link to the filing, its confirmed version (its records and
+    totals), the earlier corrections and the comments."""
+    related = ("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
     pending = []
-    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(
-        "submission__deadline", "submission__organisation", "requested_by"
-    ):
+    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(*related, "requested_by"):
         approver = service.approver_for(request.user, r.submission.module)
-        if approver is not None:
-            pending.append((r, approver))
-    decided = ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related("submission__organisation", "decided_by")[
-        :50
+        if approver is None:
+            continue
+        stands = service.current(r.submission)
+        earlier = list(r.submission.versions.filter(number__gt=1).exclude(origin=SubmissionVersion.Origin.IMPORTED).order_by("number"))
+        pending.append(
+            {
+                "r": r,
+                "approver": approver,
+                "page": service.filing_page(r.submission, stands),
+                "stands": stands,
+                "stands_page": comments.version_page(stands) if stands else "",
+                "earlier": earlier,
+                "comments": comments.Comment.objects.filter(version__submission=r.submission).count(),
+            }
+        )
+    decided = [
+        (r, service.filing_page(r.submission, service.current(r.submission)))
+        for r in ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related(*related, "decided_by")[:50]
     ]
     return render(request, "submissions/reopen_requests.html", {"pending": pending, "decided": decided})
 
@@ -585,7 +798,7 @@ def decide(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission}.")
+        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission.plain_name}.")
     return redirect("submissions:reopen_requests")
 
 
@@ -707,23 +920,78 @@ def records(request, pk):
             ctx["found_count"] = n
         ctx["summary"] = corrections.summary(v)
         ctx["s"] = v.findings or {}
+        flagged, whole, n = corrections.with_findings(v)
+        defs = {t.name: t for t in ctx["tables"]}
+        ctx["flagged"] = [(x, _key_query(defs[x.found.table], x.found.key)) for x in flagged]
+        ctx["flagged_count"] = n
+        ctx["whole_table"] = whole
     return render(request, "submissions/records.html", ctx)
 
 
-def _field_rows(t, values: dict, findings: list[dict], *, key_locked: bool) -> list[dict]:
+def _field_rows(t, values: dict, findings: list[dict], *, key_locked: bool, info: dict | None = None) -> list[dict]:
     by_field: dict[str, list[dict]] = {}
     for f in findings:
         for name in str(f.get("field", "")).split(", "):
             by_field.setdefault(name, []).append(f)
+    info = info or {}
     return [
         {
             "f": fd,
             "value": values.get(fd.name, ""),
             "findings": by_field.get(fd.name, []),
             "locked": key_locked and fd.name in t.key,
+            "info": info.get(fd.name) or corrections.FieldInfo(),
         }
         for fd in t.fields
     ]
+
+
+def _field_groups(t, rows: list[dict]) -> list[dict]:
+    """A record's fields in sections: those with findings first, then the key, then the data dictionary's groups in the order the
+    table first uses them, then the fields the dictionary does not group."""
+    from django.utils.text import slugify
+
+    flagged = [r for r in rows if r["findings"]]
+    rest = [r for r in rows if not r["findings"]]
+    out = []
+    if flagged:
+        out.append({"id": "fields-found", "title": "Fields with findings", "rows": flagged})
+    key = [r for r in rest if r["f"].name in t.key]
+    if key:
+        out.append({"id": "fields-key", "title": "Key", "rows": key})
+    groups: dict[str, list[dict]] = {}
+    for r in rest:
+        if r["f"].name not in t.key:
+            groups.setdefault(r["info"].group, []).append(r)
+    for name, members in groups.items():
+        if name:
+            out.append({"id": "fields-" + slugify(name), "title": name, "rows": members})
+    if groups.get(""):
+        out.append({"id": "fields-other", "title": "Other fields" if len(out) else "Fields", "rows": groups[""]})
+    return out
+
+
+def _find_field(request, t):
+    """A redirect to the field the "Find a field" box names (exactly, else the first whose name contains it), or None."""
+    from django.utils.text import slugify
+
+    q = request.GET.get("find", "").strip().lower()
+    if not q:
+        return None
+    names = [fd.name for fd in t.fields]
+    hit = next((n for n in names if n.lower() == q), None) or next((n for n in names if q in n.lower()), None)
+    keep = _keep_query(request)
+    url = request.path + (f"?{keep}" if keep else "")
+    if hit is None:
+        messages.warning(request, f"No field of the {t.name} table is named {request.GET.get('find', '').strip()}.")
+        return redirect(url)
+    return redirect(url + "#f-" + slugify(hit))
+
+
+def _keep_query(request) -> str:
+    from urllib.parse import urlencode
+
+    return urlencode([("k", k) for k in request.GET.getlist("k")])
 
 
 @login_required
@@ -739,6 +1007,8 @@ def record(request, pk, table):
     found = corrections.record(v, table, key)
     if found is None:
         raise Http404
+    if request.method == "GET" and (jump := _find_field(request, t)) is not None:
+        return jump
     values = dict(found.row)
     if request.method == "POST":
         posted = {fd.name: request.POST.get(f"f-{fd.name}", "") for fd in t.fields}
@@ -757,18 +1027,21 @@ def record(request, pk, table):
             _outcome(request, v, scope)
             new = next((c.after for c in scope.changes if c.kind == "edit"), None) or found.row
             url = reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key])
-            return redirect(url)
+            return redirect(url + "&saved=1")
     findings = corrections.row_findings(v, table, found.line)
+    rows = _field_rows(t, values, findings, key_locked=bool(found.earlier), info=corrections.field_info(v, t))
     ctx = _base_context(v, "")
     ctx.update(
         {
             "t": t,
             "found": found,
             "key_query": _key_query(t, key),
-            "rows": _field_rows(t, values, findings, key_locked=bool(found.earlier)),
+            "rows": rows,
+            "groups": _field_groups(t, rows),
             "findings": findings,
             "rejected": any(f.get("severity") == "reject" for f in findings),
             "mode": "edit",
+            "saved": request.GET.get("saved") == "1",
         }
     )
     return render(request, "submissions/record.html", ctx)
@@ -796,9 +1069,13 @@ def record_new(request, pk, table):
         else:
             _outcome(request, v, scope)
             new = scope.changes[-1].after
-            return redirect(reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key]))
+            url = reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key])
+            return redirect(url + "&saved=1")
+    if request.method == "GET" and (jump := _find_field(request, t)) is not None:
+        return jump
+    rows = _field_rows(t, values, [], key_locked=False, info=corrections.field_info(v, t))
     ctx = _base_context(v, "")
-    ctx.update({"t": t, "rows": _field_rows(t, values, [], key_locked=False), "findings": [], "mode": "add"})
+    ctx.update({"t": t, "rows": rows, "groups": _field_groups(t, rows), "findings": [], "mode": "add"})
     return render(request, "submissions/record.html", ctx)
 
 

@@ -12,12 +12,12 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import storage, tick_lists
 from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts.service import AccessDenied
 
 from . import comments, deliverables, forms, service, subscriptions
-from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile
+from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile, LegacyLink
 
 PER_PAGE = 25
 CSV_COLUMNS = [
@@ -72,8 +72,9 @@ def library(request):
     page = Paginator(results, PER_PAGE).get_page(request.GET.get("page"))
     query = request.GET.copy()
     query.pop("page", None)
-    chosen = set(form.cleaned_data.get("options") or []) if form.is_bound and form.is_valid() else set()
-    q = form.cleaned_data.get("q", "") if form.is_bound and form.is_valid() else ""
+    cleaned = form.cleaned_data if form.is_bound else {}  # read by form.search(); a field in error is left out, not the rest
+    chosen = set(cleaned.get("options") or [])
+    q = cleaned.get("q", "")
     found = service.text_matches(request.user, q, page.object_list)
     rows = []
     for doc in page.object_list:
@@ -91,7 +92,16 @@ def library(request):
             "rows": rows,
             "total": page.paginator.count,
             "query": query.urlencode(),
-            "lists": [(al, [(o, o in chosen) for o in _in_order(al.options.all())]) for al in _attribute_lists()],
+            "lists": [
+                tick_lists.tick_list(
+                    "options",
+                    al.name,
+                    [(o.pk, o.label, o in chosen, "retired" if o.retired_on else "") for o in _in_order(al.options.all())],
+                    id=f"filter-{al.pk}",
+                    none="Any",
+                )
+                for al in _attribute_lists()
+            ],
             "advanced": bool(chosen)
             or any(request.GET.get(k) for k in ("published_from", "published_to", "program", "year", "study", "work_order")),
             "collections": service.collections_for(request.user, getattr(request, "organisation", None))
@@ -213,6 +223,7 @@ def document(request, pk):
             "programs": list(doc.programs.all()),
             "can_manage": can_manage,
             "can_publish": service.can_publish(request.user, doc),
+            "doc_admin": request.user.is_authenticated and service.is_admin(request.user),
             "sees_unpublished": service.sees_unpublished(request.user, doc) if request.user.is_authenticated else False,
             "inline": {f.pk for v in versions for f in v.files.all() if service.opens_inline(f)},
             "show_downloads": can_manage,
@@ -256,12 +267,17 @@ def _organisation(request):
     return getattr(request, "organisation", None)
 
 
+def can_file(request) -> bool:
+    """File a document opens: the acting organization files in at least one collection (core/page_access.py asks too)."""
+    return bool(service.collections_for(request.user, _organisation(request)))
+
+
 @login_required
 def new(request):
     """File a new document in one of the collections the acting organization files in."""
-    allowed = service.collections_for(request.user, _organisation(request))
-    if not allowed:
+    if not can_file(request):
         raise Http404
+    allowed = service.collections_for(request.user, _organisation(request))
     collection = request.GET.get("collection") or request.POST.get("collection") or allowed[0]
     if collection not in allowed:
         raise Http404
@@ -574,3 +590,57 @@ def edw_archive(request, rest=""):
     if old.lower().startswith("/cpucfiles/"):
         raise Http404
     return HttpResponsePermanentRedirect(f"/documents/?collection={Collection.EMV}")
+
+
+# --- old links (models.LegacyLink): where each old CEDARS and EM&V site address leads, repointed by CPUC ED's document administrators
+
+LINKS_SHOWN = 200
+
+
+def _doc_admin(request):
+    if not (request.user.is_authenticated and service.is_admin(request.user)):
+        raise Http404
+
+
+@login_required
+def legacy_links(request):
+    """Every old address the import mapped, filtered by words in the address or the document's title, or by document."""
+    _doc_admin(request)
+    links = LegacyLink.objects.select_related("document", "file")
+    q, doc = request.GET.get("q", "").strip(), request.GET.get("document", "")
+    if q:
+        links = links.filter(Q(path__icontains=q) | Q(document__title__icontains=q))
+    if doc.isdigit():
+        links = links.filter(document_id=int(doc))
+    total = links.count()
+    return render(
+        request,
+        "documents/legacy_links.html",
+        {"links": links[:LINKS_SHOWN], "total": total, "shown": min(total, LINKS_SHOWN), "q": q, "document": doc},
+    )
+
+
+@login_required
+def legacy_link(request, pk):
+    """One old address: where it leads, and the form to point it at another document or one of its files, with a reason."""
+    _doc_admin(request)
+    link = get_object_or_404(LegacyLink.objects.select_related("document", "file"), pk=pk)
+    form = forms.RepointLinkForm(request.POST or None, initial={"document": link.document_id, "file": link.file.name if link.file else ""})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        target = Document.objects.filter(pk=d["document"]).first()
+        if target is None:
+            form.add_error("document", f"There is no document {d['document']}.")
+        else:
+            f = service.file_named(target, d["file"])
+            if d["file"].strip() and f is None:
+                form.add_error("file", f"Document {target.pk} has no file named {d['file'].strip()}.")
+            else:
+                try:
+                    service.repoint_legacy_link(request.user, link, document=target, file=f, reason=d["reason"])
+                except (service.DocumentError, AccessDenied) as e:
+                    form.add_error(None, str(e))
+                else:
+                    messages.success(request, f"{link.path} now leads to {target.title}{f' ({f.name})' if f else ''}.")
+                    return redirect("documents:legacy_links")
+    return render(request, "documents/legacy_link.html", {"link": link, "form": form})

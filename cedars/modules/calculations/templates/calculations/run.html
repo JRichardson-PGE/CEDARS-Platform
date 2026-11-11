@@ -6,9 +6,22 @@
 <div class="head-row">
   <div class="page-title"><h1>{{ run.name }}</h1>{% page_help "calculations/run" %}</div>
   {% if can_stop %}<form method="post" action="{% url 'calculations:stop' run.pk %}">{% csrf_token %}<button type="submit">Stop the run</button></form>{% endif %}
-  {% if run.status == "succeeded" or can_delete %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a> <a class="button" href="{% url 'calculations:walkthrough' run.pk %}">Walk through a measure</a>{% endif %}
+  {% if run.status == "succeeded" or can_delete or can_rerun or can_edit_inputs %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a> <a class="button" href="{% url 'calculations:walkthrough' run.pk %}">Walk through a measure</a>{% endif %}
+    {% if can_rerun %}<a class="button" id="rerun" href="{% url 'calculations:new' %}?from={{ run.pk }}">Rerun with different settings</a>{% endif %}
+    {% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="inline-form" id="edit-inputs">{% csrf_token %}<button type="submit">Edit inputs and rerun</button></form>{% endif %}
     {% if can_delete %}<a class="button danger" id="delete-run" href="{% url 'calculations:delete' run.pk %}">Delete this run</a>{% endif %}</div>{% endif %}
 </div>
+{% if run.note %}<p id="run-note"><strong>Note:</strong> {{ run.note|linebreaksbr }}</p>{% endif %}
+{% if can_rename %}
+<details id="rename-run"><summary>{% if run.note %}Rename or change the note{% else %}Rename or add a note{% endif %}</summary>
+<form method="post" action="{% url 'calculations:rename' run.pk %}" class="stack form-narrow">{% csrf_token %}
+  <p><label for="run-name">Name</label><input id="run-name" name="name" type="text" value="{{ run.name }}" maxlength="200" required></p>
+  <p><label for="run-note-text">Note (optional)</label><textarea id="run-note-text" name="note" rows="3" maxlength="2000" aria-describedby="run-note-help">{{ run.note }}</textarea></p>
+  <p class="small muted" id="run-note-help">Only the name and note change; the run's inputs, settings and results stay as they were.</p>
+  <div class="actions"><button type="submit">Save</button></div>
+</form>
+</details>
+{% endif %}
 
 <section class="card" aria-labelledby="status-h">
   <h2 id="status-h">Status: <span id="run-status-label">{{ status.status_label }}</span></h2>
@@ -38,13 +51,17 @@
 <section aria-labelledby="files-h">
 <h2 id="files-h">Files</h2>
 {% if run.ended %}<p><a class="button" href="{% url 'calculations:run_zip' run.pk %}">Download every file (.zip)</a></p>{% endif %}
-<div class="hscroll" tabindex="0" role="region" aria-label="Output files">
-<table class="list">
-  <caption class="sr-only">Output files</caption>
-  <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
-  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
+{% for g in file_groups %}
+<h3 id="files-{{ g.key }}-h">{{ g.label }}</h3>
+<p class="small muted">{{ g.intro }}</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="files-{{ g.key }}-h">
+<table class="list run-files">
+  <caption class="sr-only">{{ g.label }}: each file, what it is, its size and its SHA-256</caption>
+  <thead><tr><th scope="col">File</th><th scope="col">What it is</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
+  <tbody>{% for f in g.files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td>{{ f.what|default:"—" }}</td><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small">{% if f.sha256 %}<code>{{ f.sha256|truncatechars:20 }}</code>{% else %}<span class="muted">none recorded</span>{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
+{% endfor %}
 </section>
 {% endif %}
 
@@ -104,12 +121,11 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
   {% if run.calculation == "recet" %}<dt>Cost tests</dt><dd>{% if run.cost_tests %}{{ run.cost_tests.id }} {{ run.cost_tests.version }}{% if run.cost_tests.status == "draft" %} (draft){% elif run.cost_tests.status == "custom" %} (custom file{% if run.cost_tests.file %}: {{ run.cost_tests.file }}{% endif %}{% if run.cost_tests.build %}, from the set builder{% endif %}){% endif %}{% if run.cost_tests.sha256 %} <span class="small muted">SHA-256 {{ run.cost_tests.sha256|truncatechars:14 }}</span>{% endif %}{% elif settings_cost_test_set %}{{ settings_cost_test_set }}{% else %}The engine's default set (no cost-test set registered){% endif %}</dd>{% endif %}
   <dt>Reference data</dt><dd>{% for p in reference_packs %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
-  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}, SHA-256 {{ f.sha256|truncatechars:20 }})</span><br>{% endfor %}
+  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}{% if f.sha256 %}, SHA-256 {{ f.sha256|truncatechars:20 }}{% endif %})</span><br>{% endfor %}
     {% if inputs|length > 1 %}<a href="{% url 'calculations:run_inputs_zip' run.pk %}">Download every input (.zip)</a>{% endif %}</dd>
 </dl>
 {% if input_notes %}<ul class="small">{% for n in input_notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
-{% if can_rerun %}<p class="actions"><a class="button" href="{% url 'calculations:new' %}?from={{ run.pk }}">Rerun with different settings</a> <span class="small muted">New run with this run's settings and its stored inputs, to change and start as a new run.</span></p>{% endif %}
-{% if can_edit_inputs %}<form method="post" action="{% url 'calculations:draft_from_run' run.pk %}" class="actions">{% csrf_token %}<button type="submit">Edit inputs and rerun</button> <span class="small muted">Opens this run's Measure and ProgramCost tables on Edit inputs, as a new draft.</span></form>{% endif %}
+{% if can_rerun or can_edit_inputs %}<p class="small muted" id="rerun-help">{% if can_rerun %}Rerun with different settings, at the top of the page, opens New run with this run's settings and stored inputs, to change and start as a new run.{% endif %}{% if can_edit_inputs %} Edit inputs and rerun opens its Measure and ProgramCost tables on Edit inputs, as a new draft.{% endif %}</p>{% endif %}
 </section>
 
 {% if log or not run.ended and run.status != "queued" %}
@@ -129,8 +145,8 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
 <p class="small">From the engine's receipt (receipt.json in the files): the exact release, reference data and allocation table used.</p>
 <dl class="facts">
   {% if engine.release %}<dt>Engine release</dt><dd>ReCET {{ engine.release }}{% if engine.commit %} ({{ engine.commit|truncatechars:12 }}){% endif %}</dd>{% endif %}
-  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd><code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}</dd>{% endfor %}
-  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
+  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd>{% if f.sha256 %}<code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}{% elif f.version %}Version {{ f.version }} <span class="small muted">(no checksum recorded)</span>{% else %}<span class="small muted">No checksum or version recorded</span>{% endif %}</dd>{% endfor %}
+  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }}{% if run.receipt.allocation.sha256 %} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% endif %}{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
 </dl>
 {% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 </section>

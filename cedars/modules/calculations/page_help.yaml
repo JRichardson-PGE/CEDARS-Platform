@@ -91,10 +91,13 @@ calculations/run:
       reproduce them.
     - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
       every other finding. The log is what the engine printed, updated while the run runs.
-    - A finished run opens its Results and can be compared with another run. Rerun with different settings starts it again as a new run,
-      with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit inputs to change
-      and run again.
+    - A finished run opens its Results and can be compared with another run. Rerun with different settings, beside Results, starts it
+      again as a new run, with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit
+      inputs to change and run again (Edit inputs and rerun, beside it).
+    - The files are grouped as Results (the measure-level file, the portfolio summary, the key metrics and the other tables people read),
+      Checks (the input check before pricing) and Records (the receipt, the run's settings and its log), each with a line on what it is.
     - Your own runs (for Only me) can be deleted with their files once they end; an organization's runs stay until retention removes them.
+    - The person who started a run can rename it or add a note at any time; its inputs, settings and results never change.
   how:
     - Results opens a finished run's tables; Compare with another run puts it beside a second one.
     - Walk through a measure follows any one measure of a finished run through its cost-effectiveness calculation, step by step.
@@ -102,14 +105,19 @@ calculations/run:
     - Rerun with different settings opens New run filled in from this run.
     - Delete this run, beside Results on one of your own ended runs, asks you to confirm, then removes the run and its files for good.
     - Download every file (.zip) takes all the run's files at once; the inputs download as they were given.
+    - Rename or add a note, under the run's name on your own run, changes its name and note.
   see: calculations
   tour:
     - target: "#status-h"
       title: Status
       text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
     - target: main .head-row .actions
-      title: Results, compare and delete
-      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, a walk through any one measure's calculation, and, on your own ended run, Delete this run (it asks first).
+      title: Results, rerun and delete
+      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, a walk through any one measure's calculation, rerunning it with different settings or edited inputs, and, on your own ended run, Delete this run (it asks first).
+      optional: true
+    - target: "#rename-run"
+      title: Name and note
+      text: On your own run, rename it or add a note for whoever reads it later.
       optional: true
     - target: "#totals-h"
       title: Portfolio totals
@@ -117,7 +125,7 @@ calculations/run:
       optional: true
     - target: "#files-h"
       title: Files
-      text: Every file the run wrote, to download.
+      text: Every file the run wrote, grouped as Results, Checks and Records, each with a line on what it is.
       optional: true
     - target: "#check-h"
       title: Input check
@@ -302,8 +310,10 @@ calculations/engines:
     - A new ReCET version is a release of its own, added here by its number; the old one is retired, never edited into the new one, so
       each run keeps naming the release it ran on.
   how:
-    - Add the release registers a ReCET release by its version number (e.g. 0.1.90). The Calculations box starts with the default
-      release's lines; write each as recet or cet-25.1 (or ReCET, CET 25.1 replica, as the table shows them), a colon and its ACC years.
+    - >-
+      Add the release registers a ReCET release by its version number (e.g. 0.1.90). Its calculations start as the default release's,
+      one row each: the calculation (recet, or cet-25.1 for a CET replica) and its ACCs ticked; an empty row adds another, and a year
+      the list lacks goes in its Another ACC year box.
     - Tick Make it the default, and Retire the current default, to move to the new release in one step.
     - Change edits a release's calculations, ACCs, worker image or Batch job definition, with a reason for the audit trail.
     - Make default sets what New run offers first and filings price on; Retire takes no new runs on a release and keeps its runs;
@@ -324,12 +334,16 @@ calculations/engine_release:
       AWS Batch job definition and notes. Its number never changes, so the runs on it keep naming it; a new ReCET version is added as a
       release of its own on Engine releases.
   how:
-    - Write each calculation on its own line, recet or cet-25.1 then a colon and its ACC years, say why it is changed, and save.
+    - In each calculation's row tick the ACCs it has (type a year the list lacks in Another ACC year); name a new calculation in an
+      empty row, or clear a row's name and ticks to drop it. Say why it is changed, and save.
   see: administering
   tour:
     - target: "#change-h"
       title: What it offers
       text: The release's calculations and ACCs, how its worker is run, and the reason kept in the audit trail.
+    - target: fieldset.calc-rows
+      title: Calculations and their ACCs
+      text: A row for each calculation, its ACCs ticked from a list, and an empty row to add one.
 
 calculations/drafts:
   title: Edit inputs

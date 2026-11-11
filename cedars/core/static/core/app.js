@@ -10,6 +10,20 @@
     window.setTimeout(function () { el.textContent = text; }, 150);
   };
 
+  // A link to a folded answer or section (#id on a closed <details>, such as an FAQ answer) opens it, on arrival and when the address
+  // changes; without scripts the link still lands on its question, one activation from the answer.
+  function openTarget() {
+    var id;
+    try { id = decodeURIComponent(window.location.hash.slice(1)); } catch (e) { return; }
+    var el = id && document.getElementById(id);
+    while (el) {
+      if (el.tagName === "DETAILS") el.open = true;
+      el = el.parentElement;
+    }
+  }
+  openTarget();
+  window.addEventListener("hashchange", openTarget);
+
   // Header navigation. The menus are native <details>, so they open and close with the keyboard without any script; this adds the
   // conventions people expect of a menu bar: one open at a time, Escape closes and returns focus to the menu's button, a click outside closes.
   var nav = document.querySelector(".top nav");
@@ -63,6 +77,13 @@
       });
     });
   }
+
+  // "Print" buttons ([data-print], the recovery codes page) need a script, so they start hidden and show here; the print style sheet
+  // leaves only the page's own content.
+  document.querySelectorAll("button[data-print]").forEach(function (b) {
+    b.hidden = false;
+    b.addEventListener("click", function () { window.print(); });
+  });
 
   // Narrow screens: a Menu button shows and hides the navigation. Without this script the button stays hidden and the list is simply shown.
   var btn = document.querySelector(".menu-btn");

@@ -90,7 +90,7 @@ def test_a_published_pack_never_changes_and_is_withdrawn_not_deleted(cpuc_admin,
         cursor.execute("DELETE FROM refdata_tieout WHERE pack_id = %s", [acc.pk])  # tie-outs may go; the pack may not
         cursor.execute("DELETE FROM refdata_packversion WHERE id = %s", [acc.pk])
     with pytest.raises(AccessDenied, match="kept for good"):
-        service.discard_draft(cpuc_admin, acc)
+        service.discard_draft(cpuc_admin, acc, "loaded by mistake")
     with pytest.raises(AccessDenied, match="reason"):
         service.withdraw_pack(cpuc_admin, acc, "")
     service.withdraw_pack(cpuc_admin, acc, "superseded by v2 after the Resolution's correction")
@@ -100,6 +100,21 @@ def test_a_published_pack_never_changes_and_is_withdrawn_not_deleted(cpuc_admin,
     assert service.pin([acc]) == {
         "acc_electric": {"id": acc.pk, "label": "2026 ACC", "version": "v1b", "fingerprint": acc.fingerprint, "status": "withdrawn"}
     }
+
+
+def test_publish_and_discard_are_separate_and_discarding_asks_why(signed_in, cpuc_admin, acc):
+    c = signed_in(cpuc_admin)
+    page = page_only(c.get(f"/reference-data/{acc.pk}/").content.decode())
+    act = page.split('id="act-h"', 1)[1]
+    publish, discard = act.split('<details class="discard">', 1)
+    assert 'value="publish"' in publish and 'name="reason"' not in publish  # Publish asks for nothing
+    assert 'value="discard"' in discard and 'id="discard-reason" name="reason" type="text" required' in discard
+    with pytest.raises(AccessDenied, match="reason"):
+        service.discard_draft(cpuc_admin, acc, " ")
+    c.post(f"/reference-data/{acc.pk}/", {"action": "discard", "reason": ""})
+    assert PackVersion.objects.filter(pk=acc.pk).exists()
+    c.post(f"/reference-data/{acc.pk}/", {"action": "discard", "reason": "loaded by mistake"})
+    assert not PackVersion.objects.filter(pk=acc.pk).exists()
 
 
 def test_registering_needs_a_manifest_and_a_new_version(cpuc_admin, acc):
@@ -155,3 +170,10 @@ def test_pages(signed_in, cpuc_admin, pge_admin, acc):
     acc.refresh_from_db()
     assert acc.status == "published"
     assert "2026 ACC v1b" in c.get("/reference-data/packs/?kind=acc_electric").content.decode()
+
+
+def test_only_a_packs_managers_see_where_it_is_stored(signed_in, cpuc_admin, pge_admin, acc):
+    member = page_only(signed_in(pge_admin).get(f"/reference-data/{acc.pk}/").content.decode())
+    assert "Stored at" not in member and acc.storage_uri not in member
+    admin = page_only(signed_in(cpuc_admin).get(f"/reference-data/{acc.pk}/").content.decode())
+    assert "Stored at" in admin and acc.storage_uri in admin

@@ -82,6 +82,7 @@ def test_a_pa_admin_changes_unlocked_attributes_directly_and_requests_locked_one
 def test_a_delegate_decides_and_requests_can_be_declined_or_withdrawn(pge_admin, approver, make_user, programs):  # noqa: F811
     hvac = programs["hvac"]
     delegate = make_user("delegate@cpuc.example.org")
+    access.grant(None, delegate, access.cpuc(), "programs.read")
     submissions.delegate(approver, module="programs", delegate_to=delegate, starts=timezone.localdate(), ends=soon(7))
     req = registry.request_change(pge_admin, hvac, effective=soon(), reason="r", exclude_from_ce=True)
     registry.decide_change(delegate, req, False, "needs a resolution first")
@@ -124,8 +125,8 @@ def test_approvers_subscribed_to_requests_are_notified(pge_admin, approver, prog
     notifications.subscribe(approver, "program_change.requested", "site")
     with django_capture_on_commit_callbacks(execute=True):
         req = registry.request_change(pge_admin, programs["hvac"], effective=soon(), reason="r", segment="equity")
-    n = approver.notifications.get()
-    assert "locked program attribute" in n.title and n.link == f"/programs/requests/{req.pk}/"
+    n = approver.notifications.get()  # told once: the direct notice and the subscription share a key
+    assert n.title.startswith("Change requested: PGE_Res_HVAC") and n.link == f"/programs/requests/{req.pk}/"
 
 
 def test_the_pages(signed_in, pge_admin, approver, cpuc_admin, make_user, programs):  # noqa: F811

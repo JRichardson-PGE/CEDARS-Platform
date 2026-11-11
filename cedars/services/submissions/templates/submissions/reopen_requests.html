@@ -3,25 +3,32 @@
 {% block content %}
 <div class="page-title"><h1>Requests to correct filings</h1>{% page_help "submissions/reopen_requests" %}</div>
 <p>After its due date a confirmed filing is corrected as a new version, for that organization and period only. The version filed stays readable.</p>
+<p>Away for a while? <a href="{% url 'submissions:delegations' %}" id="delegates-link">Name a delegate</a> to decide for you on the days you choose.</p>
 <h2>Waiting for you</h2>
-{% for r, approver in pending %}
+{% for p in pending %}{% with r=p.r %}
 <div class="card">
-  <h3>{{ r.submission }}</h3>
+  <h3>{% if p.page %}<a href="{{ p.page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</h3>
   <p>{{ r.requested_by|person }} asked {{ r.requested_at|date_words }}: {{ r.reason }}</p>
-  {% if approver != user %}<p class="small muted">You decide as {{ approver|person_name }}'s delegate.</p>{% endif %}
+  {% if p.approver != user %}<p class="small muted">You decide as {{ p.approver|person_name }}'s delegate.</p>{% endif %}
+  <ul class="small">
+    <li>{% if p.stands %}{% if p.stands_page %}<a href="{{ p.stands_page }}">Version {{ p.stands.number }}, the one that stands</a>{% else %}Version {{ p.stands.number }}, the one that stands{% endif %}{% if p.stands.published_at %}: published {{ p.stands.published_at|date_words }}{% endif %}, with its records and totals{% else %}No published version stands yet{% endif %}</li>
+    <li>{% if p.earlier %}Earlier corrections: {% for v in p.earlier %}version {{ v.number }}{% if v.reason %} ({{ v.reason }}){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}{% else %}No earlier corrections{% endif %}</li>
+    <li>{% if p.stands_page %}<a href="{{ p.stands_page }}#comments">Comments on this filing: {{ p.comments }}</a>{% else %}Comments on this filing: {{ p.comments }}{% endif %}</li>
+  </ul>
   <form method="post" action="{% url 'submissions:decide' r.pk %}" class="stack">{% csrf_token %}
-    <label for="note-{{ r.pk }}">Note (optional)</label><input type="text" id="note-{{ r.pk }}" name="note">
-    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> reopening {{ r.submission }}</span></button>
-      <button type="submit" name="decision" value="decline">Decline<span class="sr-only"> reopening {{ r.submission }}</span></button></div>
+    <label for="note-{{ r.pk }}">Note to the filer (a reason is needed to decline)</label><input type="text" id="note-{{ r.pk }}" name="note" aria-describedby="note-{{ r.pk }}-help">
+    <span class="helptext" id="note-{{ r.pk }}-help">The filer is told the decision, with this note.</span>
+    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> reopening {{ r.submission.plain_name }}</span></button>
+      <button type="submit" name="decision" value="decline">Decline<span class="sr-only"> reopening {{ r.submission.plain_name }}</span></button></div>
   </form>
 </div>
-{% empty %}<p>Nothing waiting.</p>
+{% endwith %}{% empty %}<p>Nothing waiting.</p>
 {% endfor %}
 {% if decided %}
 <h2>Decided</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Decided requests">
 <table class="list"><thead><tr><th scope="col">Filing</th><th scope="col">Decision</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
-<tbody>{% for r in decided %}<tr><th scope="row">{{ r.submission }}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
+<tbody>{% for r, page in decided %}<tr><th scope="row">{% if page %}<a href="{{ page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
 </div>
 {% endif %}
 {% endblock %}

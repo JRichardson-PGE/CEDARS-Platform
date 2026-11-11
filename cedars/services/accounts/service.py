@@ -125,6 +125,29 @@ def known_pa_type(code: str) -> str:
     return KNOWN_PA_TYPES.get((code or "").strip().upper(), "")
 
 
+def pa_code_table() -> list[tuple[str, str, str]]:
+    """The glossary's program administrator codes, read from the organizations: (code, name, type) for each PA's current code and
+    each former one (OrganisationCode), so a rename or a new PA on the site shows at once. IOUs first, then RENs, CCAs and untyped
+    PAs; the statewide pseudo-PA is left out (the glossary describes it separately)."""
+    order = {"IOU": 0, "REN": 1, "CCA": 2}
+    pas = {o.pk: o for o in Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(code=STATEWIDE_CODE).select_related("successor")}
+    rows = []
+    for o in pas.values():
+        name = o.name
+        if o.successor_id:
+            name = f"{name} (merged into {o.successor.name}, {o.successor.code}{f', {o.merged_on:%Y}' if o.merged_on else ''})"
+        elif not o.active:
+            name = f"{name} (no longer active)"
+        rows.append((o.code, name, o.pa_type, o))
+    for c in OrganisationCode.objects.filter(organisation_id__in=pas, valid_to__isnull=False).order_by("code"):
+        o = pas[c.organisation_id]
+        if c.code == o.code:
+            continue
+        rows.append((c.code, f"{o.name}'s code before {c.valid_to:%Y} (now {o.code})", o.pa_type, o))
+    rows.sort(key=lambda r: (order.get(r[2], 9), r[0]))
+    return [(code, name, kind or "Not set yet") for code, name, kind, _ in rows]
+
+
 def pa_types() -> dict[str, str]:
     """Every typed PA's code and its type, for grouping data by PA type (the dashboards' PA type filter and view)."""
     return dict(Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(pa_type="").values_list("code", "pa_type"))
@@ -622,6 +645,8 @@ def can_grant(actor: User | None, user: User, organisation: Organisation, permis
         if is_system_admin(actor):
             return True, ""
         return False, f"{organisation.code} has no administrator yet; the CPUC assigns its first one."
+    if is_system_admin(actor) and not org_admins(organisation).exists():
+        return True, ""  # until an organization has an administrator, the CPUC decides its access requests (decide_request)
     if is_org_admin(actor, organisation):
         return True, ""
     if permission == perms.ORG_ADMIN and is_system_admin(actor):
@@ -957,14 +982,112 @@ def apply_role_template(
 # --- access requests
 
 
+def requestable_organisations():
+    """The organizations a person can ask to join: active, not the CPUC (its staff are added by its administrators) and not the
+    statewide (SW) pseudo-PA, which has no members of its own."""
+    return Organisation.objects.filter(active=True).exclude(kind=Organisation.Kind.CPUC).exclude(code=STATEWIDE_CODE).order_by("code")
+
+
+def cpuc_decides(organisation: Organisation) -> bool:
+    """Whether the CPUC decides the organization's access requests: it has no administrator yet (the CPUC assigns its first one)."""
+    return not org_admins(organisation).exists()
+
+
+def request_deciders(organisation: Organisation):
+    """Who decides an access request to the organization: its administrators, or the CPUC's system administrators until it has one."""
+    if not cpuc_decides(organisation):
+        return org_admins(organisation)
+    org = cpuc()
+    return holders(org, perms.SYSTEM_ADMIN) if org is not None else User.objects.none()
+
+
+def can_decide_request(user: User | None, organisation: Organisation) -> bool:
+    if user is None or not user.is_authenticated:
+        return False
+    return is_org_admin(user, organisation) or (cpuc_decides(organisation) and is_system_admin(user))
+
+
+def organisations_deciding(user: User | None) -> list[Organisation]:
+    """The organizations whose access requests wait on the user: those they administer and, for a CPUC system administrator, every
+    organization with no administrator yet."""
+    if user is None or not user.is_authenticated:
+        return []
+    orgs = [o for o in organisations_of(user) if is_org_admin(user, o)]
+    if is_system_admin(user):
+        administered = _effective(Grant.objects.filter(permission=perms.ORG_ADMIN, membership__user__is_active=True)).values(
+            "membership__organisation"
+        )
+        orgs += [o for o in requestable_organisations().exclude(pk__in=administered) if o not in orgs]
+    return orgs
+
+
+def decider_words(organisation: Organisation) -> str:
+    """Who decides, in words: "PGE's administrators", or "the CPUC (PGE has no administrator yet)"."""
+    if cpuc_decides(organisation):
+        return f"the CPUC ({organisation.code} has no administrator yet)"
+    return f"{organisation.code}'s administrators"
+
+
+def access_deciders(organisation: Organisation) -> tuple[list[User], bool]:
+    """Who is told of a request to join the organization: whoever decides it (request_deciders), and whether that is the CPUC because
+    the organization has no administrator yet. (people, the CPUC's instead)"""
+    return list(request_deciders(organisation).order_by("pk")), cpuc_decides(organisation)
+
+
+def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", granted: list[str] | None = None) -> None:
+    """Tell the people an access request concerns, directly (on by default; Notification settings): a new request reaches the
+    organization's administrators (or the CPUC's, when it has none), a decision the person who asked, and a withdrawal the people told
+    of the request."""
+    from cedars.services.notifications import service as notifications
+
+    org, person = req.organisation, req.user
+    who = (person.name or "").strip() or person.email
+    wanted = perms.labels(req.permissions)
+    key = notifications.request_key("accounts.accessrequest", req.pk, step)
+    page = f"/admin/organizations/{org.code}/#req-h"
+    if step == "requested":
+        people, for_cpuc = access_deciders(org)
+        body = f"{who} asked to join {org.code} with: {wanted}." + (f"\n\nTheir message: {req.message}" if req.message else "")
+        if for_cpuc:
+            body += f"\n\n{org.code} has no administrator yet, so the CPUC decides: approve or decline it on {org.code}'s page."
+        notifications.tell_about_request(
+            [u for u in people if u != person], f"Access requested: {who}, {org.code}", body, page, key=key, about=notifications.DECIDE
+        )
+    elif step == "withdrawn":
+        people = notifications.told(notifications.request_key("accounts.accessrequest", req.pk, "requested"))
+        notifications.tell_about_request(
+            list(people),
+            f"Access request withdrawn: {who}, {org.code}",
+            "Nothing is left to decide.",
+            page,
+            key=key,
+            about=notifications.DECIDE,
+        )
+    else:
+        if step == "approved":
+            body = f"You can now act for {org.code} with: {', '.join(perms.label(p) for p in granted or [])}."
+            if note.strip():
+                body += f"\n\nNote: {note}"
+        else:
+            body = f"Reason: {note}" if note.strip() else "No reason was given."
+        notifications.tell_about_request(
+            [person], f"Your access request to {org.code} was {step}", body, "/account/", key=key, about=notifications.OWN
+        )
+
+
 @transaction.atomic
 def request_access(user: User, organisation: Organisation, permission_codes: list[str], message: str = "") -> AccessRequest:
     bad = [p for p in permission_codes if not perms.is_valid(p) or p in perms.CPUC_ONLY]
     if bad:
-        raise AccessDenied(f"These cannot be requested: {', '.join(bad)}.")
+        raise AccessDenied(f"These cannot be requested: {perms.labels(bad)}.")
+    if not permission_codes:
+        raise AccessDenied("Choose a role or at least one permission.")
+    if not requestable_organisations().filter(pk=organisation.pk).exists():
+        raise AccessDenied(f"{organisation.code} does not take access requests.")
     if AccessRequest.objects.filter(user=user, organisation=organisation, status=AccessRequest.Status.PENDING).exists():
         raise AccessDenied(f"You already have a request waiting with {organisation.code}.")
     req = AccessRequest.objects.create(user=user, organisation=organisation, permissions=sorted(set(permission_codes)), message=message)
+    _tell_about_access_request(req, "requested")
     audit.record("access_request.created", obj=req, after={"permissions": req.permissions, "message": message}, actor=user)
     return req
 
@@ -973,9 +1096,13 @@ def request_access(user: User, organisation: Organisation, permission_codes: lis
 def decide_request(
     actor: User, req: AccessRequest, approve: bool, note: str = "", permission_codes: list[str] | None = None
 ) -> AccessRequest:
-    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organization's
-    admins decide; the CPUC is not in the path."""
-    _require_org_admin(actor, req.organisation, "decide its access requests")
+    """Approve (granting the asked-for permissions, or the subset the decider picks) or decline a request. The organization's
+    administrators decide; the CPUC's system administrators decide only while it has no administrator (request_deciders)."""
+    if actor is not None and not can_decide_request(actor, req.organisation):
+        code = req.organisation.code
+        if cpuc_decides(req.organisation):
+            raise AccessDenied(f"{code} has no administrator yet, so only the CPUC's system administrators can decide its access requests.")
+        raise AccessDenied(f"Only {code}'s administrators can decide its access requests.")
     if req.status != AccessRequest.Status.PENDING:
         raise AccessDenied("That request has already been decided.")
     if approve:
@@ -986,6 +1113,7 @@ def decide_request(
     req.status = AccessRequest.Status.APPROVED if approve else AccessRequest.Status.DECLINED
     req.decided_by, req.decided_at, req.decision_note = actor, timezone.now(), note
     req.save()
+    _tell_about_access_request(req, req.status, note, granted=chosen if approve else None)
     audit.record(f"access_request.{req.status}", obj=req, reason=note, actor=actor)
     return req
 
@@ -998,6 +1126,7 @@ def withdraw_request(user: User, req: AccessRequest) -> AccessRequest:
         raise AccessDenied("That request has already been decided.")
     req.status, req.decided_at = AccessRequest.Status.WITHDRAWN, timezone.now()
     req.save()
+    _tell_about_access_request(req, "withdrawn")
     audit.record("access_request.withdrawn", obj=req, actor=user)
     return req
 
@@ -1091,6 +1220,217 @@ def reinstate(actor: User, g: Grant, reason: str) -> Grant:
     )
 
 
+# --- people: names, deactivation, sessions
+
+
+NAME_MAX = 200
+
+
+def end_sessions(user: User, keep: str | None = None) -> int:
+    """Sign the user out everywhere but the session `keep` (a session key; None: everywhere). Returns how many sessions ended."""
+    from django.contrib.sessions.models import Session
+
+    ended = 0
+    for s in Session.objects.filter(expire_date__gt=timezone.now()).exclude(session_key=keep or ""):
+        if str(s.get_decoded().get("_auth_user_id")) == str(user.pk):
+            s.delete()
+            ended += 1
+    return ended
+
+
+@transaction.atomic
+def set_name(actor: User | None, user: User, name: str, reason: str = "") -> User:
+    """Set the name the pages show for a person: the person themselves, or a CPUC system administrator correcting it (with a reason).
+    Blank shows their email address instead."""
+    if actor is not None and actor.pk != user.pk:
+        _require_system_admin(actor, "change someone else's name")
+        if not reason.strip():
+            raise AccessDenied("Give the reason for correcting their name.")
+    name = " ".join(name.split())
+    if len(name) > NAME_MAX:
+        raise AccessDenied(f"A name is at most {NAME_MAX} characters.")
+    if name == user.name:
+        return user
+    before = {"name": user.name}
+    user.name = name
+    user.save(update_fields=["name"])
+    audit.record("user.name_changed", obj=user, before=before, after={"name": name}, reason=reason.strip(), actor=actor)
+    return user
+
+
+def _last_holder(user: User, permission: str) -> bool:
+    """Whether the user is the only active account holding a CPUC permission (system administrator, data steward) now."""
+    org = cpuc()
+    if org is None or permission not in effective_permissions(user, org):
+        return False
+    return not holders(org, permission).exclude(pk=user.pk).exists()
+
+
+def can_close_own_account(user: User) -> bool:
+    """A community account (a member of no organization) may close itself; a member asks the CPUC instead."""
+    return user.is_active and not user.memberships.filter(ended_at__isnull=True).exists()
+
+
+@transaction.atomic
+def deactivate_user(actor: User | None, user: User, reason: str, keep_session: str | None = None) -> User:
+    """Deactivate an account (a CPUC system administrator, with a reason; or a person closing their own community account): it can no
+    longer sign in or use the API, its API tokens are revoked and its sessions end. Nothing is deleted: its memberships, grants and
+    history stay, so it can be reactivated. The last system administrator or data steward cannot be deactivated."""
+    own = actor is not None and actor.pk == user.pk
+    if own:
+        if not can_close_own_account(user):
+            raise AccessDenied("You belong to an organization: ask its administrators or the CPUC to close your account.")
+    else:
+        _require_system_admin(actor, "deactivate an account")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for deactivating the account.")
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if not user.is_active:
+        raise AccessDenied(f"{user.email} is already deactivated.")
+    if _last_holder(user, perms.SYSTEM_ADMIN):
+        raise AccessDenied(f"{user.email} is the last CPUC system administrator. Grant another one first.")
+    if _last_holder(user, perms.STEWARD):
+        raise AccessDenied(f"{user.email} is the last data steward. Grant another steward first.")
+    from .models import ApiToken
+
+    now = timezone.now()
+    revoked = []
+    for t in ApiToken.objects.select_for_update().filter(user=user, revoked_at__isnull=True, expires_at__gt=now):
+        t.revoked_at, t.revoked_by, t.revoke_reason = now, actor, f"account deactivated: {reason.strip()}"
+        t.save(update_fields=["revoked_at", "revoked_by", "revoke_reason"])
+        audit.record("api_token.revoked", obj=t, organisation=t.organisation, reason=t.revoke_reason, actor=actor)
+        revoked.append(t.prefix)
+    user.is_active, user.deactivated_at, user.deactivated_by, user.deactivation_reason = False, now, actor, reason.strip()
+    user.save(update_fields=["is_active", "deactivated_at", "deactivated_by", "deactivation_reason"])
+    sessions = end_sessions(user, keep=None if not own else keep_session)
+    audit.record(
+        "user.deactivated",
+        obj=user,
+        before={"is_active": True},
+        after={"is_active": False, "tokens_revoked": revoked, "sessions_ended": sessions, "closed_by_themselves": own},
+        reason=reason.strip(),
+        actor=actor,
+    )
+    return user
+
+
+@transaction.atomic
+def reactivate_user(actor: User | None, user: User, reason: str) -> User:
+    """Let a deactivated account sign in again (a CPUC system administrator, with a reason). Its memberships and grants work again as
+    they stood; revoked API tokens stay revoked."""
+    _require_system_admin(actor, "reactivate an account")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for reactivating the account.")
+    user = User.objects.select_for_update().get(pk=user.pk)
+    if user.is_active:
+        raise AccessDenied(f"{user.email} is already active.")
+    before = {"is_active": False, "deactivated_at": user.deactivated_at.isoformat() if user.deactivated_at else None}
+    user.is_active, user.deactivated_at, user.deactivated_by, user.deactivation_reason = True, None, None, ""
+    user.save(update_fields=["is_active", "deactivated_at", "deactivated_by", "deactivation_reason"])
+    audit.record("user.reactivated", obj=user, before=before, after={"is_active": True}, reason=reason.strip(), actor=actor)
+    return user
+
+
+# --- organizations: retiring, directory sign-in
+
+
+@transaction.atomic
+def retire_organisation(actor: User | None, org: Organisation, reason: str) -> Organisation:
+    """Retire an organization that no longer takes part, without merging it into another (a CPUC system administrator, with a reason):
+    it stops filing and leaves the pickers, its members can no longer act for it and its API tokens stop working. Its data, filings,
+    members and history stay, and it can be brought back."""
+    _require_system_admin(actor, "retire an organization")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for retiring the organization.")
+    if org.kind == Organisation.Kind.CPUC:
+        raise AccessDenied("The CPUC's own organization cannot be retired.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; it is already inactive.")
+    if not org.active:
+        raise AccessDenied(f"{org.code} is already retired.")
+    org.active = False
+    org.save(update_fields=["active"])
+    audit.record("organisation.retired", obj=org, before={"active": True}, after={"active": False}, reason=reason.strip(), actor=actor)
+    return org
+
+
+@transaction.atomic
+def reinstate_organisation(actor: User | None, org: Organisation, reason: str) -> Organisation:
+    """Bring a retired organization back (a CPUC system administrator, with a reason): its members act for it again with the grants
+    they held. A merged organization stays merged."""
+    _require_system_admin(actor, "bring back an organization")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for bringing the organization back.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; a merge is not undone here.")
+    if org.active:
+        raise AccessDenied(f"{org.code} is active.")
+    org.active = True
+    org.save(update_fields=["active"])
+    audit.record("organisation.reinstated", obj=org, before={"active": False}, after={"active": True}, reason=reason.strip(), actor=actor)
+    return org
+
+
+FEDERATION_CHANGE = "organisation_federation"  # a PolicyChange that switches one organization's directory sign-in
+
+
+def holds_pii_grants(org: Organisation) -> bool:
+    """Whether any member holds, or waits for, PII access in the organization (its directory sign-in then matters to the PII rule)."""
+    return Grant.objects.filter(membership__organisation=org, permission=perms.PII, status__in=Grant.OPEN).exists()
+
+
+def _federation_values(org: Organisation, federated: bool, provider: str) -> dict:
+    provider = provider.strip()
+    if federated and not provider:
+        raise AccessDenied("Name the sign-in provider its members use (the directory's provider id).")
+    if len(provider) > 100:
+        raise AccessDenied("A provider id is at most 100 characters.")
+    return {"federated": bool(federated), "federation_provider": provider if federated else ""}
+
+
+def _apply_federation(actor: User | None, org: Organisation, values: dict, reason: str, confirmed_by: User | None = None) -> Organisation:
+    before = audit.snapshot(org, ["federated", "federation_provider"])
+    for k, v in values.items():
+        setattr(org, k, v)
+    org.save(update_fields=list(values))
+    after = audit.snapshot(org, ["federated", "federation_provider"])
+    if confirmed_by is not None:
+        after["confirmed_by"] = confirmed_by.email
+    audit.record("organisation.federation_changed", obj=org, before=before, after=after, reason=reason, actor=actor)
+    return org
+
+
+@transaction.atomic
+def change_federation(
+    actor: User | None, org: Organisation, *, federated: bool, provider: str = "", reason: str
+) -> Organisation | PolicyChange:
+    """Switch whether an organization's members sign in through its own directory, and the provider they use (a CPUC system
+    administrator, with a reason). When a member holds or waits for PII access in it, the PII rule depends on the switch, so the change
+    is proposed instead (returned) and takes effect when a data steward other than the proposer confirms it on the stewardship page."""
+    _require_system_admin(actor, "change an organization's directory sign-in")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for the change.")
+    if org.successor_id:
+        raise AccessDenied(f"{org.code} was merged into {org.successor.code}; change {org.successor.code} instead.")
+    values = _federation_values(org, federated, provider)
+    if values == {"federated": org.federated, "federation_provider": org.federation_provider}:
+        raise AccessDenied(f"{org.code}'s directory sign-in is already set that way.")
+    if not holds_pii_grants(org):
+        return _apply_federation(actor, org, values, reason.strip())
+    waiting = PolicyChange.objects.filter(setting=FEDERATION_CHANGE, status=PolicyChange.Status.PROPOSED, value__organisation=org.pk)
+    if waiting.exists():
+        raise AccessDenied(f"A change to {org.code}'s directory sign-in is already waiting for a data steward.")
+    value = {"organisation": org.pk, "code": org.code, **values}
+    change = PolicyChange.objects.create(setting=FEDERATION_CHANGE, value=value, reason=reason.strip(), proposed_by=actor)
+    audit.record("policy_change.proposed", obj=change, after=value, reason=reason.strip(), actor=actor, organisation=org)
+    return change
+
+
+def federation_changes_waiting(org: Organisation | None = None):
+    qs = PolicyChange.objects.filter(setting=FEDERATION_CHANGE, status=PolicyChange.Status.PROPOSED).select_related("proposed_by")
+    return qs.filter(value__organisation=org.pk) if org is not None else qs
+
+
 # --- policy (two stewards for rules that change everyone's PII access)
 
 
@@ -1132,6 +1472,13 @@ def confirm_policy_change(steward: User, change: PolicyChange) -> AccessPolicy:
         raise AccessDenied("That change is no longer waiting for confirmation.")
     if change.proposed_by_id == steward.pk:
         raise AccessDenied("A second data steward must confirm a change you proposed.")
+    if change.setting == FEDERATION_CHANGE:
+        org = Organisation.objects.select_for_update().get(pk=change.value["organisation"])
+        values = {k: change.value[k] for k in ("federated", "federation_provider")}
+        change.status, change.decided_by, change.decided_at = PolicyChange.Status.CONFIRMED, steward, timezone.now()
+        change.save()
+        _apply_federation(change.proposed_by, org, values, change.reason, confirmed_by=steward)
+        return AccessPolicy.current()
     policy = AccessPolicy.current()
     before = {change.setting: getattr(policy, change.setting)}
     setattr(policy, change.setting, change.value)
@@ -1146,7 +1493,9 @@ def confirm_policy_change(steward: User, change: PolicyChange) -> AccessPolicy:
 
 @transaction.atomic
 def withdraw_policy_change(steward: User, change: PolicyChange, reason: str = "") -> PolicyChange:
-    if not is_steward(steward):
+    """A data steward declines a proposed change; a CPUC system administrator may also withdraw a directory sign-in change they proposed."""
+    own_federation = change.setting == FEDERATION_CHANGE and change.proposed_by_id == steward.pk
+    if not (is_steward(steward) or own_federation):
         raise AccessDenied("Only a data steward can withdraw this change.")
     if change.status != PolicyChange.Status.PROPOSED:
         raise AccessDenied("That change is no longer waiting for confirmation.")

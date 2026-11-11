@@ -26,6 +26,11 @@ class User(AbstractUser):
 
     email = models.EmailField("email address", unique=True)
     name = models.CharField("full name", max_length=200, blank=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True, help_text="When the account was last deactivated (blank while active)")
+    deactivated_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="Who deactivated it"
+    )
+    deactivation_reason = models.TextField(blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
@@ -72,7 +77,7 @@ class Organisation(models.Model):
         default=False,
         help_text="Its members may hold the permission to load and confirm statewide allocation factors (the funding PAs)",
     )
-    federated = models.BooleanField(default=False, help_text="Its members sign in through the organization's own directory (decision F)")
+    federated = models.BooleanField(default=False, help_text="Its members sign in through the organization's own directory")
     federation_provider = models.CharField(max_length=100, blank=True, help_text="The sign-in provider id its federated members use")
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -356,7 +361,7 @@ class AccessPolicy(models.Model):
     recertification_auto_suspend = models.BooleanField(default=True, help_text="Suspend grants not certified by the campaign's due date")
     recertification_interval_days = models.PositiveIntegerField(default=365)
     pii_requires_federated = models.BooleanField(
-        default=False, help_text="PII grants only for federated organizations, usable only in a federated session (decision F)"
+        default=False, help_text="PII grants only for federated organizations, usable only in a federated session"
     )
     updated_at = models.DateTimeField(auto_now=True)
 

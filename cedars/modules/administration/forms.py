@@ -1,6 +1,7 @@
 from django import forms
 
 from cedars.services.accounts import permissions as perms
+from cedars.services.accounts import service
 from cedars.services.accounts.models import Organisation
 
 
@@ -62,21 +63,58 @@ class ReasonForm(forms.Form):
     reason = forms.CharField(label="Reason", max_length=500)
 
 
+def requestable_permissions() -> list[str]:
+    """What a person may ask for one by one: read and submit for each module, what a new member normally needs (UAT F23). Confirming,
+    approving, administering and PII access are granted by the organization's administrators once the person is a member (the service
+    still accepts any permission, and a role template may include them)."""
+    return [c for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")]
+
+
+class ChooseOrganisationForm(forms.Form):
+    """Ask for access, first step: which organization (a GET form, so it works without scripts)."""
+
+    organisation = forms.ModelChoiceField(
+        label="Organization",
+        queryset=service.requestable_organisations(),
+        empty_label="Choose an organization",
+        to_field_name="code",
+        help_text="The program administrator or other organization you work for or with.",
+    )
+
+
 class RequestAccessForm(forms.Form):
-    organisation = forms.ModelChoiceField(label="Organization", queryset=Organisation.objects.filter(active=True).exclude(kind="cpuc"))
-    # Read and submit for each module: what a new member normally needs (UAT F23). Confirm, approve, administrator and PII rights are
-    # given by the organization's administrators once the person is a member (the service still accepts any permission).
+    """Ask for access, second step: the organization's roles in plain words first (its role templates), single permissions behind a
+    disclosure, and a message (UI review 3, U6)."""
+
+    organisation = forms.ModelChoiceField(queryset=service.requestable_organisations(), to_field_name="code", widget=forms.HiddenInput)
+    roles = forms.MultipleChoiceField(label="Your role", required=False, widget=forms.CheckboxSelectMultiple)
     permissions = forms.MultipleChoiceField(
-        label="Permissions you need",
+        label="Single permissions",
+        required=False,
         widget=forms.CheckboxSelectMultiple,
-        choices=[(c, perms.label(c)) for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")],
-        help_text=(
-            "Confirming, approving, administering the organization and PII access are added by its administrators once you are a member."
-        ),
+        choices=[(c, perms.label(c)) for c in requestable_permissions()],
     )
     message = forms.CharField(
-        label="Message to the organization's administrators", required=False, widget=forms.Textarea(attrs={"rows": 3})
+        label="Message to whoever decides (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Say who you are and what you need to do, for example: I file our quarterly claims.",
     )
+
+    def __init__(self, *args, templates=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.templates = {str(t.pk): t for t in templates}
+        self.fields["roles"].choices = [(pk, t.name) for pk, t in self.templates.items()]
+
+    def clean(self):
+        d = super().clean()
+        codes = set(d.get("permissions") or [])
+        for pk in d.get("roles") or []:
+            codes.update(self.templates[pk].permissions)
+        if not codes and not self.errors:
+            raise forms.ValidationError("Choose a role or at least one permission.")
+        d["codes"] = sorted(codes)
+        return d
 
 
 class OrganisationForm(forms.ModelForm):
@@ -179,9 +217,33 @@ class PolicyChangeForm(forms.Form):
 
 
 class AuditFilterForm(forms.Form):
-    action = forms.CharField(label="Action starts with", required=False)
+    """The audit log's filters, each list holding only what the log has: actions (each family, such as every grant action, then each
+    action), record types and organizations, with a date range and the actor."""
+
+    # lists to choose from; any value is still taken, so an earlier link's "action starts with" (?action=grant) keeps working
+    action = forms.CharField(label="Action", required=False, widget=forms.Select)
+    object_type = forms.CharField(label="Record type", required=False, widget=forms.Select)
+    organisation = forms.CharField(label="Organization", required=False, widget=forms.Select)
     actor = forms.CharField(label="Actor email contains", required=False)
-    object_type = forms.CharField(label="Record type", required=False)
+    since = forms.DateField(label="From", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    until = forms.DateField(label="To", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, actions=(), types=(), organisations=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        families = sorted({a.split(".")[0] for a in actions if "." in a})
+        self.fields["action"].widget.choices = [
+            ("", "Any action"),
+            ("Every action of a kind", [(f"{f}.", f"{f}: every action") for f in families]),
+            ("One action", [(a, a) for a in actions]),
+        ]
+        self.fields["object_type"].widget.choices = [("", "Any record type"), *[(t, t) for t in types]]
+        self.fields["organisation"].widget.choices = [("", "Any organization"), *[(o.code, f"{o.code}: {o.name}") for o in organisations]]
+
+    def clean(self):
+        d = super().clean()
+        if d.get("since") and d.get("until") and d["since"] > d["until"]:
+            self.add_error("until", "To is before From.")
+        return d
 
 
 class AllocationUploadForm(forms.Form):
@@ -218,3 +280,42 @@ class ApiTokenForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organization: my own calculations")]
         self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]
+
+
+class NameForm(forms.Form):
+    """The name the pages show for a person; a CPUC system administrator correcting someone else's gives a reason."""
+
+    name = forms.CharField(
+        label="Full name", max_length=200, required=False, help_text="As colleagues know you. Blank shows your email address instead."
+    )
+    reason = forms.CharField(label="Reason for the correction", max_length=500, required=False)
+
+    def __init__(self, *args, correcting=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if correcting:
+            self.fields["name"].help_text = "Blank shows their email address instead."
+            self.fields["reason"].required = True
+        else:
+            del self.fields["reason"]
+
+
+class PeopleFilterForm(forms.Form):
+    q = forms.CharField(label="Name or email", required=False, max_length=200)
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Every account"), ("active", "Active"), ("deactivated", "Deactivated"), ("community", "In no organization")],
+    )
+
+
+class FederationForm(forms.Form):
+    """Whether an organization's members sign in through its own directory, and the provider they use."""
+
+    federated = forms.BooleanField(label="Its members sign in through the organization's own directory", required=False)
+    provider = forms.CharField(
+        label="Sign-in provider id",
+        max_length=100,
+        required=False,
+        help_text="The directory's provider id, as the platform's operators set it up. Needed when its members sign in through it.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500)

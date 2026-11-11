@@ -9,6 +9,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
+from cedars.core import pickers
+
 from . import dashboard, downloads, metrics, query
 
 
@@ -57,10 +59,12 @@ def metrics_csv(request):
 
 @require_GET
 def front_page(request):
-    """The site's front page (Jake, 2026-10-31): what CEDARS is, how the portfolio is doing year by year (front.py) and the way to Help."""
+    """The site's front page (Jake, 2026-10-31): what CEDARS is, the signed-in person's own work (core/yourwork.py; UI review 3,
+    U5), how the portfolio is doing year by year (front.py) and the way to Help."""
     from django.shortcuts import render
 
     from cedars.core import help as site_help
+    from cedars.core import yourwork
 
     from . import front
 
@@ -68,6 +72,7 @@ def front_page(request):
         request,
         "data/front.html",
         {
+            "your_work": yourwork.parts(request, yourwork.FRONT),  # signed in: the person's own work above the portfolio
             "t": front.trends(request.GET),
             "guides": site_help.GUIDES,
             "support": site_help.support(),
@@ -96,9 +101,16 @@ def _goal_format(goal_metric):
 
 DASHBOARD_HELP = {
     "use_category": "Measure use categories, separated by commas.",
-    "program": "PrgIDs, separated by commas.",
     "measure": "Measure IDs, separated by commas.",
 }
+
+
+def _picked(params) -> dict:
+    """GET parameters with the program picker's values read as PrgIDs (a name or a PrgID in any case), the rest as given."""
+    values = {k: params.getlist(k) for k in params}
+    if "program" in values:
+        values["program"] = pickers.resolve_programs(values["program"])
+    return values
 
 
 @require_GET
@@ -121,7 +133,7 @@ def dashboard_page(request, slug):
         raise Http404
     error = None
     try:
-        view = dashboard.parse(page, request.GET)
+        view = dashboard.parse(page, _picked(request.GET))
     except query.QueryError as e:
         error = f"That view could not be shown: {e}."
         view = dashboard.parse(page, {})
@@ -221,8 +233,9 @@ def dashboard_page(request, slug):
                 "help": DASHBOARD_HELP.get(d, ""),
             }
             for d in dashboard.FILTERS
-            if d not in query.PA_SELECTION
+            if d not in query.PA_SELECTION and d != "program"
         ],
+        "program_picker": pickers.program_picker(selected.get("program", ()), id="dash-program"),
         "pa_picker": dashboard.pa_picker(selected, statewide=False),
     }
     context |= saved_pages.page_context(request, page.slug, None if error else urlencode(view.params, doseq=True))
@@ -273,7 +286,10 @@ def records_page(request):
     default = saved.default_columns(request.user)
     try:
         if request.method == "POST":
-            rq = records.from_params({k: request.POST.getlist(k) for k in request.POST if k not in FORM_SKIP})
+            posted = {k: request.POST.getlist(k) for k in request.POST if k not in FORM_SKIP}
+            if "program" in posted:  # the program picker: names and PrgIDs in any case read as PrgIDs
+                posted["program"] = pickers.resolve_programs(posted["program"])
+            rq = records.from_params(posted)
             cat = records.catalog(query.files_of(rq.query))
             columns, _ = records.chosen(cat, rq.params)
             return redirect(f"{request.path}?{records.query_string(rq.query, cat, columns)}")
@@ -307,9 +323,10 @@ def _records_context(request, page, number, error) -> dict:
         "filings": dashboard.filings(),
         "exclusions": [(code, e.label, code in q.exclude) for code, e in query.EXCLUSIONS.items()],
         "pa_picker": dashboard.pa_picker(selected),
+        "program_picker": pickers.program_picker(selected.get("program", ()), id="records-program"),
         "text_filters": [
             {"code": d, "label": query.DIMENSIONS[d].label, "value": ",".join(selected.get(d, ())), "help": DASHBOARD_HELP[d]}
-            for d in ("program", "measure")
+            for d in ("measure",)
         ],
         "more_filters": [
             {"code": d, "label": query.DIMENSIONS[d].label, "options": options.get(d, []), "selected": selected.get(d, ())}

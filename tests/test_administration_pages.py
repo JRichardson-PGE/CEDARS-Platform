@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import pytest
+from django.utils import timezone
 
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
@@ -69,7 +72,7 @@ def test_community_account_requests_access(signed_in, make_user, pge, pge_admin)
     u = make_user("community@example.com")
     c = signed_in(u)
     assert "community account" in c.get("/account/").content.decode()
-    r = c.post("/account/request-access/", {"organisation": pge.pk, "permissions": ["claims.read"], "message": "hi"})
+    r = c.post("/account/request-access/", {"organisation": pge.code, "permissions": ["claims.read"], "message": "hi"})
     assert r.status_code == 302
     req = AccessRequest.objects.get(user=u)
     assert req.permissions == ["claims.read"]
@@ -174,8 +177,21 @@ def test_policy_change_needs_two_stewards_through_the_page(signed_in, make_user,
 def test_settings_and_audit_pages(signed_in, cpuc_admin, pge, pge_admin):
     c = signed_in(cpuc_admin)
     c.post("/admin/settings/", {"recertification_interval_days": 180, "reason": "twice a year"})
-    page = c.get("/admin/audit/?action=access_policy").content.decode()
+    page = c.get("/admin/audit/?action=access_policy.").content.decode()
     assert "access_policy.changed" in page and "twice a year" in page
+    rows = page.split("<tbody>", 1)[1]
+    assert "grant.created" not in rows  # only the chosen kind of action
+    # the lists hold what the log has: each action and its kind, record types, organizations; a date range
+    assert '<option value="access_policy." selected>access_policy: every action</option>' in page
+    assert '<option value="access_policy.changed">access_policy.changed</option>' in page
+    assert '<option value="accounts.grant">accounts.grant</option>' in page and '<option value="PGE">PGE: ' in page
+    assert 'type="date" name="since"' in page and 'type="date" name="until"' in page
+    today = timezone.localdate()
+    assert "twice a year" in c.get(f"/admin/audit/?since={today}&until={today}").content.decode().split("<tbody>", 1)[1]
+    later = (today + timedelta(days=1)).isoformat()
+    assert "No events match" in c.get(f"/admin/audit/?since={later}").content.decode()
+    assert "To is before From" in c.get(f"/admin/audit/?since={later}&until={today}").content.decode()
+    assert "access_policy.changed" not in c.get("/admin/audit/?organisation=PGE").content.decode().split("<tbody>", 1)[1]
     assert signed_in(pge_admin).get("/admin/settings/").status_code == 404
     pge_view = signed_in(pge_admin).get("/admin/audit/").content.decode()
     assert "grant.created" in pge_view and "access_policy.changed" not in pge_view
@@ -213,9 +229,7 @@ def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_
     r = client.get("/accounts/2fa/totp/activate/")
     assert r.status_code == 200, r["Location"] if r.status_code == 302 else ""  # not sent to type the password again
     html = r.content.decode()
-    assert (
-        'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
-    )
+    assert '<code class="totp-key" id="authenticator_secret"' in html  # the key whole, as selectable text (UI review 3, U6)
     assert 'data-copy="authenticator_secret"' in html
     assert '<img class="qr-code"' in html and 'width="200" height="200"' in html  # a fixed size, not the whole page width
     assert 'id="main-nav"' not in html  # no module menu yet

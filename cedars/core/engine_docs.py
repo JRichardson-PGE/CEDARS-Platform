@@ -266,3 +266,25 @@ def diagram_alt(source: str) -> str:
 
 def file_sha256(doc: Doc) -> str:
     return hashlib.sha256((DOCS_DIR / doc.file).read_bytes()).hexdigest()
+
+
+@lru_cache(maxsize=1)
+def input_sections() -> dict[str, dict[str, str]]:
+    """{table: {field name, lower case: its section}} from the engine's input field reference (INPUT_FIELDS.md): the subsections of
+    "1. `Measure.csv`" ("Identification and program link", "Quantities", ...), without their numbers and notes in parentheses. A table
+    the reference does not split (ProgramCost) is left out. A record's page groups its fields by these."""
+    path = DOCS_DIR / "INPUT_FIELDS.md"
+    if not path.exists():
+        return {}
+    out: dict[str, dict[str, str]] = {}
+    table = section = ""
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if m := re.match(r"^## \d+\. `(\w+)\.csv`", line):
+            table, section = m.group(1), ""
+        elif line.startswith("## "):
+            table = section = ""
+        elif table and (m := re.match(r"^### [\d.]+ (.+)$", line)):
+            section = re.sub(r"\s*\(.*\)\s*$", "", m.group(1)).strip()
+        elif table and section and (m := re.match(r"^\| `(\w+)` \|", line)):
+            out.setdefault(table, {}).setdefault(m.group(1).lower(), section)
+    return out

@@ -128,6 +128,7 @@ TABLES: dict[str, str] = {
     "releases.LimitChange": PUBLIC,
     "releases.Mandate": PUBLIC,
     "releases.MandateLink": PUBLIC,
+    "releases.SiteNotice": PUBLIC,
     "retention.RetentionPolicy": PUBLIC,
     "retention.LegalHold": RESTRICTED,
     # organizations

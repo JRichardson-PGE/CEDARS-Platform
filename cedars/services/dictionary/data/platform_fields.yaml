@@ -48,6 +48,9 @@ submissions.WorkflowPolicy:
     reopen_after_due: >-
       Whether, and how, a filing may be corrected after its due date: the module's correction policy (the values
       below).
+submissions.Delegation:
+  fields:
+    end_reason: "Why the delegation was ended before its last day (blank when it ran its course or was ended by the approver without one)."
 submissions.SubmissionVersion:
   fields:
     late: "Whether the version was confirmed after the deadline's due date."
@@ -257,6 +260,11 @@ releases.Mandate:
 releases.MandateLink:
   fields:
     kind: "What the link points at (a rule set, dictionary version, value list version, field, data pack or release note)."
+releases.SiteNotice:
+  table: "A short dated notice a CPUC system administrator posts, shown at the top of every page from its start until its end."
+  fields:
+    starts_at: "When every page starts showing the notice."
+    ends_at: "When pages stop showing it (a withdrawn notice stops at once)."
 retention.RetentionPolicy:
   fields:
     record_class: "The class of record the policy covers (e.g. draft filing versions, scratch runs)."

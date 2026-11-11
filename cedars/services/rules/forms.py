@@ -1,5 +1,7 @@
 from django import forms
 
+from cedars.core import pickers
+
 from . import service
 from .models import Rule
 
@@ -27,13 +29,37 @@ def _value_list_choices(extra: str = "") -> list[tuple[str, str]]:
     return choices
 
 
+class RuleField(pickers.FieldField):
+    """A field a rule names, picked from the data dictionary's input and record fields as you type. Any name the dictionary lists is
+    taken too (CET's or E3's), and a key of several fields joined by +. A name the dictionary knows is kept as given, so saving a
+    rule's wording never changes its test (and so its ID); text that names no field gets the near matches."""
+
+    def __init__(self, **kwargs):
+        super().__init__(kinds=["input", "record"], max_length=200, **kwargs)
+
+    def clean(self, value):
+        value = (forms.CharField.clean(self, value) or "").strip()
+        if not value:
+            return value
+        out = []
+        for part in (p.strip() for p in value.split("+")):
+            if not part or service.known_field(part):
+                out.append(part)
+                continue
+            found = pickers.find(part, self.choice_list())
+            if found is None:
+                raise forms.ValidationError(pickers.not_found(part, self.choice_list(), self.noun), code="not_found")
+            out.append(found.value)
+        return "+".join(out)
+
+
 class RuleForm(forms.Form):
     """A rule's test and wording. Both kinds of test are on the form (it works without scripts); the chosen kind decides which part
     is read."""
 
     kind = forms.ChoiceField(
         label="Kind of rule",
-        widget=forms.RadioSelect,
+        widget=forms.RadioSelect(attrs={"data-reveal": ""}),
         choices=[
             ("rule", "A test on a record: when some fields hold, another must pass a test"),
             ("spec", "A constraint on one field: filled in, a number, a code of a value list ..."),
@@ -42,7 +68,11 @@ class RuleForm(forms.Form):
     )
     severity = forms.ChoiceField(label="When the record fails", widget=forms.RadioSelect, choices=Rule.Severity.choices, initial="reject")
     table = forms.ChoiceField(label="Table", choices=[(t, t) for t in service.TABLES])
-    field = forms.CharField(label="Field tested", max_length=200, help_text="Its canonical name or any name the data dictionary lists.")
+    field = RuleField(
+        label="Field tested",
+        help_text="Type part of its name, then pick it from the list. Any name the data dictionary lists works, such as CET's; join a "
+        "key's fields with +.",
+    )
 
     # a test on a record
     rule = forms.ChoiceField(label="Test", choices=service.OPERATORS, required=False)
@@ -85,7 +115,7 @@ class RuleForm(forms.Form):
             kwargs["initial"] = initial_for(rule)
         super().__init__(*args, **kwargs)
         for i in range(1, CONDITIONS + 1):
-            self.fields[f"cond{i}_field"] = forms.CharField(label=f"Condition {i}: field", required=False, max_length=200)
+            self.fields[f"cond{i}_field"] = RuleField(label=f"Condition {i}: field", required=False, help_text="")
             self.fields[f"cond{i}_rule"] = forms.ChoiceField(
                 label=f"Condition {i}: test", choices=[("", "Choose")] + service.OPERATORS, required=False
             )
@@ -108,8 +138,32 @@ class RuleForm(forms.Form):
     def condition_fields(self):
         return [(i, self[f"cond{i}_field"], self[f"cond{i}_rule"], self[f"cond{i}_value"]) for i in self.conditions()]
 
+    def first_condition(self):
+        return self.condition_fields()[0]
+
+    def more_conditions(self):
+        """The second to the last condition, folded under More conditions."""
+        return self.condition_fields()[1:]
+
+    def more_conditions_used(self) -> int:
+        """How many of the folded conditions are filled in (or have an error), so the fold opens on them."""
+        used = 0
+        for _, f, t, v in self.more_conditions():
+            if any(b.errors or (b.value() or "").strip() for b in (f, t, v)):
+                used += 1
+        return used
+
+    def rule_part(self) -> list[str]:
+        return ["rule", "value", "connector"] + [f"cond{i}_{x}" for i in self.conditions() for x in ("field", "rule", "value")]
+
+    SPEC_PART = ["check", "n", "value_list", "lo", "lo_open", "hi", "hi_open"]
+
     def clean(self):
         d = super().clean()
+        # only the chosen kind's part is read, so what is left in the other part (hidden by the page) never stops the save
+        other = self.SPEC_PART if d.get("kind") == "rule" else self.rule_part() if d.get("kind") == "spec" else []
+        for name in other:
+            self._errors.pop(name, None)
         if self.errors:
             return d
         kind, field = d["kind"], d["field"].strip()

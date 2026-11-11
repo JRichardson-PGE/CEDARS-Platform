@@ -16,16 +16,15 @@ from .models import ReopenRequest, Submission, SubmissionVersion
 MODULE_NAMES = {"budgets": "Budget filing", "claims": "Claims", "monthly": "Monthly report"}
 
 
-def describe(submission: Submission) -> str:
+def describe(submission: Submission, *, due: bool = True) -> str:
+    """A filing as My queue names it: "Claims: PGE 2027 Q1 claim, due 2026-11-01" (Deadline.plain_name; due=False where the queue
+    shows the due date in a column of its own)."""
     d = submission.deadline
-    return f"{MODULE_NAMES.get(d.module, d.module)}: {submission.organisation.code} {d.title}, {d.period or d.cycle}"
+    return f"{MODULE_NAMES.get(d.module, d.module)}: {d.plain_name(submission.organisation.code, due=due)}"
 
 
 def _filing_page(submission: Submission, v: SubmissionVersion | None = None) -> str:
-    page = service.deadline_page(submission.deadline)
-    if page:
-        return f"{page}?org={submission.organisation.code}"
-    return comments.version_page(v) if v is not None else ""
+    return service.filing_page(submission, v)
 
 
 def reopen_requests(user) -> list[Item]:
@@ -78,12 +77,57 @@ def confirmations(user) -> list[Item]:
             since = v.validated_at
         out.append(
             Item(
-                f"{describe(v.submission)}, version {v.number}",
+                f"{describe(v.submission, due=False)}, version {v.number}",
                 _filing_page(v.submission, v),
                 v.submission.organisation.code,
                 since,
                 v.submission.deadline.due_at,
                 "Priced on its current rows: review the results and confirm.",
+            )
+        )
+    return out
+
+
+def corrections(user) -> list[Item]:
+    """Filings reopened for a correction (version 2 or later, the latest of its submission, not confirmed yet) in organizations where
+    the user holds `<module>.submit`, until the correction is priced (then it waits in confirmations, for those who may confirm it)."""
+    if user is None or not user.is_authenticated:
+        return []
+    allowed = Q(pk__in=[])
+    for org in access.organisations_of(user):
+        modules = [p.split(".")[0] for p in access.effective_permissions(user, org) if p.endswith(".submit")]
+        if modules:
+            allowed |= Q(submission__organisation=org, submission__deadline__module__in=modules)
+    open_ = (
+        SubmissionVersion.objects.filter(
+            allowed,
+            number__gt=1,
+            origin=SubmissionVersion.Origin.FILED,
+            status__in=[SubmissionVersion.Status.DRAFT, SubmissionVersion.Status.VALIDATED],
+        )
+        .select_related("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
+        .order_by("created_at")
+    )
+    latest = dict(
+        SubmissionVersion.objects.filter(submission__in=[v.submission_id for v in open_])
+        .values_list("submission_id")
+        .annotate(n=Max("number"))
+    )
+    out = []
+    for v in open_:
+        if latest.get(v.submission_id) != v.number:
+            continue
+        if v.status == SubmissionVersion.Status.VALIDATED and v.calculation:
+            continue  # priced: it waits on whoever confirms it (confirmations)
+        note = f"Reopened for a correction{': ' + v.reason if v.reason else ''}. Correct the records, price the filing and confirm it."
+        out.append(
+            Item(
+                f"{describe(v.submission)}, version {v.number}",
+                _filing_page(v.submission, v),
+                v.submission.organisation.code,
+                v.created_at,
+                None,
+                note,
             )
         )
     return out

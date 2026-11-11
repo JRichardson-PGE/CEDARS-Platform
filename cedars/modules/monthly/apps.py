@@ -12,6 +12,11 @@ class MonthlyConfig(AppConfig):
     verbose_name = "Monthly reports"
 
     def ready(self):
+        from cedars.services.rules.coded import register_coded_checks
+
+        from . import coded_checks
+
+        register_coded_checks("monthly", "Monthly reports", coded_checks.ABOUT, coded_checks.CHECKS, order=3)
         from cedars.services.submissions.service import (
             register_acc_needs,
             register_deadline_page,
