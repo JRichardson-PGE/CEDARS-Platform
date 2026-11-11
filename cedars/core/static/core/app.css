@@ -186,7 +186,7 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .top nav .nav-menu > .nav-head { padding-right: .1rem; }
   .top nav .nav-head + details > summary { padding: 0 .3rem 0 .1rem; }
   .who { --who-gap: .3rem; font-size: .85rem; }
-  .who a.util, .who .util .link { padding: 0 .4rem; }
+  .who a.util, .who .util .link { padding: 0 .3rem; }
   .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
 }
 /* Below 1600 px the header's seven menus (navigation review, D1) need tighter still: smaller gaps, gutters and summary arrows, and a
@@ -202,7 +202,7 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .top nav .nav-menu > .nav-head { padding-right: 0; }
   .top nav .nav-head + details > summary { padding: 0 .2rem 0 0; }
   .who { --who-gap: .2rem; font-size: .82rem; }
-  .who a.util, .who .util .link { padding: 0 .3rem; }
+  .who a.util, .who .util .link { padding: 0 .1rem; }   /* the rules between them keep them apart */
   .org-switch { gap: .25rem; }
   .org-badge, .bell { padding-left: .4rem; padding-right: .4rem; }
 }
