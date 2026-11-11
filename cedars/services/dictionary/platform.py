@@ -113,6 +113,7 @@ TABLES: dict[str, str] = {
     "impact_profiles.Permutation": PUBLIC,
     "impact_profiles.ExcludedPackage": PUBLIC,
     "impact_profiles.LibraryExport": PUBLIC,
+    "impact_profiles.LibrarySettings": PUBLIC,
     # reference data and rules
     "refdata.PackVersion": PUBLIC,
     "refdata.TieOutRequirement": PUBLIC,
