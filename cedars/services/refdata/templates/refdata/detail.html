@@ -112,21 +112,26 @@ published pack in force: blank fields are filled from it and filed values that d
 <section class="card" aria-labelledby="act-h">
   <h2 id="act-h">Publish or discard</h2>
   {% if outstanding %}<p>Publishing needs a passed tie-out for: {% for r in outstanding %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
-  <form method="post" class="stack form-narrow">{% csrf_token %}
-    <p><label for="reason">Reason (for discarding)</label><input id="reason" name="reason" type="text"></p>
-    <div class="actions">
-      <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>
-      {% if cost_set and engine_here %}<button type="submit" name="action" value="engine_check">Check it with the engine again</button>{% endif %}
-      <button type="submit" name="action" value="discard">Discard the draft</button>
-    </div>
+  <p>Once published, filing runs can use the pack. A published pack is kept for good: it can be withdrawn, never discarded.</p>
+  <form method="post" class="actions">{% csrf_token %}
+    <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>
+    {% if cost_set and engine_here %}<button type="submit" name="action" value="engine_check">Check it with the engine again</button>{% endif %}
   </form>
+  <details class="discard">
+    <summary>Discard the draft</summary>
+    <p>Discarding deletes the draft and its tie-out results. It cannot be undone; register the files again to start over.</p>
+    <form method="post" class="stack form-narrow">{% csrf_token %}
+      <div class="field"><label for="discard-reason">Why you are discarding it</label><input id="discard-reason" name="reason" type="text" required maxlength="500"></div>
+      <div class="actions"><button type="submit" name="action" value="discard">Discard the draft</button></div>
+    </form>
+  </details>
 </section>
 {% elif pack.status == "published" %}
 <section class="card" aria-labelledby="act-h">
   <h2 id="act-h">Withdraw</h2>
   <p>New runs stop using a withdrawn pack. Runs and filings that used it keep naming it, and it stays stored so they can be reproduced.</p>
   <form method="post" class="stack form-narrow">{% csrf_token %}
-    <p><label for="reason">Reason</label><input id="reason" name="reason" type="text" required></p>
+    <div class="field"><label for="withdraw-reason">Why you are withdrawing it</label><input id="withdraw-reason" name="reason" type="text" required maxlength="500"></div>
     <div class="actions"><button type="submit" name="action" value="withdraw">Withdraw</button></div>
   </form>
 </section>

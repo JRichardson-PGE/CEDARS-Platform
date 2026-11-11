@@ -2104,6 +2104,30 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     context.close()
 
 
+def test_add_a_rule_shows_the_chosen_kinds_part(browser, site, scene):
+    """Add a rule asks the kind first (radio buttons marked data-reveal, core/pickers.js): only the chosen kind's part shows, the
+    arrow keys switch it, and without scripts both parts show, each saying which kind reads it."""
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin")
+    record, spec = page.locator("fieldset[data-reveal-for='rule']"), page.locator("fieldset[data-reveal-for='spec']")
+    assert record.is_visible() and not spec.is_visible()
+    assert not page.locator(".no-script-note").first.is_visible()
+    page.locator("input[name='kind'][value='rule']").focus()
+    page.keyboard.press("ArrowDown")
+    assert page.locator("input[name='kind'][value='spec']").is_checked()
+    assert spec.is_visible() and not record.is_visible()
+    assert page.evaluate("document.activeElement.name") == "kind"
+    page.keyboard.press("ArrowUp")
+    assert record.is_visible() and not spec.is_visible()
+    # the second to the fifth condition are folded; the field tested is a picker with the dictionary's names
+    assert not page.locator("input[name='cond2_field']").is_visible()
+    assert page.locator("input[name='field']").get_attribute("list") == "id_field-list"
+    context.close()
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin", java_script_enabled=False)
+    assert page.locator("fieldset[data-reveal-for='rule']").is_visible() and page.locator("fieldset[data-reveal-for='spec']").is_visible()
+    assert page.locator(".no-script-note").first.is_visible()
+    context.close()
+
+
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene, scheme):
     """The output template page's two lists (ReCET's Templates page): a field added with Enter, moved with Alt+Up, removed with Delete,
