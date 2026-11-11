@@ -32,7 +32,8 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
 - **No requirement references** (Jake, 2026-11-09). The requirements document is internal: never name it, quote it or cite its
   requirement IDs, decision numbers or review gap numbers anywhere in this repository (pages, page help, the FAQ, release notes, docs,
   code comments, test names, commit messages, PR text). Say what the code does in plain words instead. `tests/test_no_requirement_refs.py`
-  fails on its abbreviation or a requirement ID in any tracked file but ReCET's exported documents (`data/recet_docs/`, `data/dictionary/`).
+  fails on its abbreviation or a requirement ID in any tracked file, ReCET's exported documents (`data/recet_docs/`, `data/dictionary/`)
+  included: they are public pages, so a reference there is fixed in ReCET and the pin moved.
 - **US spelling** (Jake, 2026-10-31): every page, label, help text, message, doc and comment uses US English ("organization",
   "color", "canceled", "behavior"). Code identifiers, URL route names, database tables and columns, audit action names and API field
   names keep their original `organisation` spelling (renaming them is a schema and API change); write new identifiers in US spelling.
