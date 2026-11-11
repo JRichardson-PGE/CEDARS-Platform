@@ -13,3 +13,17 @@ class ImpactProfilesConfig(AppConfig):
         from . import health
 
         health.register()  # stalled and failed jobs and the eTRM sync on the administrators' health page
+        from cedars.services.rules.coded import CodedCheck, register_coded_checks
+
+        from . import loadshapes
+
+        register_coded_checks(  # the load-shape upload's checks, listed on the Rules pages with the filings'
+            "impact_profiles",
+            "Load-shape uploads",
+            "Run on every load-shape file uploaded to the impact-profile library, stage by stage; any finding rejects the file.",
+            [
+                CodedCheck(rid, "reject", "Load-shape file", loadshapes.STAGES[stage], message, fix)
+                for rid, (stage, message, fix) in loadshapes.RULES.items()
+            ],
+            order=5,
+        )
