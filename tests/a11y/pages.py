@@ -205,6 +205,9 @@ PAGES = [
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
     ("data-packs", "/reference-data/packs/", "pge_admin"),
+    ("pack-checks", "/reference-data/packs/checks/", "cpuc_admin"),
+    ("pack-checks-member", "/reference-data/packs/checks/", "pge_admin"),
+    ("etrm-permutations-upload", "/reference-data/packs/etrm-permutations/", "cpuc_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
     ("cost-test-sets", "/reference-data/cost-tests/", "cpuc_admin"),

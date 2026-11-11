@@ -579,12 +579,18 @@ erDiagram
     string status "draft, published, withdrawn"
     json manifest "path: sha256, bytes"
     string fingerprint
+    json checks_at_publication "the checks it was published under"
   }
 ```
 
 A run names its engine release by value (`Run.engine_release`), so it keeps naming the release it ran on whatever later happens to
-the `EngineRelease` row. `TieOutRequirement` says which tie-outs each pack kind needs before it can be published; `ScanSettings` holds
-the publication scan's settings.
+the `EngineRelease` row. `TieOutRequirement` says which tie-outs each pack kind needs before it can be published: CPUC system
+administrators add and retire them on the Pack acceptance checks page (`/reference-data/packs/checks/`), never edit one, and a pack
+keeps the checks it was published under (`PackVersion.checks_at_publication`). A check's result is recorded from its JSON report on the
+pack's page (`refdata.service.record_report`: `passed` or `status`, a SHA-256 that must name one of the pack's files) or by the
+`record_tie_out` command. eTRM permutation packs are uploaded on a page (`/reference-data/packs/etrm-permutations/`, the
+`load_etrm_permutations` command's `etrm.load`); the gigabyte ACC and profile-library packs stay registered from storage by command.
+`ScanSettings` holds the publication scan's settings.
 
 **Dictionary, rules and value lists** (`cedars.services.dictionary`, `cedars.services.rules`)
 
@@ -1283,8 +1289,9 @@ flowchart TD
   reminders; module messages through `notify`.
 - **Retention** (decision M): a period per record class (`RetentionPolicy`), legal holds (`LegalHold`), and the daily purge, which
   calls each registered purger and logs `PurgeRun`s.
-- **Reference data**: packs registered as drafts, published once their required tie-outs pass, withdrawn but never deleted; `pin()` is
-  recorded by every run and filing; a filing never uses a draft.
+- **Reference data**: packs registered as drafts, published once their required tie-outs pass (the checks in force, set on a page;
+  a published pack keeps the ones it was published under), withdrawn but never deleted; `pin()` is recorded by every run and filing; a
+  filing never uses a draft.
 - **Rules and the pre-upload checker**: stored rule sets run by the engine's rule runner; `/rules/check/` and
   `POST /api/v1/rules/check` run a module's rule-set step on a file without keeping it.
 - **Uploads** (`cedars/core/uploads.py`): limits from settings, several files combined into the one zip a module reads. A .zip or
