@@ -80,7 +80,7 @@ def due_date(year: int, month: int, due_day: int) -> date:
 
 
 def _setup_fields(s: YearSetup) -> dict:
-    out = {"acc": s.acc_version, "allocation_version": str(s.allocation_version or "most recent")}
+    out = {"acc": s.acc_version, "allocation_version": str(s.allocation_version or "most recent"), "notes": s.notes}
     return out | ({"due_day": s.due_day} if s.due_day else {})
 
 
@@ -186,9 +186,9 @@ def nothing_to_file(deadline: Deadline) -> bool:
 
 
 @transaction.atomic
-def change_setup(actor, setup: YearSetup, *, acc_version: str, allocation_version=None, reason: str) -> YearSetup:
-    """Change what the year's reports are priced on. Versions already priced keep what they were priced with. A month's due date is
-    moved on the filing calendar."""
+def change_setup(actor, setup: YearSetup, *, acc_version: str, allocation_version=None, reason: str, notes: str | None = None) -> YearSetup:
+    """Change what the year's reports are priced on, and the year's notes (`notes`; None keeps them). Versions already priced keep
+    what they were priced with. A month's due date is moved on the filing calendar."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator changes how monthly reports are priced.")
     if not reason.strip():
@@ -196,6 +196,8 @@ def change_setup(actor, setup: YearSetup, *, acc_version: str, allocation_versio
     _check_allocation(allocation_version)
     before = _setup_fields(setup)
     setup.acc_version, setup.allocation_version = acc_version, allocation_version
+    if notes is not None:
+        setup.notes = notes.strip()
     setup.save()
     audit.record("monthly_reports.setup_changed", obj=setup, before=before, after=_setup_fields(setup), reason=reason, actor=actor)
     return setup

@@ -11,6 +11,7 @@ urlpatterns = [
     path("", data_views.front_page, name="home"),
     path("about/", views.about, name="about"),
     path("queue/", views.my_queue, name="queue"),
+    path("account/continue/", views.after_set_up, name="after_set_up"),
     path("search/", views.search, name="search"),
     # Each header menu's own page, its heading's link (Jake, 2026-11-06). Calculations' runs and Reference data's packs moved under them.
     path("filings/", views.section, {"page": "filings"}, name="filings"),

@@ -78,6 +78,30 @@
     });
   }
 
+  // "Print" buttons ([data-print], the recovery codes page) need a script, so they start hidden and show here; the print style sheet
+  // leaves only the page's own content.
+  document.querySelectorAll("button[data-print]").forEach(function (b) {
+    b.hidden = false;
+    b.addEventListener("click", function () { window.print(); });
+  });
+
+  // "Set every event in this group" (Notification settings, select[data-event-group]): choosing a value ticks it on every row of the
+  // group's table at once, and changing a row afterwards puts the group choice back to "Leave each as chosen below", so what is saved is
+  // what the rows show. Without this script the group choice is applied when the form is saved.
+  document.querySelectorAll("select[data-event-group]").forEach(function (sel) {
+    var table = document.getElementById(sel.getAttribute("data-event-group"));
+    if (!table) return;
+    sel.addEventListener("change", function () {
+      if (!sel.value) return;
+      var n = 0;
+      table.querySelectorAll("input[type=radio][value='" + sel.value + "']").forEach(function (r) { r.checked = true; n++; });
+      if (window.cedarsAnnounce) window.cedarsAnnounce(n + " events set to " + sel.options[sel.selectedIndex].text + ".");
+    });
+    table.addEventListener("change", function (e) {
+      if (e.target.type === "radio") sel.value = "";
+    });
+  });
+
   // Narrow screens: a Menu button shows and hides the navigation. Without this script the button stays hidden and the list is simply shown.
   var btn = document.querySelector(".menu-btn");
   if (btn && nav) {

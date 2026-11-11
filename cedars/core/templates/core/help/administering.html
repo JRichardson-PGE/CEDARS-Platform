@@ -2,11 +2,11 @@
 {% block guide %}
 <p>Administration is shared. Each organization's own administrators manage its members and their permissions; the CPUC assigns only an
 organization's first administrator. CPUC system administrators keep the organizations, role templates, access settings, retention and
-the system itself. Every change is recorded in the <a href="{% url 'administration:audit' %}">audit log</a>, with who made it, for which
+the system itself. Every change is recorded in the {% page_link 'administration:audit' "audit log" %}, with who made it, for which
 organization, why, and the record before and after.</p>
 <h2>An organization's administrators</h2>
 <ol>
-  <li>Open your organization from <a href="{% url 'administration:organisations' %}">Organizations</a>. Its page lists its codes, members
+  <li>Open your organization from {% page_link 'administration:organisations' "Organizations" %}. Its page lists its codes, members
   and their permissions, access requests waiting for a decision, its yearly recertification and its members' API tokens.</li>
   <li>Approve or decline each access request. A request for personal information (PII) also needs a CPUC data steward's approval after
   yours.</li>
@@ -17,15 +17,16 @@ organization, why, and the record before and after.</p>
 </ol>
 <h2>CPUC system administrators</h2>
 <ul class="links">
-  <li><a href="{% url 'administration:organisations' %}">Organizations</a>: add an organization by its CEDARS code and name, assign its
+  <li>{% page_link 'administration:organisations' "Organizations" %}: add an organization by its CEDARS code and name, assign its
   first administrator, change its name or PA type, rename its code (the history is kept) or merge in an organization recorded under a
-  former code.</li>
-  <li><a href="{% url 'administration:role_templates' %}">Role templates</a>: named bundles of module permissions that organization
-  administrators grant. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
+  former code. Until an organization has an administrator, its access requests come to you: decide them on its page or from My
+  queue.</li>
+  <li>{% page_link 'administration:role_templates' "Role templates" %}: named bundles of module permissions that organization
+  administrators grant, and the roles people choose from when they ask for access. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
   decision of its own.</li>
-  <li><a href="{% url 'administration:settings' %}">Access settings</a>: how often grants are recertified, whether grants not certified
+  <li>{% page_link 'administration:settings' "Access settings" %}: how often grants are recertified, whether grants not certified
   are suspended, and whether PII is only for federated organizations and sessions.</li>
-  <li><a href="{% url 'administration:stewardship' %}">Data stewardship</a>: CPUC data stewards approve PII access, and a change to the
+  <li>{% page_link 'administration:stewardship' "Data stewardship" %}: CPUC data stewards approve PII access, and a change to the
   PII rules takes one steward to propose and a second to confirm.</li>
   <li><a href="{% url 'submissions:calendar' %}">Filing calendar</a>: Add a filing leads to the set-up of a budget filing, a claim
   year or a year of monthly reports, which puts its deadlines on the calendar. Then change a deadline on its page (its due date,
@@ -33,21 +34,19 @@ organization, why, and the record before and after.</p>
   the calendar are told. A set-up's page also changes its due dates still to come and who files (not every PA files every filing:
   only the PAs ticked can start a filing, and only they are listed on the Filings page's status; a PA that has started filing stays
   on it), cancels any one of its filings (one quarter's claim, one month's report, one budget filing) that no PA has started, or
-  restores a canceled one, and removes the set-up, deadlines and all, while no PA has started filing for it. <a href="{% url 'submissions:filing_sets' %}">Filing
-  sets</a> lists every set-up with a link to edit it. A budget filing is an application or an advice letter; an advice letter's name says which one (a
+  restores a canceled one, and removes the set-up, deadlines and all, while no PA has started filing for it. {% page_link 'submissions:filing_sets' "Filing sets" %} lists every set-up with a link to edit it. A budget filing is an application or an advice letter; an advice letter's name says which one (a
   TUAL, an MCAL, or a kind that comes later).</li>
-  <li><a href="{% url 'administration:goal_sets' %}">CPUC goal decisions</a>: load each CPUC decision's goals from the templates; a
+  <li>{% page_link 'administration:goal_sets' "CPUC goal decisions" %}: load each CPUC decision's goals from the templates; a
   second administrator confirms them.</li>
-  <li><a href="{% url 'snapshots:holds' %}">Publication holds</a> and the <a href="{% url 'snapshots:scan_settings' %}">scan
-  settings</a>: what the scan for personal information looks for before a filing reaches the public data.</li>
-  <li><a href="{% url 'accessibility:files' %}">Document accessibility</a>: what the check on each stored PDF and workbook found, and
+  <li><a href="{% url 'snapshots:holds' %}">Publication holds</a> and the {% page_link 'snapshots:scan_settings' "scan settings" %}: what the scan for personal information looks for before a filing reaches the public data.</li>
+  <li>{% page_link 'accessibility:files' "Document accessibility" %}: what the check on each stored PDF and workbook found, and
   whether it only warns or refuses an upload.</li>
-  <li><a href="{% url 'retention:index' %}">Retention</a>: how long each class of record is kept. Nothing under a legal hold is
+  <li>{% page_link 'retention:index' "Retention" %}: how long each class of record is kept. Nothing under a legal hold is
   deleted.</li>
-  <li><a href="{% url 'feedback:inbox' %}">Feedback</a>: every message sent from a page's Feedback link; close each with a note on what
+  <li>{% page_link 'feedback:inbox' "Feedback" %}: every message sent from a page's Feedback link; close each with a note on what
   was done.</li>
-  <li><a href="{% url 'administration:health' %}">Jobs and health</a>: every health check, failing first; every system administrator is
-  told when one starts failing. <a href="{% url 'calculations:engines' %}">Engine releases</a> is where the site moves to a new release
+  <li>{% page_link 'administration:health' "Jobs and health" %}: every health check, failing first; every system administrator is
+  told when one starts failing. {% page_link 'calculations:engines' "Engine releases" %} is where the site moves to a new release
   of the calculation engine.</li>
 </ul>
 <h2>Learn more</h2>

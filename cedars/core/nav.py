@@ -491,6 +491,14 @@ MENUS = (
                         in_menu=False,
                     ),
                     Item(
+                        "Site notices",
+                        "releases:notices",
+                        SYSADMIN,
+                        pages=("releases:withdraw_notice",),
+                        about="A short dated notice every page shows at its top, such as an outage or an extended deadline.",
+                        in_menu=False,
+                    ),
+                    Item(
                         "Register a CPUC-mandated change",
                         "mandates:manage",
                         SYSADMIN,
@@ -568,8 +576,18 @@ class Shown:
 
 
 def roles(request) -> set[str]:
-    """The `who` values the visitor has."""
-    return roles_of(getattr(request, "user", None), getattr(request, "user_organisations", None))
+    """The `who` values the visitor has, read once per request and visitor (the header and the Help guides' links both ask)."""
+    user = getattr(request, "user", None)
+    key = getattr(user, "pk", None) if user is not None and user.is_authenticated else None
+    cached = getattr(request, "_nav_roles", None)
+    if cached is not None and cached[0] == key:
+        return cached[1]
+    have = roles_of(user, getattr(request, "user_organisations", None))
+    try:
+        request._nav_roles = (key, have)
+    except AttributeError:  # a request that takes no attributes
+        pass
+    return have
 
 
 def roles_of(user, orgs=None) -> set[str]:

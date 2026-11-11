@@ -323,11 +323,13 @@ def withdraw_pack(actor, pack: PackVersion, reason: str) -> PackVersion:
 
 
 @transaction.atomic
-def discard_draft(actor, pack: PackVersion, reason: str = "") -> None:
+def discard_draft(actor, pack: PackVersion, reason: str) -> None:
     pack = PackVersion.objects.select_for_update().get(pk=pack.pk)
     _require(actor, pack.kind)
     if pack.status != Status.DRAFT:
         raise AccessDenied("A published pack is kept for good; withdraw it instead.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for discarding the draft.")
     audit.record("pack.discarded", obj=pack, before=audit.snapshot(pack, IDENTITY[:3] + ["fingerprint"]), reason=reason, actor=actor)
     pack.tie_outs.all().delete()
     pack.delete()

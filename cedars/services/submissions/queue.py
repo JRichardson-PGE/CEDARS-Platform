@@ -88,6 +88,51 @@ def confirmations(user) -> list[Item]:
     return out
 
 
+def corrections(user) -> list[Item]:
+    """Filings reopened for a correction (version 2 or later, the latest of its submission, not confirmed yet) in organizations where
+    the user holds `<module>.submit`, until the correction is priced (then it waits in confirmations, for those who may confirm it)."""
+    if user is None or not user.is_authenticated:
+        return []
+    allowed = Q(pk__in=[])
+    for org in access.organisations_of(user):
+        modules = [p.split(".")[0] for p in access.effective_permissions(user, org) if p.endswith(".submit")]
+        if modules:
+            allowed |= Q(submission__organisation=org, submission__deadline__module__in=modules)
+    open_ = (
+        SubmissionVersion.objects.filter(
+            allowed,
+            number__gt=1,
+            origin=SubmissionVersion.Origin.FILED,
+            status__in=[SubmissionVersion.Status.DRAFT, SubmissionVersion.Status.VALIDATED],
+        )
+        .select_related("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
+        .order_by("created_at")
+    )
+    latest = dict(
+        SubmissionVersion.objects.filter(submission__in=[v.submission_id for v in open_])
+        .values_list("submission_id")
+        .annotate(n=Max("number"))
+    )
+    out = []
+    for v in open_:
+        if latest.get(v.submission_id) != v.number:
+            continue
+        if v.status == SubmissionVersion.Status.VALIDATED and v.calculation:
+            continue  # priced: it waits on whoever confirms it (confirmations)
+        note = f"Reopened for a correction{': ' + v.reason if v.reason else ''}. Correct the records, price the filing and confirm it."
+        out.append(
+            Item(
+                f"{describe(v.submission)}, version {v.number}",
+                _filing_page(v.submission, v),
+                v.submission.organisation.code,
+                v.created_at,
+                None,
+                note,
+            )
+        )
+    return out
+
+
 def replies(user) -> list[Item]:
     out = []
     for sub, c in comments.awaiting_reply(user):

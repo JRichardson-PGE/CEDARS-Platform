@@ -72,7 +72,7 @@ def test_community_account_requests_access(signed_in, make_user, pge, pge_admin)
     u = make_user("community@example.com")
     c = signed_in(u)
     assert "community account" in c.get("/account/").content.decode()
-    r = c.post("/account/request-access/", {"organisation": pge.pk, "permissions": ["claims.read"], "message": "hi"})
+    r = c.post("/account/request-access/", {"organisation": pge.code, "permissions": ["claims.read"], "message": "hi"})
     assert r.status_code == 302
     req = AccessRequest.objects.get(user=u)
     assert req.permissions == ["claims.read"]
@@ -229,9 +229,7 @@ def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_
     r = client.get("/accounts/2fa/totp/activate/")
     assert r.status_code == 200, r["Location"] if r.status_code == 302 else ""  # not sent to type the password again
     html = r.content.decode()
-    assert (
-        'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
-    )
+    assert '<code class="totp-key" id="authenticator_secret"' in html  # the key whole, as selectable text (UI review 3, U6)
     assert 'data-copy="authenticator_secret"' in html
     assert '<img class="qr-code"' in html and 'width="200" height="200"' in html  # a fixed size, not the whole page width
     assert 'id="main-nav"' not in html  # no module menu yet

@@ -40,3 +40,11 @@ class CalculationsConfig(AppConfig):
         from . import search
 
         site_search.register("runs", "Your runs", search.runs, order=30)  # site search finds the runs a person sees, by name
+
+        from cedars.core import yourwork as your_work
+
+        from . import yourwork
+
+        # Your work: the person's last runs (front page and Calculations) and Edit inputs drafts (Calculations)
+        your_work.register("runs", yourwork.runs, order=30, pages=("front", "calculations"))
+        your_work.register("drafts", yourwork.edit_inputs, order=35, pages=("calculations",))

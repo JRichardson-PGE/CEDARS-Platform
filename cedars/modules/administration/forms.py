@@ -1,6 +1,7 @@
 from django import forms
 
 from cedars.services.accounts import permissions as perms
+from cedars.services.accounts import service
 from cedars.services.accounts.models import Organisation
 
 
@@ -62,21 +63,58 @@ class ReasonForm(forms.Form):
     reason = forms.CharField(label="Reason", max_length=500)
 
 
+def requestable_permissions() -> list[str]:
+    """What a person may ask for one by one: read and submit for each module, what a new member normally needs (UAT F23). Confirming,
+    approving, administering and PII access are granted by the organization's administrators once the person is a member (the service
+    still accepts any permission, and a role template may include them)."""
+    return [c for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")]
+
+
+class ChooseOrganisationForm(forms.Form):
+    """Ask for access, first step: which organization (a GET form, so it works without scripts)."""
+
+    organisation = forms.ModelChoiceField(
+        label="Organization",
+        queryset=service.requestable_organisations(),
+        empty_label="Choose an organization",
+        to_field_name="code",
+        help_text="The program administrator or other organization you work for or with.",
+    )
+
+
 class RequestAccessForm(forms.Form):
-    organisation = forms.ModelChoiceField(label="Organization", queryset=Organisation.objects.filter(active=True).exclude(kind="cpuc"))
-    # Read and submit for each module: what a new member normally needs (UAT F23). Confirm, approve, administrator and PII rights are
-    # given by the organization's administrators once the person is a member (the service still accepts any permission).
+    """Ask for access, second step: the organization's roles in plain words first (its role templates), single permissions behind a
+    disclosure, and a message (UI review 3, U6)."""
+
+    organisation = forms.ModelChoiceField(queryset=service.requestable_organisations(), to_field_name="code", widget=forms.HiddenInput)
+    roles = forms.MultipleChoiceField(label="Your role", required=False, widget=forms.CheckboxSelectMultiple)
     permissions = forms.MultipleChoiceField(
-        label="Permissions you need",
+        label="Single permissions",
+        required=False,
         widget=forms.CheckboxSelectMultiple,
-        choices=[(c, perms.label(c)) for c in perms.module_permissions() if c.rsplit(".", 1)[1] in ("read", "submit")],
-        help_text=(
-            "Confirming, approving, administering the organization and PII access are added by its administrators once you are a member."
-        ),
+        choices=[(c, perms.label(c)) for c in requestable_permissions()],
     )
     message = forms.CharField(
-        label="Message to the organization's administrators", required=False, widget=forms.Textarea(attrs={"rows": 3})
+        label="Message to whoever decides (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Say who you are and what you need to do, for example: I file our quarterly claims.",
     )
+
+    def __init__(self, *args, templates=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.templates = {str(t.pk): t for t in templates}
+        self.fields["roles"].choices = [(pk, t.name) for pk, t in self.templates.items()]
+
+    def clean(self):
+        d = super().clean()
+        codes = set(d.get("permissions") or [])
+        for pk in d.get("roles") or []:
+            codes.update(self.templates[pk].permissions)
+        if not codes and not self.errors:
+            raise forms.ValidationError("Choose a role or at least one permission.")
+        d["codes"] = sorted(codes)
+        return d
 
 
 class OrganisationForm(forms.ModelForm):

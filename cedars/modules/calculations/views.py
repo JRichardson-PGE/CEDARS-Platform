@@ -20,7 +20,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import cost_tests
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, input_templates, result_views, service, walkchart
+from . import dispatch, drafts, forms, input_templates, result_views, run_files, service, walkchart
 from . import results as results_mod
 from . import walkthrough as walk
 from .models import EngineRelease, InputDraft, Run
@@ -360,6 +360,7 @@ def run(request, pk):
             "run": run,
             "status": status_view(run),
             "files": files,
+            "file_groups": run_files.grouped(files),
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
             "settings": settings_view(run.settings),
@@ -380,6 +381,7 @@ def run(request, pk):
             "can_edit_inputs": _can_edit_inputs(request.user, run),
             "can_rerun": bool(service.job_input(run)),
             "can_delete": _can_delete(request.user, run),
+            "can_rename": run.owner_id == request.user.pk,
             "cet_comparison": results_mod.cet_comparison(run, files),
             "check": results_mod.input_check(run) if run.status != Run.Status.QUEUED else None,
             "log": log,
@@ -453,6 +455,20 @@ def stop(request, pk):
         messages.error(request, str(e))
     else:
         messages.success(request, "Stopping the run." if run.status == Run.Status.RUNNING else "The run is stopped.")
+    return redirect("calculations:run", pk=run.pk)
+
+
+@login_required
+@require_POST
+def rename(request, pk):
+    """The owner renames a run or changes its note (nothing else about a run changes)."""
+    run = _run_or_404(request, pk)
+    try:
+        service.rename_run(request.user, run, name=request.POST.get("name", ""), note=request.POST.get("note", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, "Name and note saved.")
     return redirect("calculations:run", pk=run.pk)
 
 

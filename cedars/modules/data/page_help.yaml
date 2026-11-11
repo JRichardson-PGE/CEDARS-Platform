@@ -3,6 +3,9 @@
 data/front:
   title: The front page
   guide:
+    - Signed in, Your work comes first, above the portfolio. It is the short version of My queue (the top three items and how many
+      wait), your organization's next filing of each kind with its status and the one thing to do, your last three runs and any access
+      request you are waiting on. Each card links to its full list.
     - What CEDARS is, how the portfolio is doing, and Help. "How the portfolio is doing" adds up the published claims of every PA,
       year by year, leaving out what the dashboards leave out by default (the note under the charts names it).
     - The five figures at the top are total system benefit, electricity saved, peak demand avoided, gas saved and spending in the

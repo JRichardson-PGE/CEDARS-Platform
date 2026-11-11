@@ -125,8 +125,8 @@ def test_approvers_subscribed_to_requests_are_notified(pge_admin, approver, prog
     notifications.subscribe(approver, "program_change.requested", "site")
     with django_capture_on_commit_callbacks(execute=True):
         req = registry.request_change(pge_admin, programs["hvac"], effective=soon(), reason="r", segment="equity")
-    n = approver.notifications.get()
-    assert "locked program attribute" in n.title and n.link == f"/programs/requests/{req.pk}/"
+    n = approver.notifications.get()  # told once: the direct notice and the subscription share a key
+    assert n.title.startswith("Change requested: PGE_Res_HVAC") and n.link == f"/programs/requests/{req.pk}/"
 
 
 def test_the_pages(signed_in, pge_admin, approver, cpuc_admin, make_user, programs):  # noqa: F811

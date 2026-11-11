@@ -68,3 +68,58 @@ def label(code: str) -> str:
 
 def choices() -> list[tuple[str, str]]:
     return [(c, label(c)) for c in all_permissions()]
+
+
+# What each permission lets a person do, in plain words: shown beside its name wherever someone asks for, grants or reads one, so a
+# person never has to decode "claims.submit" (UI review 3, U6). `label` names a permission; `describe` says what it is for.
+_WHAT = {
+    "programs": "the organization's programs",
+    "calculations": "cost-effectiveness runs",
+    "impact_profiles": "impact profiles",
+    "budgets": "budget filings",
+    "claims": "claims",
+    "monthly": "monthly reports",
+    "data": "record-level data and downloads",
+    "documents": "documents and EM&V studies",
+}
+_SUBMIT = {
+    "programs": "Add programs and ask for changes to them.",
+    "calculations": "Start runs and edit their inputs.",
+    "impact_profiles": "Upload load shapes for the packages the organization leads.",
+    "budgets": "Upload, check and price budget filings, and file fund shifts.",
+    "claims": "Upload, check and price claims.",
+    "monthly": "Upload and check monthly reports.",
+    "documents": "File documents, add versions and answer comments.",
+}
+_SPECIAL_WORDS = {
+    ORG_ADMIN: "Manage the organization's members and their permissions, decide its access requests and run its recertification.",
+    PII: "Reach the personal information (sites and contacts) behind the organization's claims. A CPUC data steward approves it too.",
+    SYSTEM_ADMIN: "Set up filings, engine releases, reference data, rules, organizations and the system itself.",
+    STEWARD: "Approve access to personal information and confirm changes to the access settings.",
+    ALLOCATION: "Load, confirm and discard statewide allocation factors.",
+}
+
+
+def describe(code: str) -> str:
+    """One sentence on what the permission lets a person do."""
+    if code in _SPECIAL_WORDS:
+        return _SPECIAL_WORDS[code]
+    module, _, action = code.partition(".")
+    what = _WHAT.get(module, module)
+    if action == "read":
+        return f"See {what} and their history."
+    if action == "submit":
+        return _SUBMIT.get(module, f"Add and change {what}.")
+    if action == "confirm":
+        return f"Confirm {what}, which publishes them."
+    if action == "approve":
+        return f"Decide the CPUC's approvals for {what}: correction, reopen and change requests."
+    if action == "admin":
+        return f"Administer {what}: settings and set-up."
+    return label(code)
+
+
+def labels(codes) -> str:
+    """Several permissions named in words, in catalog order: "Claims: read, Claims: submit"."""
+    order = {c: i for i, c in enumerate(all_permissions())}
+    return ", ".join(label(c) for c in sorted(set(codes), key=lambda c: order.get(c, len(order))))

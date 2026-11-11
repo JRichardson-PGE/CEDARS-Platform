@@ -10,7 +10,8 @@ version never changes: a change is a new version with the date it takes effect a
   <li><a href="{% url 'rules:check' %}">Check a file before you file it</a>: it runs a filing's rules on one table of your file, exactly
   as the upload does, and keeps nothing. Check against the rules in force, or a later version that has not taken effect yet.</li>
   <li>The upload also runs checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed claims),
-  so a file that passes the check can still get findings on upload.</li>
+  so a file that passes the check can still get findings on upload. Those checks are listed, with their IDs, severity and message, on
+  <a href="{% url 'rules:built_in' %}">Built-in checks</a>.</li>
   <li>The codes a field may hold are on <a href="{% url 'dictionary:lists' %}">Value lists</a>. A code is accepted for claim years from
   its start year to its end year; a retired code keeps its row with an end year and is never deleted.</li>
 </ol>

@@ -524,7 +524,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
 
     from cedars.modules.documents import comments, deliverables, studies, subscriptions
     from cedars.modules.documents import service as documents
-    from cedars.modules.documents.models import AttributeOption, Document
+    from cedars.modules.documents.models import AttributeOption, Document, LegacyLink
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
     importlib.import_module("cedars.modules.documents.migrations.0005_study_lists").seed(apps, None)
@@ -692,6 +692,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         "work_order": work_order.pk,
         "deliverable": plan.pk,
         "deliverable_open": open_plan.pk,
+        "legacy_link": LegacyLink.objects.create(path="/guidance-document/hvac-impact", document=report).pk,
     }
 
 
@@ -1491,6 +1492,61 @@ def test_reflows_at_320px_with_sound_markup(browser, site, scene, name, path, wh
     assert not problems, f"{name}: " + json.dumps(problems, indent=1)
 
 
+# The error pages (UI review 3, U4; cedars/core/errors.py) answer 403, 404 or 500, so they are not in PAGES (whose pages answer 200). A
+# page that does not exist and one the account cannot open are one page; a form sent without its security token is refused as a browser
+# would send it; the 500 page is its handler's HTML, which renders with no request, drawn at the site's address so its links resolve.
+ERROR_PAGES = [
+    ("not-found-signed-out", "/claims/no-such-page/", None, 404),
+    ("not-found-member", "/admin/role-templates/", "iou_filer", 404),
+    ("not-allowed", "/admin/retention/", "analyst", 403),
+    ("form-expired", "/feedback/", "analyst", 403),
+    ("server-error", "", None, 500),
+]
+
+
+def _open_error(browser, site, scene, name, path, who, status, **context_args):
+    from cedars.core import errors
+
+    context = browser.new_context(**context_args)
+    if who is not None:
+        context.add_cookies([_session_cookie(scene[who], "mfa", site)])
+    page = context.new_page()
+    if status == 500:
+        page.goto(site.url + "/help/")
+        page.set_content(errors.server_error(None).content.decode())
+    elif name == "form-expired":
+        page.goto(site.url + "/help/")
+        with page.expect_navigation() as sent:
+            page.evaluate(
+                f"() => {{ const f = document.createElement('form'); f.method = 'post'; f.action = '{path}'; document.body.append(f); "
+                "f.submit(); }"
+            )
+        assert sent.value.status == status
+    else:
+        response = page.goto(site.url + path)
+        assert response.status == status, f"{path} answered {response.status}"
+    return context, page
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("name,path,who,status", ERROR_PAGES, ids=[p[0] for p in ERROR_PAGES])
+def test_error_pages_axe_clean_and_reflow(browser, axe_source, site, scene, name, path, who, status, scheme):
+    context, page = _open_error(browser, site, scene, name, path, who, status, color_scheme=scheme, bypass_csp=True)
+    assert page.locator(".page-title > h1 + .page-help").count() == 1, f"{name}: no (?) beside the heading"
+    assert page.locator("main .error-sentence").count() == 1 and page.locator("main form[aria-label='Search CEDARS']").count() == 1
+    if status != 500:  # the 500 page has no request, so its (?) is a link to its help and there is no dialog to tour with
+        steps = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null")
+        assert steps and not [s["title"] for s in steps if not s["found"] and not s["optional"]], f"{name}: {steps}"
+    found = _violations(page, axe_source)
+    page.set_viewport_size({"width": 320, "height": 640})
+    overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    markup = {k: v for k, v in page.evaluate(MARKUP).items() if v}
+    context.close()
+    assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
+    assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
+    assert not markup, f"{name}: " + json.dumps(markup, indent=1)
+
+
 @pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
 def test_the_narrow_header_folds_behind_a_menu_button(browser, site, scene, who):
     """At 320 px the navigation is behind a Menu button, signed in or not (UI review 2, #42), and the button shows and hides it."""
@@ -1558,6 +1614,8 @@ def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
         assert not page.evaluate("document.querySelector('[data-tour=nav-filings] details').open")
     page.keyboard.press("Escape")
     assert not page.locator("#tour").evaluate("d => d.open")
+    # the dialog's "close" event, which clears the outline and returns the focus, runs as a task after Escape: wait for it
+    page.wait_for_function("!document.querySelector('.tour-target') && !document.documentElement.classList.contains('touring')")
     assert page.evaluate("document.activeElement.hasAttribute('data-tour-start')")
     assert page.locator(".tour-target").count() == 0
     context.close()
@@ -2077,6 +2135,30 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     context.close()
 
 
+def test_add_a_rule_shows_the_chosen_kinds_part(browser, site, scene):
+    """Add a rule asks the kind first (radio buttons marked data-reveal, core/pickers.js): only the chosen kind's part shows, the
+    arrow keys switch it, and without scripts both parts show, each saying which kind reads it."""
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin")
+    record, spec = page.locator("fieldset[data-reveal-for='rule']"), page.locator("fieldset[data-reveal-for='spec']")
+    assert record.is_visible() and not spec.is_visible()
+    assert not page.locator(".no-script-note").first.is_visible()
+    page.locator("input[name='kind'][value='rule']").focus()
+    page.keyboard.press("ArrowDown")
+    assert page.locator("input[name='kind'][value='spec']").is_checked()
+    assert spec.is_visible() and not record.is_visible()
+    assert page.evaluate("document.activeElement.name") == "kind"
+    page.keyboard.press("ArrowUp")
+    assert record.is_visible() and not spec.is_visible()
+    # the second to the fifth condition are folded; the field tested is a picker with the dictionary's names
+    assert not page.locator("input[name='cond2_field']").is_visible()
+    assert page.locator("input[name='field']").get_attribute("list") == "id_field-list"
+    context.close()
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin", java_script_enabled=False)
+    assert page.locator("fieldset[data-reveal-for='rule']").is_visible() and page.locator("fieldset[data-reveal-for='spec']").is_visible()
+    assert page.locator(".no-script-note").first.is_visible()
+    context.close()
+
+
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene, scheme):
     """The output template page's two lists (ReCET's Templates page): a field added with Enter, moved with Alt+Up, removed with Delete,
@@ -2294,3 +2376,94 @@ def test_walkthrough_chart_tooltips_by_keyboard_and_pointer(browser, axe_source,
     page.wait_for_timeout(400)
     assert tip.is_hidden()
     context.close()
+
+
+def _first_set_up_session(site):
+    """A new account that has just added its first second factor (UI review 3, U6): an authenticator app and recovery codes, and the
+    session's note of where its sign-in was heading."""
+    from allauth.mfa.recovery_codes.internal.auth import RecoveryCodes
+    from allauth.mfa.totp.internal.auth import TOTP, generate_totp_secret
+
+    from cedars.services.accounts.models import User
+    from cedars.services.accounts.signals import FIRST_SET_UP
+
+    user, _ = User.objects.get_or_create(email="first-set-up@example.org")
+    if not user.authenticator_set.exists():
+        TOTP.activate(user, generate_totp_secret())
+        RecoveryCodes.activate(user)
+    return _fresh_session(user, site, mfa=True, extra={FIRST_SET_UP: {"next": "/calculations/"}})
+
+
+def _fresh_session(user, site, mfa: bool, extra=None):
+    """A session signed in moments ago (allauth asks for a recent sign-in before the second-factor pages), with a second factor or not."""
+    import time
+
+    now = time.time()
+    cookie = _session_cookie(user, "mfa" if mfa else "password", site)
+    s = SessionStore(session_key=cookie["value"])
+    s["account_authentication_methods"] = [{"method": "password", "at": now, "reauthenticated": True}] + (
+        [{"method": "mfa", "at": now}] if mfa else []
+    )
+    for k, v in (extra or {}).items():
+        s[k] = v
+    s.save()
+    return cookie
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_first_recovery_codes_page(browser, axe_source, site, scene, scheme):
+    """The recovery codes page right after the first second factor: the steps, the codes, Download, Print (shown by the script) and
+    Continue; axe finds nothing in either scheme, and it reflows at 320 px."""
+    cookie = _first_set_up_session(site)
+    context = browser.new_context(color_scheme=scheme, bypass_csp=True)
+    context.add_cookies([cookie])
+    page = context.new_page()
+    assert page.goto(site.url + "/accounts/2fa/recovery-codes/").status == 200
+    assert page.locator("nav.set-up-steps li[aria-current=step]").count() == 1
+    assert page.locator(".recovery-codes li").count() == 10
+    assert page.get_by_role("button", name="Print the codes").is_visible()
+    assert page.get_by_role("link", name="Continue to Ask for access").is_visible()
+    found = _violations(page, axe_source)
+    page.set_viewport_size({"width": 320, "height": 640})
+    overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    context.close()
+    assert not found, json.dumps(found, indent=1)
+    assert overflow <= 0
+
+
+def test_the_set_up_page_sizes_the_code_field_and_shows_the_whole_key(browser, site, scene):
+    from cedars.services.accounts.models import User
+
+    user, _ = User.objects.get_or_create(email="setting-up@example.org")
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    context.add_cookies([_fresh_session(user, site, mfa=False)])
+    page = context.new_page()
+    assert page.goto(site.url + "/accounts/2fa/totp/activate/?next=/claims/").status == 200
+    code = page.locator("#id_code").bounding_box()
+    key = page.evaluate("(() => { const k = document.getElementById('authenticator_secret'); return [k.scrollWidth, k.clientWidth]; })()")
+    steps = page.locator("nav.set-up-steps li[aria-current=step]").inner_text()
+    context.close()
+    assert code["width"] < 200, f"the six-digit field is {code['width']} px wide"
+    assert key[0] <= key[1], "the key is clipped"
+    assert "Set up your second factor" in steps
+
+
+def test_notification_settings_set_a_whole_group_by_keyboard(browser, site, scene):
+    """Notification settings (UI review 3, U15): choosing a value for a whole group ticks it on every row of the group and is announced;
+    changing a row puts the group choice back; the Save bar stays in view; nothing is wider than a phone."""
+    context, page = _open(browser, site, scene, "/notifications/settings/", "pge_admin", viewport={"width": 1280, "height": 800})
+    group = page.locator("#eg1-all")
+    group.focus()
+    group.select_option("email")
+    rows = page.locator("#eg1 tbody tr")
+    checked = page.locator("#eg1 input[type=radio][value=email]:checked")
+    assert checked.count() == rows.count() > 1
+    page.wait_for_selector("#announcer:has-text('events set to')", state="attached")
+    page.locator("#eg1 tbody tr").first.locator("input[value=off]").check()
+    assert group.input_value() == ""
+    bar = page.locator(".save-bar").bounding_box()
+    assert bar["y"] + bar["height"] <= 800 + 1, "the Save bar is not in view"
+    page.set_viewport_size({"width": 320, "height": 640})
+    wide = page.evaluate("document.documentElement.scrollWidth")
+    context.close()
+    assert wide <= 320, f"the page is {wide} px wide at 320 px"

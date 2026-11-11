@@ -79,6 +79,12 @@ class SetupForm(forms.Form):
         required=False,
         empty_label="The most recent confirmed version for the year",
     )
+    notes = forms.CharField(
+        label="Notes",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Administrators' notes on this set-up, kept with it; a change is recorded with the reason below",
+    )
     reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
 
     def __init__(self, *args, accs=(), **kw):

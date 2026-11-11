@@ -17,14 +17,17 @@ is withdrawn (it stays listed, marked, with the reason) and a new one is publish
 </ul>
 <h2>For CPUC system administrators</h2>
 <ol>
-  <li><a href="{% url 'releases:manage' %}">Write a release note</a>: list each change with its kind, the part of CEDARS it touches,
+  <li>{% page_link 'releases:manage' "Write a release note" %}: list each change with its kind, the part of CEDARS it touches,
   what changes and what people need to do, then publish it with a date after today. Publishing tells everyone subscribed and shows a
   banner on every page until it takes effect.</li>
   <li>The check at the top of that page says whether the running release has its note, whether every limit in effect matches what the
   site applies, and whether the user guides were revised for the releases that changed their part of CEDARS.</li>
-  <li><a href="{% url 'mandates:manage' %}">Keep the register</a>: draft an entry for each decision or resolution, link the rule set,
+  <li>{% page_link 'mandates:manage' "Keep the register" %}: draft an entry for each decision or resolution, link the rule set,
   dictionary version, value list, field, reference data or release note that carries it, and publish it. The register is public:
   enter only what the CPUC's public document says.</li>
+  <li>{% page_link 'releases:notices' "Post a site notice" %} for something people need to know at once that is not a change to
+  CEDARS, such as an outage or an extended deadline: a sentence or two, shown at the top of every page from its start until its end.
+  It is never edited; withdraw it with a reason and post another.</li>
 </ol>
 <h2>Learn more</h2>
 <ul class="links">

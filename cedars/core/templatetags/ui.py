@@ -200,3 +200,18 @@ def pager(page, query="", label="Pages", where="", previous="Previous", next="Ne
     links = tables.pager_links(page, query or "", anchor)
     name = label if not where else f"{label}, {'above' if where == 'above' else 'below'} the list"
     return {"show": True, "name": name, "previous_word": previous, "next_word": next, "where": where, **links}
+
+
+@register.simple_tag(takes_context=True)
+def page_link(context, url_name: str, text: str):
+    """A link to a page for a reader it opens for; for anyone else the page's name and who can open it (UI review 3, U4), so a Help
+    guide never leads to "Page not available". Who may open what: cedars/core/page_access.py."""
+    from django.urls import reverse
+
+    from cedars.core import page_access
+
+    request = context.get("request")
+    if request is None or page_access.can_open(request, url_name):
+        return format_html('<a href="{}">{}</a>', reverse(url_name), text)
+    who = page_access.who_opens(url_name)
+    return format_html('<span class="page-name">{}</span> <span class="who-opens">(for {})</span>', text, who)

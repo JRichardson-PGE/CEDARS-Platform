@@ -102,7 +102,7 @@
 {% if no_admin %}
 <div class="card">
   <h2>First administrator</h2>
-  <p>{{ org.code }} has no administrator. The CPUC assigns the first one; from then on {{ org.code }}'s administrators manage their own users.</p>
+  <p>{{ org.code }} has no administrator. The CPUC assigns the first one; from then on {{ org.code }}'s administrators manage their own users. Until then the CPUC decides its access requests.</p>
 </div>
 {% endif %}
 
@@ -113,7 +113,7 @@
 <div class="card">
   <h3>{{ r.user|person }} <span class="small muted">asked {{ r.created_at|date_words }}</span></h3>
   {% if r.message %}<p>{{ r.message }}</p>{% endif %}
-  {% if is_admin %}
+  {% if can_decide %}
   <form method="post" action="{% url 'administration:decide_request' r.pk %}" class="stack">{% csrf_token %}
     <fieldset><legend>Permissions to grant</legend>
       <div class="checks">{% for code, label in labels %}<label><input type="checkbox" name="permissions" value="{{ code }}" checked> {{ label }}</label>{% endfor %}</div>

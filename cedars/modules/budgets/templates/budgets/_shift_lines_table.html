@@ -1,3 +1,9 @@
+{% load budget_money %}
+{% comment %}A fund shift's lines (the amounts page and a co-funder's acknowledgment). Context from shift_views._table: rows (each with
+what its program-year holds), years, programs (the PA's, for the picker), budget (by "PrgID year": held and a statewide program's factor),
+net, pa. Without scripts it is a plain form: the program box offers the PA's programs as you type (a native datalist), what each saved
+line's program-year holds is shown, problems are listed after saving, and "Save and add more lines" gives more blank lines. budgets/shift_lines.js
+adds an "Add a line" button, keeps each line's budget and the net current as you type, and says what is wrong with a line beside it.{% endcomment %}
 {% if problems %}
 <div class="alert" role="alert" tabindex="-1" id="problems">
   <p>Nothing was saved. Fix these:</p>
@@ -5,15 +11,29 @@
 </div>
 {% endif %}
   <div class="hscroll" tabindex="0" role="region" aria-label="Lines">
-  <table class="list">
-    <caption class="sr-only">Lines: PrgID, program year and amount</caption>
-    <thead><tr><th scope="col">Line</th><th scope="col">PrgID</th><th scope="col">Program year</th><th scope="col">Amount ($)</th></tr></thead>
-    <tbody>{% for r in rows %}<tr>
-      <th scope="row">{{ forloop.counter }}</th>
-      <td><label class="sr-only" for="prg-{{ forloop.counter }}">PrgID, line {{ forloop.counter }}</label><input id="prg-{{ forloop.counter }}" name="prg_id" value="{{ r.prg_id }}" list="programs" autocomplete="off" size="18"></td>
-      <td><label class="sr-only" for="year-{{ forloop.counter }}">Program year, line {{ forloop.counter }}</label><select id="year-{{ forloop.counter }}" name="year"><option value="">Year</option>{% for y in years %}<option value="{{ y }}"{% if y == r.year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></td>
-      <td><label class="sr-only" for="amount-{{ forloop.counter }}">Amount in dollars, line {{ forloop.counter }}</label><input id="amount-{{ forloop.counter }}" name="amount" value="{{ r.amount }}" inputmode="decimal" size="14"></td>
+  <table class="list shift-lines" data-shift-lines data-pa="{{ pa }}">
+    <caption class="sr-only">Lines: PrgID, program year, amount, and what the program-year holds now</caption>
+    <thead><tr><th scope="col">Line</th><th scope="col">PrgID</th><th scope="col">Program year</th><th scope="col">Amount ($)</th><th scope="col">{{ pa }}'s operating budget now</th></tr></thead>
+    <tbody>{% for r in rows %}<tr data-line>
+      <th scope="row" data-line-number>{{ forloop.counter }}</th>
+      <td><label class="sr-only" for="prg-{{ forloop.counter }}">PrgID, line {{ forloop.counter }}</label><input id="prg-{{ forloop.counter }}" name="prg_id" value="{{ r.prg_id }}" list="programs" class="picker-input shift-prg" autocomplete="off" spellcheck="false" aria-describedby="problem-{{ forloop.counter }}"></td>
+      <td><label class="sr-only" for="year-{{ forloop.counter }}">Program year, line {{ forloop.counter }}</label><select id="year-{{ forloop.counter }}" name="year" aria-describedby="problem-{{ forloop.counter }}"><option value="">Year</option>{% for y in years %}<option value="{{ y }}"{% if y == r.year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></td>
+      <td><label class="sr-only" for="amount-{{ forloop.counter }}">Amount in dollars, line {{ forloop.counter }}</label><input id="amount-{{ forloop.counter }}" name="amount" value="{{ r.amount }}" inputmode="decimal" size="14" aria-describedby="problem-{{ forloop.counter }}">
+        <span class="row-problem" id="problem-{{ forloop.counter }}" data-line-problem></span></td>
+      <td class="num" data-line-held>{% if r.held is not None %}{{ r.held|money:2 }}{% else %}<span class="muted">{% if r.prg_id %}none{% endif %}</span>{% endif %}</td>
     </tr>{% endfor %}</tbody>
+    <tfoot><tr><th scope="row" colspan="3">Net for {{ pa }} <span class="small muted">(statewide lines by {{ pa }}'s factor)</span></th>
+      <td class="num" data-net>{% if net is not None %}{{ net|money:2 }}{% else %}<span class="muted">a line's amount is not a figure</span>{% endif %}</td><td></td></tr></tfoot>
   </table>
   </div>
-  <datalist id="programs">{% for prg, name in programs %}<option value="{{ prg }}">{{ name }}</option>{% endfor %}</datalist>
+  <p><button type="button" data-add-line hidden>Add a line</button></p>
+  <datalist id="programs">{% for c in programs %}<option value="{{ c.value }}">{{ c.label }}{% if c.note %} · {{ c.note }}{% endif %}</option>{% endfor %}</datalist>
+  <details class="paste-lines">
+    <summary>Paste lines</summary>
+    <div class="field">
+      <label for="paste">Lines to add, one to a line: PrgID, year and amount</label>
+      <textarea id="paste" name="paste" rows="5" aria-describedby="paste-help" spellcheck="false"></textarea>
+      <span class="helptext" id="paste-help">Copy the three columns from a spreadsheet, or separate them with commas. A heading line is skipped. They are added to the lines above when you save.</span>
+    </div>
+  </details>
+  {{ budget|json_script:"shift-budget" }}

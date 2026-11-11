@@ -270,6 +270,17 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         Step("intro", "Welcome to CEDARS", welcome),
         PAGE_HELP_STEP,
         SEARCH_STEP,
+    ]
+    if who.signed_in:  # core/yourwork.py (UI review 3, U5): the person's own work, above the portfolio
+        steps.append(
+            Step(
+                "your-work",
+                "Your work",
+                "Your own work, first: the top of My queue, your organization's next filings with the one thing to do on each, "
+                "your last runs and any access request you are waiting on. Each card links to its full list.",
+            )
+        )
+    steps += [
         Step(
             "trends",
             "How the portfolio is doing",
