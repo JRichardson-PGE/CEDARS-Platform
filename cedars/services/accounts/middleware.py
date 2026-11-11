@@ -34,6 +34,55 @@ class ActiveOrganisationMiddleware:
         return self.get_response(request)
 
 
+class SessionTimeoutMiddleware:
+    """Ends a signed-in session after the longest a sign-in may last (the session_hours limit, from the first page after signing in)
+    and after the session has gone unused for the session_idle_minutes limit; both are limits a CPUC system administrator sets
+    (releases.limits). Use is a page a person opens or a form they send: a page's own background checks (a run's progress, a count
+    that refreshes) are checked against the limits but do not keep the session alive. The session's cookie is given the same
+    expiry, so a browser drops it too. Runs after MessageMiddleware (the signed-out notice) and before the middleware that reads the
+    user's organizations. API tokens are not sessions and are not affected."""
+
+    STARTED, SEEN = "cedars_session_started", "cedars_session_seen"
+    WRITE_EVERY = 60  # seconds: last use is written at most this often, so a busy session is not saved on every page
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated or not hasattr(request, "session"):
+            return self.get_response(request)
+        import time
+
+        from cedars.services.releases import limits
+
+        now, session = time.time(), request.session
+        longest, idle = limits.value("session_hours") * 3600, limits.value("session_idle_minutes") * 60
+        started, seen = session.get(self.STARTED), session.get(self.SEEN)
+        if started is None:
+            started = session[self.STARTED] = now
+        reason = ""
+        if now - started > longest:
+            reason = f"You were signed out because sign-ins last at most {limits.current('session_hours')}."
+        elif seen is not None and now - seen > idle:
+            reason = f"You were signed out after {limits.current('session_idle_minutes')} without using CEDARS."
+        if reason:
+            from django.contrib import messages
+            from django.contrib.auth import logout
+
+            logout(request)
+            messages.info(request, f"{reason} Sign in again to carry on.")
+            return self.get_response(request)
+        used = request.method != "GET" or "text/html" in request.headers.get("Accept", "")
+        if used and (seen is None or now - seen >= self.WRITE_EVERY):
+            session[self.SEEN] = now
+            if not session.get_expire_at_browser_close():
+                session.set_expiry(int(max(1, min(idle, longest - (now - started)))))
+        elif seen is None:
+            session[self.SEEN] = now
+        return self.get_response(request)
+
+
 def mfa_pending(request) -> bool:
     """True when the platform requires a second factor (CEDARS_REQUIRE_MFA) and this session was signed in with a password alone.
     The middleware below and the page header (core.context_processors) both ask this, so a laptop demo that turns the
@@ -83,4 +132,4 @@ def _url(name):
     return reverse(name)
 
 
-__all__ = ["ActiveOrganisationMiddleware", "RequireMFAMiddleware", "mfa_pending", "MFA", "ORG_SESSION_KEY"]
+__all__ = ["ActiveOrganisationMiddleware", "RequireMFAMiddleware", "SessionTimeoutMiddleware", "mfa_pending", "MFA", "ORG_SESSION_KEY"]

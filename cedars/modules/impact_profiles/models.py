@@ -511,3 +511,23 @@ class LibraryExport(models.Model):
 
     def __str__(self):
         return f"Profile library export {self.number}"
+
+
+class LibrarySettings(models.Model):
+    """The library's policy settings, as a CPUC administrator last set them on the settings page: the IOU territories a profile with no
+    territory is written for (CEDARS stores deemed shapes once per IOU territory), and the first start date of the measure versions
+    whose load shapes the platform takes (earlier ones keep their DEER impact profile IDs). Each change is a new row with its reason;
+    the newest row is in force. With no row yet, the server settings IMPACT_PROFILE_TERRITORIES and LOAD_SHAPE_FIRST_START are."""
+
+    territories = models.JSONField(help_text="IOU territory codes, in the order shown")
+    load_shape_first_start = models.DateField(help_text="Measure versions starting on or after this date take load shapes")
+    set_at = models.DateTimeField(auto_now_add=True)
+    set_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField()
+
+    class Meta:
+        ordering = ["-set_at", "-pk"]
+        verbose_name_plural = "library settings"
+
+    def __str__(self):
+        return f"Impact profile settings of {self.set_at:%Y-%m-%d}"

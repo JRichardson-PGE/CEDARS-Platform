@@ -244,6 +244,12 @@ releases.Change:
     area: "The part of CEDARS the change is in."
     action: "What people need to do about it (blank: nothing)."
     limit: "For a limit change, which published limit changes."
+releases.LimitChange:
+  table: "A CPUC system administrator's change to a limit they may set; the newest change for a limit is in force."
+  fields:
+    key: "The limit changed, by its key on the Limits page."
+    value: "The value set, in the limit's unit; blank sets the limit back to its default."
+    reason: "Why the limit was changed."
 releases.Mandate:
   fields:
     authority: "What kind of CPUC action requires the change (the values below)."

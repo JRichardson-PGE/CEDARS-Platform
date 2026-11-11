@@ -7,7 +7,11 @@ A draft may drop only a code it added itself. Every change is an audit event.
 
 The rules (rules.service.check) and the input editor (calculations Edit inputs) read the lists through the engine, so `apply_to_engine()`
 hands the engine the versions in force as changes over its shipped lists (recet.editor.set_value_list_changes). The engine is imported
-only when a list is read from it or handed to it (engine/README.md)."""
+only when a list is read from it or handed to it (engine/README.md).
+
+A service may also keep a list of its own here (`register_list`): the program registry's lists of a program's status, segment,
+primary sector, implementer and category. Such a list's first version is the service's own rows instead of the engine's, it is never
+handed to the engine, and the service reads the version in force back with `codes_in_force`."""
 
 import csv
 import io
@@ -37,6 +41,39 @@ class EngineMissing(RuntimeError):
 
 class ValueListError(ValueError):
     """A change the value-list rules do not allow; the message says why and what to do instead."""
+
+
+class PlatformList:
+    """A list a service keeps here rather than the engine: its field (the data dictionary's name), where its first version comes from
+    (in words), and a function giving that first version's rows (code, description, start_year, end_year, extra)."""
+
+    def __init__(self, name: str, label: str, origin: str, rows):
+        self.name, self.label, self.origin, self.rows = name, label, origin, rows
+
+
+_PLATFORM: dict[str, PlatformList] = {}
+
+
+def register_list(name: str, *, label: str, origin: str, rows) -> None:
+    """Keep a list of the platform's own here (called from a service's AppConfig.ready()): `rows()` gives its first version."""
+    _PLATFORM[name] = PlatformList(name, label, origin, rows)
+
+
+def platform_lists() -> list[str]:
+    return sorted(_PLATFORM)
+
+
+def is_platform(name: str) -> bool:
+    return name in _PLATFORM
+
+
+def origin(name: str) -> str:
+    """Where a list's first version comes from, in words: the engine's shipped list, or the service's own."""
+    p = _PLATFORM.get(name)
+    if p is not None:
+        return p.origin
+    release = engine_release()
+    return f"the list shipped with the engine (ReCET {release})" if release else "the list shipped with the engine"
 
 
 def _engine():
@@ -90,10 +127,22 @@ def _year(value) -> int | None:
 
 
 def shipped(name: str) -> list[dict]:
-    """The engine's list as shipped: one dict per code (code, description, start_year, end_year, extra), codes stripped and each kept
-    once (the shipped ntg list has one code twice, once with a trailing tab)."""
+    """The list's first version as it comes: the engine's list as shipped, or a platform list's own rows. One dict per code (code,
+    description, start_year, end_year, extra), codes stripped and each kept once (the shipped ntg list has one code twice, once with a
+    trailing tab)."""
     from pathlib import Path
 
+    if name in _PLATFORM:
+        return [
+            {
+                "code": str(r["code"]).strip(),
+                "description": (r.get("description") or "").strip(),
+                "start_year": _year(r.get("start_year")),
+                "end_year": _year(r.get("end_year")),
+                "extra": dict(r.get("extra") or {}),
+            }
+            for r in _PLATFORM[name].rows()
+        ]
     _, paths = _engine()
     path = Path(paths.package_data("value_lists", f"{name}.csv"))
     if not path.exists():
@@ -139,6 +188,9 @@ def list_for_field(field) -> str | None:
     for column, name in engine_columns().items():
         if column.lower() in names:
             return name
+    for p in _PLATFORM.values():
+        if p.label.lower() in names:
+            return p.name
     vl = ValueList.objects.filter(label__iexact=field.name).first()
     return vl.name if vl else None
 
@@ -148,6 +200,8 @@ def label_for(name: str) -> str:
     `eul` is EUL_ID), else the list's own name."""
     from . import service
 
+    if name in _PLATFORM:
+        return _PLATFORM[name].label
     column = next((c for c, n in engine_columns().items() if n == name), None)
     f = (service.resolve(column) if column else None) or service.resolve(name)
     return f.name if f is not None else name
@@ -158,6 +212,8 @@ def get_list(name: str) -> ValueList:
     vl = ValueList.objects.filter(name=name).first()
     if vl is not None:
         return vl
+    if name in _PLATFORM:
+        return ValueList.objects.create(name=name, label=_PLATFORM[name].label)
     if name not in engine_lists():
         raise ValueListError(f"There is no value list called {name}.")
     return ValueList.objects.create(name=name, label=label_for(name))
@@ -208,7 +264,7 @@ def start_draft(actor, vl: ValueList) -> ValueListVersion:
         based_on = f"version {base.number}"
     else:
         rows = shipped(vl.name)
-        based_on = f"the list shipped with ReCET {engine_release()}".strip()
+        based_on = _PLATFORM[vl.name].origin if vl.name in _PLATFORM else f"the list shipped with ReCET {engine_release()}".strip()
     draft = ValueListVersion.objects.create(value_list=vl, number=number, based_on=based_on, created_by=actor)
     Code.objects.bulk_create(Code(version=draft, **r) for r in rows)
     audit.record(
@@ -524,7 +580,7 @@ def engine_changes(on: date | None = None) -> dict[str, dict[str, dict]]:
     is "added", one whose end year differs is "retired" or "reinstated". A code the engine ships that the version does not have (a newer
     engine's code, not yet added here) is retired before any year, so the rules and the editor accept exactly the version's codes."""
     out: dict[str, dict[str, dict]] = {}
-    for vl in ValueList.objects.all():
+    for vl in ValueList.objects.exclude(name__in=list(_PLATFORM)):
         v = in_force(vl, on)
         if v is None:
             continue
@@ -553,7 +609,7 @@ def apply_to_engine(on: date | None = None) -> dict[str, int]:
         editor, _ = _engine()
     except EngineMissing:
         return {}
-    forced = {vl.name: in_force(vl, on) for vl in ValueList.objects.all()}
+    forced = {vl.name: in_force(vl, on) for vl in ValueList.objects.exclude(name__in=list(_PLATFORM))}
     forced = {k: v for k, v in forced.items() if v is not None}
     key = (engine_release(), tuple(sorted((k, v.pk) for k, v in forced.items())))
     with _lock:
@@ -561,6 +617,19 @@ def apply_to_engine(on: date | None = None) -> dict[str, int]:
             editor.set_value_list_changes(engine_changes(on))
             _applied = key
     return {k: v.number for k, v in forced.items()}
+
+
+def codes_in_force(name: str, on: date | None = None) -> list[dict] | None:
+    """A list's codes in the version in force on `on` (today), each {code, description, start_year, end_year, extra}; None while no
+    version is published here (the list's first version, the engine's or the service's own, is then in force)."""
+    vl = ValueList.objects.filter(name=name).first()
+    v = in_force(vl, on) if vl is not None else None
+    if v is None:
+        return None
+    return [
+        {"code": c.code, "description": c.description, "start_year": c.start_year, "end_year": c.end_year, "extra": c.extra}
+        for c in v.codes.order_by("pk")
+    ]
 
 
 def reset_engine() -> None:

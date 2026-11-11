@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% block title %}Pack acceptance checks{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:index' %}">Data packs</a></li></ol></nav>
+<div class="page-title"><h1>Pack acceptance checks</h1>{% page_help "refdata/checks" %}</div>
+<p>The checks each kind of data pack must pass before it is published, so filings can use it. A check's result is recorded on the
+pack's page, from the report of the script or calculation that ran it. A check is never edited: the CPUC retires it and adds another.
+A published pack keeps the checks it was published under.</p>
+
+{% for code, label, active, retired in by_kind %}
+<section aria-labelledby="k-{{ code }}">
+<h2 id="k-{{ code }}">{{ label }}</h2>
+{% if active %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}: checks in force">
+<table class="list">
+  <caption class="sr-only">{{ label }}: checks a draft must pass</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Added</th>{% if manager %}<th scope="col">Retire</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in active %}
+  <tr><th scope="row"><code>{{ r.name }}</code></th><td>{{ r.description }}</td>
+    <td>{% if r.added_at %}{{ r.added_at|date_words }} by {{ r.added_by|person|default:"the system" }}{% if r.reason %}: {{ r.reason }}{% endif %}{% else %}With the platform{% endif %}</td>
+    {% if manager %}<td><form method="post" action="{% url 'refdata:retire_check' r.pk %}" class="row-form">{% csrf_token %}
+      <p><label for="why-{{ r.pk }}">Reason</label><input id="why-{{ r.pk }}" name="reason" type="text" required maxlength="500"></p>
+      <div class="actions"><button type="submit">Retire {{ r.name }}</button></div></form></td>{% endif %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No check: a draft of this kind is published without one.</p>{% endif %}
+{% if retired %}
+<details><summary>Retired checks ({{ retired|length }})</summary>
+<ul>{% for r in retired %}<li><code>{{ r.name }}</code>: {{ r.description }} Retired {{ r.retired_at|date_words }} by {{ r.retired_by|person|default:"the system" }}: {{ r.retired_reason }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+</section>
+{% endfor %}
+
+{% if form %}
+<section class="card" aria-labelledby="add-h">
+<h2 id="add-h">Add a check</h2>
+<p>Drafts of that kind need a passed result of the new check before they are published. Packs already published are not affected.</p>
+<form method="post" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">Add the check</button></div>
+</form>
+</section>
+{% endif %}
+{% endblock %}

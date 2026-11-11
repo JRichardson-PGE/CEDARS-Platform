@@ -21,53 +21,111 @@
   {# A signed-in account that belongs to no organization (navigation review, D1): the one step it needs to file. #}
   {% if user.is_authenticated and nav and not nav.member %}<p class="ask-access">To file or read for a program administrator, <a href="{% url 'administration:request_access' %}">ask it for access</a>.</p>{% endif %}
   {# Without scripts the link opens the written tour; tour.js turns it into the guided one. The Hide button needs scripts, so it starts hidden. #}
-  <p class="tour-offer" data-tour-offer>New to CEDARS? <a href="{% url 'core:help_tour' %}" data-tour-start>Take the tour</a>.
+  <p class="tour-offer" data-tour-offer><span>New to CEDARS? <a href="{% url 'core:help_tour' %}" data-tour-start>Take the tour</a>.</span>
     <button type="button" class="link" data-tour-dismiss hidden>Hide this</button></p>
 </section>
 
-<section class="front-cycle" data-tour="cycle" aria-labelledby="cycle-title">
+<section class="front-trends" data-tour="trends" aria-labelledby="trends-title">
   <div class="head-row">
-    <h2 id="cycle-title">{% if summary.cycle %}The {{ summary.cycle|cycle_label }} program cycle so far{% else %}This program cycle{% endif %}</h2>
-    {% if summary.cycles|length > 1 %}
-    <form method="get" action="{% url 'core:home' %}" class="cycle-pick">
-      <label for="cycle">Program cycle
-        <select id="cycle" name="cycle">{% for c in summary.cycles %}<option value="{{ c }}"{% if c == summary.cycle %} selected{% endif %}>{{ c }}</option>{% endfor %}</select>
-      </label>
+    <h2 id="trends-title">How the portfolio is doing</h2>
+    <p class="muted small">{% if t.as_of %}Claims published as of {{ t.as_of|date_words }}. {% endif %}<a href="{% url 'data:dashboards' %}">Portfolio Dashboard</a></p>
+  </div>
+  {% if t.years %}
+  <div class="trend-controls">
+    <nav aria-label="Metric" class="seg"><span class="seg-label" id="seg-metric">Metric</span>
+      <ul class="seg-nav" aria-labelledby="seg-metric">{% for m in t.metric_links %}<li><a href="{{ m.href }}"{% if m.current %} aria-current="true"{% endif %}>{{ m.title }}</a></li>{% endfor %}</ul>
+    </nav>
+    {% if t.pa_types|length > 1 %}
+    <nav aria-label="Program administrators" class="seg"><span class="seg-label" id="seg-type">Program administrators</span>
+      <ul class="seg-nav" aria-labelledby="seg-type">{% for l in t.type_links %}<li><a href="{{ l.href }}"{% if l.current %} aria-current="true"{% endif %}>{{ l.label }}</a></li>{% endfor %}</ul>
+    </nav>
+    {% endif %}
+    <form method="get" action="{% url 'core:home' %}" class="trend-year">
+      {% if t.metric.key != "tsb" %}<input type="hidden" name="metric" value="{{ t.metric.key }}">{% endif %}
+      {% if t.pa_type %}<input type="hidden" name="type" value="{{ t.pa_type }}">{% endif %}
+      <label for="trend-year">Year</label>
+      <select id="trend-year" name="year">{% for y in t.years reversed %}<option value="{{ y }}"{% if y == t.year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select>
       <button type="submit">Apply</button>
     </form>
-    {% endif %}
   </div>
-  {% if summary.cycle %}
-  <p class="muted small">Statewide totals from published filings{% if summary.as_of %}, as of {{ summary.as_of|date_words }}{% endif %}.
-    {% if summary.claimed_span %}Claims cover {{ summary.claimed_span }} so far.{% else %}No claims are published for this cycle yet.{% endif %}</p>
-  <p class="front-dive">Dive in deeper in the <a href="{% url 'data:dashboards' %}">Portfolio Dashboard</a>.</p>
-  <div class="front-cards">
-    {% for card in summary.cards %}
-    {# The title's link covers the whole card (a larger target); the card's numbers are plain text inside it. #}
-    <article class="card front-card{% if card.bar is not None or card.headline %} has-gauge{% endif %}" aria-labelledby="card-{{ card.key }}" data-card="{{ card.key }}">
-      <h3 id="card-{{ card.key }}"><a class="card-title" href="{{ card.link }}">{{ card.title }}{% if card.scope %} <span class="card-scope">{{ card.scope }}</span>{% endif %}</a></h3>
-      {% if card.empty %}<p class="muted small">{{ card.empty }}</p>{% else %}
-      {% if card.bar is not None %}
-      {# The gauge repeats the words in it, so the drawing is hidden from assistive technology; its fill is an attribute (no inline styles). #}
-      <div class="gauge">
-        <svg viewBox="0 0 120 64" aria-hidden="true" focusable="false"><path class="gauge-edge" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-track" d="M12 58 A48 48 0 0 1 108 58"/><path class="gauge-fill" d="M12 58 A48 48 0 0 1 108 58" pathLength="100" stroke-dasharray="{{ card.bar }} 100"/></svg>
-        <p class="gauge-text"><span class="gauge-pct">{{ card.percent_text }}</span> <span class="gauge-of">{{ card.percent_label }}</span></p>
-      </div>
-      {% elif card.headline %}
-      <div class="gauge gauge-number"><p class="gauge-text"><span class="gauge-pct">{{ card.headline }}</span> <span class="gauge-of">{{ card.percent_label }}</span></p></div>
-      {% endif %}
-      <dl class="figures">
-        {% for f in card.figures %}<div class="figure{% if forloop.first %} lead{% endif %}"><dt>{{ f.label }}</dt><dd>{{ f.value }}{% if f.unit %} <span class="unit">{{ f.unit }}</span>{% endif %}{% if f.detail %} <span class="detail">{{ f.detail }}</span>{% endif %}</dd></div>{% endfor %}
-      </dl>
-      {% endif %}
-    </article>
+
+  <ul class="trend-tiles" aria-label="Every metric in {{ t.year }}">
+    {% for tile in t.tiles %}
+    <li class="trend-tile{% if tile.current %} on{% endif %}" data-tile="{{ tile.key }}">
+      <a href="{{ tile.href }}"{% if tile.current %} aria-current="true"{% endif %}>{{ tile.title }}</a>
+      <p class="n">{{ tile.number }} <span class="u">{{ tile.unit }}</span></p>
+      <p class="chg {{ tile.change.dir|default:'none' }}">{% if tile.change %}<span aria-hidden="true">{% if tile.change.dir == "up" %}▲{% elif tile.change.dir == "down" %}▼{% endif %}</span> {{ tile.change.text }}{% elif tile.since and tile.since == t.year %}first published for {{ t.year }}{% endif %}</p>
+      {% if tile.spark %}<svg class="spark" viewBox="0 0 {{ tile.spark.w }} {{ tile.spark.h }}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="area" points="{{ tile.spark.area }}"/><polyline class="line" points="{{ tile.spark.line }}"/><circle cx="{{ tile.spark.dot.0 }}" cy="{{ tile.spark.dot.1 }}" r="3.5"/></svg>{% endif %}
+    </li>
     {% endfor %}
+  </ul>
+
+  <div class="trend-grid">
+    {% with c=t.charts.by_year r=t.charts.by_year_recent %}
+    <figure class="trend-panel wide" data-chart="{{ c.title }}" aria-labelledby="ch-by-year">
+      <h3 id="ch-by-year">{{ c.title }}</h3>
+      <p class="sub">{{ t.subtitle }}, adding up {{ t.who }}, with the change from the year before.</p>
+      {% if c.empty %}<p class="muted">{{ c.empty }}</p>{% else %}
+      <div class="trend-plot{% if r %} has-recent{% endif %}">{{ c.svg|safe }}</div>
+      {% if r and r.svg %}<div class="trend-plot recent" data-chart-part>{{ r.svg|safe }}</div>{% endif %}
+      <details class="trend-table"><summary>Show as a table</summary>
+        <table><caption class="sr-only">{{ c.title }}</caption><thead><tr><th scope="col">Year</th><th scope="col">{{ t.metric.title }}</th><th scope="col">Change</th></tr></thead>
+        <tbody>{% for row in c.table %}<tr><th scope="row">{{ row.year }}</th><td>{{ row.value }}</td><td>{{ row.change }}</td></tr>{% endfor %}</tbody></table>
+      </details>
+      {% endif %}
+      <p class="more"><a href="{{ t.metric_href }}">Break it down on the dashboard</a> · <a href="{% url 'data:dashboard' 'goals' %}">Against the CPUC's goals</a></p>
+    </figure>
+    {% endwith %}
+
+    {% with c=t.charts.indexed %}
+    <figure class="trend-panel" data-chart="{{ c.title }}" aria-labelledby="ch-indexed">
+      <h3 id="ch-indexed">{{ c.metric }} and {{ c.other|lower }}{% if c.base %} since {{ c.base }}{% endif %}</h3>
+      {% if c.empty %}<p class="muted">{{ c.empty }}</p>{% else %}
+      <p class="sub">Each as a share of its {{ c.base }} value ({{ c.base }} = 100).</p>
+      <ul class="trend-legend"><li><svg width="22" height="10" aria-hidden="true" focusable="false"><line class="line-a" x1="0" x2="22" y1="5" y2="5"/></svg> {{ c.metric }}</li><li><svg width="22" height="10" aria-hidden="true" focusable="false"><line class="line-b" x1="0" x2="22" y1="5" y2="5"/></svg> {{ c.other }} (dashed)</li></ul>
+      <div class="trend-plot">{{ c.svg|safe }}</div>
+      <details class="trend-table"><summary>Show as a table</summary>
+        <table><caption class="sr-only">{{ c.metric }} and {{ c.other|lower }}, {{ c.base }} = 100</caption><thead><tr><th scope="col">Year</th><th scope="col">{{ c.metric }}</th><th scope="col">{{ c.other }}</th></tr></thead>
+        <tbody>{% for row in c.table %}<tr><th scope="row">{{ row.year }}</th><td>{{ row.a }}</td><td>{{ row.b }}</td></tr>{% endfor %}</tbody></table>
+      </details>
+      {% endif %}
+      <p class="more"><a href="{% url 'data:dashboard' 'budget' %}">Budget and spending</a></p>
+    </figure>
+    {% endwith %}
+
+    {% with c=t.charts.by_pa %}
+    <figure class="trend-panel" data-chart="{{ c.title }}" aria-labelledby="ch-by-pa">
+      <h3 id="ch-by-pa">{{ c.title }}</h3>
+      {% if c.empty %}<p class="muted">{{ c.empty }}</p>{% else %}
+      <p class="sub">{{ t.metric.title }}, the largest PAs{% if c.start %}, with the change since {{ c.start }}{% endif %}.</p>
+      <div class="trend-plot">{{ c.svg|safe }}</div>
+      <details class="trend-table"><summary>Show as a table</summary>
+        <table><caption class="sr-only">{{ c.title }}</caption><thead><tr><th scope="col">PA</th>{% if c.start %}<th scope="col">{{ c.start }}</th>{% endif %}<th scope="col">{{ c.end }}</th>{% if c.start %}<th scope="col">Change</th>{% endif %}</tr></thead>
+        <tbody>{% for row in c.table %}<tr><th scope="row"><a href="{{ row.href }}">{{ row.label }}</a></th>{% if c.start %}<td>{{ row.start }}</td>{% endif %}<td>{{ row.end }}</td>{% if c.start %}<td>{{ row.change }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
+      </details>
+      <ul class="more pa-links">{% for row in c.table %}<li><a href="{{ row.href }}">{{ row.label }}</a></li>{% endfor %}</ul>
+      {% endif %}
+    </figure>
+    {% endwith %}
+
+    {% with c=t.charts.per_dollar %}
+    <figure class="trend-panel" data-chart="{{ c.title }}" aria-labelledby="ch-per-dollar">
+      <h3 id="ch-per-dollar">{{ c.title }}</h3>
+      {% if c.empty %}<p class="muted">{{ c.empty }}</p>{% else %}
+      <p class="sub">Total system benefit over claimed spending, adding up {{ t.who }}.</p>
+      <div class="trend-plot">{{ c.svg|safe }}</div>
+      <details class="trend-table"><summary>Show as a table</summary>
+        <table><caption class="sr-only">{{ c.title }}</caption><thead><tr><th scope="col">Year</th><th scope="col">Benefit per $1</th></tr></thead>
+        <tbody>{% for row in c.table %}<tr><th scope="row">{{ row.year }}</th><td>{{ row.value }}</td></tr>{% endfor %}</tbody></table>
+      </details>
+      {% endif %}
+      <p class="more"><a href="{% url 'data:dashboard' 'cost-effectiveness' %}">Cost effectiveness</a></p>
+    </figure>
+    {% endwith %}
   </div>
-  {% if summary.footnotes %}
-  <ul class="front-notes">{% for n in summary.footnotes %}<li>{{ n }}</li>{% endfor %}</ul>
-  {% endif %}
+  {% if t.footnotes %}<ul class="front-notes">{% for n in t.footnotes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
   {% else %}
-  {% for n in summary.notes %}<p class="muted">{{ n }}</p>{% endfor %}
+  {% for n in t.notes %}<p class="muted">{{ n }}</p>{% endfor %}
   {% endif %}
 </section>
 
@@ -100,4 +158,4 @@
 </section>
 
 {% endblock %}
-
+{% block scripts %}<script src="{% static 'data/front.js' %}" defer></script>{% endblock %}

@@ -150,7 +150,7 @@ NO_MENU = (
     "releases:subscribe",
     "releases:detail",
     "releases:withdraw",
-    "limits:*",
+    "limits:index",
     "notifications:*",
     "*-api:*",
     "api-*",
@@ -427,6 +427,13 @@ MENUS = (
                         "administration:settings",
                         SYSADMIN,
                         about="How often grants are recertified, and who may see personal information.",
+                        in_menu=False,
+                    ),
+                    Item(
+                        "Change limits",
+                        "limits:manage",
+                        SYSADMIN,
+                        about="Sessions, runs waiting per account and the pre-upload checker's file size: limits the CPUC sets.",
                         in_menu=False,
                     ),
                     Item(
