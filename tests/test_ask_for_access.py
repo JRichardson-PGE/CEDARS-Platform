@@ -108,8 +108,9 @@ def test_the_cpuc_decides_for_an_organization_with_no_administrator(signed_in, m
     assert _queue(pge_admin) == []  # another organization's administrator is not asked
     assert list(service.request_deciders(mce)) == [cpuc_admin]
 
-    page = signed_in(cpuc_admin).get("/admin/organizations/MCE/").content.decode()
-    assert f'action="/admin/requests/{req.pk}/decide"' in page and "Until then the CPUC decides its access requests." in page
+    assert "Until then the CPUC decides its access requests." in signed_in(cpuc_admin).get("/admin/organizations/MCE/").content.decode()
+    page = signed_in(cpuc_admin).get("/admin/organizations/MCE/requests/").content.decode()
+    assert f'action="/admin/requests/{req.pk}/decide"' in page and "MCE has no administrator yet, so the CPUC decides" in page
     r = signed_in(cpuc_admin).post(f"/admin/requests/{req.pk}/decide", {"decision": "approve", "permissions": ["claims.read"]})
     assert r.status_code == 302
     assert service.effective_permissions(u, mce) == {"claims.read"}

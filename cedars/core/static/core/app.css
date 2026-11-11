@@ -1121,6 +1121,15 @@ details.discard { margin-top: 1rem; }
 details.discard > summary { cursor: pointer; color: var(--link); font-weight: 600; min-height: 24px; line-height: 24px; width: max-content; max-width: 100%; }
 details.discard > p { margin: .5rem 0; }
 
+/* An organization's pages (UI review 3, U7): Give access (one person, several roles or permissions, one reason) and the recertification
+   grouped by member, with one Certify form whose buttons sit in the rows. */
+.give-access fieldset.give-what { border: 0; padding: 0; margin: .5rem 0; min-width: 0; }
+.give-access fieldset.give-what > legend { font-weight: 600; padding: 0; }
+form.certify-all { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: .75rem 0; }
+table.recert tr.group th { background: var(--surface-2); font-weight: 600; }
+table.recert tr.group th button { margin-left: .75rem; }
+table.recert td button { margin-right: .5rem; }
+
 /* A set-up page's parts, linked at its top (submissions/_setup_sections.html); its rarely used actions (cancel or restore one filing,
    remove the set-up) fold away under .setup-fold */
 .setup-sections { margin: .75rem 0 1rem; }

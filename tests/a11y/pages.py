@@ -185,15 +185,19 @@ PAGES = [
     ("request-access-roles", "/account/request-access/?organisation={pge}", "community"),  # its roles first, single permissions folded
     ("request-access-cpuc-decides", "/account/request-access/?organisation=SCE", "community"),  # no administrator yet: the CPUC decides
     ("organisations", "/admin/organizations/", "cpuc_admin"),
-    ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),
+    ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),  # its members and Give access
+    ("organisation-requests", "/admin/organizations/{pge}/requests/", "pge_admin"),
+    ("organisation-recertification", "/admin/organizations/{pge}/recertification/", "pge_admin"),  # grouped by member, Certify all
+    ("organisation-tokens", "/admin/organizations/{pge}/tokens/", "pge_admin"),
+    ("organisation-details", "/admin/organizations/{pge}/details/", "pge_admin"),
     ("organisation-cpuc", "/admin/organizations/{cpuc}/", "cpuc_admin"),
     ("organisation-first-admin", "/admin/organizations/SCE/", "cpuc_admin"),
     ("organisation-new", "/admin/organizations/new/", "cpuc_admin"),
-    ("organisation-untyped", "/admin/organizations/NEWPA/", "cpuc_admin"),
-    ("organisation-renamed", "/admin/organizations/AVA/", "cpuc_admin"),
-    ("organisation-merged", "/admin/organizations/AVA2/", "cpuc_admin"),
-    ("organisation-retired", "/admin/organizations/OLDFIRM/", "cpuc_admin"),
-    ("organisation-sign-in-waiting", "/admin/organizations/{pge}/", "cpuc_admin"),  # a sign-in change waits for a data steward
+    ("organisation-untyped", "/admin/organizations/NEWPA/details/", "cpuc_admin"),
+    ("organisation-renamed", "/admin/organizations/AVA/details/", "cpuc_admin"),
+    ("organisation-merged", "/admin/organizations/AVA2/details/", "cpuc_admin"),
+    ("organisation-retired", "/admin/organizations/OLDFIRM/details/", "cpuc_admin"),
+    ("organisation-sign-in-waiting", "/admin/organizations/{pge}/details/", "cpuc_admin"),  # a sign-in change waits for a data steward
     # People: every account, one account, a deactivated one ({former_user})
     ("people", "/admin/people/", "cpuc_admin"),
     ("person", "/admin/people/{pge_admin}/", "cpuc_admin"),
