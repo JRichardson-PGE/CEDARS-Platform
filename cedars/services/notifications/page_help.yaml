@@ -25,13 +25,18 @@ notifications/settings:
   guide:
     - Choose what you hear about, and for each whether it is emailed too. Everything you choose appears on your notifications page. Filing
       events reach you only for organizations you belong to.
+    - Each group of events is a table with three columns, Off, the notifications page, and the page and email. Set every event in this
+      group changes the whole group at once.
   how:
-    - Tick what to hear about and whether each is emailed too, then Save.
+    - Pick a column for each event, or set the whole group, then Save. The Save button stays at the bottom of the window.
     - Under Requests, choose how you hear the decision on your own requests and of requests waiting on you (on by default).
   tour:
-    - target: main form
-      title: What you are sent
-      text: Tick each kind of notice, and Email for the ones to email. Save.
+    - target: main .event-group
+      title: A group of events
+      text: One row an event, one column a way of hearing about it. Set every event in this group changes them all at once.
+    - target: main .save-bar
+      title: Save
+      text: Saves everything on the page.
     - heading: Requests
       title: Requests
       text: How you hear the decision on a request you made, and of a request waiting for your decision. On, with email, unless you change it.

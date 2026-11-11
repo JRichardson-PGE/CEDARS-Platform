@@ -629,6 +629,18 @@ ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
   .save-bar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: .75rem 0; margin-bottom: 0; }
 }
 
+/* Notification settings (UI review 3, U15): each group of events a table of radio buttons, one column per way of hearing about it */
+.notification-settings { max-width: 56rem; }
+.notification-settings .event-group { margin-top: 1rem; }
+.notification-settings .event-group-all select { width: 100%; max-width: 22rem; }
+table.choice-grid th.choice, table.choice-grid td.choice { text-align: center; width: 7.5rem; }
+table.choice-grid th.choice { white-space: normal; }
+table.choice-grid tbody th[scope=row] { font-weight: 400; }
+@media (max-width: 30rem) {   /* a phone: the three columns narrow and their headings wrap, so the table fits without scrolling sideways */
+  table.choice-grid th, table.choice-grid td { padding-left: .3rem; padding-right: .3rem; }
+  table.choice-grid th.choice, table.choice-grid td.choice { width: 3.4rem; letter-spacing: 0; white-space: normal; }
+}
+
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }
