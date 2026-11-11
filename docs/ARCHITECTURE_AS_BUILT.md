@@ -270,7 +270,7 @@ flowchart TB
   svcs -. "call back through hooks the<br/>modules register in ready()" .-> mods
   mods --> core
   svcs --> core
-  core -. "front page (data),<br/>search (documents)" .-> mods
+  core -. "front page (data)" .-> mods
   mods -- "Results, Edit inputs,<br/>ACC tables" --> eng
   svcs -- "rule runner, value lists,<br/>cost-test sets" --> eng
   mods -- "job spec (calculations)" --> worker
@@ -280,8 +280,8 @@ flowchart TB
   another module.** A search of `cedars/modules` finds no import of one module by another.
 - **A service never imports a module.** Where a service needs a module's work (pricing a filing, publishing it, describing it in a
   notification, adding its rows to a program page), the module registers a function with the service in its `AppConfig.ready()`.
-- `cedars.core` is the site shell above both: its URL configuration takes the front page from `cedars.modules.data`, and site search
-  calls the document library's search in `cedars.modules.documents`.
+- `cedars.core` is the site shell above both: its URL configuration takes the front page from `cedars.modules.data`. Site search
+  imports no module: the parts a service or module offers (filings, runs, confirmed claims, documents) are registered with it.
 - The engine is a package dependency, never copied: the web process imports it for results, Edit inputs, rules, value lists,
   cost-test sets and the ACC tables; pricing always goes through the worker (see [ReCET engine integration](#10-recet-engine-integration)).
 
@@ -316,6 +316,7 @@ Every point where a service calls back into a module is a registration function.
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
+| `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
 
 ```mermaid
 sequenceDiagram
@@ -1332,7 +1333,8 @@ flowchart TD
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
-  programs, fields and documents. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
+  the glossary, programs, fields, confirmed claims and documents, and a signed-in person's own filings and runs, with what the query
+  names exactly (a PrgID, field name, ClaimID, run name or page title) first as the best match. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
   their integrity checked.
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user
   and per-address throttles. Pages and the API call the same service functions.

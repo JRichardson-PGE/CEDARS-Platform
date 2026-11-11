@@ -7,10 +7,17 @@ fixed address, navigation review D6); documents come from the library's search, 
 unpublished documents to those who may read them; programs and dictionary fields are public, as their pages are. Each part shows its
 best `PER_PART` matches and links to its own page's search for the rest, so a part never runs more than one query a page does.
 
-Words match whole or as the start of a longer word ("upload" finds "uploads"), and every word must match (the FAQ's rule, faq.search)."""
+Words match whole or as the start of a longer word ("upload" finds "uploads"), and every word must match (the FAQ's rule, faq.search).
+
+A query that names one thing exactly (a PrgID, a field's name or its CET name, a ClaimID, a run's name, a page's title) leads the
+results as the best match, above the parts (`Hit.exact`). The parts a module or service offers (a signed-in person's own filings and
+runs, confirmed claims, documents) are registered with `register` in their AppConfig.ready, as My queue's are: search never imports a
+module."""
 
 import html
+import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -22,6 +29,8 @@ from django.utils import timezone
 
 from . import faq, nav, page_help
 from . import help as site_help
+
+log = logging.getLogger(__name__)
 
 PER_PART = 8  # the matches each part shows; "See all" links to that part's own page for more
 MAX_QUERY = 200  # characters kept of a query
@@ -36,6 +45,7 @@ class Page:
     help_key: str
     who: tuple[str, ...] = ("",)
     words: str = ""  # other words it is known by
+    label: str = ""  # its name in the header's menus, when it has one ("New run"): a query naming it exactly leads with it
 
 
 # Each page's help entry and other words it is known by. The header's pages (core/nav.py, listed to whoever the header shows them) and the
@@ -193,12 +203,14 @@ def all_pages() -> tuple[Page, ...]:
     entries = page_help.entries()
     every = [(i,) for m in nav.MENUS for i in m.items]
     who: dict[str, set[str]] = {}
+    labels: dict[str, str] = {}
     for m in nav.MENUS:
         for i in m.items:
             who.setdefault(i.url_name, set()).update(i.who)
+            labels.setdefault(i.url_name, i.label)
     for name, roles in OTHER_PAGES.items():
         who.setdefault(name, set()).update(roles)
-    pages = [Page(name, HELP_KEYS[name][0], tuple(sorted(r)), HELP_KEYS[name][1]) for name, r in who.items()]
+    pages = [Page(name, HELP_KEYS[name][0], tuple(sorted(r)), HELP_KEYS[name][1], labels.get(name, "")) for name, r in who.items()]
     listed = set(who)
     for name in _url_names():
         if name in listed or name in SKIP:
@@ -224,6 +236,7 @@ class Hit:
     url: str
     text: str = ""  # one line about it
     kind: str = ""  # a short label shown before the title, e.g. "User guide"
+    exact: bool = False  # the query names this thing exactly (a PrgID, a field name, a ClaimID ...): listed first as the best match
 
 
 @dataclass
@@ -234,6 +247,34 @@ class Part:
     total: int = 0  # all its matches (more than shown when it has a See all link)
     more_url: str = ""  # its own page's search
     more_text: str = ""
+    label: str = ""  # what one of its hits is, shown before a best match's title ("Program")
+
+
+@dataclass(frozen=True)
+class Source:
+    """A part of the results a service or module offers: provider(user, q) -> Part, or None when it has nothing to say (signed out,
+    say). It asks its own records under its own pages' rules on who sees what, and marks a hit `exact` when the query names it."""
+
+    key: str
+    title: str
+    provider: Callable
+    order: int
+
+
+_sources: dict[str, Source] = {}
+
+# The parts this file builds itself, by the same order numbers (registered parts fit between them).
+PAGES_ORDER, HELP_ORDER, GLOSSARY_ORDER, PROGRAMS_ORDER, FIELDS_ORDER = 10, 40, 50, 60, 70
+
+
+def register(key: str, title: str, provider: Callable, *, order: int) -> None:
+    """A part of the results: provider(user, q) -> Part | None. `order` places it among the built-in parts (pages 10, help 40, glossary
+    50, programs 60, fields 70). Registering a key again replaces it."""
+    _sources[key] = Source(key, title, provider, order)
+
+
+def sources() -> list[Source]:
+    return sorted(_sources.values(), key=lambda s: (s.order, s.key))
 
 
 def clean(q: str) -> str:
@@ -242,6 +283,24 @@ def clean(q: str) -> str:
 
 def _terms(q: str) -> list[str]:
     return [t for t in re.findall(r"[a-z0-9]+", q.lower()) if len(t) > 1 or t.isdigit()]
+
+
+def words(q: str) -> list[str]:
+    """The words of a query search matches, lower case (one-letter words other than digits left out)."""
+    return _terms(clean(q))
+
+
+def matches(q: str, text: str) -> bool:
+    """Whether every word of the query matches a word of the text, whole or as its start: the rule every part follows."""
+    terms = words(q)
+    return bool(terms) and _score(terms, text, "") > 0
+
+
+def same(q: str, name: str) -> bool:
+    """Whether the query names this exactly: the same words in the same order, case and punctuation aside ("new run" is "New run",
+    "pge21001" is "PGE21001")."""
+    terms = words(q)
+    return bool(terms) and _terms(name) == terms
 
 
 def _score(terms: list[str], title: str, text: str) -> int:
@@ -257,13 +316,13 @@ def _score(terms: list[str], title: str, text: str) -> int:
 
 
 def _ranked(terms, items):
-    """items: (title, text, hit). The matching hits, best first, in their own order between equals."""
-    found = [(-s, i, hit) for i, (title, text, hit) in enumerate(items) if (s := _score(terms, title, text))]
-    return [hit for _, _, hit in sorted(found, key=lambda f: (f[0], f[1]))]
+    """items: (title, text, hit). The matching hits, exact ones first, then best first, in their own order between equals."""
+    found = [(not hit.exact, -s, i, hit) for i, (title, text, hit) in enumerate(items) if (s := _score(terms, title, text))]
+    return [f[3] for f in sorted(found, key=lambda f: f[:3])]
 
 
-def _part(key, title, hits, more_url="", more_text="") -> Part:
-    return Part(key, title, hits[:PER_PART], len(hits), more_url if len(hits) > PER_PART else "", more_text)
+def _part(key, title, hits, more_url="", more_text="", label="") -> Part:
+    return Part(key, title, hits[:PER_PART], len(hits), more_url if len(hits) > PER_PART else "", more_text, label)
 
 
 # --- who sees a page
@@ -283,8 +342,10 @@ def pages(user, terms) -> Part:
         e = entries[p.help_key]
         title = e.title.removeprefix("The ")
         title = title[0].upper() + title[1:]
-        items.append((f"{title} {p.words}", " ".join(e.guide), Hit(title, reverse(p.url_name), _first_sentence(e.guide[0]))))
-    return _part("pages", "Pages", _ranked(terms, items))
+        exact = terms in (_terms(title), _terms(p.label))
+        hit = Hit(p.label if exact and p.label else title, reverse(p.url_name), _first_sentence(e.guide[0]), exact=exact)
+        items.append((f"{title} {p.label} {p.words}", " ".join(e.guide), hit))
+    return _part("pages", "Pages", _ranked(terms, items), label="Page")
 
 
 # --- help: user guides, each page's help and the FAQ
@@ -308,7 +369,7 @@ def help_part(terms, q: str) -> Part:
     faq_url = reverse("core:help_faq")
     questions = [Hit(x.q, f"{faq_url}#{x.id}", _first_sentence(_plain(x.a[0])) if x.a else "", "Question") for x in faq.search(q)]
     hits = _merge(hits, questions)
-    return _part("help", "Help", hits, f"{faq_url}?{urlencode({'q': q})}", "Search the frequently asked questions")
+    return _part("help", "Help", hits, f"{faq_url}?{urlencode({'q': q})}", "Search the frequently asked questions", "Help")
 
 
 def _merge(a: list, b: list) -> list:
@@ -341,6 +402,9 @@ def _first_sentence(text: str, limit: int = 200) -> str:
     return out if len(out) <= limit else out[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
+first_sentence = _first_sentence  # for the parts modules register
+
+
 @cache
 def glossary_entries() -> tuple[tuple[str, str, str], ...]:
     """(anchor, term, definition) of every glossary entry."""
@@ -350,13 +414,21 @@ def glossary_entries() -> tuple[tuple[str, str, str], ...]:
 
 def glossary(terms) -> Part:
     url = reverse("core:help_guide", args=["glossary"])
-    items = [(term, text, Hit(term, f"{url}#{anchor}", _first_sentence(text))) for anchor, term, text in glossary_entries()]
+    items = [
+        (term, text, Hit(term, f"{url}#{anchor}", _first_sentence(text), exact=_glossary_names(term) == terms))
+        for anchor, term, text in glossary_entries()
+    ]
     from cedars.services.accounts import service as accounts
 
     for code, kind in accounts.KNOWN_PA_TYPES.items():
         name = accounts.known_pa_name(code)
         items.append((code, f"{name} {kind}", Hit(code, f"{url}#pa-codes", f"{name} ({kind}), a program administrator code.")))
-    return _part("glossary", "Glossary", _ranked(terms, items))
+    return _part("glossary", "Glossary", _ranked(terms, items), label="Glossary")
+
+
+def _glossary_names(term: str) -> list[str]:
+    """A glossary term's words without what its brackets add ("TSB (total system benefit)" is named by "TSB")."""
+    return _terms(re.sub(r"\s*\(.*?\)", "", term))
 
 
 # --- programs, dictionary fields and documents: each asks its own page's source, with its page's rules
@@ -373,11 +445,11 @@ def programs(q: str) -> Part:
             continue
         pa = "SW" if p.statewide or p.administrator is None else p.administrator.code
         status = "closed" if v.status == "closed" else "open"
-        hits.append(Hit(f"{p.prg_id}: {v.name}", reverse("programs:program", args=[p.page_prg_id]), f"{pa} program, {status}"))
-    # an exact PrgID first
-    hits.sort(key=lambda h: not h.title.lower().startswith(needle + ":"))
+        exact = p.prg_id.lower() == needle
+        hits.append(Hit(f"{p.prg_id}: {v.name}", reverse("programs:program", args=[p.page_prg_id]), f"{pa} program, {status}", exact=exact))
+    hits.sort(key=lambda h: not h.exact)  # an exact PrgID first
     url = reverse("programs:catalog")
-    return _part("programs", "Programs", hits, f"{url}?{urlencode({'q': q})}", "See every match in the program catalog")
+    return _part("programs", "Programs", hits, f"{url}?{urlencode({'q': q})}", "See every match in the program catalog", "Program")
 
 
 def fields(q: str) -> Part:
@@ -396,40 +468,67 @@ def fields(q: str) -> Part:
         .distinct()
     )
     total = qs.count()
-    # a name match first, then the rest, by name
-    shown = list(qs.filter(name__icontains=q).order_by("name")[:PER_PART])
+    # the field the query names (by its name or another name, such as its CET name) first, then name matches, then the rest, by name
+    shown = list(qs.filter(Q(name__iexact=q) | Q(aliases__name__iexact=q)).order_by("name")[:PER_PART])
+    exact = {f.pk for f in shown}
+    shown += list(qs.filter(name__icontains=q).exclude(pk__in=exact).order_by("name")[: PER_PART - len(shown)])
     if len(shown) < PER_PART:
-        shown += list(qs.exclude(name__icontains=q).order_by("name")[: PER_PART - len(shown)])
-    hits = [Hit(f.name, reverse("dictionary:field", args=[f.name]), _first_sentence(f.definition), f.get_kind_display()) for f in shown]
+        shown += list(qs.exclude(name__icontains=q).exclude(pk__in=exact).order_by("name")[: PER_PART - len(shown)])
+    hits = [
+        Hit(f.name, reverse("dictionary:field", args=[f.name]), _first_sentence(f.definition), f.get_kind_display(), f.pk in exact)
+        for f in shown
+    ]
     url = reverse("dictionary:index")
-    part = Part("fields", "Data dictionary fields", hits, total)
+    part = Part("fields", "Data dictionary fields", hits, total, label="Data dictionary field")
     if total > PER_PART:
         part.more_url, part.more_text = f"{url}?{urlencode({'q': q})}", "See every match in the data dictionary"
     return part
 
 
-def documents(user, q: str) -> Part:
-    """The document library's search (documents.service.search): published documents for everyone, unpublished ones only for those
-    who may read them."""
-    from cedars.modules.documents import service as docs
+def _registered(user, q: str) -> list[tuple[int, Part]]:
+    out = []
+    for src in sources():
+        try:
+            part = src.provider(user, q)
+        except Exception:  # one module's fault never hides the rest of the results
+            log.exception("search source %s failed", src.key)
+            continue
+        if part is not None:
+            out.append((src.order, part))
+    return out
 
-    qs = docs.search(user, docs.Search(q=q))
-    total = qs.count()
-    hits = [
-        Hit(d.title, reverse("documents:document", args=[d.pk]), _first_sentence(d.summary), d.get_collection_display())
-        for d in qs[:PER_PART]
-    ]
-    part = Part("documents", "Documents", hits, total)
-    if total > PER_PART:
-        part.more_url, part.more_text = f"{reverse('documents:library')}?{urlencode({'q': q})}", "See every match in the document library"
-    return part
+
+def best_first(parts: list[Part]) -> list[Part]:
+    """The hits the query names exactly, taken out of their parts into a "Best match" part at the top, each labeled with what it is;
+    a part left with nothing to show is dropped."""
+    best = []
+    for part in parts:
+        exact = [h for h in part.hits if h.exact]
+        if not exact:
+            continue
+        best += [Hit(h.title, h.url, h.text, h.kind if part.key == "help" else (part.label or h.kind), True) for h in exact]
+        part.hits = [h for h in part.hits if not h.exact]
+        part.total -= len(exact)
+    rest = [p for p in parts if p.hits]
+    if not best:
+        return rest
+    return [Part("best", "Best match" if len(best) == 1 else "Best matches", best, len(best)), *rest]
 
 
 def search(user, q: str) -> list[Part]:
-    """Every part with a match, in the order people look for things: pages, help, the glossary, programs, fields, documents."""
+    """Every part with a match, in the order people look for things: pages, the person's own work, help, the glossary, programs, claims,
+    fields, documents; what the query names exactly first, as the best match."""
     q = clean(q)
     terms = _terms(q)
     if not terms:
         return []
-    parts = [pages(user, terms), help_part(terms, q), glossary(terms), programs(q), fields(q), documents(user, q)]
-    return [p for p in parts if p.hits]
+    ordered = [
+        (PAGES_ORDER, pages(user, terms)),
+        (HELP_ORDER, help_part(terms, q)),
+        (GLOSSARY_ORDER, glossary(terms)),
+        (PROGRAMS_ORDER, programs(q)),
+        (FIELDS_ORDER, fields(q)),
+        *_registered(user, q),
+    ]
+    parts = [p for _, p in sorted(ordered, key=lambda op: op[0])]
+    return best_first([p for p in parts if p.hits])
