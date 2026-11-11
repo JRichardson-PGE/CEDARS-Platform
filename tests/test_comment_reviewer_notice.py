@@ -13,6 +13,7 @@ from cedars.services.notifications import service as notifications
 from cedars.services.notifications.models import Notification, Preference
 from cedars.services.submissions import comments
 from cedars.services.submissions import service as submissions
+from cedars.services.submissions.models import Delegation
 
 from .test_submission_comments import _pdf, _priced, analyst, approver, deadline  # noqa: F401 - fixtures
 
@@ -26,10 +27,13 @@ def cpuc_people(make_user, cpuc_admin, cpuc, approver):
     budgets = make_user("budgets@cpuc.example.org", "Bud Gets")
     access.grant(cpuc_admin, budgets, cpuc, "budgets.approve")  # another module's approver
     delegate = make_user("delegate@cpuc.example.org", "Del Egate")
+    access.grant(cpuc_admin, delegate, cpuc, "claims.read")  # a delegate is CPUC staff who can read the module
     submissions.delegate(approver, module="claims", delegate_to=delegate, starts=date.today(), ends=date.today() + timedelta(days=5))
     former = make_user("former@cpuc.example.org", "For Mer")
-    submissions.delegate(
-        approver, module="claims", delegate_to=former, starts=date.today() - timedelta(days=9), ends=date.today() - timedelta(days=1)
+    access.grant(cpuc_admin, former, cpuc, "claims.read")
+    # a delegation already over (named in the past: today a delegation must not end before today)
+    Delegation.objects.create(
+        module="claims", approver=approver, delegate=former, starts=date.today() - timedelta(days=9), ends=date.today() - timedelta(days=1)
     )
     return {"reader": reader, "budgets": budgets, "delegate": delegate, "former": former}
 

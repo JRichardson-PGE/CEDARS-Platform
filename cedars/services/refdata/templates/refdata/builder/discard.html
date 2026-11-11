@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}Discard {{ build }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a></li><li><a href="{% url 'refdata:build_step' build.pk 'review' %}">{{ build }}</a></li></ol></nav>
+<div class="page-title"><h1>Discard {{ build }}?</h1>{% page_help "refdata/builder/discard" %}</div>
+<p>The set leaves My sets{% if build.organisation %} and {{ build.organisation.name }}'s sets{% endif %} for good, and nobody can open or
+change it again. {% if build.status == "offered" %}Its offer to the CPUC is withdrawn with it. {% endif %}Analysis runs already priced
+on it keep their copy of its file. To keep the set, download its file first: it can be read in again on Build a set.</p>
+<dl class="facts">
+  <dt>Set</dt><dd>{{ build }}{% if build.label %}, {{ build.label }}{% endif %}</dd>
+  <dt>Started from</dt><dd>{{ build.source }}, by {{ build.owner|person }}</dd>
+  <dt>Status</dt><dd>{{ build.get_status_display }}</dd>
+</dl>
+<p><a href="{% url 'refdata:build_file' build.pk %}" download="{{ file_name }}">Download the set file ({{ file_name }})</a></p>
+<form method="post" action="{% url 'refdata:build_discard' build.pk %}" class="actions">{% csrf_token %}
+  <input type="hidden" name="sure" value="1">
+  <button type="submit" class="danger">Discard the set for good</button>
+  <a class="button" href="{% url 'refdata:build_step' build.pk 'review' %}">Keep the set</a>
+</form>
+{% endblock %}

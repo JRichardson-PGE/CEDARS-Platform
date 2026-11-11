@@ -218,3 +218,42 @@ class ApiTokenForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["organisation"].choices = [(o.code, str(o)) for o in organisations] + [("", "No organization: my own calculations")]
         self.fields["days"].choices = [c for c in self.fields["days"].choices if c[0] <= max_days]
+
+
+class NameForm(forms.Form):
+    """The name the pages show for a person; a CPUC system administrator correcting someone else's gives a reason."""
+
+    name = forms.CharField(
+        label="Full name", max_length=200, required=False, help_text="As colleagues know you. Blank shows your email address instead."
+    )
+    reason = forms.CharField(label="Reason for the correction", max_length=500, required=False)
+
+    def __init__(self, *args, correcting=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if correcting:
+            self.fields["name"].help_text = "Blank shows their email address instead."
+            self.fields["reason"].required = True
+        else:
+            del self.fields["reason"]
+
+
+class PeopleFilterForm(forms.Form):
+    q = forms.CharField(label="Name or email", required=False, max_length=200)
+    status = forms.ChoiceField(
+        label="Status",
+        required=False,
+        choices=[("", "Every account"), ("active", "Active"), ("deactivated", "Deactivated"), ("community", "In no organization")],
+    )
+
+
+class FederationForm(forms.Form):
+    """Whether an organization's members sign in through its own directory, and the provider they use."""
+
+    federated = forms.BooleanField(label="Its members sign in through the organization's own directory", required=False)
+    provider = forms.CharField(
+        label="Sign-in provider id",
+        max_length=100,
+        required=False,
+        help_text="The directory's provider id, as the platform's operators set it up. Needed when its members sign in through it.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500)

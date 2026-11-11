@@ -54,3 +54,9 @@ class DocumentsConfig(AppConfig):
         # who the Help guides offer a link to these pages (UI review 3, U4): the pages' own checks
         page_access.register("documents:new", views.can_file, "people who file documents for the organization they act for")
         page_access.register("documents:aging", lambda r: views_studies._sees_aging(r.user), "the CPUC's documents and studies staff")
+
+        from cedars.core import search as site_search
+
+        from . import search
+
+        site_search.register("documents", "Documents", search.documents, order=80)  # the library's search, under its rules

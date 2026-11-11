@@ -3,11 +3,20 @@
 {% block content %}
 <div class="page-title"><h1>Your account</h1>{% page_help "administration/account" %}</div>
 <dl class="facts">
+  <dt>Name</dt><dd>{{ user.name|default:"Not given: pages show your email address" }}</dd>
   <dt>Email</dt><dd>{{ user.email }}</dd>
   <dt>Signed in with</dt><dd>{% if assurance == "federated" %}your organization's own sign-in{% elif assurance == "mfa" %}password and a second factor{% else %}password only{% endif %}</dd>
   <dt>Acting for</dt><dd>{% if request.organisation %}{{ request.organisation }}{% else %}no organization (a community account: public data and your own runs){% endif %}</dd>
 </dl>
-<p class="actions"><a class="button" href="{% url 'mfa_index' %}">Second factor and recovery codes</a> <a class="button" href="{% url 'account_change_password' %}">Change password</a></p>
+<p class="actions"><a class="button" href="{% url 'mfa_index' %}">Second factor and recovery codes</a> <a class="button" href="{% url 'account_change_password' %}">Change password</a> <a class="button" href="{% url 'account_email' %}" id="change-email">Change your email address</a></p>
+<details class="card" id="your-name">
+  <summary>Your name</summary>
+  <p class="small">The name pages show beside what you file, comment and decide, and in organization member lists.</p>
+  <form method="post" action="{% url 'administration:account_name' %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in name_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Save your name</button></div>
+  </form>
+</details>
 
 <h2>Your organizations and permissions</h2>
 {% if rows %}
@@ -69,5 +78,18 @@ and stops working when it expires, when you revoke it, or when you leave the org
   </tbody>
 </table>
 </div>
+{% endif %}
+
+{% if can_close %}
+<details class="card" id="close-account">
+  <summary>Close your account</summary>
+  <p>Closing your account signs you out everywhere, revokes your API tokens and stops you signing in. Your runs and history are kept, not
+    deleted; to use CEDARS again, ask the CPUC to reopen the account.</p>
+  <form method="post" action="{% url 'administration:account_close' %}" class="stack form-narrow">{% csrf_token %}
+    <label for="close-reason">Why are you closing it?</label><input type="text" id="close-reason" name="reason" maxlength="500" required>
+    <label><input type="checkbox" name="confirm" value="yes" required> I understand I will not be able to sign in again until the CPUC reopens my account.</label>
+    <div class="actions"><button type="submit">Close my account</button></div>
+  </form>
+</details>
 {% endif %}
 {% endblock %}

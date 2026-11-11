@@ -22,6 +22,12 @@ class SubmissionsConfig(AppConfig):
         my_queue.register("confirm", "Filings ready to confirm", queue.confirmations, action="Review and confirm", order=50)
         my_queue.register("reply", "Comments waiting for your reply", queue.replies, action="Read and reply", order=70)
 
+        from cedars.core import search as site_search
+
+        from . import search
+
+        site_search.register("filings", "Your filings", search.filings, order=20)  # a signed-in person's own filings
+
         from django.conf import settings
 
         if settings.ENVIRONMENT == "sandbox":  # test filings, confirmed or not, go after the sandbox period; never in production
