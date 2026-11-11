@@ -1,5 +1,6 @@
 """The set builder's pages (refdata/builder.py): start a set, one page per step, the set's file. Every page posts and redirects; problems
-are shown at the top of the step they belong to and beside the step in the navigation."""
+are shown at the top of the step they belong to, beside the field they name (in the form's words, builder_forms.problem) and beside the
+step in the navigation."""
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -26,7 +27,45 @@ def _build_or_404(request, pk) -> CostTestBuild:
     return get_object_or_404(builder.visible(request.user), pk=pk)
 
 
+def problem_link(build: CostTestBuild, p: bf.Problem) -> str:
+    """Where a problem is fixed: the field on its step's page, or on the page of the stream, aggregate or test it is about."""
+    data = build.data
+    if p.step == "pricings":
+        ids = _pricing_ids(build)
+        frag = f"id_p-{ids.index(p.name)}-{p.field}" if p.field and p.name in ids else f"pricing-{p.name}" if p.name else ""
+    elif p.step == "engine":
+        frag = f"stream-{p.name}" if p.name else ""
+    else:
+        frag = f"id_{p.field}" if p.field else ""
+    own = {"inputs": ("streams", "refdata:build_input"), "aggregates": ("aggregates", "refdata:build_aggregate"),
+           "tests": ("tests", "refdata:build_test")}.get(p.step)  # fmt: skip
+    if own and p.name and isinstance((data.get(own[0]) or {}).get(p.name), dict):
+        url = reverse(own[1], args=[build.pk, p.name])
+    else:
+        url = reverse("refdata:build_step", args=[build.pk, p.step])
+    return f"{url}#{frag}" if frag else url
+
+
+def _found(build: CostTestBuild, step: str) -> list:
+    return bf.problems(build).get(step, [])
+
+
+def by_name(build: CostTestBuild, step: str) -> dict[str, list]:
+    """A step's problems by the stream, aggregate or test they are about, each with its link, for that part's row in the step's list."""
+    out: dict[str, list] = {}
+    for p in _found(build, step):
+        if p.name:
+            out.setdefault(p.name, []).append((p, problem_link(build, p)))
+    return out
+
+
+def _with_problems(build: CostTestBuild, step: str, rows: list[tuple[str, dict]]) -> list[tuple[str, dict, list]]:
+    found = by_name(build, step)
+    return [(n, x, found.get(n, [])) for n, x in rows]
+
+
 def _ctx(request, build: CostTestBuild, step: str, **extra) -> dict:
+    found = bf.problems(build).get(step, []) if step != "review" else []
     nav = [
         (key, builder.STEP_LABELS[key], len((build.problems or {}).get(key, [])) if key != "review" else build.open_problems)
         for key in builder.PAGES
@@ -36,7 +75,8 @@ def _ctx(request, build: CostTestBuild, step: str, **extra) -> dict:
         "step": step,
         "step_label": builder.STEP_LABELS[step],
         "nav": nav,
-        "problems": (build.problems or {}).get(step, []) if step != "review" else [],
+        "problems": [(p, problem_link(build, p)) for p in found],
+        "found": found,
         "can_change": builder.can_change(request.user, build),
         "engine_here": builder.engine() is not None,
         "checked_by": build.checked_by,
@@ -141,6 +181,7 @@ def _set(request, build):
             form.add_error(None, str(e))
         else:
             return _saved(request, build, "set")
+    bf.show_beside(form, _found(build, "set"))
     return render(request, "refdata/builder/set.html", _ctx(request, build, "set", form=form))
 
 
@@ -163,6 +204,9 @@ def _pricings(request, build):
             else:
                 return _saved(request, build, "pricings")
     ids = list(pricings)
+    for i, f in enumerate(formset.forms):
+        if i < len(ids):
+            bf.show_beside(f, _found(build, "pricings"), part="pricings", name=ids[i])
     rows = [(f, builder.uses_of_pricing(build.data, ids[i]) if i < len(ids) else []) for i, f in enumerate(formset.forms)]
     return render(
         request, "refdata/builder/pricings.html", _ctx(request, build, "pricings", formset=formset, rows=rows, new=new, error=error)
@@ -182,8 +226,20 @@ def _engine(request, build):
             error = str(e)
         else:
             return _saved(request, build, "engine")
-    shown = [(r, form[f"include_{r['name']}"], form[f"pricings_{r['name']}"], form[f"unit_{r['name']}"], form[f"definition_{r['name']}"])
-             for r in rows]  # fmt: skip
+    found, wording = by_name(build, "engine"), set()
+    for r in rows:  # a problem with a stream's unit or definition sits beside that field, with its wording open
+        n = r["name"]
+        fields = {"unit": f"unit_{n}", "definition": f"definition_{n}"}
+        if bf.show_beside(form, _found(build, "engine"), part="streams", name=n, fields=fields):
+            wording.add(n)
+    shown = [
+        (r, form[f"include_{r['name']}"], form[f"pricings_{r['name']}"], form[f"unit_{r['name']}"], form[f"definition_{r['name']}"],
+         [x for x in found.get(r["name"], []) if x[0].field not in ("unit", "definition")],
+         r["name"] in wording or bool(form[f"unit_{r['name']}"].errors or form[f"definition_{r['name']}"].errors))
+        for r in rows
+    ]  # fmt: skip
+    included = [x for x in shown if x[0]["included"]]
+    left_out = [x for x in shown if not x[0]["included"]]
     program = [(n, s) for n, s in (build.data.get("streams") or {}).items() if isinstance(s, dict) and s.get("source") == "program"]
     return render(
         request,
@@ -192,7 +248,9 @@ def _engine(request, build):
             request,
             build,
             "engine",
-            rows=shown,
+            included=included,
+            left_out=left_out,
+            left_out_open=any(x[5] or x[6] for x in left_out),
             form=form,
             error=error,
             program=program,
@@ -211,20 +269,21 @@ def _inputs(request, build):
         else:
             messages.success(request, f"{request.POST['remove']} removed.")
             return redirect("refdata:build_step", pk=build.pk, step="inputs")
-    return render(
-        request, "refdata/builder/inputs.html", _ctx(request, build, "inputs", streams=builder.input_streams(build.data), error=error)
-    )
+    streams = _with_problems(build, "inputs", builder.input_streams(build.data))
+    return render(request, "refdata/builder/inputs.html", _ctx(request, build, "inputs", streams=streams, error=error))
 
 
-def _measure_columns(build) -> list[str]:
-    """The dictionary's numeric Measure fields, for an input stream's columns (and any the set already names)."""
+def _measure_columns(build) -> tuple[list[str], list[str]]:
+    """The Measure fields an input stream can add up: the dictionary's per-unit dollar values (bf.adds_up). Counts, rates, years and
+    energy savings (NumUnits, NTGRkW, EUL_Yrs, UnitkWh1stBaseline ...) are not offered; a column the set already names is kept in the
+    box for other columns. Returns the columns offered and the ones that are not."""
     from cedars.services.dictionary import service as dictionary
 
     try:
-        cols = [f.name for f, _ in dictionary.table_fields("calculations", "Measure") if f.data_type == "number"]
+        numbers = [f.name for f, _ in dictionary.table_fields("calculations", "Measure") if f.data_type == "number"]
     except Exception:  # noqa: BLE001 - no catalog loaded: the box for column names still works
-        cols = []
-    return cols
+        numbers = []
+    return [c for c in numbers if bf.adds_up(c)], [c for c in numbers if not bf.adds_up(c)]
 
 
 @login_required
@@ -234,7 +293,7 @@ def build_input(request, pk, name=None):
     streams = build.data.get("streams") or {}
     if name is not None and not (isinstance(streams.get(name), dict) and streams[name].get("source") == "input"):
         raise Http404("No such input stream")
-    cols = _measure_columns(build)
+    cols, not_offered = _measure_columns(build)
     pricings = list((build.data.get("pricings") or {}).keys()) if isinstance(build.data.get("pricings"), dict) else []
     initial = (
         bf.InputStreamForm.initial_for(name, streams[name], cols)
@@ -250,7 +309,9 @@ def build_input(request, pk, name=None):
             "pricings": pricings[:1],
         }  # fmt: skip
     )
-    form = bf.InputStreamForm(request.POST if _guard(request, build) else None, initial=initial, measure_columns=cols, pricings=pricings)
+    form = bf.InputStreamForm(
+        request.POST if _guard(request, build) else None, initial=initial, measure_columns=cols, not_offered=not_offered, pricings=pricings
+    )
     if form.is_bound and form.is_valid():
         try:
             builder.put_input_stream(request.user, build, name, form.cleaned_data)
@@ -258,6 +319,8 @@ def build_input(request, pk, name=None):
             form.add_error(None, str(e))
         else:
             return _part_saved(request, build, "inputs", form.cleaned_data["name"])
+    if name:
+        bf.show_beside(form, _found(build, "inputs"), part="streams", name=name)
     return render(request, "refdata/builder/input_stream.html", _ctx(request, build, "inputs", form=form, name=name))
 
 
@@ -283,6 +346,7 @@ def _aggregates(request, build):
             messages.success(request, f"{request.POST['remove']} removed.")
             return redirect("refdata:build_step", pk=build.pk, step="aggregates")
     aggregates = [(n, a) for n, a in (build.data.get("aggregates") or {}).items() if isinstance(a, dict)]
+    aggregates = _with_problems(build, "aggregates", aggregates)
     return render(request, "refdata/builder/aggregates.html", _ctx(request, build, "aggregates", aggregates=aggregates, error=error))
 
 
@@ -309,6 +373,8 @@ def build_aggregate(request, pk, name=None):
             form.add_error(None, str(e))
         else:
             return _part_saved(request, build, "aggregates", form.cleaned_data["name"])
+    if name:
+        bf.show_beside(form, _found(build, "aggregates"), part="aggregates", name=name)
     return render(request, "refdata/builder/aggregate.html", _ctx(request, build, "aggregates", form=form, name=name))
 
 
@@ -327,7 +393,8 @@ def _tests(request, build):
             error = str(e)
         else:
             return redirect("refdata:build_step", pk=build.pk, step="tests")
-    tests = [(t, v, formula.render(t, v)) for t, v in (build.data.get("tests") or {}).items() if isinstance(v, dict)]
+    found = by_name(build, "tests")
+    tests = [(t, v, formula.render(t, v), found.get(t, [])) for t, v in (build.data.get("tests") or {}).items() if isinstance(v, dict)]
     return render(request, "refdata/builder/tests.html", _ctx(request, build, "tests", tests=tests, error=error))
 
 
@@ -364,6 +431,8 @@ def build_test(request, pk, tid=None):
             form.add_error(None, str(e))
         else:
             return _part_saved(request, build, "tests", form.cleaned_data["id"])
+    if tid:
+        bf.show_beside(form, _found(build, "tests"), part="tests", name=tid)
     listed = _streams_for(build, named)
     catalog = {"streams": [{"name": n, "pricings": list(s.get("pricings") or [])} for n, s in listed], "shares": form.share_tests}
     return render(request, "refdata/builder/test.html", _ctx(request, build, "tests", form=form, tid=tid, catalog=catalog))
@@ -387,12 +456,16 @@ def _review(request, build):
             request,
             build,
             "review",
-            all_problems=[(builder.STEP_LABELS[k], k if k in builder.PAGES else "", v) for k, v in (build.problems or {}).items()],
+            all_problems=[
+                (builder.STEP_LABELS[k], k if k in builder.PAGES else "", [(p, problem_link(build, p)) for p in v])
+                for k, v in bf.problems(build).items()
+            ],
             words=builder.words(build),
             yaml=builder.to_yaml(build.data).decode("utf-8"),
             file_name=builder.file_name(build),
             register=register,
             manager=builder.is_manager(request.user),
+            can_discard=builder.can_discard(request.user, build),
             set_aside=sorted(build.set_aside.items()),
             changes=builder.changes(build),
             offer=bf.OfferForm(),
@@ -412,15 +485,34 @@ def build_file(request, pk):
 
 
 @login_required
+def build_discard(request, pk):
+    """Discard a set: GET asks first, saying what goes; the confirmation's POST discards it (as deleting a run does)."""
+    build = _build_or_404(request, pk)
+    if not builder.can_discard(request.user, build):
+        messages.error(request, "Only the person who started the set, or the organization's administrator, discards it.")
+        return redirect("refdata:build_step", pk=build.pk, step="review")
+    if request.method == "POST":
+        if not request.POST.get("sure"):
+            messages.error(request, "Confirm that the set goes for good.")
+            return redirect("refdata:build_discard", pk=build.pk)
+        try:
+            builder.discard(request.user, build)
+        except (builder.BuildError, AccessDenied) as e:
+            messages.error(request, str(e))
+            return redirect("refdata:build_step", pk=build.pk, step="review")
+        messages.success(request, f"{build} discarded.")
+        return redirect("refdata:cost_tests")
+    return render(request, "refdata/builder/discard.html", {"build": build, "file_name": builder.file_name(build)})
+
+
+@login_required
 @require_POST
 def build_action(request, pk):
     build = _build_or_404(request, pk)
     action = request.POST.get("action")
     try:
-        if action == "discard":
-            builder.discard(request.user, build)
-            messages.success(request, f"{build} discarded.")
-            return redirect("refdata:cost_tests")
+        if action == "discard":  # asks first (build_discard)
+            return redirect("refdata:build_discard", pk=build.pk)
         if action == "copy":
             shared = build.organisation if builder.can_submit(request.user, build.organisation) else None
             copy = builder.start_from_build(request.user, build, organisation=shared)

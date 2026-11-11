@@ -177,6 +177,7 @@ def test_a_delegate_sees_the_approvers_requests(analyst, approver, deadline, pge
     submissions.move_deadline(None, deadline, timezone.now() - timedelta(days=1), "moved for the test")
     submissions.request_reopen(analyst, v.submission, "A late invoice")
     delegate = make_user("delegate@cpuc.example.org", "Del Egate")
+    access.grant(None, delegate, access.cpuc(), "claims.read")
     submissions.delegate(approver, module="claims", delegate_to=delegate, starts=date.today(), ends=date.today() + timedelta(days=5))
     (item,) = {s.kind.key: s.items for s in queue.sections(delegate)}["reopen"]
     assert "Avery Prover's delegate" in item.note

@@ -123,5 +123,6 @@
 </div>
 {% endif %}
 <h2>Corrections after the due date</h2>
-<ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
+<ul>{% for code, label, p in policies %}<li>{{ label }}: {% if p %}{{ p.get_reopen_after_due_display }}{% if not p.late_confirmation %}; a late first confirmation is not allowed{% endif %}{% else %}Allowed with an approver's approval{% endif %}</li>{% endfor %}</ul>
+{% if sysadmin %}<p><a href="{% url 'submissions:workflow_settings' %}" id="workflow-settings-link">Change the workflow settings</a></p>{% endif %}
 {% endblock %}

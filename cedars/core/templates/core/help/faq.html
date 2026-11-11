@@ -18,10 +18,11 @@ site's as they stand now.</p>
 {% else %}
 <nav aria-labelledby="faq-topics-h"><h2 id="faq-topics-h">Topics</h2>
 <ul class="links">{% for t in topics %}<li><a href="#topic-{{ t.key }}">{{ t.title }}</a> ({{ t.questions|length }})</li>{% endfor %}</ul></nav>
+<p>Each question opens to its answer; searching shows the answers that match, open.</p>
 {% for t in topics %}
 <section aria-labelledby="topic-{{ t.key }}">
   <h2 id="topic-{{ t.key }}">{{ t.title }}</h2>
-  {% for item in t.questions %}{% include "core/help/_question.html" with q=item hl=3 %}{% endfor %}
+  {% for item in t.questions %}{% include "core/help/_question.html" with q=item hl=3 fold=True %}{% endfor %}
 </section>
 {% endfor %}
 {% endif %}

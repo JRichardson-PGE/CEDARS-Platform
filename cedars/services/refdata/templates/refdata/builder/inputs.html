@@ -12,8 +12,8 @@ and a job without it prices it as 0.</p>
   <caption class="sr-only">The set's streams from input columns, with what each reads and how it is counted</caption>
   <thead><tr><th scope="col">Stream</th><th scope="col">It is</th><th scope="col">Columns</th><th scope="col">Counted</th><th scope="col">Pricings</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
   <tbody>
-  {% for n, s in streams %}<tr>
-    <th scope="row">{{ n }}</th><td>{{ s.kind }}</td><td>{{ s.columns|join:", " }}{% if s.columns_2nd %}; 2nd baseline {{ s.columns_2nd|join:", " }}{% endif %}</td>
+  {% for n, s, ps in streams %}<tr>
+    <th scope="row">{{ n }}{% include "refdata/builder/_row_problems.html" %}</th><td>{{ s.kind }}</td><td>{{ s.columns|join:", " }}{% if s.columns_2nd %}; 2nd baseline {{ s.columns_2nd|join:", " }}{% endif %}</td>
     <td>{% if s.basis == "annual_over_life" %}each year of the life{% elif s.basis == "one_time" %}once{% else %}{{ s.basis }}{% endif %}</td><td>{{ s.pricings|join:", " }}</td>
     {% if can_change %}<td><a href="{% url 'refdata:build_input' build.pk n %}">Change<span class="sr-only"> {{ n }}</span></a>
       <form method="post" class="inline-form">{% csrf_token %}<button type="submit" name="remove" value="{{ n }}">Remove<span class="sr-only"> {{ n }}</span></button></form></td>{% endif %}
