@@ -128,7 +128,7 @@ monthly/report:
         Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
         correct that record.
       optional: true
-    - target: "#upload-h"
+    - target: "#upload"
       title: Upload
       text: The three tables as one file, or several chosen together. It replaces this version's earlier upload.
       optional: true

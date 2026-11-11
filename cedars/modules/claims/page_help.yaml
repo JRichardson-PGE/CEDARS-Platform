@@ -141,23 +141,23 @@ claims/period:
         Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
         correct that record.
       optional: true
-    - target: "#upload-h"
+    - target: "#upload"
       title: Upload
       text: >-
         The new and changed records as one file, or several chosen together. It replaces this version's earlier upload. Once the version
         passes its checks this section folds away.
       optional: true
-    - target: "#version-details-h"
+    - target: "#version-details"
       title: The file and its records
       text: The file this version holds and its records by table, over the year to date.
       optional: true
-    - target: "#sw-h"
+    - target: "#statewide-filing, #statewide-first"
       title: Statewide claims
       text: >-
         In a statewide confirmation, the statewide programs its lead PA files first; in a PA's own, which lead PAs have confirmed the
         statewide claims credited to it.
       optional: true
-    - target: "#earlier-h"
+    - target: "#earlier"
       title: Earlier confirmations
       text: This year's confirmed quarters, which this upload is compiled over.
       optional: true
