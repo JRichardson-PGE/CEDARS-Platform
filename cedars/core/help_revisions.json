@@ -9,7 +9,7 @@
   },
   "guide:administering": {
     "release": "0.2.0",
-    "sha256": "3231b9013503423225123144eae8bd831a444d5f56c205e28f65af1b98ed07fe"
+    "sha256": "df7b4a220020360bff8c874e3f7bccacbcc286f8d11dfd23ac17ed32777432bc"
   },
   "guide:budgets": {
     "release": "0.2.0",
@@ -25,11 +25,11 @@
   },
   "guide:correcting-records": {
     "release": "0.2.0",
-    "sha256": "f90adb3936e5c75759188ac64152b390ed1708b9248c3cd6ac215d2d30c0b350"
+    "sha256": "e4c8f5b2215ade36bc4426d57a5e4161ec6a858ddf8a266f2658e0aaa562e09e"
   },
   "guide:documents": {
     "release": "0.2.0",
-    "sha256": "3490fab44d292103b592161c880785a852f3c7fd70ec57191e9ea8545ab97a8d"
+    "sha256": "51b1f1618836905cdc38c37570c09cd664787b3890a2d8ea4241736f5cb4c1c4"
   },
   "guide:getting-started": {
     "release": "0.2.0",
@@ -41,7 +41,7 @@
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
-    "sha256": "d79e83cb614782ec15f593f2b46bcbb3ab5f869dc0f92b32d6c393eb36ffe259"
+    "sha256": "85aa367179be1b0654ee4c6bb595e763fbcdf5c91257eab01ed59a1583869334"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
@@ -57,15 +57,15 @@
   },
   "guide:reference-data": {
     "release": "0.2.0",
-    "sha256": "9bf23b0665ed01874f649a4b82fab3865c0035bd8c87160d23e37b750727b042"
+    "sha256": "f2f5cbeeeafa4b0845d0d6318c70aa28fbc0bffd6ab0d1e23f9962b28b505cc0"
   },
   "guide:releases": {
     "release": "0.2.0",
-    "sha256": "ba710543fed7fed9a6d118242c2cf0549819779750ab38d8079508ba2cf20901"
+    "sha256": "faf4c945f59880f3b3fc88269d0880b0056d64571239d0f95baba3b624065400"
   },
   "guide:reviewing": {
     "release": "0.2.0",
-    "sha256": "7ff8a874e5981f81947646e24d01bcf96b1f0fa0f8ad6b7c78270288cbcb5769"
+    "sha256": "af226ef3faf660dc8c5bf56c77dc0481704d5dfb2d67f288d9d532a8862d66b1"
   },
   "guide:rules-and-lists": {
     "release": "0.2.0",

@@ -12,7 +12,7 @@ from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage
+from cedars.core import storage, tick_lists
 from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts.service import AccessDenied
 
@@ -92,7 +92,16 @@ def library(request):
             "rows": rows,
             "total": page.paginator.count,
             "query": query.urlencode(),
-            "lists": [(al, [(o, o in chosen) for o in _in_order(al.options.all())]) for al in _attribute_lists()],
+            "lists": [
+                tick_lists.tick_list(
+                    "options",
+                    al.name,
+                    [(o.pk, o.label, o in chosen, "retired" if o.retired_on else "") for o in _in_order(al.options.all())],
+                    id=f"filter-{al.pk}",
+                    none="Any",
+                )
+                for al in _attribute_lists()
+            ],
             "advanced": bool(chosen)
             or any(request.GET.get(k) for k in ("published_from", "published_to", "program", "year", "study", "work_order")),
             "collections": service.collections_for(request.user, getattr(request, "organisation", None))
@@ -258,12 +267,17 @@ def _organisation(request):
     return getattr(request, "organisation", None)
 
 
+def can_file(request) -> bool:
+    """File a document opens: the acting organization files in at least one collection (core/page_access.py asks too)."""
+    return bool(service.collections_for(request.user, _organisation(request)))
+
+
 @login_required
 def new(request):
     """File a new document in one of the collections the acting organization files in."""
-    allowed = service.collections_for(request.user, _organisation(request))
-    if not allowed:
+    if not can_file(request):
         raise Http404
+    allowed = service.collections_for(request.user, _organisation(request))
     collection = request.GET.get("collection") or request.POST.get("collection") or allowed[0]
     if collection not in allowed:
         raise Http404

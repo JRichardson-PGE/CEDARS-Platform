@@ -159,6 +159,7 @@ def _setup_fields(cy: ClaimYear) -> dict:
         "acc": cy.acc_version,
         "allocation_version": str(cy.allocation_version or "most recent"),
         "cost_test_set": str(cy.cost_test_set or "in force"),
+        "notes": cy.notes,
     }
 
 
@@ -288,9 +289,11 @@ def remove_setup(actor, cy: ClaimYear, reason: str) -> None:
 
 
 @transaction.atomic
-def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None) -> ClaimYear:
-    """Change how a year's claims are priced. Versions already priced keep what they were priced with; the next pricing uses the new
-    setting."""
+def change_setup(
+    actor, cy: ClaimYear, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None, notes: str | None = None
+) -> ClaimYear:
+    """Change how a year's claims are priced, and its notes (`notes`; None keeps them). Versions already priced keep what they were
+    priced with; the next pricing uses the new setting."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator changes how claims are priced.")
     if not reason.strip():
@@ -299,6 +302,8 @@ def change_setup(actor, cy: ClaimYear, *, acc_version: str, allocation_version=N
     _check_cost_tests(cost_test_set)
     before = _setup_fields(cy)
     cy.acc_version, cy.allocation_version, cy.cost_test_set = acc_version, allocation_version, cost_test_set
+    if notes is not None:
+        cy.notes = notes.strip()
     cy.save()
     audit.record("claim_year.setup_changed", obj=cy, before=before, after=_setup_fields(cy), reason=reason, actor=actor)
     return cy

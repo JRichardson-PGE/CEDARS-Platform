@@ -906,23 +906,78 @@ def records(request, pk):
             ctx["found_count"] = n
         ctx["summary"] = corrections.summary(v)
         ctx["s"] = v.findings or {}
+        flagged, whole, n = corrections.with_findings(v)
+        defs = {t.name: t for t in ctx["tables"]}
+        ctx["flagged"] = [(x, _key_query(defs[x.found.table], x.found.key)) for x in flagged]
+        ctx["flagged_count"] = n
+        ctx["whole_table"] = whole
     return render(request, "submissions/records.html", ctx)
 
 
-def _field_rows(t, values: dict, findings: list[dict], *, key_locked: bool) -> list[dict]:
+def _field_rows(t, values: dict, findings: list[dict], *, key_locked: bool, info: dict | None = None) -> list[dict]:
     by_field: dict[str, list[dict]] = {}
     for f in findings:
         for name in str(f.get("field", "")).split(", "):
             by_field.setdefault(name, []).append(f)
+    info = info or {}
     return [
         {
             "f": fd,
             "value": values.get(fd.name, ""),
             "findings": by_field.get(fd.name, []),
             "locked": key_locked and fd.name in t.key,
+            "info": info.get(fd.name) or corrections.FieldInfo(),
         }
         for fd in t.fields
     ]
+
+
+def _field_groups(t, rows: list[dict]) -> list[dict]:
+    """A record's fields in sections: those with findings first, then the key, then the data dictionary's groups in the order the
+    table first uses them, then the fields the dictionary does not group."""
+    from django.utils.text import slugify
+
+    flagged = [r for r in rows if r["findings"]]
+    rest = [r for r in rows if not r["findings"]]
+    out = []
+    if flagged:
+        out.append({"id": "fields-found", "title": "Fields with findings", "rows": flagged})
+    key = [r for r in rest if r["f"].name in t.key]
+    if key:
+        out.append({"id": "fields-key", "title": "Key", "rows": key})
+    groups: dict[str, list[dict]] = {}
+    for r in rest:
+        if r["f"].name not in t.key:
+            groups.setdefault(r["info"].group, []).append(r)
+    for name, members in groups.items():
+        if name:
+            out.append({"id": "fields-" + slugify(name), "title": name, "rows": members})
+    if groups.get(""):
+        out.append({"id": "fields-other", "title": "Other fields" if len(out) else "Fields", "rows": groups[""]})
+    return out
+
+
+def _find_field(request, t):
+    """A redirect to the field the "Find a field" box names (exactly, else the first whose name contains it), or None."""
+    from django.utils.text import slugify
+
+    q = request.GET.get("find", "").strip().lower()
+    if not q:
+        return None
+    names = [fd.name for fd in t.fields]
+    hit = next((n for n in names if n.lower() == q), None) or next((n for n in names if q in n.lower()), None)
+    keep = _keep_query(request)
+    url = request.path + (f"?{keep}" if keep else "")
+    if hit is None:
+        messages.warning(request, f"No field of the {t.name} table is named {request.GET.get('find', '').strip()}.")
+        return redirect(url)
+    return redirect(url + "#f-" + slugify(hit))
+
+
+def _keep_query(request) -> str:
+    from urllib.parse import urlencode
+
+    return urlencode([("k", k) for k in request.GET.getlist("k")])
 
 
 @login_required
@@ -938,6 +993,8 @@ def record(request, pk, table):
     found = corrections.record(v, table, key)
     if found is None:
         raise Http404
+    if request.method == "GET" and (jump := _find_field(request, t)) is not None:
+        return jump
     values = dict(found.row)
     if request.method == "POST":
         posted = {fd.name: request.POST.get(f"f-{fd.name}", "") for fd in t.fields}
@@ -956,18 +1013,21 @@ def record(request, pk, table):
             _outcome(request, v, scope)
             new = next((c.after for c in scope.changes if c.kind == "edit"), None) or found.row
             url = reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key])
-            return redirect(url)
+            return redirect(url + "&saved=1")
     findings = corrections.row_findings(v, table, found.line)
+    rows = _field_rows(t, values, findings, key_locked=bool(found.earlier), info=corrections.field_info(v, t))
     ctx = _base_context(v, "")
     ctx.update(
         {
             "t": t,
             "found": found,
             "key_query": _key_query(t, key),
-            "rows": _field_rows(t, values, findings, key_locked=bool(found.earlier)),
+            "rows": rows,
+            "groups": _field_groups(t, rows),
             "findings": findings,
             "rejected": any(f.get("severity") == "reject" for f in findings),
             "mode": "edit",
+            "saved": request.GET.get("saved") == "1",
         }
     )
     return render(request, "submissions/record.html", ctx)
@@ -995,9 +1055,13 @@ def record_new(request, pk, table):
         else:
             _outcome(request, v, scope)
             new = scope.changes[-1].after
-            return redirect(reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key]))
+            url = reverse("submissions:record", args=[v.pk, table]) + "?" + _key_query(t, [new.get(c, "") for c in t.key])
+            return redirect(url + "&saved=1")
+    if request.method == "GET" and (jump := _find_field(request, t)) is not None:
+        return jump
+    rows = _field_rows(t, values, [], key_locked=False, info=corrections.field_info(v, t))
     ctx = _base_context(v, "")
-    ctx.update({"t": t, "rows": _field_rows(t, values, [], key_locked=False), "findings": [], "mode": "add"})
+    ctx.update({"t": t, "rows": rows, "groups": _field_groups(t, rows), "findings": [], "mode": "add"})
     return render(request, "submissions/record.html", ctx)
 
 
