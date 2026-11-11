@@ -80,6 +80,7 @@ HELP_KEYS = {
     "administration:role_templates": ("administration/role_templates", "roles permissions"),
     "administration:stewardship": ("administration/stewardship", ""),
     "administration:settings": ("administration/settings", "access settings"),
+    "limits:manage": ("releases/limits_manage", "change limits session timeout sign out queued runs checker file size"),
     "administration:audit": ("administration/audit", "log history"),
     "administration:goal_sets": ("administration/goal_sets", "goals savings targets decision tsb gwh template"),
     "snapshots:holds": ("snapshots/holds", "publication"),

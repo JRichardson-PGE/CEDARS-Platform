@@ -92,6 +92,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",  # before RequireMFAMiddleware, whose redirect carries an error message
+    "cedars.services.accounts.middleware.SessionTimeoutMiddleware",  # signs out long or unused sessions (limits a CPUC admin sets)
     "cedars.services.accounts.middleware.ActiveOrganisationMiddleware",
     "cedars.services.accounts.middleware.RequireMFAMiddleware",
     "cedars.services.audit.middleware.AuditContextMiddleware",
@@ -249,6 +250,9 @@ CALCULATIONS_BATCH_QUEUES = {"small": env("CEDARS_BATCH_QUEUE_SMALL", ""), "larg
 CALCULATIONS_BATCH_JOB_DEFINITION = env("CEDARS_BATCH_JOB_DEFINITION", "")  # used when a release names none (infra/terraform)
 CALCULATIONS_SMALL_RUN_RECORDS = int(env("CALCULATIONS_SMALL_RUN_RECORDS", "10000"))  # up to this many measures: the small-runs queue
 CALCULATIONS_MAX_RECORDS = int(env("CALCULATIONS_MAX_RECORDS", "2000000"))  # the configurable record cap (the engine checks it too)
+# Runs one account may have waiting or running at once (a filing's pricing runs are never counted or refused). A CPUC system
+# administrator can change it on Change limits (/limits/manage/); this is its first-run default.
+CALCULATIONS_MAX_QUEUED_PER_ACCOUNT = int(env("CALCULATIONS_MAX_QUEUED_PER_ACCOUNT", "5"))
 CALCULATIONS_RESULTS_CACHE = env(
     "CALCULATIONS_RESULTS_CACHE", str(BASE_DIR / "var" / "cache" / "results")
 )  # local copies of runs' results files
@@ -317,6 +321,13 @@ CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
 # What an uploaded .zip or Excel workbook may unpack to, all its files together, checked before any of it is unpacked (a small .zip
 # can hold a very large file). The same as the calculation engine's own limit on a job's unzipped files.
 CEDARS_UPLOAD_MAX_UNZIPPED_MB = int(env("CEDARS_UPLOAD_MAX_UNZIPPED_MB", "1024"))
+# The pre-upload checker reads a file while you wait, so it takes smaller files than an upload (check a large table in parts).
+# Sessions end this many hours after signing in, and after this many minutes without a page or call. CPUC system administrators can
+# change all three on Change limits (/limits/manage/); these are their first-run defaults.
+CEDARS_CHECKER_MAX_MB = int(env("CEDARS_CHECKER_MAX_MB", "25"))
+CEDARS_SESSION_MAX_HOURS = int(env("CEDARS_SESSION_MAX_HOURS", "12"))
+CEDARS_SESSION_IDLE_MINUTES = int(env("CEDARS_SESSION_IDLE_MINUTES", "60"))
+SESSION_COOKIE_AGE = CEDARS_SESSION_MAX_HOURS * 3600  # a signed-in session's cookie follows its idle and absolute limits (middleware)
 IMPACT_PROFILES_CUSTOM_MAX_MB = int(env("IMPACT_PROFILES_CUSTOM_MAX_MB", "20"))  # a PA's custom impact profile file
 CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version
 # Correcting a filing's records in place: the most records one partial correction may change (a larger one is a new upload),
