@@ -20,7 +20,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import comments, corrections, service
-from .models import Attachment, Comment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
+from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
 
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
 
@@ -778,7 +778,7 @@ def reopen_requests(request):
                 "stands": stands,
                 "stands_page": comments.version_page(stands) if stands else "",
                 "earlier": earlier,
-                "comments": Comment.objects.filter(version__submission=r.submission).count(),
+                "comments": comments.Comment.objects.filter(version__submission=r.submission).count(),
             }
         )
     decided = [
