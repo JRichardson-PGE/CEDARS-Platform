@@ -9,7 +9,7 @@ from cedars.services.refdata.models import CostTestBuild, PackVersion
 from cedars.services.registry.models import AllocationVersion
 
 from . import output_templates, service
-from .models import OutputTemplate
+from .models import EngineRelease, OutputTemplate
 
 ACC_PURPOSES = [
     ("", "Any filing"),
@@ -371,12 +371,6 @@ class OutputTemplateForm(forms.Form):
         return output_templates.parse(d.get("columns", "")) + list(d.get("add") or [])
 
 
-CALCULATIONS_HELP = (
-    "One per line, the calculation and then its ACCs: recet: 2021, 2022, 2024, 2026 for ReCET's own and, for each CET replica, "
-    "cet-25.1: 2024. The names the table shows (ReCET, CET 25.1 replica) work too."
-)
-
-
 def parse_calculations(text: str) -> dict[str, list[str]]:
     """{"recet": ["2024", "2026"], "cet-25.1": ["2024"]} from the Calculations box: one "calculation: ACC, ACC" per line, the calculation
     by its code or the name the releases table shows it by."""
@@ -406,12 +400,30 @@ def parse_calculations(text: str) -> dict[str, list[str]]:
     return out
 
 
-class EngineReleaseChangeForm(forms.Form):
-    """What a release offers and how it is run; its number never changes (its runs name it)."""
+STANDARD_ACCS = ("2021", "2022", "2024", "2026")  # the ACCs ReCET carries; any other year a release has is offered too
+EXTRA_ROWS = 1  # an empty calculation row below a release's own, for adding one without scripts
 
-    calculations = forms.CharField(
-        label="Calculations and their ACCs", widget=forms.Textarea(attrs={"rows": 9}), help_text=CALCULATIONS_HELP
-    )
+
+def acc_years() -> list[str]:
+    """The ACC years to tick: ReCET's, and every year a release already names (CET replicas reach back to 2017)."""
+    years = set(STANDARD_ACCS)
+    for accs in EngineRelease.objects.values_list("accs", flat=True):
+        for values in (accs or {}).values():
+            years.update(str(y) for y in values)
+    return sorted(years)
+
+
+def known_calculations() -> list[str]:
+    """ReCET's own first, then every CET replica a release offers: the suggestions in each row's Calculation box."""
+    seen = {c for cs in EngineRelease.objects.values_list("calculations", flat=True) for c in (cs or [])}
+    return [service.RECET, *sorted(seen - {service.RECET})]
+
+
+class EngineReleaseChangeForm(forms.Form):
+    """What a release offers and how it is run; its number never changes (its runs name it). Its calculations are rows: each row a
+    calculation (recet, or cet-25.1 for a CET replica) with its ACCs ticked from a list, and a box for an ACC year the list lacks. A posted
+    `calculations` text ("recet: 2024, 2026" a line, as the form took them before) is still read."""
+
     image = forms.CharField(label="Worker image (optional)", max_length=300, required=False)
     batch_job_definition = forms.CharField(label="AWS Batch job definition (optional)", max_length=200, required=False)
     notes = forms.CharField(label="Notes", required=False, widget=forms.Textarea(attrs={"rows": 2}))
@@ -421,8 +433,99 @@ class EngineReleaseChangeForm(forms.Form):
         help_text="Kept in the audit trail, e.g. the data pack that added an ACC.",
     )
 
-    def clean_calculations(self):
-        return parse_calculations(self.cleaned_data["calculations"])
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        initial = self.initial.get("calculations") or {}
+        if isinstance(initial, str):
+            try:
+                initial = parse_calculations(initial) if initial.strip() else {}
+            except forms.ValidationError:
+                initial = {}
+        years = acc_years()
+        if self.is_bound:
+            count = len({k.split("_", 1)[1] for k in self.data if k.startswith("calc_") and k[5:].isdigit()})
+        else:
+            count = len(initial) + EXTRA_ROWS
+        count = max(count, 1)
+        self.calculation_codes = known_calculations()
+        rows = list(initial.items())
+        self.row_names = []
+        for i in range(count):
+            code, accs = rows[i] if i < len(rows) else ("", [])
+            self.fields[f"calc_{i}"] = forms.CharField(
+                label="Calculation",
+                required=False,
+                max_length=40,
+                initial=code,
+                help_text="recet for ReCET's own, or cet- and the CET release for a replica, e.g. cet-25.1" if i == 0 else "",
+                widget=forms.TextInput(attrs={"list": "calculation-codes", "autocomplete": "off"}),
+            )
+            self.fields[f"accs_{i}"] = forms.MultipleChoiceField(
+                label="ACCs it has",
+                required=False,
+                choices=[(y, f"{y} ACC") for y in sorted(set(years) | set(accs))],
+                initial=list(accs),
+                widget=forms.CheckboxSelectMultiple,
+            )
+            self.fields[f"more_{i}"] = forms.CharField(
+                label="Another ACC year (optional)", required=False, max_length=60, help_text="Years separated by commas, e.g. 2028"
+            )
+            self.row_names.append((f"calc_{i}", f"accs_{i}", f"more_{i}"))
+        self.order_fields([n for n in self.fields if n == "release"] + [n for names in self.row_names for n in names])
+
+    @property
+    def lead_fields(self):
+        """The fields above the calculation rows (the release's number on Add a release)."""
+        return [self[n] for n in self.fields if n == "release"]
+
+    @property
+    def rest_fields(self):
+        rows = {n for names in self.row_names for n in names}
+        return [self[n] for n in self.fields if n != "release" and n not in rows]
+
+    def calculation_rows(self):
+        """Each row's (number, calculation box, ACC ticks, other years box), for the template."""
+        return [(i + 1, self[c], self[a], self[m]) for i, (c, a, m) in enumerate(self.row_names)]
+
+    def clean(self):
+        d = super().clean()
+        if "calculations" in self.data:  # the earlier form's text, one "calculation: ACC, ACC" a line
+            try:
+                d["calculations"] = parse_calculations(self.data["calculations"])
+            except forms.ValidationError as e:
+                self.add_error(None, e)
+            return d
+        out: dict[str, list[str]] = {}
+        for calc, accs, more in self.row_names:
+            name = (d.get(calc) or "").strip()
+            extra = [y.strip() for y in (d.get(more) or "").replace(";", ",").split(",") if y.strip()]
+            bad = [y for y in extra if not (y.isdigit() and len(y) == 4)]
+            if bad:
+                self.add_error(more, f"Name each ACC by its year, e.g. 2028 (got {', '.join(bad)}).")
+                continue
+            years = sorted(set(d.get(accs) or []) | set(extra))
+            if not name:
+                if years:
+                    self.add_error(calc, "Name the calculation these ACCs are for, or untick them.")
+                continue
+            code = service.calculation_code(name)
+            if not code:
+                self.add_error(calc, f"{name!r} is not a calculation. Use recet (ReCET's own) or cet- and a CET release, e.g. cet-25.1.")
+                continue
+            if code in out:
+                self.add_error(calc, f"{code} is in two rows; tick all its ACCs in one.")
+                continue
+            if not years:
+                self.add_error(accs, f"Tick at least one ACC for {code}.")
+                continue
+            out[code] = years
+        if not self.errors:
+            if not out:
+                self.add_error("calc_0", "Name at least ReCET's own calculation (recet) and tick its ACCs.")
+            elif service.RECET not in out:
+                self.add_error(None, "Add ReCET's own calculation: a row with recet and its ACCs ticked.")
+        d["calculations"] = out
+        return d
 
 
 class EngineReleaseForm(EngineReleaseChangeForm):
@@ -434,7 +537,7 @@ class EngineReleaseForm(EngineReleaseChangeForm):
         max_length=300,
         help_text="Kept in the audit trail, e.g. the release's change or the decision that calls for it.",
     )
-    field_order = ["release", "calculations", "default", "retire_previous", "image", "batch_job_definition", "notes", "reason"]
+    field_order = ["release", "default", "retire_previous", "image", "batch_job_definition", "notes", "reason"]
 
     def __init__(self, *args, current_default=None, **kwargs):
         # a new release usually offers what the default does: start from its calculations and ACCs
