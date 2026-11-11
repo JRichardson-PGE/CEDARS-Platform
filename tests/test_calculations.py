@@ -145,7 +145,7 @@ def test_the_request_is_checked_against_the_release(tmp_path, analyst, pge, rele
 def test_starting_a_run_for_an_organisation_needs_calculations_submit(tmp_path, make_user, pge, pge_admin, release):
     reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "calculations.read")
-    with pytest.raises(AccessDenied, match="calculations.submit in PGE"):
+    with pytest.raises(AccessDenied, match="Calculations: submit permission in PGE"):
         service.create_run(reader, pge, request(release), job_zip(tmp_path))
     own = service.create_run(reader, None, request(release, name="mine"), job_zip(tmp_path))  # a run of one's own needs nothing
     assert own.organisation is None and own.spec["context"]["organisation"] is None

@@ -403,7 +403,7 @@ HISTORY_WORDS = {
 def history(view: SavedView) -> list[tuple]:
     """(when, what in words, who, reason), oldest first."""
     return [
-        (e.at, HISTORY_WORDS.get(e.action, e.action), e.actor or e.actor_label, e.reason)
+        (e.at, HISTORY_WORDS.get(e.action) or audit.words(e.action, verb_only=True).lower(), e.actor or e.actor_label, e.reason)
         for e in audit.changes(view).select_related("actor")
     ]
 

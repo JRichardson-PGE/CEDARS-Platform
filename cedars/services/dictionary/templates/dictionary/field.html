@@ -32,7 +32,7 @@
   {% if f.required_by %}<dt>Required by</dt><dd>{{ f.required_by }}</dd>{% endif %}
   {% if f.aliases.all %}<dt>Also accepted as</dt><dd>{% for a in f.aliases.all %}{{ a.name }} ({{ a.system }}){% if not forloop.last %}, {% endif %}{% endfor %}</dd>{% endif %}
   {% if f.usages.all %}<dt>Used in</dt><dd>{% for u in f.usages.all %}{{ u.module|capfirst }} {{ u.table }}, column {{ u.position|add:1 }}{% if u.required %} (required){% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}</dd>{% endif %}
-  {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{{ f.doc_link }} in ReCET</dd>{% endif %}
+  {% if f.doc_link %}<dt>Calculation documentation</dt><dd>{% if doc_ref %}<a href="{{ doc_ref.href }}">{% if doc_ref.section %}{{ doc_ref.section }}, in {% endif %}the engine's {{ doc_ref.doc }}</a>{% else %}{{ f.doc_link }} in the engine's documents{% endif %}</dd>{% endif %}
 </dl>
 {% if values %}
 <section aria-labelledby="values-h">

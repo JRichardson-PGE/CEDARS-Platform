@@ -1313,7 +1313,15 @@ def derive_checks(
     for name, t in own.items():
         missing = [c for c in spec.required(name) if c not in t.columns]
         for c in missing:
-            add(name, 1, "", c, "CLM-COL", f"{name} has no {c} column", f"Add the {c} column; every {name} record needs it.")
+            add(
+                name,
+                1,
+                "",
+                c,
+                "CLM-COL",
+                _both_names(f"{name} has no {c} column"),
+                _both_names(f"Add the {c} column; every {name} record needs it."),
+            )
         if missing:
             continue
         checked = name not in RULE_TABLES or not rule_set_on
@@ -1632,6 +1640,15 @@ def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[l
             notes.append(f"Checked as {filing_year} claims, the year of every record; give the claim year to check for another.")
     found, rule_notes, _ = _rule_findings({table: t}, filing_year, rs)
     return found, notes + rule_notes, len(t.rows)
+
+
+def _both_names(text: str) -> str:
+    """A finding's words with both names of a renamed field, "AC_Elec_Impact_Profile (E3MeaElecEndUseShape)", as the rules' findings
+    give them; the text as written where the engine is not installed."""
+    try:
+        return rules.canonical_text(text)
+    except rules.EngineMissing:
+        return text
 
 
 def _recet_name(column: str) -> str:

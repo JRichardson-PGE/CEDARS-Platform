@@ -14,7 +14,7 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from .models import PackVersion, TieOut, TieOutRequirement
+from .models import PackVersion, TieOut, TieOutRequirement, check_words
 
 Kind, Status = PackVersion.Kind, PackVersion.Status
 
@@ -280,7 +280,7 @@ def record_report(actor, pack: PackVersion, *, check: str, data: bytes, file_nam
     must name one of the pack's files."""
     _require(actor, pack.kind)
     if check not in {r.name for r in required_checks(pack)}:
-        raise AccessDenied(f"{check} is not a check this pack needs.")
+        raise AccessDenied(f"{check_words(check)} is not a check this pack needs.")
     found = read_report(data)
     sha = found["report"].get("sha256")
     if isinstance(sha, str) and sha and sha not in {m.get("sha256") for m in pack.manifest.values()}:
@@ -299,7 +299,7 @@ def publish_pack(actor, pack: PackVersion) -> PackVersion:
         raise AccessDenied("The set's own file says draft: true. A published set is a final one: register the final file as a new version.")
     missing = outstanding(pack)
     if missing:
-        raise AccessDenied("Publishing needs a passed tie-out for: " + ", ".join(r.name for r in missing) + ".")
+        raise AccessDenied("Publishing needs a passed result of these checks: " + ", ".join(r.words for r in missing) + ".")
     checks = [r.name for r in required_checks(pack)]
     pack.status, pack.published_by, pack.published_at, pack.checks_at_publication = Status.PUBLISHED, actor, timezone.now(), checks
     pack.save()

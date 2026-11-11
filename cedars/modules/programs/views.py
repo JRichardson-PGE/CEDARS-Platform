@@ -316,7 +316,10 @@ def program(request, prg_id):
     all_evaluations = registry.evaluations(p)
     evaluations = [e for e in all_evaluations if _covers(e, year)] if year else all_evaluations
     current = registry.current_version(p) or p.versions.order_by("-valid_from").first()
-    history = list(reversed(registry.history(p)))
+    history = [
+        (ver, [(field_label(f), show_value(f, old), show_value(f, new)) for f, old, new in changes])
+        for ver, changes in reversed(registry.history(p))
+    ]
     allocation = allocation_history(p.follows if p.follows_id else p)
     pas = sorted({pa for row in allocation for pa in row["shares"]})
     adding = registry.add_document(p, request.user, getattr(request, "organisation", None))
@@ -670,7 +673,7 @@ def change_request(request, pk):
             "can_withdraw": can_withdraw,
             "decision": decision,
             "withdraw": withdraw,
-            "events": audit.changes(req).select_related("actor"),
+            "events": [(e, audit.words(e.action, verb_only=True)) for e in audit.changes(req).select_related("actor")],
         },
     )
 

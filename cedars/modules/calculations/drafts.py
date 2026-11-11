@@ -26,6 +26,7 @@ from django.db.models import Q
 
 from cedars.core import storage
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import profiles as packed_profiles
 from cedars.services.refdata import service as refdata
@@ -105,7 +106,7 @@ def frames(draft: InputDraft):
 
 def _create(actor, organisation, name: str, source: str, job, *, source_run=None) -> InputDraft:
     if not service.can_submit(actor, organisation):
-        raise AccessDenied(f"You need calculations.submit in {organisation.code} to edit its jobs.")
+        raise AccessDenied(f"You need the {perms.label('calculations.submit')} permission in {organisation.code} to edit its jobs.")
     if not name.strip():
         raise AccessDenied("Give the draft a name.")
     draft = InputDraft.objects.create(

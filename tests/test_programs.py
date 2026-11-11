@@ -109,7 +109,7 @@ def test_portfolio_cost_ids_are_not_programs(signed_in, make_user, pge, pge_admi
 def test_a_program_page_shows_its_definition_and_versions(signed_in, make_user, programs):
     html = signed_in(make_user("someone@example.com")).get("/programs/PGE21001/").content.decode()
     assert "PGE21001: Old Lighting" in html and "Closed" in html
-    assert "closed by D.21-05-031" in html and "Status: active to closed" in html and "First version" in html
+    assert "closed by D.21-05-031" in html and "Status: Active to Closed" in html and "First version" in html
     assert "Change this program" not in page_only(html)  # not PG&amp;E's admin
     assert "Not a statewide program" in html
 

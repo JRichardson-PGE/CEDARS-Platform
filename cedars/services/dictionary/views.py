@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from cedars.core import engine_docs
 from cedars.services.accounts.service import AccessDenied
 
 from . import changes as changelog
@@ -128,6 +129,7 @@ def detail(request, name):
             "history": changelog.history(f.name),
             "mandates": mandates.for_field(f.name),
             "can_retire": changelog.can_retire(request.user),
+            "doc_ref": engine_docs.reference(f.doc_link) if f.doc_link else None,
         },
     )
 

@@ -108,4 +108,18 @@ Shared parts in `cedars/core/tables.py`, everything in the link (a sorted, filte
 A table wider than the window shows fewer columns first rather than scrolling: budget Compare opens on four figures, ticked to add
 the rest; the allocation page shows one year at a time (no Year column then) and shades every other funding PA's three columns.
 
+### Plain names
+
+A page names a thing in words, never by its code, and each kind of thing has one naming function that every page uses:
+
+| Thing | Function | Reads as |
+|---|---|---|
+| a permission | `accounts.permissions.label` (and `describe`, one sentence on what it allows) | "Claims: submit", not claims.submit |
+| an API token's modules | `module_names` filter | "Impact profiles", not impact_profiles |
+| an audit action | `audit.words` (`action_words` filter) | "Program change requested", or "Requested" beside the thing; the audit log shows the action's name in small type too |
+| a program version's changes | `programs.views.field_label` and `show_value` | "Primary sector: Residential to Commercial" |
+| a data pack check | `refdata.models.check_words` | "Matches the published workbook"; the checks page keeps its name (source_workbook) in small type for scripts |
+| a link into the engine's documents | `core.engine_docs.reference` | "1.3 Keys that select prices, profiles and rates, in the engine's Input fields", linked to that section |
+| a renamed field in a finding | `rules.canonical_text` | "AC_Elec_Impact_Profile (E3MeaElecEndUseShape)" |
+
 From the UI review of 2026-10-30, still planned: a `/ui/` gallery page that the axe suite visits.
