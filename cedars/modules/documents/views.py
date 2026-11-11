@@ -17,7 +17,7 @@ from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts.service import AccessDenied
 
 from . import comments, deliverables, forms, service, subscriptions
-from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile
+from .models import AttributeList, AttributeOption, Collection, Document, DocumentFile, LegacyLink
 
 PER_PAGE = 25
 CSV_COLUMNS = [
@@ -213,6 +213,7 @@ def document(request, pk):
             "programs": list(doc.programs.all()),
             "can_manage": can_manage,
             "can_publish": service.can_publish(request.user, doc),
+            "doc_admin": request.user.is_authenticated and service.is_admin(request.user),
             "sees_unpublished": service.sees_unpublished(request.user, doc) if request.user.is_authenticated else False,
             "inline": {f.pk for v in versions for f in v.files.all() if service.opens_inline(f)},
             "show_downloads": can_manage,
@@ -574,3 +575,57 @@ def edw_archive(request, rest=""):
     if old.lower().startswith("/cpucfiles/"):
         raise Http404
     return HttpResponsePermanentRedirect(f"/documents/?collection={Collection.EMV}")
+
+
+# --- old links (models.LegacyLink): where each old CEDARS and EM&V site address leads, repointed by CPUC ED's document administrators
+
+LINKS_SHOWN = 200
+
+
+def _doc_admin(request):
+    if not (request.user.is_authenticated and service.is_admin(request.user)):
+        raise Http404
+
+
+@login_required
+def legacy_links(request):
+    """Every old address the import mapped, filtered by words in the address or the document's title, or by document."""
+    _doc_admin(request)
+    links = LegacyLink.objects.select_related("document", "file")
+    q, doc = request.GET.get("q", "").strip(), request.GET.get("document", "")
+    if q:
+        links = links.filter(Q(path__icontains=q) | Q(document__title__icontains=q))
+    if doc.isdigit():
+        links = links.filter(document_id=int(doc))
+    total = links.count()
+    return render(
+        request,
+        "documents/legacy_links.html",
+        {"links": links[:LINKS_SHOWN], "total": total, "shown": min(total, LINKS_SHOWN), "q": q, "document": doc},
+    )
+
+
+@login_required
+def legacy_link(request, pk):
+    """One old address: where it leads, and the form to point it at another document or one of its files, with a reason."""
+    _doc_admin(request)
+    link = get_object_or_404(LegacyLink.objects.select_related("document", "file"), pk=pk)
+    form = forms.RepointLinkForm(request.POST or None, initial={"document": link.document_id, "file": link.file.name if link.file else ""})
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        target = Document.objects.filter(pk=d["document"]).first()
+        if target is None:
+            form.add_error("document", f"There is no document {d['document']}.")
+        else:
+            f = service.file_named(target, d["file"])
+            if d["file"].strip() and f is None:
+                form.add_error("file", f"Document {target.pk} has no file named {d['file'].strip()}.")
+            else:
+                try:
+                    service.repoint_legacy_link(request.user, link, document=target, file=f, reason=d["reason"])
+                except (service.DocumentError, AccessDenied) as e:
+                    form.add_error(None, str(e))
+                else:
+                    messages.success(request, f"{link.path} now leads to {target.title}{f' ({f.name})' if f else ''}.")
+                    return redirect("documents:legacy_links")
+    return render(request, "documents/legacy_link.html", {"link": link, "form": form})

@@ -145,6 +145,7 @@ WHO = {
     "documents:new": ("user",),
     "documents:subscriptions": ("user",),
     "documents:subscribers": ("sysadmin",),
+    "documents:legacy_links": ("sysadmin",),
     "documents:aging": ("user",),
     "documents:new_study": ("user",),
     "data:downloads": ("user",),

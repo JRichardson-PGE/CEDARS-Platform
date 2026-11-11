@@ -674,7 +674,9 @@ erDiagram
   }
 ```
 
-`KeyDate` holds the dates Energy Division posts on the library's home page.
+`KeyDate` holds the dates Energy Division posts on the library's home page. `LegacyLink` maps an address of the old CEDARS site or the
+2006-2013 EM&V site to the migrated document or file it now opens; CPUC Energy Division's document administrators repoint one on
+the Old links page, with a reason (audit `documents.legacy_link_repointed`).
 
 ### 4.3 Invariants the database enforces
 
