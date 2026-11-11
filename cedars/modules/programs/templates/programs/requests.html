@@ -5,7 +5,8 @@
 <div class="page-title"><h1>Program change requests</h1>{% page_help "programs/requests" %}</div>
 <p>A program's administrators change most of its attributes themselves. A change to a <a href="{% url 'programs:locked' %}">locked attribute</a>
 is a request{% if approver %}, which you or another CPUC programs approver decides{% else %} that a CPUC programs approver decides{% endif %}.
-Approving it starts the new version on the date asked for.</p>
+Approving it starts the new version on the date asked for. A correction of a version's values is a request too, from a program's
+administrators; approving it corrects that version in place.</p>
 <form method="get" class="filters" aria-label="Filter the requests">
   <div><label for="status">Show</label>
   <select id="status" name="status">{% for code, label in statuses %}<option value="{{ code }}"{% if code == shown %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -19,7 +20,7 @@ Approving it starts the new version on the date asked for.</p>
   {% for r, names in rows %}
   <tr>
     <th scope="row"><a href="{% url 'programs:request' r.pk %}">{{ r.program.prg_id }}<span class="sr-only">: change request {{ r.pk }}</span></a></th>
-    <td>{{ names }}</td>
+    <td>{% if r.corrects_id %}Correction: {% endif %}{{ names }}</td>
     <td class="nowrap">{{ r.effective|date_words }}</td>
     <td class="small">{{ r.requested_by|person }}<br>{{ r.requested_at|date_words }}</td>
     <td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span></td>

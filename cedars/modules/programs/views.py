@@ -128,6 +128,7 @@ def catalog(request):
             ),
             "other": filters.panel(request.GET, other, base),
             "notes": notes,
+            "can_add": any(_addable(request.user)),
         },
     )
 
@@ -313,15 +314,14 @@ def program(request, prg_id):
             "v": current,
             "status": status_label(current.status) if current else "",
             "segment": segment_label(current.segment) if current else "",
-            "flags": sorted(k.replace("_Flag", "").replace("_", " ") for k, val in (current.flags or {}).items() if _truthy(val))
-            if current
-            else [],
+            "flags": delivery(current.flags) if current else [],
             "history": history,
             "upcoming": [v for v, _ in history if current and v.valid_from > current.valid_from],
             "allocation": [(row, [row["shares"].get(pa) for pa in pas]) for row in allocation],
             "allocation_pas": pas,
             "signed_in": signed_in,
             "can_edit": signed_in and registry.can_edit(request.user, p),
+            "can_correct": signed_in and registry.can_correct(request.user, p),
             "pending": [
                 r for r in p.change_requests.filter(status=ProgramChangeRequest.Status.PENDING) if registry.can_see_request(request.user, r)
             ]
@@ -356,6 +356,108 @@ def _subprograms(p: Program) -> list[dict]:
     ]
 
 
+# --- adding a program, and correcting a version
+
+
+def _addable(user) -> tuple[list, bool]:
+    """The PAs `user` may add programs for (a CPUC system administrator: every active PA that files), and whether they may add a
+    statewide program."""
+    from cedars.services.accounts.models import STATEWIDE_CODE, Organisation
+
+    if not user.is_authenticated:
+        return [], False
+    if access.is_system_admin(user):
+        pas = Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).exclude(code=STATEWIDE_CODE).order_by("code")
+        return list(pas), True
+    orgs = [o for o in access.organisations_of(user).order_by("code") if o.files]
+    return [o for o in orgs if registry.can_add_program(user, o)], False
+
+
+@login_required
+def new_program(request):
+    """Add a program to the registry: its PA, its PrgID (kept for good) and its first version, from the day it starts. A PA's
+    administrators add their own PA's programs; CPUC system administrators add any PA's, and statewide programs. An ID made of a PA's
+    code and a statewide PrgID (PGE_SW_FS) follows that statewide program from the start."""
+    administrators, statewide = _addable(request.user)
+    if not administrators and not statewide:
+        raise Http404
+    active = getattr(request, "organisation", None)
+    initial = {"effective": timezone.localdate()}
+    if active is not None and any(o.pk == active.pk for o in administrators):
+        initial["administrator"] = active.code
+    form = forms.NewProgramForm(request.POST or None, administrators=administrators, statewide=statewide, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            if not registry.can_add_program(request.user, form.organisation, statewide=form.statewide):
+                raise AccessDenied("You cannot add a program for that PA.")
+            p = registry.create_program(
+                request.user,
+                prg_id=d["prg_id"],
+                administrator=form.organisation,
+                statewide=form.statewide,
+                valid_from=d["effective"],
+                reason=d["reason"],
+                follow=True,
+                **form.values(),
+            )
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            if p.follows_id:
+                messages.success(
+                    request, f"Added {p.prg_id}: it follows the statewide program {p.follows.prg_id}, whose attributes it has."
+                )
+            else:
+                messages.success(request, f"Added {p.prg_id}, from {d['effective']:%Y-%m-%d}.")
+            return redirect("programs:program", prg_id=p.prg_id)
+    return render(request, "programs/new.html", {"form": form, "about": field_links()})
+
+
+@login_required
+def correct(request, prg_id, pk):
+    """Correct one version's values in place (its dates stay): a CPUC system administrator or programs approver saves the correction;
+    a program's administrators send it as a request to a CPUC programs approver."""
+    p = _program_or_404(prg_id)
+    version = get_object_or_404(ProgramVersion, pk=pk, program=p)
+    if p.follows_id:
+        messages.info(request, f"{p.prg_id} follows the statewide program {p.follows.prg_id}: a correction is made to {p.follows.prg_id}.")
+        return redirect("programs:program", prg_id=p.follows.prg_id)
+    if not registry.can_correct(request.user, p):
+        raise Http404
+    direct = registry.corrects_directly(request.user)
+    form = forms.CorrectionForm(request.POST or None, version=version)
+    if request.method == "POST" and form.is_valid():
+        changes = form.changes()
+        try:
+            if not changes:
+                raise AccessDenied("Nothing was changed.")
+            if direct:
+                registry.correct_version(request.user, version, reason=form.cleaned_data["reason"], **changes)
+            else:
+                req = registry.request_correction(request.user, version, reason=form.cleaned_data["reason"], **changes)
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            names = ", ".join(field_label(k).lower() for k in changes)
+            if direct:
+                messages.success(request, f"Corrected the version from {version.valid_from:%Y-%m-%d}: {names}.")
+                return redirect(reverse("programs:program", args=[p.prg_id]) + "#ver-h")
+            messages.success(request, f"Sent for approval: a correction of {names} in the version from {version.valid_from:%Y-%m-%d}.")
+            return redirect("programs:request", pk=req.pk)
+    return render(
+        request,
+        "programs/correct.html",
+        {
+            "p": p,
+            "version": version,
+            "form": form,
+            "direct": direct,
+            "reaches": list(p.subprograms.values_list("prg_id", flat=True)) if p.statewide else [],
+        },
+    )
+
+
 @login_required
 def lead(request, prg_id):
     """Record a statewide program's lead PA, with a reason: any PA's administrators while it has none, then only its lead's."""
@@ -380,6 +482,21 @@ def _truthy(value) -> bool:
     return str(value).strip().lower() in ("true", "yes", "1", "y")
 
 
+VALUED_FLAGS = {"DirectInstall": "Direct install", "Financing": "Financing"}
+
+
+def delivery(flags: dict | None) -> list[str]:
+    """How the program is delivered, in words: each True flag's name, then direct install and financing with their values (a
+    financing of None and a direct install of No are left out)."""
+    flags = flags or {}
+    out = sorted(k.replace("_Flag", "").replace("_", " ") for k, val in flags.items() if k not in VALUED_FLAGS and _truthy(val))
+    for key, label in VALUED_FLAGS.items():
+        value = str(flags.get(key, "")).strip()
+        if value and value.lower() not in ("no", "none", "false"):
+            out.append(f"{label}: {value}")
+    return out
+
+
 @login_required
 def change(request, prg_id):
     """A new effective-dated version of the program: what changes, from when, and why. Versions in force are never edited.
@@ -392,13 +509,16 @@ def change(request, prg_id):
         raise Http404
     latest = p.versions.order_by("-valid_from").first()
     form = forms.ProgramChangeForm(request.POST or None, latest=latest)
-    locked = [f for f in registry.locked_fields() if f in form.fields and registry.needs_approval(request.user, {f: None})]
+    locked = [
+        f for f in registry.locked_fields() if (f in form.fields or f == "flags") and registry.needs_approval(request.user, {f: None})
+    ]
     for f in locked:
-        form.fields[f].help_text = " ".join(x for x in (str(form.fields[f].help_text), "Locked: a change needs a CPUC approver.") if x)
+        if f in form.fields:
+            form.fields[f].help_text = " ".join(x for x in (str(form.fields[f].help_text), "Locked: a change needs a CPUC approver.") if x)
     if request.method == "POST" and form.is_valid():
         changes = form.changes()
         held = registry.needs_approval(request.user, changes)
-        names = ", ".join(form.fields[k].label.lower() for k in changes)
+        names = ", ".join(field_label(k).lower() for k in changes)
         try:
             if not changes:
                 raise AccessDenied("Nothing was changed.")
@@ -425,7 +545,7 @@ def change(request, prg_id):
             "p": p,
             "latest": latest,
             "form": form,
-            "locked": [form.fields[f].label for f in locked],
+            "locked": [field_label(f) for f in locked],
             "about": field_links(),
             "reaches": list(p.subprograms.values_list("prg_id", flat=True)) if p.statewide else [],
         },
@@ -436,6 +556,8 @@ def change(request, prg_id):
 
 
 def field_label(name: str) -> str:
+    if name == "flags":
+        return "Delivery"
     f = forms.ProgramChangeForm.base_fields.get(name)
     return str(f.label) if f is not None else str(ProgramVersion._meta.get_field(name).verbose_name).capitalize()
 

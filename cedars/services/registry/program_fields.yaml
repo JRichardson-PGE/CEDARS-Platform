@@ -12,23 +12,27 @@
 #   guidance:    paragraphs on how to fill it in
 #   values:      the valid values, each {code, label, meaning}; a value no longer offered also has `retired_from` (a date): it stays on the
 #                versions that have it, is offered on the change form only to a program that already has it, and is listed as retired.
-#                Retire a value here, never delete it.
+#                These are the first version of the field's value list (field_guide.VALUE_LISTS): once a CPUC system administrator
+#                publishes a version on the data dictionary's Value lists pages, that version's codes are the values. Never delete one.
 #   values_note: for a field without a fixed list, what a valid value looks like
-#   set_by:      who sets it when it is not changed on the change form ("import": CEDARS' Programs list; "cpuc": CPUC staff)
+#   set_by:      who sets it when it is not changed on the change form ("import": CEDARS' Programs list; "added": whoever adds the
+#                program, on Add a program)
 
 prg_id:
   label: PrgID
   dictionary: [PrgID]
   definition: The program's identifier, used by every upload and every module to name the program.
   cedars: PrgID
-  set_by: cpuc
+  set_by: added
   guidance:
     - >-
       A PrgID is given once, when the program is added to the registry, and never changes or is reused. Budget filings, claims, monthly
       reports and documents name the program by its PrgID instead of repeating its attributes.
     - >-
-      A PA's own program starts with the PA's code and an underscore (PGE_..., SCE_...); a statewide program's starts with SW_. A
-      statewide program's allocated rows in a filing carry the funding IOU's code in front (PGE_SW_...).
+      A PA's own program starts with the PA's code, usually followed by an underscore (PGE_..., SCE_...; some older ones, such as
+      PGE21001, have none); a statewide program's starts with SW_. A PA's ID of a statewide program carries the PA's code in front of
+      the statewide PrgID (PGE_SW_...) and follows the statewide program. A PrgID is never reused, in any mix of capitals, even after
+      the program closes.
   values_note: Letters, digits, underscores and hyphens, up to 60 characters, starting with the PA's code.
 
 administrator:
@@ -36,10 +40,10 @@ administrator:
   dictionary: [Prg_PA]
   definition: The program administrator (PA) that runs the program, or SW for a statewide program funded by several PAs.
   cedars: PA
-  set_by: cpuc
+  set_by: added
   guidance:
     - >-
-      Set when the program is added. A statewide program has no single administrator: it shows as Statewide (SW), and its costs and
+      Set when the program is added, and not changed after. A statewide program has no single administrator: it shows as Statewide (SW), and its costs and
       savings are shared among the funding PAs by the statewide allocation factors.
   values_note: One of the PAs registered in CEDARS, by its code (PGE, SCE, SCG, SDGE, the RENs and CCAs), or SW.
 
@@ -81,7 +85,7 @@ status:
       A closed program stays in the registry and in search. Claims can still be filed against a program that is closed to new
       commitments for the commitments it made before.
   values:
-    - {code: new, label: New, meaning: Approved, and not yet taking participants.}
+    - {code: new, label: New, meaning: "Approved, and not yet taking participants."}
     - {code: active, label: Active, meaning: Taking participants.}
     - code: closed_to_new_commitments
       label: Closed to new commitments
@@ -231,12 +235,12 @@ flags:
     - Prg_Financing
   definition: How the program is delivered, as CEDARS' Programs list records it.
   cedars: Resource_Flag, NonResource_Flag, Deemed_Flag, Custom_Flag, Upstream_Flag, Midstream_Flag, Downstream_Flag, DirectInstall, Audit_Flag, Financing
-  set_by: import
+  hint: Tick each way the program is delivered.
   guidance:
     - >-
       Each flag is True or False; a program can carry several (deemed and custom, midstream and downstream). Direct install is Yes,
-      Partial or No; financing is None, OBF (on-bill financing) or Other Financing. They come in with CEDARS' Programs list and are not
-      changed on the change form.
+      Partial or No; financing is None, OBF (on-bill financing) or Other Financing. They come in with CEDARS' Programs list and are
+      changed on the change form, under Delivery; an unticked flag the program had is recorded as False.
   values_note: True or False for each flag; Yes, Partial or No for direct install; None, OBF or Other Financing for financing.
 
 statewide_program:

@@ -435,6 +435,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "cpuc_admin": cpuc_admin,
         "approver": approver,
         "change_request": change_request.pk,
+        "hvac_first": hvac.versions.order_by("valid_from").first().pk,
         "pge_admin": pge_admin,
         "community": community,
         **role_filers,
@@ -1622,29 +1623,75 @@ ROLES = {
     "ren-filer": "ren_filer",
     "cca-filer": "cca_filer",
     "org-admin": "pge_admin",
+    "analyst": "analyst",
+    "no-organization": "community",
 }
 
-# Clicks Next through the tour, recording each step: its title, whether the part it points at is outlined, seen and inside the window.
+# Clicks Next through the tour, recording each step once the page has come to rest: its title, whether one part of the page is marked
+# and seen, and what the spotlight (core/tour.js's .tour-spot, which draws the outline and dims the rest) shows of it. The spotlight must
+# cover the part (as much of it as a scrolling box around it shows), a heading's with what follows it, be in the window below the sticky
+# header (as much of it as fits), and the dialog must hide almost none of it when both fit in the window together (a part at the top of
+# a page that cannot scroll further may sit a little under it).
 WALK_TOUR = """async () => {
-  const wait = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+  const dialog = document.getElementById('tour'), out = [];
+  async function settle() {
+    let last = '', same = 0;
+    for (let k = 0; k < 120 && same < 5; k++) {
+      await frame();
+      const s = document.querySelector('.tour-spot:not([hidden])'), r = s && s.getBoundingClientRect();
+      const key = (r ? [r.top, r.left, r.width, r.height].join() : '') + dialog.className + scrollY;
+      same = key === last ? same + 1 : 0; last = key;
+    }
+  }
+  const overlap = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) *
+                            Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
   const start = document.querySelector('#page-help [data-tour-start]') || document.querySelector('[data-tour-start]');
   if (!start) return null;
   start.click();
-  const dialog = document.getElementById('tour'), out = [];
   for (let k = 0; k < 60 && dialog.open; k++) {
-    await wait();
-    const lit = document.querySelector('.tour-target'), r = lit && lit.getBoundingClientRect();
-    out.push({
+    await settle();
+    const lit = document.querySelector('.tour-target'), spot = document.querySelector('.tour-spot:not([hidden])');
+    const step = {
       title: document.querySelector('#tour-title').textContent,
       lit: !!lit,
-      seen: !!lit && r.width > 0 && r.height > 0,
       focus: document.activeElement && document.activeElement.id,
       many: document.querySelectorAll('.tour-target').length,
-    });
+    };
+    if (lit) {
+      const r = lit.getBoundingClientRect(), s = spot && spot.getBoundingClientRect();
+      step.seen = r.width > 0 && r.height > 0;
+      step.spot = !!s && s.width > 0 && s.height > 0;
+      if (step.spot) {
+        let t = {top: r.top, left: r.left, bottom: r.bottom, right: r.right};
+        for (let a = lit.parentElement; a && a !== document.body; a = a.parentElement) {
+          const cs = getComputedStyle(a);
+          if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+          const c = a.getBoundingClientRect();
+          t = {top: Math.max(t.top, c.top), left: Math.max(t.left, c.left),
+               bottom: Math.min(t.bottom, c.bottom), right: Math.min(t.right, c.right)};
+        }
+        step.covers = s.top <= t.top + 1 && s.left <= t.left + 1 && s.bottom >= t.bottom - 1 && s.right >= t.right - 1;
+        const next = lit.nextElementSibling;
+        step.heading_alone = /^H[2-4]$/.test(lit.tagName) && !!next && !/^H[1-4]$/.test(next.tagName) && next.getClientRects().length > 0 &&
+                             s.height < r.height + 16;
+        const pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+        const vh = innerHeight, top = lit.closest('body > header') ? 0 : pad;
+        const shown = Math.max(0, Math.min(s.bottom, vh) - Math.max(s.top, top));
+        step.in_view = Math.round(100 * shown / Math.min(s.height, vh - top)) / 100;
+        // the share of the part's shown area under the dialog, when the two fit in the window together
+        const d = dialog.getBoundingClientRect();
+        const part = {top: Math.max(t.top, top), left: t.left, bottom: Math.min(t.bottom, vh), right: t.right};
+        const area = Math.max(1, (part.right - part.left) * (part.bottom - part.top));
+        step.hidden_by_dialog = s.height + d.height + 32 <= vh - top ? Math.round(100 * overlap(d, part) / area) / 100 : 0;
+      }
+    }
+    out.push(step);
     document.querySelector('[data-tour-next]').click();
   }
-  await wait();  // the dialog's close event comes in a task of its own
-  return {steps: out, closed: !dialog.open, touring: document.documentElement.classList.contains('touring')};
+  await frame();  // the dialog's close event comes in a task of its own
+  return {steps: out, closed: !dialog.open, touring: document.documentElement.classList.contains('touring'),
+          spot_left: !!document.querySelector('.tour-spot:not([hidden])')};
 }"""
 
 
@@ -1661,14 +1708,16 @@ def _role_pages():
 @pytest.mark.parametrize("role", list(ROLES))
 def test_every_tour_for_each_kind_of_user(browser, site, scene, role):
     """Every page's tour, walked as each kind of person who can open the page: signed out, a CPUC system administrator, a CPUC approver,
-    filers for an IOU, the RENs and a CCA (made with manage.py demo_account) and an organization administrator. A page they cannot open
-    (sent to sign in, refused, or another organization's) is left out. On each page they can: every step not marked optional finds its
-    part of the page, and Next goes through every step found, each outlining exactly one part that is seen, with the focus on the step's
-    heading, until Finish closes the tour."""
+    filers for an IOU, the RENs and a CCA (made with manage.py demo_account), an organization administrator, an analyst and a member of
+    no organization. A page they cannot open (sent to sign in, refused, or another organization's) is left out; a page that fails is
+    a problem. On each page they can: every step not marked optional finds its part of the page, and Next goes through every step found,
+    each marking exactly one part that is seen, with the focus on the step's heading, until Finish closes the tour. Each step's spotlight
+    covers its part (a heading's with what follows it), in the window below the sticky header, and the dialog hides almost none of it
+    when the two fit in the window together (WALK_TOUR)."""
     from cedars.services.accounts.models import Organisation
 
     who = ROLES[role]
-    context = browser.new_context()
+    context = browser.new_context(reduced_motion="reduce")  # steps scroll into view at once, so each is measured where it comes to rest
     if who is not None:
         context.add_cookies([_session_cookie(scene[who], "mfa", site)])
     page = context.new_page()
@@ -1679,10 +1728,15 @@ def test_every_tour_for_each_kind_of_user(browser, site, scene, role):
     for name, path in _role_pages():
         url = site.url + path.format(**ids)
         response = page.goto(url)
+        if response is not None and response.status >= 500:
+            problems[f"{name} {path}"] = [f"answered {response.status}"]  # a page that fails is not one to leave out
+            continue
         if response is None or response.status != 200 or page.url.split("?")[0] != url.split("?")[0]:
             continue  # not theirs to open (or sent elsewhere, such as to sign in)
         if page.locator(".page-title > h1 + .page-help").count() != 1:
             continue
+        if page.locator("#editor").count():  # Edit inputs draws its spreadsheet after the page loads (calculations/edit_grid.js)
+            page.wait_for_selector("#editor[data-ready]", state="attached")
         found = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null") or []
         missing = [s["title"] for s in found if not s["found"] and not s["optional"]]
         walk = page.evaluate(WALK_TOUR)
@@ -1697,9 +1751,13 @@ def test_every_tour_for_each_kind_of_user(browser, site, scene, role):
             if len(walk["steps"]) != len(shown):
                 bad.append(f"{len(walk['steps'])} steps shown of {len(shown)} found")
             for s in walk["steps"]:
-                if s["focus"] != "tour-title" or s["many"] > 1 or (s["lit"] and not s["seen"]):
+                if s["focus"] != "tour-title" or s["many"] > 1:
                     bad.append(s)
-            if not walk["closed"] or walk["touring"]:
+                elif s["lit"] and not (s["seen"] and s["spot"] and s["covers"]) or s.get("heading_alone"):
+                    bad.append(s)
+                elif s["lit"] and (s["in_view"] < 0.9 or s["hidden_by_dialog"] > 0.05):
+                    bad.append(s)
+            if not walk["closed"] or walk["touring"] or walk["spot_left"]:
                 bad.append("Finish did not close the tour")
         if errors:
             bad.append({"script errors": errors[:]})

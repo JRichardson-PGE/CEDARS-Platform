@@ -270,3 +270,32 @@ def value_lists_for(rules) -> dict[str, list[dict]]:
 
 def _blank(v) -> bool:
     return v is None or (isinstance(v, float) and v != v) or str(v).strip() in ("", "<NA>", "nan")
+
+
+# --- the checker's own file limit: it reads the file while you wait, so it takes smaller files than an upload
+
+
+def max_mb() -> int:
+    """The largest file the checker reads (the checker_mb limit, which a CPUC system administrator sets)."""
+    from cedars.services.releases import limits
+
+    return limits.value("checker_mb")
+
+
+def too_large(name: str, size) -> str:
+    """The refusal for a file over the checker's limit, or "" when it is within it."""
+    if size is None or size <= max_mb() * 1024 * 1024:
+        return ""
+    return (
+        f"{name} is {size / 1024 / 1024:.1f} MB; the pre-upload checker reads files of up to {max_mb():,} MB (see Limits, /limits/). "
+        "Check the table in parts, or upload it: the upload runs the same checks."
+    )
+
+
+def check_size(file) -> None:
+    """The API field validator: refuses a file over the checker's limit."""
+    from django.core.exceptions import ValidationError
+
+    problem = too_large(getattr(file, "name", "The file"), getattr(file, "size", None))
+    if problem:
+        raise ValidationError(problem)

@@ -275,13 +275,14 @@ def lists(request):
         names, engine = [], False
     kept = {vl.name: vl for vl in ValueList.objects.all()}
     rows = []
-    for name in sorted(set(names) | set(kept)):
+    for name in sorted(set(names) | set(kept) | set(value_lists.platform_lists())):
         vl = kept.get(name)
         v = value_lists.in_force(vl) if vl else None
         rows.append(
             {
                 "name": name,
                 "label": vl.label if vl else value_lists.label_for(name),
+                "platform": value_lists.is_platform(name),
                 "version": v,
                 "codes": v.codes.count() if v else len(_shipped_or_empty(name)),
                 "draft": value_lists.draft_of(vl) if vl else None,
@@ -343,7 +344,17 @@ def _shown_codes(request, vl: ValueList) -> dict:
         shown = current
     rows = _code_rows(shown) if shown else [dict(r, pk=None, new=False) for r in _shipped_or_empty(vl.name)]
     rows, filters = _filtered(request, rows)
-    return {"vl": vl, "versions": versions, "current": current, "shown": shown, "rows": rows, "total": len(rows), **filters}
+    return {
+        "vl": vl,
+        "versions": versions,
+        "current": current,
+        "shown": shown,
+        "rows": rows,
+        "total": len(rows),
+        "origin": value_lists.origin(vl.name),
+        "platform": value_lists.is_platform(vl.name),
+        **filters,
+    }
 
 
 def _codes_download(request, codes: dict):
@@ -352,11 +363,11 @@ def _codes_download(request, codes: dict):
     if fmt not in ("csv", "xlsx"):
         return None
     vl, shown, rows = codes["vl"], codes["shown"], codes["rows"]
-    tag = f"v{shown.number}" if shown else "shipped"
+    tag = f"v{shown.number}" if shown else ("first" if codes["platform"] else "shipped")
     filename = f"value_list_{vl.name}_{tag}.{fmt}"
     if fmt == "csv":
         return _download(value_lists.codes_csv(rows), filename, "text/csv; charset=utf-8")
-    which = f"version {shown.number}" if shown else "as shipped with the engine"
+    which = f"version {shown.number}" if shown else f"as in {codes['origin']}"
     content = value_lists.codes_xlsx(rows, title=f"Value list {vl.name}, {which}")
     return _download(content, filename, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
@@ -427,6 +438,7 @@ def draft(request, name):
         {
             "vl": vl,
             "draft": d,
+            "platform": value_lists.is_platform(vl.name),
             "changes": value_lists.changes_in(d),
             "latest": value_lists.latest_published(vl),
             "page": Paginator(rows, 100).get_page(request.GET.get("page")),

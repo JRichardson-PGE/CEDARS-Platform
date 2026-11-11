@@ -2,7 +2,9 @@
 so the public Limits page (/limits/) and the text beside each upload field say what the site does now. A planned change to a limit is
 a release note's change naming the limit (models.Change.limit); the Limits page shows it as coming, with its date.
 
-A new limit people can meet goes in LIMITS, read from its setting (never a copy of the number)."""
+A new limit people can meet goes in LIMITS, read from its setting (never a copy of the number). An editable limit (`editable`, with
+its `bounds`) is one a CPUC system administrator may change on Change limits (/limits/manage/, service.set_limit): its value is the
+newest LimitChange for it, else its setting, which is then only the first-run default. Code that enforces it reads `value(key)`."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -33,6 +35,22 @@ def _edit_rows():
     return editor.MAX_EDIT_ROWS
 
 
+def _changed(key: str) -> int | None:
+    """The value a CPUC system administrator set for an editable limit, or None for its setting (none set, or set back to it)."""
+    from .models import LimitChange
+
+    row = LimitChange.objects.filter(key=key).order_by("-changed_at", "-pk").values_list("value", flat=True).first()
+    return row
+
+
+def _editable(key: str, setting: str) -> Callable[[], int]:
+    def read() -> int:
+        v = _changed(key)
+        return getattr(settings, setting) if v is None else v
+
+    return read
+
+
 @dataclass(frozen=True)
 class Limit:
     key: str
@@ -42,7 +60,13 @@ class Limit:
     unit: str  # after the number: "MB", "files", "rows" ...; "" when value() is already text
     applies: str  # where it applies
     over: str  # what happens over it
-    setting: str  # the setting that sets it (for administrators)
+    setting: str  # the setting that sets it (for administrators); for an editable limit, its first-run default
+    editable: bool = False  # a CPUC system administrator may change it on Change limits
+    bounds: tuple[int, int] | None = None  # an editable limit's lowest and highest value
+
+    def default(self):
+        """An editable limit's setting: the value it goes back to."""
+        return getattr(settings, self.setting)
 
     def current(self) -> str:
         v = self.value()
@@ -85,6 +109,18 @@ LIMITS = [
         "correction, counted together.",
         "The upload is refused before anything in it is read, naming the size. Split the tables across files.",
         "CEDARS_UPLOAD_MAX_UNZIPPED_MB",
+    ),
+    Limit(
+        "checker_mb",
+        "Size of a file checked before upload",
+        UPLOADS,
+        _editable("checker_mb", "CEDARS_CHECKER_MAX_MB"),
+        "MB",
+        "The pre-upload checker (Rules, Check a file) and POST /api/v1/rules/check, which read the file while you wait.",
+        "The check is refused, naming the file and its size. Check the table in parts.",
+        "CEDARS_CHECKER_MAX_MB",
+        editable=True,
+        bounds=(1, 150),
     ),
     Limit(
         "correction_rows",
@@ -185,6 +221,19 @@ LIMITS = [
         "Every run: New run, the API, and the runs that price budget filings, claims and monthly reports.",
         "The run is refused before pricing (too_many_records). Split the job.",
         "CALCULATIONS_MAX_RECORDS",
+    ),
+    Limit(
+        "queued_runs",
+        "Runs one account may have waiting or running",
+        RUNS,
+        _editable("queued_runs", "CALCULATIONS_MAX_QUEUED_PER_ACCOUNT"),
+        "runs",
+        "New run and the API, for each person's own runs and the runs they start for their organization. A filing's pricing runs "
+        "are never counted or refused.",
+        "The new run is refused until one of yours finishes or you stop one.",
+        "CALCULATIONS_MAX_QUEUED_PER_ACCOUNT",
+        editable=True,
+        bounds=(1, 100),
     ),
     Limit(
         "small_run_records",
@@ -296,8 +345,41 @@ LIMITS = [
         "The token stops working; make a new one.",
         "CEDARS_API_TOKEN_MAX_DAYS",
     ),
+    Limit(
+        "session_hours",
+        "Longest a sign-in lasts",
+        API,
+        _editable("session_hours", "CEDARS_SESSION_MAX_HOURS"),
+        "hours",
+        "Every signed-in session on the site, from the moment you sign in (API tokens are not sessions).",
+        "You are signed out and sign in again.",
+        "CEDARS_SESSION_MAX_HOURS",
+        editable=True,
+        bounds=(1, 168),
+    ),
+    Limit(
+        "session_idle_minutes",
+        "Signed out after this long without using the site",
+        API,
+        _editable("session_idle_minutes", "CEDARS_SESSION_IDLE_MINUTES"),
+        "minutes",
+        "Every signed-in session: the time since your last page or call.",
+        "You are signed out and sign in again.",
+        "CEDARS_SESSION_IDLE_MINUTES",
+        editable=True,
+        bounds=(5, 1440),
+    ),
 ]
 BY_KEY = {lim.key: lim for lim in LIMITS}
+
+
+def editable() -> list[Limit]:
+    return [lim for lim in LIMITS if lim.editable]
+
+
+def value(key: str):
+    """A limit's value in force, for the code that enforces it."""
+    return BY_KEY[key].value()
 
 
 def current(key: str) -> str:

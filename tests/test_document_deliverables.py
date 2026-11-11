@@ -1,6 +1,6 @@
 import csv
 import io
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -330,7 +330,10 @@ def test_the_aging_review_shows_who_is_behind(people, pge, study, deliverable, c
     service.add_version(ev, None, deliverable, [upload("draft_fix.pdf")], reason="Draft fix", stage=Stage.FINAL_RESULTS)  # left unpublished
     deliverables.request_responses(ed, deliverable, [pge], days(-5))
     Study.objects.filter(pk=study.pk).update(next_activity="Draft report", next_activity_due=days(-40))
-    Study.objects.filter(pk=study.pk).update(updated_at=timezone.now() - timedelta(days=120))
+    # Noon local time, 120 local days ago: now() less 120 days crosses the change from daylight saving time, so late in the
+    # evening it lands on the next local day and the study ages 119 days.
+    stale = timezone.make_aware(datetime.combine(TODAY - timedelta(days=120), time(12)))
+    Study.objects.filter(pk=study.pk).update(updated_at=stale)
     found = aging.items(TODAY)
     kinds = {(i.kind, i.owner.code) for i in found}
     assert kinds == {("draft", "DNV"), ("activity", "DNV"), ("question", "DNV"), ("stale", "DNV"), ("response", "PGE")}
