@@ -645,6 +645,8 @@ def can_grant(actor: User | None, user: User, organisation: Organisation, permis
         if is_system_admin(actor):
             return True, ""
         return False, f"{organisation.code} has no administrator yet; the CPUC assigns its first one."
+    if is_system_admin(actor) and not org_admins(organisation).exists():
+        return True, ""  # until an organization has an administrator, the CPUC decides its access requests (decide_request)
     if is_org_admin(actor, organisation):
         return True, ""
     if permission == perms.ORG_ADMIN and is_system_admin(actor):
@@ -980,14 +982,56 @@ def apply_role_template(
 # --- access requests
 
 
-def access_deciders(organisation: Organisation) -> tuple[list[User], bool]:
-    """Who is told of a request to join the organization: its administrators, else (an organization with no administrator yet) the
-    CPUC system administrators, who name its first one. (people, the CPUC's instead)"""
-    people = list(org_admins(organisation).order_by("pk"))
-    if people:
-        return people, False
+def requestable_organisations():
+    """The organizations a person can ask to join: active, not the CPUC (its staff are added by its administrators) and not the
+    statewide (SW) pseudo-PA, which has no members of its own."""
+    return Organisation.objects.filter(active=True).exclude(kind=Organisation.Kind.CPUC).exclude(code=STATEWIDE_CODE).order_by("code")
+
+
+def cpuc_decides(organisation: Organisation) -> bool:
+    """Whether the CPUC decides the organization's access requests: it has no administrator yet (the CPUC assigns its first one)."""
+    return not org_admins(organisation).exists()
+
+
+def request_deciders(organisation: Organisation):
+    """Who decides an access request to the organization: its administrators, or the CPUC's system administrators until it has one."""
+    if not cpuc_decides(organisation):
+        return org_admins(organisation)
     org = cpuc()
-    return (list(holders(org, perms.SYSTEM_ADMIN).order_by("pk")) if org is not None else []), True
+    return holders(org, perms.SYSTEM_ADMIN) if org is not None else User.objects.none()
+
+
+def can_decide_request(user: User | None, organisation: Organisation) -> bool:
+    if user is None or not user.is_authenticated:
+        return False
+    return is_org_admin(user, organisation) or (cpuc_decides(organisation) and is_system_admin(user))
+
+
+def organisations_deciding(user: User | None) -> list[Organisation]:
+    """The organizations whose access requests wait on the user: those they administer and, for a CPUC system administrator, every
+    organization with no administrator yet."""
+    if user is None or not user.is_authenticated:
+        return []
+    orgs = [o for o in organisations_of(user) if is_org_admin(user, o)]
+    if is_system_admin(user):
+        administered = _effective(Grant.objects.filter(permission=perms.ORG_ADMIN, membership__user__is_active=True)).values(
+            "membership__organisation"
+        )
+        orgs += [o for o in requestable_organisations().exclude(pk__in=administered) if o not in orgs]
+    return orgs
+
+
+def decider_words(organisation: Organisation) -> str:
+    """Who decides, in words: "PGE's administrators", or "the CPUC (PGE has no administrator yet)"."""
+    if cpuc_decides(organisation):
+        return f"the CPUC ({organisation.code} has no administrator yet)"
+    return f"{organisation.code}'s administrators"
+
+
+def access_deciders(organisation: Organisation) -> tuple[list[User], bool]:
+    """Who is told of a request to join the organization: whoever decides it (request_deciders), and whether that is the CPUC because
+    the organization has no administrator yet. (people, the CPUC's instead)"""
+    return list(request_deciders(organisation).order_by("pk")), cpuc_decides(organisation)
 
 
 def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", granted: list[str] | None = None) -> None:
@@ -998,14 +1042,14 @@ def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", gr
 
     org, person = req.organisation, req.user
     who = (person.name or "").strip() or person.email
-    wanted = ", ".join(perms.label(p) for p in req.permissions)
+    wanted = perms.labels(req.permissions)
     key = notifications.request_key("accounts.accessrequest", req.pk, step)
     page = f"/admin/organizations/{org.code}/#req-h"
     if step == "requested":
         people, for_cpuc = access_deciders(org)
         body = f"{who} asked to join {org.code} with: {wanted}." + (f"\n\nTheir message: {req.message}" if req.message else "")
         if for_cpuc:
-            body += f"\n\n{org.code} has no administrator yet: name its first administrator on its page, who then decides the request."
+            body += f"\n\n{org.code} has no administrator yet, so the CPUC decides: approve or decline it on {org.code}'s page."
         notifications.tell_about_request(
             [u for u in people if u != person], f"Access requested: {who}, {org.code}", body, page, key=key, about=notifications.DECIDE
         )
@@ -1025,7 +1069,7 @@ def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", gr
             if note.strip():
                 body += f"\n\nNote: {note}"
         else:
-            body = f"Reason: {note}" if note.strip() else f"{org.code}'s administrators gave no reason."
+            body = f"Reason: {note}" if note.strip() else "No reason was given."
         notifications.tell_about_request(
             [person], f"Your access request to {org.code} was {step}", body, "/account/", key=key, about=notifications.OWN
         )
@@ -1035,7 +1079,11 @@ def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", gr
 def request_access(user: User, organisation: Organisation, permission_codes: list[str], message: str = "") -> AccessRequest:
     bad = [p for p in permission_codes if not perms.is_valid(p) or p in perms.CPUC_ONLY]
     if bad:
-        raise AccessDenied(f"These cannot be requested: {', '.join(bad)}.")
+        raise AccessDenied(f"These cannot be requested: {perms.labels(bad)}.")
+    if not permission_codes:
+        raise AccessDenied("Choose a role or at least one permission.")
+    if not requestable_organisations().filter(pk=organisation.pk).exists():
+        raise AccessDenied(f"{organisation.code} does not take access requests.")
     if AccessRequest.objects.filter(user=user, organisation=organisation, status=AccessRequest.Status.PENDING).exists():
         raise AccessDenied(f"You already have a request waiting with {organisation.code}.")
     req = AccessRequest.objects.create(user=user, organisation=organisation, permissions=sorted(set(permission_codes)), message=message)
@@ -1048,9 +1096,13 @@ def request_access(user: User, organisation: Organisation, permission_codes: lis
 def decide_request(
     actor: User, req: AccessRequest, approve: bool, note: str = "", permission_codes: list[str] | None = None
 ) -> AccessRequest:
-    """Approve (granting the asked-for permissions, or the subset the admin picks) or decline a request. Only the organization's
-    admins decide; the CPUC is not in the path."""
-    _require_org_admin(actor, req.organisation, "decide its access requests")
+    """Approve (granting the asked-for permissions, or the subset the decider picks) or decline a request. The organization's
+    administrators decide; the CPUC's system administrators decide only while it has no administrator (request_deciders)."""
+    if actor is not None and not can_decide_request(actor, req.organisation):
+        code = req.organisation.code
+        if cpuc_decides(req.organisation):
+            raise AccessDenied(f"{code} has no administrator yet, so only the CPUC's system administrators can decide its access requests.")
+        raise AccessDenied(f"Only {code}'s administrators can decide its access requests.")
     if req.status != AccessRequest.Status.PENDING:
         raise AccessDenied("That request has already been decided.")
     if approve:

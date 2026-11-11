@@ -250,7 +250,7 @@ def _id_and_text(kind: str, severity: str, table: str, field: str, d: dict) -> t
     return rid, filing_rules._describe(d)
 
 
-def _known_field(name: str) -> bool:
+def known_field(name: str) -> bool:
     from cedars.services.dictionary import service as dictionary
 
     return dictionary.current() is None or dictionary.resolve(name) is not None
@@ -268,7 +268,7 @@ def validate(kind: str, severity: str, table: str, field: str, d: dict) -> None:
         raise RuleError("Give the field the rule tests.")
     named = [field] if kind == "spec" else [field] + [c[1] for c in d["conds"]]
     fields = [part.strip() for f in named for part in f.split("+") if part.strip()]  # a key or combination names several
-    unknown = [f for f in fields if not _known_field(f)]
+    unknown = [f for f in fields if not known_field(f)]
     if unknown:
         raise RuleError(f"{', '.join(unknown)} is not a field in the data dictionary (any of its names may be used).")
     if kind == "spec":
@@ -294,7 +294,7 @@ def validate(kind: str, severity: str, table: str, field: str, d: dict) -> None:
     if kind == "rule":
         for v in [d["value"]] + [c[3] for c in d["conds"]]:
             head = str(v).split()[0] if str(v).split() else ""
-            if head and head.isidentifier() and _known_field(head) and head.lower() not in ("filingyear",):
+            if head and head.isidentifier() and known_field(head) and head.lower() not in ("filingyear",):
                 columns.add(fieldnames.recet_name(head))
     import pandas as pd
 

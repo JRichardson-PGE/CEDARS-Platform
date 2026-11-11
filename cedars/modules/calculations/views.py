@@ -19,7 +19,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import cost_tests
 from cedars.services.refdata.models import PackVersion
 
-from . import dispatch, drafts, forms, input_templates, result_views, service, walkchart
+from . import dispatch, drafts, forms, input_templates, result_views, run_files, service, walkchart
 from . import results as results_mod
 from . import walkthrough as walk
 from .models import EngineRelease, InputDraft, Run
@@ -337,6 +337,7 @@ def run(request, pk):
             "run": run,
             "status": status_view(run),
             "files": files,
+            "file_groups": run_files.grouped(files),
             "can_stop": not run.ended and service.can_cancel(request.user, run),
             "calculation": service.calculation_label(run.calculation),
             "settings": settings_view(run.settings),

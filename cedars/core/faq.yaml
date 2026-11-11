@@ -49,9 +49,10 @@ topics:
         q: How do I get permission to file for my organization?
         a:
           - >-
-            Open your account page and choose Ask an organization for access. Pick the organization and the permissions you need
-            (for example claims, read and submit) and say why. Your organization's own administrators decide; the CPUC is not
-            asked. Access to personal information in claims also needs a CPUC data steward's approval.
+            Open your account page and choose Ask an organization for access. Choose the organization, then your role in it (or
+            single permissions, each with what it lets you do) and say who you are. Your organization's own administrators decide;
+            the CPUC decides only for an organization that has no administrator yet. Access to personal information in claims
+            also needs a CPUC data steward's approval.
         tags: [permission, grant, access request, role, organization administrator]
         guide: getting-started
       - id: api-calls
@@ -382,7 +383,7 @@ topics:
           - >-
             Every change to the specifications, the rules, a limit or how CEDARS works is announced in the release notes before it
             takes effect, usually at least {notice_days} days before; a note given at shorter notice says why. Every page shows the
-            changes coming within that time. Signed in, tick release notes on your notification settings to be sent each one as it
+            changes coming within that time. Signed in, choose release notes on your notification settings to be sent each one as it
             is published.
         tags: [release notes, announcement, notice, upcoming, subscribe, email]
         guide: getting-started
