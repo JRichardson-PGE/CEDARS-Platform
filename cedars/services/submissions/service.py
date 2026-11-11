@@ -148,6 +148,19 @@ def deadline_page(deadline: Deadline) -> str:
     return page(deadline) if page else ""
 
 
+def filing_page(submission: Submission, v: SubmissionVersion | None = None) -> str:
+    """The page where a person works on or reads one organization's filing: its module's page for the deadline, for that organization,
+    else the version's page (v), else ""."""
+    page = deadline_page(submission.deadline)
+    if page:
+        return f"{page}?org={submission.organisation.code}"
+    if v is None:
+        return ""
+    from .comments import version_page
+
+    return version_page(v)
+
+
 def register_setup_page(module: str, *, label: str, url_name: str, about: str, order: int = 0) -> None:
     """A module's page where a CPUC system administrator sets up its filings (a budget filing, a claim year, a year of monthly
     reports): setting one up puts its deadlines on the filing calendar, whose Add a filing page lists these pages. `label` names
@@ -396,7 +409,7 @@ def move_due_dates(actor, moves, reason: str) -> list[Deadline]:
     for d, due_at in moves:
         if due_at == d.due_at:
             continue
-        what = f"{d.title}, {d.period or d.cycle}"
+        what = d.plain_name(due=False)
         if d.due_at <= now:
             raise AccessDenied(f"{what} was already due; move it on its page of the filing calendar.")
         try:
@@ -773,7 +786,7 @@ def retire_deadline(actor, deadline: Deadline, reason: str) -> Deadline:
     if started:
         orgs = "organization has" if started == 1 else "organizations have"
         raise AccessDenied(
-            f"{started} {orgs} started filing {deadline.title}, {deadline.period or deadline.cycle}, so it cannot be canceled: "
+            f"{started} {orgs} started filing {deadline.plain_name(due=False)}, so it cannot be canceled: "
             "what was filed is kept. Change its due date instead."
         )
     deadline.retired_at, deadline.retired_reason = timezone.now(), reason.strip()
@@ -930,7 +943,7 @@ def _pricing_unavailable(actor, v: SubmissionVersion, reason: str) -> None:
     cpuc = access.cpuc()
     if cpuc is None:
         return
-    who = f"{v.submission.organisation.code}, {v.submission.deadline}, version {v.number}"
+    who = f"{v.submission.plain_name}, version {v.number}"
     key = f"pricing-unavailable-{v.pk}-{hashlib.sha256(reason.encode()).hexdigest()[:12]}"
     for admin in access.holders(cpuc, perms.SYSTEM_ADMIN):
         notifications.notify(
@@ -980,7 +993,9 @@ def import_version(
         raise AccessDenied("Give the reason (the source it was imported from).")
     submission, _ = Submission.objects.select_for_update().get_or_create(deadline=deadline, organisation=organisation)
     if submission.versions.filter(origin=SubmissionVersion.Origin.FILED).exists():
-        raise AccessDenied(f"{organisation.code} has filed {deadline} on this platform; legacy data is not imported over it.")
+        raise AccessDenied(
+            f"{organisation.code} has filed {deadline.plain_name(due=False)} on this platform; legacy data is not imported over it."
+        )
     n = (submission.versions.aggregate(n=Max("number"))["n"] or 0) + 1
     now = timezone.now()
     v = SubmissionVersion.objects.create(

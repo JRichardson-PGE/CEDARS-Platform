@@ -658,7 +658,7 @@ def test_a_set_up_page_moves_its_due_dates_still_to_come(cpuc_admin, signed_in, 
     early = (timezone.localdate() + timedelta(days=1)).isoformat()
     bad = form | {f"due-on_{q2.pk}": (new + timedelta(days=1)).isoformat(), f"due-on_{q3.pk}": early, "due-reason": "x"}
     r = c.post(url, bad, follow=True)
-    assert "Q3 claim, 2030Q3: A filing opens before it is due" in r.content.decode()
+    assert "2030 Q3 claim: A filing opens before it is due" in r.content.decode()
     q2.refresh_from_db()
     assert timezone.localtime(q2.due_at).date() == new
     with pytest.raises(AccessDenied, match="already due"):
