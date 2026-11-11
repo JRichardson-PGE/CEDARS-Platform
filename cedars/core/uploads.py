@@ -53,6 +53,28 @@ def too_large(name: str, size: int) -> str:
     return f"{name} is {_mb(size)}; each file may be at most {max_mb()} MB (see Limits, /limits/)."
 
 
+def max_unzipped_mb() -> int:
+    return settings.CEDARS_UPLOAD_MAX_UNZIPPED_MB
+
+
+def too_large_unzipped(name: str, content: bytes) -> str:
+    """The refusal for a .zip or .xlsx whose files would be over CEDARS_UPLOAD_MAX_UNZIPPED_MB once unpacked, or "" when they are
+    within it (and when it is not a zip at all: the reader refuses that in its own words). Read from the sizes the archive's own
+    directory gives, before anything is unpacked. Python's zipfile never unpacks more of a file than that size, so a file that
+    understates it fails its check instead of growing."""
+    try:
+        infos = zipfile.ZipFile(io.BytesIO(content)).infolist()
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return ""
+    total = sum(i.file_size for i in infos if not i.is_dir())
+    if total <= max_unzipped_mb() * 1024 * 1024:
+        return ""
+    return (
+        f"{name} unpacks to {_mb(total)}; an uploaded .zip or workbook may unpack to at most {max_unzipped_mb():,} MB "
+        "(see Limits, /limits/). Split it across files."
+    )
+
+
 def check_size(file) -> None:
     """A form or API field validator: refuses an uploaded file over CEDARS_UPLOAD_MAX_MB."""
     problem = too_large(getattr(file, "name", "The file"), getattr(file, "size", None))
@@ -226,6 +248,9 @@ def _unique(name: str, taken: dict) -> str:
 
 
 def _from_zip(name, content, table_of, refuse, pieces, other) -> None:
+    problem = too_large_unzipped(name, content)
+    if problem:
+        raise CombineError(problem)
     try:
         z = zipfile.ZipFile(io.BytesIO(content))
     except zipfile.BadZipFile:
@@ -246,6 +271,9 @@ def _from_zip(name, content, table_of, refuse, pieces, other) -> None:
 def _from_workbook(name, content, table_of, refuse, pieces) -> None:
     from openpyxl import load_workbook
 
+    problem = too_large_unzipped(name, content)
+    if problem:
+        raise CombineError(problem)
     try:
         wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     except Exception:  # openpyxl raises several kinds for a file that is not a workbook
