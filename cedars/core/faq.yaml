@@ -253,6 +253,7 @@ topics:
               - ["2022", 2021 ACC]
               - ["2024", 2022 ACC]
               - ["2026", 2024 ACC]
+              - ["2028 (2027 in CET's draft tables)", 2026 ACC]
           result: A job CET priced on Avoided Cost Version 2026 is priced here on the 2024 ACC.
       - id: portfolio-ratio
         q: How is a cost-effectiveness ratio for several programs worked out?
@@ -273,7 +274,7 @@ topics:
               - [Program B, "$500,000", "$1,000,000", "0.50"]
               - [Both, "$9,500,000", "$7,000,000", "1.36 (9.5 / 7.0)"]
           result: >-
-            The two programs' TRC ratio is 1.36, not 1.00 (the average of 1.50 and 0.50): Program A is twelve times Program B's
+            The two programs' TRC ratio is 1.36, not 1.00 (the average of 1.50 and 0.50): Program A is six times Program B's
             cost and counts that much more.
       - id: impact-profile
         q: What does an impact profile do to a measure's savings?
@@ -310,8 +311,9 @@ topics:
         q: Can I fix a job's inputs in the browser?
         a:
           - >-
-            Yes, for a job of up to {limit:edit_rows}: Edit inputs edits its Measure and ProgramCost tables row by row, checking each
-            cell by the engine's own rules as you save, and the draft can be run or downloaded as a job .zip. Edit larger jobs
+            Yes, for a job of up to {limit:edit_rows}: Edit inputs edits its Measure and ProgramCost tables as a spreadsheet (paste from
+            Excel, add and copy rows, undo) or row by row, checking each cell by the engine's own rules as you save, and the draft
+            can be run or downloaded as a job .zip or job workbook. Edit larger jobs
             offline and upload them.
         tags: [edit inputs, draft, browser, spreadsheet, cells]
         guide: calculations
