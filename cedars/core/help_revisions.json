@@ -61,7 +61,7 @@
   },
   "guide:releases": {
     "release": "0.2.0",
-    "sha256": "ba710543fed7fed9a6d118242c2cf0549819779750ab38d8079508ba2cf20901"
+    "sha256": "77efd228f5b2e1f325cbe9d5cc92826de345b7fc7f8226e841091adfbf0a34ac"
   },
   "guide:reviewing": {
     "release": "0.2.0",

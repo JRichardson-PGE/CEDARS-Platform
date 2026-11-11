@@ -70,6 +70,7 @@ PAGES = [
     ("release-in-effect", "/releases/{release_done}/", "cpuc_admin"),
     ("releases-manage", "/releases/manage/", "cpuc_admin"),
     ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
+    ("site-notices", "/releases/notices/", "cpuc_admin"),
     ("limits", "/limits/", None),
     # The register of CPUC-mandated changes; the scene's {mandate} (published, with history), {mandate_draft}
     ("mandates", "/mandates/", None),

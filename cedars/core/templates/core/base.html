@@ -53,6 +53,7 @@
 </div>
 </header>
 <main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
+{% for n in site_notices %}{# A CPUC system administrator's dated notice (releases.SiteNotice), shown on every page from its start to its end #}<p class="coming-changes site-notice"><strong>Notice:</strong> {{ n.text }}{% if n.link %} <a href="{{ n.link }}">More about this notice</a>.{% endif %}</p>{% endfor %}
 {% if coming_changes %}{# Changes announced in the release notes, shown on every page until they take effect #}<p class="coming-changes"><strong>Coming change{{ coming_changes|length|pluralize }}:</strong> {% for n in coming_changes|slice:":2" %}<a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a>, {{ n.effective_on|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if coming_changes|length > 2 %}; and <a href="{% url 'releases:index' %}">{{ coming_changes|length|add:"-2" }} more</a>{% endif %}.</p>{% endif %}
 {% if messages %}{# Errors (e.g. "Set up your second factor first.") are alerts, the rest status messages. #}{% for message in messages %}{% if message.level_tag == "error" %}<p class="alert" role="alert">{{ message }}</p>{% endif %}{% endfor %}<ul class="messages" role="status">{% for message in messages %}{% if message.level_tag != "error" %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endif %}{% endfor %}</ul>{% endif %}
 {% block content %}{% endblock %}

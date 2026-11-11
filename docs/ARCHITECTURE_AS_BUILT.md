@@ -707,7 +707,7 @@ erDiagram
 | vault | `PIIUpload`, `PIIContact`, `PIISite` |
 | legacy | `LegacySource`, `LegacyImport` |
 | snapshots | `Snapshot`, `Release`, `ScanSettings`, `PIIScan` |
-| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink` |
+| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink`, `SiteNotice` |
 | feedback | `Feedback` |
 | sandbox | `Refresh`, `CopiedRecord` |
 | accessibility | `CheckSettings`, `FileCheck` |
@@ -1265,7 +1265,9 @@ flowchart TD
   workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
   `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
-  they take effect, the Limits page read from the settings that enforce them, the register of CPUC-mandated changes.
+  they take effect, the Limits page read from the settings that enforce them, the register of CPUC-mandated changes, and site notices
+  (`SiteNotice`): a short dated notice a CPUC system administrator posts at once (`/releases/notices/`), shown at the top of every page
+  from its start to its end, withdrawn with a reason, never edited.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,

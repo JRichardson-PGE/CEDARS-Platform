@@ -86,6 +86,7 @@ HELP_KEYS = {
     "accessibility:files": ("accessibility/files", ""),
     "retention:index": ("retention/index", ""),
     "releases:manage": ("releases/manage", "release notes write"),
+    "releases:notices": ("releases/notices", "site notice banner outage maintenance announcement"),
     "mandates:manage": ("releases/mandates_manage", "mandated changes register"),
     "feedback:inbox": ("feedback/inbox", ""),
     "administration:health": ("administration/health", ""),

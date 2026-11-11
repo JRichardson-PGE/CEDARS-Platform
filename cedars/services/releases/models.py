@@ -154,3 +154,33 @@ class MandateLink(models.Model):
 
     def __str__(self):
         return self.label
+
+
+class SiteNotice(models.Model):
+    """A short dated notice every page shows in the banner spot from `starts_at` until `ends_at` (an outage, an extended deadline):
+    written by a CPUC system administrator and shown at once, without a release note's notice period. Never edited: a notice is
+    withdrawn with a reason (it stays listed) and another posted."""
+
+    text = models.TextField(help_text="What every page says, in a sentence or two")
+    link = models.CharField(
+        max_length=500, blank=True, help_text="A page with more, on this site (/...) or elsewhere (https://...); blank for none"
+    )
+    starts_at = models.DateTimeField("Shown from")
+    ends_at = models.DateTimeField("Shown until")
+    reason = models.TextField(help_text="Why it is posted (kept in the audit log)")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+    withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    withdrawn_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-starts_at", "-pk"]
+        constraints = [models.CheckConstraint(condition=Q(ends_at__gt=models.F("starts_at")), name="releases_notice_ends_after_start")]
+
+    def __str__(self):
+        return self.text[:60]
+
+    @property
+    def is_withdrawn(self) -> bool:
+        return self.withdrawn_at is not None
