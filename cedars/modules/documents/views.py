@@ -1,6 +1,6 @@
 import csv
 import re
-from urllib.parse import quote, urlencode
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -418,17 +418,28 @@ def publish(request, pk, number):
 
 
 def value_lists(request):
-    """Every list and its values, retired ones marked; CPUC ED's document administrators add, correct, retire and reinstate values."""
-    lists = AttributeList.objects.prefetch_related("options")
-    admin = request.user.is_authenticated and service.is_admin(request.user)
+    """The document value lists, one row each with where it is used and how many values it offers, linked to a page for each list
+    (as the data dictionary's value lists are; UI review 3)."""
+    rows = []
+    for al in AttributeList.objects.prefetch_related("options"):
+        options = list(al.options.all())
+        retired = sum(1 for o in options if o.retired_on)
+        rows.append({"list": al, "used_in": _used_by(al), "offered": len(options) - retired, "retired": retired})
+    return render(request, "documents/lists.html", {"rows": rows, "admin": _keeps_lists(request.user)})
+
+
+def value_list(request, code):
+    """One list and its values, retired ones marked; CPUC ED's document administrators add, correct, retire and reinstate values."""
+    al = get_object_or_404(AttributeList.objects.prefetch_related("options"), code=code)
     return render(
         request,
-        "documents/lists.html",
-        {
-            "lists": [(al, _used_by(al), al.options.all()) for al in lists],
-            "admin": admin,
-        },
+        "documents/list.html",
+        {"al": al, "used_in": _used_by(al), "options": al.options.all(), "admin": _keeps_lists(request.user)},
     )
+
+
+def _keeps_lists(user) -> bool:
+    return user.is_authenticated and service.is_admin(user)
 
 
 def _used_by(al: AttributeList) -> str:
@@ -439,7 +450,7 @@ def _used_by(al: AttributeList) -> str:
 
 
 def _back(al: AttributeList):
-    return HttpResponseRedirect(f"/documents/lists/#list-{quote(al.code)}")
+    return HttpResponseRedirect(reverse("documents:value_list", args=[al.code]))
 
 
 @login_required

@@ -654,17 +654,15 @@ class StudyDocumentForm(FilesMixin):
 
 
 class CoverageForm(forms.Form):
-    program = forms.CharField(label="Program (PrgID)")
+    program = pickers.ProgramField(label="Program", help_text="Type a PrgID or part of its name, then pick it from the list")
     first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100)
     last_year = forms.IntegerField(label="Last program year", min_value=2000, max_value=2100)
     whole = forms.BooleanField(label="The whole program", required=False, initial=True, help_text="Untick when it covers a part")
     note = forms.CharField(label="Which part, or a note", max_length=255, required=False)
 
     def clean_program(self):
-        p = Program.objects.filter(prg_id__iexact=self.cleaned_data["program"].strip()).first()
-        if p is None:
-            raise forms.ValidationError("Not in the program registry.")
-        return p
+        """The program picked (core/pickers.py reads a PrgID in any case or a name only one program has)."""
+        return Program.objects.get(prg_id=self.cleaned_data["program"])
 
 
 class RegisterForm(forms.Form):
