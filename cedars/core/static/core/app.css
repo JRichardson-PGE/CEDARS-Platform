@@ -1060,3 +1060,12 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 
 /* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
 .who-opens { color: var(--fg-2); }
+
+/* A set-up page's parts, linked at its top (submissions/_setup_sections.html); its rarely used actions (cancel or restore one filing,
+   remove the set-up) fold away under .setup-fold */
+.setup-sections { margin: .75rem 0 1rem; }
+.setup-sections > p { margin: 0 0 .25rem; }
+.setup-sections ul { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
+.setup-sections a { display: inline-block; min-height: 24px; line-height: 24px; }
+.setup-fold { margin-top: 1rem; }
+.setup-fold > h3 { margin-top: .75rem; }

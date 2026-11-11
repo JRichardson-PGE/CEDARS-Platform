@@ -149,10 +149,14 @@ def year_new(request):
     if not access.is_system_admin(request.user):
         raise Http404
     form = forms.YearForm(request.POST or None, accs=accs())
+    # the five due dates follow the last claim year's pattern, for the administrator to change (the statewide ones follow from them)
+    suggested_from, due = service.suggested_due(form.fields["year"].initial)
     if request.method != "POST":
         acc = service.default_acc(form.fields["year"].initial)
         if acc in accs():
             form.fields["acc_version"].initial = acc
+        for kind, day in due.items():
+            form.fields[forms.due_field(kind)].initial = day
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
@@ -172,7 +176,7 @@ def year_new(request):
         else:
             messages.success(request, f"{cy.year} claims are set up.")
             return redirect("claims:index")
-    return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS})
+    return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS, "suggested_from": suggested_from})
 
 
 def _sw_due(cleaned: dict) -> dict:
