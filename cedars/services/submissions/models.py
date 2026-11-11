@@ -1,6 +1,9 @@
+import calendar
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class DeadlineQuerySet(models.QuerySet):
@@ -53,13 +56,38 @@ class Deadline(models.Model):
         ]
 
     def __str__(self):
-        what = self.period or self.cycle
-        return f"{self.module} {self.title} {what} due {self.due_at:%Y-%m-%d}"
+        return self.plain_name()
 
     @property
     def title(self) -> str:
         """What people call the filing: its name, else what is due (`kind`, which code matches on and never changes)."""
         return self.name or self.kind
+
+    @property
+    def due_date(self):
+        """The due date in the site's time zone (due_at is stored in UTC: 23:59 Pacific is the next day there)."""
+        return timezone.localtime(self.due_at).date()
+
+    def plain_name(self, organisation_code: str = "", *, due: bool = True) -> str:
+        """The one name a person reads for a filing: "PGE 2027 Q1 claim, due 2026-11-01" (the organization when given, the period or
+        cycle in words, the filing's title, the due date in the site's time zone)."""
+        title = self.title
+        when = ""
+        if self.period_id:
+            p = self.period
+            if p.kind == "month":
+                when = f"{calendar.month_name[p.number]} {p.year}"
+            elif p.kind == "quarter" and not title.startswith(f"Q{p.number} "):
+                when = f"{p.year} Q{p.number}"
+            else:
+                when = str(p.year)
+        elif self.cycle_id:
+            c = self.cycle
+            when = str(c.first_year) if c.first_year == c.last_year else f"{c.first_year}-{c.last_year}"
+        if when and when in title:
+            when = ""
+        text = " ".join(x for x in (organisation_code, when, title) if x)
+        return f"{text}, due {self.due_date:%Y-%m-%d}" if due else text
 
 
 class WorkflowPolicy(models.Model):
@@ -96,7 +124,12 @@ class Submission(models.Model):
         constraints = [models.UniqueConstraint(fields=["deadline", "organisation"], name="submissions_one_per_org_and_deadline")]
 
     def __str__(self):
-        return f"{self.organisation.code} {self.deadline}"
+        return self.plain_name
+
+    @property
+    def plain_name(self) -> str:
+        """The filing as a person reads it: "PGE 2027 Q1 claim, due 2026-11-01" (Deadline.plain_name)."""
+        return self.deadline.plain_name(self.organisation.code)
 
     @property
     def module(self) -> str:
@@ -147,7 +180,7 @@ class SubmissionVersion(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.submission} v{self.number}"
+        return f"{self.submission}, version {self.number}"
 
     @property
     def locked(self) -> bool:
@@ -183,8 +216,15 @@ class ReopenRequest(models.Model):
         return f"reopen {self.submission} ({self.status})"
 
 
+class DelegationQuerySet(models.QuerySet):
+    def in_force(self, day):
+        """The delegations a delegate may act under on `day`: started, not past their end, and not ended early."""
+        return self.filter(starts__lte=day, ends__gte=day, ended_at__isnull=True)
+
+
 class Delegation(models.Model):
-    """An approver's delegate for a module, for a period (approvals with delegates)."""
+    """An approver's delegate for a module, for a period (approvals with delegates). Named by the approver, or by a CPUC system
+    administrator on the approver's behalf (e.g. for leave); ended early by either, never edited or deleted."""
 
     module = models.CharField(max_length=40)
     approver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -192,12 +232,39 @@ class Delegation(models.Model):
     starts = models.DateField()
     ends = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Who named the delegate: the approver, or a CPUC system administrator on their behalf",
+    )
+    reason = models.TextField(blank=True, help_text="Why, e.g. leave")
+    ended_at = models.DateTimeField(null=True, blank=True, help_text="Set when it was ended before its last day")
+    ended_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    end_reason = models.TextField(blank=True)
+
+    objects = DelegationQuerySet.as_manager()
 
     class Meta:
         ordering = ["-starts"]
 
     def __str__(self):
         return f"{self.delegate} for {self.approver} ({self.module})"
+
+    def get_module_label(self) -> str:
+        from .service import DELEGABLE
+
+        return DELEGABLE.get(self.module, self.module)
+
+    def state(self, day) -> str:
+        """ "ended" (early), "past", "upcoming" or "in force" on `day`."""
+        if self.ended_at:
+            return "ended"
+        if self.ends < day:
+            return "past"
+        return "upcoming" if self.starts > day else "in force"
 
 
 class Comment(models.Model):

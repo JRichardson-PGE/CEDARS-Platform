@@ -3,18 +3,25 @@
 administration/account:
   title: Your account
   guide:
-    - Your email address and second factor, the organizations you belong to and your permissions in each, your access requests, and API
-      tokens for your own systems.
+    - Your name, email address and second factor, the organizations you belong to and your permissions in each, your access requests,
+      and API tokens for your own systems.
+    - Change your email address from the link beside it. You confirm your password, then the new address takes over once you open the
+      link sent to it; the old address is told, and you are signed out everywhere else.
     - To act for a program administrator, ask its administrators for access. A request for PII access also needs a CPUC data steward's
       approval.
   how:
+    - Open Your name to set the name pages show beside what you file and decide; blank shows your email address.
     - Make a token gives a key for the API, shown once; revoke a token you no longer use.
     - Manage your second factor and recovery codes from the security link.
+    - A community account (a member of no organization) can close itself under Close your account; only the CPUC can reopen it.
   see: getting-started
   tour:
     - target: main dl.facts
       title: You
-      text: Your email address and your second factor.
+      text: Your name, your email address (with the link to change it) and how you signed in.
+    - target: "#your-name"
+      title: Your name
+      text: The name pages show for you.
     - heading: Your organizations and permissions
       title: Organizations and permissions
       text: Each organization you belong to and what you may do for it.
@@ -27,6 +34,10 @@ administration/account:
     - heading: Your access requests
       title: Access requests
       text: What you asked for, and where each request stands.
+      optional: true
+    - target: "#close-account"
+      title: Close your account
+      text: For an account in no organization. Closing it signs you out everywhere; the CPUC can reopen it.
       optional: true
 
 administration/request_access:
@@ -97,17 +108,26 @@ administration/organisation:
     - Its administrators grant and revoke permissions, approve or decline requests and certify each grant at recertification. CPUC system
       administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an old code
       can be merged in.
+    - CPUC system administrators also switch how its members sign in (through the organization's own directory, or with a password and
+      a second factor), and retire an organization that no longer takes part without merging it. When a member holds or waits for PII
+      access, a data steward confirms a sign-in change first. A retired organization stops filing and leaves the pickers; its data and
+      history stay, and it can be brought back.
   how:
     - Grant gives a member a permission; Revoke takes one away and Remove member takes them out of the organization.
     - Grant template gives a member every permission of a role template (such as Evaluator or Consultant) at once.
     - Approve or Decline each access request waiting for a decision.
     - Start a recertification, then Certify each grant to keep it or Remove it; Reinstate restores a suspended grant.
     - CPUC system administrators Save details, Rename the code, Record a former code or Merge another organization into this one.
+    - CPUC system administrators change how its members sign in, or Retire it (Bring back reverses it), each with a reason.
   see: administering
   tour:
     - target: "#details-h"
       title: Details
       text: Kind and PA type, and changing them.
+    - target: "#sign-in-h"
+      title: Sign-in and status
+      text: For CPUC system administrators. How its members sign in, and retiring it.
+      optional: true
     - target: "#codes-h"
       title: Codes
       text: The codes it has used, and when.
@@ -137,15 +157,66 @@ administration/organisation:
       text: Its members' tokens, to revoke.
       optional: true
 
+administration/people:
+  title: People
+  guide:
+    - >-
+      For CPUC system administrators. Every account in CEDARS, with the organizations each person belongs to, whether the account is
+      active and when it last signed in. Find a person by name or email, or show only active, deactivated or community accounts.
+    - What a person may do in an organization is set on that organization's page; this page is about the account itself.
+  how:
+    - Enter part of a name or email, choose a status and select Find.
+    - Select a person to correct their name, or to deactivate or reactivate their account.
+  see: administering
+  tour:
+    - target: "#people-filters"
+      title: Find a person
+      text: By name or email, and by status.
+    - target: "#people-count"
+      title: Accounts
+      text: Each account, its organizations, status and last sign-in.
+
+administration/person:
+  title: A person's account
+  guide:
+    - >-
+      For CPUC system administrators. One account: its name and email, whether it is active, the organizations it belongs or belonged
+      to with its permissions, and the history of changes to the account.
+    - >-
+      Deactivating an account signs it out everywhere at once, revokes its API tokens and stops it signing in or using the API. Nothing
+      is deleted: its memberships, permissions and history stay, and reactivating it brings them back (revoked tokens stay revoked).
+      The last system administrator or data steward cannot be deactivated, and you cannot deactivate yourself.
+  how:
+    - Open Correct the name, enter the name and the reason, and select Save the name.
+    - Give a reason and select Deactivate the account, or Reactivate the account for a deactivated one.
+  see: administering
+  tour:
+    - target: "#account-h"
+      title: Account
+      text: Name, email, status and last sign-in, and correcting the name.
+    - target: "#status-h"
+      title: Deactivate or reactivate
+      text: Stop the account signing in, or let it sign in again.
+    - target: "#memberships-h"
+      title: Organizations
+      text: Where the person is or was a member, and what they may do there.
+    - target: "#history-h"
+      title: Account history
+      text: Each change to the account, who made it and why.
+      optional: true
+
 administration/stewardship:
   title: Data stewardship
   see: administering
   guide:
     - For CPUC data stewards. PII access needs a data steward's approval, and changes to the PII rules take one steward to propose and a
       second to confirm.
+    - A change to how an organization's members sign in, when some of them hold or wait for PII access, waits here too. A system
+      administrator proposes it on the organization's page and a data steward other than them confirms or declines it.
   how:
     - Approve or Decline each request for PII access waiting for a data steward.
     - Propose the change to the PII rules; a second steward confirms it, and you may Withdraw it until then.
+    - Confirm or Decline each directory sign-in change waiting.
   tour:
     - target: "#pending-h"
       title: Waiting for approval
@@ -153,6 +224,10 @@ administration/stewardship:
     - target: "#rules-h"
       title: PII rules
       text: The rules on who may read PII, and a change proposed by another steward to confirm or withdraw.
+    - target: "#federation-h"
+      title: Directory sign-in changes
+      text: Changes to how an organization with PII access signs in, to confirm or decline.
+      optional: true
     - target: "#stewards-h"
       title: Data stewards
       text: Who the stewards are.
@@ -223,7 +298,9 @@ administration/audit:
   tour:
     - target: main form.filters
       title: Filter
-      text: By what the action starts with, the actor's email and the record type, then Apply.
+      text: >-
+        Pick an action or every action of a kind, a record type and an organization from the ones the log holds, type part of the
+        actor's email, give a date range, then Apply.
     - target: main table.list
       title: Events
       text: Each event. Open Before and after to see what changed.

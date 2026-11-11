@@ -155,3 +155,10 @@ def test_pages(signed_in, cpuc_admin, pge_admin, acc):
     acc.refresh_from_db()
     assert acc.status == "published"
     assert "2026 ACC v1b" in c.get("/reference-data/packs/?kind=acc_electric").content.decode()
+
+
+def test_only_a_packs_managers_see_where_it_is_stored(signed_in, cpuc_admin, pge_admin, acc):
+    member = page_only(signed_in(pge_admin).get(f"/reference-data/{acc.pk}/").content.decode())
+    assert "Stored at" not in member and acc.storage_uri not in member
+    admin = page_only(signed_in(cpuc_admin).get(f"/reference-data/{acc.pk}/").content.decode())
+    assert "Stored at" in admin and acc.storage_uri in admin

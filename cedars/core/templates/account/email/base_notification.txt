@@ -1,0 +1,10 @@
+{% extends "account/email/base_message.txt" %}
+{% block content %}{% autoescape off %}This is a notice of a change to your CEDARS account:
+
+{% block notification_message %}{% endblock notification_message %}
+
+When: {{ timestamp }}
+From the IP address: {{ ip }}
+Browser: {{ user_agent }}
+
+If you made this change, there is nothing to do. If you did not, reset your password from the CEDARS sign-in page now and tell the CPUC's CEDARS support, so someone else cannot use your account.{% endautoescape %}{% endblock content %}

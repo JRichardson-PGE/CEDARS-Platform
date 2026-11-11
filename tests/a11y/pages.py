@@ -110,6 +110,8 @@ PAGES = [
     ("dashboard-records", "/data/records/?dataset=forecast&metric=tsb&metric=kwh", None),
     ("records-download", "/data/records/?dataset=forecast&columns=all&pa=PGE", None),
     ("records-default", "/data/records/", None),
+    # the program picker with one program chosen and one PrgID that names none (the near-match sentence)
+    ("records-programs", "/data/records/?dataset=forecast&program=PGE_Res_HVAC&program=PGE_Res_HVX", None),
     ("records-background", "/data/records/?dataset=forecast&columns=all", "community"),
     ("dashboard-records-background", "/data/overview/?series=forecast&cs=include&pension=include", "community"),
     ("downloads", "/data/downloads/", "community"),
@@ -143,6 +145,9 @@ PAGES = [
     ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
     ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
+    ("workflow-settings", "/filings/workflow-settings/", "cpuc_admin"),
+    ("delegations", "/filings/delegates/", "approver"),
+    ("delegations-admin", "/filings/delegates/", "cpuc_admin"),
     ("filing-calendar-public", "/filings/calendar/", None),
     ("filing-calendar-retired", "/filings/calendar/?retired=1", "cpuc_admin"),
     ("filing-calendar-list", "/filings/calendar/?view=list", "cpuc_admin"),  # the year of small months is the default view
@@ -167,6 +172,8 @@ PAGES = [
     ("set-up-second-factor", "/accounts/2fa/totp/activate/", "password"),
     ("second-factor", "/accounts/2fa/", "pge_admin"),
     ("account", "/account/", "pge_admin"),
+    ("account-community", "/account/", "community"),  # a community account may close itself
+    ("account-email", "/accounts/email/", "pge_admin"),
     ("request-access", "/account/request-access/", "community"),
     ("organisations", "/admin/organizations/", "cpuc_admin"),
     ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),
@@ -176,6 +183,12 @@ PAGES = [
     ("organisation-untyped", "/admin/organizations/NEWPA/", "cpuc_admin"),
     ("organisation-renamed", "/admin/organizations/AVA/", "cpuc_admin"),
     ("organisation-merged", "/admin/organizations/AVA2/", "cpuc_admin"),
+    ("organisation-retired", "/admin/organizations/OLDFIRM/", "cpuc_admin"),
+    ("organisation-sign-in-waiting", "/admin/organizations/{pge}/", "cpuc_admin"),  # a sign-in change waits for a data steward
+    # People: every account, one account, a deactivated one ({former_user})
+    ("people", "/admin/people/", "cpuc_admin"),
+    ("person", "/admin/people/{pge_admin}/", "cpuc_admin"),
+    ("person-deactivated", "/admin/people/{former_user}/", "cpuc_admin"),
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
     # Publication holds; the scene's {held_snapshot} is a held snapshot
     ("publication-holds", "/publication/holds/", "cpuc_admin"),
@@ -226,6 +239,7 @@ PAGES = [
     ("build-review-manager", "/reference-data/cost-tests/build/{manager_build}/review/", "cpuc_admin"),
     ("build-review-offered", "/reference-data/cost-tests/build/{offered_build}/review/", "cpuc_admin"),
     ("build-review-offering", "/reference-data/cost-tests/build/{offered_build}/review/", "analyst"),
+    ("build-discard", "/reference-data/cost-tests/build/{build}/discard/", "analyst"),
     (
         "pack-etrm-lookup",
         "/reference-data/{etrm_pack}/?id=SWHC052-02-A-NR-DnDeemDI-Com-Com-Ex-cWtd-CZ01-Com-Default%3E2yrs-Def-GSIA-Any-Any",
@@ -419,6 +433,7 @@ PAGES = [
     ("documents-aging", "/documents/studies/aging/", "cpuc_admin"),
     ("studies", "/documents/studies/", None),
     ("studies-search", "/documents/studies/?q=hvac&program=PGE_Res_HVAC", None),
+    ("studies-unknown-program", "/documents/studies/?program=PGE_Res_HVX", None),
     ("studies-cpuc", "/documents/studies/", "cpuc_admin"),
     ("study", "/documents/studies/{study}/", None),
     ("study-manager", "/documents/studies/{study}/", "cpuc_admin"),
