@@ -12,8 +12,13 @@ programs/catalog:
   how:
     - Applied filters show as chips; Remove takes one off and Reset all clears them.
     - Program change requests (signed in) lists changes to locked attributes waiting for a CPUC decision.
+    - A PA's administrators add their PA's programs with Add a program; CPUC system administrators add any PA's, and statewide ones.
   see: programs
   tour:
+    - target: "#add-program"
+      title: Add a program
+      text: For a PA's administrators and CPUC system administrators. Gives a new program its PrgID and first version.
+      optional: true
     - target: form.catalog-filters
       title: Search and filter
       text: Search the ID and names, choose PAs, sectors, statuses and years, then Apply.
@@ -54,6 +59,10 @@ programs/program:
     - Without signing in you see what is published. A PA's own staff and CPUC staff also see filings not yet published and fund shifts.
     - A statewide program's lead PA is recorded under Lead PA, with a reason. While it has none, any program administrator's administrators
       can record one; after that only the lead PA's administrators can change it, for example to hand it to another PA.
+    - >-
+      Correct, in the Versions table, puts right a value a version holds wrongly (a typo, a sector an import got wrong) without starting a
+      new version. CPUC system administrators and programs approvers correct directly; a program's administrators send a correction as
+      a request for an approver's decision. An ID that follows a statewide program is corrected through the statewide program.
   see: programs
   tour:
     - target: "#def-h"
@@ -70,7 +79,7 @@ programs/program:
       optional: true
     - target: "#ver-h"
       title: Versions
-      text: Every version of the program, what changed in each and why.
+      text: Every version of the program, what changed in each and why, and when a version was corrected. Correct puts a version's values right.
     - target: "#alloc-h"
       title: Statewide allocation
       text: For a statewide program, each funding PA's share by version and year, and its lead PA.
@@ -118,6 +127,9 @@ programs/change:
       Under each field is how to fill it in, with a link to its entry in Program fields (its definition and valid values). Status,
       segment, primary sector, implementer and category offer only the listed values; a program that already carries a retired value
       keeps it on offer.
+    - Delivery holds how the program is delivered (resource, deemed, custom, upstream, midstream, downstream, audit, direct install,
+      financing), as CEDARS' Programs list records it. Untick a box to record that the program no longer has it.
+    - To put right a value an existing version holds wrongly, correct that version from the program's Versions table instead.
   how:
     - Choose the effective date, change the attributes, give the reason, and Save the change.
     - A change to a locked attribute goes to a CPUC programs approver as a request.
@@ -126,6 +138,62 @@ programs/change:
     - target: main form
       title: The change
       text: The effective date, the attributes to change and why. Save the change, or Cancel.
+    - heading: Delivery
+      title: Delivery
+      text: How the program is delivered. Tick each that applies.
+
+programs/new:
+  title: Adding a program
+  guide:
+    - >-
+      A new program gets its PrgID and a first version from the day it starts. The PrgID is kept for good and never reused, even by
+      a closed program, in any mix of capitals; it starts with its PA's code (a statewide program's with SW_) and holds only letters,
+      digits, underscores and hyphens.
+    - A PA's administrators add their own PA's programs. CPUC system administrators add any PA's, and statewide programs.
+    - >-
+      A PA's ID of a statewide program (the PA's code in front of the statewide PrgID, e.g. PGE_SW_FS for SW_FS) follows the statewide
+      program from the start: its attributes are copied from it, so the ones entered here are not used and no name is needed.
+    - Later changes start new versions from the program's page with Change this program.
+  how:
+    - Choose the PA, write the PrgID, the day it starts and the reason (the decision or advice letter that approved it), fill in its
+      attributes and delivery, and Add the program.
+  see: programs
+  tour:
+    - target: "#id_administrator"
+      title: The PA
+      text: Whose program it is. CPUC system administrators can also choose SW, a statewide program.
+    - target: "#id_prg_id"
+      title: The PrgID
+      text: Kept for good. It starts with the PA's code.
+    - heading: Delivery
+      title: Delivery
+      text: How the program is delivered. Tick each that applies.
+    - target: main form .actions
+      title: Add it
+      text: Adds the program with its first version, and opens its page.
+
+programs/correct:
+  title: Correcting a version
+  guide:
+    - >-
+      A correction puts right values a version holds wrongly, such as a typo or a sector an import got wrong. The version keeps its
+      dates; it shows when it was corrected and by whom, and the audit trail keeps the values it had, with the reason. Filings and
+      published results keep the values they were filed with.
+    - >-
+      CPUC system administrators and programs approvers correct a version directly. A program's own administrators send the correction
+      as a request, and nothing changes until a CPUC programs approver approves it.
+    - Correcting a statewide program's version brings each PA's ID that follows it into line from the same date.
+    - A real change from a date, such as a new implementer, is a change to the program, not a correction.
+  how:
+    - Change the values that are wrong, give the reason and where the right value comes from, and save (or send) the correction.
+  see: programs
+  tour:
+    - target: main form
+      title: The correction
+      text: The version's values. Change only what is wrong and say why.
+    - heading: Delivery
+      title: Delivery
+      text: How the program is delivered, as this version records it.
 
 programs/requests:
   title: Program change requests
@@ -174,6 +242,9 @@ programs/fields:
     - >-
       A field with a list of values says which ones are offered and how many programs carry each. A retired value stays on the versions
       that have it and is no longer offered to other programs; values on record that the list lacks are named under the table.
+    - >-
+      Status, segment, primary sector, implementer and category take their values from value lists that CPUC system administrators
+      keep on the data dictionary's Value lists pages, in versions with the date each takes effect; each field links to its list.
   how:
     - Pick a field under Fields to go to it. Each field's name on a program's page links here too.
     - A locked field says so; a change to it goes to a CPUC programs approver as a request.

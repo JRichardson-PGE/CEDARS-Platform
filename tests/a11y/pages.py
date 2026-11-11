@@ -7,7 +7,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}."""
+{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}, {hvac_first}."""
 
 PAGES = [
     ("home", "/", None),
@@ -72,6 +72,7 @@ PAGES = [
     ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
     ("site-notices", "/releases/notices/", "cpuc_admin"),
     ("limits", "/limits/", None),
+    ("limits-manage", "/limits/manage/", "cpuc_admin"),
     # The register of CPUC-mandated changes; the scene's {mandate} (published, with history), {mandate_draft}
     ("mandates", "/mandates/", None),
     ("mandates-filtered", "/mandates/?status=implemented&q=tax", "community"),
@@ -139,6 +140,7 @@ PAGES = [
     ("value-lists", "/dictionary/lists/", None),
     ("value-list", "/dictionary/lists/sector/", None),
     ("value-list-admin", "/dictionary/lists/sector/?year=2018", "cpuc_admin"),
+    ("value-list-program", "/dictionary/lists/program_status/", "cpuc_admin"),  # a list the registry keeps, engine or not
     ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
     ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
@@ -204,6 +206,9 @@ PAGES = [
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
     ("data-packs", "/reference-data/packs/", "pge_admin"),
+    ("pack-checks", "/reference-data/packs/checks/", "cpuc_admin"),
+    ("pack-checks-member", "/reference-data/packs/checks/", "pge_admin"),
+    ("etrm-permutations-upload", "/reference-data/packs/etrm-permutations/", "cpuc_admin"),
     ("pack-draft", "/reference-data/{pack}/", "cpuc_admin"),
     ("pack-published", "/reference-data/{published_pack}/", "cpuc_admin"),
     ("cost-test-sets", "/reference-data/cost-tests/", "cpuc_admin"),
@@ -242,6 +247,7 @@ PAGES = [
     ("load-shape-upload-rejected", "/impact-profiles/uploads/{rejected}/", "developer"),
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
+    ("impact-profile-settings", "/impact-profiles/settings/", "cpuc_admin"),
     ("calculations", "/calculations/", "analyst"),  # the menu's own page
     ("calculations-no-organization", "/calculations/", "community"),
     ("runs", "/calculations/runs/", "analyst"),
@@ -294,6 +300,10 @@ PAGES = [
     ("program-statewide-ids", "/programs/SW_X/", "pge_admin"),  # each PA's ID of it, which follow it
     ("program-follows-statewide", "/programs/SCE_SW_X/", None),  # an ID that follows its statewide program
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
+    ("program-new", "/programs/new/", "pge_admin"),
+    ("program-new-statewide", "/programs/new/", "cpuc_admin"),  # with SW among the PAs
+    ("program-correct", "/programs/PGE_Res_HVAC/versions/{hvac_first}/correct", "cpuc_admin"),
+    ("program-correct-request", "/programs/PGE_Res_HVAC/versions/{hvac_first}/correct", "pge_admin"),  # sent for approval
     ("program-change-requests", "/programs/requests/", "approver"),
     ("program-change-request", "/programs/requests/{change_request}/", "approver"),
     ("program-change-request-own", "/programs/requests/{change_request}/", "pge_admin"),

@@ -9,6 +9,19 @@ versions it used, so a result can always be traced to its data.</p>
   <li>A draft pack can be used for analysis runs but not for filings. A pack is published once it passes its tie-outs; a published pack
   is never changed, and a withdrawn one keeps the runs that used it.</li>
 </ol>
+<h3 id="acceptance-checks">Acceptance checks</h3>
+<ul>
+  <li><a href="{% url 'refdata:checks' %}">Pack acceptance checks</a> lists the checks each kind of pack must pass before it is
+  published, such as reconciling an ACC to its published workbook. CPUC system administrators add a check or retire one, with a
+  reason; a check is never edited, and a published pack keeps the checks it was published under.</li>
+  <li>A check's result is recorded on the pack's page by uploading the JSON report the reconciliation script or the engine's tie-out
+  wrote. The report says whether the check passed (<code>"passed"</code> true or false, or <code>"status"</code> PASS or FAIL); a
+  report naming a file's SHA-256 must name one of the pack's files.</li>
+</ul>
+<h3 id="etrm-permutations">eTRM permutation packs</h3>
+<p>The CPUC loads eTRM's permutations downloads (CSV) from <a href="{% url 'refdata:etrm_upload' %}">Upload eTRM permutations</a>
+as a draft pack, indexed by Measure Detail ID, and publishes it on its page. Claims check deemed records against the published pack in
+force. The avoided-cost and impact-profile library packs are registered from storage instead: they are gigabytes.</p>
 <h2>Statewide allocation factors</h2>
 <p>The <a href="{% url 'administration:allocations' %}">statewide allocation factors</a> are each funding PA's share of each statewide
 program, by year. Anyone can read the confirmed versions; signed in, you see every version. A confirmed version never changes. The

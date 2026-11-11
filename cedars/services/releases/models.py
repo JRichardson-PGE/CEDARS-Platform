@@ -184,3 +184,20 @@ class SiteNotice(models.Model):
     @property
     def is_withdrawn(self) -> bool:
         return self.withdrawn_at is not None
+
+
+class LimitChange(models.Model):
+    """A CPUC system administrator's change to a limit they may set (limits.Limit.editable): one row per change, never edited; the
+    newest row for a limit is in force, and a row with no value goes back to the limit's setting (its first-run default)."""
+
+    key = models.CharField(max_length=60, db_index=True)  # a key of limits.LIMITS
+    value = models.PositiveIntegerField(null=True, blank=True)
+    reason = models.TextField()
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at", "-pk"]
+
+    def __str__(self):
+        return f"{self.key} = {self.value if self.value is not None else 'default'}"

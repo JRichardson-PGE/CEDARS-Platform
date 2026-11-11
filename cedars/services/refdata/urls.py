@@ -5,7 +5,11 @@ from . import builder_views, views
 app_name = "refdata"
 urlpatterns = [
     path("packs/", views.index, name="index"),
+    path("packs/checks/", views.checks, name="checks"),
+    path("packs/checks/<int:pk>/retire", views.retire_check, name="retire_check"),
+    path("packs/etrm-permutations/", views.etrm_upload, name="etrm_upload"),
     path("<int:pk>/", views.detail, name="detail"),
+    path("<int:pk>/record-check", views.record_check, name="record_check"),
     path("<int:pk>/definition.yaml", views.cost_test_file, name="cost_test_file"),
     path("cost-tests/", views.cost_test_sets, name="cost_tests"),
     path("cost-tests/build/", builder_views.build_start, name="build_start"),

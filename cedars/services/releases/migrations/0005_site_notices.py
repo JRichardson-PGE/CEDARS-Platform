@@ -7,7 +7,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("releases", "0002_mandates"),
+        ("releases", "0004_limit_changes"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
