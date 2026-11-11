@@ -10,7 +10,7 @@
   {% if pack.acc_year %}<dt>ACC</dt><dd>{{ pack.acc_year }} ACC</dd>{% endif %}
   <dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>
   <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
-  <dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>
+  {% if manager %}<dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>{% endif %}
   <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
   {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
   {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}
