@@ -110,3 +110,45 @@ def test_the_acting_for_badge_reads_in_order(browser, live_server, make_user):
     text = page.locator(".org-badge").inner_text()
     context.close()
     assert text.split() == ["Acting", "for", "CPUC"]
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("width", [320, 1280])
+def test_the_folded_header_and_a_bar_that_can_be_put_away(browser, live_server, axe_source, people, width, scheme):
+    """A site notice's bar with its Put away button, under the header as a phone shows it (top row: brand, the notification count and
+    Menu, one row tall at 320 px) and as a wide window does: axe finds nothing in either scheme, with the menu folded and open, and
+    Put away takes the bar off the page."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from cedars.services.releases import service as releases
+
+    from .test_axe import _run_axe
+
+    releases.post_notice(
+        people["cpuc"],
+        text="CEDARS is down Saturday 8 to 10 a.m.",
+        starts_at=timezone.now() - timedelta(hours=1),
+        ends_at=timezone.now() + timedelta(days=1),
+        reason="maintenance",
+    )
+    context = browser.new_context(viewport={"width": width, "height": 800}, color_scheme=scheme, bypass_csp=True)
+    context.add_cookies([_cookie(people["both"], live_server.url)])
+    page = context.new_page()
+    page.goto(live_server.url + "/help/")
+    page.add_script_tag(content=axe_source)
+    found = _run_axe(page, within="body > header") + _run_axe(page, within="main > .coming-changes")
+    if width == 320:
+        mids = page.evaluate(
+            "['.brand', '.bell-compact', '.menu-btn'].map(s => { const r = document.querySelector(s).getBoundingClientRect(); "
+            "return r.top + r.height / 2; })"
+        )
+        assert max(mids) - min(mids) < 12, f"the top row wraps at 320 px: {mids}"
+        page.locator(".menu-btn").click()
+        found += _run_axe(page, within="body > header")
+    assert not found, found
+    page.locator(".put-away button").click()
+    page.wait_for_load_state()
+    assert page.locator("main > .coming-changes").count() == 0
+    context.close()

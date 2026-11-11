@@ -24,10 +24,12 @@
   {% if user.is_authenticated and not mfa_pending %}
   {% comment %}The menus are built from what the account may do (core/nav.py). Each menu is a native disclosure (works without scripts);
      the menu holding the open page is marked .current and its item carries aria-current. app.js adds Escape, one-open-at-a-time and the
-     narrow-screen Menu button.{% endcomment %}
-  <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
+     narrow-screen Menu button. On a narrow screen the person's own controls (.who) fold behind Menu with the navigation, and the top row
+     keeps the brand, the notification count (.bell-compact, shown only there) and Menu.{% endcomment %}
+  <a class="bell bell-compact" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}><svg class="bell-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false"><path d="M10 2.2a1 1 0 0 1 1 1v.7a5.4 5.4 0 0 1 4.4 5.3v3.3l1.4 2.1a.8.8 0 0 1-.7 1.2H3.9a.8.8 0 0 1-.7-1.2l1.4-2.1V9.2A5.4 5.4 0 0 1 9 3.9v-.7a1 1 0 0 1 1-1zM8 16.9h4a2 2 0 0 1-4 0z"/></svg><span class="sr-only">Notifications</span>{% if unread_notifications %} <span class="count">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span><span class="sr-only"> unread</span>{% endif %}</a>
+  <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav header-person" data-tour="menu" hidden>Menu</button>
   {% include "core/_nav.html" %}
-  <div class="who">
+  <div class="who" id="header-person">
     {% if request.user_organisations|length > 1 %}
     <form method="post" action="{% url 'administration:switch_organisation' %}" class="org-switch" data-tour="acting-for">{% csrf_token %}
       <input type="hidden" name="next" value="{{ request.get_full_path }}">
@@ -36,11 +38,11 @@
       <button type="submit">Switch</button>
     </form>
     {% elif request.organisation %}<span class="org-badge" data-tour="acting-for"><span class="label">Acting for</span> <b>{{ request.organisation.code }}</b></span>{% endif %}
-    {% if nav.member %}<a class="queue-link" href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue{% if queue_count %} <span class="count wait">{% if queue_count > 99 %}99+{% else %}{{ queue_count }}{% endif %}</span><span class="sr-only"> waiting</span>{% endif %}</a>{% endif %}
+    {% if nav.member %}<a class="queue-link util" href="{% url 'core:queue' %}" data-tour="queue"{% if request.path == '/queue/' %} aria-current="page"{% endif %}>My queue{% if queue_count %} <span class="count wait">{% if queue_count > 99 %}99+{% else %}{{ queue_count }}{% endif %}</span><span class="sr-only"> waiting</span>{% endif %}</a>{% endif %}
     <a class="bell" data-tour="notifications" href="{% url 'notifications:index' %}"{% if '/notifications/' in request.path %} aria-current="page"{% endif %}>Notifications{% if unread_notifications %} <span class="count">{% if unread_notifications > 99 %}99+{% else %}{{ unread_notifications }}{% endif %}</span><span class="sr-only"> unread</span>{% endif %}</a>
-    <a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a>
-    <a href="{% url 'administration:account' %}" data-tour="account"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
-    <form method="post" action="{% url 'account_logout' %}">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
+    <a class="util" href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a>
+    <a class="util" href="{% url 'administration:account' %}" data-tour="account"{% if request.path == '/account/' %} aria-current="page"{% endif %}>Account</a>
+    <form method="post" action="{% url 'account_logout' %}" class="util">{% csrf_token %}<button type="submit" class="link">Sign out</button></form>
   </div>
   {% elif user.is_authenticated %}
   {# Signed in with a password only while a second factor is required (mfa_pending): every page but the set-up sends them back to it (RequireMFAMiddleware), so the header offers only Sign out. #}
@@ -54,8 +56,13 @@
 </div>
 </header>
 <main id="main" tabindex="-1" class="{% block main_class %}page{% endblock %}">
-{% for n in site_notices %}{# A CPUC system administrator's dated notice (releases.SiteNotice), shown on every page from its start to its end #}<p class="coming-changes site-notice"><strong>Notice:</strong> {{ n.text }}{% if n.link %} <a href="{{ n.link }}">More about this notice</a>.{% endif %}</p>{% endfor %}
-{% if coming_changes %}{# Changes announced in the release notes, shown on every page until they take effect #}<p class="coming-changes"><strong>Coming change{{ coming_changes|length|pluralize }}:</strong> {% for n in coming_changes|slice:":2" %}<a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a>, {{ n.effective_on|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if coming_changes|length > 2 %}; and <a href="{% url 'releases:index' %}">{{ coming_changes|length|add:"-2" }} more</a>{% endif %}.</p>{% endif %}
+{% for bar in bars %}{% comment %}The bars at the top of every page: a CPUC system administrator's dated notice (releases.SiteNotice), from its start to
+   its end, and the changes announced in the release notes, until they take effect. One rule for both (releases/banners.py): a bar can be
+   put away once its note has been read, and a new note brings it back.{% endcomment %}
+<div class="coming-changes{% if bar.kind == 'notice' %} site-notice{% endif %}">{% if bar.kind == "notice" %}{% with n=bar.notice %}<p><strong>Notice:</strong> {{ n.text }}{% if n.link %} <a href="{{ n.link }}">More about this notice</a>.{% endif %}</p>{% endwith %}{% else %}{% with cc=bar.notes %}<p><strong>Coming change{{ cc|length|pluralize }}:</strong> {% for n in cc|slice:":2" %}<a href="{% url 'releases:detail' n.pk %}">{{ n.title }}</a>, {{ n.effective_on|date_words }}{% if not forloop.last %}; {% endif %}{% endfor %}{% if cc|length > 2 %}; and <a href="{% url 'releases:index' %}">{{ cc|length|add:"-2" }} more</a>{% endif %}.</p>{% endwith %}{% endif %}
+  {% if bar.can_put_away %}<form method="post" action="{% url 'releases:put_away' %}" class="put-away">{% csrf_token %}<input type="hidden" name="bar" value="{{ bar.name }}"><input type="hidden" name="next" value="{{ request.get_full_path }}"><button type="submit" class="link">Put away<span class="sr-only"> {% if bar.kind == "notice" %}this notice{% else %}the coming changes{% endif %}</span></button></form>{% endif %}
+</div>
+{% endfor %}
 {% if messages %}{# Errors (e.g. "Set up your second factor first.") are alerts, the rest status messages. #}{% for message in messages %}{% if message.level_tag == "error" %}<p class="alert" role="alert">{{ message }}</p>{% endif %}{% endfor %}<ul class="messages" role="status">{% for message in messages %}{% if message.level_tag != "error" %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endif %}{% endfor %}</ul>{% endif %}
 {% block content %}{% endblock %}
 </main>
