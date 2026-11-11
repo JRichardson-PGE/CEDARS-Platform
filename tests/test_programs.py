@@ -263,3 +263,19 @@ def test_other_filter_parsing():
     assert notes == ["Deemed: “maybe” is not yes or no, so that filter was left out."]
     assert filters.clean_query(QueryDict("q=&pa=PGE&page=2&field=status&pick=1&status=new")).urlencode() == "pa=PGE&status=new"
     assert {f.code for f in filters.FIELDS}.isdisjoint({"q", "pa", "state", "segment", "year", *filters.PAGE_PARAMS})
+
+
+def test_the_catalog_sorts_by_any_column_and_pages_above_and_below(signed_in, make_user):
+    """UI review 3, U9: every catalog column sorts the whole filtered list, not just the page; the pager is above and below it."""
+    import_cedars_programs((DATA / "cedars_programs_20261003.csv").read_bytes(), actor=None)
+    c = signed_in(make_user("someone@example.com"))
+    page = c.get("/programs/?state=closed").content.decode()
+    assert '<th scope="col" aria-sort="ascending"><a class="sort" href="?state=closed&amp;sort=-prg">PrgID' in page
+    assert 'aria-label="Program pages, above the list"' in page and 'aria-label="Program pages, below the list"' in page
+    names = sorted((v.name for p, v in registry.catalog() if v is not None and v.status == "closed"), key=str.lower)
+    down = c.get("/programs/?state=closed&sort=-name").content.decode()
+    assert "Programs, sorted by Name, descending" in down
+    body = down.split("<tbody>")[1]
+    assert body.index(f"<td>{names[-1]}</td>") < body.index(f"<td>{names[-2]}</td>")
+    # the pager keeps the sort and the filters
+    assert 'href="?state=closed&amp;sort=-name&amp;page=2"' in down

@@ -133,4 +133,9 @@ def test_the_runs_list_gives_settings_run_time_and_input_checks(tmp_path, worker
     dispatch.run_local(dispatch.claim_next("test"), poll=0.05)
     page = signed_in(analyst).get("/calculations/runs/").content.decode()
     assert '<span class="status info">Input check</span>' in page and "SCT off · csv.zip" in page
-    assert '<th scope="col">Run time</th>' in page and "Deleted on or after" in page
+    assert '?sort=-time">Run time<span class="sort-mark"' in page and "Deleted on or after" in page
+    # newest first to begin with, the Started heading marked; any heading sorts the whole list (UI review 3, U9)
+    assert '<th scope="col" aria-sort="descending"><a class="sort" href="?sort=started">Started' in page
+    assert '<caption class="sr-only">Runs, sorted by Started, descending</caption>' in page
+    by_name = signed_in(analyst).get("/calculations/runs/?sort=name").content.decode()
+    assert '<th scope="col" aria-sort="ascending"><a class="sort" href="?sort=-name">Run' in by_name

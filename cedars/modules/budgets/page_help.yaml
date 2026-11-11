@@ -179,11 +179,13 @@ budgets/compare:
   guide:
     - Any two budget versions you can read, side by side by program, such as a business plan and its TUAL, two versions of one filing, or two
       PAs' filings. Neither version changes.
+    - It opens on four figures (budget, total system benefit, TRC and PAC) so the table fits the page; tick others under Figures and
+      Compare to add their columns.
   see: budgets
   tour:
     - target: main form.filters
       title: The two versions
-      text: Choose version a and version b and the program years, then Compare.
+      text: Choose version a and version b, the program years and the figures (four to start with), then Compare.
     - target: main table.data
       title: Side by side
       text: Each program's values in a and b and the difference.

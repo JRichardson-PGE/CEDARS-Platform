@@ -10,6 +10,7 @@ Measure versions starting before 2027 keep their DEER impact profile IDs. <a hre
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
 </form>
+{% pager page query=query label="Package pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Draft measure packages">
 <table class="list">
   <caption class="sr-only">Draft measure packages matching the filters</caption>
@@ -23,5 +24,5 @@ Measure versions starting before 2027 keep their DEER impact profile IDs. <a hre
   </tbody>
 </table>
 </div>
-{% include "impact_profiles/_pager.html" with pager_label="Package pages" %}
+{% pager page query=query label="Package pages" where="below" %}
 {% endblock %}

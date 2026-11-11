@@ -280,7 +280,9 @@ administration/allocation:
       1.0000 each year), the factors themselves and its history. A
       funding PA member with the permission to manage the factors, or the CPUC, confirms a draft or discards it.
   how:
-    - Read the factors in the Factors table; choose a program year or type part of a program ID or name and Apply to narrow it.
+    - Read the factors in the Factors table. It opens on the current year (or the nearest year the version has); select another year,
+      or Every year, above the table. Type part of a program ID or name and Find to narrow it; Remove under the box clears it.
+    - A year's factors longer than one page have a pager above and below the table.
     - Confirm this version once its checks pass, or Discard the draft.
     - Download the factors gives the CSV in the layout ReCET reads.
   tour:
@@ -292,7 +294,11 @@ administration/allocation:
       text: Whether every program's factors add up.
     - heading: Factors
       title: Factors
-      text: Each program-year's percent electric and each funding PA's electric, gas and weighted factor, with a filter by year and program.
+      text: Each program's percent electric and each funding PA's electric, gas and weighted factor for the year chosen above it, every
+        other PA's three columns shaded.
+    - target: "#factor-years"
+      title: Program year
+      text: The year shown, with a check mark. Select another year, or Every year, to change it.
     - target: main form.actions
       title: Confirm or discard
       text: For a draft, with the permission to manage the factors.

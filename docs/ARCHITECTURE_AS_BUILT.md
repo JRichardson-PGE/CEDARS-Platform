@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), sortable and paged tables (`tables.py`), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -963,8 +963,9 @@ An `AllocationVersion` holds, per year and statewide PrgID (`AllocationEntry`), 
 decimals; weighted factors are computed from PercentElectric and rounded so they too sum to 1.0000), checks and confirms it; the other
 managing organizations are notified. A run that allocates carries the whole factor table of the version it pins as an input, and the
 receipt names its SHA-256. A filing setup or claim year may pin a version; otherwise the most recent confirmed version with factors for
-the year is used. A version's page (`/allocations/<pk>/`) shows its factors as a table, filtered by year and program on the server,
-beside the same values as a CSV.
+the year is used. A version's page (`/allocations/<pk>/`) shows its factors as a table, one program year at a time (it opens on the
+current year, or the nearest year the version has; Every year is a link), paged and searched by program on the server, beside the
+same values as a CSV.
 
 ### 7.3 Statewide claims are filed first
 
@@ -1302,7 +1303,8 @@ flowchart TD
   limits for CPUC system administrators, the register of CPUC-mandated changes.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
-  entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
+  entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; long lists sort, page (the pager
+  above and below the table) and show their filters as chips through the shared parts in `cedars/core/tables.py`; site search over pages, guides,
   programs, fields and documents. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
   their integrity checked.
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user

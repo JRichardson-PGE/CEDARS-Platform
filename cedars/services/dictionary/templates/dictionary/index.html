@@ -37,6 +37,7 @@ schema for the API. Calculations' Measure and ProgramCost are a calculation run'
   <button type="submit">Search</button>
 </form>
 <p>{{ total }} field{{ total|pluralize }}.{% if retired_count and not state %} {{ retired_count }} retired field{{ retired_count|pluralize }} {{ retired_count|pluralize:"is,are" }} not shown: choose State, Retired.{% endif %}</p>
+{% pager page query=query label="Field pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Fields">
 <table class="list">
   <caption class="sr-only">Fields, by kind and group</caption>
@@ -51,11 +52,5 @@ schema for the API. Calculations' Measure and ProgramCost are a calculation run'
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Field pages">
-  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Field pages" where="below" %}
 {% endblock %}

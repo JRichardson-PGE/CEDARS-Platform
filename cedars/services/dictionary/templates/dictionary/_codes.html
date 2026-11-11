@@ -1,3 +1,4 @@
+{% pager page query=query label="Code pages" anchor=anchor where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="{{ codes_label|default:"Codes" }}">
 <table class="list">
   <caption class="sr-only">Codes{% if editable %} in the draft{% endif %}</caption>
@@ -12,10 +13,4 @@
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Code pages">
-  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}{% if anchor %}#{{ anchor }}{% endif %}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}{% if anchor %}#{{ anchor }}{% endif %}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Code pages" anchor=anchor where="below" %}

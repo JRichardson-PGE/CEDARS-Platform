@@ -352,6 +352,19 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     assert client.get(reverse("budgets:file", args=[v.pk, 0])).status_code == 200
     assert client.get(reverse("budgets:appendix", args=[v.pk])).status_code == 200
     assert client.get(reverse("budgets:compare") + f"?a={v.pk}&b={v.pk}").status_code == 200
+    # Compare opens on four of the eleven figures (UI review 3, U9); the rest are ticked to add them, in their own order.
+    cmp = client.get(reverse("budgets:compare") + f"?a={v.pk}&b={v.pk}").content.decode()
+    heads = cmp.split('id="cmp-caption"')[1].split("</tr>")[0]
+    assert [h for h in ("Budget", "Total system benefit", "TRC", "PAC", "RIM", "First-year net kWh") if f">{h}</th>" in heads] == [
+        "Budget",
+        "Total system benefit",
+        "TRC",
+        "PAC",
+    ]
+    assert "(4 of 11 shown)" in cmp and '<input type="checkbox" name="m" value="RIM">' in cmp
+    picked = client.get(reverse("budgets:compare") + f"?a={v.pk}&b={v.pk}&m=FirstYearNetKWh&m=budget&m=nonsense").content.decode()
+    heads = picked.split('id="cmp-caption"')[1].split("</tr>")[0]
+    assert ">Budget</th>" in heads and ">First-year net kWh</th>" in heads and ">TRC</th>" not in heads and "(2 of 11 shown)" in picked
     # a community user sees the published version but not the findings or another PA's draft
     community = make_user("someone@example.com")
     client.logout()

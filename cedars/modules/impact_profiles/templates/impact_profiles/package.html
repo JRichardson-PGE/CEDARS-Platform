@@ -86,6 +86,7 @@ profile it should use instead of changing the vintage in eTRM.</p>
 
 {% if perm_page %}
 <h2>Permutations (eTRM version {{ pkg.current.number }})</h2>
+{% pager perm_page query="" label="Permutation pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Permutations">
 <table class="list small">
   <caption class="sr-only">The package's permutations as synced from eTRM, with their UECs in kWh per unit</caption>
@@ -98,6 +99,6 @@ profile it should use instead of changing the vintage in eTRM.</p>
   </tbody>
 </table>
 </div>
-{% include "impact_profiles/_pager.html" with page=perm_page query="" pager_label="Permutation pages" %}
+{% pager perm_page query="" label="Permutation pages" where="below" %}
 {% endif %}
 {% endblock %}

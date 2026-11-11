@@ -13,16 +13,18 @@ zone. Profiles are versioned: runs and claims record the version they used.</p>
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
 </form>
+{% url 'impact_profiles:library' as all_url %}{% include "ui/filter_chips.html" with clear=all_url %}
 {% if page %}
+{% pager page query=query label="Impact profile pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Impact profiles">
 <table class="list">
-  <caption class="sr-only">Impact profiles matching the filters</caption>
-  <thead><tr><th scope="col">Profile ID</th><th scope="col">Target sector</th><th scope="col">Territory</th><th scope="col">Kind</th><th scope="col">Owner</th><th scope="col">Versions</th><th scope="col">Status</th></tr></thead>
+  <caption class="sr-only">Impact profiles matching the filters, {{ sort.words }}</caption>
+  <thead><tr>{% for h in sort.head %}{% include "ui/sort_th.html" %}{% endfor %}</tr></thead>
   <tbody>
   {% for p in page %}
   <tr><th scope="row"><a href="{% url 'impact_profiles:profile' p.pk %}">{{ p.profile_key }}</a></th><td>{{ p.target_sector }}</td>
     <td>{{ p.iou_ac_territory|default:"Every territory" }}</td><td>{{ p.get_family_display }}</td><td>{{ p.owner.code|default:"" }}</td>
-    <td>{{ p.n_versions }}</td><td>{% if p.retired_at %}Retired{% else %}In use{% endif %}</td></tr>
+    <td class="num">{{ p.n_versions }}</td><td>{% if p.retired_at %}Retired{% else %}In use{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -31,5 +33,5 @@ zone. Profiles are versioned: runs and claims record the version they used.</p>
 {% if request.GET %}{% url 'impact_profiles:library' as clear_url %}{% endif %}
 {% include "ui/empty.html" with title="No profiles match" text="Change or clear the filters to see more of the library." action_url=clear_url action="Clear filters" %}
 {% endif %}
-{% include "impact_profiles/_pager.html" with pager_label="Impact profile pages" %}
+{% pager page query=query label="Impact profile pages" where="below" %}
 {% endblock %}

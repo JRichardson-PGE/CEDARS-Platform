@@ -5,6 +5,7 @@
 <div class="page-title"><h1>Downloads</h1>{% page_help "documents/downloads" %}</div>
 <p>Every download of this document's files, and every view in the browser, newest first. Each is an event in the audit trail.
 Downloads by people who were not signed in are counted as "public".</p>
+{% pager page query="" label="Download pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Downloads">
 <table class="list">
   <caption class="sr-only">Downloads of {{ doc.title }}</caption>
@@ -17,11 +18,5 @@ Downloads by people who were not signed in are counted as "public".</p>
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Download pages">
-  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query="" label="Download pages" where="below" %}
 {% endblock %}

@@ -201,6 +201,8 @@ PAGES = [
     ("allocations-pa", "/allocations/", "pge_admin"),
     ("allocations-signed-out", "/allocations/", None),  # the confirmed versions, open to everyone (Jake, 2026-11-04)
     ("allocation-pa", "/allocations/{allocation}/", "pge_admin"),
+    # every year, paged, the pager above and below, and a program search as a chip (UI review 3, U9)
+    ("allocation-every-year", "/allocations/{allocation}/?year=all&page=2&q=SW", "cpuc_admin"),
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
@@ -287,6 +289,7 @@ PAGES = [
     ("engine-release-change", "/calculations/engines/{engine_release}/", "cpuc_admin"),
     ("programs", "/programs/", "community"),
     ("programs-public", "/programs/?q=PGE", None),
+    ("programs-sorted", "/programs/?q=PGE&sort=-name", None),  # a sorted heading (UI review 3, U9)
     ("programs-other-filters", "/programs/?field=bp_sector&pick=1&bp_sector=Residential&resource=yes&start_year_from=2020", None),
     ("programs-other-filters-years", "/programs/?field=end_year&pick=1&end_year_from=2030", None),
     ("programs-other-filters-text", "/programs/?field=contractor&pick=1&contractor=ener", None),

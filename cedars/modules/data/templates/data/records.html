@@ -112,6 +112,13 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 
 {% if page.columns %}
 <h2>The records</h2>
+{% if previous or next %}
+<nav class="pager pager-above" aria-label="Record pages, above the list">
+  {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
+  <span>Records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}</span>
+  {% if next %}<a href="{{ next }}">Next</a>{% endif %}
+</nav>
+{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Records, {{ first }} to {{ last }}">
 <table class="list records">
   <caption class="sr-only">{{ series }} records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}, by CEInputID</caption>
@@ -122,7 +129,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
 </table>
 </div>
 {% if previous or next %}
-<nav class="pager" aria-label="Record pages">
+<nav class="pager" aria-label="Record pages, below the list">
   {% if previous %}<a href="{{ previous }}">Previous</a>{% endif %}
   <span>Records {{ first|floatformat:"0g" }} to {{ last|floatformat:"0g" }} of {{ page.count|floatformat:"0g" }}</span>
   {% if next %}<a href="{{ next }}">Next</a>{% endif %}

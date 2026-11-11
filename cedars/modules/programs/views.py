@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from cedars.core import tables
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
@@ -105,12 +106,25 @@ def _main_chips(form: forms.CatalogFilter, query) -> list[tuple]:
     return out
 
 
+# The catalog's sortable columns (UI review 3, U9): each sorts the rows the filters keep, before paging.
+CATALOG_COLUMNS = [
+    tables.Column("prg", "PrgID", value=lambda r: r[0].prg_id),
+    tables.Column("name", "Name", value=lambda r: r[1].name),
+    tables.Column("pa", "PA", value=lambda r: pa_code(r[0])),
+    tables.Column("status", "Status", value=lambda r: status_label(r[1].status) if r[1].status else ""),
+    tables.Column("segment", "Segment", value=lambda r: segment_label(r[1].segment)),
+    tables.Column("years", "Years", value=lambda r: r[1].start_year),
+]
+
+
 def catalog(request):
     """Every program, searchable by name or PrgID, closed programs included; the version shown is the one for the chosen program
     year, or the one in force today. Any other program attribute can be filtered on too (filters.py), and every filter is in the link.
-    Public: the registry holds published program definitions only."""
+    Any column sorts the list (?sort=). Public: the registry holds published program definitions only."""
     form = forms.CatalogFilter(request.GET or None)
     rows, base, other, notes = _filtered(form, request.GET)
+    sort = tables.sorting(request.GET, CATALOG_COLUMNS, "prg", drop=filters.PAGE_PARAMS)
+    rows = sort.rows(rows, CATALOG_COLUMNS)
     page = Paginator(rows, PER_PAGE).get_page(request.GET.get("page"))
     query = filters.clean_query(request.GET)
     return render(
@@ -121,6 +135,7 @@ def catalog(request):
             "page": page,
             "rows": [(p, v, pa_code(p), status_label(v.status), segment_label(v.segment)) for p, v in page.object_list],
             "total": len(rows),
+            "sort": sort,
             "query": query.urlencode(),
             "applied": filters.chips(request.GET, _main_chips(form, request.GET), other),
             "pa_picker": access.pa_picker(
@@ -580,6 +595,15 @@ def _rows(req: ProgramChangeRequest) -> list[tuple[str, str, str]]:
     return [(field_label(k), show_value(k, req.before.get(k)), show_value(k, v)) for k, v in req.changes.items()]
 
 
+REQUEST_COLUMNS = [
+    tables.Column("program", "Program", field=("program__prg_id", "requested_at")),
+    tables.Column("changes", "Changes"),
+    tables.Column("from", "From", descending_first=True, field="effective"),
+    tables.Column("asked", "Asked by", descending_first=True, field="requested_at"),
+    tables.Column("status", "Status", field="status"),
+]
+
+
 @login_required
 def requests(request):
     """Change requests to locked program attributes: every request for CPUC approvers, the organization's own for its members."""
@@ -589,7 +613,8 @@ def requests(request):
     qs = registry.visible_requests(request.user)
     if shown != "all":
         qs = qs.filter(status=shown)
-    page = Paginator(qs, PER_PAGE).get_page(request.GET.get("page"))
+    sort = tables.sorting(request.GET, REQUEST_COLUMNS, "-asked", plain=("changes",))
+    page = Paginator(qs.order_by(*sort.ordering(REQUEST_COLUMNS)), PER_PAGE).get_page(request.GET.get("page"))
     return render(
         request,
         "programs/requests.html",
@@ -597,6 +622,8 @@ def requests(request):
             "page": page,
             "rows": [(r, ", ".join(field_label(k) for k in r.changes)) for r in page.object_list],
             "shown": shown,
+            "sort": sort,
+            "query": tables.clean(request.GET).urlencode(),
             "statuses": [*ProgramChangeRequest.Status.choices, ("all", "All")],
             "approver": registry.approver(request.user) is not None,
         },

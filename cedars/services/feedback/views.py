@@ -50,7 +50,7 @@ def inbox(request):
         status = "all"
     page = Paginator(qs, 50).get_page(request.GET.get("page"))
     counts = {s: Feedback.objects.filter(status=s).count() for s in Feedback.Status.values}
-    return render(request, "feedback/inbox.html", {"page": page, "status": status, "counts": counts})
+    return render(request, "feedback/inbox.html", {"page": page, "status": status, "feedback_query": f"status={status}", "counts": counts})
 
 
 @login_required

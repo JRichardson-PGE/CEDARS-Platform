@@ -14,6 +14,7 @@ from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from cedars.core import tables
 from cedars.services.accounts.service import AccessDenied
 
 from . import access, custom, etrm, forms, identical, jobs, loadshapes, policy, shapes
@@ -54,6 +55,17 @@ def _csv_response(rows: list[list], header: list[str], filename: str) -> HttpRes
 # --- the library
 
 
+LIBRARY_COLUMNS = [
+    tables.Column("key", "Profile ID", field=("profile_key", "target_sector", "iou_ac_territory")),
+    tables.Column("sector", "Target sector", field=("target_sector", "profile_key")),
+    tables.Column("territory", "Territory", field=("iou_ac_territory", "profile_key")),
+    tables.Column("kind", "Kind", field=("family", "profile_key")),
+    tables.Column("owner", "Owner", field=("owner__code", "profile_key")),
+    tables.Column("versions", "Versions", numeric=True, descending_first=True, field=("n_versions", "profile_key")),
+    tables.Column("status", "Status"),
+]
+
+
 @login_required
 def library(request):
     form = forms.LibraryFilterForm(request.GET or None)
@@ -70,11 +82,19 @@ def library(request):
         retired = d["retired"]
     if not retired:
         qs = qs.filter(retired_at__isnull=True)
-    page = Paginator(qs.order_by("profile_key", "target_sector", "iou_ac_territory"), 50).get_page(request.GET.get("page"))
+    sort = tables.sorting(request.GET, LIBRARY_COLUMNS, "key", plain=("status",))
+    page = Paginator(qs.order_by(*sort.ordering(LIBRARY_COLUMNS)), 50).get_page(request.GET.get("page"))
     return render(
         request,
         "impact_profiles/library.html",
-        {"form": form, "page": page, "query": _query(request), "can_add": access.can_submit(request.user, request.organisation)},
+        {
+            "form": form,
+            "page": page,
+            "sort": sort,
+            "query": _query(request),
+            "applied": tables.chips(request.GET, tables.form_chips(form)),
+            "can_add": access.can_submit(request.user, request.organisation),
+        },
     )
 
 

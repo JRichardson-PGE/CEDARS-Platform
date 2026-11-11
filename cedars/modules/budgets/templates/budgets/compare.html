@@ -13,11 +13,16 @@
     {% for y in all_years %}<label class="inline"><input type="checkbox" name="years" value="{{ y }}"{% if y in years %} checked{% endif %}> {{ y }}</label>{% endfor %}
   </fieldset>
   {% endif %}
+  <fieldset class="checks-inline compare-figures">
+    <legend>Figures <span class="muted small">({{ metrics|length }} of {{ metric_choices|length }} shown)</span></legend>
+    {% for key, label, on in metric_choices %}<label class="inline"><input type="checkbox" name="m" value="{{ key }}"{% if on %} checked{% endif %}> {{ label }}</label>{% endfor %}
+  </fieldset>
   <label class="inline"><input type="checkbox" name="changed" value="1"{% if changed_only %} checked{% endif %}> Only programs that changed</label>
   <button type="submit">Compare</button>
 </form>
 {% if a and b %}
-<p class="small muted">a = {{ a_label }}; b = {{ b_label }}. Difference = b minus a; a program in one version only is blank in the other.</p>
+<p class="small muted">a = {{ a_label }}; b = {{ b_label }}. Difference = b minus a; a program in one version only is blank in the other.
+Tick more figures above and Compare to add their columns.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="cmp-caption">
 <table class="list data">
   <caption id="cmp-caption" class="sr-only">Version a against version b by program</caption>

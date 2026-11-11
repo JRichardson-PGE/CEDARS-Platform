@@ -1351,6 +1351,37 @@ def test_new_run_lays_its_fields_out_across_a_wide_window(browser, site, scene):
     assert set(narrow["cols"]) == {1}, f"field columns at 320 px: {narrow['cols']}"
 
 
+def test_wide_tables_fit_1440(browser, site, scene):
+    """UI review 3, U9: at 1440 px New run's two tables (opened), the allocation factors for one year and budget Compare's opening four
+    figures fit without scrolling sideways; the allocation page opens on one year, not 300 rows. (The review's +316 px on New run was
+    the closed "Which ACC applies to my filing?" disclosure measured at its summary's width; opened, it fits.)"""
+    from unittest import mock
+
+    acc_rows = [
+        {"acc": a, "filings": ["2024-2027 business plan", "2026 TUAL", "2027 ABAL"], "claims": "2024, 2025, 2026", "available": True}
+        for a in (2021, 2022, 2024, 2026, 2028)
+    ]
+    found = {}
+    for key, path, who, boxes in (
+        ("new run", "/calculations/new/", "analyst", ("#acc-help .hscroll", "#cost-test-sets .hscroll")),
+        ("allocation", "/allocations/{allocation}/", "cpuc_admin", (".hscroll:has(table.factors)",)),
+        ("compare", "/budgets/compare/?a={budget_version}&b={budget_version}", "analyst", (".hscroll:has(#cmp-caption)",)),
+    ):
+        with mock.patch("cedars.modules.calculations.service.acc_table", return_value=acc_rows):
+            context, page = _open(browser, site, scene, path, who, viewport={"width": 1440, "height": 900})
+        page.evaluate("document.querySelectorAll('main details').forEach(d => d.open = true)")
+        for box in boxes:
+            found[f"{key} {box}"] = page.evaluate(
+                "(sel) => { const b = document.querySelector('main ' + sel); return b ? b.scrollWidth - b.clientWidth : null; }", box
+            )
+        if key == "allocation":
+            rows = page.evaluate("document.querySelectorAll('table.factors tbody tr').length")
+        context.close()
+    assert rows <= 50, f"the allocation page opens on {rows} rows"
+    for key, over in found.items():
+        assert over is not None and over <= 0, f"{key}: the table scrolls {over} px sideways at 1440 px"
+
+
 def test_new_run_hints_are_behind_info_buttons(browser, site, scene):
     """New run's field hints sit behind an "i" button beside each label (Jake, 2026-11-09), not under the controls. Each button is
     named for its field, opens its hint with the keyboard, a click or a resting mouse; the hint stays open while the pointer is on it
