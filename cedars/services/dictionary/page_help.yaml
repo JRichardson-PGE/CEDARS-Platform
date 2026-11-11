@@ -78,6 +78,10 @@ dictionary/lists:
     - The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check
       values against. Each list is kept in versions; the version in force on a date is the newest published one effective by then.
       Until a list has a version here, the list shipped with the calculation engine is in force.
+    - >-
+      The program lists (program_status, program_segment, program_primary_sector, program_implementer, program_category) hold the
+      values a program's change form offers for those fields. Their first version is the program fields guide's values; the engine
+      never checks them.
     - A code is accepted for claim years from its start year to its end year. A retired code keeps its row with an end year; a code is
       never deleted.
   how:

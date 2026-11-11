@@ -79,6 +79,28 @@ releases/limits:
       title: API limits
       text: How many calls a minute the API answers, with and without a token, and how long a token lasts.
 
+releases/limits_manage:
+  title: Change limits
+  see: releases
+  guide:
+    - >-
+      For CPUC system administrators. The limits the CPUC can change without a release: how long a sign-in lasts, how long a session
+      may sit unused before it is signed out, how many runs one account may have waiting or running, and the largest file the
+      pre-upload checker reads. A change takes effect at once for everyone and shows on the Limits page.
+    - >-
+      Each limit starts at its default, an environment setting. Setting it back to the default follows that setting again. Every change
+      needs a reason and is listed under Changes made and in the audit log.
+  how:
+    - Enter the new value and a reason, then choose Save. To go back to the default, give a reason and choose Set back to the default.
+    - Announce a change people will notice in the release notes before you make it.
+  tour:
+    - heading: Limits you can change
+      title: The limits
+      text: Each limit, its value now, its default, where it applies and what happens over it, with a form to change it.
+    - heading: Changes made
+      title: Changes made
+      text: Every change, newest first, with who made it and why.
+
 releases/manage:
   title: Write release notes
   see: releases

@@ -81,6 +81,38 @@ class ProgramChangeForm(forms.Form):
     exclude_from_budget = forms.BooleanField(label="Exclude from budget", required=False)
     exclude_from_ce = forms.BooleanField(label="Exclude from cost-effectiveness", required=False)
     exclude_from_statewide = forms.BooleanField(label="Exclude from statewide", required=False)
+    # how the program is delivered: one box per True/False flag, and the two flags with values of their own (the `flags` attribute)
+    flag_resource = forms.BooleanField(label="Resource", required=False)
+    flag_nonresource = forms.BooleanField(label="Non-resource", required=False)
+    flag_deemed = forms.BooleanField(label="Deemed", required=False)
+    flag_custom = forms.BooleanField(label="Custom", required=False)
+    flag_upstream = forms.BooleanField(label="Upstream", required=False)
+    flag_midstream = forms.BooleanField(label="Midstream", required=False)
+    flag_downstream = forms.BooleanField(label="Downstream", required=False)
+    flag_audit = forms.BooleanField(label="Audit", required=False)
+    flag_direct_install = forms.ChoiceField(
+        label="Direct install", required=False, choices=[("", "Not given"), ("Yes", "Yes"), ("Partial", "Partial"), ("No", "No")]
+    )
+    flag_financing = forms.ChoiceField(
+        label="Financing",
+        required=False,
+        choices=[("", "Not given"), ("None", "None"), ("OBF", "OBF (on-bill financing)"), ("Other Financing", "Other financing")],
+    )
+
+    # {form field: the key CEDARS' Programs list gives the flag in `flags`}
+    FLAG_KEYS = {
+        "flag_resource": "Resource_Flag",
+        "flag_nonresource": "NonResource_Flag",
+        "flag_deemed": "Deemed_Flag",
+        "flag_custom": "Custom_Flag",
+        "flag_upstream": "Upstream_Flag",
+        "flag_midstream": "Midstream_Flag",
+        "flag_downstream": "Downstream_Flag",
+        "flag_audit": "Audit_Flag",
+        "flag_direct_install": "DirectInstall",
+        "flag_financing": "Financing",
+    }
+    TRUE = {"true", "yes", "1", "y", "t"}
 
     ATTRIBUTES = [
         "name",
@@ -104,12 +136,20 @@ class ProgramChangeForm(forms.Form):
 
     def __init__(self, *args, latest=None, **kwargs):
         self.latest = latest
-        initial = {}
+        initial = dict(kwargs.pop("initial", None) or {})
         if latest is not None:
-            initial = {k: getattr(latest, k) for k in self.ATTRIBUTES}
+            initial.update({k: getattr(latest, k) for k in self.ATTRIBUTES})
             initial["sectors"] = ", ".join(f"{k}: {v:g}" for k, v in (latest.sectors or {}).items())
             initial["effective"] = max(timezone.localdate(), latest.valid_from + timedelta(days=1))
+            flags = latest.flags or {}
+            for name, key in self.FLAG_KEYS.items():
+                value = str(flags.get(key, "")).strip()
+                initial[name] = value.lower() in self.TRUE if name in self.BOOLEAN_FLAGS else value
         super().__init__(*args, initial=initial, **kwargs)
+        for name in ("flag_direct_install", "flag_financing"):  # a value CEDARS' list has that the choices lack stays offered
+            current = initial.get(name, "")
+            if current and current not in dict(self.fields[name].choices):
+                self.fields[name].choices = [*self.fields[name].choices, (current, f"{current} (not in the list)")]
         guide_url = reverse("programs:fields")
         for name in self.ATTRIBUTES:
             e = field_guide.entry(name)
@@ -143,9 +183,56 @@ class ProgramChangeForm(forms.Form):
             self.add_error("end_year", "The end year is before the start year.")
         return data
 
+    @property
+    def BOOLEAN_FLAGS(self) -> set[str]:
+        return {n for n in self.FLAG_KEYS if n not in ("flag_direct_install", "flag_financing")}
+
+    def attribute_fields(self):
+        """The form's fields except the delivery flags (shown together in their own group)."""
+        return [self[n] for n in self.fields if n not in self.FLAG_KEYS]
+
+    def flag_fields(self):
+        return [self[n] for n in self.FLAG_KEYS]
+
+    def flags(self) -> dict:
+        """The `flags` attribute from the boxes: the latest version's flags with each box's value written over it; a True/False flag the
+        version never had and that is not ticked stays out, as does a blank direct install or financing."""
+        old = dict(self.latest.flags or {}) if self.latest is not None else {}
+        out = dict(old)
+        for name, key in self.FLAG_KEYS.items():
+            value = self.cleaned_data.get(name)
+            if name in self.BOOLEAN_FLAGS:
+                if value:
+                    out[key] = "True"
+                elif key in old:
+                    out[key] = "False"
+            elif value:
+                out[key] = value
+            else:
+                out.pop(key, None)
+        return out
+
+    def values(self) -> dict:
+        """Every attribute as entered, for a new program's first version."""
+        out = {}
+        for k in self.ATTRIBUTES:
+            v = self.cleaned_data.get(k)
+            if k in ("start_year", "end_year"):
+                v = v or None
+            elif isinstance(v, str):
+                v = v.strip()
+            elif v is None and k == "sectors":
+                v = {}
+            out[k] = v
+        out["flags"] = self.flags()
+        return out
+
     def changes(self) -> dict:
         """{attribute: new value} for every attribute that differs from the latest version."""
         out = {}
+        flags = self.flags()
+        if flags != ((self.latest.flags or {}) if self.latest is not None else {}):
+            out["flags"] = flags
         for k in self.ATTRIBUTES:
             new = self.cleaned_data.get(k)
             old = getattr(self.latest, k) if self.latest is not None else None
@@ -156,6 +243,67 @@ class ProgramChangeForm(forms.Form):
             if new != old:
                 out[k] = new
         return out
+
+
+class NewProgramForm(ProgramChangeForm):
+    """A new program: its PA, its PrgID (kept for good) and its first version's attributes, from the date it starts."""
+
+    administrator = forms.ChoiceField(label="Program administrator")
+    prg_id = forms.CharField(
+        label="PrgID",
+        max_length=60,
+        help_text="Kept for good and never reused. Starts with the PA's code (a statewide program's with SW_): letters, digits, "
+        "underscores and hyphens.",
+    )
+    field_order = ["administrator", "prg_id", "effective", "reason"]
+
+    STATEWIDE = "SW"
+
+    def __init__(self, *args, administrators=(), statewide=False, **kwargs):
+        super().__init__(*args, latest=None, **kwargs)
+        self.administrators = {o.code: o for o in administrators}
+        choices = [(o.code, f"{o.code}: {o.name}") for o in administrators]
+        if statewide:
+            choices.append((self.STATEWIDE, "SW: a statewide program, funded by several PAs"))
+        self.fields["administrator"].choices = [("", "Choose the PA"), *choices] if len(choices) > 1 else choices
+        self.fields["effective"].label = "Starts on"
+        self.fields["effective"].help_text = "The day its first version takes effect: usually 1 January of its first program year."
+        self.fields["reason"].help_text = "e.g. the decision, resolution or advice letter that approved it"
+
+    def clean(self):
+        from cedars.services.registry import service as registry
+
+        data = super().clean()
+        code = data.get("administrator")
+        statewide = code == self.STATEWIDE
+        org = None if statewide else self.administrators.get(code)
+        self.statewide, self.organisation = statewide, org
+        prg_id = (data.get("prg_id") or "").strip()
+        if code and prg_id:
+            problem = registry.prg_id_problem(prg_id, org, statewide=statewide)
+            if problem:
+                self.add_error("prg_id", problem)
+        data["prg_id"] = prg_id
+        self.follows = None
+        if org is not None and prg_id:  # PGE_SW_FS: its attributes come from the statewide program, so none are needed here
+            from cedars.services.registry.models import Program
+
+            sw = registry.statewide_part_of(Program(prg_id=prg_id, administrator=org))
+            if sw is not None and sw.versions.exists():
+                self.follows = sw
+                self.errors.pop("name", None)
+        return data
+
+
+class CorrectionForm(ProgramChangeForm):
+    """A correction of one version's values: pre-filled from it; only the attributes that differ are corrected, its dates stay."""
+
+    def __init__(self, *args, version=None, **kwargs):
+        super().__init__(*args, latest=version, **kwargs)
+        del self.fields["effective"]
+        self.fields["reason"].label = "Reason for the correction"
+        self.fields["reason"].help_text = "What was wrong and where the right value comes from"
+        self.order_fields(["reason"])
 
 
 class DecisionForm(forms.Form):

@@ -1,10 +1,10 @@
 """The nightly eTRM sync: draft measure packages and their permutations, pulled from eTRM's restricted PostgreSQL database (full-precision
 UECs), into a versioned snapshot with a sync history.
 
-As in CEDARS' Load Shape Tool, only draft packages (Measure Version ID ending in "-draft") starting on or after
-settings.LOAD_SHAPE_FIRST_START (1 January 2027: earlier measure versions keep their DEER impact profile IDs) are taken, and a package
-with bad data is excluded and listed with the reason instead of stopping the sync. A package whose content has not changed keeps its
-version; a changed package gets a new one, so an upload can name the exact permutations it was checked against.
+As in CEDARS' Load Shape Tool, only draft packages (Measure Version ID ending in "-draft") starting on or after the load-shape start
+date on the settings page (policy; 1 January 2027 by default: earlier measure versions keep their DEER impact profile IDs) are taken,
+and a package with bad data is excluded and listed with the reason instead of stopping the sync. A package whose content has not changed
+keeps its version; a changed package gets a new one, so an upload can name the exact permutations it was checked against.
 
 The database's real schema is not known yet (no access): DatabaseSource reads the fixture schema in `etrm_fixture_schema.sql`, and only
 its two queries need to change when the credentials arrive. FileSource reads the same data from a JSON file, for development and tests,
@@ -27,7 +27,7 @@ from django.utils import timezone
 
 from cedars.services import audit
 
-from . import access
+from . import access, policy
 from .models import EtrmSyncRun, ExcludedPackage, MeasurePackage, PackageVersion, Permutation
 
 log = logging.getLogger(__name__)
@@ -283,8 +283,8 @@ def content_hash(rec: PackageRecord, perms: list[dict]) -> str:
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
 
-def in_scope(rec: PackageRecord) -> bool:
-    first = date.fromisoformat(settings.LOAD_SHAPE_FIRST_START)
+def in_scope(rec: PackageRecord, first: date | None = None) -> bool:
+    first = first or policy.load_shape_first_start()
     return rec.measure_version_id.lower().endswith("-draft") and rec.start_date is not None and rec.start_date >= first
 
 
@@ -335,8 +335,9 @@ def sync(actor=None, source=None, trigger: str = EtrmSyncRun.Trigger.AUTOMATIC, 
 
 def _sync_records(run: EtrmSyncRun, records: list[PackageRecord]) -> None:
     seen: set[str] = set()
+    first = policy.load_shape_first_start()  # read once per sync: a change applies from the next sync
     for rec in records:
-        if not in_scope(rec):
+        if not in_scope(rec, first):
             continue
         run.packages_seen += 1
         seen.add(rec.measure_version_id)

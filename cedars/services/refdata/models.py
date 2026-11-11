@@ -47,6 +47,9 @@ class PackVersion(models.Model):
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     published_at = models.DateTimeField(null=True, blank=True)
     withdrawn_reason = models.TextField(blank=True)
+    checks_at_publication = models.JSONField(
+        null=True, blank=True, help_text="the names of the acceptance checks in force when it was published (blank: not published)"
+    )
 
     class Meta:
         ordering = ["kind", "-registered_at"]
@@ -65,17 +68,29 @@ class PackVersion(models.Model):
 
 
 class TieOutRequirement(models.Model):
-    """A check a kind of pack must pass before it is published (configuration, not code; seeded by migration 0002)."""
+    """A check a kind of pack must pass before it is published (configuration, not code; the first ones seeded by migration 0002).
+    CPUC system administrators add and retire checks on the Pack acceptance checks page; a check is never edited (retire it and add
+    another), and a published pack keeps the checks it was published under (PackVersion.checks_at_publication)."""
 
     kind = models.CharField(max_length=20, choices=PackVersion.Kind.choices)
     name = models.CharField(max_length=40)
     description = models.TextField()
+    added_at = models.DateTimeField(null=True, blank=True, help_text="blank for the checks seeded with the platform")
+    added_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    reason = models.TextField(blank=True, help_text="why it was added")
+    retired_at = models.DateTimeField(null=True, blank=True)
+    retired_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    retired_reason = models.TextField(blank=True)
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["kind", "name"], name="refdata_one_requirement")]
 
     def __str__(self):
         return f"{self.kind}: {self.name}"
+
+    @property
+    def active(self) -> bool:
+        return self.retired_at is None
 
 
 class TieOut(models.Model):

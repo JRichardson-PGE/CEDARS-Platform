@@ -9,6 +9,10 @@ against. Each list is kept in versions: the version in force on a date is the ne
 has a version here, the list shipped with the calculation engine{% if release %} (ReCET {{ release }}){% endif %} is the one in force.
 A code is accepted for claim years from its start year to its end year; a retired code keeps its row with an end year, and a code is
 never deleted.</p>
+<p>The program lists (program_status, program_segment, program_primary_sector, program_implementer and program_category) are the
+values a program's status, segment, primary sector, implementer and category may take on its change form. They start from the
+<a href="{% url 'programs:fields' %}">program fields guide</a>, and a code retired here is offered only to a program that already
+has it.</p>
 {% if not engine %}<p class="alert" role="alert">The calculation engine is not installed on this server, so its lists are not shown.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Value lists">
 <table class="list">
@@ -17,7 +21,7 @@ never deleted.</p>
   <tbody>
   {% for r in rows %}
   <tr><th scope="row"><a href="{% url 'dictionary:list' r.name %}">{{ r.name }}</a></th><td>{{ r.label }}</td>
-    <td>{% if r.version %}Version {{ r.version.number }}, from {{ r.version.effective_from|date_words }}{% else %}As shipped with the engine{% endif %}</td>
+    <td>{% if r.version %}Version {{ r.version.number }}, from {{ r.version.effective_from|date_words }}{% elif r.platform %}As first listed{% else %}As shipped with the engine{% endif %}</td>
     <td>{{ r.codes }}</td>
     <td>{% if r.later %}Version {{ r.later.number }} from {{ r.later.effective_from|date_words }}{% endif %}{% if r.later and r.draft %}; {% endif %}{% if r.draft %}<a href="{% url 'dictionary:draft' r.name %}">A draft<span class="sr-only"> of {{ r.name }}</span></a>{% endif %}</td></tr>
   {% empty %}<tr><td colspan="5">No value lists.</td></tr>
