@@ -315,7 +315,7 @@ annual-rate bill impacts are 0. (CET nets annual savings before shaping, so it v
   quantity 0) on `AC_Elec_Impact_Profile` and the 2nd-baseline part (every 1st-baseline quantity 0) on this profile, and the parts are added.
   The phasing of C2 is linear in the two quantities, so with one shape the result is unchanged; the boundary quarter's split is kept. Electric benefits and supply costs (all
   three tests), emissions and the combined 8,760 output use the parts. If only one of the two shapes is found, the measure is `PARTLY PRICED`.
-* `AC_Elec_Impact_Profile_Water`: the water energy (C5.3) is spread over this shape for both baselines.
+* `AC_Elec_Impact_Profile_Water`: the water energy (C5.5) is spread over this shape for both baselines.
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -340,40 +340,10 @@ claim year, claim quarter, EUL and RUL, so they are computed once for each disti
 per-measure loop to floating-point rounding (relative differences below 1e-14). Because the ACC's `total_avoided_cost` already contains transmission and distribution, there is no separate kW or T&D term on
 this route.
 
-**C5.2 Retired (2026-10-02): the TOU (H-factor) route.** TOU end uses are priced by C5.1 from their 8,760s in the library (C4.1). What follows is the formula the tool used
-before, kept for reference: CET's two-term benefit, a **kWh (generation) term** and a **demand-scaled T&D term**.
+**C5.2 Retired (2026-10-02): the TOU (H-factor) route.** TOU end uses are priced by C5.1 from their 8,760s in the library (C4.1). The quarterly
+TOU-period route (CET's kWh term plus a demand-scaled T&D term from five period factors) is no longer used; its formulas are in the git history.
 
-```text
-f_kWh = Q * (NTGe  + MEB) * IRe  * RRe          f_kW = Q * (NTGkw + MEB) * IRkw * RRkw
-DS_i  = kW_i   if the row's ds_type = kW  (PG&E commercial / industrial / agricultural and all SCE profiles)
-        kWh_i  if ds_type = kWh          (PG&E residential)
-
-V_elec = SUM over k of  w(k) * DF(k) * [ phased(k; f_kWh*kWh1, f_kWh*kWh2) * GenQ(year(k), quarter(k))  +  phased(k; f_kW*DS_1, f_kW*DS_2) * TDQ(year(k), quarter(k)) ]
-```
-
-`GenQ` and `TDQ` are quarterly rates built once per (PA, sector, end use, zone, year) from the ACC's hourly Gen and T&D and the profile's five period factors (`e0..e4` energy shares, `kw0..kw4` demand factors):
-
-```text
-periods P = 1 summer on-peak, 2 summer partial-peak, 3 summer off-peak, 5 winter partial-peak, 6 winter off-peak       (period 4 has no hours)
-period map: each ACC hour i belongs to the period of hour (i + 25) on a 1991 calendar   (a fixed +25 hour alignment)
-f(P, q)   = share of period P's hours that fall in quarter q
-
-GenQ(y, q) = SUM_P  e_P  * f(P, q) * mean over hours i in P of Gen(y, i)
-TDQ(y, q)  = SUM_P  kw_P * f(P, q) * mean over hours i in P of TD(y, i)                       (kw_form = per_kwh: PG&E residential, kW per annual kWh)
-           = SUM_P  kw_P * f(P, q) * 0.001 * (sum over hours i in P of TD(y, i))               (kw_form = rel_kw: relative kW factors)
-```
-
-Notes: only PG&E and SCE have TOU factors (a measure for any other territory with no hourly shape is unpriced). A TOU profile's `System` zone is the one real zone with the lowest total T&D.
-Unlike C5.1, TOU quarters in a year outside the ACC's range are **skipped**, not priced at the nearest year.
-
-**C5.3 Retired (2026-10-02): CET's SCG table.** SCG measures are priced by C5.1 on the SCG routing of C3.1; CET's table is no longer read. Formerly, with an option on (2024
-ACC only), an SCG measure whose (sector, end use, zone) is in the table was priced on CET's quarterly rate, which already includes the profile:
-
-```text
-V_elec = SUM over k of  phased(k; A1, A2) * rate(year(k), quarter(k)) * w(k) * DF(k)         A_i = AC_Net_kWh_<i>_Baseline * (NTGe + MEB) / NTGe
-rate = Gen + TD from CET's table for the cost test
-```
-
+**C5.3 Retired (2026-10-02): CET's SCG table.** SCG measures are priced by C5.1 on the SCG routing of C3.1; CET's quarterly SCG table is no longer read.
 
 **C5.4 Gas.** (Implementation note: as in C5.1, the sum over a quarter's months depends only on the profile, IOU, gas sector and year, so the tool computes it once per route, year and quarter, and the lifetime sums once per route, claim year, claim quarter, EUL and RUL; the result equals the per-measure loop to rounding.)
 
@@ -815,7 +785,7 @@ SUM_c ElecValue_<c> = ElecBen - ElecSupplyCost        SUM_c GasValue_<c> = GasBe
 `components_summary_*` totals each `ElecValue_*` / `GasValue_*` over the portfolio with its share of the fuel total and a check row (total minus the sum of components).
 
 **C16.2 "Produce combined 8760 electric load profile".** For each requested calendar year `Y`, the net kWh the portfolio delivers in each hour. With no
-years requested (`profile_years` blank; Jake, 2026-11-06) the years are every calendar year from the earliest `start` to the last year before the latest `end`
+years requested (`profile_years` blank) the years are every calendar year from the earliest `start` to the last year before the latest `end`
 of a measure with net kWh (`profile8760.covered_years`; in a run in parts, each part's years, joined with every year between), the First Year if there is none:
 
 ```text
@@ -903,7 +873,7 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 * **Unpriced measures.** An electric measure with no supplied profile and no library profile is reported `UNPRICED` and its benefit is 0. Gas measures with a blank or unknown profile name are unpriced the same way (CET also prices those at 0).
 * Only the four IOUs are valid `IOU_AC_Territory` values.
 * SCG electric is priced on the SCG routing of C3.1: one utility's whole bundle per zone, SCE unless SCE has no data for the zone (then PG&E). This matches CEDARS'
-  DEER-path SCG values in zones 4, 5 (PG&E) and 13 (SCE); CEDARS' own SCG hourly files instead pair SCE generation with PG&E T&D in zones 4, 5 and 13, so the POC
+  DEER-path SCG values in zones 4, 5 (PG&E) and 13 (SCE); CEDARS' own SCG hourly files instead pair SCE generation with PG&E T&D in zones 4, 5 and 13, so ReCET
   differs from them there. CET's quarterly SCG table is not used.
 * Not validated against CET, because the real runs contain none: **`WaterEnergyCost`** and second-baseline water, the **2021, 2022 and 2026 ACCs** (no CET run has used them),
   statewide allocation of program costs, the Participant Cost Test (CET has none), already-scaled and load-shifting profiles (C4.5) and ACC versions per measure (C3.5).
@@ -1071,17 +1041,30 @@ CET's as the benefits do (C17).
 
 ReCET's own calculation is the one described in C0-C19: hourly, on the ACC, with the corrections of C17. For evaluation and for re-running history,
 `recet cet-version run` (module `recet/cet_versions`) prices a job **exactly as a prior CET release's RunCET does**, on that release's own quarterly
-avoided-cost tables, **CET's errors included** (Jake, 2026-10-29: "exact replicas, labeled"). A replica's outputs are CET's four tables (`SavedCE`,
+avoided-cost tables, **CET's errors included** (exact replicas, labeled as such). A replica's outputs are CET's four tables (`SavedCE`,
 `SavedSavings`, `SavedEmissions`, `SavedCost`) with that release's columns in its order, and `run.json` names the release as "CET <release> replica".
 The replica shares no code with ReCET's engine, so nothing in C0-C19 changes when a release is added.
 
 **Releases.** One per CPUC database backup: 21.0 (2020-08-24), 22.1 (2021-12-09), 24.1 (2023-05-16), 24.2 (2023-09-20), 24.3 (2024-08-28), 25.0
 (2025-05-18) and 25.1 (2026-10-07). `recet cet-version list` shows which ACCs each one has (an ACC is named by its year; the release's tables use CET's
 Avoided Cost Version numbers, `versions.CET_VERSION_TO_ACC`). 25.1 lists a Version 2027 with no tables in its backup: Version 2027 was a corrected
-Version 2026 (the 2024 ACC), and the 2026-10-07 backup carries only the corrected tables, under Version 2026 (Jake, 2026-10-29). So a 25.1 replica
-on the 2024 ACC prices on the corrected tables. 21.0's backup lists a Version 2021 too, but the next ACC was not part of 21.0 (Jake, 2026-10-29): the
-backup's tables for it are an unfinished load (Version labels `2020`, `2016`, `PG&E`). Neither Version is offered (`Release.not_offered`). Statewide programs: CEDARS does not pass statewide program data to CET (PA `SW` has no
-E3Settings row), and statewide allocations began in 2022 (Jake, 2026-10-29); a replica prices the PA records it is given, as RunCET does. A CEDARS upload's Measure.csv has no PA column: a replica run gives each record its IOU_AC_Territory as its PA, whatever its program's PA (the program's PA only when the territory is blank; `cet_versions/job.cet_inputs`), and every ProgramCost row whose PA has no settings at the run's Version (no `E3Settings` row: `job.settings_pas`) PA SCE (`job.cet_programs`), so a PA given its own discount rates in a release's `E3Settings` is costed on them (Jake, 2026-10-29). On CET 25.1's Versions 2024 to 2027 the PAs with settings are the IOUs (and PAC); on Versions up to 2022 the CCAs (MCE, BAY, SCR, LCE, TCR, RCEA, SJCE, ...) have their own. CEDARS passes non-IOU program costs (statewide, CCA, REN) to CET as SCE's, SCE having historically funded most statewide programs, whatever the program's lead (Jake, 2026-10-29; CET_UI job 122738: 35 records under MCE, BAY, SCR, SDRN, SW and PGE programs reached CET with their territories as PA, and every non-IOU ProgramCost row as SCE). Checked against the published CET 25.1 (CET_UI jobs 122714 and 122716, 2024 ACC, First Year 2028, 10,000 records each, 8,927 statewide in 122714): the replica on the raw uploads equals CET's outputs in every one of the 180 columns CET exports, to 1e-9. A job already in CET's input form (a PA column) is priced as given.
+Version 2026 (the 2024 ACC), and the 2026-10-07 backup carries only the corrected tables, under Version 2026. So a 25.1 replica
+on the 2024 ACC prices on the corrected tables. 21.0's backup lists a Version 2021 too, but the next ACC was not part of 21.0: the
+backup's tables for it are an unfinished load (Version labels `2020`, `2016`, `PG&E`). Neither Version is offered (`Release.not_offered`).
+
+**PAs in a replica run.** As CEDARS passes them to CET:
+
+* A CEDARS upload's Measure.csv has no PA column, so each record's PA is its `IOU_AC_Territory`, whatever its program's PA (the program's PA only when
+  the territory is blank; `cet_versions/job.cet_inputs`). A job already in CET's input form (a PA column) is priced as given.
+* A ProgramCost row whose PA has no `E3Settings` row at the run's Version (`job.settings_pas`) is costed as SCE's (`job.cet_programs`): CEDARS passes
+  non-IOU program costs (statewide, CCA, REN) to CET as SCE's, SCE having historically funded most statewide programs. A PA given its own discount
+  rates in a release's `E3Settings` is costed on them: on CET 25.1's Versions 2024 to 2027 those are the IOUs (and PAC); on Versions up to 2022 the CCAs
+  (MCE, BAY, SCR, LCE, TCR, RCEA, SJCE, ...) have their own.
+* Statewide program data never reach CET as such (PA `SW` has no `E3Settings` row), and statewide allocations began in 2022.
+
+Checked against the published CET 25.1: CET_UI jobs 122714 and 122716 (2024 ACC, First Year 2028, 10,000 records each, 8,927 statewide in 122714)
+equal CET's outputs in every one of the 180 columns CET exports, to 1e-9, run from the raw uploads; job 122738 (35 records under MCE, BAY, SCR, SDRN,
+SW and PGE programs) shows the territories as PA and every non-IOU ProgramCost row as SCE.
 
 **Engine.** A run's calculation engine is ReCET's own (the default) or one of these replicas: `RunConfig.engine` "cet-<release>",
 `recet run --engine cet-24.3`, New run's **Calculation engine** (`cet_versions/job.py`). A replica run goes through the ordinary run path and writes the
