@@ -7,6 +7,8 @@
 //   heading ("Step 2 of 7: ..."), which is the dialog's name; the text is its description. Back on the first step is aria-disabled,
 //   never disabled, so the focus is never lost (CLAUDE.md). The part of the page a step describes gets a focus-colored outline and the
 //   rest is dimmed (and still announced in words). A step whose part is not on the page (a section only some people see) is left out.
+//   The outline and the dimming are drawn by one spotlight box laid over the page, not on the part itself: drawn on the part they were
+//   cut off by any scrolling box around it (a wide table's), hidden under the sticky header, and limited to a heading's own line.
 // The front page's tour starts from its own "Take the tour" links too, and /?tour=1 (or any page's ?tour=1) opens it at once.
 (function () {
   "use strict";
@@ -59,6 +61,7 @@
   // summary for the disclosure and a caption for its table. In the narrow layout a header link may be behind the Menu button, which is
   // then shown instead.
   var HEADINGS = "main h2, main h3, main h4, main legend, main summary, main caption";
+  function rank(el) { var m = /^H([1-6])$/.exec(el.tagName); return m ? +m[1] : 0; }
   function area(el) {
     if (!el) return null;
     var tag = el.tagName;
@@ -68,23 +71,56 @@
       var box = el.closest("section, .card, details");
       if (box && box.querySelector("h2, h3, h4, summary") === el) return box;
     }
+    if (tag === "TABLE" && el.parentElement && el.parentElement.classList.contains("hscroll")) return el.parentElement;
     return el;
   }
+  // What a step outlines: its part, and for a heading that heads no box of its own, what follows it up to the next heading of its rank
+  // or higher (the heading alone is one line, with the table or list it names left out).
+  function parts(el) {
+    var out = [el], r = rank(el);
+    if (r < 2 || r > 4) return out;
+    var from = el;
+    while (from.parentElement && from.parentElement.tagName !== "MAIN" && from.parentElement.children.length === 1) from = from.parentElement;
+    for (var sib = from.nextElementSibling; sib; sib = sib.nextElementSibling) {
+      if (rank(sib) && rank(sib) <= r) break;
+      var inner = sib.querySelector("h1, h2, h3, h4");
+      if (inner && rank(inner) <= r) break;
+      if (visible(sib)) out.push(sib);
+    }
+    return out;
+  }
+  // The closed disclosures around a part (not counting one whose summary holds it): the part is on the page but folded away, and its
+  // step opens them while it is shown. A part already in view is chosen before one folded away.
+  function closedAround(el) {
+    var out = [];
+    for (var a = el.parentElement; a; a = a.parentElement) {
+      if (a.tagName !== "DETAILS" || a.open) continue;
+      var summary = a.querySelector(":scope > summary");
+      if (!(summary && summary.contains(el))) out.push(a);
+    }
+    return out;
+  }
+  function shown(el) { return visible(el) && !closedAround(el).length; }
+  function folded(el) {
+    var closed = closedAround(el);
+    return closed.length > 0 && visible(closed[closed.length - 1]) && getComputedStyle(el).display !== "none";
+  }
   function find(step) {
-    var el = null, all, i;
+    var el = null, all, i, k, test;
+    var tests = [shown, folded];
     if (step.target) {
       all = document.querySelectorAll(step.target);
-      for (i = 0; i < all.length && !el; i++) if (visible(all[i])) el = all[i];
+      for (k = 0; k < tests.length && !el; k++) for (i = 0; i < all.length && !el; i++) if (tests[k](all[i])) el = all[i];
       if (!el && all.length && all[0].closest("body > header")) {
         var menu = document.querySelector('[data-tour="menu"]');
         if (visible(menu)) el = menu;
       }
     } else if (step.heading) {
       var want = norm(step.heading);
-      all = document.querySelectorAll(HEADINGS);
-      for (i = 0; i < all.length && !el; i++) {
-        var shown = all[i].tagName === "CAPTION" ? visible(all[i].closest("table")) : visible(all[i]);
-        if (shown && norm(all[i].textContent).indexOf(want) === 0) el = all[i];
+      all = Array.prototype.filter.call(document.querySelectorAll(HEADINGS), function (h) { return norm(h.textContent).indexOf(want) === 0; });
+      for (k = 0; k < tests.length && !el; k++) {
+        test = tests[k];
+        for (i = 0; i < all.length && !el; i++) if (test(all[i].tagName === "CAPTION" ? all[i].closest("table") : all[i])) el = all[i];
       }
     }
     return area(el);
@@ -101,32 +137,139 @@
   var back = dialog.querySelector("[data-tour-back]");
   var next = dialog.querySelector("[data-tour-next]");
   var close = dialog.querySelector("[data-tour-close]");
-  var shown = [], current = 0, lit = null, opener = null, opened = null;
+  var shownSteps = [], current = 0, lit = null, opener = null, opened = [];
 
-  // A disclosure (a header menu, the filters) is opened while its step is shown, so what it holds is in view, and closed again after.
+  // ---------- the spotlight ----------
+  // One box over the page, the size of the step's part (with a gap for the outline), whose shadow dims everything else: the header too,
+  // and nothing cut off by a scrolling box the part sits in (the box is clipped to what such a box shows). It follows the part while the
+  // page scrolls or changes, and places the dialog at the bottom of the window or at the top, whichever hides less of the part.
+  var spot = document.createElement("div");
+  spot.className = "tour-spot";
+  spot.setAttribute("aria-hidden", "true");
+  spot.hidden = true;
+  document.body.appendChild(spot);
+  var litParts = [], clips = [], frame = 0, still = 0, lastKey = "";
+  var GAP = 6;  // between the part and its outline
+
+  function clipping(el) {
+    var out = [];
+    for (var a = el.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+      var s = getComputedStyle(a);
+      if (s.overflowX !== "visible" || s.overflowY !== "visible") out.push(a);
+    }
+    return out;
+  }
+  function union() {
+    var top = Infinity, left = Infinity, bottom = -Infinity, right = -Infinity, i, r;
+    for (i = 0; i < litParts.length; i++) {
+      r = litParts[i].getBoundingClientRect();
+      if (!r.width && !r.height) continue;
+      top = Math.min(top, r.top); left = Math.min(left, r.left); bottom = Math.max(bottom, r.bottom); right = Math.max(right, r.right);
+    }
+    if (top === Infinity) return null;
+    for (i = 0; i < clips.length; i++) {
+      r = clips[i].getBoundingClientRect();
+      top = Math.max(top, r.top); left = Math.max(left, r.left); bottom = Math.min(bottom, r.bottom); right = Math.min(right, r.right);
+    }
+    return { top: top, left: left, bottom: Math.max(top, bottom), right: Math.max(left, right) };
+  }
+  function overlap(a, b) {
+    var w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+  function place(u) {
+    // The dialog's two places: as it is now, and mirrored to the other edge of the window.
+    var d = dialog.getBoundingClientRect(), top = dialog.classList.contains("tour-top"), vh = window.innerHeight;
+    var gap = top ? d.top : vh - d.bottom;
+    var atBottom = { left: d.left, right: d.right, top: vh - gap - d.height, bottom: vh - gap };
+    var atTop = { left: d.left, right: d.right, top: gap, bottom: gap + d.height };
+    var view = { top: Math.max(u.top, 0), left: u.left, bottom: Math.min(u.bottom, vh), right: u.right };
+    // a part that runs on below the window keeps its start in view: the dialog stays at the bottom
+    dialog.classList.toggle("tour-top", u.bottom <= vh && overlap(view, atTop) < overlap(view, atBottom));
+  }
+  function track() {
+    frame = 0;
+    if (!lit) return;
+    var u = union();
+    if (!u) { spot.hidden = true; return; }
+    var key = [u.top, u.left, u.bottom, u.right].map(Math.round).join();
+    if (key !== lastKey) {
+      lastKey = key; still = 0;
+      spot.hidden = false;
+      spot.style.top = (u.top - GAP) + "px";
+      spot.style.left = (u.left - GAP) + "px";
+      spot.style.width = (u.right - u.left + 2 * GAP) + "px";
+      spot.style.height = (u.bottom - u.top + 2 * GAP) + "px";
+    } else if (++still === 3) {
+      place(u);  // once the scroll into view has come to rest
+    }
+    if (still < 30) frame = requestAnimationFrame(track);
+  }
+  function follow() { still = 0; if (!frame && lit) frame = requestAnimationFrame(track); }
+  window.addEventListener("scroll", follow, true);
+  window.addEventListener("resize", follow);
+
+  // Brings the part into view below the sticky header: in the middle of the room the dialog leaves when it fits there, else its top.
+  function bring(el) {
+    var u = union();
+    if (!u) return;
+    var vh = window.innerHeight, pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+    var room = vh - pad - dialog.offsetHeight - 32, height = u.bottom - u.top + 2 * GAP, y;
+    if (height <= room) y = u.top - GAP - pad - (room - height) / 2;
+    else if (height <= vh - pad - 16) y = u.top - GAP - pad - (vh - pad - height) / 2;
+    else y = u.top - GAP - pad - 8;
+    // a part inside a box that scrolls on its own (other than the window) is brought into that box's view first
+    for (var i = 0; i < clips.length; i++) {
+      var s = getComputedStyle(clips[i]);
+      if (/auto|scroll/.test(s.overflowY) && clips[i].scrollHeight > clips[i].clientHeight + 1) { el.scrollIntoView({ block: "nearest" }); break; }
+    }
+    window.scrollBy({ top: y, behavior: reduce ? "auto" : "smooth" });
+  }
+
+  // A disclosure (a header menu, the filters) is opened while its step is shown, so what it holds is in view, and closed again after;
+  // so are the disclosures a part is folded away in.
   function light(el) {
     if (lit) lit.classList.remove("tour-target");
-    if (opened && opened !== el && !(el && el.contains(opened))) { opened.open = false; opened = null; }
     lit = el;
     // a header menu is its heading's link beside its disclosure: the disclosure is opened
     var d = el && (el.tagName === "DETAILS" ? el : el.querySelector(":scope > details"));
-    if (d && !d.open) { d.open = true; opened = d; }
-    if (!el) { dialog.classList.remove("tour-top"); return; }
-    el.classList.add("tour-target");
-    el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
-    // Keep the dialog off the highlighted part: at the bottom of the window, or at the top when the part sits low.
-    var box = el.getBoundingClientRect();
-    dialog.classList.toggle("tour-top", box.top > window.innerHeight / 2);
+    var needed = el ? closedAround(el).concat(opened.filter(function (o) { return o === d || o.contains(el) || el.contains(o); })) : [];
+    if (d) needed.push(d);
+    opened = opened.filter(function (o) {
+      if (needed.indexOf(o) >= 0) return true;
+      o.open = false;
+      return false;
+    });
+    needed.forEach(function (o) { if (!o.open) { o.open = true; opened.push(o); } });
+    if (!el) { dialog.classList.remove("tour-top"); spot.hidden = true; litParts = []; clips = []; lastKey = ""; return; }
+    el.classList.add("tour-target");  // which part is outlined, for the tests and for styles
+    litParts = parts(el);
+    // an open header menu's list hangs below the header: it is part of what is outlined
+    if (d && d.open && el.closest("body > header")) {
+      var list = d.querySelector(":scope > ul");
+      if (list) litParts.push(list);
+    }
+    clips = clipping(el);
+    lastKey = "";
+    dialog.classList.remove("tour-top");
+    bring(el);
+    follow();
   }
 
-  function show(i) {
-    current = Math.max(0, Math.min(i, shown.length - 1));
-    var step = shown[current];
+  function show(i, backward) {
+    current = Math.max(0, Math.min(i, shownSteps.length - 1));
+    var step = shownSteps[current], el = step.target || step.heading ? find(step) : null;
+    // a part gone since the tour started (the page changed under it) is left out, and the tour goes on to the next step
+    if ((step.target || step.heading) && !el && shownSteps.length > 1) {
+      shownSteps.splice(current, 1);
+      show(backward ? current - 1 : current, backward);
+      return;
+    }
     // The heading reads "Step 2 of 7: Programs": the count on its own line, the colon for screen readers only.
     title.textContent = "";
     var n = document.createElement("span");
     n.className = "tour-count";
-    n.textContent = "Step " + (current + 1) + " of " + shown.length;
+    n.textContent = "Step " + (current + 1) + " of " + shownSteps.length;
     var colon = document.createElement("span");
     colon.className = "sr-only";
     colon.textContent = ": ";
@@ -137,16 +280,16 @@
     linkBox.hidden = !step.href;
     if (step.href) { link.setAttribute("href", step.href); link.textContent = step.linkText || step.href; }
     back.setAttribute("aria-disabled", current === 0 ? "true" : "false");
-    next.textContent = current === shown.length - 1 ? "Finish" : "Next";
-    light(step.target || step.heading ? find(step) : null);
+    next.textContent = current === shownSteps.length - 1 ? "Finish" : "Next";
+    light(el);
     title.focus();
   }
 
   function start(from) {
     opener = from || document.activeElement;
     // Only the steps whose part is on this page, for this visitor (worked out when the tour starts, so a page changed since counts).
-    shown = steps.filter(function (s) { return !(s.target || s.heading) || !!find(s); });
-    if (!shown.length) return;
+    shownSteps = steps.filter(function (s) { return !(s.target || s.heading) || !!find(s); });
+    if (!shownSteps.length) return;
     if (!dialog.open) dialog.showModal();
     document.documentElement.classList.add("touring");
     show(0);
@@ -160,9 +303,9 @@
     window.cedarsAnnounce && window.cedarsAnnounce("Tour closed");
   });
 
-  back.addEventListener("click", function () { if (current > 0) show(current - 1); });
+  back.addEventListener("click", function () { if (current > 0) show(current - 1, true); });
   next.addEventListener("click", function () {
-    if (current < shown.length - 1) { show(current + 1); return; }
+    if (current < shownSteps.length - 1) { show(current + 1); return; }
     if (document.querySelector("[data-tour-offer]")) { remember("cedars-tour-done"); hideOffer(); }
     dialog.close();
   });
@@ -172,8 +315,8 @@
   // Left and Right arrows move too, unless the focus is on the step's link (where they mean nothing to the tour).
   dialog.addEventListener("keydown", function (e) {
     if (e.target === link) return;
-    if (e.key === "ArrowRight" && current < shown.length - 1) { e.preventDefault(); show(current + 1); }
-    if (e.key === "ArrowLeft" && current > 0) { e.preventDefault(); show(current - 1); }
+    if (e.key === "ArrowRight" && current < shownSteps.length - 1) { e.preventDefault(); show(current + 1); }
+    if (e.key === "ArrowLeft" && current > 0) { e.preventDefault(); show(current - 1, true); }
   });
 
   document.querySelectorAll("[data-tour-start]").forEach(function (a) {
