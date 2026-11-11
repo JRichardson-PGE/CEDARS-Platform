@@ -29,6 +29,12 @@ class SubmissionsConfig(AppConfig):
 
         site_search.register("filings", "Your filings", search.filings, order=20)  # a signed-in person's own filings
 
+        from cedars.core import yourwork
+
+        from . import status
+
+        yourwork.register("filings", status.your_work, order=20)  # the organization's next filings, first on the front page
+
         from django.conf import settings
 
         if settings.ENVIRONMENT == "sandbox":  # test filings, confirmed or not, go after the sandbox period; never in production

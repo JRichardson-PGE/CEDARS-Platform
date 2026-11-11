@@ -13,6 +13,7 @@ PAGES = [
     ("home", "/", None),
     ("home-signed-in", "/", "pge_admin"),
     ("home-no-organization", "/", "community"),  # the header without Filings, and the line asking for access (navigation review, D1)
+    ("home-analyst", "/", "analyst"),  # Your work: the queue, PG&E's next filings and the last runs (UI review 3, U5)
     ("home-earlier-cycle", "/?cycle=2024-2027", None),
     ("help", "/help/", None),
     ("help-contact", "/help/contact/", None),
@@ -222,6 +223,7 @@ PAGES = [
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
+    ("reference-data-your-work", "/reference-data/", "analyst"),  # Your work: the cost-test sets being built
     ("data-packs", "/reference-data/packs/", "pge_admin"),
     ("pack-checks", "/reference-data/packs/checks/", "cpuc_admin"),
     ("pack-checks-member", "/reference-data/packs/checks/", "pge_admin"),
@@ -273,6 +275,7 @@ PAGES = [
     ("filings", "/filings/", "cpuc_admin"),  # with every PA's filing status
     ("filings-pa", "/filings/", "pge_admin"),
     ("published", "/published/", None),
+    ("published-your-work", "/published/", "analyst"),  # Your work: saved views and downloads, when there are any
     ("administration", "/admin/", "cpuc_admin"),
     ("administration-org-admin", "/admin/", "pge_admin"),
     ("output-templates", "/calculations/templates/", "analyst"),

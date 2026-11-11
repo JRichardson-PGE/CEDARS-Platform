@@ -973,6 +973,34 @@ table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom
 table.filing-status td { min-width: 7.5rem; }
 table.filing-status td a { text-decoration: none; }
 table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* UI review 3, U5: a status that opens the filing looks like a link (a bordered badge with an arrow); the board wraps its headings so
+   it fits 1440 px; the reader's own organization's row is marked */
+table.filing-status td a.status-link .status { border: 1px solid currentColor; }
+table.filing-status td a.status-link .status::after { content: "\203A" / ""; font-weight: 700; margin-left: .1rem; }
+table.filing-status thead th { white-space: normal; text-transform: none; letter-spacing: 0; font-size: .82rem; min-width: 7rem; }
+table.filing-status td { min-width: 0; }
+table.filing-status tbody tr.own > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary); }
+
+/* ---------- Your work (core/_your_work.html; UI review 3, U5): the person's own work, one card per part ---------- */
+.your-work { margin: 1.25rem 0 1.75rem; }
+.your-work-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem 1.25rem; }
+.your-work-part { margin: 0; display: flex; flex-direction: column; }
+.your-work-part h3 { margin: 0 0 .5rem; font-size: 1.02rem; }
+.your-work-lines { list-style: none; margin: 0; padding: 0; }
+.your-work-lines li { margin: 0; padding: .45rem 0; border-top: 1px solid var(--line-2); display: grid; grid-template-columns: 1fr auto; column-gap: .75rem; }
+.your-work-lines li:first-child { border-top: 0; padding-top: 0; }
+.your-work-lines p { margin: 0; grid-column: 1; }
+.your-work-lines .what { font-weight: 500; overflow-wrap: anywhere; }
+.your-work-lines .what a { display: inline-block; min-height: 24px; }
+.your-work-lines .act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.your-work-lines .act a { display: inline-flex; align-items: center; min-height: 24px; font-weight: 600; white-space: nowrap; }
+.your-work-part .more { margin: auto 0 0; padding-top: .6rem; }
+.your-work-part .more a { display: inline-block; min-height: 24px; }
+.your-filings { margin-bottom: 1.5rem; }
+/* Claims and Monthly reports: the next one to file stands out (a badge says so in words) */
+table.list tbody tr.next-to-file > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.list tbody tr.next-to-file > th { box-shadow: inset 4px 0 0 var(--primary); }
 /* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
 table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
 table.list.factors .pa-first { border-left: 1px solid var(--line); }

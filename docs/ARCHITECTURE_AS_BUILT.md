@@ -213,8 +213,8 @@ enforces one reads `limits.value(key)`.
 ```text
 cedars/
   settings/      base, dev, test, sandbox, prod
-  core/          the site shell: base templates, header (nav.py), page help, help pages, search, My queue, health, storage,
-                 uploads, workbooks, API base, front page and search wiring
+  core/          the site shell: base templates, header (nav.py), page help, help pages, search, My queue, Your work, health,
+                 storage, uploads, workbooks, API base, front page and search wiring
   services/      shared services, one Django app each (accounts, audit, registry, dictionary, rules, submissions, refdata,
                  notifications, retention, vault, legacy, snapshots, releases, feedback, sandbox, accessibility)
   modules/       one Django app per module (administration, impact_profiles, monthly, calculations, programs, budgets,
@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -263,7 +263,7 @@ The apps, in `INSTALLED_APPS` order:
 flowchart TB
   mods["Modules (cedars/modules)<br/>programs, calculations, budgets, claims, monthly,<br/>impact_profiles, documents, data, administration"]
   svcs["Shared services (cedars/services)<br/>accounts, audit, registry, dictionary, rules, submissions,<br/>refdata, notifications, retention, vault, legacy, snapshots,<br/>releases, feedback, sandbox, accessibility"]
-  core["cedars.core: the site shell<br/>storage, uploads, nav, page help,<br/>My queue, health, search, API base"]
+  core["cedars.core: the site shell<br/>storage, uploads, nav, page help,<br/>My queue, Your work, health, search, API base"]
   eng["ReCET package<br/>(pinned, imported)"]
   worker["ReCET worker<br/>(separate process)"]
   mods -- "call service functions,<br/>read service models" --> svcs
@@ -316,6 +316,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_list` | dictionary `value_lists.py` | registry (a service) | A list a service keeps as a versioned value list, never handed to the engine: a program's status, segment, primary sector, implementer and category (first version from the program fields guide, read back by `field_guide.values`) |
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
+| `register` | core `yourwork.py` | accounts, submissions, refdata, calculations, data | The signed-in person's own work at the top of the front page and the Calculations, Reference data and Published data pages |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
 | `register` | core `page_access.py` | documents, impact_profiles, refdata, snapshots | Who may open a page outside the header's menus whose own check is finer than a role, so the Help guides link to it only for people it opens for |
 | `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
@@ -1363,6 +1364,17 @@ flowchart TD
   notice a CPUC system administrator posts at once (`/releases/notices/`), shown at the top of every page from its start to its end,
   withdrawn with a reason, never edited.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
+- **My queue and Your work** (`cedars/core/queue.py`, `cedars/core/yourwork.py`): read live from each service's and module's
+  records through the providers they register, nothing stored. My queue (`/queue/`) is the full list of what waits on the person.
+  Your work is the short version at the top of a page, one card per part, each part's `provider(request, page)` returning a `Part`
+  or nothing: on the front page the top three queue items and their count (core's own part), the next filing of each kind for the
+  organization the person acts for with its status and one action (`submissions.status.your_work`, over the Filings page's board),
+  the last three runs (Calculations) and the person's access requests, waiting or decided in the last two weeks (accounts); on
+  Calculations the runs and Edit inputs drafts; on Reference data the cost-test sets being built and draft packs the person
+  registered; on Published data their saved views and record downloads. The Filings page starts with the organization's own
+  filings (`status.own_filings`, its row of the board, with Start, Continue or Open), then the board with that row marked, then the
+  page list; the Claims and Monthly reports lists mark the next one to file and end each row with its action
+  (`status.mark_next`). A provider that fails is logged and left out, as in My queue.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
   the glossary, programs, fields, confirmed claims and documents, and a signed-in person's own filings and runs, with what the query
