@@ -1,16 +1,17 @@
 {% extends "core/base.html" %}
 {% block title %}{{ pack }}{% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:index' %}">Data packs</a></li></ol></nav>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li>{% if cost_set %}<a href="{% url 'refdata:cost_tests' %}">Cost-test sets</a>{% else %}<a href="{% url 'refdata:index' %}">Data packs</a>{% endif %}</li></ol></nav>
 <div class="page-title"><h1>{{ pack.label }}{% if pack.version %} {{ pack.version }}{% endif %}</h1>{% page_help "refdata/detail" %}</div>
 <dl class="facts">
   <dt>Kind</dt><dd>{{ pack.get_kind_display }}</dd>
   <dt>Status</dt><dd><span class="status {{ pack.status|status_tone }}">{{ pack.get_status_display }}</span>{% if pack.published_at %}, published {{ pack.published_at|date_words }} by {{ pack.published_by|person|default:"the system" }}{% endif %}</dd>
   {% if pack.withdrawn_reason %}<dt>Withdrawn because</dt><dd>{{ pack.withdrawn_reason }}</dd>{% endif %}
   {% if pack.acc_year %}<dt>ACC</dt><dd>{{ pack.acc_year }} ACC</dd>{% endif %}
-  <dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>
+  {% if cost_set %}<dt>In force</dt><dd>{% if cost_in_force %}Yes, the set in force today{% elif pack.status == "published" %}Not today (its program years are under The set){% elif pack.status == "draft" %}Not until it is published{% else %}No: it was withdrawn{% endif %}</dd>
+  {% else %}<dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>{% endif %}
   <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
-  <dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>
+  {% if manager %}<dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>{% endif %}
   <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
   {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
   {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}

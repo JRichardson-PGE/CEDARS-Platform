@@ -12,12 +12,15 @@
 </dl>
 {% if months %}
 <h2>Share of the year by month</h2>
+<div class="month-shape">
+{% include "impact_profiles/_month_chart.html" with name="Share of the year by month, as columns from January to December; the percentages are in the table beside it" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Share of the year by month">
 <table class="list">
   <caption class="sr-only">Percent of the year's energy use in each month, current version</caption>
   <thead><tr>{% for m, pct in months %}<th scope="col">{{ m|slice:":3" }}</th>{% endfor %}</tr></thead>
   <tbody><tr>{% for m, pct in months %}<td>{{ pct|floatformat:1 }}%</td>{% endfor %}</tr></tbody>
 </table>
+</div>
 </div>
 {% endif %}
 <h2>Versions</h2>

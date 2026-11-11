@@ -11,8 +11,8 @@ writes each one per measure. Tests do not read aggregates; they name their own s
   <caption class="sr-only">The set's aggregates, with the streams each adds and takes away</caption>
   <thead><tr><th scope="col">Aggregate</th><th scope="col">Pricing</th><th scope="col">Adds</th><th scope="col">Takes away</th><th scope="col">Gross too</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
   <tbody>
-  {% for n, a in aggregates %}<tr>
-    <th scope="row">{{ n }}</th><td>{{ a.pricing }}</td><td>{{ a.plus|join:", " }}</td><td>{{ a.minus|join:", "|default:"nothing" }}</td><td>{% if a.gross %}yes{% else %}no{% endif %}</td>
+  {% for n, a, ps in aggregates %}<tr>
+    <th scope="row">{{ n }}{% include "refdata/builder/_row_problems.html" %}</th><td>{{ a.pricing }}</td><td>{{ a.plus|join:", " }}</td><td>{{ a.minus|join:", "|default:"nothing" }}</td><td>{% if a.gross %}yes{% else %}no{% endif %}</td>
     {% if can_change %}<td><a href="{% url 'refdata:build_aggregate' build.pk n %}">Change<span class="sr-only"> {{ n }}</span></a>
       <form method="post" class="inline-form">{% csrf_token %}<button type="submit" name="remove" value="{{ n }}">Remove<span class="sr-only"> {{ n }}</span></button></form></td>{% endif %}
   </tr>{% endfor %}

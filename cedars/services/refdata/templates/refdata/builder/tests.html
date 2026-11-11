@@ -12,8 +12,8 @@ share of the program costs and <code>share(TRC) x ProgramCosts</code> is TRC's. 
   <caption class="sr-only">The set's tests in order, with each one's pricing, formula and variants</caption>
   <thead><tr><th scope="col">Test</th><th scope="col">Pricing</th><th scope="col">Formula</th><th scope="col">Variants</th>{% if can_change %}<th scope="col">Change</th>{% endif %}</tr></thead>
   <tbody>
-  {% for tid, t, f in tests %}<tr>
-    <th scope="row">{{ tid }}: {{ t.label }}{% if t.headline %} (headline){% endif %}</th><td>{{ t.pricing }}</td>
+  {% for tid, t, f, ps in tests %}<tr>
+    <th scope="row">{{ tid }}: {{ t.label }}{% if t.headline %} (headline){% endif %}{% include "refdata/builder/_row_problems.html" %}</th><td>{{ t.pricing }}</td>
     <td><code class="formula">{{ f }}</code></td>
     <td>{{ t.variants|join:", "|default:"none" }}</td>
     {% if can_change %}<td><a href="{% url 'refdata:build_test' build.pk tid %}">Change<span class="sr-only"> {{ tid }}</span></a>

@@ -3,6 +3,7 @@ import re
 from django import forms
 from django.utils import timezone
 
+from cedars.core import pickers
 from cedars.services.accounts.models import Organisation
 from cedars.services.registry.models import Program
 
@@ -49,7 +50,7 @@ class SearchForm(forms.Form):
     collection = forms.ChoiceField(label="Collection", required=False)
     document_type = forms.ModelChoiceField(label="Document type", queryset=AttributeOption.objects.none(), required=False)
     pa = forms.ModelChoiceField(label="PA", queryset=Organisation.objects.none(), required=False, to_field_name="code")
-    program = forms.CharField(label="Program (PrgID)", required=False)
+    program = pickers.ProgramField(label="Program", required=False)
     year = forms.IntegerField(label="Program year", **YEAR)
     published_from = forms.DateField(label="Published from", required=False, widget=forms.DateInput(attrs={"type": "date"}))
     published_to = forms.DateField(label="Published to", required=False, widget=forms.DateInput(attrs={"type": "date"}))
@@ -77,7 +78,8 @@ class SearchForm(forms.Form):
             del self.fields["status"]
 
     def search(self) -> service.Search:
-        d = self.cleaned_data if self.is_valid() else {}
+        self.is_valid()
+        d = self.cleaned_data if self.is_bound else {}  # a field in error is left out, not the rest
         return service.Search(
             q=(d.get("q") or "").strip(),
             collection=d.get("collection") or "",
@@ -653,7 +655,7 @@ class RegisterForm(forms.Form):
     lead = forms.ModelChoiceField(label="Study lead", queryset=AttributeOption.objects.none(), required=False)
     study_type = forms.ModelChoiceField(label="Study type", queryset=AttributeOption.objects.none(), required=False)
     manager = forms.ModelChoiceField(label="Study manager", queryset=Organisation.objects.none(), required=False, to_field_name="code")
-    program = forms.CharField(label="Program (PrgID)", required=False)
+    program = pickers.ProgramField(label="Program evaluated", required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -673,7 +675,8 @@ class RegisterForm(forms.Form):
     def filter(self):
         from . import studies
 
-        d = self.cleaned_data if self.is_valid() else {}
+        self.is_valid()
+        d = self.cleaned_data if self.is_bound else {}  # a field in error is left out, not the rest
 
         def one(name):
             return [d[name]] if d.get(name) else []

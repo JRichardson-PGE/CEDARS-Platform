@@ -46,3 +46,9 @@ class DocumentsConfig(AppConfig):
         my_queue.register("document_draft", "Documents to publish", queue.drafts, action="Review and publish", order=80)
         my_queue.register("document_response", "Responses to recommendations", queue.responses, action="Respond", order=85)
         my_queue.register("document_question", "Questions to answer", queue.questions, action="Answer", order=90)
+
+        from cedars.core import search as site_search
+
+        from . import search
+
+        site_search.register("documents", "Documents", search.documents, order=80)  # the library's search, under its rules

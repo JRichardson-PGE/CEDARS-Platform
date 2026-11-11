@@ -16,16 +16,15 @@ from .models import ReopenRequest, Submission, SubmissionVersion
 MODULE_NAMES = {"budgets": "Budget filing", "claims": "Claims", "monthly": "Monthly report"}
 
 
-def describe(submission: Submission) -> str:
+def describe(submission: Submission, *, due: bool = True) -> str:
+    """A filing as My queue names it: "Claims: PGE 2027 Q1 claim, due 2026-11-01" (Deadline.plain_name; due=False where the queue
+    shows the due date in a column of its own)."""
     d = submission.deadline
-    return f"{MODULE_NAMES.get(d.module, d.module)}: {submission.organisation.code} {d.title}, {d.period or d.cycle}"
+    return f"{MODULE_NAMES.get(d.module, d.module)}: {d.plain_name(submission.organisation.code, due=due)}"
 
 
 def _filing_page(submission: Submission, v: SubmissionVersion | None = None) -> str:
-    page = service.deadline_page(submission.deadline)
-    if page:
-        return f"{page}?org={submission.organisation.code}"
-    return comments.version_page(v) if v is not None else ""
+    return service.filing_page(submission, v)
 
 
 def reopen_requests(user) -> list[Item]:
@@ -78,7 +77,7 @@ def confirmations(user) -> list[Item]:
             since = v.validated_at
         out.append(
             Item(
-                f"{describe(v.submission)}, version {v.number}",
+                f"{describe(v.submission, due=False)}, version {v.number}",
                 _filing_page(v.submission, v),
                 v.submission.organisation.code,
                 since,
