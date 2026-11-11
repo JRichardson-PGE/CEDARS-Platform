@@ -1,0 +1,18 @@
+{% comment %}Several programs for a filter (core/pickers.py program_picker; UI review 3, "pick, don't type"). Context: picker.
+The programs chosen are ticked boxes under the filter's name, so unticking one drops it; the box below adds another, its choices a native
+datalist that narrows as you type (PrgID and name) with no script. Without scripts the program typed or picked is added when the form is
+sent; core/pickers.js adds it to the ticked ones as soon as it is picked from the list. A value that names no program is said in words, with
+the near matches.{% endcomment %}
+{% with p=picker %}<fieldset class="picker" data-program-picker>
+  <legend>{{ p.label }} <span class="muted small" data-picker-summary>({{ p.summary }})</span></legend>
+  <ul class="picker-chosen" data-picker-chosen{% if not p.chosen %} hidden{% endif %} aria-label="{{ p.label }}s chosen">
+    {% for c in p.chosen %}<li><label class="check"><input type="checkbox" name="{{ p.name }}" value="{{ c.value }}" checked> <span class="id">{{ c.value }}</span>{% if c.label %} <span class="small">{{ c.label }}</span>{% endif %}</label></li>{% endfor %}
+  </ul>
+  <div class="field">
+    <label for="{{ p.id }}">{% if p.chosen %}Add another{% else %}Choose a program{% endif %}</label>
+    <input type="text" id="{{ p.id }}" name="{{ p.name }}" list="{{ p.id }}-list" class="picker-input" autocomplete="off" spellcheck="false" aria-describedby="{{ p.id }}-help{% if p.problems %} {{ p.id }}-problems{% endif %}" data-picker-add>
+    {% if p.problems %}<ul class="errorlist" id="{{ p.id }}-problems">{% for m in p.problems %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+    <span class="helptext" id="{{ p.id }}-help">{{ p.help }} Untick a program to drop it.</span>
+  </div>
+  <datalist id="{{ p.id }}-list">{% for c in p.choices %}<option value="{{ c.value }}">{{ c.label }}{% if c.note %} · {{ c.note }}{% endif %}</option>{% endfor %}</datalist>
+</fieldset>{% endwith %}

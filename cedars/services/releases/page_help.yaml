@@ -228,7 +228,7 @@ releases/mandate_edit:
       Once published an entry is never deleted, and every change and link needs a reason, which its public history shows. To take back
       an entry entered in error, choose the Withdrawn status and say why.
   how:
-    - Link a record by its number, its address pasted from its page, or for a field its name.
+    - Link a record by choosing what carries the change, then the record from its list (a field: type part of its name and pick it).
     - Move the status along as the work goes; Implemented needs the date.
   tour:
     - heading: Where CEDARS carries it
@@ -236,7 +236,7 @@ releases/mandate_edit:
       text: The records that carry the change, each with a Remove button.
     - heading: Link a record
       title: Link a record
-      text: Choose what carries it and which one.
+      text: Choose what carries it, then pick the record from the list of the published ones.
     - heading: Publish
       title: Publish
       text: Puts the draft on the public register.
