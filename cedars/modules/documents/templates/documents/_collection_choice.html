@@ -1,0 +1,5 @@
+{% comment %}The collection a new document is filed in, and links to file it in another (File a document, step 1). A link and not a form,
+so choosing the collection is not a step of its own; the page reloads with that collection's types and lists.{% endcomment %}
+<p id="collection-line">Collection: <strong>{{ collection_label }}</strong>, filed for {{ request.organisation.code }}.</p>
+{% if other_collections %}<nav class="small" aria-label="Other collections"><p>File it in another collection instead:
+{% for code, label, url in other_collections %}<a href="{{ url }}">{{ label }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.</p></nav>{% endif %}

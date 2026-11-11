@@ -9,6 +9,7 @@ gets a sentence naming the near matches, so a typo is never silently dropped or 
 - `program_picker()` with `core/_program_picker.html`: several programs at once for a filter (the records page and the dashboards).
   The programs chosen are ticked boxes (untick one to drop it) and one box adds another; `core/pickers.js` adds the program to the
   ticked ones as soon as it is picked from the list, and without scripts it is added when the form is sent.
+- `ProgramsField`: several programs in a Django form (File a document), drawn by the same template.
 - `resolve_programs()`: what a filter's program values name, as canonical PrgIDs (values that name no program are kept as typed, so
   the page can say they match nothing).
 
@@ -168,11 +169,13 @@ class ProgramPicker:
     choices: list[Choice] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)  # a sentence for each value that names no program
     help: str = "Type a PrgID or part of a program's name, then pick it from the list."
+    none: str = "Every program"  # the summary when none is chosen (a filter's)
+    describedby: str = ""  # ids of more text about the add box (a form field's errors)
 
     @property
     def summary(self) -> str:
         n = len(self.chosen)
-        return "Every program" if not n else f"{n} program{'s' if n != 1 else ''} chosen"
+        return self.none if not n else f"{n} program{'s' if n != 1 else ''} chosen"
 
 
 def program_picker(values, *, name: str = "program", label: str = "Program", id: str = "program-pick", pa=None) -> ProgramPicker:
@@ -313,3 +316,71 @@ class MemberField(PickerField):
     def set_organisation(self, organisation) -> None:
         self.organisation = organisation
         self.set_choices(None)
+
+
+# --- several programs, in a Django form
+
+
+class ProgramPickerInput(forms.Widget):
+    """Several programs in a form (`core/_program_picker.html`): the ones chosen as ticked boxes and a box to add another. Reads every
+    value the form sends under the name; draws its own legend (`own_label`)."""
+
+    template_name = "core/widgets/program_picker.html"
+    own_label = True
+
+    def __init__(self, attrs=None, *, label: str = "Programs", pa=None):
+        super().__init__(attrs)
+        self.label, self.pa = label, pa
+
+    def value_from_datadict(self, data, files, name):
+        return data.getlist(name) if hasattr(data, "getlist") else data.get(name)
+
+    def value_omitted_from_data(self, data, files, name):
+        return False
+
+    def format_value(self, value):
+        if value is None:
+            return []
+        return [value] if isinstance(value, str) else [str(getattr(v, "prg_id", v)) for v in value]
+
+    def get_context(self, name, value, attrs):
+        context = super().get_context(name, value, attrs)
+        picker = program_picker(self.format_value(value), name=name, label=self.label, id=context["widget"]["attrs"].get("id") or name)
+        picker.problems = []  # the field says them, under the control, as every field's errors are
+        picker.none = "none named"
+        picker.describedby = context["widget"]["attrs"].get("aria-describedby", "")
+        context["picker"] = picker
+        return context
+
+
+class ProgramsField(forms.Field):
+    """Several programs from the registry, by PrgID (or name), each in its own box or several to a box separated by commas. Cleans to
+    their PrgIDs; a value that names no program in the registry fails naming the near matches."""
+
+    def __init__(self, *, pa=None, **kwargs):
+        kwargs.setdefault("required", False)
+        super().__init__(**kwargs)
+        self.widget = ProgramPickerInput(label=str(self.label or "Programs"), pa=pa)
+        self.pa = pa
+
+    def clean(self, value):
+        from cedars.services.registry.models import Program
+
+        values = [value] if isinstance(value, str) else list(value or [])
+        choices = program_choices(pa=self.pa)
+        known = {c.value.casefold() for c in choices}
+        out, problems = [], []
+        for v in resolve_programs(values, choices):
+            if v.casefold() in known:
+                out.append(next(c.value for c in choices if c.value.casefold() == v.casefold()))
+                continue
+            p = Program.objects.filter(prg_id__iexact=v).first()  # a portfolio-cost ID is in the registry, not in the list
+            if p is None:
+                problems.append(not_found(v, choices, "program"))
+            else:
+                out.append(p.prg_id)
+        if problems:
+            raise forms.ValidationError(problems, code="not_found")
+        if self.required and not out:
+            raise forms.ValidationError(self.error_messages["required"], code="required")
+        return list(dict.fromkeys(out))

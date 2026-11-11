@@ -3,14 +3,14 @@ The programs chosen are ticked boxes under the filter's name, so unticking one d
 datalist that narrows as you type (PrgID and name) with no script. Without scripts the program typed or picked is added when the form is
 sent; core/pickers.js adds it to the ticked ones as soon as it is picked from the list. A value that names no program is said in words, with
 the near matches.{% endcomment %}
-{% with p=picker %}<fieldset class="picker" data-program-picker>
+{% with p=picker %}<fieldset class="picker" data-program-picker data-none="{{ p.none }}">
   <legend>{{ p.label }} <span class="muted small" data-picker-summary>({{ p.summary }})</span></legend>
-  <ul class="picker-chosen" data-picker-chosen{% if not p.chosen %} hidden{% endif %} aria-label="{{ p.label }}s chosen">
+  <ul class="picker-chosen" data-picker-chosen{% if not p.chosen %} hidden{% endif %} aria-label="{{ p.label }}: chosen">
     {% for c in p.chosen %}<li><label class="check"><input type="checkbox" name="{{ p.name }}" value="{{ c.value }}" checked> <span class="id">{{ c.value }}</span>{% if c.label %} <span class="small">{{ c.label }}</span>{% endif %}</label></li>{% endfor %}
   </ul>
   <div class="field">
     <label for="{{ p.id }}">{% if p.chosen %}Add another{% else %}Choose a program{% endif %}</label>
-    <input type="text" id="{{ p.id }}" name="{{ p.name }}" list="{{ p.id }}-list" class="picker-input" autocomplete="off" spellcheck="false" aria-describedby="{{ p.id }}-help{% if p.problems %} {{ p.id }}-problems{% endif %}" data-picker-add>
+    <input type="text" id="{{ p.id }}" name="{{ p.name }}" list="{{ p.id }}-list" class="picker-input" autocomplete="off" spellcheck="false" aria-describedby="{{ p.id }}-help{% if p.problems %} {{ p.id }}-problems{% endif %}{% if p.describedby %} {{ p.describedby }}{% endif %}" data-picker-add>
     {% if p.problems %}<ul class="errorlist" id="{{ p.id }}-problems">{% for m in p.problems %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
     <span class="helptext" id="{{ p.id }}-help">{{ p.help }} Untick a program to drop it.</span>
   </div>

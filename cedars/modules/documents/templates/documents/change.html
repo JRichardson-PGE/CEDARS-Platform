@@ -5,7 +5,7 @@
 <div class="page-title"><h1>Change the details</h1>{% page_help "documents/change" %}</div>
 <p>The change is recorded with its reason, and what each field was before. The files do not change here:
 <a href="{% url 'documents:new_version' doc.pk %}">add a version</a> to replace them.</p>
-<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+<form method="post" class="stack form-narrow form-steps" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% include "documents/_details_fields.html" %}
   {{ form.reason.as_field_group }}
