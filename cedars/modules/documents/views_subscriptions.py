@@ -11,6 +11,7 @@ from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
+from cedars.core import tick_lists
 from cedars.services.accounts.service import AccessDenied
 
 from . import deliverables, forms, service, subscriptions
@@ -45,7 +46,20 @@ def my_subscriptions(request):
     collections = {s.collection for s in mine if s.collection}
     channel = mine[0].channel if mine else DocumentSubscription.Channel.EMAIL
     today = timezone.localdate()
-    lists = [(al, [(o, o.pk in followed) for o in al.options.all() if o.offered_on(today) or o.pk in followed]) for al in _document_lists()]
+    lists = [
+        tick_lists.tick_list(
+            "options",
+            al.name,
+            [
+                (o.pk, o.label, o.pk in followed, "retired" if o.retired_on else "")
+                for o in al.options.all()
+                if o.offered_on(today) or o.pk in followed
+            ],
+            id=f"follow-{al.pk}",
+            none="None followed",
+        )
+        for al in _document_lists()
+    ]
     return render(
         request,
         "documents/subscriptions.html",

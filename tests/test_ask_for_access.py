@@ -49,6 +49,13 @@ def test_the_first_step_lists_the_organizations_people_can_join(signed_in, make_
     assert '<option value="PGE">' in select
     assert 'value="SW"' not in select and 'value="CPUC"' not in select
     assert "Next: choose your role" in html
+    assert '<li aria-current="step" class="now"><span class="n" aria-hidden="true">3</span> Ask an organization for access' in html
+
+
+@pytest.mark.django_db
+def test_a_member_asking_another_organization_sees_no_set_up_steps(signed_in, pge, pge_admin):
+    html = page_only(signed_in(pge_admin).get("/account/request-access/").content.decode())
+    assert "set-up-steps" not in html
 
 
 @pytest.mark.django_db

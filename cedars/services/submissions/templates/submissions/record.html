@@ -1,9 +1,14 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% block title %}{% if mode == "add" %}Add a {{ t.name }} record{% else %}{{ t.name }} {{ found.shown }}{% endif %} · version {{ v.number }}{% endblock %}
 {% block content %}
 {% include "submissions/_record_crumbs.html" %}
 <div class="page-title"><h1>{% if mode == "add" %}Add a {{ t.name }} record{% else %}{{ t.name }} {{ found.shown }}{% endif %}</h1>{% page_help "submissions/record" %}</div>
 <p class="small muted">{{ v.submission.organisation.code }} {{ v.submission.deadline.title }}, version {{ v.number }} ({{ v.get_status_display|lower }}).{% if t.note %} {{ t.note }}{% endif %}</p>
+{% if saved %}
+<div role="note" class="card" id="saved"><p><strong>Saved and checked.</strong> {% if v.status == "validated" %}Nothing in this version is rejected now: price it again on the filing's page before confirming.{% else %}The message above says what the check found.{% endif %}</p>
+<p class="actions">{% if back %}<a class="button" href="{{ back }}">Back to the filing</a>{% endif %} <a class="button" href="{% url 'submissions:records' v.pk %}#flagged">Records with findings</a></p></div>
+{% endif %}
 {% if mode == "edit" %}
 {% if found.earlier %}
 <div role="note" class="card"><p><strong>Filed in {{ found.earlier }}.</strong> Saving adds the corrected record to this version, where it stands over the earlier one; its key stays.</p></div>
@@ -16,31 +21,50 @@
 {% elif not found.earlier %}<p>No findings on this record.</p>{% endif %}
 {% endif %}
 
-<form method="post" class="stack form-narrow" aria-labelledby="fields-h">{% csrf_token %}
+<form method="get" class="find-field" role="search" aria-label="Find a field" id="find-field" data-find-field>
+  {% if mode == "edit" %}{% for k in found.key %}<input type="hidden" name="k" value="{{ k }}">{% endfor %}{% endif %}
+  <div class="field"><label for="find-field-q">Find a field</label>
+    <div class="inline-control"><input type="search" id="find-field-q" name="find" list="field-names" autocomplete="off" aria-describedby="find-field-help">
+    <button type="submit">Go</button></div>
+    <span class="small muted" id="find-field-help">Type part of a field's name to jump to it.</span></div>
+  <datalist id="field-names">{% for r in rows %}<option value="{{ r.f.name }}"></option>{% endfor %}</datalist>
+</form>
+
+<form method="post" class="stack wide-form record-form" aria-labelledby="fields-h">{% csrf_token %}
   <input type="hidden" name="state" value="{{ state }}">
   {% if mode == "edit" %}{% for k in found.key %}<input type="hidden" name="k" value="{{ k }}">{% endfor %}{% endif %}
   <h2 id="fields-h">Fields</h2>
-  <p class="small muted">Key: {{ t.key|join:", " }}.{% if mode == "edit" and not found.earlier %} Changing the key renames the record; another record may not have the new key.{% endif %}</p>
-  {% for r in rows %}
+  <p class="small muted">Key: {{ t.key|join:", " }}.{% if mode == "edit" and not found.earlier %} Changing the key renames the record; another record may not have the new key.{% endif %} Each field's type and definition are behind its "i" button.</p>
+  {% for g in groups %}
+  <fieldset id="{{ g.id }}"><legend>{{ g.title }}</legend>
+  <div class="field-grid">
+  {% for r in g.rows %}
   <div class="field" id="f-{{ r.f.name|slugify }}">
-    <label for="in-{{ r.f.name }}">{{ r.f.name }}{% if r.f.required %} (required){% endif %}{% if r.locked %} (key, stays){% endif %}</label>
+    <div class="label-row"><label for="in-{{ r.f.name }}">{{ r.f.name }}{% if r.f.required %} (required){% endif %}{% if r.locked %} (key, stays){% endif %}</label>
+      <button type="button" class="info-btn" popovertarget="help-{{ r.f.name }}-pop"><span aria-hidden="true">i</span><span class="sr-only">About {{ r.f.name }}</span></button></div>
     {% if r.f.choices %}
     <select id="in-{{ r.f.name }}" name="f-{{ r.f.name }}" aria-describedby="help-{{ r.f.name }}{% if r.findings %} err-{{ r.f.name }}{% endif %}"{% if r.findings %} aria-invalid="true"{% endif %}{% if r.locked %} disabled{% endif %}>
       <option value=""{% if not r.value %} selected{% endif %}>(blank)</option>
       {% for c in r.f.choices %}<option{% if c == r.value %} selected{% endif %}>{{ c }}</option>{% endfor %}
     </select>
     {% else %}
-    <input type="text" id="in-{{ r.f.name }}" name="f-{{ r.f.name }}" value="{{ r.value }}" autocomplete="off" aria-describedby="help-{{ r.f.name }}{% if r.findings %} err-{{ r.f.name }}{% endif %}"{% if r.findings %} aria-invalid="true"{% endif %}{% if r.locked %} readonly{% endif %}>
+    <input type="text" id="in-{{ r.f.name }}" name="f-{{ r.f.name }}" value="{{ r.value }}" autocomplete="off"{% if r.info.codes and not r.locked %} list="codes-{{ r.f.name }}"{% endif %} aria-describedby="help-{{ r.f.name }}{% if r.findings %} err-{{ r.f.name }}{% endif %}"{% if r.findings %} aria-invalid="true"{% endif %}{% if r.locked %} readonly{% endif %}>
+    {% if r.info.codes and not r.locked %}<datalist id="codes-{{ r.f.name }}">{% for c in r.info.codes %}<option value="{{ c }}"></option>{% endfor %}</datalist>{% endif %}
     {% endif %}
     {% if r.findings %}<div class="field-errors" id="err-{{ r.f.name }}"><ul>{% for f in r.findings %}<li>{% if f.severity == "reject" %}Rejected{% else %}Warning{% endif %}: {{ f.message }}. {{ f.fix }}</li>{% endfor %}</ul></div>{% endif %}
-    <span class="small muted" id="help-{{ r.f.name }}">{{ r.f.type }}{% if r.f.description %}. {{ r.f.description|truncatewords:40 }}{% endif %}</span>
+    {% if r.info.list_name and not r.info.codes and not r.locked %}<span class="small"><a href="{% url 'dictionary:list' r.info.list_name %}">Look up a code<span class="sr-only"> for {{ r.f.name }}</span></a></span>{% endif %}
+    <div popover id="help-{{ r.f.name }}-pop" class="info-pop"><div class="helptext" id="help-{{ r.f.name }}">{{ r.f.type }}{% if r.info.codes %}, from a value list: its codes are suggested as you type{% elif r.info.list_name %}, from a value list too long to suggest{% endif %}{% if r.f.description %}. {{ r.f.description|truncatewords:60 }}{% endif %}</div>{% if r.info.list_name %}<p class="small"><a href="{% url 'dictionary:list' r.info.list_name %}">The {{ r.f.name }} value list</a></p>{% endif %}</div>
   </div>
   {% endfor %}
-  <div class="field"><label for="in-reason">Why (optional)</label>
+  </div>
+  </fieldset>
+  {% endfor %}
+  <div class="field form-narrow"><label for="in-reason">Why (optional)</label>
     <textarea id="in-reason" name="reason" rows="2" aria-describedby="in-reason-help"></textarea>
     <span class="small muted" id="in-reason-help">Kept with the change in the audit trail.</span></div>
-  <div class="actions"><button type="submit" class="primary">{% if mode == "add" %}Add and check{% else %}Save and check{% endif %}</button>
+  <div class="actions save-bar" id="save-bar"><button type="submit" class="primary">{% if mode == "add" %}Add and check{% else %}Save and check{% endif %}</button>
     {% if mode == "edit" and not found.earlier %}<a class="button" href="{% url 'submissions:record_delete' v.pk t.name %}?{{ key_query }}">Delete this record</a>{% endif %}
     <a href="{% url 'submissions:records' v.pk %}">Cancel</a></div>
 </form>
+<script src="{% static 'core/find_field.js' %}" defer></script>
 {% endblock %}

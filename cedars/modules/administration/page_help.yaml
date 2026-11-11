@@ -55,6 +55,10 @@ administration/request_access:
     - Your requests and where each stands are on your account page; you can withdraw one that is still waiting.
   see: getting-started
   tour:
+    - target: main nav.set-up-steps
+      title: Where you are
+      text: The last step of setting up a new account. A member of an organization does not see it.
+      optional: true
     - target: main form.request-org
       title: The organization
       text: The program administrator or other organization you work for or with.
