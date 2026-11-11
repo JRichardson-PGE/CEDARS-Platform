@@ -5,7 +5,7 @@
 <div class="page-title"><h1>Value list {{ vl.name }}</h1>{% page_help "dictionary/list" %}</div>
 <p>The codes {% if field_name != vl.name %}<a href="{% url 'dictionary:field' field_name %}">{{ field_name }}</a>{% else %}this field{% endif %} may hold.
 {% if current %}In force: version {{ current.number }}, from {{ current.effective_from|date_words }}.{% else %}No version is published here yet, so {{ origin }} is in force.{% endif %}</p>
-<p id="showing"><strong>Showing {% if shown %}version {{ shown.number }}{% if shown == current %} (in force){% endif %}{% else %}{{ origin }}{% endif %}.</strong>
+<p id="showing"><strong>Showing {% if shown %}version {{ shown.number }}{% if shown == current %} (in force){% endif %}{% elif platform %}{{ origin }}{% else %}the list as shipped with the engine{% endif %}.</strong>
 {% if shown and shown.reason %}Why it changed: {{ shown.reason }}{% endif %}
 {% if changes %}Against {{ shown.based_on }}: {{ changes.added|length }} added, {{ changes.retired|length }} retired, {{ changes.reinstated|length }} reinstated, {{ changes.changed|length }} otherwise changed.{% endif %}</p>
 {% if can_edit %}
@@ -19,7 +19,7 @@
 <form method="get" class="filters" role="search">
   <div class="field"><label for="version">Version</label><select id="version" name="version">
     {% for v in versions %}<option value="{{ v.number }}"{% if v == shown %} selected{% endif %}>Version {{ v.number }}, from {{ v.effective_from|date_words }}</option>{% endfor %}
-    <option value="shipped"{% if not shown %} selected{% endif %}>{{ origin|capfirst }}</option></select></div>
+    <option value="shipped"{% if not shown %} selected{% endif %}>{% if platform %}As first listed{% else %}As shipped with the engine{% endif %}</option></select></div>
   <div class="field"><label for="q">Code or description</label><input type="search" id="q" name="q" value="{{ q }}"></div>
   <div class="field"><label for="year">Claim year</label><input type="text" inputmode="numeric" id="year" name="year" value="{{ year }}" size="6" aria-describedby="year-help"><div class="helptext" id="year-help">For which codes are accepted that year.</div></div>
   <div class="field"><label for="state">Codes</label><select id="state" name="state"><option value="">All</option><option value="active"{% if state == "active" %} selected{% endif %}>Accepted</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Not accepted (retired or not yet started)</option></select></div>
