@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}Repoint an old link{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'documents:library' %}">Documents</a></li><li><a href="{% url 'documents:legacy_links' %}">Old links</a></li></ol></nav>
+<div class="page-title"><h1>Repoint an old link</h1>{% page_help "documents/legacy_link" %}</div>
+<dl class="facts" id="link-now">
+  <dt>Old address</dt><dd>{{ link.path }}</dd>
+  <dt>Leads to</dt><dd><a href="{{ link.document.get_absolute_url }}">{{ link.document.title }}</a> (document {{ link.document_id }}){% if link.file %}, file {{ link.file.name }}{% else %}, its page{% endif %}</dd>
+</dl>
+<section class="card" aria-labelledby="repoint-h">
+  <h2 id="repoint-h">Point it somewhere else</h2>
+  <p>Give the number of the document it should lead to and, to open one of its files instead of its page, the file's name. Anyone
+  following the old address is sent there from now on.</p>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Repoint the link</button></div>
+  </form>
+</section>
+{% endblock %}
