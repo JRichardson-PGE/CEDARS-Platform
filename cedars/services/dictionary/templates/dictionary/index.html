@@ -9,24 +9,6 @@
   <a class="button" href="{% url 'dictionary:lists' %}">Value lists</a>
   <a class="button" href="{% url 'dictionary:changes' %}">Changes</a>
 </p>
-<h2>Upload templates</h2>
-<p>Each filing's template is one workbook with a sheet per table and a Fields sheet defining every column:</p>
-<ul>
-  <li><a href="{% url 'budgets:template' %}">Budget filing template</a> (Excel): Measure and ProgramCost.</li>
-  <li><a href="{% url 'claims:template' %}">Claims template</a> (Excel): every claims table.</li>
-  <li><a href="{% url 'monthly:template' %}">Monthly report template</a> (Excel): Commitments, Measure and ProgramCost.</li>
-</ul>
-<h3>Each table on its own</h3>
-<p>The tables the field catalog defines, one at a time: an empty file with the header row, a workbook with the Fields sheet, or a JSON
-schema for the API. Calculations' Measure and ProgramCost are a calculation run's job, and a budget filing's.</p>
-<ul>
-{% for module, table in tables %}
-  <li>{{ module|capfirst }}, {{ table }}:
-    <a href="{% url 'dictionary:template' module table 'csv' %}">CSV<span class="sr-only"> template for {{ table }}</span></a>,
-    <a href="{% url 'dictionary:template' module table 'xlsx' %}">Excel<span class="sr-only"> template for {{ table }}</span></a>,
-    <a href="{% url 'dictionary:template' module table 'json' %}">JSON schema<span class="sr-only"> for {{ table }}</span></a></li>
-{% endfor %}
-</ul>
 <h2>Fields</h2>
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Search names and definitions</label><input type="search" id="q" name="q" value="{{ q }}"></div>
@@ -34,7 +16,7 @@ schema for the API. Calculations' Measure and ProgramCost are a calculation run'
   {% if groups %}<div class="field"><label for="group">Platform table</label><select id="group" name="group"><option value="">All</option>{% for g in groups %}<option value="{{ g }}"{% if group == g %} selected{% endif %}>{{ g }}</option>{% endfor %}</select></div>{% endif %}
   <div class="field"><label for="table">Upload table</label><select id="table" name="table"><option value="">All</option>{% for module, table in tables %}{% with key=module|add:"."|add:table %}<option value="{{ key }}"{% if upload_table == key %} selected{% endif %}>{{ module|capfirst }}, {{ table }}</option>{% endwith %}{% endfor %}</select></div>
   <div class="field"><label for="state">State</label><select id="state" name="state"><option value="">In use</option><option value="retired"{% if state == "retired" %} selected{% endif %}>Retired</option><option value="all"{% if state == "all" %} selected{% endif %}>All, retired included</option></select></div>
-  <button type="submit">Search</button>
+  <button type="submit">Apply</button>
 </form>
 <p>{{ total }} field{{ total|pluralize }}.{% if retired_count and not state %} {{ retired_count }} retired field{{ retired_count|pluralize }} {{ retired_count|pluralize:"is,are" }} not shown: choose State, Retired.{% endif %}</p>
 {% pager page query=query label="Field pages" where="above" %}
@@ -53,4 +35,22 @@ schema for the API. Calculations' Measure and ProgramCost are a calculation run'
 </table>
 </div>
 {% pager page query=query label="Field pages" where="below" %}
+<h2>Upload templates</h2>
+<p>Each filing's template is one workbook with a sheet per table and a Fields sheet defining every column:</p>
+<ul>
+  <li><a href="{% url 'budgets:template' %}">Budget filing template</a> (Excel): Measure and ProgramCost.</li>
+  <li><a href="{% url 'claims:template' %}">Claims template</a> (Excel): every claims table.</li>
+  <li><a href="{% url 'monthly:template' %}">Monthly report template</a> (Excel): Commitments, Measure and ProgramCost.</li>
+</ul>
+<h3>Each table on its own</h3>
+<p>The tables the field catalog defines, one at a time: an empty file with the header row, a workbook with the Fields sheet, or a JSON
+schema for the API. Calculations' Measure and ProgramCost are a calculation run's job, and a budget filing's.</p>
+<ul>
+{% for module, table in tables %}
+  <li>{{ module|capfirst }}, {{ table }}:
+    <a href="{% url 'dictionary:template' module table 'csv' %}">CSV<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'xlsx' %}">Excel<span class="sr-only"> template for {{ table }}</span></a>,
+    <a href="{% url 'dictionary:template' module table 'json' %}">JSON schema<span class="sr-only"> for {{ table }}</span></a></li>
+{% endfor %}
+</ul>
 {% endblock %}

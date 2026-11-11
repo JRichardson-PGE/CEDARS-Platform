@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block title %}People{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:administration' %}">Administration</a></li></ol></nav>
+<div class="page-title"><h1>People</h1>{% page_help "administration/people" %}</div>
+<p>Every account in CEDARS. Open one to correct its name, or to deactivate or reactivate it. A deactivated account cannot sign in or use the
+API; nothing about it is deleted. What a person may do in an organization is set on that <a href="{% url 'administration:organisations' %}">organization's page</a>.</p>
+<form method="get" class="filters" id="people-filters">
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <button type="submit">Find</button>
+</form>
+<p id="people-count">{{ total }} account{{ total|pluralize }}.</p>
+{% pager page query=query label="Pages of accounts" where="above" %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="people-count">
+<table class="list">
+  <caption class="sr-only">Accounts, by email address</caption>
+  <thead><tr><th scope="col">Person</th><th scope="col">Organizations</th><th scope="col">Status</th><th scope="col">Last signed in</th></tr></thead>
+  <tbody>
+  {% for u, orgs in rows %}
+  <tr>
+    <th scope="row"><a href="{% url 'administration:person' u.pk %}">{{ u|person }}</a></th>
+    <td>{% if orgs %}{{ orgs|join:", " }}{% else %}<span class="muted">None (community account)</span>{% endif %}</td>
+    <td>{% if u.is_active %}<span class="status ok">Active</span>{% else %}<span class="status warn">Deactivated</span>{% if u.deactivated_at %} <span class="small muted nowrap">{{ u.deactivated_at|date_words }}</span>{% endif %}{% endif %}</td>
+    <td>{{ u.last_login|date_words|default:"Never" }}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4">No accounts match.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% pager page query=query label="Pages of accounts" where="below" %}
+{% endblock %}

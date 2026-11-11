@@ -304,8 +304,10 @@ calculations/engines:
     - A new ReCET version is a release of its own, added here by its number; the old one is retired, never edited into the new one, so
       each run keeps naming the release it ran on.
   how:
-    - Add the release registers a ReCET release by its version number (e.g. 0.1.90). The Calculations box starts with the default
-      release's lines; write each as recet or cet-25.1 (or ReCET, CET 25.1 replica, as the table shows them), a colon and its ACC years.
+    - >-
+      Add the release registers a ReCET release by its version number (e.g. 0.1.90). Its calculations start as the default release's,
+      one row each: the calculation (recet, or cet-25.1 for a CET replica) and its ACCs ticked; an empty row adds another, and a year
+      the list lacks goes in its Another ACC year box.
     - Tick Make it the default, and Retire the current default, to move to the new release in one step.
     - Change edits a release's calculations, ACCs, worker image or Batch job definition, with a reason for the audit trail.
     - Make default sets what New run offers first and filings price on; Retire takes no new runs on a release and keeps its runs;
@@ -326,12 +328,16 @@ calculations/engine_release:
       AWS Batch job definition and notes. Its number never changes, so the runs on it keep naming it; a new ReCET version is added as a
       release of its own on Engine releases.
   how:
-    - Write each calculation on its own line, recet or cet-25.1 then a colon and its ACC years, say why it is changed, and save.
+    - In each calculation's row tick the ACCs it has (type a year the list lacks in Another ACC year); name a new calculation in an
+      empty row, or clear a row's name and ticks to drop it. Say why it is changed, and save.
   see: administering
   tour:
     - target: "#change-h"
       title: What it offers
       text: The release's calculations and ACCs, how its worker is run, and the reason kept in the audit trail.
+    - target: fieldset.calc-rows
+      title: Calculations and their ACCs
+      text: A row for each calculation, its ACCs ticked from a list, and an empty row to add one.
 
 calculations/drafts:
   title: Edit inputs

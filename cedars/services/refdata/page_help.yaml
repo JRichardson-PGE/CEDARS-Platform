@@ -161,20 +161,27 @@ refdata/builder/pricings:
 refdata/builder/engine:
   title: "Set builder: streams the engine prices"
   guide:
-    - The value streams the engine prices, from its own catalog. Include the ones the set's tests and aggregates read, choose the pricings
-      each is read in (only those the engine prices it in are offered), and word its unit and definition. The name, kind, fuel, column
-      naming and gross form are the engine's.
+    - The value streams the engine prices, from its own catalog, as a table. The set's streams come first; the ones it leaves out are folded
+      under Streams not in the set. Include the ones the set's tests and aggregates read and tick the pricings each is read in (only those
+      the engine prices it in are offered). The name, kind, fuel, column naming and gross form are the engine's.
+    - Each stream's unit and definition keep the engine's words unless you change them under Change the wording; the definition is shown
+      in each run's field definitions. A stream's problems are shown in its row.
     - A value of the set's own, such as a non-energy benefit, is a stream from input columns, the next step.
   how:
-    - Tick or untick Include, choose the pricings, change the unit and definition, then select Save.
+    - Tick or untick a stream to include it, tick its pricings, and open Change the wording to change its unit or definition. Open Streams
+      not in the set to add one. Then select Save.
   see: reference-data
   tour:
     - target: nav.subnav
       title: The steps
       text: Go to any step; each shows its open problems.
-    - target: "main form fieldset"
-      title: A stream
-      text: Include it, choose its pricings and word its definition.
+    - heading: In the set
+      title: In the set
+      text: A row a stream, with its Include box, what it is, the pricings it is read in and its wording.
+      optional: true
+    - target: ".streams-left-out > summary"
+      title: Streams not in the set
+      text: The engine's other streams, folded; tick one to add it.
       optional: true
     - heading: The program costs
       title: The program costs
@@ -203,6 +210,8 @@ refdata/builder/input_stream:
     - One stream from input columns. Its name is the column it writes and the name tests use. It adds up the per-unit values of the
       Measure columns you choose (or name), times NumUnits and the NTG plus market effects, once or each year of the measure's life at the
       pricing's discount rates. A gross form lets a test with the Gross variant use it.
+    - Only CET's per-unit dollar columns are offered (UnitMeaCost1stBaseline, UnitMiscBens, UnitTaxCredits and the like). Counts, rates,
+      years and energy savings, such as NumUnits, NTGRkW, EUL_Yrs or UnitkWh1stBaseline, cannot be added up and are refused if typed in.
   how:
     - Fill in the fields and select Save the stream.
   see: reference-data
@@ -287,8 +296,8 @@ refdata/builder/test:
 refdata/builder/review:
   title: "Set builder: review"
   guide:
-    - The whole set, as the engine writes it out, with every problem left and a link to its step, and the set's file to download. An
-      analysis run on New run takes the file as your own cost-test set.
+    - The whole set, as the engine writes it out, with every problem left and the set's file to download. Each problem names the field it
+      is about, as its step's form labels it, and links to that field. An analysis run on New run takes the file as your own cost-test set.
     - How the tests are built is a grid of the set's streams against its tests, each cell saying whether the stream is a benefit, an
       adder or a cost in that test, with each test's pricing, program-cost share and variants, and each test as a formula. Streams no test
       uses are folded away below it.
@@ -296,7 +305,8 @@ refdata/builder/review:
     - The CPUC's cost-test pack managers register a set with no problems as a draft pack; the engine installed here records its engine
       check at once, and it is published on its own page. A registered set no longer changes here; copy it to start the next version.
   how:
-    - Download the set file, Copy it to a new set, or Discard it; managers Register as a draft pack.
+    - Download the set file, or Copy it to a new set; managers Register as a draft pack. Discard it opens a page that says what goes and
+      asks you to confirm; only the person who started the set, or its organization's administrator, discards it.
     - Offer it to the CPUC with a note, when everyone could use it; Withdraw the offer while it waits. Managers Decline an offered set
       with a reason, which its builder is sent.
   see: reference-data
@@ -321,6 +331,20 @@ refdata/builder/review:
     - heading: What next
       title: What next
       text: Register, copy or discard the set.
+
+refdata/builder/discard:
+  title: Discard a cost-test set
+  guide:
+    - Asks you to confirm before a set you are building is discarded. A discarded set leaves your sets, and your organization's when it is
+      shared, for good; an offer to the CPUC goes with it. Analysis runs already priced on it keep their copy of its file.
+    - To keep the set, download its file first; Build a set can read it in again.
+  how:
+    - Discard the set for good discards it; Keep the set goes back to its Review step.
+  see: reference-data
+  tour:
+    - target: main form.actions
+      title: Discard or keep
+      text: Discard the set for good, or keep it and go back to its Review step.
 
 refdata/checks:
   title: Pack acceptance checks

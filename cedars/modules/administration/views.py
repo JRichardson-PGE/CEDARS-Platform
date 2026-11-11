@@ -67,7 +67,10 @@ def _org_or_404(request, code) -> Organisation:
 
 @login_required
 def account(request):
+    from cedars.services.accounts.signals import ensure_email_record
+
     user = request.user
+    ensure_email_record(user)  # so the email page can change it (a session from before this record was kept)
     memberships = Membership.objects.filter(user=user, ended_at__isnull=True).select_related("organisation")
     rows = []
     for m in memberships:
@@ -82,8 +85,48 @@ def account(request):
             "assurance": request.assurance,
             "tokens": ApiToken.objects.filter(user=user).select_related("organisation")[:50],
             "token_form": forms.ApiTokenForm(organisations=request.user_organisations, max_days=tokens.max_days()),
+            "name_form": forms.NameForm(initial={"name": user.name}, auto_id="name_%s"),
+            "can_close": service.can_close_own_account(user),
         },
     )
+
+
+@login_required
+@require_POST
+def account_name(request):
+    """A person sets the name the pages show for them."""
+    form = forms.NameForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Check your name: {_form_problems(form)}")
+        return redirect("administration:account")
+    try:
+        service.set_name(request.user, request.user, form.cleaned_data["name"])
+    except AccessDenied as e:
+        return _refused(request, e, "administration:account")
+    return _done(
+        request,
+        "Your name is saved." if request.user.name else "Your name is cleared: pages show your email address.",
+        "administration:account",
+    )
+
+
+@login_required
+@require_POST
+def account_close(request):
+    """A community account closes itself: it is deactivated (never deleted), signed out everywhere, and only the CPUC can reopen it."""
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid() or request.POST.get("confirm") != "yes":
+        messages.error(request, "Tick the box to confirm, and say why you are closing your account.")
+        return redirect("administration:account")
+    try:
+        service.deactivate_user(request.user, request.user, form.cleaned_data["reason"], keep_session=request.session.session_key)
+    except AccessDenied as e:
+        return _refused(request, e, "administration:account")
+    from django.contrib.auth import logout
+
+    logout(request)
+    messages.success(request, "Your account is closed. To use CEDARS again, ask the CPUC to reopen it.")
+    return redirect("/")
 
 
 @login_required
@@ -269,6 +312,16 @@ def organisation(request, code):
             if service.is_system_admin(request.user) and not org.successor_id
             else None,
             "no_admin": not service.org_admins(org).exists(),
+            "status_forms": {
+                "federation": forms.FederationForm(
+                    initial={"federated": org.federated, "provider": org.federation_provider}, auto_id="fed_%s"
+                ),
+                "retire": forms.ReasonForm(auto_id="retire_%s"),
+            }
+            if service.is_system_admin(request.user) and not org.successor_id and org.kind != Organisation.Kind.CPUC
+            else None,
+            "federation_waiting": service.federation_changes_waiting(org),
+            "holds_pii": service.holds_pii_grants(org),
             "allocation_permission": perms.label(perms.ALLOCATION),
             "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
                 "user"
@@ -361,6 +414,40 @@ def organisation_merge(request, code):
         return f"{source.code} merged into {org.code}: its records stay its own and count under {org.code}.", org
 
     return _code_change(request, code, forms.MergeForm, "merge", change)
+
+
+@login_required
+@require_POST
+def organisation_sign_in(request, code):
+    """Switch whether an organization's members sign in through its own directory (CPUC system administrators). With PII grants in it,
+    a data steward confirms the change first."""
+
+    def change(org, d):
+        result = service.change_federation(request.user, org, federated=d["federated"], provider=d["provider"], reason=d["reason"])
+        if isinstance(result, Organisation):
+            how = f"through its own directory ({org.federation_provider})" if org.federated else "with a password and a second factor"
+            return f"{org.code}'s members now sign in {how}.", org
+        return (
+            f"{org.code} has members with PII access, so a data steward must confirm this change on the stewardship page before it "
+            "takes effect."
+        ), org
+
+    return _code_change(request, code, forms.FederationForm, "directory sign-in", change)
+
+
+@login_required
+@require_POST
+def organisation_retire(request, code):
+    """Retire an organization without merging it (CPUC system administrators): it stops filing; its data and history stay."""
+
+    def change(org, d):
+        if request.POST.get("action") == "reinstate":
+            service.reinstate_organisation(request.user, org, d["reason"])
+            return f"{org.code} is active again: its members act for it with the permissions they held.", org
+        service.retire_organisation(request.user, org, d["reason"])
+        return f"{org.code} is retired: it no longer files or appears in pickers. Its data and history stay.", org
+
+    return _code_change(request, code, forms.ReasonForm, "retire", change)
 
 
 @login_required
@@ -522,7 +609,10 @@ def stewardship(request):
         "administration/stewardship.html",
         {
             "pending": pending,
-            "changes": PolicyChange.objects.filter(status=PolicyChange.Status.PROPOSED).select_related("proposed_by"),
+            "changes": PolicyChange.objects.filter(status=PolicyChange.Status.PROPOSED)
+            .exclude(setting=service.FEDERATION_CHANGE)
+            .select_related("proposed_by"),
+            "federation": service.federation_changes_waiting(),
             "stewards": service.active_stewards().select_related("membership__user"),
             "policy": AccessPolicy.current(),
             "change_form": forms.PolicyChangeForm(),
@@ -568,6 +658,8 @@ def decide_change(request, pk):
         if request.POST.get("decision") == "confirm":
             service.confirm_policy_change(request.user, change)
             msg = "Confirmed: the change is in effect."
+            if change.setting == service.FEDERATION_CHANGE:
+                msg = f"Confirmed: {change.value['code']}'s directory sign-in is changed."
         else:
             service.withdraw_policy_change(request.user, change, request.POST.get("reason", ""))
             msg = "Withdrawn."
@@ -603,6 +695,128 @@ def access_settings(request):
     return render(request, "administration/settings.html", {"form": form, "policy": policy})
 
 
+# --- people (CPUC system administrators)
+
+
+PEOPLE_EVENTS = {
+    "user.name_changed": "Name changed",
+    "user.email_changed": "Email changed",
+    "user.deactivated": "Deactivated",
+    "user.reactivated": "Reactivated",
+}
+
+
+@login_required
+def people(request):
+    """Every account: find a person by name or email, and see whether they are active and where they are a member."""
+    _require_sysadmin(request)
+    form = forms.PeopleFilterForm(request.GET or None)
+    qs = User.objects.all().order_by("email")
+    if form.is_valid():
+        d = form.cleaned_data
+        if d["q"]:
+            qs = qs.filter(Q(email__icontains=d["q"]) | Q(name__icontains=d["q"]))
+        if d["status"] == "active":
+            qs = qs.filter(is_active=True)
+        elif d["status"] == "deactivated":
+            qs = qs.filter(is_active=False)
+        elif d["status"] == "community":
+            qs = qs.exclude(pk__in=Membership.objects.filter(ended_at__isnull=True).values("user"))
+    page = Paginator(qs, 50).get_page(request.GET.get("page"))
+    open_memberships = Membership.objects.filter(user__in=list(page.object_list), ended_at__isnull=True).select_related("organisation")
+    orgs = {}
+    for m in open_memberships:
+        orgs.setdefault(m.user_id, []).append(m.organisation.code)
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(
+        request,
+        "administration/people.html",
+        {
+            "form": form,
+            "page": page,
+            "rows": [(u, orgs.get(u.pk, [])) for u in page.object_list],
+            "query": query.urlencode(),
+            "total": qs.count(),
+        },
+    )
+
+
+@login_required
+def person(request, pk):
+    """One account: its name, email, status and memberships, with name correction, deactivation and reactivation."""
+    _require_sysadmin(request)
+    u = get_object_or_404(User, pk=pk)
+    memberships = Membership.objects.filter(user=u).select_related("organisation").order_by("ended_at", "organisation__code")
+    events = AuditEvent.objects.filter(object_type="accounts.user", object_id=str(u.pk)).select_related("actor").order_by("-at", "-id")[:20]
+    return render(
+        request,
+        "administration/person.html",
+        {
+            "person": u,
+            "memberships": [(m, [perms.label(g.permission) for g in m.grants.filter(status__in=Grant.OPEN)]) for m in memberships],
+            "name_form": forms.NameForm(initial={"name": u.name}, correcting=True, auto_id="name_%s"),
+            "tokens": ApiToken.objects.filter(user=u, revoked_at__isnull=True, expires_at__gt=timezone.now()).count(),
+            "events": [(e, PEOPLE_EVENTS.get(e.action, e.action)) for e in events],
+            "is_self": u.pk == request.user.pk,
+        },
+    )
+
+
+@login_required
+@require_POST
+def person_name(request, pk):
+    _require_sysadmin(request)
+    u = get_object_or_404(User, pk=pk)
+    back = reverse("administration:person", args=[u.pk])
+    form = forms.NameForm(request.POST, correcting=u.pk != request.user.pk)
+    if not form.is_valid():
+        messages.error(request, f"Check the name form: {_form_problems(form)}")
+        return redirect(back)
+    try:
+        service.set_name(request.user, u, form.cleaned_data["name"], form.cleaned_data.get("reason", ""))
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    return _done(request, f"Name saved for {u.email}.", back)
+
+
+@login_required
+@require_POST
+def person_deactivate(request, pk):
+    _require_sysadmin(request)
+    u = get_object_or_404(User, pk=pk)
+    back = reverse("administration:person", args=[u.pk])
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the reason for deactivating the account.")
+        return redirect(back)
+    if u.pk == request.user.pk:
+        messages.error(request, "You cannot deactivate your own account here; ask another CPUC system administrator.")
+        return redirect(back)
+    try:
+        service.deactivate_user(request.user, u, form.cleaned_data["reason"])
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    return _done(request, f"{u.email} is deactivated: signed out everywhere, API tokens revoked. Nothing was deleted.", back)
+
+
+@login_required
+@require_POST
+def person_reactivate(request, pk):
+    _require_sysadmin(request)
+    u = get_object_or_404(User, pk=pk)
+    back = reverse("administration:person", args=[u.pk])
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the reason for reactivating the account.")
+        return redirect(back)
+    try:
+        service.reactivate_user(request.user, u, form.cleaned_data["reason"])
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    return _done(request, f"{u.email} can sign in again, with the memberships and permissions they had.", back)
+
+
 @login_required
 def audit_log(request):
     sysadmin = service.is_system_admin(request.user)
@@ -619,15 +833,28 @@ def audit_log(request):
             | qs.filter(object_type="accounts.grant", object_id__in=[str(p["pk"]) for p in grant_ids])
             | qs.filter(object_type="accounts.membership", object_id__in=[str(p["pk"]) for p in member_ids])
         )
-    form = forms.AuditFilterForm(request.GET or None)
+    orgs = list(Organisation.objects.order_by("code")) if sysadmin else sorted(admin_orgs, key=lambda o: o.code)
+    actions = list(qs.order_by("action").values_list("action", flat=True).distinct())
+    form = forms.AuditFilterForm(
+        request.GET or None,
+        actions=actions,
+        types=[t for t in qs.order_by("object_type").values_list("object_type", flat=True).distinct() if t],
+        organisations=orgs,
+    )
     if form.is_valid():
         d = form.cleaned_data
-        if d["action"]:
-            qs = qs.filter(action__startswith=d["action"])
+        if d["action"]:  # one action, or every action that starts so (a family from the list, "grant.")
+            qs = qs.filter(action=d["action"]) if d["action"] in actions else qs.filter(action__startswith=d["action"])
         if d["actor"]:
             qs = qs.filter(actor_label__icontains=d["actor"])
         if d["object_type"]:
             qs = qs.filter(object_type=d["object_type"])
+        if d["organisation"]:
+            qs = qs.filter(organisation__code=d["organisation"])
+        if d["since"]:
+            qs = qs.filter(at__date__gte=d["since"])
+        if d["until"]:
+            qs = qs.filter(at__date__lte=d["until"])
     page = Paginator(qs.order_by("-at", "-id"), 50).get_page(request.GET.get("page"))
     query = request.GET.copy()
     query.pop("page", None)

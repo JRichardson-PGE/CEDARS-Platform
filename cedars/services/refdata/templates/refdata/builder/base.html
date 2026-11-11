@@ -10,8 +10,8 @@
 {% if not engine_here %}<p class="card" role="note">The engine is not installed on this server, so only the set's header is checked here. Review says so; check the file with <code>recet cost-tests check</code> before you use it.</p>{% endif %}
 {% if problems %}
 <div class="alert" role="alert" id="step-problems">
-  <p><strong>This step has {{ problems|length }} problem{{ problems|pluralize }}</strong>, in the engine's words:</p>
-  <ul>{% for m in problems %}<li>{{ m }}</li>{% endfor %}</ul>
+  <p><strong>This step has {{ problems|length }} problem{{ problems|pluralize }}</strong>; each link goes to the field it is about, where it is shown too.</p>
+  <ul>{% for p, link in problems %}<li>{% include "refdata/builder/_problem.html" %}</li>{% endfor %}</ul>
 </div>
 {% endif %}
 {% block step %}{% endblock %}

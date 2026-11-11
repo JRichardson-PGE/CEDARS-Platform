@@ -98,6 +98,22 @@ def library(request):
     )
 
 
+def month_chart(months, width: int = 360, height: int = 120, labels: bool = True) -> dict:
+    """A column chart of a shape's share of the year by month, drawn on the server as SVG geometry (attributes, never inline styles):
+    columns scaled to the largest month, with the month's initial under each when `labels`. The table beside it carries the numbers."""
+    if not months:
+        return {}
+    top = max(pct for _, pct in months) or 1
+    room = height - (16 if labels else 2)
+    step = width / len(months)
+    bars = []
+    for i, (m, pct) in enumerate(months):
+        h = round(room * max(pct, 0) / top, 1)
+        bars.append({"x": round(i * step + step * 0.15, 1), "y": round(room - h, 1), "w": round(step * 0.7, 1), "h": h,
+                     "cx": round(i * step + step / 2, 1), "label": m[:1], "month": m, "pct": pct})  # fmt: skip
+    return {"bars": bars, "width": width, "height": height, "labels": labels, "base": room}
+
+
 @login_required
 def profile(request, pk):
     p = get_object_or_404(ImpactProfile.objects.select_related("owner", "package", "retired_by"), pk=pk)
@@ -116,6 +132,8 @@ def profile(request, pk):
                     "months": [(m, 100 * x) for m, x in shapes.monthly_shares(values, year)],
                 }
             )
+        for d in detail:  # a small column chart in each zone's row, beside its monthly percentages
+            d["chart"] = month_chart(d["months"], width=96, height=28, labels=False)
     mine = p.family == ImpactProfile.Family.CUSTOM and request.organisation is not None and p.owner_id == request.organisation.pk
     can_change = not p.retired and (access.is_admin(request.user) or (mine and access.can_submit(request.user, request.organisation)))
     return render(
@@ -352,9 +370,8 @@ def load_shape(request, pk):
         values = shapes.load(current.shape)
         months = [(m, 100 * x) for m, x in shapes.monthly_shares(values, current.source_year)]
         peak = shapes.peak_hour(values, current.source_year)
-    return render(
-        request, "impact_profiles/load_shape.html", {"ls": ls, "versions": versions, "current": current, "months": months, "peak": peak}
-    )
+    context = {"ls": ls, "versions": versions, "current": current, "months": months, "peak": peak, "chart": month_chart(months)}
+    return render(request, "impact_profiles/load_shape.html", context)
 
 
 @login_required

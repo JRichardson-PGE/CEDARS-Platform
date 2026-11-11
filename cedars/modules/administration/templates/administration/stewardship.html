@@ -55,6 +55,25 @@
 {% endfor %}
 </section>
 
+{% if federation %}
+<section aria-labelledby="federation-h">
+<h2 id="federation-h">Directory sign-in changes waiting</h2>
+<p>A CPUC system administrator proposed changing how an organization's members sign in. Members of these organizations hold or wait for PII
+access, and the PII rule depends on directory sign-in, so a data steward confirms each change before it takes effect.</p>
+{% for c in federation %}
+<div class="card">
+  <p>{{ c.proposed_by|person }} proposed {{ c.proposed_at|date_words }}: <a href="{% url 'administration:organisation' c.value.code %}">{{ c.value.code }}</a>'s members
+    sign in <strong>{% if c.value.federated %}through its own directory ({{ c.value.federation_provider }}){% else %}with a password and a second factor{% endif %}</strong>.
+    Reason: {{ c.reason }}</p>
+  <form method="post" action="{% url 'administration:decide_change' c.pk %}" class="actions">{% csrf_token %}
+    {% if c.proposed_by != user %}<button type="submit" name="decision" value="confirm" class="primary">Confirm<span class="sr-only"> the sign-in change for {{ c.value.code }}</span></button>{% else %}<span class="muted">Another data steward must confirm your proposal.</span>{% endif %}
+    <button type="submit" name="decision" value="withdraw">Decline<span class="sr-only"> the sign-in change for {{ c.value.code }}</span></button>
+  </form>
+</div>
+{% endfor %}
+</section>
+{% endif %}
+
 <section aria-labelledby="stewards-h">
 <h2 id="stewards-h">Data stewards</h2>
 <ul>{% for g in stewards %}<li>{{ g.membership.user|person }}{% if g.certified_at %} <span class="small muted">certified {{ g.certified_at|date_words }}</span>{% endif %}</li>{% endfor %}</ul>
