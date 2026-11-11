@@ -76,6 +76,17 @@ LIMITS = [
         "CEDARS_UPLOAD_MAX_FILES",
     ),
     Limit(
+        "upload_unzipped_mb",
+        "Size of an uploaded .zip or workbook once unpacked",
+        UPLOADS,
+        lambda: settings.CEDARS_UPLOAD_MAX_UNZIPPED_MB,
+        "MB",
+        "All the files inside one .zip or Excel workbook uploaded to Budgets, Claims, Monthly reports or the PII upload, or sent as a "
+        "correction, counted together.",
+        "The upload is refused before anything in it is read, naming the size. Split the tables across files.",
+        "CEDARS_UPLOAD_MAX_UNZIPPED_MB",
+    ),
+    Limit(
         "correction_rows",
         "Records in one partial correction",
         UPLOADS,

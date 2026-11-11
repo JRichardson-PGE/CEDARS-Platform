@@ -17,6 +17,7 @@ from pathlib import PurePosixPath
 from django.conf import settings
 from django.db import transaction
 
+from cedars.core import uploads as core_uploads
 from cedars.services import audit
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
@@ -66,6 +67,9 @@ class Finding:
 
 def read(data: bytes, filename: str) -> dict[str, list[dict[str, str]]]:
     """{table: rows} with the specification's columns (others are dropped unread)."""
+    problem = core_uploads.too_large_unzipped("The file", data)
+    if problem:
+        raise PIIError(problem)
     raw = _from_workbook(data) if filename.lower().endswith(".xlsx") else _from_zip(data)
     if not raw:
         raise PIIError("The file holds neither PII_Contact nor PII_Site.")
