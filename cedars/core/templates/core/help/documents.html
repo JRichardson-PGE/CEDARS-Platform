@@ -29,6 +29,8 @@ version never changes: a revision is a new version, and every earlier version st
   <li>Every stored PDF and workbook is checked for accessibility as it is stored, and the uploader is told what was found. The
   <a href="{% url 'core:help_guide' 'accessibility' %}">accessibility guide</a> says how to report a barrier.</li>
   <li><a href="{% url 'documents:lists' %}">Document value lists</a>: the types and attributes a document can be filed with.</li>
+  <li>Links to the old CEDARS site's documents still work: each leads to the migrated document or file. CPUC Energy Division's document
+  administrators repoint one that leads to the wrong place, with a reason, from the document's page.</li>
   <li><a href="{% url 'core:help_guide' 'reviewing' %}">Reviewing and approving</a>: documents and questions waiting in My queue.</li>
 </ul>
 {% endblock %}

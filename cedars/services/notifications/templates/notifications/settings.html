@@ -1,10 +1,12 @@
 {% extends "core/base.html" %}
+{% comment %}What a person hears about, and how (UI review 3, U15): each group of events a table with Off, Page, and Page and email columns, a
+   choice that sets the whole group, and the Save bar in view at the bottom of the window.{% endcomment %}
 {% block title %}Notification settings{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'notifications:index' %}">Notifications</a></li></ol></nav>
 <div class="page-title"><h1>Notification settings</h1>{% page_help "notifications/settings" %}</div>
 <p>Choose what you hear about. Everything you choose appears on your <a href="{% url 'notifications:index' %}">notifications page</a>, and you can have it emailed too. Events about a filing in progress (un-confirmed, reopened) reach you only for organizations you belong to; CPUC staff hear about every organization's.</p>
-<form method="post" class="stack form-narrow">{% csrf_token %}
+<form method="post" class="stack notification-settings">{% csrf_token %}
   <input type="hidden" name="follows" value="1">
   <input type="hidden" name="reminders" value="1">
   <input type="hidden" name="reminder_rows" value="{{ reminder_rows }}">
@@ -58,18 +60,45 @@
   </fieldset>
 
   <h2 id="events-h">Events</h2>
-  <p>A correction of a published filing (a refile) comes with a short summary of what changed and a link to its change letter.</p>
-  {% for group, rows in groups %}
-  <fieldset>
-    <legend>{{ group }}</legend>
-    {% for e, value in rows %}
-    <p><label for="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}">{{ e.label }}</label>
-      <select id="ev-{{ forloop.parentloop.counter }}-{{ forloop.counter }}" name="{{ e.key }}">
-        {% for code, label in choices %}<option value="{{ code }}"{% if code == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select></p>
-    {% endfor %}
-  </fieldset>
-  {% endfor %}
+  <p>For each event choose Off, Page (your notifications page) or Page and email. A correction of a published filing (a refile) comes with a short summary of what changed and a link to its change letter.</p>
+  {% for group, rows in groups %}{% with g=forloop.counter %}
+  <section class="event-group" aria-labelledby="eg{{ g }}-h">
+    <h3 id="eg{{ g }}-h">{{ group }}</h3>
+    <p class="field event-group-all"><label for="eg{{ g }}-all">Set every event in this group</label>
+      <select id="eg{{ g }}-all" name="group_{{ g }}" data-event-group="eg{{ g }}" aria-describedby="eg{{ g }}-all-help">
+        <option value="">Leave each as chosen below</option>
+        {% for code, label in choices %}<option value="{{ code }}">{{ label }}</option>{% endfor %}
+      </select>
+      <span class="helptext" id="eg{{ g }}-all-help">Applied when you save.</span></p>
+    <div class="hscroll" tabindex="0" role="region" aria-labelledby="eg{{ g }}-h">
+    <table class="list choice-grid" id="eg{{ g }}">
+      <caption class="sr-only">{{ group }}: how each event reaches you</caption>
+      <thead><tr><th scope="col" id="eg{{ g }}-c0">Event</th>{% for code, label in columns %}<th scope="col" class="choice" id="eg{{ g }}-c{{ code }}">{{ label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for e, value in rows %}{% with r=forloop.counter %}
+      <tr><th scope="row" id="eg{{ g }}-r{{ r }}">{{ e.label }}</th>
+        {% for code, label in columns %}<td class="choice"><input type="radio" name="{{ e.key }}" value="{{ code }}" aria-labelledby="eg{{ g }}-r{{ r }} eg{{ g }}-c{{ code }}"{% if code == value %} checked{% endif %}></td>{% endfor %}</tr>
+      {% endwith %}{% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endwith %}{% endfor %}
+
+  <h2 id="requests-h">Requests</h2>
+  <p id="requests-help">Requests to correct a filing after its due date, to change or correct a locked program attribute, and to join an organization. These are on unless you turn them off, and they reach you whatever PAs you follow.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="requests-h">
+  <table class="list choice-grid" id="request-notices" aria-describedby="requests-help">
+    <caption class="sr-only">How requests reach you</caption>
+    <thead><tr><th scope="col">Request</th>{% for code, label in columns %}<th scope="col" class="choice" id="rq-c{{ code }}">{{ label }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><th scope="row" id="rq-own">The decision on a request you made</th>
+        {% for code, label in columns %}<td class="choice"><input type="radio" name="own_requests" value="{{ code }}" aria-labelledby="rq-own rq-c{{ code }}"{% if code == pref.own_requests %} checked{% endif %}></td>{% endfor %}</tr>
+      <tr><th scope="row" id="rq-decide">A request waiting for your decision, or withdrawn before you decided (if you approve, or administer an organization)</th>
+        {% for code, label in columns %}<td class="choice"><input type="radio" name="requests_to_decide" value="{{ code }}" aria-labelledby="rq-decide rq-c{{ code }}"{% if code == pref.requests_to_decide %} checked{% endif %}></td>{% endfor %}</tr>
+    </tbody>
+  </table>
+  </div>
 
   <h2 id="reminders-h">Deadline reminders</h2>
   <p>Be reminded of the <a href="/filings/calendar/">filing calendar</a>'s deadlines as many days before each is due as you choose (0 is on the day). Add as many reminders as you like, for example 14 days and 2 days before; leave the days blank to remove one.{% if not has_reminders %} You have none yet.{% endif %}</p>
@@ -101,6 +130,6 @@
     <legend>Your own work</legend>
     <div class="checks"><label><input type="checkbox" name="email_direct"{% if pref.email_direct %} checked{% endif %}> Email me what is sent to me directly: my runs finishing or failing, changes to my access, and, if I approve filings, the filing organizations' comments on them</label></div>
   </fieldset>
-  <div class="actions"><button type="submit" class="primary">Save</button></div>
+  <div class="actions save-bar"><button type="submit" class="primary">Save</button> <a href="{% url 'notifications:index' %}">Cancel</a></div>
 </form>
 {% endblock %}

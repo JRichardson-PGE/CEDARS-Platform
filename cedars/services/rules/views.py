@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import forms, precheck, service
+from . import coded, forms, precheck, service
 from .models import Rule, RuleSet
 
 SHOWN = 200
@@ -39,6 +39,29 @@ def index(request):
             "in_force": {v.pk for v in in_force.values() if v},
             "sysadmin": access.is_system_admin(request.user),
         },
+    )
+
+
+@login_required
+def built_in(request):
+    """The checks written in code that run beside the rule sets (rules.coded), read only, by filing; filtered by severity and words."""
+    severity, q = request.GET.get("severity", ""), request.GET.get("q", "").strip()
+    words = q.lower().split()
+    shown, total = [], 0
+    for g in coded.groups():
+        total += len(g.checks)
+        checks = [
+            c
+            for c in g.checks
+            if (not severity or severity in c.severity)
+            and all(w in f"{c.rule_id} {c.tables} {c.fields} {c.finds} {c.fix}".lower() for w in words)
+        ]
+        if checks:
+            shown.append((g, checks))
+    return render(
+        request,
+        "rules/built_in.html",
+        {"groups": shown, "severity": severity, "q": q, "shown": sum(len(c) for _, c in shown), "total": total},
     )
 
 

@@ -21,7 +21,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import limits
-from .models import Change, LimitChange, ReleaseNote
+from .models import Change, LimitChange, ReleaseNote, SiteNotice
 
 AREAS = {
     "everyone": "All of CEDARS",
@@ -339,6 +339,51 @@ def limit_mismatches(on: date | None = None) -> list[tuple[ReleaseNote, Change, 
 
 def _norm(text: str) -> str:
     return "".join(text.lower().replace(",", "").split())
+
+
+# --- site notices: short dated notices shown at once in the banner spot
+
+
+def post_notice(user, *, text: str, starts_at, ends_at, reason: str, link: str = "") -> SiteNotice:
+    """Post a site notice, shown on every page from `starts_at` to `ends_at`. CPUC system administrators only; a reason is kept."""
+    if not access.is_system_admin(user):
+        raise AccessDenied("Only a CPUC system administrator posts site notices.")
+    text, link, reason = " ".join(text.split()), link.strip(), reason.strip()
+    if not text:
+        raise ReleaseError("Write what the notice says.")
+    if not reason:
+        raise ReleaseError("Say why the notice is posted.")
+    if link and not (link.startswith("/") and not link.startswith("//") or link.startswith("https://")):
+        raise ReleaseError("A link is a page on this site (starting with /) or an https:// address.")
+    if ends_at <= timezone.now():
+        raise ReleaseError("That end has passed: the notice would never show.")
+    if ends_at <= starts_at:
+        raise ReleaseError("The notice must end after it starts.")
+    n = SiteNotice.objects.create(text=text, link=link, starts_at=starts_at, ends_at=ends_at, reason=reason, created_by=user)
+    after = {"text": text, "link": link, "starts_at": starts_at.isoformat(), "ends_at": ends_at.isoformat()}
+    audit.record("site_notice.posted", obj=n, after=after, reason=reason, actor=user)
+    return n
+
+
+def withdraw_notice(user, notice: SiteNotice, reason: str) -> SiteNotice:
+    """Take a notice down before its end. It stays listed, marked withdrawn."""
+    if not access.is_system_admin(user):
+        raise AccessDenied("Only a CPUC system administrator withdraws site notices.")
+    notice = SiteNotice.objects.select_for_update().get(pk=notice.pk)
+    if notice.is_withdrawn:
+        raise ReleaseError("This notice is already withdrawn.")
+    if not reason.strip():
+        raise ReleaseError("Say why it is withdrawn.")
+    notice.withdrawn_at, notice.withdrawn_by, notice.withdrawn_reason = timezone.now(), user, reason.strip()
+    notice.save(update_fields=["withdrawn_at", "withdrawn_by", "withdrawn_reason"])
+    audit.record("site_notice.withdrawn", obj=notice, reason=notice.withdrawn_reason, actor=user)
+    return notice
+
+
+def site_notices(now=None) -> list[SiteNotice]:
+    """The notices every page shows now: started, not ended, not withdrawn (one query: every page runs it)."""
+    now = now or timezone.now()
+    return list(SiteNotice.objects.filter(withdrawn_at__isnull=True, starts_at__lte=now, ends_at__gt=now).order_by("starts_at", "pk"))
 
 
 # --- limits a CPUC system administrator may change (limits.Limit.editable)

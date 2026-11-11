@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "226658bb3b39689df168445ba76e0e1a4fbac85e71bb7210f4f2753540809425"
+    "sha256": "32104609c76bc413617943350b61869b88c97f8876028294c9f4dc30ae021a74"
   },
   "guide:accessibility": {
     "release": "0.2.0",
@@ -9,7 +9,7 @@
   },
   "guide:administering": {
     "release": "0.2.0",
-    "sha256": "df7b4a220020360bff8c874e3f7bccacbcc286f8d11dfd23ac17ed32777432bc"
+    "sha256": "a6fafff6aa09d26ae575292b7c373da8c32f2ba8b7c8e4ca32f9410020c6a595"
   },
   "guide:budgets": {
     "release": "0.2.0",
@@ -17,7 +17,7 @@
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "cdd3901e2b52dec7a32e5869e82a641b6572245c8d4fc725df016d402995128a"
+    "sha256": "abe99062e4e619fd1c9e2edf4ae5a34445d128ee69e0fde04102f217049b13c7"
   },
   "guide:claims": {
     "release": "0.2.0",
@@ -29,15 +29,15 @@
   },
   "guide:documents": {
     "release": "0.2.0",
-    "sha256": "6bda396cd61cfc7a51099288d31d60ee3622bc3db1e9788c9bd86a91fccc725b"
+    "sha256": "51b1f1618836905cdc38c37570c09cd664787b3890a2d8ea4241736f5cb4c1c4"
   },
   "guide:getting-started": {
     "release": "0.2.0",
-    "sha256": "e3e23b613b69ab22c8238a8674b6032f2d51e3a06d99dc0dfd14abcc578fc5b9"
+    "sha256": "ed1166d07d19f5e74173660d25782314840284898fd62950a39b008b577ca1de"
   },
   "guide:glossary": {
     "release": "0.2.0",
-    "sha256": "11f700f1caec719f80e6dec8609f033e62e498344a8f894cd8cae15428c60678"
+    "sha256": "a89f12d5946220797c14c6d4c2a30df9f7a0e242a1c12dd2c51b095ff768a225"
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
@@ -61,7 +61,7 @@
   },
   "guide:releases": {
     "release": "0.2.0",
-    "sha256": "faf4c945f59880f3b3fc88269d0880b0056d64571239d0f95baba3b624065400"
+    "sha256": "8b17ae73990b56c475969d994a5debcf9014662fe4d000687862910c8ae4370c"
   },
   "guide:reviewing": {
     "release": "0.2.0",
@@ -69,6 +69,6 @@
   },
   "guide:rules-and-lists": {
     "release": "0.2.0",
-    "sha256": "2a10052f6765860404259b48eb58f87ec31439b900aff800d91c62e41cd78778"
+    "sha256": "9ae82c38f85e7a5c3eabcc911a3c335b534187b86400fee79ee441f0e6be8583"
   }
 }

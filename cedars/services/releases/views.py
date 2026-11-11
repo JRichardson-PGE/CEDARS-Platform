@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from cedars.core import revisions
@@ -20,7 +21,7 @@ from cedars.services.notifications import service as notifications
 from cedars.services.notifications.models import Subscription
 
 from . import limits, service
-from .models import Change
+from .models import Change, SiteNotice
 from .service import ReleaseError
 
 EVENT = "release.published"
@@ -304,6 +305,74 @@ def withdraw(request, pk):
     else:
         messages.success(request, "Withdrawn. Everyone subscribed to release notes is being told.")
     return redirect("releases:detail", note.pk)
+
+
+# --- site notices
+
+
+def _when(**attrs):
+    return forms.DateTimeInput(attrs={"type": "datetime-local", **attrs}, format="%Y-%m-%dT%H:%M")
+
+
+class NoticeForm(forms.Form):
+    text = forms.CharField(
+        label="What the notice says",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="A sentence or two, e.g. CEDARS will be unavailable on Saturday from 8 to 10 a.m. for maintenance.",
+    )
+    link = forms.CharField(
+        label="Link (optional)",
+        required=False,
+        help_text="A page with more: on this site (starting with /) or elsewhere (https://...)",
+    )
+    starts_at = forms.DateTimeField(label="Shown from", required=False, widget=_when(), help_text="Pacific time; blank: now")
+    ends_at = forms.DateTimeField(label="Shown until", widget=_when(), help_text="Pacific time")
+    reason = forms.CharField(label="Why it is posted", widget=forms.Textarea(attrs={"rows": 2}), help_text="Kept in the audit log")
+
+
+@login_required
+def notices(request):
+    """Site notices: post one, and every notice with its dates, current, coming and past, each current or coming one withdrawable."""
+    if not _sysadmin(request.user):
+        raise Http404
+    form = NoticeForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            service.post_notice(
+                request.user,
+                text=d["text"],
+                link=d["link"],
+                starts_at=d["starts_at"] or timezone.now(),
+                ends_at=d["ends_at"],
+                reason=d["reason"],
+            )
+        except ReleaseError as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, "Posted. Every page shows it from its start until its end.")
+            return redirect("releases:notices")
+    now = timezone.now()
+    every = list(SiteNotice.objects.select_related("created_by", "withdrawn_by"))
+    shown = [n for n in every if not n.is_withdrawn and n.starts_at <= now < n.ends_at]
+    coming = [n for n in every if not n.is_withdrawn and n.starts_at > now]
+    past = [n for n in every if n not in shown and n not in coming]
+    return render(request, "releases/notices.html", {"form": form, "shown": shown, "coming": coming, "past": past})
+
+
+@require_POST
+@login_required
+def withdraw_notice(request, pk):
+    if not _sysadmin(request.user):
+        raise Http404
+    notice = get_object_or_404(SiteNotice, pk=pk)
+    try:
+        service.withdraw_notice(request.user, notice, request.POST.get("reason", ""))
+    except ReleaseError as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, "Withdrawn. Pages no longer show it.")
+    return redirect("releases:notices")
 
 
 @login_required

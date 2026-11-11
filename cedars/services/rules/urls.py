@@ -8,6 +8,7 @@ urlpatterns = [
     path("import", views.import_rules, name="import"),
     path("differences/", views.differences, name="differences"),
     path("check/", views.check, name="check"),
+    path("built-in/", views.built_in, name="built_in"),
     path("<int:pk>/", views.detail, name="detail"),
     path("<int:pk>/rules.json", views.rule_set_json, name="json"),
     path("<int:pk>/publish", views.publish, name="publish"),

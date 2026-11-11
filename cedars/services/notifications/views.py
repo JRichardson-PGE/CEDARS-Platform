@@ -13,7 +13,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program
 
 from . import service
-from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, Subscription
+from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, RequestNotice, Subscription
 
 OFF = "off"
 BLANK_REMINDER_ROWS = 2
@@ -111,15 +111,34 @@ def _save_reminders(request) -> list[str]:
     return []
 
 
+# The settings tables' column headings: short, so the event's own words have the room (the page says what "Page" is)
+COLUMNS = [(OFF, "Off"), (Subscription.Channel.IN_APP, "Page"), (Subscription.Channel.EMAIL, "Page and email")]
+
+
+def _event_groups() -> list[tuple[str, list]]:
+    """The events in their groups, in the order the page shows them (group_1, group_2, ... on the form)."""
+    groups = {}
+    for e in service.EVENTS:
+        groups.setdefault(e.group, []).append(e)
+    return list(groups.items())
+
+
 @login_required
 def settings_page(request):
     """What the user hears about, and how: the PAs and programs they follow, each event off, on the page, or on the page and
     by email, their deadline reminders, and messages about their own work."""
     user = request.user
     pref, _ = Preference.objects.get_or_create(user=user)
+    groups = _event_groups()
     if request.method == "POST":
+        # "Set every event in this group" wins over the group's rows when it is chosen (the page's script also ticks the rows)
+        whole = {}
+        for i, (_, events) in enumerate(groups, start=1):
+            value = request.POST.get(f"group_{i}", "")
+            if value == OFF or value in Subscription.Channel.values:
+                whole.update({e.key: value for e in events})
         for e in service.EVENTS:
-            choice = request.POST.get(e.key, OFF)
+            choice = whole.get(e.key) or request.POST.get(e.key, OFF)
             if choice == OFF:
                 service.unsubscribe(user, e.code, module=e.module)
             elif choice in Subscription.Channel.values:
@@ -131,36 +150,38 @@ def settings_page(request):
             problems += _save_reminders(request)
         pref.refresh_from_db()
         pref.email_direct = request.POST.get("email_direct") == "on"
-        pref.save(update_fields=["email_direct"])
+        for name in ("own_requests", "requests_to_decide"):  # absent (an older form): left as it was
+            if request.POST.get(name) in RequestNotice.values:
+                setattr(pref, name, request.POST[name])
+        pref.save(update_fields=["email_direct", "own_requests", "requests_to_decide"])
         for p in problems:
             messages.error(request, p)
         messages.success(request, "Notification settings saved." if not problems else "The rest of your notification settings are saved.")
         return redirect("notifications:settings")
     current = {(s.event, s.module): s.channel for s in Subscription.objects.filter(user=user, organisation__isnull=True)}
-    groups = {}
-    for e in service.EVENTS:
-        groups.setdefault(e.group, []).append((e, current.get((e.code, e.module), OFF)))
+    rows = [(group, [(e, current.get((e.code, e.module), OFF)) for e in events]) for group, events in groups]
     chosen = set(pref.pas.values_list("pk", flat=True))
     pas = {}
     for o in Organisation.objects.filter(kind=Organisation.Kind.PA, active=True).order_by("code"):
         pas.setdefault(o.pa_type, []).append((o, o.pk in chosen))
     reminders = list(DeadlineReminder.objects.filter(user=user).order_by("-days_before", "module"))
-    rows = [(r.days_before, r.module, r.channel) for r in reminders] + [("", "", Subscription.Channel.EMAIL)] * BLANK_REMINDER_ROWS
+    reminder_rows = [(r.days_before, r.module, r.channel) for r in reminders] + [("", "", Subscription.Channel.EMAIL)] * BLANK_REMINDER_ROWS
     choices = [(OFF, "Off")] + list(Subscription.Channel.choices)
     return render(
         request,
         "notifications/settings.html",
         {
-            "groups": groups.items(),
+            "groups": rows,
             "choices": choices,
+            "columns": COLUMNS,  # the tables' short column headings, in the same order as choices
             "channels": Subscription.Channel.choices,
             "pref": pref,
             "scopes": Preference.PAScope.choices,
             "pa_groups": [(label, pas[t]) for t, label in PA_GROUPS if pas.get(t)],
             "programs": [(p, _program_name(p)) for p in pref.programs.order_by("prg_id")],
             "program_events": [(k, PROGRAM_EVENT_LABELS[k], k in (pref.program_events or [])) for k in PROGRAM_EVENTS],
-            "reminders": list(enumerate(rows)),
-            "reminder_rows": len(rows),
+            "reminders": list(enumerate(reminder_rows)),
+            "reminder_rows": len(reminder_rows),
             "reminder_modules": _reminder_modules(),
             "has_reminders": bool(reminders),
         },

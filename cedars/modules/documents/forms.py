@@ -709,3 +709,15 @@ class KeyDateForm(forms.Form):
     title = forms.CharField(label="What happens", max_length=200)
     detail = forms.CharField(label="Detail (optional)", required=False, max_length=1000, widget=forms.Textarea(attrs={"rows": 2}))
     link = forms.URLField(label="Link (optional)", required=False, max_length=400, assume_scheme="https")
+
+
+class RepointLinkForm(forms.Form):
+    document = forms.IntegerField(
+        label="Document number", min_value=1, help_text="The number in the document's address, /documents/<number>/"
+    )
+    file = forms.CharField(
+        label="File name (optional)",
+        required=False,
+        help_text="Lead to this file of the document instead of its page (its name as listed, or as the old site named it)",
+    )
+    reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))

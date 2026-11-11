@@ -25,6 +25,8 @@
     <button type="button" class="link" data-tour-dismiss hidden>Hide this</button></p>
 </section>
 
+{% include "core/_your_work.html" %}
+
 <section class="front-trends" data-tour="trends" aria-labelledby="trends-title">
   <div class="head-row">
     <h2 id="trends-title">How the portfolio is doing</h2>
@@ -141,11 +143,7 @@
     </div>
     <div class="card">
       <h3>Feedback and support</h3>
-      {% if support.email %}
-      <p>Questions or problems: write to <a href="{{ support.support_mailto }}">{{ support.email }}</a>.</p>
-      {% else %}
-      <p>This site has no support address set yet.</p>
-      {% endif %}
+      {% if support.email %}<p>Questions or problems: write to <a href="{{ support.support_mailto }}">{{ support.email }}</a>.</p>{% endif %}
       {% if support.feedback %}<p><a href="{{ support.feedback }}">{% if support.feedback_is_form %}Send feedback on the feedback form{% else %}Send feedback by email{% endif %}</a></p>{% endif %}
       <p><a href="{% url 'core:help_contact' %}">Getting support</a></p>
     </div>

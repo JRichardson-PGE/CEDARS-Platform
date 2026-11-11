@@ -6,21 +6,45 @@ rules/index:
     - The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective
       by then; every submission and run records the version it was checked against.
     - Check a file before you file it runs the rules in force on your file without filing it. Compare two rule sets shows what changed
-      between versions.
+      between versions. Built-in checks lists the checks written in the platform's code that run beside the rule sets.
   how:
     - Check a file before you file it runs the rules in force on your file.
     - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
+    - Built-in checks lists each filing's checks written in code, with their IDs, severity and message.
   see: rules-and-lists
   tour:
     - target: main p.actions
-      title: Check a file, or compare rule sets
-      text: Check your file against the rules in force, or see what changed between two sets.
+      title: Check a file, compare rule sets, or read the built-in checks
+      text: Check your file against the rules in force, see what changed between two sets, or read the checks written in code.
     - target: main table.list
       title: Rule sets
       text: Each set and version, its effective date and status. Select one to read its rules.
     - target: "#imp-h"
       title: Import CEDARS' rules
       text: For CPUC system administrators. Imported rules start as a draft until published.
+      optional: true
+
+rules/built_in:
+  title: Built-in checks
+  guide:
+    - The checks written in the platform's code that run beside the published rule sets, by filing (budget and application filings,
+      claims, monthly reports, claims PII files, load-shape uploads). They need what a rule set cannot see, such as the program registry,
+      the filing's cycle or month, its other tables, earlier confirmations and eTRM.
+    - Each check has its rule ID, as a finding on a validation report shows it, its severity, the tables and fields it looks at, what it
+      finds and how to fix it. Read only; they change with a release of the platform, which its release notes announce.
+  how:
+    - Filter by rule, field or words and by severity, then Apply.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By rule ID, field or words and by severity, then Apply.
+    - target: "#built-in-count"
+      title: How many match
+      text: The number of checks shown, of all the built-in checks.
+    - target: main table.coded-checks
+      title: The checks
+      text: One table for each filing. Each check's ID, severity, tables, fields, what it finds and how to fix it.
       optional: true
 
 rules/detail:
@@ -61,8 +85,8 @@ rules/detail:
 rules/rule:
   title: A rule
   guide:
-    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it, and the rule as data, exactly as the
-      checker runs it.
+    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it. The rule as data, exactly as the
+      checker runs it, is folded at the foot of the page; open it to read it.
     - In a draft rule set, a CPUC system administrator changes the rule or takes it out. A rule whose test changed names the rule it
       replaces.
   how:
@@ -75,7 +99,7 @@ rules/rule:
       optional: true
     - heading: The rule as data
       title: The rule as data
-      text: The rule's definition as the checker reads it.
+      text: Open it for the rule's definition as the checker reads it.
 
 rules/differences:
   title: Comparing two rule sets
@@ -126,26 +150,33 @@ rules/rule_form:
   guide:
     - A rule is either a test on a record (when some fields hold, another field must pass a test, such as NumUnits is greater than 0
       when MeasAppType equals 'AR') or a constraint on one field (filled in, a number, at most so many characters, a code of a value
-      list, within a range). Choose the kind, then fill in that part of the form; the other part is ignored.
+      list, within a range). Choose the kind first; the form then shows only that kind's part. Without scripts both parts show, and the
+      part for the other kind is ignored.
+    - Fields are picked from the data dictionary as you type. Any name the dictionary lists works too, such as CET's, and a key of
+      several fields joins them with +. The name is kept as you give it.
     - The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. A rule's ID is worked
       out from its test, so a changed test gives the rule a new ID that records the one it replaces. Leave the message and fix blank to
       have them written from the test.
   how:
-    - Choose the kind of rule, whether a failing record is rejected or warned, the table and the field.
-    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to.
+    - Choose the kind of rule, then the table and the field it tests.
+    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to (More
+      conditions holds the second to the fifth).
     - For a constraint on one field, choose what the field must be and what that constraint needs.
-    - Give the reason, then Add the rule or Save the change.
+    - Choose whether a failing record is rejected or warned, give the reason, then Add the rule or Save the change.
   see: rules-and-lists
   tour:
     - heading: What the rule tests
       title: What the rule tests
-      text: The kind of rule, its severity, the table and the field.
+      text: The kind of rule first, then the table and the field it tests, picked from the data dictionary.
     - target: "#record-h"
       title: A test on a record
-      text: The test, its value and up to five conditions; read when the kind is a test on a record.
+      text: The test, its value and up to five conditions; shown when the kind is a test on a record.
+      optional: true
     - target: "#spec-h"
       title: A constraint on one field
-      text: What the field must be; read when the kind is a constraint on one field.
-    - heading: What a filer reads
-      title: What a filer reads
-      text: The message and fix a filer sees (blank to write them from the test), the modules that apply the rule and your reason.
+      text: What the field must be; shown when the kind is a constraint on one field.
+      optional: true
+    - heading: When a record fails
+      title: When a record fails
+      text: Whether a failing record is rejected or only warned, the message and fix a filer sees (blank to write them from the test),
+        the modules that apply the rule and your reason.

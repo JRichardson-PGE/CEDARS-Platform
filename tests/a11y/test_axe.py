@@ -524,7 +524,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
 
     from cedars.modules.documents import comments, deliverables, studies, subscriptions
     from cedars.modules.documents import service as documents
-    from cedars.modules.documents.models import AttributeOption, Document
+    from cedars.modules.documents.models import AttributeOption, Document, LegacyLink
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
     importlib.import_module("cedars.modules.documents.migrations.0005_study_lists").seed(apps, None)
@@ -692,6 +692,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         "work_order": work_order.pk,
         "deliverable": plan.pk,
         "deliverable_open": open_plan.pk,
+        "legacy_link": LegacyLink.objects.create(path="/guidance-document/hvac-impact", document=report).pk,
     }
 
 
@@ -1582,6 +1583,8 @@ def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
         assert not page.evaluate("document.querySelector('[data-tour=nav-filings] details').open")
     page.keyboard.press("Escape")
     assert not page.locator("#tour").evaluate("d => d.open")
+    # the dialog's "close" event, which clears the outline and returns the focus, runs as a task after Escape: wait for it
+    page.wait_for_function("!document.querySelector('.tour-target') && !document.documentElement.classList.contains('touring')")
     assert page.evaluate("document.activeElement.hasAttribute('data-tour-start')")
     assert page.locator(".tour-target").count() == 0
     context.close()
@@ -2101,6 +2104,30 @@ def test_the_pa_picker_by_keyboard(browser, site, scene):
     context.close()
 
 
+def test_add_a_rule_shows_the_chosen_kinds_part(browser, site, scene):
+    """Add a rule asks the kind first (radio buttons marked data-reveal, core/pickers.js): only the chosen kind's part shows, the
+    arrow keys switch it, and without scripts both parts show, each saying which kind reads it."""
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin")
+    record, spec = page.locator("fieldset[data-reveal-for='rule']"), page.locator("fieldset[data-reveal-for='spec']")
+    assert record.is_visible() and not spec.is_visible()
+    assert not page.locator(".no-script-note").first.is_visible()
+    page.locator("input[name='kind'][value='rule']").focus()
+    page.keyboard.press("ArrowDown")
+    assert page.locator("input[name='kind'][value='spec']").is_checked()
+    assert spec.is_visible() and not record.is_visible()
+    assert page.evaluate("document.activeElement.name") == "kind"
+    page.keyboard.press("ArrowUp")
+    assert record.is_visible() and not spec.is_visible()
+    # the second to the fifth condition are folded; the field tested is a picker with the dictionary's names
+    assert not page.locator("input[name='cond2_field']").is_visible()
+    assert page.locator("input[name='field']").get_attribute("list") == "id_field-list"
+    context.close()
+    context, page = _open(browser, site, scene, "/rules/{rules_draft}/add/", "cpuc_admin", java_script_enabled=False)
+    assert page.locator("fieldset[data-reveal-for='rule']").is_visible() and page.locator("fieldset[data-reveal-for='spec']").is_visible()
+    assert page.locator(".no-script-note").first.is_visible()
+    context.close()
+
+
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_the_output_template_picker_by_keyboard(browser, axe_source, site, scene, scheme):
     """The output template page's two lists (ReCET's Templates page): a field added with Enter, moved with Alt+Up, removed with Delete,
@@ -2388,3 +2415,24 @@ def test_the_set_up_page_sizes_the_code_field_and_shows_the_whole_key(browser, s
     assert code["width"] < 200, f"the six-digit field is {code['width']} px wide"
     assert key[0] <= key[1], "the key is clipped"
     assert "Set up your second factor" in steps
+
+
+def test_notification_settings_set_a_whole_group_by_keyboard(browser, site, scene):
+    """Notification settings (UI review 3, U15): choosing a value for a whole group ticks it on every row of the group and is announced;
+    changing a row puts the group choice back; the Save bar stays in view; nothing is wider than a phone."""
+    context, page = _open(browser, site, scene, "/notifications/settings/", "pge_admin", viewport={"width": 1280, "height": 800})
+    group = page.locator("#eg1-all")
+    group.focus()
+    group.select_option("email")
+    rows = page.locator("#eg1 tbody tr")
+    checked = page.locator("#eg1 input[type=radio][value=email]:checked")
+    assert checked.count() == rows.count() > 1
+    page.wait_for_selector("#announcer:has-text('events set to')", state="attached")
+    page.locator("#eg1 tbody tr").first.locator("input[value=off]").check()
+    assert group.input_value() == ""
+    bar = page.locator(".save-bar").bounding_box()
+    assert bar["y"] + bar["height"] <= 800 + 1, "the Save bar is not in view"
+    page.set_viewport_size({"width": 320, "height": 640})
+    wide = page.evaluate("document.documentElement.scrollWidth")
+    context.close()
+    assert wide <= 320, f"the page is {wide} px wide at 320 px"

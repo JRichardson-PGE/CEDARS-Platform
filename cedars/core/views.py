@@ -8,7 +8,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from . import engine_docs, faq, queue, revisions
+from . import engine_docs, faq, queue, revisions, yourwork
 from . import help as site_help
 from . import page_help as pages
 from . import search as site_search
@@ -70,10 +70,13 @@ def section(request, page):
             return redirect_to_login(request.get_full_path())
         raise Http404
     ctx = {"menu": menu, "groups": menu.groups}
-    if key == "filings":
+    if key == "filings":  # the person's own organization's filings first, then every PA's (UI review 3, U5)
         from cedars.services.submissions import status
 
-        ctx["board"] = status.board(request.user)
+        ctx["board"] = board = status.board(request.user, org=getattr(request, "filing_organisation", None))
+        ctx["own_filings"] = status.own_filings(board)
+    elif page in yourwork.PAGES:  # the person's own recent work in the section first (UI review 3, U5)
+        ctx["your_work"] = yourwork.parts(request, page)
     return render(request, f"core/section_{page}.html", ctx)
 
 
@@ -163,19 +166,11 @@ def help_guide(request, slug):
 
 
 def _pa_codes() -> list[tuple[str, str, str]]:
-    """The glossary's program administrator codes: each code CEDARS knows (accounts.KNOWN_PA_TYPES, former codes included), its name
-    and its type, IOUs first, then RENs and CCAs."""
+    """The glossary's program administrator codes: every PA organization's current and former codes, its name and its type
+    (accounts.pa_code_table), so the table follows renames and new PAs made on the site."""
     from cedars.services.accounts import service as accounts
 
-    order = {"IOU": 0, "REN": 1, "CCA": 2}
-    rows = []
-    for code, kind in accounts.KNOWN_PA_TYPES.items():
-        name = accounts.known_pa_name(code)
-        if code in accounts.KNOWN_RENAMES:  # a former code: say what it became and when
-            new_code, new_name, start, _ = accounts.KNOWN_RENAMES[code]
-            name = f"{name} (before {start.year}; now {new_name}, {new_code})"
-        rows.append((code, name, kind))
-    return sorted(rows, key=lambda r: (order.get(r[2], 9), r[0]))
+    return accounts.pa_code_table()
 
 
 def _revision(guide) -> dict:

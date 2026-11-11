@@ -1,0 +1,18 @@
+{% if rows %}
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}">
+<table class="list notices-list">
+  <caption class="sr-only">{{ label }}</caption>
+  <thead><tr><th scope="col">Notice</th><th scope="col">Shown</th><th scope="col">Posted</th>{% if withdrawable %}<th scope="col">Withdraw</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for n in rows %}
+  <tr><th scope="row">{{ n.text }}{% if n.link %}<br><span class="small">Link: {{ n.link }}</span>{% endif %}</th>
+    <td>{{ n.starts_at|datetime_words }} to {{ n.ends_at|datetime_words }}{% if n.is_withdrawn %}<br><strong>Withdrawn</strong> {{ n.withdrawn_at|datetime_words }} by {{ n.withdrawn_by|person|default:"the system" }}: {{ n.withdrawn_reason }}{% endif %}</td>
+    <td>{{ n.created_at|datetime_words }} by {{ n.created_by|person|default:"the system" }}<br><span class="small">Why: {{ n.reason }}</span></td>
+    {% if withdrawable %}<td><form method="post" action="{% url 'releases:withdraw_notice' n.pk %}" class="row-form">{% csrf_token %}
+      <div class="field"><label for="wr-{{ n.pk }}">Reason</label><input type="text" id="wr-{{ n.pk }}" name="reason" required></div>
+      <button type="submit">Withdraw</button></form></td>{% endif %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>{{ empty }}</p>{% endif %}

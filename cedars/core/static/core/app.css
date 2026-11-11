@@ -129,7 +129,7 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .org-badge b { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; padding: .08rem .45rem; font-weight: 700; letter-spacing: .02em; }
 .bell { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; min-height: 32px; font-size: .85rem; }
 .bell[aria-current="page"], .bell:hover { color: var(--link); border-color: var(--control); }
-.bell .count { background: var(--bad); color: #fff; border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
+.bell .count { background: var(--bad); color: var(--bg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }   /* 7.2:1 light, 8.1:1 dark (white on the dark scheme's red was 2.2:1) */
 /* My queue's count of items waiting (navigation review, D1): the primary pair, as buttons use it, so it reads as work rather than an alert. */
 .queue-link { display: inline-flex; align-items: center; gap: .3rem; }
 .queue-link .count { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
@@ -498,6 +498,12 @@ fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of 
 .checks label, label.inline, label:has(> input[type=checkbox]), label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: .45rem; font-weight: 400; color: var(--fg); }   /* a box and its words on one line */
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
+/* Ask for access (UI review 3, U6): a role or permission, its box and name on one line, what it is for below, lined up with the name */
+.request-access .option { display: grid; grid-template-columns: auto 1fr; column-gap: .5rem; align-items: center; margin: .35rem 0; }
+.request-access .option > label { font-weight: 600; color: var(--fg); }
+.request-access .option > p { grid-column: 2; margin: .1rem 0 0; }
+.request-access details.request-singles > summary { cursor: pointer; padding: .35rem 0; min-height: 24px; }
+.request-to a { margin-left: .5rem; }
 .column-group { margin: .3rem 0; }
 /* Compact tick lists (core/_tick_list.html; UI review 3): a closed disclosure that names what is chosen, the chosen values first, a
    narrowing box on a long list. In the page's flow, so it covers nothing and reflows at 320 px. */
@@ -623,6 +629,18 @@ ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
   .save-bar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: .75rem 0; margin-bottom: 0; }
 }
 
+/* Notification settings (UI review 3, U15): each group of events a table of radio buttons, one column per way of hearing about it */
+.notification-settings { max-width: 56rem; }
+.notification-settings .event-group { margin-top: 1rem; }
+.notification-settings .event-group-all select { width: 100%; max-width: 22rem; }
+table.choice-grid th.choice, table.choice-grid td.choice { text-align: center; width: 7.5rem; }
+table.choice-grid th.choice { white-space: normal; }
+table.choice-grid tbody th[scope=row] { font-weight: 400; }
+@media (max-width: 30rem) {   /* a phone: the three columns narrow and their headings wrap, so the table fits without scrolling sideways */
+  table.choice-grid th, table.choice-grid td { padding-left: .3rem; padding-right: .3rem; }
+  table.choice-grid th.choice, table.choice-grid td.choice { width: 3.4rem; letter-spacing: 0; white-space: normal; }
+}
+
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }
@@ -680,6 +698,14 @@ ul.picker-chosen li { border: 1px solid var(--control); border-radius: var(--r, 
 ul.picker-chosen label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .1rem .4rem;
   font-weight: 400; min-height: 24px; }
 input.picker-input { width: 100%; max-width: 22rem; }   /* a percentage, so the box never widens its container at 320 px (1.4.10) */
+/* Fund shift lines (budgets/_shift_lines_table.html): what is wrong with a line, said beside it as it is typed (in words, with a mark
+   that is not color alone: the row's left rule and the words). */
+table.shift-lines input.shift-prg { min-width: 12rem; }
+.row-problem { display: block; color: var(--bad); font-size: .86rem; max-width: 28rem; }
+.row-problem:empty { display: none; }
+table.shift-lines tr.has-problem > th { box-shadow: inset 4px 0 0 var(--bad); }
+details.paste-lines { margin: .5rem 0; max-width: 40rem; }
+details.paste-lines > summary { cursor: pointer; font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
@@ -965,6 +991,34 @@ table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom
 table.filing-status td { min-width: 7.5rem; }
 table.filing-status td a { text-decoration: none; }
 table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* UI review 3, U5: a status that opens the filing looks like a link (a bordered badge with an arrow); the board wraps its headings so
+   it fits 1440 px; the reader's own organization's row is marked */
+table.filing-status td a.status-link .status { border: 1px solid currentColor; }
+table.filing-status td a.status-link .status::after { content: "\203A" / ""; font-weight: 700; margin-left: .1rem; }
+table.filing-status thead th { white-space: normal; text-transform: none; letter-spacing: 0; font-size: .82rem; min-width: 7rem; }
+table.filing-status td { min-width: 0; }
+table.filing-status tbody tr.own > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary); }
+
+/* ---------- Your work (core/_your_work.html; UI review 3, U5): the person's own work, one card per part ---------- */
+.your-work { margin: 1.25rem 0 1.75rem; }
+.your-work-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem 1.25rem; }
+.your-work-part { margin: 0; display: flex; flex-direction: column; }
+.your-work-part h3 { margin: 0 0 .5rem; font-size: 1.02rem; }
+.your-work-lines { list-style: none; margin: 0; padding: 0; }
+.your-work-lines li { margin: 0; padding: .45rem 0; border-top: 1px solid var(--line-2); display: grid; grid-template-columns: 1fr auto; column-gap: .75rem; }
+.your-work-lines li:first-child { border-top: 0; padding-top: 0; }
+.your-work-lines p { margin: 0; grid-column: 1; }
+.your-work-lines .what { font-weight: 500; overflow-wrap: anywhere; }
+.your-work-lines .what a { display: inline-block; min-height: 24px; }
+.your-work-lines .act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.your-work-lines .act a { display: inline-flex; align-items: center; min-height: 24px; font-weight: 600; white-space: nowrap; }
+.your-work-part .more { margin: auto 0 0; padding-top: .6rem; }
+.your-work-part .more a { display: inline-block; min-height: 24px; }
+.your-filings { margin-bottom: 1.5rem; }
+/* Claims and Monthly reports: the next one to file stands out (a badge says so in words) */
+table.list tbody tr.next-to-file > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.list tbody tr.next-to-file > th { box-shadow: inset 4px 0 0 var(--primary); }
 /* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
 table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
 table.list.factors .pa-first { border-left: 1px solid var(--line); }
@@ -1024,3 +1078,14 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 
 /* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
 .who-opens { color: var(--fg-2); }
+
+/* Add a rule (rules/rule_form.html): the kind chosen first shows only its part (core/pickers.js, radios marked data-reveal); without
+   scripts both parts show, each with a note saying which kind reads it. The second to the fifth condition fold under More conditions. */
+.js .no-script-note { display: none; }
+.more-conditions { border-top: 0; padding-top: 0; }
+.more-conditions > .stack { padding-top: .6rem; }
+
+/* A data pack's Discard the draft (refdata/detail.html): folded apart from Publish, with its own reason */
+details.discard { margin-top: 1rem; }
+details.discard > summary { cursor: pointer; color: var(--link); font-weight: 600; min-height: 24px; line-height: 24px; width: max-content; max-width: 100%; }
+details.discard > p { margin: .5rem 0; }
