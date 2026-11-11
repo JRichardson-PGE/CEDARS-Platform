@@ -18,6 +18,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
+from cedars.services.submissions import status as filing_status
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, service
@@ -112,6 +113,7 @@ def index(request):
                     "can_open": can_open,
                 }
             )
+        filing_status.mark_next(rows, org)  # the one to file now, and each row's action (UI review 3, U5)
         years.append({"setup": setup, "months": rows})
     return render(
         request,

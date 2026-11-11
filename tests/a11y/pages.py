@@ -13,6 +13,7 @@ PAGES = [
     ("home", "/", None),
     ("home-signed-in", "/", "pge_admin"),
     ("home-no-organization", "/", "community"),  # the header without Filings, and the line asking for access (navigation review, D1)
+    ("home-analyst", "/", "analyst"),  # Your work: the queue, PG&E's next filings and the last runs (UI review 3, U5)
     ("home-earlier-cycle", "/?cycle=2024-2027", None),
     ("help", "/help/", None),
     ("help-contact", "/help/contact/", None),
@@ -72,6 +73,7 @@ PAGES = [
     ("release-in-effect", "/releases/{release_done}/", "cpuc_admin"),
     ("releases-manage", "/releases/manage/", "cpuc_admin"),
     ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
+    ("site-notices", "/releases/notices/", "cpuc_admin"),
     ("limits", "/limits/", None),
     ("limits-manage", "/limits/manage/", "cpuc_admin"),
     # The register of CPUC-mandated changes; the scene's {mandate} (published, with history), {mandate_draft}
@@ -133,6 +135,7 @@ PAGES = [
     ("rule", "/rules/{rules}/W4d5e6f/", "pge_admin"),
     ("rule-differences", "/rules/differences/?a={rules}&b={rules}", "pge_admin"),
     ("rule-checker", "/rules/check/", "pge_admin"),
+    ("rule-built-in", "/rules/built-in/", "pge_admin"),
     # Administrators edit value lists and rules as new versions
     ("rule-set-admin", "/rules/{rules}/", "cpuc_admin"),
     ("rule-set-draft", "/rules/{rules_draft}/", "cpuc_admin"),
@@ -178,6 +181,8 @@ PAGES = [
     ("account-community", "/account/", "community"),  # a community account may close itself
     ("account-email", "/accounts/email/", "pge_admin"),
     ("request-access", "/account/request-access/", "community"),
+    ("request-access-roles", "/account/request-access/?organisation={pge}", "community"),  # its roles first, single permissions folded
+    ("request-access-cpuc-decides", "/account/request-access/?organisation=SCE", "community"),  # no administrator yet: the CPUC decides
     ("organisations", "/admin/organizations/", "cpuc_admin"),
     ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),
     ("organisation-cpuc", "/admin/organizations/{cpuc}/", "cpuc_admin"),
@@ -220,6 +225,7 @@ PAGES = [
     ("goal-sets", "/admin/goals/", "cpuc_admin"),
     ("goal-set", "/admin/goals/{goal_set}/", "cpuc_admin"),
     ("reference-data", "/reference-data/", "pge_admin"),  # the menu's own page (Jake, 2026-11-06)
+    ("reference-data-your-work", "/reference-data/", "analyst"),  # Your work: the cost-test sets being built
     ("data-packs", "/reference-data/packs/", "pge_admin"),
     ("pack-checks", "/reference-data/packs/checks/", "cpuc_admin"),
     ("pack-checks-member", "/reference-data/packs/checks/", "pge_admin"),
@@ -271,6 +277,7 @@ PAGES = [
     ("filings", "/filings/", "cpuc_admin"),  # with every PA's filing status
     ("filings-pa", "/filings/", "pge_admin"),
     ("published", "/published/", None),
+    ("published-your-work", "/published/", "analyst"),  # Your work: saved views and downloads, when there are any
     ("administration", "/admin/", "cpuc_admin"),
     ("administration-org-admin", "/admin/", "pge_admin"),
     ("output-templates", "/calculations/templates/", "analyst"),
@@ -425,6 +432,8 @@ PAGES = [
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),
     ("document-value-lists", "/documents/lists/", None),
     ("document-value-lists-admin", "/documents/lists/", "cpuc_admin"),
+    ("legacy-links", "/documents/old-links/", "cpuc_admin"),
+    ("legacy-link", "/documents/old-links/{legacy_link}/", "cpuc_admin"),
     ("deliverable", "/documents/{deliverable}/", None),
     ("deliverable-ed", "/documents/{deliverable}/", "cpuc_admin"),
     ("deliverable-version-new", "/documents/{deliverable}/versions/new/", "cpuc_admin"),

@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% block title %}Site notices{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:administration' %}">Administration</a></li></ol></nav>
+<div class="page-title"><h1>Site notices</h1>{% page_help "releases/notices" %}</div>
+<p>A short notice every page shows at its top from its start until its end: an outage, an extended deadline. It shows at once, without a
+release note's notice period; a change to CEDARS itself is still announced in a <a href="{% url 'releases:manage' %}">release note</a>.
+A notice is never edited: withdraw it with a reason and post another. Posting and withdrawing are in the audit log.</p>
+
+<section class="card" aria-labelledby="post-h">
+  <h2 id="post-h">Post a notice</h2>
+  <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary">Post the notice</button></div>
+  </form>
+</section>
+
+<h2 id="shown-h">Shown now</h2>
+{% include "releases/_notices.html" with rows=shown label="Notices shown now" withdrawable=True empty="No notice is shown now." %}
+<h2 id="coming-h">Coming</h2>
+{% include "releases/_notices.html" with rows=coming label="Notices still to start" withdrawable=True empty="No notice is waiting to start." %}
+<h2 id="past-h">Ended or withdrawn</h2>
+{% include "releases/_notices.html" with rows=past label="Notices that ended or were withdrawn" empty="None yet." %}
+{% endblock %}

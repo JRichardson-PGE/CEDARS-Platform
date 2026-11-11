@@ -213,8 +213,8 @@ enforces one reads `limits.value(key)`.
 ```text
 cedars/
   settings/      base, dev, test, sandbox, prod
-  core/          the site shell: base templates, header (nav.py), page help, help pages, search, My queue, health, storage,
-                 uploads, workbooks, API base, front page and search wiring
+  core/          the site shell: base templates, header (nav.py), page help, help pages, search, My queue, Your work, health,
+                 storage, uploads, workbooks, API base, front page and search wiring
   services/      shared services, one Django app each (accounts, audit, registry, dictionary, rules, submissions, refdata,
                  notifications, retention, vault, legacy, snapshots, releases, feedback, sandbox, accessibility)
   modules/       one Django app per module (administration, impact_profiles, monthly, calculations, programs, budgets,
@@ -230,12 +230,12 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
 | Service | `cedars.services.dictionary` | Field catalog versions (the engine's and the platform's own records), aliases, usages, value lists, field retirement, templates and schemas, the legacy crosswalk |
-| Service | `cedars.services.rules` | Rule sets and rules as data, run by the engine's rule runner; the pre-upload checker |
+| Service | `cedars.services.rules` | Rule sets and rules as data, run by the engine's rule runner; the pre-upload checker; the list of checks written in code |
 | Service | `cedars.services.submissions` | The filing calendar, the one state machine for every filing, workflow policy, reopen requests and delegations, comments, corrections in place, publication hooks, pricing through the registered pricer |
 | Service | `cedars.services.refdata` | Reference-data packs (ACC, impact profiles, eTRM permutations, cost-test sets ...), tie-outs, pinning; the cost-test set builder |
 | Service | `cedars.services.notifications` | Subscriptions fed from the audit trail, follows, deadline reminders, the notifications page, email |
@@ -263,7 +263,7 @@ The apps, in `INSTALLED_APPS` order:
 flowchart TB
   mods["Modules (cedars/modules)<br/>programs, calculations, budgets, claims, monthly,<br/>impact_profiles, documents, data, administration"]
   svcs["Shared services (cedars/services)<br/>accounts, audit, registry, dictionary, rules, submissions,<br/>refdata, notifications, retention, vault, legacy, snapshots,<br/>releases, feedback, sandbox, accessibility"]
-  core["cedars.core: the site shell<br/>storage, uploads, nav, page help,<br/>My queue, health, search, API base"]
+  core["cedars.core: the site shell<br/>storage, uploads, nav, page help,<br/>My queue, Your work, health, search, API base"]
   eng["ReCET package<br/>(pinned, imported)"]
   worker["ReCET worker<br/>(separate process)"]
   mods -- "call service functions,<br/>read service models" --> svcs
@@ -312,9 +312,11 @@ Every point where a service calls back into a module is a registration function.
 | `register_concerns` | notifications | budgets (fund shifts), documents, releases | The same for a module's own records |
 | `register_purger` | retention | calculations, data, feedback, notifications, submissions | Find and delete expired records of a class |
 | `register_checker` | rules (`precheck.py`) | budgets, claims | The pre-upload checker runs the module's own rule-set step |
+| `register_coded_checks` | rules (`coded.py`) | budgets, claims, monthly, impact_profiles, vault | The checks each upload runs in code beside the rule sets, listed read only on Built-in checks (`/rules/built-in/`) |
 | `register_list` | dictionary `value_lists.py` | registry (a service) | A list a service keeps as a versioned value list, never handed to the engine: a program's status, segment, primary sector, implementer and category (first version from the program fields guide, read back by `field_guide.values`) |
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
+| `register` | core `yourwork.py` | accounts, submissions, refdata, calculations, data | The signed-in person's own work at the top of the front page and the Calculations, Reference data and Published data pages |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
 | `register` | core `page_access.py` | documents, impact_profiles, refdata, snapshots | Who may open a page outside the header's menus whose own check is finer than a role, so the Help guides link to it only for people it opens for |
 | `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
@@ -714,7 +716,9 @@ erDiagram
   }
 ```
 
-`KeyDate` holds the dates Energy Division posts on the library's home page.
+`KeyDate` holds the dates Energy Division posts on the library's home page. `LegacyLink` maps an address of the old CEDARS site or the
+2006-2013 EM&V site to the migrated document or file it now opens; CPUC Energy Division's document administrators repoint one on
+the Old links page, with a reason (audit `documents.legacy_link_repointed`).
 
 ### 4.3 Invariants the database enforces
 
@@ -747,7 +751,7 @@ erDiagram
 | vault | `PIIUpload`, `PIIContact`, `PIISite` |
 | legacy | `LegacySource`, `LegacyImport` |
 | snapshots | `Snapshot`, `Release`, `ScanSettings`, `PIIScan` |
-| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink`, `LimitChange` |
+| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink`, `LimitChange`, `SiteNotice` |
 | feedback | `Feedback` |
 | sandbox | `Refresh`, `CopiedRecord` |
 | accessibility | `CheckSettings`, `FileCheck` |
@@ -808,7 +812,12 @@ suspension and revocation; it is never deleted and every change is an audit even
 
 `has_permission(user, organisation, permission)` is the one check: the user's active, unexpired grants in that organization (plus the
 federated-session rule for `claims.pii`). **Role templates** (`RoleTemplate`) are named bundles of module permissions a system
-administrator defines and an organization's administrator applies, one grant per permission. Organization administrators run
+administrator defines and an organization's administrator applies, one grant per permission. An **access request**
+(`AccessRequest`) asks one organization for one or more of its role templates or for single read and submit permissions; its
+administrators decide it, or, while it has none, the CPUC's system administrators (`request_deciders`, `can_decide_request`; until then a
+system administrator may grant that organization's permissions), and the request shows in the deciders' My queue. The CPUC and the
+statewide (SW) pseudo-PA take no requests. Every permission has a name and a sentence on what it lets a person do
+(`permissions.label`, `describe`), used wherever a person chooses or reads one. Organization administrators run
 periodic **recertification**; when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
 access policy says so (never the last data steward).
 
@@ -1069,7 +1078,9 @@ split among the funding PAs by the weighted factors (section 8.1).
 - **Fund shifts** (`shifts.py`): a PA moves dollars among its programs and statewide programs within a cycle, with no calculation; a
   statewide line is split among the funding PAs by the weighted factors, each co-funder places and acknowledges its portion
   (`FundShiftAcknowledgement`), and the shift takes effect with the last one. No shift may take a program-year's operating budget below
-  zero.
+  zero. The amounts page picks programs with core's program picker (the PA's own and, for the shift's PA, the statewide ones), shows
+  what each program-year holds (`shifts.held`, `entry_budget`) and the running net, takes lines pasted from a spreadsheet
+  (`paste_lines`), and its script checks each line as it is typed; the save still runs the same checks on the server.
 - **Operating budget**: the standing filing's lines plus the shifts in effect since it was confirmed, by program and year; other modules
   read it through `registry.operating_budget` (`register_operating_budget`).
 
@@ -1346,14 +1357,29 @@ flowchart TD
   a published pack keeps the ones it was published under), withdrawn but never deleted; `pin()` is recorded by every run and filing; a
   filing never uses a draft.
 - **Rules and the pre-upload checker**: stored rule sets run by the engine's rule runner; `/rules/check/` and
-  `POST /api/v1/rules/check` run a module's rule-set step on a file without keeping it.
+  `POST /api/v1/rules/check` run a module's rule-set step on a file without keeping it. The checks each upload runs in code beside the
+  rule sets (the BUD-, CLM-, MON-, PII- and LS- rules) stay in code and are listed read only on `/rules/built-in/` from the lists the
+  modules register (`register_coded_checks`); a test holds each list to the rule IDs its module's code raises.
 - **Uploads** (`cedars/core/uploads.py`): limits from settings, several files combined into the one zip a module reads. A .zip or
   workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
   `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
   they take effect, the Limits page read from the settings that enforce them (or the value the CPUC set, for an editable limit), Change
-  limits for CPUC system administrators, the register of CPUC-mandated changes.
+  limits for CPUC system administrators, the register of CPUC-mandated changes, and site notices (`SiteNotice`): a short dated
+  notice a CPUC system administrator posts at once (`/releases/notices/`), shown at the top of every page from its start to its end,
+  withdrawn with a reason, never edited.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
+- **My queue and Your work** (`cedars/core/queue.py`, `cedars/core/yourwork.py`): read live from each service's and module's
+  records through the providers they register, nothing stored. My queue (`/queue/`) is the full list of what waits on the person.
+  Your work is the short version at the top of a page, one card per part, each part's `provider(request, page)` returning a `Part`
+  or nothing: on the front page the top three queue items and their count (core's own part), the next filing of each kind for the
+  organization the person acts for with its status and one action (`submissions.status.your_work`, over the Filings page's board),
+  the last three runs (Calculations) and the person's access requests, waiting or decided in the last two weeks (accounts); on
+  Calculations the runs and Edit inputs drafts; on Reference data the cost-test sets being built and draft packs the person
+  registered; on Published data their saved views and record downloads. The Filings page starts with the organization's own
+  filings (`status.own_filings`, its row of the board, with Start, Continue or Open), then the board with that row marked, then the
+  page list; the Claims and Monthly reports lists mark the next one to file and end each row with its action
+  (`status.mark_next`). A provider that fails is logged and left out, as in My queue.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
   the glossary, programs, fields, confirmed claims and documents, and a signed-in person's own filings and runs, with what the query

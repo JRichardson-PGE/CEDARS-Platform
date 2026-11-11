@@ -26,6 +26,8 @@
   </details>
 </section>
 {% endif %}
-<h2>The rule as data</h2>
-<pre tabindex="0">{{ r.definition }}</pre>
+<details class="section" id="as-data">
+<summary><h2 id="data-h">The rule as data</h2><span class="count">the definition the checker runs</span></summary>
+<div class="section-body"><pre tabindex="0" role="region" aria-labelledby="data-h">{{ r.definition }}</pre></div>
+</details>
 {% endblock %}
