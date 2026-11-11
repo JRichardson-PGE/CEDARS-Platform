@@ -1,10 +1,12 @@
 """The accounts service's work in each user's queue (cedars.core.queue): access requests waiting on an organization's
-administrators, PII grants and access-policy changes waiting on a data steward."""
+administrators (or on the CPUC's system administrators while it has none), PII grants and access-policy changes waiting on a data
+steward."""
 
 from __future__ import annotations
 
 from cedars.core.queue import Item
 
+from . import permissions as perms
 from . import service
 from .models import AccessRequest, Grant, PolicyChange
 
@@ -12,7 +14,7 @@ from .models import AccessRequest, Grant, PolicyChange
 def access_requests(user) -> list[Item]:
     if user is None or not user.is_authenticated:
         return []
-    orgs = [o for o in service.organisations_of(user) if service.is_org_admin(user, o)]
+    orgs = service.organisations_deciding(user)
     out = []
     pending = AccessRequest.objects.filter(status=AccessRequest.Status.PENDING, organisation__in=orgs).select_related(
         "user", "organisation"
@@ -26,7 +28,8 @@ def access_requests(user) -> list[Item]:
                 r.organisation.code,
                 r.created_at,
                 None,
-                "Asks for: " + ", ".join(r.permissions) if r.permissions else "",
+                ("Asks for: " + perms.labels(r.permissions) if r.permissions else "")
+                + (f" ({r.organisation.code} has no administrator yet: the CPUC decides)" if service.cpuc_decides(r.organisation) else ""),
             )
         )
     return out
@@ -70,10 +73,10 @@ def your_requests(request, page):
         org = r.organisation
         if r.status == AccessRequest.Status.PENDING:
             asked = f"asked {day(r.created_at).isoformat()}"
-            if service.org_admins(org).exists():
-                detail = f"{asked}; waiting for {org.code}'s administrators to decide"
+            if service.cpuc_decides(org):
+                detail = f"{asked}; {org.code} has no administrator yet, so the CPUC decides it"
             else:
-                detail = f"{asked}; {org.code} has no administrator yet to decide it"
+                detail = f"{asked}; waiting for {org.code}'s administrators to decide"
         else:
             detail = f"decided {day(r.decided_at).isoformat()}" + (f": {r.decision_note}" if r.decision_note else "")
         lines.append(Line(f"Access to {org.code} ({org.name})", account, "See it", r.get_status_display(), detail))

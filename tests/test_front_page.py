@@ -211,7 +211,18 @@ def test_the_front_page(legacy, client):
     for g in site_help.GUIDES[3:]:
         assert f'href="/help/{g.slug}/"' not in guides
     assert '<a href="/help/">All of Help</a>' in guides
-    assert "This site has no support address set yet." in page
+    # with no support address set, the card says nothing about it: only the feedback and Getting support links
+    support = page.split("<h3>Feedback and support</h3>")[1].split("</div>")[0]
+    assert "support address" not in support and "mailto:" not in support and 'href="/help/contact/"' in support
+
+
+def test_the_support_address_shows_once_it_is_set(client, settings):
+    settings.CEDARS_SUPPORT_EMAIL = "support@cedars.example.org"
+    page = client.get("/").content.decode()
+    support = page.split("<h3>Feedback and support</h3>")[1].split("</div>")[0]
+    assert 'href="mailto:support@cedars.example.org' in support and "support@cedars.example.org</a>" in support
+    contact = client.get("/help/contact/").content.decode()
+    assert "support@cedars.example.org" in contact and "CEDARS_SUPPORT_EMAIL" not in contact
 
 
 def test_the_front_page_with_nothing_published(client):

@@ -9,6 +9,15 @@
   <dt>Acting for</dt><dd>{% if request.organisation %}{{ request.organisation }}{% else %}no organization (a community account: public data and your own runs){% endif %}</dd>
 </dl>
 <p class="actions"><a class="button" href="{% url 'mfa_index' %}">Second factor and recovery codes</a> <a class="button" href="{% url 'account_change_password' %}">Change password</a> <a class="button" href="{% url 'account_email' %}" id="change-email">Change your email address</a></p>
+<nav class="account-links" aria-labelledby="yours-h">
+  <h2 id="yours-h">Your settings and saved work</h2>
+  <ul class="links">
+    <li><a href="{% url 'notifications:settings' %}">Notification settings</a>: what you hear about, and whether it is emailed</li>
+    <li><a href="{% url 'notifications:index' %}">Your notifications</a></li>
+    <li><a href="{% url 'data:views' %}">Saved views</a>: page settings you saved to come back to</li>
+    <li><a href="{% url 'data:downloads' %}">Your downloads</a>: record downloads you asked for</li>
+  </ul>
+</nav>
 <details class="card" id="your-name">
   <summary>Your name</summary>
   <p class="small">The name pages show beside what you file, comment and decide, and in organization member lists.</p>

@@ -68,16 +68,33 @@
   });
 })();
 
-// A choice that decides which of the form's next fields apply (select[data-reveal]: Link a record's "Carried by"): only the fields for
-// the chosen value ([data-reveal-for]) show. Without this every one shows, each saying which choice it is for.
+// A choice that decides which of the form's next fields apply (select[data-reveal]: Link a record's "Carried by"; or a group of radio
+// buttons marked data-reveal: Add a rule's kind): only the fields for the chosen value ([data-reveal-for]) show. Without this every one
+// shows, each saying which choice it is for.
 (function () {
   "use strict";
-  document.querySelectorAll("select[data-reveal]").forEach(function (select) {
-    var parts = select.form ? select.form.querySelectorAll("[data-reveal-for]") : [];
+  function bind(form, controls, read) {
+    var parts = form ? form.querySelectorAll("[data-reveal-for]") : [];
     var apply = function () {
-      parts.forEach(function (p) { p.hidden = p.getAttribute("data-reveal-for") !== select.value; });
+      var value = read();
+      parts.forEach(function (p) { p.hidden = p.getAttribute("data-reveal-for") !== value; });
     };
-    select.addEventListener("change", apply);
+    controls.forEach(function (c) { c.addEventListener("change", apply); });
     apply();
+  }
+  document.querySelectorAll("select[data-reveal]").forEach(function (select) {
+    bind(select.form, [select], function () { return select.value; });
+  });
+  var groups = [];
+  document.querySelectorAll('input[type="radio"][data-reveal]').forEach(function (radio) {
+    var group = groups.filter(function (g) { return g.form === radio.form && g.name === radio.name; })[0];
+    if (!group) groups.push(group = { form: radio.form, name: radio.name, radios: [] });
+    group.radios.push(radio);
+  });
+  groups.forEach(function (g) {
+    bind(g.form, g.radios, function () {
+      var on = g.radios.filter(function (r) { return r.checked; })[0];
+      return on ? on.value : "";
+    });
   });
 })();

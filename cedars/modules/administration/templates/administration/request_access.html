@@ -1,19 +1,55 @@
 {% extends "core/base.html" %}
+{% comment %}Ask an organization for access in two steps that work without scripts (UI review 3, U6): choose the organization, then its roles
+   in plain words (the role templates offered for it), with single permissions, each with what it is for, behind a disclosure. The page
+   says who decides: the organization's administrators, or the CPUC while it has none. An account in no organization sees step 3 of
+   its set-up.{% endcomment %}
 {% block title %}Ask for access{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:account' %}">Your account</a></li></ol></nav>
 <div class="page-title"><h1>Ask an organization for access</h1>{% page_help "administration/request_access" %}</div>
-<p>Your request goes to the organization's administrators, who decide it. PII access also needs a CPUC data steward's approval.</p>
-<form method="post" class="stack">{% csrf_token %}
+{% if not nav.member %}{% include "core/_set_up_steps.html" with step=3 %}{% endif %}
+{% if pick %}
+<p>Choose the organization you file or work for. Next you choose your role in it, and your request goes to whoever decides.</p>
+<form method="get" class="stack form-narrow request-org">
+  {{ pick.organisation.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Next: choose your role</button> <a href="{% url 'administration:account' %}">Cancel</a></div>
+</form>
+{% else %}
+<p class="request-to"><strong>{{ org.code }}</strong> ({{ org.name }}) <a href="{% url 'administration:request_access' %}">Choose another organization</a></p>
+<p class="request-decider">{% if cpuc_decides %}{{ org.code }} has no administrator yet, so the CPUC decides your request.{% else %}Your request goes to {{ org.code }}'s administrators, who decide it.{% endif %} Access to personal information is added later, with a CPUC data steward's approval.</p>
+<form method="post" class="stack request-access">{% csrf_token %}
+  {{ form.organisation }}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  {{ form.organisation.as_field_group }}
-  <fieldset>
-    <legend>{{ form.permissions.label }}</legend>
-    <div class="checks">{% for cb in form.permissions %}<label for="{{ cb.id_for_label }}">{{ cb.tag }} {{ cb.choice_label }}</label>{% endfor %}</div>
-    {% if form.permissions.errors %}<div id="perm-errors" class="field-errors">{{ form.permissions.errors }}</div>{% endif %}
-    <p class="helptext" id="perm-help">{{ form.permissions.help_text }}</p>
+  {% if roles %}
+  <fieldset class="request-roles" aria-describedby="roles-help">
+    <legend>Your role in {{ org.code }}</legend>
+    <p class="helptext" id="roles-help">Choose the one that fits what you do. Each role gives the permissions listed under it.</p>
+    {% for t, gives, cb in roles %}
+    <div class="option">
+      <input type="checkbox" name="{{ cb.data.name }}" value="{{ cb.data.value }}" id="{{ cb.id_for_label }}" aria-describedby="{{ cb.id_for_label }}-d"{% if cb.data.selected %} checked{% endif %}>
+      <label for="{{ cb.id_for_label }}">{{ t.name }}</label>
+      <p class="small muted" id="{{ cb.id_for_label }}-d">{% if t.description %}{{ t.description }} {% endif %}Gives: {{ gives }}.</p>
+    </div>
+    {% endfor %}
   </fieldset>
+  {% endif %}
+  {% if roles %}<details class="request-singles"{% if singles_open %} open{% endif %}>
+    <summary>Or choose single permissions</summary>{% endif %}
+    <fieldset class="request-singles-list"{% if form.permissions.errors %} aria-describedby="perm-errors"{% endif %}>
+      <legend>{% if roles %}Single permissions{% else %}Permissions you need in {{ org.code }}{% endif %}</legend>
+      {% for cb, words in singles %}
+      <div class="option">
+        <input type="checkbox" name="{{ cb.data.name }}" value="{{ cb.data.value }}" id="{{ cb.id_for_label }}" aria-describedby="{{ cb.id_for_label }}-d"{% if cb.data.selected %} checked{% endif %}>
+        <label for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label>
+        <p class="small muted" id="{{ cb.id_for_label }}-d">{{ words }}</p>
+      </div>
+      {% endfor %}
+      {% if form.permissions.errors %}<div id="perm-errors" class="field-errors">{{ form.permissions.errors }}</div>{% endif %}
+      <p class="helptext">Confirming, approving and administering are added later by the organization's administrators, once you are a member.</p>
+    </fieldset>
+  {% if roles %}</details>{% endif %}
   {{ form.message.as_field_group }}
   <div class="actions"><button type="submit" class="primary">Send the request</button> <a href="{% url 'administration:account' %}">Cancel</a></div>
 </form>
+{% endif %}
 {% endblock %}

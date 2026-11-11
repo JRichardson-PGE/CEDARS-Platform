@@ -323,3 +323,55 @@ def test_rule_admin_pages(client, signed_in, cpuc_admin, pge_admin, published_cl
     new.refresh_from_db()
     assert new.status == "published"
     assert c.get(f"/rules/{new.pk}/add/").status_code == 302
+
+
+def test_add_a_rule_asks_the_kind_first_and_picks_fields(signed_in, cpuc_admin, published_claims):
+    import json
+    from pathlib import Path
+
+    from cedars.services.dictionary import service as dictionary
+
+    catalog = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.93.json"
+    dictionary.load_catalog(None, json.loads(catalog.read_text(encoding="utf-8")))
+    draft = service.new_version(cpuc_admin, published_claims, date(2027, 1, 1), "D.26-01-001")
+    c = signed_in(cpuc_admin)
+    page = c.get(f"/rules/{draft.pk}/add/").content.decode()
+    # the kind comes first and decides which part shows (core/pickers.js); fields are picked from the dictionary's input fields
+    assert page.index('name="kind"') < page.index('name="table"') < page.index('name="field"') < page.index('data-reveal-for="rule"')
+    assert 'name="kind" value="rule" data-reveal=""' in page.replace(' required id="id_kind_0"', "").replace(' id="id_kind_0"', "")
+    assert 'data-reveal-for="spec"' in page and page.index('data-reveal-for="spec"') < page.index('name="severity"')
+    assert 'list="id_field-list"' in page and '<option value="NumUnits">' in page and 'list="id_cond1_field-list"' in page
+    assert '<details class="other-filters more-conditions">' in page and 'name="cond2_field"' in page.split("more-conditions", 1)[1]
+
+    form = {
+        "kind": "rule", "severity": "warning", "table": "Measure", "field": "NumUnit", "rule": "is greater than", "value": "0",
+        "connector": "all", "modules": ["claims"], "reason": "New check",
+    }  # fmt: skip
+    # a field that names nothing gets the near matches, on the form
+    bad = c.post(f"/rules/{draft.pk}/add/", form).content.decode()
+    assert "No field is “NumUnit”. Did you mean NumUnits" in bad.replace("&ldquo;", "“").replace("&rdquo;", "”")
+    # any name the dictionary lists is kept as given (CET's E3 name here), so the rule's test is what was typed
+    used = {"field": "NumUnits", "cond1_field": "E3MeaElecEndUseShape", "cond1_rule": "is not null", "n": "x"}  # n: the other kind's part
+    r = c.post(f"/rules/{draft.pk}/add/", form | used)
+    assert r.status_code == 302, r.context["form"].errors
+    added = draft.rules.get(source="Added by an administrator")
+    assert added.field == "NumUnits" and added.definition["conds"][0][1] == "E3MeaElecEndUseShape"
+    # a filled-in folded condition opens the fold when the form comes back
+    again = c.post(f"/rules/{draft.pk}/add/", form | {"cond3_field": "NumUnits", "cond3_rule": "", "cond3_value": "1"}).content.decode()
+    assert '<details class="other-filters more-conditions" open>' in again and "1 in use" in again
+
+    # the part for the other kind is not read: what is left in it never stops the save
+    spec = {
+        "kind": "spec", "severity": "reject", "table": "Measure", "field": "NumUnits", "check": "max_length", "n": "17",
+        "cond1_field": "Nonsense", "rule": "nonsense", "modules": ["claims"], "reason": "Constraint",
+    }  # fmt: skip
+    r = c.post(f"/rules/{draft.pk}/add/", spec)
+    assert r.status_code == 302, r.context["form"].errors
+    assert draft.rules.filter(source="Added by an administrator", kind="spec", field="NumUnits").exists()
+
+
+def test_the_rule_as_data_is_folded(signed_in, cpuc_admin, published_claims):
+    rule = published_claims.rules.first()
+    page = signed_in(cpuc_admin).get(f"/rules/{published_claims.pk}/{rule.rule_id}/").content.decode()
+    folded = page.split('<details class="section" id="as-data">', 1)[1].split("</details>", 1)[0]
+    assert '<h2 id="data-h">The rule as data</h2>' in folded and "<pre" in folded
