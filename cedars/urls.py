@@ -31,3 +31,8 @@ urlpatterns = [
     path("api/v1/", include("cedars.core.api_urls")),
     path("calculations/", include("cedars.modules.calculations.urls")),
 ]
+
+# The error pages, in the site's layout (cedars/core/errors.py): one page for "not found" and "your account cannot open it".
+handler404 = "cedars.core.errors.not_found"
+handler403 = "cedars.core.errors.permission_denied"
+handler500 = "cedars.core.errors.server_error"

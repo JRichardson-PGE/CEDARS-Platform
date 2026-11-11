@@ -27,3 +27,15 @@ class ImpactProfilesConfig(AppConfig):
             ],
             order=5,
         )
+
+        from cedars.core import page_access
+
+        from . import access
+
+        # who the Help guides offer a link to these pages (UI review 3, U4): the pages' own checks
+        page_access.register(
+            "impact_profiles:custom_new",
+            lambda r: access.can_submit(r.user, getattr(r, "organisation", None)),
+            "people who submit impact profiles for the organization they act for",
+        )
+        page_access.register("impact_profiles:settings", lambda r: access.is_admin(r.user), "the CPUC's impact profile administrators")

@@ -5,7 +5,7 @@ files and EM&amp;V documents. Published documents are open to everyone; drafts a
 version never changes: a revision is a new version, and every earlier version stays listed and downloadable.</p>
 <h2>First steps</h2>
 <ol>
-  <li><a href="{% url 'documents:new' %}">File a document</a> in a collection you manage: choose the collection, then its type, the
+  <li>{% page_link 'documents:new' "File a document" %} in a collection you manage: choose the collection, then its type, the
   attributes it is filed with and the files. It starts unpublished; publish it from its page when it is ready.</li>
   <li>Replace its files by adding a version. An EM&amp;V deliverable (a workplan or study results) moves through its stages (drafts,
   comments, final, PA responses) as versions of one document.</li>
@@ -21,7 +21,7 @@ version never changes: a revision is a new version, and every earlier version st
   <li><a href="{% url 'documents:work_orders' %}">Work orders</a> are Energy Division's contract work orders; studies and documents are
   filed under them.</li>
   <li>A PA responds to a study's recommendations as a version of the deliverable at the stage PA response.</li>
-  <li><a href="{% url 'documents:aging' %}">The aging review</a> lists what each study manager owes, and <a
+  <li>{% page_link 'documents:aging' "The aging review" %} lists what each study manager owes, and <a
   href="{% url 'documents:study_summary' %}">Study budgets</a> compiles the register's budget tables.</li>
 </ul>
 <h2>Learn more</h2>

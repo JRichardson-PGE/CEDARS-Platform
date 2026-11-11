@@ -1,23 +1,33 @@
 {% extends "mfa/totp/base.html" %}
 {% load allauth %}
-{# The second-factor set-up page (UAT F11, F12): the key is selectable text with a copy button, not a disabled input. #}
+{% comment %}The second-factor set-up page (UAT F11, F12; UI review 3, U6): where the new account is in its set-up, the key shown whole as
+   selectable text with a copy button (not a field that clips it), and the code field six digits wide. The address the sign-in was heading
+   for goes on with the form, so the recovery codes page that follows can continue there (accounts.signals).{% endcomment %}
 {% block head_title %}Set up your authenticator app{% endblock head_title %}
 {% block content %}
 <div class="page-title"><h1>Set up your authenticator app</h1>{% page_help "mfa/totp/activate_form" %}</div>
+{% if mfa_pending %}{% include "core/_set_up_steps.html" with step=2 %}{% endif %}
 <p>Every CEDARS account signs in with a second factor. Scan the code below with an authenticator app, or type the key into it, then enter the six-digit code the app shows.</p>
 {% url 'mfa_activate_totp' as action_url %}
-{% element form form=form method="post" action=action_url %}
-  {% slot body %}
-    {# Sized here: the SVG has only a viewBox, so a bare <img> filled the page width (Jake, demo server, 2026-11-02). #}
-    <img class="qr-code" src="{{ totp_svg_data_uri }}" alt="QR code holding the authenticator key below" width="200" height="200">
-    {% csrf_token %}
-    {% element field id="authenticator_secret" type="text" value=form.secret readonly=True %}
-      {% slot label %}Authenticator key{% endslot %}
-      {% slot help_text %}The key the QR code holds, to type into the app instead. Keep it somewhere safe: it sets the app up again on a new phone.{% endslot %}
-    {% endelement %}
-    <p><button type="button" data-copy="authenticator_secret" hidden>Copy the key</button></p>
-    {% element fields form=form %}{% endelement %}
-  {% endslot %}
-  {% slot actions %}{% element button type="submit" tags="prominent" %}Activate{% endelement %}{% endslot %}
-{% endelement %}
+<form method="post" action="{{ action_url }}" class="stack totp-form">
+  {% csrf_token %}
+  {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% elif request.POST.next %}<input type="hidden" name="next" value="{{ request.POST.next }}">{% endif %}
+  {% if form.non_field_errors %}<div class="field-errors">{{ form.non_field_errors }}</div>{% endif %}
+  {# Sized here: the SVG has only a viewBox, so a bare <img> filled the page width (Jake, demo server, 2026-11-02). #}
+  <img class="qr-code" src="{{ totp_svg_data_uri }}" alt="QR code holding the authenticator key below" width="200" height="200">
+  <div class="field">
+    <span class="label" id="authenticator-key-label">Authenticator key</span>
+    <p class="totp-key-row"><code class="totp-key" id="authenticator_secret" aria-labelledby="authenticator-key-label" aria-describedby="authenticator-key-help">{{ form.secret }}</code>
+      <button type="button" data-copy="authenticator_secret" hidden>Copy the key</button></p>
+    <span id="authenticator-key-help" class="small muted">The key the QR code holds, to type into the app instead. Keep it somewhere safe: it sets the app up again on a new phone.</span>
+  </div>
+  <div class="field">
+    <label for="id_code">Authenticator code</label>
+    {% if form.code.errors %}<div id="id_code-errors" class="field-errors">{{ form.code.errors }}</div>{% endif %}
+    <input type="text" name="code" id="id_code" class="otp" required inputmode="numeric" autocomplete="one-time-code" size="8"
+           aria-describedby="{% if form.code.errors %}id_code-errors {% endif %}id_code-help"{% if form.code.errors %} aria-invalid="true"{% endif %}>
+    <span id="id_code-help" class="small muted">The six digits your app shows for CEDARS. They change every 30 seconds.</span>
+  </div>
+  <div class="actions"><button type="submit" class="primary">Activate</button></div>
+</form>
 {% endblock content %}

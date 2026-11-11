@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -317,6 +317,7 @@ Every point where a service calls back into a module is a registration function.
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
+| `register` | core `page_access.py` | documents, impact_profiles, refdata, snapshots | Who may open a page outside the header's menus whose own check is finer than a role, so the Help guides link to it only for people it opens for |
 | `register` | core `search.py` | submissions, calculations, claims, documents | Parts of the site search results: a signed-in person's own filings and the runs they see, a confirmed claim by its ClaimID, the document library's search (each under its own pages' rules; a hit the query names exactly leads as the best match) |
 
 ```mermaid
@@ -833,7 +834,7 @@ flowchart TD
   req["Request"] --> sess["SessionMiddleware, AuthenticationMiddleware,<br/>allauth AccountMiddleware"]
   sess --> act["ActiveOrganisationMiddleware:<br/>request.organisation = the chosen active membership<br/>request.filing_organisation = it, when it files<br/>request.assurance = password, mfa or federated"]
   act --> mfa{"RequireMFAMiddleware:<br/>second factor set up?"}
-  mfa -- "no" --> setup["Sent to the second-factor<br/>set-up page (Help aside)"]
+  mfa -- "no" --> setup["Sent to the second-factor<br/>set-up page (Help aside),<br/>then recovery codes and Continue"]
   mfa -- "yes" --> auditctx["AuditContextMiddleware:<br/>who, organization, assurance<br/>for every audit event"]
   auditctx --> view["View"]
   view --> perm{"has_permission(user,<br/>organization, module.action)"}
@@ -846,6 +847,12 @@ flowchart TD
   per caller address and per account. A sign-in ends after the session_hours limit and after the session_idle_minutes limit
   unused (`SessionTimeoutMiddleware`; a page's background requests do not count as use). There is no Django admin site: every administrative action is a platform page that goes
   through a service and its audit event.
+- **A new account's first sign-in** has three steps, shown on its pages as a step line (`core/_set_up_steps.html`): confirm the email,
+  set up the second factor, ask an organization for access. The middleware sends a password-only session to the set-up page with the
+  address it was heading for (`next`), which the set-up form carries. Adding the account's first authenticator records that address in
+  the session (`accounts.signals`, `FIRST_SET_UP`, kept only when it stays on this site); the recovery codes page that follows says what
+  the codes are for, offers Download and Print, and Continue (`/account/continue/`, `core.views.after_set_up`), which goes to Ask for
+  access for an account in no organization and otherwise to that address.
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
 - The **header** is data (`cedars/core/nav.py`): every item names who sees it (`anon`, `user`, `member`, `guest`, `public`,
@@ -911,6 +918,11 @@ stateDiagram-v2
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
+  Correct records opens on the version's records with findings (`with_findings`, rejected first; findings about a whole table said
+  apart). A record's form lays its fields out by section (`field_info`: the field's section in the pinned engine's input field
+  reference, read by `core.engine_docs.input_sections`, else its data dictionary group), with the fields that have findings first,
+  and offers a value list's codes (the version in force, else the engine's list, leaving out codes retired before the filing's first
+  year) as a datalist up to the `CEDARS_CORRECTION_LIST_CODES` limit; a longer list links to its dictionary page.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
 - **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
@@ -1339,6 +1351,16 @@ flowchart TD
   the glossary, programs, fields, confirmed claims and documents, and a signed-in person's own filings and runs, with what the query
   names exactly (a PrgID, field name, ClaimID, run name or page title) first as the best match. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
   their integrity checked.
+- **Error pages** (`cedars/core/errors.py`, the `handler404`, `handler403` and `handler500` in `cedars/urls.py`, and
+  `CSRF_FAILURE_VIEW`): every error page is in the site's layout, with one sentence, a search box and links to the front page, Help and
+  My queue. A page that does not exist and a page the account cannot open show the same page and sentence (the status stays 404 or
+  403), so neither says whether the page is there; under `/api/` both answer in JSON. The 500 page renders with no context, so a
+  failing database or context processor cannot take it down too; a form refused for its security token says why and how to send it
+  again.
+- **Links only to pages that open** (`cedars/core/page_access.py`, the `{% page_link %}` tag): a Help guide links to an
+  administrators' page only for a reader it opens for; anyone else reads its name and who it is for. Who may open a page comes from the
+  header's menus (`nav.Item.who`), or, for a page outside them with a finer check, from the check its owner registers.
+  `tests/test_help_links.py` follows every link in every guide as each kind of account and fails on one that ends at an error page.
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user
   and per-address throttles. Pages and the API call the same service functions.
 - **Accessibility of files** (`cedars.services.accessibility`): stored PDFs and workbooks checked; generated workbooks are accessible by
@@ -1370,7 +1392,8 @@ caching or deployment updates this document and its diagrams in the same pull re
 - an app in `INSTALLED_APPS` under `cedars.` is not named here;
 - a model of those apps is not named here (section 4.4, and the ERDs where it has relationships worth drawing);
 - a management command is not named here (section 12);
-- an extension hook (`register_*` in the services, `register` in `core/queue.py` and `core/health.py`) is not named here (section 3.2);
+- an extension hook (`register_*` in the services, `register` in `core/queue.py`, `core/health.py`, `core/search.py` and `core/page_access.py`) is not
+  named here (section 3.2);
 - a Mermaid block does not start with a diagram type.
 
 What the test cannot see, the author keeps true: a changed flow (a new state, a new check, a new step in pricing or publication), a new

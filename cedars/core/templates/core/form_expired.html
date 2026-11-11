@@ -1,0 +1,11 @@
+{% extends "core/base.html" %}
+{% block title %}Form not sent{% endblock %}
+{% block content %}
+{% comment %}A form refused for its security token (CSRF_FAILURE_VIEW, cedars/core/errors.py): the page was open across a sign-out or a
+new sign-in, or the browser did not keep CEDARS' cookie.{% endcomment %}
+<div class="page-title"><h1>Form not sent</h1>{% page_help "core/form_expired" %}</div>
+<p class="lede error-sentence">CEDARS could not accept this form, because the page it came from was opened before you last signed in or out.</p>
+<p>Go back, reload the page, and send the form again; what you typed may need entering again. If this keeps happening, check that your
+browser keeps cookies for this site.</p>
+{% include "core/_error_ways_on.html" %}
+{% endblock %}

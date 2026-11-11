@@ -186,3 +186,18 @@ def section_nav(context, menu: str):
             current = "page" if request.path == url else "true"
         out.append({"label": item.label, "url": url, "current": current})
     return {"label": shown.label if shown else "", "links": out if len(out) > 1 else []}
+
+
+@register.simple_tag(takes_context=True)
+def page_link(context, url_name: str, text: str):
+    """A link to a page for a reader it opens for; for anyone else the page's name and who can open it (UI review 3, U4), so a Help
+    guide never leads to "Page not available". Who may open what: cedars/core/page_access.py."""
+    from django.urls import reverse
+
+    from cedars.core import page_access
+
+    request = context.get("request")
+    if request is None or page_access.can_open(request, url_name):
+        return format_html('<a href="{}">{}</a>', reverse(url_name), text)
+    who = page_access.who_opens(url_name)
+    return format_html('<span class="page-name">{}</span> <span class="who-opens">(for {})</span>', text, who)
