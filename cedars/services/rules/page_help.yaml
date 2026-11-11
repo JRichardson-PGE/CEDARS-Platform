@@ -61,8 +61,8 @@ rules/detail:
 rules/rule:
   title: A rule
   guide:
-    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it, and the rule as data, exactly as the
-      checker runs it.
+    - One validation rule, what it checks, its severity, the message a filer sees and how to fix it. The rule as data, exactly as the
+      checker runs it, is folded at the foot of the page; open it to read it.
     - In a draft rule set, a CPUC system administrator changes the rule or takes it out. A rule whose test changed names the rule it
       replaces.
   how:
@@ -75,7 +75,7 @@ rules/rule:
       optional: true
     - heading: The rule as data
       title: The rule as data
-      text: The rule's definition as the checker reads it.
+      text: Open it for the rule's definition as the checker reads it.
 
 rules/differences:
   title: Comparing two rule sets
@@ -126,26 +126,33 @@ rules/rule_form:
   guide:
     - A rule is either a test on a record (when some fields hold, another field must pass a test, such as NumUnits is greater than 0
       when MeasAppType equals 'AR') or a constraint on one field (filled in, a number, at most so many characters, a code of a value
-      list, within a range). Choose the kind, then fill in that part of the form; the other part is ignored.
+      list, within a range). Choose the kind first; the form then shows only that kind's part. Without scripts both parts show, and the
+      part for the other kind is ignored.
+    - Fields are picked from the data dictionary as you type. Any name the dictionary lists works too, such as CET's, and a key of
+      several fields joins them with +. The name is kept as you give it.
     - The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. A rule's ID is worked
       out from its test, so a changed test gives the rule a new ID that records the one it replaces. Leave the message and fix blank to
       have them written from the test.
   how:
-    - Choose the kind of rule, whether a failing record is rejected or warned, the table and the field.
-    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to.
+    - Choose the kind of rule, then the table and the field it tests.
+    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to (More
+      conditions holds the second to the fifth).
     - For a constraint on one field, choose what the field must be and what that constraint needs.
-    - Give the reason, then Add the rule or Save the change.
+    - Choose whether a failing record is rejected or warned, give the reason, then Add the rule or Save the change.
   see: rules-and-lists
   tour:
     - heading: What the rule tests
       title: What the rule tests
-      text: The kind of rule, its severity, the table and the field.
+      text: The kind of rule first, then the table and the field it tests, picked from the data dictionary.
     - target: "#record-h"
       title: A test on a record
-      text: The test, its value and up to five conditions; read when the kind is a test on a record.
+      text: The test, its value and up to five conditions; shown when the kind is a test on a record.
+      optional: true
     - target: "#spec-h"
       title: A constraint on one field
-      text: What the field must be; read when the kind is a constraint on one field.
-    - heading: What a filer reads
-      title: What a filer reads
-      text: The message and fix a filer sees (blank to write them from the test), the modules that apply the rule and your reason.
+      text: What the field must be; shown when the kind is a constraint on one field.
+      optional: true
+    - heading: When a record fails
+      title: When a record fails
+      text: Whether a failing record is rejected or only warned, the message and fix a filer sees (blank to write them from the test),
+        the modules that apply the rule and your reason.
