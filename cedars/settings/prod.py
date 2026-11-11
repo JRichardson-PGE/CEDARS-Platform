@@ -28,3 +28,6 @@ SILENCED_SYSTEM_CHECKS = ["security.W021"]
 # Behind the load balancer: the caller's address for the API's per-address rate limit is the last X-Forwarded-For entry (the one the
 # load balancer added), never one a caller wrote.
 REST_FRAMEWORK = {**REST_FRAMEWORK, "NUM_PROXIES": int(env("CEDARS_NUM_PROXIES", "1"))}  # noqa: F405
+# The same for the sign-in, sign-up and password reset rate limits: counted per caller, not per load balancer (with 0 every caller
+# would share the load balancer's address, so one person's failed sign-ins would lock everyone out).
+ALLAUTH_TRUSTED_PROXY_COUNT = int(env("CEDARS_NUM_PROXIES", "1"))
