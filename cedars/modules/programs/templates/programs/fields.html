@@ -43,6 +43,7 @@ versions that have it.</p>
 </table>
 </div>
 {% if f.counted %}<p class="small muted">Programs: how many programs have the value in any of their versions.</p>{% endif %}
+{% if f.list %}<p class="small">These values are the value list <a href="{% url 'dictionary:list' f.list %}">{{ f.list }}</a>, which CPUC system administrators keep in versions with the date each takes effect.</p>{% endif %}
 {% if f.unlisted %}<p>Also on record, though not in the list: {% for code, n in f.unlisted %}{{ code }} ({{ n }} program{{ n|pluralize }}){% if not forloop.last %}, {% endif %}{% endfor %}. These stay on the versions that have them; a change to such a program offers its value, but no other program can take it.</p>{% endif %}
 {% else %}<p>{{ f.entry.values_note|default:"Any text." }}</p>{% endif %}
 </section>

@@ -1,4 +1,6 @@
-"""Program registry rules. Every change is audited; versions and confirmed allocation tables are never edited.
+"""Program registry rules. Every change is audited; confirmed allocation tables are never edited, and a program's versions are never
+edited by a change (a change starts a new version). A value entered wrongly is corrected in place (`correct_version`), with a reason and
+an audit event that keeps the old values.
 
 Effective dates: a program's attributes for program year Y are the version in force on 31 December of Y, or, for a program that ended
 during Y, its last version that overlapped Y (`version_for_year`). Any date: `version_on`.
@@ -7,6 +9,7 @@ during Y, its last version that overlapped Y (`version_for_year`). Any date: `ve
 import csv
 import hashlib
 import io
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -551,8 +554,12 @@ def create_program(
     statewide=False,
     portfolio_cost=False,
     reason: str = "",
+    follow: bool = False,
     **fields,
 ) -> Program:
+    """A new program and its first version. An ID made of a PA's code and a statewide PrgID (PGE_SW_FS) follows that statewide program
+    from the start, its attributes copied from it, once the statewide program is the source of truth for its IDs (it has IDs that
+    follow it) or, with `follow` (the Add a program page), whenever it has versions."""
     if administrator is None and not statewide:
         raise AccessDenied("A program needs an administrator unless it is statewide.")
     if actor is not None and not (
@@ -562,7 +569,7 @@ def create_program(
     _clean(fields)
     p = Program(prg_id=prg_id.strip(), administrator=administrator, statewide=statewide, portfolio_cost=portfolio_cost)
     sw = statewide_part_of(p)
-    if sw is not None and sw.subprograms.exists() and sw.versions.exists():  # a new ID of a followed statewide program: from the start
+    if sw is not None and sw.versions.exists() and (follow or sw.subprograms.exists()):  # a new ID of a followed statewide program
         p.follows, p.follows_from = sw, valid_from
         fields = _followed_values(sw, _source_on(list(sw.versions.order_by("valid_from")), valid_from))
     p.save()
@@ -582,6 +589,37 @@ def create_program(
     if p.follows_id:  # the statewide program's later versions too
         _follow_from(actor, p, sw, valid_from, reason=reason or "a new ID of it", created_by=actor)
     return p
+
+
+PRG_ID_RE = re.compile(r"[A-Za-z0-9_-]{2,60}")
+
+
+def can_add_program(actor, administrator: Organisation | None, *, statewide: bool = False) -> bool:
+    """Whether `actor` may add a program: a CPUC system administrator for any PA and for a statewide program; a PA's organization
+    administrators and programs.admin holders for that PA's own programs."""
+    if actor is None or access.is_system_admin(actor):
+        return True
+    if statewide or administrator is None:
+        return False
+    return access.is_org_admin(actor, administrator) or access.has_permission(actor, administrator, "programs.admin")
+
+
+def prg_id_problem(prg_id: str, administrator: Organisation | None, *, statewide: bool = False) -> str:
+    """Why `prg_id` cannot be a new program's PrgID ("" = it can): letters, digits, underscores and hyphens; starting with the PA's
+    code (a statewide program's with SW_); never one the registry has had, in any case."""
+    prg_id = (prg_id or "").strip()
+    if not PRG_ID_RE.fullmatch(prg_id):
+        return "A PrgID is 2 to 60 letters, digits, underscores and hyphens, with no spaces."
+    if statewide:
+        if not prg_id.upper().startswith("SW_"):
+            return "A statewide program's PrgID starts with SW_."
+    elif administrator is not None:
+        codes = sorted(_codes(administrator), key=len, reverse=True)
+        if not any(prg_id.upper().startswith(c.upper()) for c in codes):
+            return f"A {administrator.code} program's PrgID starts with {administrator.code}."
+    if Program.objects.filter(prg_id__iexact=prg_id).exists():
+        return f"{prg_id} is already in the registry (a PrgID is never reused)."
+    return ""
 
 
 def _clean(fields: dict) -> dict:
@@ -812,7 +850,8 @@ def visible_requests(user):
 
 @transaction.atomic
 def decide_change(actor, req: ProgramChangeRequest, approve: bool, note: str = "") -> ProgramChangeRequest:
-    """Approve (the new version starts on the requested date, entered by the requester) or decline. Someone else decides a request."""
+    """Approve (the new version starts on the requested date, entered by the requester; a correction corrects its version) or decline.
+    Someone else decides a request."""
     req = ProgramChangeRequest.objects.select_for_update().select_related("program").get(pk=req.pk)
     if req.status != ProgramChangeRequest.Status.PENDING:
         raise AccessDenied("That request has been decided.")
@@ -823,7 +862,9 @@ def decide_change(actor, req: ProgramChangeRequest, approve: bool, note: str = "
         raise AccessDenied("Someone other than the requester decides a request.")
     if not approve and not note.strip():
         raise AccessDenied("Say why the request is declined.")
-    if approve:
+    if approve and req.corrects_id:
+        req.version = correct_version(actor, req.corrects, reason=req.reason, **dict(req.changes))
+    elif approve:
         req.version = _start_version(
             actor, req.program, effective=req.effective, reason=req.reason, changes=dict(req.changes), created_by=req.requested_by
         )
@@ -845,6 +886,99 @@ def withdraw_change(actor, req: ProgramChangeRequest, reason: str = "") -> Progr
     req.status = ProgramChangeRequest.Status.WITHDRAWN
     req.save(update_fields=["status"])
     audit.record("program_change.withdrawn", obj=req, reason=reason, actor=actor, organisation=req.organisation)
+    return req
+
+
+# --- corrections: a version's values entered wrongly, put right in place
+
+
+def corrects_directly(actor) -> bool:
+    """CPUC system administrators and programs approvers (or their delegates) correct a version themselves: their correction is the
+    decision. A program's own administrators request one (`request_correction`)."""
+    return actor is None or access.is_system_admin(actor) or approver(actor) is not None
+
+
+def can_correct(actor, program: Program) -> bool:
+    """Whether `actor` may correct (or request a correction of) the program's versions. Nobody corrects an ID that follows a statewide
+    program: its values are the statewide program's."""
+    if program.follows_id is not None or program.portfolio_cost:
+        return False
+    return corrects_directly(actor) or can_edit(actor, program)
+
+
+def _correction(version: ProgramVersion, changes: dict) -> dict:
+    """The attributes of `changes` that differ from the version's, refusing a correction that changes nothing."""
+    _clean(changes)
+    out = {k: v for k, v in changes.items() if getattr(version, k) != v}
+    if not out:
+        raise AccessDenied("Nothing was changed.")
+    return out
+
+
+@transaction.atomic
+def correct_version(actor, version: ProgramVersion, *, reason: str, **changes) -> ProgramVersion:
+    """Put right values a version holds wrongly (an import's mistake, a typo), in place: its dates stay, the audit event keeps what they
+    were, and the version shows when it was corrected. For a statewide program, the IDs that follow it are brought into line from the
+    version's start. Filed and published results keep the values they were filed with (snapshots), so no filing changes."""
+    version = ProgramVersion.objects.select_for_update().select_related("program").get(pk=version.pk)
+    program = version.program
+    if program.follows_id is not None:
+        raise AccessDenied(f"{program} follows {program.follows}: correct {program.follows} instead.")
+    if not corrects_directly(actor):
+        raise AccessDenied("A CPUC system administrator or programs approver corrects a version; ask for a correction instead.")
+    if not (reason or "").strip():
+        raise AccessDenied("Give a reason for the correction.")
+    changes = _correction(version, changes)
+    fields = ["valid_from", "valid_to", *VERSION_FIELDS]
+    before = audit.snapshot(version, fields)
+    ProgramVersion.objects.filter(pk=version.pk).update(**changes, corrected_at=timezone.now(), corrected_by=actor)
+    version.refresh_from_db()
+    audit.record(
+        "program.corrected",
+        obj=program,
+        before=before,
+        after=audit.snapshot(version, fields),
+        reason=reason,
+        actor=actor,
+    )
+    if program.statewide:
+        for sub in program.subprograms.order_by("prg_id"):
+            _follow_from(actor, sub, program, version.valid_from, reason=f"correction: {reason}", created_by=actor)
+    return version
+
+
+@transaction.atomic
+def request_correction(actor, version: ProgramVersion, *, reason: str, **changes) -> ProgramChangeRequest:
+    """Ask a CPUC programs approver to correct a version's values (a program's administrators). Nothing changes until it is approved."""
+    version = ProgramVersion.objects.select_related("program").get(pk=version.pk)
+    program = version.program
+    if not can_correct(actor, program):
+        raise _cannot_edit(program)
+    if corrects_directly(actor):
+        raise AccessDenied("You correct versions yourself: save the correction.")
+    if not (reason or "").strip():
+        raise AccessDenied("Give a reason for the correction.")
+    changes = _correction(version, changes)
+    if program.change_requests.filter(status=ProgramChangeRequest.Status.PENDING).exists():
+        raise AccessDenied(f"A change to {program} is already waiting for a decision; withdraw it first.")
+    req = ProgramChangeRequest.objects.create(
+        program=program,
+        organisation=program.administrator or lead_of(program),
+        requested_by=actor,
+        effective=version.valid_from,
+        reason=reason,
+        changes={k: _json(v) for k, v in changes.items()},
+        before={k: _json(getattr(version, k)) for k in changes},
+        corrects=version,
+    )
+    audit.record(
+        "program_change.requested",
+        obj=req,
+        after={"program": program.prg_id, "corrects": str(version.valid_from), "changes": req.changes},
+        reason=reason,
+        actor=actor,
+        organisation=req.organisation,
+    )
     return req
 
 

@@ -21,7 +21,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import limits
-from .models import Change, ReleaseNote
+from .models import Change, LimitChange, ReleaseNote
 
 AREAS = {
     "everyone": "All of CEDARS",
@@ -339,3 +339,39 @@ def limit_mismatches(on: date | None = None) -> list[tuple[ReleaseNote, Change, 
 
 def _norm(text: str) -> str:
     return "".join(text.lower().replace(",", "").split())
+
+
+# --- limits a CPUC system administrator may change (limits.Limit.editable)
+
+
+@transaction.atomic
+def set_limit(user, key: str, value: int | None, reason: str) -> LimitChange:
+    """Sets an editable limit to `value`, or back to its setting (None). Takes effect at once, on every web process; recorded with
+    the reason (LimitChange, never edited) and audited ("limit.changed"). A change people will notice is announced in a release note
+    first: the release notes' check lists one in effect whose value is not what the site enforces."""
+    if not access.is_system_admin(user):
+        raise AccessDenied("Only a CPUC system administrator changes limits.")
+    lim = limits.BY_KEY.get(key)
+    if lim is None or not lim.editable:
+        raise ReleaseError(f"{key} is not a limit that can be changed here.")
+    if not reason.strip():
+        raise ReleaseError("Give a reason for the change.")
+    if value is not None:
+        low, high = lim.bounds or (1, None)
+        if value < low or (high is not None and value > high):
+            raise ReleaseError(f"{lim.label}: choose a value from {low:,} to {high:,} {lim.unit}.".replace("  ", " "))
+    before = lim.current()
+    change = LimitChange.objects.create(key=key, value=value, reason=reason.strip(), changed_by=user)
+    audit.record(
+        "limit.changed",
+        obj=change,
+        before={key: before},
+        after={key: lim.current(), "default": value is None},
+        reason=change.reason,
+        actor=user,
+    )
+    return change
+
+
+def limit_changes(limit: int = 50):
+    return LimitChange.objects.select_related("changed_by")[:limit]

@@ -1,0 +1,16 @@
+{% extends "core/base.html" %}
+{% block title %}Add a program{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
+<div class="page-title"><h1>Add a program</h1>{% page_help "programs/new" %}</div>
+<p>A new program gets a PrgID, kept for good and never reused, and a first version from the day it starts. Later changes start new
+versions from the program's page. Under each field is how to fill it in;
+<a href="{% url 'programs:fields' %}" target="_blank" rel="noopener">Program fields (opens in a new tab)</a> gives every field's definition and valid values.</p>
+<p>A PA's ID for a statewide program, made of the PA's code and the statewide PrgID (for example PGE_SW_FS), follows that statewide
+program from the start: its attributes are copied from the statewide program, and the ones entered here are not used.</p>
+<form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% include "programs/_attributes.html" %}
+  <div class="actions"><button type="submit" class="primary">Add the program</button> <a href="{% url 'programs:catalog' %}">Cancel</a></div>
+</form>
+{% endblock %}

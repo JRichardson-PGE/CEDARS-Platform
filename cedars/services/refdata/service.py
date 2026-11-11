@@ -3,6 +3,7 @@ record `pin()` of the packs they used, and a filing never uses a draft or withdr
 
 import hashlib
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -149,12 +150,143 @@ def record_tie_out(
     return t
 
 
+def required_checks(pack: PackVersion) -> list[TieOutRequirement]:
+    """The checks a pack must pass: those in force for its kind while it is a draft; once published, the ones it was published under
+    (a check added or retired later does not change a published pack)."""
+    qs = TieOutRequirement.objects.filter(kind=pack.kind).order_by("name")
+    if pack.checks_at_publication is not None:
+        return list(qs.filter(name__in=pack.checks_at_publication))
+    return list(qs.filter(retired_at__isnull=True))
+
+
 def outstanding(pack: PackVersion) -> list[TieOutRequirement]:
     """The required checks whose latest result for this pack is missing or failed."""
     latest = {}
     for t in pack.tie_outs.order_by("recorded_at", "id"):
         latest[t.name] = t.passed
-    return [r for r in TieOutRequirement.objects.filter(kind=pack.kind).order_by("name") if not latest.get(r.name)]
+    return [r for r in required_checks(pack) if not latest.get(r.name)]
+
+
+# --- the acceptance checks each kind of pack needs (CPUC system administrators)
+
+CHECK_NAME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
+
+
+def can_manage_checks(actor) -> bool:
+    return actor is None or access.is_system_admin(actor)
+
+
+def _require_checks_admin(actor) -> None:
+    if not can_manage_checks(actor):
+        raise AccessDenied("Only a CPUC system administrator adds or retires acceptance checks.")
+
+
+@transaction.atomic
+def add_requirement(actor, *, kind: str, name: str, description: str, reason: str) -> TieOutRequirement:
+    """A new check drafts of that kind must pass before they are published. Packs already published keep the checks they had."""
+    _require_checks_admin(actor)
+    name, description, reason = name.strip(), description.strip(), reason.strip()
+    if kind not in Kind.values:
+        raise AccessDenied(f"{kind} is not a kind of data pack.")
+    if not CHECK_NAME.match(name):
+        raise AccessDenied(
+            "A check's name is 2 to 40 lower-case letters, digits and underscores, starting with a letter (e.g. source_workbook)."
+        )
+    if not description:
+        raise AccessDenied("Say what the check shows.")
+    if not reason:
+        raise AccessDenied("Give the reason for adding the check.")
+    existing = TieOutRequirement.objects.filter(kind=kind, name=name).first()
+    if existing is not None:
+        raise AccessDenied(
+            f"{Kind(kind).label} already has a check named {name}"
+            + (" (retired: a retired check is never brought back, so give the new one its own name)." if existing.retired_at else ".")
+        )
+    r = TieOutRequirement.objects.create(
+        kind=kind, name=name, description=description, reason=reason, added_at=timezone.now(), added_by=actor
+    )
+    audit.record("pack_check.added", obj=r, reason=reason, after={"kind": kind, "name": name, "description": description}, actor=actor)
+    return r
+
+
+@transaction.atomic
+def retire_requirement(actor, requirement: TieOutRequirement, reason: str) -> TieOutRequirement:
+    """Drafts stop needing the check; published packs keep it among the checks they were published under, with their results."""
+    _require_checks_admin(actor)
+    requirement = TieOutRequirement.objects.select_for_update().get(pk=requirement.pk)
+    if requirement.retired_at is not None:
+        raise AccessDenied("That check is already retired.")
+    if not reason.strip():
+        raise AccessDenied("Give the reason for retiring the check.")
+    requirement.retired_at, requirement.retired_by, requirement.retired_reason = timezone.now(), actor, reason.strip()
+    requirement.save(update_fields=["retired_at", "retired_by", "retired_reason"])
+    audit.record("pack_check.retired", obj=requirement, reason=reason.strip(), actor=actor)
+    return requirement
+
+
+# --- recording a check's result from its report (the pack's page)
+
+REPORT_MAX_BYTES = 5 << 20  # a report is a few kilobytes to a few hundred; the upload limit still applies first
+
+
+def _number(value) -> float | None:
+    try:
+        return None if value is None or isinstance(value, bool) else float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def read_report(data: bytes) -> dict:
+    """What a check's JSON report says, for record_tie_out: passed, summary, precision, largest difference, engine release.
+
+    The report says whether it passed as `passed` (true or false) or `status` ("PASS" or "FAIL", as the engine's `recet data tie-out`
+    writes it). Optional: `summary`, `precision`, `largest_difference`, `engine_release`; a report made of `parts` (each with a name and
+    a status) is summed up part by part, and its largest `relative_difference` among the parts' values is the largest difference."""
+    if len(data) > REPORT_MAX_BYTES:
+        raise AccessDenied(f"A check's report is a JSON file of a few hundred kilobytes at most; this one is {len(data) / 1048576:.1f} MB.")
+    try:
+        report = json.loads(data.decode("utf-8-sig"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise AccessDenied(f"The report is not a JSON file ({e}).") from None
+    if not isinstance(report, dict):
+        raise AccessDenied("The report must be a JSON object.")
+    if isinstance(report.get("passed"), bool):
+        passed = report["passed"]
+    elif str(report.get("status", "")).upper() in ("PASS", "FAIL"):
+        passed = str(report["status"]).upper() == "PASS"
+    else:
+        raise AccessDenied('The report does not say whether the check passed: give "passed": true or false, or "status": "PASS" or "FAIL".')
+    parts = [p for p in report.get("parts") or [] if isinstance(p, dict)]
+    summary = str(report.get("summary") or "").strip()
+    if not summary and parts:
+        summary = "; ".join(f"{p.get('name', 'part')}: {p.get('status', '?')}" for p in parts)
+    largest = _number(report.get("largest_difference"))
+    if largest is None:
+        diffs = [_number(v.get("relative_difference")) for p in parts for v in p.get("values") or [] if isinstance(v, dict)]
+        diffs = [abs(d) for d in diffs if d is not None]
+        largest = max(diffs) if diffs else None
+    return {
+        "passed": passed,
+        "summary": summary[:2000],
+        "precision": _number(report.get("precision")),
+        "largest_difference": largest,
+        "engine_release": str(report.get("engine_release") or "")[:60],
+        "report": report,
+    }
+
+
+def record_report(actor, pack: PackVersion, *, check: str, data: bytes, file_name: str = "") -> TieOut:
+    """Record a check's result from its JSON report: the check must be one this pack needs, and a report naming a file's SHA-256
+    must name one of the pack's files."""
+    _require(actor, pack.kind)
+    if check not in {r.name for r in required_checks(pack)}:
+        raise AccessDenied(f"{check} is not a check this pack needs.")
+    found = read_report(data)
+    sha = found["report"].get("sha256")
+    if isinstance(sha, str) and sha and sha not in {m.get("sha256") for m in pack.manifest.values()}:
+        raise AccessDenied("The report is about a file that is not in this pack (its SHA-256 matches none of the pack's files).")
+    found["report"] = {**found["report"], "_file": file_name} if file_name else found["report"]
+    return record_tie_out(actor, pack, check=check, **found)
 
 
 @transaction.atomic
@@ -168,9 +300,10 @@ def publish_pack(actor, pack: PackVersion) -> PackVersion:
     missing = outstanding(pack)
     if missing:
         raise AccessDenied("Publishing needs a passed tie-out for: " + ", ".join(r.name for r in missing) + ".")
-    pack.status, pack.published_by, pack.published_at = Status.PUBLISHED, actor, timezone.now()
+    checks = [r.name for r in required_checks(pack)]
+    pack.status, pack.published_by, pack.published_at, pack.checks_at_publication = Status.PUBLISHED, actor, timezone.now(), checks
     pack.save()
-    audit.record("pack.published", obj=pack, after={"fingerprint": pack.fingerprint}, actor=actor)
+    audit.record("pack.published", obj=pack, after={"fingerprint": pack.fingerprint, "checks": checks}, actor=actor)
     return pack
 
 

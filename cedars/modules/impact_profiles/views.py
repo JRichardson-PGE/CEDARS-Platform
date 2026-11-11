@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import access, custom, etrm, forms, identical, jobs, loadshapes, shapes
+from . import access, custom, etrm, forms, identical, jobs, loadshapes, policy, shapes
 from .models import (
     EtrmSyncRun,
     ExcludedPackage,
@@ -470,3 +470,34 @@ def export_file(request, number, name):
     if stored is None:
         raise Http404
     return FileResponse(default_storage.open(stored, "rb"), as_attachment=True, filename=f"export_{e.number}_{name}")
+
+
+# --- the library's policy settings (CPUC administrators)
+
+
+@login_required
+def library_settings(request):
+    if not access.is_admin(request.user):
+        raise Http404
+    now = policy.current()
+    initial = {"territories": ", ".join(now.territories), "load_shape_first_start": now.load_shape_first_start}
+    form = forms.SettingsForm(request.POST or None, initial=initial)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        try:
+            policy.change(
+                request.user,
+                territories=policy.parse_territories(d["territories"]),
+                load_shape_first_start=d["load_shape_first_start"],
+                reason=d["reason"],
+            )
+        except AccessDenied as e:
+            return _refused(request, e, "impact_profiles:settings")
+        except ValueError as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(
+                request, "Settings saved. The territories apply from the next library write, the start date from the next eTRM sync."
+            )
+            return redirect("impact_profiles:settings")
+    return render(request, "impact_profiles/settings.html", {"form": form, "now": now, "history": policy.history()})

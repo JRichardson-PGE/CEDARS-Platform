@@ -3,8 +3,9 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:lists' %}">Value lists</a></li><li><a href="{% url 'dictionary:list' vl.name %}">{{ vl.name }}</a></li></ol></nav>
 <div class="page-title"><h1>Draft of {{ vl.name }}, version {{ draft.number }}</h1>{% page_help "dictionary/list_draft" %}</div>
-<p>A copy of {{ draft.based_on }}. Nothing here is used until the draft is published, and then the rules and the input editor accept
-exactly its codes from the date it takes effect. Retire a code by giving it the last claim year it is accepted; a code from an earlier
+<p>A copy of {{ draft.based_on }}. Nothing here is used until the draft is published, and then {% if platform %}a program's change form offers
+exactly its codes from the date it takes effect (a retired code only to a program that already has it){% else %}the rules and the input
+editor accept exactly its codes from the date it takes effect{% endif %}. Retire a code by giving it the last claim year it is accepted; a code from an earlier
 version is never deleted. A published version never changes.</p>
 <section class="card" aria-labelledby="changes-h">
   <h2 id="changes-h">What this draft changes</h2>
