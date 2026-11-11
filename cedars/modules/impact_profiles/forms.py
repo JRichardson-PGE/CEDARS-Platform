@@ -1,11 +1,12 @@
 from django import forms
 from django.conf import settings
 
+from . import policy
 from .models import ImpactProfile
 
 
 def _territories():
-    return [("", "Every territory")] + [(t, t) for t in settings.IMPACT_PROFILE_TERRITORIES]
+    return [("", "Every territory")] + [(t, t) for t in policy.territories()]
 
 
 class LibraryFilterForm(forms.Form):
@@ -16,7 +17,7 @@ class LibraryFilterForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["territory"].choices = [("", "Any territory")] + [(t, t) for t in settings.IMPACT_PROFILE_TERRITORIES]
+        self.fields["territory"].choices = [("", "Any territory")] + [(t, t) for t in policy.territories()]
 
 
 class PackageFilterForm(forms.Form):
@@ -77,3 +78,18 @@ class ReplaceForm(forms.Form):
 
 class ReasonForm(forms.Form):
     reason = forms.CharField(label="Reason", max_length=500)
+
+
+class SettingsForm(forms.Form):
+    territories = forms.CharField(
+        label="IOU territories",
+        help_text="Codes separated by commas, for example PGE, SCE, SCG, SDGE. A profile filed with no territory is written to the "
+        "library once for each, and a custom profile's territory must be one of them.",
+    )
+    load_shape_first_start = forms.DateField(
+        label="Load shapes from measure versions starting on",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="The eTRM sync takes draft measure versions starting on or after this date; earlier ones keep their DEER impact "
+        "profile IDs. A change applies from the next sync.",
+    )
+    reason = forms.CharField(label="Reason for the change", max_length=500, widget=forms.Textarea(attrs={"rows": 2}))

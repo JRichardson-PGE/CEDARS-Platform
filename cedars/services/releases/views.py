@@ -1,5 +1,6 @@
 """Release notes and limits pages. Public: /releases/ (every published note), /releases/<id>/, /releases/feed.xml and /limits/.
-CPUC system administrators: /releases/manage/ (drafts: write, publish, discard) and Withdraw on a published note."""
+CPUC system administrators: /releases/manage/ (drafts: write, publish, discard), Withdraw on a published note, and /limits/manage/
+(the limits they may change)."""
 
 from django import forms
 from django.contrib import messages
@@ -302,3 +303,34 @@ def withdraw(request, pk):
     else:
         messages.success(request, "Withdrawn. Everyone subscribed to release notes is being told.")
     return redirect("releases:detail", note.pk)
+
+
+@login_required
+def limits_manage(request):
+    """Change limits: the editable limits, each with its value in force and its default, a form to change it or set it back, and the
+    changes made so far. CPUC system administrators only (anyone else gets 404)."""
+    if not _sysadmin(request.user):
+        raise Http404
+    if request.method == "POST":
+        key = request.POST.get("key", "")
+        reason = request.POST.get("reason", "")
+        raw = request.POST.get("value", "").strip()
+        if request.POST.get("action") == "default":
+            value = None
+        else:
+            try:
+                value = int(raw.replace(",", ""))
+            except ValueError:
+                messages.error(request, "Enter a whole number.")
+                return redirect(f"{reverse('limits:manage')}#{key}" if key in limits.BY_KEY else reverse("limits:manage"))
+        try:
+            service.set_limit(request.user, key, value, reason)
+        except (ReleaseError, AccessDenied) as e:
+            messages.error(request, str(e))
+        else:
+            lim = limits.BY_KEY[key]
+            messages.success(request, f"{lim.label}: now {lim.current()}.")
+        return redirect(f"{reverse('limits:manage')}#{key}" if key in limits.BY_KEY else reverse("limits:manage"))
+    by_key = limits.BY_KEY
+    history = [(c, by_key.get(c.key)) for c in service.limit_changes()]
+    return render(request, "releases/limits_manage.html", {"editable": limits.editable(), "history": history})

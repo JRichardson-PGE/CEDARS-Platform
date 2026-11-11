@@ -34,6 +34,17 @@ topics:
         guide: getting-started
         links:
           - {text: Getting support, href: /help/contact/}
+      - id: signed-out
+        q: Why was I signed out?
+        a:
+          - >-
+            A sign-in lasts at most {limit:session_hours}, and ends after {limit:session_idle_minutes} without opening a page or
+            sending a form. Sign in again to carry on; a form you were filling in is not kept, so save long work as you go. A page
+            left open on its own (a run's progress, for example) does not keep you signed in.
+        tags: [session, timeout, signed out, logged out, idle, sign in again]
+        guide: getting-started
+        links:
+          - {text: Current limits, href: /limits/}
       - id: file-for-a-pa
         q: How do I get permission to file for my organization?
         a:
@@ -99,7 +110,9 @@ topics:
             Each file uploaded to Budgets, Claims or Monthly reports, and a calculation job's .zip or workbook, may be at most
             {limit:upload_mb}. Zip a CSV file before uploading it: CSV files usually zip to a small part of their size. If a zipped table is
             still too large, split it into parts named after the table and upload them together: one filing upload may hold
-            {limit:upload_files}.
+            {limit:upload_files}. The files inside one .zip or workbook may add up to at most {limit:upload_unzipped_mb} once unpacked.
+            The pre-upload checker reads files of up to {limit:checker_mb}: check a larger table in parts, or upload it, since the
+            upload runs the same checks.
         tags: [size, mb, limit, big file, refused, upload]
         guide: budgets
         links:
@@ -304,6 +317,17 @@ topics:
             One run may hold up to {limit:run_records}. Split the job into several runs (by PA, program or year) and compare or add
             up their results. Runs of up to {limit:small_run_records} take the faster small-runs queue.
         tags: [too_many_records, records, size, measures, queue]
+        guide: calculations
+        links:
+          - {text: Current limits, href: /limits/}
+      - id: too-many-runs-waiting
+        q: My new run was refused because I have too many runs waiting.
+        a:
+          - >-
+            One account may have up to {limit:queued_runs} waiting or running at once, so no one fills the queue ahead of everyone
+            else. Start the new run when one of yours finishes, or stop one you no longer need on Runs. A filing's own pricing runs
+            are never counted or refused.
+        tags: [queue, queued, waiting, runs, refused, limit]
         guide: calculations
         links:
           - {text: Current limits, href: /limits/}

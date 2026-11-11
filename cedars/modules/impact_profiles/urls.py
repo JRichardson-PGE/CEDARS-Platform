@@ -23,5 +23,6 @@ urlpatterns = [
     path("uploads/<int:pk>/findings.csv", views.upload_findings_csv, name="upload_findings_csv"),
     path("etrm/", views.sync_history, name="sync_history"),
     path("library/", views.exports, name="exports"),
+    path("settings/", views.library_settings, name="settings"),
     path("library/<int:number>/<str:name>", views.export_file, name="export_file"),
 ]

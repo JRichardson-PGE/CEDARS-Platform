@@ -15,7 +15,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
-from cedars.core import api, uploads
+from cedars.core import api
 
 from . import precheck, service
 from .models import RuleSet
@@ -88,8 +88,8 @@ def rule_set(request, pk):
 
 class CheckRequest(serializers.Serializer):
     file = serializers.FileField(
-        validators=[uploads.check_size],
-        help_text="One table as CSV (pipe-, tab- or comma-delimited, UTF-8 or Windows-1252); at most CEDARS_UPLOAD_MAX_MB (see /limits/)",
+        validators=[precheck.check_size],
+        help_text="One table as CSV (pipe-, tab- or comma-delimited, UTF-8 or Windows-1252); at most the checker's limit (see /limits/)",
     )
     module = serializers.ChoiceField(
         choices=[], required=False, help_text="The filing the file is for: claims or budgets. May be left out when rule_set is given."

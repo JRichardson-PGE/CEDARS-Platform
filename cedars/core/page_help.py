@@ -11,9 +11,11 @@ An entry:
   how:    optional list of short how-to items
   see:    slug of the Help guide that goes further (core.help.GUIDES); every entry has one
   tour:   steps, each {title, text} and where it points: `target` (a CSS selector) or `heading` (the start of a heading's, legend's,
-          summary's or caption's text); a heading's section, fieldset, disclosure or table is what is outlined. `optional: true` marks a
-          part that only some people see or that only some states of the page have; the tour leaves out any step whose part is not on
-          the page, and the tests require every step not marked optional to be found on each page they visit.
+          summary's or caption's text); a heading's section, fieldset, disclosure or table is what is outlined, and a heading that heads
+          no box of its own is outlined with what follows it up to the next heading of its rank. A part folded in a closed disclosure is
+          shown by opening it for the step. `optional: true` marks a part that only some people see or that only some states of the page
+          have; the tour leaves out any step whose part is not on the page, and the tests require every step not marked optional to be
+          found on each page they visit, and walk every tour as each kind of user checking what each step shows.
   tour_from: "front" (the front page only): the tour is core.help.tour_steps for the visitor, as before.
 
 Without scripts the (?) button is a link to /help/pages/<key>/, which shows the same guide and the tour written out."""
