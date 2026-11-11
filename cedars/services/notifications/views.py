@@ -13,7 +13,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program
 
 from . import service
-from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, Subscription
+from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, RequestNotice, Subscription
 
 OFF = "off"
 BLANK_REMINDER_ROWS = 2
@@ -131,7 +131,10 @@ def settings_page(request):
             problems += _save_reminders(request)
         pref.refresh_from_db()
         pref.email_direct = request.POST.get("email_direct") == "on"
-        pref.save(update_fields=["email_direct"])
+        for name in ("own_requests", "requests_to_decide"):  # absent (an older form): left as it was
+            if request.POST.get(name) in RequestNotice.values:
+                setattr(pref, name, request.POST[name])
+        pref.save(update_fields=["email_direct", "own_requests", "requests_to_decide"])
         for p in problems:
             messages.error(request, p)
         messages.success(request, "Notification settings saved." if not problems else "The rest of your notification settings are saved.")
@@ -155,6 +158,7 @@ def settings_page(request):
             "choices": choices,
             "channels": Subscription.Channel.choices,
             "pref": pref,
+            "request_choices": RequestNotice.choices,
             "scopes": Preference.PAScope.choices,
             "pa_groups": [(label, pas[t]) for t, label in PA_GROUPS if pas.get(t)],
             "programs": [(p, _program_name(p)) for p in pref.programs.order_by("prg_id")],

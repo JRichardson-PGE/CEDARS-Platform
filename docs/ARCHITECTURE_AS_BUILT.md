@@ -564,6 +564,8 @@ erDiagram
   }
   Run {
     uuid id PK
+    string name "the owner renames it"
+    string note "the owner's note"
     string engine_release "release by value"
     string calculation
     string acc_version
@@ -932,6 +934,8 @@ stateDiagram-v2
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
   filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the
   page that filing is worked on (the module's page for the deadline, else the version's page).
+- **A reopened filing in My queue.** A filing reopened for a correction is listed for its filers (`submissions.queue.corrections`)
+  until it is priced and moves to the confirmations. Declining a correction request needs a reason, which the filer is told.
 
 The whole path of one filing, with the calculation and publication:
 
@@ -1111,7 +1115,7 @@ split among the funding PAs by the weighted factors (section 8.1).
 | Module | What it does | Key mechanics |
 | --- | --- | --- |
 | Programs | Public catalog and program pages; Add a program; effective-dated change form (attributes and delivery flags); corrections of a version in place; change and correction requests decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
-| Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
+| Calculations | Engine releases, New run, runs, run pages with downloads (the owner renames a run or adds a note; nothing else about it changes), Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
 | Impact profiles | Nightly eTRM sync into versioned snapshots; load-shape uploads with four validation stages; generated profiles with CEDARS' formula; custom profiles; identical profiles stored once under several names; the library written in the engine's format and registered as an `impact_profiles` pack | `ProcessingJob` queues per PA; every 8,760 stored once by SHA-256 (`Shape`) |
 | Documents and EM&V | One library for PA documents, CPUC guidance, DEER resources, program files and EM&V documents; numbered versions; publication; full-text search over extracted file text; EM&V deliverable stages; study register; work orders; public comment; subscriptions; PDA, PSR and CEDARS imports with old addresses redirected | `FileText` with a PostgreSQL full-text index; triggers keep published versions unchanged |
 | Data | Front page, dashboards, record downloads, background downloads, saved views, the open data API (`/api/v1/data/`), parity checks against CEDARS' published totals | Section 11 |
@@ -1333,7 +1337,14 @@ flowchart TD
   sign-in assurance and request id from the request context. Every service that changes a record writes one; the table is append-only.
 - **Notifications**: a `post_save` receiver on `AuditEvent` defers delivery until commit, so a rolled-back change notifies nobody; one
   message per user per event, narrowed by the PAs they follow, widened by the programs they follow; email per subscription; deadline
-  reminders; module messages through `notify`.
+  reminders; module messages through `notify`. **Requests are told directly** (`tell_about_request`, after commit): a correction request
+  (submissions), a program change or correction request (registry) and an access request (accounts) reach the people who may decide it
+  (the module's CPUC approvers and their delegates for today, `submissions.deciders`; an organization's administrators, or the CPUC
+  system administrators when it has none, `accounts.access_deciders`), its decision reaches the person who asked, and a withdrawal
+  reaches those told of the request (`told(key)`). Each person's `Preference.own_requests` / `requests_to_decide` (off, the page, or
+  the page and email; email by default) says how, on Notification settings' Requests section. The notice carries
+  `request_key(object, pk, step)`, the key the same audit event's subscription delivery uses, so a person who also subscribed is told
+  once.
 - **Retention** (decision M): a period per record class (`RetentionPolicy`), legal holds (`LegalHold`), and the daily purge, which
   calls each registered purger and logs `PurgeRun`s.
 - **Reference data**: packs registered as drafts, published once their required tie-outs pass (the checks in force, set on a page;

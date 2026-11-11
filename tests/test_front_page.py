@@ -268,19 +268,14 @@ def test_help_is_open_to_a_password_only_session(signed_in, make_user):
     assert c.get("/").status_code == 302  # the front page waits for the second factor, as every other page does
 
 
-def test_the_glossary(client):
-    """The glossary guide (Jake, 2026-11-02): acronyms, every PA code CEDARS knows with its name and type, and terms, each with a link."""
-    from django.utils.html import escape
-
-    from cedars.services.accounts import service as accounts
-
+def test_the_glossary(client, cpuc_admin, pge):
+    """The glossary guide (Jake, 2026-11-02): acronyms, every PA organization's codes with its name and type, and terms, each with a
+    link."""
     assert "glossary" in site_help.BY_SLUG
     page = client.get("/help/glossary/").content.decode()
     for anchor in ("acronyms", "pa-codes", "terms", "tsb", "iou", "ren", "cca", "sw", "cet", "deer", "pa", "operating-budget"):
         assert f'id="{anchor}"' in page
-    for code in accounts.KNOWN_PA_TYPES:
-        assert f'<tr><th scope="row">{code}</th><td>{escape(accounts.known_pa_name(code))}' in page
-    assert "East Bay Community Energy (before 2024; now Ava Community Energy, AVA)" in page
+    assert '<tr><th scope="row">PGE</th><td>Pacific Gas and Electric</td><td>IOU</td></tr>' in page
     # every in-page link lands on an entry
     ids = set(re.findall(r'id="([^"]+)"', page))
     assert {t for t in re.findall(r'href="#([^"]+)"', page)} <= ids

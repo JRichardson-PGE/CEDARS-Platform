@@ -420,8 +420,7 @@ def glossary(terms) -> Part:
     ]
     from cedars.services.accounts import service as accounts
 
-    for code, kind in accounts.KNOWN_PA_TYPES.items():
-        name = accounts.known_pa_name(code)
+    for code, name, kind in accounts.pa_code_table():
         items.append((code, f"{name} {kind}", Hit(code, f"{url}#pa-codes", f"{name} ({kind}), a program administrator code.")))
     return _part("glossary", "Glossary", _ranked(terms, items), label="Glossary")
 

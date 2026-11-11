@@ -29,7 +29,7 @@ from django.utils import timezone
 
 from cedars.services.accounts import service as access
 
-from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, Subscription
+from .models import PROGRAM_EVENTS, DeadlineReminder, Notification, Preference, RequestNotice, Subscription
 
 log = logging.getLogger(__name__)
 
@@ -152,6 +152,11 @@ def _program_concern(event) -> Concern:
     )
 
 
+def _step(event) -> str:
+    """The request step an audit event records: "reopen.declined" -> "declined" (the key its direct notice uses too)."""
+    return event.action.rsplit(".", 1)[-1]
+
+
 def _concerns(event) -> Concern:
     """What an audit event concerns, from the record it is about."""
     t, oid = event.object_type, event.object_id
@@ -186,7 +191,12 @@ def _concerns(event) -> Concern:
             from cedars.services.submissions.models import ReopenRequest
 
             r = ReopenRequest.objects.select_related("submission__deadline").get(pk=oid)
-            return Concern({r.submission.organisation_id}, r.submission.deadline.module, "/filings/reopen-requests/")
+            return Concern(
+                {r.submission.organisation_id},
+                r.submission.deadline.module,
+                "/filings/reopen-requests/",
+                key=request_key(t, oid, _step(event)),
+            )
         if t == "submissions.deadline":
             from cedars.services.submissions.models import Deadline
 
@@ -197,7 +207,9 @@ def _concerns(event) -> Concern:
             from cedars.services.registry.models import ProgramChangeRequest
 
             r = ProgramChangeRequest.objects.select_related("program").get(pk=oid)
-            return Concern({r.organisation_id}, "programs", f"/programs/requests/{oid}/", {r.program.prg_id})
+            return Concern(
+                {r.organisation_id}, "programs", f"/programs/requests/{oid}/", {r.program.prg_id}, key=request_key(t, oid, _step(event))
+            )
         if t == "registry.programchangepolicy":
             return Concern(set(), "programs", "/programs/locked/")
         if t == "refdata.packversion":
@@ -389,6 +401,40 @@ def notify(user, title: str, body: str = "", link: str = "", *, key: str = "") -
     """A message to one user from a module (e.g. Calculations when a run finishes or fails). Emailed unless the user turned that off."""
     pref = Preference.objects.filter(user=user).first()
     return _create(user, title, body, link, email=pref.email_direct if pref else True, key=key)
+
+
+OWN, DECIDE = "own", "decide"
+
+
+def request_key(object_type: str, pk, action: str) -> str:
+    """The key of a request's notice ("request:submissions.reopenrequest:12:requested"): one message per person and step, whether it
+    comes from here or from a subscription to the same audit event."""
+    return f"request:{object_type}:{pk}:{action}"
+
+
+def tell_about_request(users, title: str, body: str = "", link: str = "", *, key: str, about: str) -> None:
+    """Tell people about a request, once the change commits: `about` OWN (the person who asked, of the decision) or DECIDE (the
+    people who may decide it, of a new or withdrawn request). Each person's Preference says how (own_requests or requests_to_decide:
+    off, the page, or the page and email; email when they have no preference). Inactive accounts are skipped."""
+    people = [u for u in users if u is not None and u.is_active]
+
+    def send_all():
+        prefs = {p.user_id: p for p in Preference.objects.filter(user__in=people)}
+        for user in people:
+            pref = prefs.get(user.pk)
+            how = getattr(pref, "own_requests" if about == OWN else "requests_to_decide") if pref else RequestNotice.EMAIL
+            if how != RequestNotice.OFF:
+                _create(user, title, body, link, email=how == RequestNotice.EMAIL, key=key)
+
+    if people:
+        transaction.on_commit(send_all)
+
+
+def told(key: str):
+    """The people a keyed notice reached (e.g. those told of a request, to tell them it was withdrawn)."""
+    from django.contrib.auth import get_user_model
+
+    return get_user_model().objects.filter(notifications__key=key, is_active=True).distinct()
 
 
 def send(user, title: str, body: str = "", link: str = "", *, email: bool = True, key: str = "") -> Notification | None:

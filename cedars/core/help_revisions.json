@@ -17,7 +17,7 @@
   },
   "guide:calculations": {
     "release": "0.2.0",
-    "sha256": "cdd3901e2b52dec7a32e5869e82a641b6572245c8d4fc725df016d402995128a"
+    "sha256": "abe99062e4e619fd1c9e2edf4ae5a34445d128ee69e0fde04102f217049b13c7"
   },
   "guide:claims": {
     "release": "0.2.0",
@@ -37,7 +37,7 @@
   },
   "guide:glossary": {
     "release": "0.2.0",
-    "sha256": "11f700f1caec719f80e6dec8609f033e62e498344a8f894cd8cae15428c60678"
+    "sha256": "a89f12d5946220797c14c6d4c2a30df9f7a0e242a1c12dd2c51b095ff768a225"
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
