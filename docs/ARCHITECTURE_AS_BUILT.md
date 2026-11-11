@@ -194,6 +194,7 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | The front page's stale claims rows are reread on a thread after the response |
 | `IMPACT_PROFILES_INLINE_JOBS`, `DATA_DOWNLOAD_INLINE_JOBS` | off (on in dev) | Run queued jobs in the request instead of a worker |
 | `ETRM_DATABASE_URL`, `ETRM_SYNC_RETRY_MINUTES` | blank; 10, 30 | The eTRM source and the nightly sync's retries |
+| `IMPACT_PROFILE_TERRITORIES`, `LOAD_SHAPE_FIRST_START` | PGE, SCE, SCG, SDGE; 2027-01-01 | First-run defaults only: CPUC administrators change both on Impact profiles' Settings page (`impact_profiles/policy.py`, `LibrarySettings`, one row per change) |
 | `CEDARS_REQUIRE_MFA` | on (only dev may turn it off) | Every account needs a second factor |
 | `CEDARS_API_RATE_USER`, `CEDARS_API_RATE_ANON`, `CEDARS_API_TOKEN_MAX_DAYS` | 120/min, 30/min, 365 | API throttles and token life |
 | `CEDARS_NUM_PROXIES` | 0 (prod: 1) | Proxies in front; the API throttles and the sign-in rate limits take the caller's address from the entry the load balancer added to `X-Forwarded-For` |
@@ -645,6 +646,11 @@ erDiagram
   MeasurePackage ||--o{ ProfileMapping : "NR/NC rows"
   LoadShapeUpload |o--o{ ProcessingJob : "checked by"
   PackVersion |o--o{ LibraryExport : "registered as"
+  LibrarySettings {
+    json territories "a profile with no territory is written for each"
+    date load_shape_first_start "the eTRM sync takes versions starting on or after"
+    string reason "one row per change, the newest in force"
+  }
   Shape {
     string sha256 UK "one float64 array in storage"
   }
@@ -728,7 +734,7 @@ erDiagram
 | feedback | `Feedback` |
 | sandbox | `Refresh`, `CopiedRecord` |
 | accessibility | `CheckSettings`, `FileCheck` |
-| impact_profiles | `Shape`, `EtrmSyncRun`, `MeasurePackage`, `PackageVersion`, `Permutation`, `ExcludedPackage`, `LoadShapeUpload`, `UploadFinding`, `LoadShape`, `LoadShapeVersion`, `ImpactProfile`, `ProfileVersion`, `ProfileZone`, `ProfileMapping`, `ProcessingJob`, `LibraryExport` |
+| impact_profiles | `Shape`, `EtrmSyncRun`, `MeasurePackage`, `PackageVersion`, `Permutation`, `ExcludedPackage`, `LoadShapeUpload`, `UploadFinding`, `LoadShape`, `LoadShapeVersion`, `ImpactProfile`, `ProfileVersion`, `ProfileZone`, `ProfileMapping`, `ProcessingJob`, `LibraryExport`, `LibrarySettings` |
 | monthly | `YearSetup`, `ReportLine`, `MonthlyResult`, `ChangeLetter` |
 | calculations | `EngineRelease`, `InputDraft`, `Run`, `OutputTemplate`, `OutputTemplateDefault`, `ResultView`, `Worker` |
 | budgets | `FilingSetup`, `BudgetLine`, `BudgetResult`, `FundShift`, `FundShiftLine`, `FundShiftAcknowledgement`, `ChangeLetter` |

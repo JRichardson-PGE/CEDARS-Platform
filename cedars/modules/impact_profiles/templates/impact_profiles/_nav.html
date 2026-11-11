@@ -7,5 +7,6 @@
   <a href="{% url 'impact_profiles:uploads' %}"{% if section == 'uploads' %} aria-current="{% if here == 'impact_profiles:uploads' %}page{% else %}true{% endif %}"{% endif %}>Upload history</a>
   <a href="{% url 'impact_profiles:sync_history' %}"{% if section == 'sync' %} aria-current="page"{% endif %}>eTRM sync history</a>
   <a href="{% url 'impact_profiles:exports' %}"{% if section == 'exports' %} aria-current="page"{% endif %}>Library files</a>
+  {% if nav.sysadmin or section == 'settings' %}<a href="{% url 'impact_profiles:settings' %}"{% if section == 'settings' %} aria-current="page"{% endif %}>Settings</a>{% endif %}
 </nav>
 {% endwith %}

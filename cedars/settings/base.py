@@ -293,10 +293,12 @@ ETRM_FIXTURE = env("ETRM_FIXTURE", "")
 # A nightly sync that fails is tried again after each of these waits (minutes); when the last attempt fails too, the CPUC's
 # administrators are alerted. Empty = one attempt.
 ETRM_SYNC_RETRY_MINUTES = [float(m) for m in env_list("ETRM_SYNC_RETRY_MINUTES", "10,30")]
-LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")  # earlier measure versions keep DEER impact profile IDs
+# First-run defaults of two policy settings CPUC administrators change on Impact profiles' Settings page (impact_profiles/policy.py):
+# the load-shape start date (earlier measure versions keep DEER impact profile IDs) and the IOU territories (below).
+LOAD_SHAPE_FIRST_START = env("LOAD_SHAPE_FIRST_START", "2027-01-01")
 LOAD_SHAPE_MAX_UPLOAD_MB = int(env("LOAD_SHAPE_MAX_UPLOAD_MB", "50"))
 LOAD_SHAPE_MAX_UNZIPPED_MB = int(env("LOAD_SHAPE_MAX_UNZIPPED_MB", "1024"))
-IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # a profile with no territory is written for each
+IMPACT_PROFILE_TERRITORIES = env_list("IMPACT_PROFILE_TERRITORIES", "PGE,SCE,SCG,SDGE")  # first-run default; see above
 IMPACT_PROFILES_INLINE_JOBS = env_bool("IMPACT_PROFILES_INLINE_JOBS", False)  # development: run queued jobs in the request
 
 # Job and system health (cedars/core/health.py, /admin/health/, `manage.py check_health`): minutes before a job counts as

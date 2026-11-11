@@ -41,7 +41,7 @@
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
-    "sha256": "20fb4a20e83e068b779a9848f47b398f6f91183770f2458143f4d05db506d673"
+    "sha256": "d79e83cb614782ec15f593f2b46bcbb3ab5f869dc0f92b32d6c393eb36ffe259"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",

@@ -239,3 +239,25 @@ impact_profiles/exports:
       title: Write the library now
       text: For CPUC system administrators. It is written nightly otherwise.
       optional: true
+
+impact_profiles/settings:
+  title: Impact profile settings
+  guide:
+    - Two policy choices the library is built on. The IOU territories are the territories a profile filed with no territory is written
+      to the library for, and the only territories a custom profile may name. The start date decides which draft measure versions the
+      eTRM sync takes load shapes for; earlier ones keep their DEER impact profile IDs.
+    - Only the CPUC's administrators change them, with a reason. Each change is kept, with who made it and why, and is in the audit log.
+  how:
+    - Edit the territories (codes separated by commas) or the date, give a reason and Save. The territories apply from the next library
+      write, the date from the next eTRM sync.
+  see: impact-profiles
+  tour:
+    - target: main dl.facts
+      title: In force now
+      text: The settings in force, and when and by whom they were last set.
+    - heading: Change the settings
+      title: Change them
+      text: Edit either setting and give a reason.
+    - heading: Earlier settings
+      title: Earlier settings
+      text: Every change, newest first, with its reason.

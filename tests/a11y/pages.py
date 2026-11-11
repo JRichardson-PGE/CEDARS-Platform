@@ -243,6 +243,7 @@ PAGES = [
     ("load-shape-upload-rejected", "/impact-profiles/uploads/{rejected}/", "developer"),
     ("etrm-sync-history", "/impact-profiles/etrm/", "cpuc_admin"),
     ("profile-library-files", "/impact-profiles/library/", "cpuc_admin"),
+    ("impact-profile-settings", "/impact-profiles/settings/", "cpuc_admin"),
     ("calculations", "/calculations/", "analyst"),  # the menu's own page
     ("calculations-no-organization", "/calculations/", "community"),
     ("runs", "/calculations/runs/", "analyst"),
