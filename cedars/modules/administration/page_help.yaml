@@ -4,7 +4,7 @@ administration/account:
   title: Your account
   guide:
     - Your name, email address and second factor, the organizations you belong to and your permissions in each, your access requests,
-      and API tokens for your own systems.
+      and API tokens for your own systems. Links lead to your notification settings, saved views and downloads.
     - Change your email address from the link beside it. You confirm your password, then the new address takes over once you open the
       link sent to it; the old address is told, and you are signed out everywhere else.
     - To act for a program administrator, ask its administrators for access. A request for PII access also needs a CPUC data steward's
@@ -19,6 +19,9 @@ administration/account:
     - target: main dl.facts
       title: You
       text: Your name, your email address (with the link to change it) and how you signed in.
+    - target: "#yours-h"
+      title: Your settings and saved work
+      text: Notification settings, your notifications, saved views and record downloads.
     - target: "#your-name"
       title: Your name
       text: The name pages show for you.
