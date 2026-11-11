@@ -103,6 +103,7 @@ def test_after_the_due_date_a_correction_is_a_new_version_with_approval(analyst,
     approver = make_user("approver@cpuc.example.org")
     access.grant(cpuc_admin, approver, cpuc, "claims.approve")
     deputy = make_user("deputy@cpuc.example.org")
+    access.grant(cpuc_admin, deputy, cpuc, "claims.read")
     service.delegate(approver, module="claims", delegate_to=deputy, starts=date.today(), ends=date.today() + timedelta(days=7))
     v2 = service.decide_reopen(deputy, req, True, "approved while the approver is away")
     req.refresh_from_db()

@@ -375,6 +375,8 @@ erDiagram
   User {
     string email UK
     string name
+    bool is_active
+    datetime deactivated_at
   }
   Organisation {
     string code UK
@@ -382,6 +384,7 @@ erDiagram
     string pa_type "IOU, REN, CCA"
     bool manages_allocation
     bool federated
+    bool active "false once retired"
   }
   Grant {
     string permission "module.action or special"
@@ -399,7 +402,9 @@ erDiagram
 ```
 
 `AccessPolicy` and `PolicyChange` hold the access settings (two data stewards confirm a change); they have no relationships worth
-drawing.
+drawing. A `PolicyChange` with the setting `organisation_federation` is a system administrator's proposal to switch an organization's
+directory sign-in while its members hold or wait for PII access; its value names the organization, and a data steward other than the
+proposer confirms it before it takes effect.
 
 **Programs, periods and statewide allocation** (`cedars.services.registry`)
 
@@ -522,8 +527,10 @@ erDiagram
 ```
 
 Each filing module also has an append-only `ChangeLetter` (budgets, claims and monthly each have their own, one per corrected
-version against the one it replaces). `WorkflowPolicy` holds each module's correction policy and `Delegation` an approver's
-delegate. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
+version against the one it replaces). `WorkflowPolicy` holds each module's correction policy, which a system administrator changes
+on the workflow settings page (`/filings/workflow-settings/`, with a reason, audited). `Delegation` names an approver's delegate for
+one module and a date range, with who named it and why; it is never deleted: ending it early sets `ended_at`, `ended_by` and a reason,
+and `Delegation.objects.in_force(day)` is the one rule every reader (the approver check, the reviewer list, the header) uses. `ClaimYear` and `YearSetup` are tied to their deadlines by year; `FilingSetup` by a one-to-one key.
 
 **Calculations and reference data** (`cedars.modules.calculations`, `cedars.services.refdata`, `cedars.services.snapshots`)
 
@@ -757,6 +764,16 @@ erDiagram
 - A **user** is one identity per person (email, unique without regard to case), whatever organizations they belong to. Accounts are
   deactivated, never deleted. An account with no membership is a **community account**: it reads what is public and runs its own
   calculations.
+- **People pages** (`/admin/people/`, system administrators): find any account, correct its name (with a reason), deactivate or
+  reactivate it. `accounts.deactivate_user` needs a reason, refuses the last system administrator and the last data steward, revokes
+  the account's API tokens, ends its sessions and records who did it and why on the user (`deactivated_at`, `deactivated_by`,
+  `deactivation_reason`); the account's runs, filings and history stay. A community account may close itself from its account page;
+  only the CPUC reopens it (`reactivate_user`).
+- People set their own **name** on their account page (`set_name`, audited). An **email change** is allauth's: the new address is
+  verified by a link before it replaces the old one, the user signs in again to start it (`ACCOUNT_REAUTHENTICATION_REQUIRED`), and
+  once it is made the platform audits `user.email_changed` (before and after), ends the user's other sessions and mails a notice to
+  the old address (`accounts/signals.py`). A user created without an address record gets one, verified, the next time they sign in or
+  open their account page (`ensure_email_record`), so the change page always has the current address.
 - An **organization** is of kind `pa` (program administrator), `cpuc` (exactly one) or `other` (evaluators, implementers,
   consultants). A PA has a type, IOU, REN or CCA, which the dashboards and pickers group by, and the claims checks use (a REN's or CCA's
   claim must carry `CCAREN_Flag`). `SW` is the statewide pseudo-PA: statewide programs and the records CEDARS loaded under it; it does
@@ -764,6 +781,12 @@ erDiagram
 - An organization's **codes** have dates (`OrganisationCode`): a rename closes the old code, a former code can be recorded, and two
   records of one party are merged (`successor`). Data keep the code as filed; `code_map` / `by_code` read any code as its party's.
 - `manages_allocation` marks the funding PAs (the four IOUs by default) whose members may hold `allocation.manage`.
+- A system administrator changes how an organization's members **sign in** on its page (`change_federation`: directory sign-in with
+  its provider, or password and a second factor). It applies at once, unless the organization holds open `claims.pii` grants: then
+  it is a proposal (`PolicyChange`, above) that a data steward confirms on the stewardship page.
+- An organization is **retired** (`retire_organisation`, with a reason) when it stops filing without merging into another: `active`
+  goes false, so it leaves the pickers, filing lists and token checks, while its codes, memberships, data and history stay. It can be
+  brought back (`reinstate_organisation`). The CPUC and a merged organization cannot be retired.
 
 ### 5.2 Permissions and grants
 
@@ -796,7 +819,7 @@ How the usual roles map onto grants:
 | Funding PA allocation manager | An IOU | `allocation.manage` |
 | PII handler | The PA (upload), PA or CPUC (read) | `claims.pii`, approved by a data steward |
 | CPUC reviewer | CPUC | `<module>.read` |
-| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); may delegate for a period (`Delegation`) |
+| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); names delegates for a module and a period on the delegates page (`/filings/delegates/`; a delegate is CPUC staff with `<module>.read`; a system administrator can name or end one on an approver's behalf, with a reason) |
 | CPUC system administrator | CPUC | `system.admin`: set-up (claim years, filing setups, calendar), engine releases, reference packs, rules, value lists, release notes, organizations |
 | Data steward | CPUC | `pii.steward` |
 | Community account | none | Public pages, its own runs |
@@ -824,7 +847,8 @@ flowchart TD
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
 - The **header** is data (`cedars/core/nav.py`): every item names who sees it (`anon`, `user`, `member`, `guest`, `public`,
-  `sysadmin`, `org_admin`, `steward`, `approver`); a page's view name picks the highlighted menu.
+  `sysadmin`, `org_admin`, `steward`, `approver`, `delegator`: a CPUC approver of a module that can be delegated); a page's view name
+  picks the highlighted menu.
 - **API tokens** (`ApiToken`, `Authorization: Bearer cedars_...`, only the SHA-256 stored) act for one organization, reach only their
   scopes and never more than the user's grants there, and never PII or administration.
 
@@ -880,7 +904,8 @@ stateDiagram-v2
 - **Before the due date** the first version can be un-confirmed and changed as often as needed; nothing superseded before the due date
   is kept. **After it**, a correction is version n+1 under the module's `WorkflowPolicy.reopen_after_due`: `approval` (a request an
   approver or their delegate decides), `open` (at once, with a reason) or `closed`. A late first confirmation is allowed and marked
-  unless `late_confirmation` is off.
+  unless `late_confirmation` is off. A system administrator changes both on the workflow settings page; a change that tightens the
+  rule offers a release note.
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.

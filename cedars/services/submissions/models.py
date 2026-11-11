@@ -183,8 +183,15 @@ class ReopenRequest(models.Model):
         return f"reopen {self.submission} ({self.status})"
 
 
+class DelegationQuerySet(models.QuerySet):
+    def in_force(self, day):
+        """The delegations a delegate may act under on `day`: started, not past their end, and not ended early."""
+        return self.filter(starts__lte=day, ends__gte=day, ended_at__isnull=True)
+
+
 class Delegation(models.Model):
-    """An approver's delegate for a module, for a period (approvals with delegates)."""
+    """An approver's delegate for a module, for a period (approvals with delegates). Named by the approver, or by a CPUC system
+    administrator on the approver's behalf (e.g. for leave); ended early by either, never edited or deleted."""
 
     module = models.CharField(max_length=40)
     approver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
@@ -192,12 +199,39 @@ class Delegation(models.Model):
     starts = models.DateField()
     ends = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="Who named the delegate: the approver, or a CPUC system administrator on their behalf",
+    )
+    reason = models.TextField(blank=True, help_text="Why, e.g. leave")
+    ended_at = models.DateTimeField(null=True, blank=True, help_text="Set when it was ended before its last day")
+    ended_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    end_reason = models.TextField(blank=True)
+
+    objects = DelegationQuerySet.as_manager()
 
     class Meta:
         ordering = ["-starts"]
 
     def __str__(self):
         return f"{self.delegate} for {self.approver} ({self.module})"
+
+    def get_module_label(self) -> str:
+        from .service import DELEGABLE
+
+        return DELEGABLE.get(self.module, self.module)
+
+    def state(self, day) -> str:
+        """ "ended" (early), "past", "upcoming" or "in force" on `day`."""
+        if self.ended_at:
+            return "ended"
+        if self.ends < day:
+            return "past"
+        return "upcoming" if self.starts > day else "in force"
 
 
 class Comment(models.Model):
