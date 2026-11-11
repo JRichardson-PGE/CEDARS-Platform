@@ -125,6 +125,29 @@ def known_pa_type(code: str) -> str:
     return KNOWN_PA_TYPES.get((code or "").strip().upper(), "")
 
 
+def pa_code_table() -> list[tuple[str, str, str]]:
+    """The glossary's program administrator codes, read from the organizations: (code, name, type) for each PA's current code and
+    each former one (OrganisationCode), so a rename or a new PA on the site shows at once. IOUs first, then RENs, CCAs and untyped
+    PAs; the statewide pseudo-PA is left out (the glossary describes it separately)."""
+    order = {"IOU": 0, "REN": 1, "CCA": 2}
+    pas = {o.pk: o for o in Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(code=STATEWIDE_CODE).select_related("successor")}
+    rows = []
+    for o in pas.values():
+        name = o.name
+        if o.successor_id:
+            name = f"{name} (merged into {o.successor.name}, {o.successor.code}{f', {o.merged_on:%Y}' if o.merged_on else ''})"
+        elif not o.active:
+            name = f"{name} (no longer active)"
+        rows.append((o.code, name, o.pa_type, o))
+    for c in OrganisationCode.objects.filter(organisation_id__in=pas, valid_to__isnull=False).order_by("code"):
+        o = pas[c.organisation_id]
+        if c.code == o.code:
+            continue
+        rows.append((c.code, f"{o.name}'s code before {c.valid_to:%Y} (now {o.code})", o.pa_type, o))
+    rows.sort(key=lambda r: (order.get(r[2], 9), r[0]))
+    return [(code, name, kind or "Not set yet") for code, name, kind, _ in rows]
+
+
 def pa_types() -> dict[str, str]:
     """Every typed PA's code and its type, for grouping data by PA type (the dashboards' PA type filter and view)."""
     return dict(Organisation.objects.filter(kind=Organisation.Kind.PA).exclude(pa_type="").values_list("code", "pa_type"))
