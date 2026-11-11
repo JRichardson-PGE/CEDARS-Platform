@@ -8,7 +8,7 @@
   <p><strong>The set has {{ build.open_problems }} problem{{ build.open_problems|pluralize }}</strong>{% if checked_by %}, found by ReCET {{ checked_by }}{% endif %}. Each step lists its own.</p>
   {% for label, key, msgs in all_problems %}
   <p>{% if key %}<a href="{% url 'refdata:build_step' build.pk key %}">{{ label }}</a>{% else %}{{ label }}{% endif %}</p>
-  <ul>{% for m in msgs %}<li>{{ m }}</li>{% endfor %}</ul>
+  <ul>{% for p, link in msgs %}<li>{% include "refdata/builder/_problem.html" %}</li>{% endfor %}</ul>
   {% endfor %}
 </div>
 {% elif checked_by %}
@@ -94,9 +94,9 @@ run on New run takes it as your own cost-test set file.</p>
   <div class="actions">
     {% if manager and build.status != "registered" %}<button type="submit" name="action" value="register" class="primary"{% if build.open_problems %} aria-disabled="true"{% endif %}>Register as a draft pack</button>{% endif %}
     <button type="submit" name="action" value="copy">Copy it to a new set</button>
-    {% if can_change %}<button type="submit" name="action" value="discard">Discard it</button>{% endif %}
   </div>
   {% if manager and build.open_problems and build.status != "registered" %}<p class="small muted">Registering needs a set with no problems.</p>{% endif %}
 </form>
+{% if can_discard %}<p class="discard-set"><a class="button danger" href="{% url 'refdata:build_discard' build.pk %}">Discard it…</a></p>{% endif %}
 </section>
 {% endblock %}

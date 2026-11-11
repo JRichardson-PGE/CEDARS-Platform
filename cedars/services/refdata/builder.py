@@ -875,10 +875,15 @@ def changes(build: CostTestBuild) -> list[dict]:
 # --- the end of a build
 
 
+def can_discard(user, build: CostTestBuild) -> bool:
+    """The person who started the set, or its organization's administrator, while it can still change."""
+    return can_change(user, build) and (build.owner_id == user.pk or access.is_org_admin(user, build.organisation))
+
+
 @transaction.atomic
 def discard(actor, build: CostTestBuild) -> None:
     _require(actor, build)
-    if build.owner_id != actor.pk and not access.is_org_admin(actor, build.organisation):
+    if not can_discard(actor, build):
         raise AccessDenied("Only the person who started the set (or the organization's administrator) discards it.")
     build.status = Status.DISCARDED
     build.save(update_fields=["status", "updated_at"])
