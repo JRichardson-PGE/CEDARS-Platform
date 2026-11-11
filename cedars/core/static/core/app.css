@@ -119,9 +119,18 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .top nav details > ul a { display: block; padding: .5rem .7rem; border-radius: var(--r); color: var(--fg); text-decoration: none; min-height: 24px; }
 .top nav details > ul a:hover { background: var(--surface-2); }
 .top nav details > ul a[aria-current] { font-weight: 600; color: var(--link); background: var(--surface-2); }
-.who { margin-left: auto; display: flex; gap: .6rem; align-items: center; font-size: .9rem; padding: .5rem 0; flex-wrap: wrap; }
+.who { --who-gap: .6rem; margin-left: auto; display: flex; gap: var(--who-gap); align-items: center; font-size: .9rem; padding: .5rem 0; flex-wrap: wrap; }
 .who form { margin: 0; }
 .who .link { color: var(--fg-2); }
+/* The person's plain controls (My queue, Help, Account, Sign out) each have a target of their own, 32 px tall, with a rule between
+   neighbors, so the cluster reads as separate controls rather than one line of words (UI review 3). The rule is decoration. */
+.who .util { display: inline-flex; align-items: center; min-height: 32px; }
+.who a.util, .who .util .link { padding: 0 .5rem; border-radius: var(--r); color: var(--fg); text-decoration: none; font-weight: 500; min-height: 32px; font-size: inherit; }
+.who a.util:hover, .who .util .link:hover { color: var(--link); text-decoration: underline; }
+.who a.util[aria-current] { color: var(--link); text-decoration: underline; text-underline-offset: .25em; }
+.who .util + .util { border-left: 1px solid var(--line); margin-left: calc(-1 * var(--who-gap)); }   /* the rule sits midway between the two */
+.bell.bell-compact { display: none; }   /* shown only on a narrow screen, below */
+.bell-icon { display: block; fill: currentColor; flex: none; }
 .org-switch { display: flex; gap: .4rem; align-items: center; }
 .org-switch label { flex-direction: row; font-size: .85rem; color: var(--fg-2); }
 .org-switch select { padding: .25rem .4rem; min-height: 32px; }
@@ -176,7 +185,8 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .35rem; font-size: .9rem; }
   .top nav .nav-menu > .nav-head { padding-right: .1rem; }
   .top nav .nav-head + details > summary { padding: 0 .3rem 0 .1rem; }
-  .who { gap: .3rem; font-size: .85rem; }
+  .who { --who-gap: .3rem; font-size: .85rem; }
+  .who a.util, .who .util .link { padding: 0 .4rem; }
   .org-badge, .bell { padding-left: .5rem; padding-right: .5rem; font-size: .8rem; }
 }
 /* Below 1600 px the header's seven menus (navigation review, D1) need tighter still: smaller gaps, gutters and summary arrows, and a
@@ -191,16 +201,29 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .top nav > a, .top nav .nav-head, .top nav summary { padding: 0 .28rem; font-size: .875rem; gap: .2rem; }
   .top nav .nav-menu > .nav-head { padding-right: 0; }
   .top nav .nav-head + details > summary { padding: 0 .2rem 0 0; }
-  .who { gap: .2rem; font-size: .82rem; }
+  .who { --who-gap: .2rem; font-size: .82rem; }
+  .who a.util, .who .util .link { padding: 0 .3rem; }
   .org-switch { gap: .25rem; }
   .org-badge, .bell { padding-left: .4rem; padding-right: .4rem; }
 }
 /* Narrow screens: the header collapses to brand + Menu; the navigation stacks and the menus open inline. Without scripts the list is simply shown. */
 @media (max-width: 860px) {
   .top { gap: .75rem; }
-  .menu-btn { display: inline-block; order: 2; }
-  .who { order: 3; margin-left: 0; width: 100%; padding: .4rem 0 .6rem; border-top: 1px solid var(--line-2); }
+  /* The top row is the brand, the notification count and Menu; the navigation and then the person's controls fold behind Menu (UI review
+     3), so a phone's header is the identity bar, the search and one row, and the page's heading starts near the top of the screen. */
+  .bell.bell-compact { display: inline-flex; order: 2; margin-left: auto; min-height: 36px; padding: .2rem .6rem; }
+  .menu-btn { display: inline-block; order: 3; }
+  .bell-compact + .menu-btn { margin-left: 0; }
   .top nav { order: 4; flex-direction: column; width: 100%; gap: 0; padding-bottom: .5rem; border-top: 1px solid var(--line-2); }
+  .who { order: 5; margin-left: 0; width: 100%; padding: .4rem 0 .6rem; border-top: 1px solid var(--line-2); }
+  .who .bell { display: none; }   /* the top row's count is the way to Notifications */
+  .who:not(#header-person) { order: 3; }   /* signed out: Help and Sign in stay in view */
+  /* folded behind Menu, the person's controls stack as the navigation does: one 44 px row each, no rules between them */
+  #header-person { flex-direction: column; align-items: stretch; gap: 0; }
+  #header-person > :is(.org-badge, .org-switch) { align-self: flex-start; margin: .2rem .5rem .4rem; }
+  #header-person .util { min-height: 44px; border-left: 3px solid transparent; margin-left: 0; }   /* lined up with the navigation's rows */
+  #header-person a.util, #header-person .util .link { padding: 0 .5rem; width: 100%; font-size: 1rem; text-align: left; }
+  .js .top .who.collapsed { display: none; }
   .top nav > a, .top nav .nav-head, .top nav summary { min-height: 44px; padding: 0 .5rem; border-bottom: 0; border-top: 0; border-left: 3px solid transparent; }
   .top nav > a[aria-current], .top nav .nav-menu.current > .nav-head { border-left-color: var(--primary); }
   /* a menu stacks: its heading's link across the row, the arrow at the row's end, the dropdown opening under them */
@@ -211,6 +234,7 @@ main.narrow { flex: none; max-width: 26rem; margin: 3rem auto; padding: 1.5rem v
   .top nav details > ul { position: static; box-shadow: none; border: 0; border-left: 3px solid var(--line); border-radius: 0; margin: 0 0 .4rem .5rem; padding: 0 0 0 .4rem; min-width: 0; }
   .js .top nav.collapsed { display: none; }
 }
+@media (max-width: 480px) { .top { gap: .5rem; } .bell.bell-compact { padding: .2rem .45rem; } }   /* 320 px: brand, count and Menu on one row */
 
 /* ---------- Page header, actions, buttons ---------- */
 .head-row { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem 1.5rem; flex-wrap: wrap; margin-bottom: .5rem; }
@@ -766,6 +790,11 @@ ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(-
 
 /* ---------- Release notes, limits and the FAQ (cedars/services/releases, core/help/faq.html) ---------- */
 .coming-changes { background: var(--info-bg); border-left: 4px solid var(--info); border-radius: var(--r); padding: .5rem .9rem; margin: 0 0 1rem; }   /* text and links on --info-bg as .tour-offer: fg and link over 7:1 in both schemes */
+/* A bar's Put away button sits at its end (on a phone, under its text); a link-styled button, 24 px tall at least, in the link color. */
+.coming-changes { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; }
+.coming-changes > p { margin: 0; flex: 1 1 20rem; max-width: none; }
+.coming-changes .put-away { margin: 0 0 0 auto; }
+.coming-changes .put-away .link { min-height: 24px; color: var(--link); text-decoration: underline; white-space: nowrap; }
 .release-list { list-style: none; padding: 0; margin: 0; }
 .release-list li { border-bottom: 1px solid var(--line-2); padding: .25rem 0 .75rem; }
 .release-list h3 { margin-top: .75rem; }

@@ -33,7 +33,7 @@
   },
   "guide:getting-started": {
     "release": "0.2.0",
-    "sha256": "ed1166d07d19f5e74173660d25782314840284898fd62950a39b008b577ca1de"
+    "sha256": "a53a55996d99a867a7f24aa495ad38f9b2a8fbb94e975bf4ea663fc9acd791db"
   },
   "guide:glossary": {
     "release": "0.2.0",
@@ -61,7 +61,7 @@
   },
   "guide:releases": {
     "release": "0.2.0",
-    "sha256": "8b17ae73990b56c475969d994a5debcf9014662fe4d000687862910c8ae4370c"
+    "sha256": "1af8fd46c9b01966628878a567337bae8edac64371476582428b02ad86816fff"
   },
   "guide:reviewing": {
     "release": "0.2.0",

@@ -148,6 +148,7 @@ NO_MENU = (
     "releases:index",
     "releases:feed",
     "releases:subscribe",
+    "releases:put_away",
     "releases:detail",
     "releases:withdraw",
     "limits:index",

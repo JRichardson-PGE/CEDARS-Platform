@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("feed.xml", views.ReleaseFeed(), name="feed"),
     path("subscribe", views.subscribe, name="subscribe"),
+    path("put-away", views.put_away, name="put_away"),
     path("manage/", views.manage, name="manage"),
     path("manage/<int:pk>/", views.edit, name="edit"),
     path("notices/", views.notices, name="notices"),

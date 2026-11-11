@@ -36,8 +36,15 @@ def test_the_header_has_the_search_box_on_every_page(client):
 def test_every_header_page_is_searchable_with_help():
     """Each page the header or footer links to is in search.all_pages(), and each PAGES entry names a help entry that exists."""
     names = set(re.findall(r"\{% url '([a-z_]+:[a-z_]+)'", BASE.read_text(encoding="utf-8"))) | nav.all_url_names()
-    # a release note's and a guide's own pages are found through their lists
-    names -= {"core:search", "account_login", "administration:switch_organisation", "releases:detail", "core:help_guide"}
+    # a release note's and a guide's own pages are found through their lists; switching organization and putting a bar away are forms
+    names -= {
+        "core:search",
+        "account_login",
+        "administration:switch_organisation",
+        "releases:detail",
+        "core:help_guide",
+        "releases:put_away",
+    }
     listed = {p.url_name for p in search.all_pages()}
     assert names - listed == set()
     entries = page_help.entries()

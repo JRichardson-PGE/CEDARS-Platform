@@ -11,6 +11,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from cedars.core import revisions
@@ -20,7 +21,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.notifications import service as notifications
 from cedars.services.notifications.models import Subscription
 
-from . import limits, service
+from . import banners, limits, service
 from .models import Change, SiteNotice
 from .service import ReleaseError
 
@@ -74,7 +75,7 @@ def index(request):
 @require_GET
 def detail(request, pk):
     note = get_object_or_404(service.published(), pk=pk)
-    return render(
+    response = render(
         request,
         "releases/detail.html",
         {
@@ -88,6 +89,21 @@ def detail(request, pk):
             "subscribed": _subscribed(request.user),
         },
     )
+    banners.opened(request, response, note)  # a bar announcing this note can now be put away
+    return response
+
+
+@require_POST
+def put_away(request):
+    """Put away a bar at the top of the page (the coming changes, or one site notice) until it holds a new note: anyone, signed in or
+    not, once its note has been read (banners.py). Back to the page it was on."""
+    nxt = request.POST.get("next", "")
+    if not url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        nxt = reverse("core:home")
+    response = redirect(nxt)
+    if not banners.put_away(request, response, request.POST.get("bar", ""), service.banner(), service.site_notices()):
+        messages.info(request, "That bar can be put away once you have opened the note it names.")
+    return response
 
 
 @require_POST

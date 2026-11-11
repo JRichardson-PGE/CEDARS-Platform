@@ -1518,13 +1518,19 @@ def test_error_pages_axe_clean_and_reflow(browser, axe_source, site, scene, name
 
 @pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
 def test_the_narrow_header_folds_behind_a_menu_button(browser, site, scene, who):
-    """At 320 px the navigation is behind a Menu button, signed in or not (UI review 2, #42), and the button shows and hides it."""
+    """At 320 px the navigation is behind a Menu button, signed in or not (UI review 2, #42), and the button shows and hides it; signed
+    in, the person's own controls fold with it and the notification count stays beside it."""
     context, page = _open(browser, site, scene, "/", who, viewport={"width": 320, "height": 640})
     btn = page.locator(".menu-btn")
     assert btn.is_visible() and btn.get_attribute("aria-expanded") == "false"
     assert not page.locator("#main-nav").is_visible()
+    if who:  # the person's own controls fold with the navigation (UI review 3); the notification count stays in the top row
+        assert not page.locator("#header-person").is_visible() and page.locator(".bell-compact").is_visible()
     btn.click()
     assert btn.get_attribute("aria-expanded") == "true" and page.locator("#main-nav").is_visible()
+    if who:
+        assert page.locator("#header-person").is_visible() and page.locator("#header-person a[href='/account/']").is_visible()
+        assert not page.locator("#header-person .bell").is_visible()  # the top row's count is the one way to Notifications here
     btn.click()
     assert not page.locator("#main-nav").is_visible()
     context.close()

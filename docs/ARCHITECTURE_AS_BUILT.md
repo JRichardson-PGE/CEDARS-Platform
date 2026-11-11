@@ -1367,7 +1367,9 @@ flowchart TD
   they take effect, the Limits page read from the settings that enforce them (or the value the CPUC set, for an editable limit), Change
   limits for CPUC system administrators, the register of CPUC-mandated changes, and site notices (`SiteNotice`): a short dated
   notice a CPUC system administrator posts at once (`/releases/notices/`), shown at the top of every page from its start to its end,
-  withdrawn with a reason, never edited.
+  withdrawn with a reason, never edited. Coming changes and site notices share one rule at the top of the page (`releases/banners.py`):
+  a bar can be put away once its note has been read (a coming change's once its note has been opened) and comes back with a new note;
+  what a visitor opened and put away is kept in one cookie in their browser (`cedars_bars`, note keys only), nothing stored on the server.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **My queue and Your work** (`cedars/core/queue.py`, `cedars/core/yourwork.py`): read live from each service's and module's
   records through the providers they register, nothing stored. My queue (`/queue/`) is the full list of what waits on the person.
