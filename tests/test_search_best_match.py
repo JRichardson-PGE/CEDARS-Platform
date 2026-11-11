@@ -34,12 +34,19 @@ def first_part(html: str) -> str:
 
 def make_run(owner, name, organisation=None) -> Run:
     return Run.objects.create(
-        owner=owner, organisation=organisation, name=name, engine_release="0.1.93", acc_version="2026", input_hash="0" * 64, storage_prefix="x"
+        owner=owner,
+        organisation=organisation,
+        name=name,
+        engine_release="0.1.93",
+        acc_version="2026",
+        input_hash="0" * 64,
+        storage_prefix="x",
     )
 
 
 def test_an_exact_prgid_leads_as_the_best_match(client, cpuc_admin, pge):
-    registry.create_program(cpuc_admin, prg_id="PGE21001", administrator=pge, valid_from=date(2024, 1, 1), name="Residential Energy Fitness")
+    start = date(2024, 1, 1)
+    registry.create_program(cpuc_admin, prg_id="PGE21001", administrator=pge, valid_from=start, name="Residential Energy Fitness")
     registry.create_program(cpuc_admin, prg_id="PGE210011", administrator=pge, valid_from=date(2024, 1, 1), name="Another")
     found = search.search(AnonymousUser(), "PGE21001")
     assert found[0].key == "best" and [h.title for h in found[0].hits] == ["PGE21001: Residential Energy Fitness"]
