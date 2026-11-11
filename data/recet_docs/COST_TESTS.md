@@ -1,8 +1,8 @@
 # Cost tests as configuration
 
 ReCET's cost tests and value streams are defined in a versioned **cost-test definition set**, a YAML file shipped in the package, and every run records
-the set it used (BRD v0.5 BR-06.8: "cost tests and value streams as configuration, so new tests can be added without code changes"; BR-06.14 and D14:
-non-energy benefits). This page is the repository's statement of the design; the module is `recet/cost_test_sets.py`.
+the set it used, so new tests and value streams (non-energy benefits among them) can be added without code
+changes. This page is the repository's statement of the design; the module is `recet/cost_test_sets.py`.
 
 * [1. What a set is](#1-what-a-set-is)
 * [2. The parts of a set](#2-the-parts-of-a-set)
@@ -91,7 +91,7 @@ OUTPUT_FIELDS.md 1.8 to 1.10.
 |---|---|
 | Run option | `cost_test_set` (INPUT_FIELDS.md section 3): a built-in id, or the path of a set's YAML file. CLI `--cost-tests`; New run's "Cost tests" select (and a Cost-test set upload under Supplied files); the desktop window's Cost tests box. |
 | Default | Blank = the built-in set in force for the job's first program year (`cost_test_sets.in_force`), so a 2027 claims job and a 2028 one can price on different sets without anyone choosing. |
-| Program years | A set that is not in force for every program year of the job is a warning (`cost_tests_not_for_program_year`, in the log and the run's notes), never a stop, as the ACC check is (BR-06.5). |
+| Program years | A set that is not in force for every program year of the job is a warning (`cost_tests_not_for_program_year`, in the log and the run's notes), never a stop, as the ACC check is. |
 | Measure level | `Used_CostTestSet`, after `Used_ACCVersion`: the id, `custom: <file name>` for a supplied set, ` (draft)` at the end for a draft. |
 | `run_settings.json` | the `cost_tests` block (OUTPUT_FIELDS 2.9): id, workstream, version, label, draft, source, the file's SHA-256, program years, tests, how it was chosen, warnings. |
 | Worker | a job spec names a built-in set in `settings.cost_test_set`, or supplies a file in `inputs.cost_tests` (pinned by SHA-256 like any input); `receipt.json` has the same `cost_tests` block. A spec whose set cannot be used is refused (exit 2). |
@@ -105,7 +105,7 @@ Filings use the CPUC's set, which users cannot edit; anyone running ReCET by its
 * A run with CEDARS filing checks (`filing_validation`) or priced for a filing (`acc_purpose`) accepts only a **published built-in** set: a supplied
   file or a draft set is refused before anything is priced, with a message naming the built-in sets.
 * Any other run may name a set file. Its `Used_CostTestSet` names the file, and its SHA-256 is in run_settings.json, so the run says exactly what it priced.
-* A draft built-in set is labeled `(draft)` in every output and noted, as a draft ACC is (BR-11.8).
+* A draft built-in set is labeled `(draft)` in every output and noted, as a draft ACC is.
 
 ## 6. What stays in code
 
