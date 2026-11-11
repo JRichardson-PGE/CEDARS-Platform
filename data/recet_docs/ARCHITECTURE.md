@@ -6,7 +6,7 @@ fast and small (section 9), how it is kept correct (section 10), and what it doe
 
 This document describes the system. The formulas are in [Calculations](CALCULATIONS.md) and [Output fields](OUTPUT_FIELDS.md), the inputs in
 [Input fields](INPUT_FIELDS.md) and [Input formats](INPUT_FORMATS.md), and the controls in the [web guide](WEB_GUIDE.md) and the
-[desktop and command-line guide](USER_GUIDE.md). Requirement IDs (BR-06.5 and so on) are those of the CEDARS Replacement BRD.
+[desktop and command-line guide](USER_GUIDE.md).
 
 ## 1. Purpose, scope and requirements
 
@@ -14,7 +14,7 @@ This document describes the system. The formulas are in [Calculations](CALCULATI
 
 ReCET ("reset") is the rebuilt CEDARS Cost Effectiveness Tool. It takes the CET's own inputs (a `Measure.csv` and an optional `ProgramCost.csv`, or one
 Excel job workbook), prices every measure **hour by hour** on an Avoided Cost Calculator (ACC) release, and writes every CET measure-level output column
-plus summaries. It is a working prototype of the calculation core of a CEDARS replacement (BRD BR-06), offered three ways over one engine:
+plus summaries. It is a working prototype of the calculation core of a CEDARS replacement, offered three ways over one engine:
 
 | Interface | Entry point | Who it is for |
 |---|---|---|
@@ -37,18 +37,18 @@ CEDARS.
 | Requirement | What it asks | How ReCET meets it | Status |
 |---|---|---|---|
 | CET parity | the CET's inputs in, the CET's outputs out | the 74 `Measure.csv` columns and `ProgramCost.csv` read as CET writes them (pipe-delimited; comma and tab also accepted); every CET measure-level output column written except `JobID` and `PA` | met; the deliberate differences are listed in C17 |
-| Hourly valuation, load shifting (BR-06.6) | value savings in the hour they occur; a measure that only moves load has value | each measure's 8,760 profile is multiplied by that hour's avoided cost **before** summing (C5.1); kWh-per-unit profiles (C4.5) | met |
-| ACC per measure (BR-06.5) | price records on the ACC that applies to them; flag the ones that are not | optional `ACCVersion` column (C3.5); the "Priced for" check flags records whose ACC does not normally apply to their program year (`versions.expected_accs`) | met |
-| Version labels (BR-11.7) | name each ACC release unambiguously | versions keyed and shown by ACC year ("2026 ACC"); CET's Avoided Cost Version numbers mapped on read (`versions.py`) | met |
-| Participant Cost Test (BR-06.8) | the SPM's fourth test, which the CET lacks; cost tests and value streams as configuration | `run_poc.participant_cost_test` (its streams); the tests are a versioned definition set (`data/cost_tests/EE-2026`, `cost_test_sets.py`, COST_TESTS.md) that every run pins and `pipeline/test_evaluator.py` prices | partly met: the PCT is added and the tests are a pinned set priced by one evaluator, which every summary, Results page and data-dictionary attribute follows; a set can add non-energy benefits as input streams from its own Measure columns (`pipeline/input_streams.py`), so the NEBs D14 adopts are a new set, not a release; the platform's pack kind is the last step |
-| Filing checks (BR-06.3, BR-03.6, BR-03.3) | check a job against CEDARS' upload rules before upload | CEDARS' published claims and budget-filing rule files, shipped unchanged and versioned by effective date (`filing_rules.py`); failing records flagged, never blocked; the rule set used recorded in `run_settings.json` | met; multi-file batch upload dropped for ReCET |
-| Output templates and key metrics (BR-06.10) | choose and order output columns; headline results with definitions and drivers | `output_templates.py`, `key_metrics.py`, `field_definitions` written by every run (`field_docs.py`) | met |
-| Program costs need not line up (BR-06.16) | calculate measures whose program has no program-cost record | a measure with no `ProgramCost.csv` row is priced with no program costs, and a row with no measures is charged to none; preflight warns about both (`preflight._program_alignment`; C17 item 11) | met |
-| Minimal input set (BR-06.15) | an exploratory run needs only the fields that change a result | descriptive columns may be left out (`templates.with_defaults`); a missing calculation column is still an error | met, except lifecycle savings as input (not built, by decision) |
-| Run status (BR-06.2) | queue position, progress, estimated completion; notification; isolation | queue position, progress bar, time left and queue estimates (`progress.py`, `web/eta.py`); an email to the owner when a run finishes or fails (`web/notify.py`); each run in its own process | partly met: scaling and isolation are not built (section 11) |
-| Compare and share runs (BR-06.11) | compare any two runs; share a run with another user | the web Compare page and CSV (`results_view.compare`: each run's value, the difference and the % change at the portfolio, program year, segment, sector or program level); a run shared read-only by email (`run_shares`) | met for the web app; the desktop window still compares two ACCs of one job only |
-| Statewide allocation (BR-06.7) | split a statewide program across the IOUs; the allocated totals reconcile to the unallocated ones | `pipeline/statewide_allocation.py` with the CEDARS allocation factors (C15); `statewide_reconciliation` table (`statewide_allocation.reconciliation`) | met; factors come from a file, not a Programs module |
-| Data dictionary (BR-08.1) | every field with its definition, source and version, cost-test treatment, time basis, aggregation, rounding and years in use | INPUT_FIELDS.md and OUTPUT_FIELDS.md (definitions, units, formulas); every run's `field_definitions` table adds the attributes per column (`field_attributes.py`, rules on the name and the documented unit, checked against the cost tests by `tests/test_field_attributes.py`) | met for the measure-level file; the attributes are rules, not a maintained registry |
+| Hourly valuation, load shifting | value savings in the hour they occur; a measure that only moves load has value | each measure's 8,760 profile is multiplied by that hour's avoided cost **before** summing (C5.1); kWh-per-unit profiles (C4.5) | met |
+| ACC per measure | price records on the ACC that applies to them; flag the ones that are not | optional `ACCVersion` column (C3.5); the "Priced for" check flags records whose ACC does not normally apply to their program year (`versions.expected_accs`) | met |
+| Version labels | name each ACC release unambiguously | versions keyed and shown by ACC year ("2026 ACC"); CET's Avoided Cost Version numbers mapped on read (`versions.py`) | met |
+| Participant Cost Test | the SPM's fourth test, which the CET lacks; cost tests and value streams as configuration | `run_poc.participant_cost_test` (its streams); the tests are a versioned definition set (`data/cost_tests/EE-2026`, `cost_test_sets.py`, COST_TESTS.md) that every run pins and `pipeline/test_evaluator.py` prices | partly met: the PCT is added and the tests are a pinned set priced by one evaluator, which every summary, Results page and data-dictionary attribute follows; a set can add non-energy benefits as input streams from its own Measure columns (`pipeline/input_streams.py`), so adopting non-energy benefits takes a new set, not a new release; the platform's pack kind is the last step |
+| Filing checks | check a job against CEDARS' upload rules before upload | CEDARS' published claims and budget-filing rule files, shipped unchanged and versioned by effective date (`filing_rules.py`); failing records flagged, never blocked; the rule set used recorded in `run_settings.json` | met; multi-file batch upload dropped for ReCET |
+| Output templates and key metrics | choose and order output columns; headline results with definitions and drivers | `output_templates.py`, `key_metrics.py`, `field_definitions` written by every run (`field_docs.py`) | met |
+| Program costs need not line up | calculate measures whose program has no program-cost record | a measure with no `ProgramCost.csv` row is priced with no program costs, and a row with no measures is charged to none; preflight warns about both (`preflight._program_alignment`; C17 item 11) | met |
+| Minimal input set | an exploratory run needs only the fields that change a result | descriptive columns may be left out (`templates.with_defaults`); a missing calculation column is still an error | met, except lifecycle savings as input (not built, by decision) |
+| Run status | queue position, progress, estimated completion; notification; isolation | queue position, progress bar, time left and queue estimates (`progress.py`, `web/eta.py`); an email to the owner when a run finishes or fails (`web/notify.py`); each run in its own process | partly met: scaling and isolation are not built (section 11) |
+| Compare and share runs | compare any two runs; share a run with another user | the web Compare page and CSV (`results_view.compare`: each run's value, the difference and the % change at the portfolio, program year, segment, sector or program level); a run shared read-only by email (`run_shares`) | met for the web app; the desktop window still compares two ACCs of one job only |
+| Statewide allocation | split a statewide program across the IOUs; the allocated totals reconcile to the unallocated ones | `pipeline/statewide_allocation.py` with the CEDARS allocation factors (C15); `statewide_reconciliation` table (`statewide_allocation.reconciliation`) | met; factors come from a file, not a Programs module |
+| Data dictionary | every field with its definition, source and version, cost-test treatment, time basis, aggregation, rounding and years in use | INPUT_FIELDS.md and OUTPUT_FIELDS.md (definitions, units, formulas); every run's `field_definitions` table adds the attributes per column (`field_attributes.py`, rules on the name and the documented unit, checked against the cost tests by `tests/test_field_attributes.py`) | met for the measure-level file; the attributes are rules, not a maintained registry |
 | Supplied data | users' own profiles, ACC files, run parameters, factors, program metadata | `overrides.py`: a supplied key replaces the built-in one, a new key extends it; every kind has a template and a check | met |
 | Transparency | every output traceable to its inputs | every output column documented with its full formula and a worked number; `ProfileSource` and `*PricingStatus` columns say how each fuel was priced; `run_settings.json` records everything needed to reproduce a run | met |
 
@@ -56,7 +56,7 @@ CEDARS.
 
 | Requirement | Target | Achieved | Where it comes from |
 |---|---|---|---|
-| Throughput (BRD NFR Performance) | 1,000,000 records on 8,760 profiles in 15 minutes or less | 7.4 minutes on the web server (0.1.50, zipped CSV, no filing checks); under 5 minutes on a 16-thread laptop | runs in parts (section 9), per-route pricing |
+| Throughput | 1,000,000 records on 8,760 profiles in 15 minutes or less | 7.4 minutes on the web server (0.1.50, zipped CSV, no filing checks); under 5 minutes on a 16-thread laptop | runs in parts (section 9), per-route pricing |
 | Memory | a 1,000,000-record run inside the server's 1.4 GB container | peak 1.01 GiB on the server; about 1 GB committed on the laptop | parts, memory-mapped ACC, one BLAS thread |
 | Accuracy | reproduce the CET where the CET is right | on four real CET runs (21,370 measures): gas benefit, participant costs, bill impacts and savings equal to 1.0000; TSB 1.0013 of CET's without the TOU end uses, whose CET T&D is a known CET error | C17 |
 | Reproducibility | a run can be repeated exactly | `run_settings.json` (every setting, file and version), inputs kept with the run, deterministic arithmetic, no sampling | `jobs.write_settings` |
@@ -136,7 +136,7 @@ Every module in the package. Paths are relative to `recet/`.
 | `gui_editor.py` | interface | the window's Edit inputs tab (layout and events over `editor.py`) |
 | `gui_results.py` | interface | the window's Results tab (layout and events over `results_view.py`) |
 | `gui_templates.py` | interface | the window's output-template editor: two-list field picker and the default template (over `output_templates.py`) |
-| `cli.py` | interface | `recet run`, `preflight`, `template`, `check`, `data`, `openbca`, `cet-version` |
+| `cli.py` | interface | `recet run`, `preflight`, `template`, `check`, `data`, `cost-tests`, `worker`, `regress`, `openbca`, `cet-version` |
 | `web/app.py` | interface | the FastAPI pages and JSON endpoints under `/ReCET` |
 | `web/edit_api.py` | interface | the web Edit inputs page: drafts, saves, Validate inputs |
 | `web/runner.py` | interface | the run queue: worker threads, child processes, Stop, retention clean-up |
@@ -203,14 +203,14 @@ Every module in the package. Paths are relative to `recet/`.
 | `cet_versions/calc_emissions.py` | pricing | replica: CalcEmissions |
 | `cet_versions/calc_cost.py` | pricing | replica: CalcCost: participant costs, weighted program costs, discounted savings, levelized values |
 | `cet_versions/sql.py` | pricing | replica: SQL Server's arithmetic as CET meets it: NULLs, decimal POWER rounding, collation keys, 1.000 / n |
-| `cet_versions/job.py` | pricing | the run's engine (D13): a replica run through `jobs.run_job` (New run, `recet run --engine`), its measure-level table in ReCET's layout, the options it refuses |
+| `cet_versions/job.py` | pricing | the run's engine: a replica run through `jobs.run_job` (New run, `recet run --engine`), its measure-level table in ReCET's layout, the options it refuses |
 | `cet_versions/parts.py` | data | a replica job read part by part: Measure.csv split once, scanned for the table keys, First Year and repeated CEInputIDs |
 | `cet_versions/cli.py` | interface | `recet cet-version list` and `run` |
 | `outputs.py` | outputs | the measure-level table, the portfolio summary, file formats and writers |
-| `results_view.py` | outputs | the Results tables at five levels, from kept per-program sums |
+| `results_view.py` | outputs | the Results tables at six levels, from kept per-program sums |
 | `key_metrics.py` | outputs | the key-metrics summary |
 | `field_docs.py` | outputs | each output column's definition and documentation link, read from these documents |
-| `field_attributes.py` | outputs | each column's data-dictionary attributes: unit, source, version, cost-test treatment, time basis, aggregation, rounding, years in use (BR-08.1) |
+| `field_attributes.py` | outputs | each column's data-dictionary attributes: unit, source, version, cost-test treatment, time basis, aggregation, rounding, years in use |
 | `output_templates.py` | outputs | named, ordered column lists for the measure-level file |
 
 ## 5. A run, end to end
@@ -545,7 +545,7 @@ would use the second vCPU but needs twice the pricing memory, so it waits for a 
 * **Prior CET releases are replicas, checked against the releases themselves.** `recet/cet_versions` prices a job exactly as CET 21.0, 22.1, 24.1,
   24.2, 24.3, 25.0 or 25.1 does, errors included (Jake, 2026-10-29; CALCULATIONS C20). It shares no code with ReCET's hourly engine.
   `tests/test_cet_versions.py` requires every output column of every measure to equal that release's own RunCET run to 1e-9, on 19 reference runs
-  made on restored copies of each release's database backup. A run's engine is a choice (D13, BRD BR-06.4; `RunConfig.engine`, New run, `recet run
+  made on restored copies of each release's database backup. A run's engine is a choice (`RunConfig.engine`, New run, `recet run
   --engine`): ReCET's own, or a replica, whose run goes through `jobs.run_job` and writes a measure-level table in ReCET's layout, so the Results and
   Compare pages read it and two engines can be set side by side. A filing accepts only ReCET's own engine (`cet_versions/job.py` refuses the filing checks).
 * **No reference data in the tests.** The suite runs on synthetic ACCs and profiles (`pip install -e ".[test]"`, `pytest`), so it runs anywhere.
@@ -557,13 +557,14 @@ would use the second vCPU but needs twice the pricing memory, so it waits for a 
 
 ## 11. Limits and what is not built
 
-* **BR-06.2 is only partly met.** Queue position, progress, time estimates and email on finish or failure are built; adding workers under heavy load and
+* **Run status is only partly built.** Queue position, progress, time estimates and email on finish or failure are built; adding workers under heavy load and
   per-run caps beyond the container limit and the time limit are not. With one worker, one large run makes every other run wait.
 * **One server, one database file.** The web app is a single container on a small instance with SQLite. It is a prototype's deployment, not a production
-  one: a production system would put runs on a batch service (AWS Batch or Fargate, sized by peak load), results in object storage and accounts in a
-  managed database. The run path would not change: a worker still runs `recet run --config`. Until then the server's state (the SQLite database, run and
+  one. The production path is the worker instead (`recet worker run`, the README's "Batch worker"): the CEDARS platform submits each run as a job spec to a batch
+  service, with its files in object storage and its accounts in the platform's own database. On this server the state (the SQLite database, run and
   draft folders) is copied to S3 every night and can be restored by `deploy/backup` (its README is the setup and restore runbook).
-* **No API.** Users upload files and download results; nothing else can call ReCET except through Python (`recet.jobs`).
-* **No lifecycle-savings input** (BR-06.15): inputs stay the CET's per-unit annual values.
-* **Multi-file batch upload** (BR-06.3) is not built: one job zip holds one `Measure.csv`.
+* **No web API.** The web app's users upload files and download results. Another system calls ReCET through the worker and its job spec
+  (`recet worker run`, `jobspec.py`) or through Python (`recet.jobs`).
+* **No lifecycle-savings input**: inputs stay the CET's per-unit annual values.
+* **Multi-file batch upload** is not built: one job zip holds one `Measure.csv`.
 * **No integration with CEDARS or eTRM.** Profiles, programs and rules are files refreshed by hand.
