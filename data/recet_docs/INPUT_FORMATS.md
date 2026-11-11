@@ -26,7 +26,7 @@ ReCET renames seven fields from their E3-calculator names, and **a file may use 
 `E3GasSector` as `AC_Gas_Target_Sector` (and the ReCET-only `E3MeaElecEndUseShape2nd` / `E3MeaElecEndUseShapeWater` as `AC_Elec_Impact_Profile_2nd_Baseline` /
 `AC_Elec_Impact_Profile_Water`). So a CET file runs unchanged. Outputs use the new names; see [INPUT_FIELDS.md](INPUT_FIELDS.md#1-measurecsv).
 
-**Required `Measure.csv` columns** (a missing one stops the run, the preflight names it):
+**Required `Measure.csv` columns** (a missing one stops the run, the preflight names it; `MeasDescription` and `Sector` change no result and may be left out, with a warning):
 
     CEInputID PrgID MeasDescription ClaimYearQuarter Sector AC_Climate_Zone AC_Gas_Impact_Profile AC_Gas_Target_Sector AC_Elec_Impact_Profile AC_Elec_Target_Sector
     IOU_AC_Territory EUL_Yrs RUL_Yrs NumUnits
@@ -40,7 +40,8 @@ Optional but used when present: `FuelID`, `MeasImpactType` (fuel-substitution me
 columns are carried into the output unchanged.
 
 Rules the preflight enforces: every numeric field CET requires not blank (`NumUnits`, the kWh / kW / therm savings of both baselines, the measure costs, the four `NTGR*`, `EUL_Yrs`, `RUL_Yrs`, the installation and realization rates, and the gas-infrastructure, refrigerant and miscellaneous benefits and costs; enter 0 for none); `EUL_Yrs` and `RUL_Yrs` not negative and `RUL_Yrs` not above `EUL_Yrs` (`RUL_Yrs` equal to `EUL_Yrs` is a warning); values outside the ranges CET's own QC allows are warned about (see INPUT_FIELDS.md); `CEInputID` unique; `ClaimYearQuarter` like `2028Q1`; `IOU_AC_Territory` one of `PGE SCE SDGE SCG`; numeric columns numeric or blank;
-`AC_Gas_Target_Sector` one of `Residential Commercial Core` for measures with gas savings; every `PrgID` in `Measure.csv` present in `ProgramCost.csv` and vice versa.
+`AC_Gas_Target_Sector` one of `Residential Commercial Core` for measures with gas savings. A `PrgID` in one file but not the other is a warning, not an error: those
+measures are priced with no program costs, and those program costs are left out of every cost test.
 
 ### Things about the CET format that need attention (found on the real 2028-2031 PG&E files)
 

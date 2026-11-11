@@ -196,6 +196,8 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `ETRM_DATABASE_URL`, `ETRM_SYNC_RETRY_MINUTES` | blank; 10, 30 | The eTRM source and the nightly sync's retries |
 | `CEDARS_REQUIRE_MFA` | on (only dev may turn it off) | Every account needs a second factor |
 | `CEDARS_API_RATE_USER`, `CEDARS_API_RATE_ANON`, `CEDARS_API_TOKEN_MAX_DAYS` | 120/min, 30/min, 365 | API throttles and token life |
+| `CEDARS_NUM_PROXIES` | 0 (prod: 1) | Proxies in front; the API throttles and the sign-in rate limits take the caller's address from the entry the load balancer added to `X-Forwarded-For` |
+| `CEDARS_UPLOAD_MAX_MB`, `CEDARS_UPLOAD_MAX_FILES`, `CEDARS_UPLOAD_MAX_UNZIPPED_MB` | 150, 20, 1,024 | Each uploaded file; files in one upload; what an uploaded .zip or workbook unpacks to |
 | `HEALTH_*` | see `base.py` | Thresholds of the job and system health checks |
 
 Every limit people meet (upload size and files, run records, Edit inputs rows, download rows, API rates, comment length ...) is such a
@@ -786,7 +788,9 @@ flowchart TD
 ```
 
 - Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) for every account,
-  or a federating organization's directory over OpenID Connect. Email verification is mandatory and failed sign-ins are rate limited.
+  or a federating organization's directory over OpenID Connect. Email verification is mandatory and failed sign-ins are rate limited,
+  per caller address and per account. There is no Django admin site: every administrative action is a platform page that goes
+  through a service and its audit event.
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
 - The **header** is data (`cedars/core/nav.py`): every item names who sees it (`anon`, `user`, `member`, `guest`, `public`,
@@ -1257,7 +1261,9 @@ flowchart TD
   recorded by every run and filing; a filing never uses a draft.
 - **Rules and the pre-upload checker**: stored rule sets run by the engine's rule runner; `/rules/check/` and
   `POST /api/v1/rules/check` run a module's rule-set step on a file without keeping it.
-- **Uploads** (`cedars/core/uploads.py`): limits from settings, several files combined into the one zip a module reads.
+- **Uploads** (`cedars/core/uploads.py`): limits from settings, several files combined into the one zip a module reads. A .zip or
+  workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
+  `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
   they take effect, the Limits page read from the settings that enforce them, the register of CPUC-mandated changes.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
@@ -1268,7 +1274,7 @@ flowchart TD
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user
   and per-address throttles. Pages and the API call the same service functions.
 - **Accessibility of files** (`cedars.services.accessibility`): stored PDFs and workbooks checked; generated workbooks are accessible by
-  construction (`cedars/core/workbooks.py`).
+  construction (`cedars/core/workbooks.py`), and write filed text that starts with "=" as text, never as a formula.
 - **Feedback** and **sandbox refresh**: a feedback link on every page; production's published, non-PII data bundled for the sandbox.
 
 ## 15. Tests and CI

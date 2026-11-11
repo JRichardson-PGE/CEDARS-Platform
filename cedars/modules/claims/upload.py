@@ -46,6 +46,9 @@ def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
 
 def read(data: bytes, filename: str) -> dict[str, Table]:
     """{table name: Table} from an uploaded .zip or .xlsx."""
+    problem = uploads.too_large_unzipped("The file", data)
+    if problem:
+        raise UploadError(problem)
     raw = _from_workbook(data) if filename.lower().endswith(".xlsx") else _from_zip(data)
     if not raw:
         raise UploadError(f"The file holds none of the claims tables ({', '.join(spec.TABLES)}).")
