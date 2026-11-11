@@ -1,6 +1,6 @@
 # Object storage: uploads (submitted files), results (run folders and receipts), refdata (data packs, never overwritten),
 # snapshots (publication snapshots, Parquet). Versioned, encrypted, never public. Retention is the application's job
-# (decision M, the retention service); the lifecycle rules here only clear old non-current versions and failed uploads.
+# (the retention service); the lifecycle rules here only clear old non-current versions and failed uploads.
 
 locals {
   buckets = {

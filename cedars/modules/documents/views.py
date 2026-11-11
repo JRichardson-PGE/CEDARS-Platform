@@ -132,7 +132,7 @@ def _highlight(extract: str):
 
 
 def library_csv(request):
-    """The result list as a file, from the same search (decision H): one row per document at its listed version, and one column per
+    """The result list as a file, from the same search: one row per document at its listed version, and one column per
     attribute list."""
     _, results = _search(request)
     lists = _attribute_lists()

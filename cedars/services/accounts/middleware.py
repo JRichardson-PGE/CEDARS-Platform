@@ -97,7 +97,7 @@ def mfa_pending(request) -> bool:
 
 
 class RequireMFAMiddleware:
-    """MFA for every account (decision F's baseline): a session signed in with a password alone reaches only the sign-in and
+    """MFA for every account: a session signed in with a password alone reaches only the sign-in and
     second-factor pages (and Help) until the user sets up a second factor, or proves the one they have. Every other page, public ones
     included, sends it to the set-up page: straight after signing in without a word (accounts.signals marks the sign-in), and after
     that with an error saying the second factor comes first (Jake, 2026-10-31). Runs after MessageMiddleware, which the error needs."""

@@ -4,8 +4,8 @@ The replacement for CEDARS (cedars.cpuc.ca.gov), the CPUC system California's pr
 budgets, claims and monthly reports. One Django application (a modular monolith) on the CPUC's AWS account, with the ReCET engine as its
 calculation service.
 
-`docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with diagrams of its context, components, data model and main flows.
-`docs/ARCHITECTURE.md` maps the CEDARS Replacement Architecture (the design) onto this code and tracks what is built.
+`docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with diagrams of its context, components, data model and main flows,
+and lists where each part lives and how far it is built.
 
 ## Running it
 

@@ -55,7 +55,7 @@ def test_every_page_shows_it_from_its_start_until_its_end(cpuc_admin, client):
     assert [n.pk for n in service.site_notices(hours(5.5))] == [later.pk]
     assert service.site_notices(hours(7)) == []
     html = client.get("/").content.decode()
-    assert '<p class="coming-changes site-notice"><strong>Notice:</strong> Claims for 2027Q3 are due a week later.' in html
+    assert '<div class="coming-changes site-notice"><p><strong>Notice:</strong> Claims for 2027Q3 are due a week later.' in html
     assert '<a href="/submissions/calendar/">More about this notice</a>' in html and "Later notice" not in html
     e = AuditEvent.objects.get(action="site_notice.posted", object_id=str(now_shown.pk))
     assert e.reason == "maintenance" and e.after["text"] == now_shown.text
@@ -73,7 +73,7 @@ def test_a_withdrawn_notice_leaves_every_page_and_stays_listed(cpuc_admin, clien
     signed_in(cpuc_admin)
     html = client.get(reverse("releases:notices")).content.decode()
     assert "Outage tonight" in html and "fixed early" in html and "Withdrawn" in html
-    assert '<p class="coming-changes site-notice">' not in html
+    assert 'class="coming-changes site-notice"' not in html
 
 
 def test_the_page_posts_and_withdraws(cpuc_admin, client, signed_in):
@@ -90,3 +90,50 @@ def test_the_page_posts_and_withdraws(cpuc_admin, client, signed_in):
     assert service.site_notices() == []
     r = client.post(url, {"text": "x", "ends_at": "2020-01-01T00:00", "reason": "y"})
     assert "has passed" in r.content.decode()
+
+
+# --- putting a bar away (releases/banners.py): one rule for site notices and coming changes
+
+
+def _bars(client):
+    html = client.get("/help/").content.decode()
+    return html.split('<main id="main"', 1)[1].split('class="page-title"', 1)[0]
+
+
+def test_a_bar_is_put_away_once_read_and_a_new_note_brings_it_back(cpuc_admin, client, settings):
+    from cedars.services.releases.models import Change
+
+    settings.CEDARS_RELEASE_NOTICE_DAYS = 14
+    soon = service.create_draft(
+        cpuc_admin, title="Larger claims uploads", summary="S", effective_on=timezone.localdate() + timedelta(days=10)
+    )
+    service.add_change(cpuc_admin, soon, kind=Change.Kind.SYSTEM, area="claims", text="Faster.")
+    service.publish(cpuc_admin, soon, short_notice_reason="Needed for the Q4 claims.")
+    notice = post(cpuc_admin, text="Outage tonight")
+    html = _bars(client)
+    assert "Outage tonight" in html and "Larger claims uploads" in html
+    # a site notice's bar holds the whole notice, so it can be put away at once; the coming change's only once its note is opened
+    assert html.count('class="put-away"') == 1 and f'name="bar" value="notice-{notice.pk}"' in html
+    assert '<button type="submit" class="link">Put away<span class="sr-only"> this notice</span></button>' in html
+    r = client.post(reverse("releases:put_away"), {"bar": "coming", "next": "/help/"})
+    assert r.status_code == 302 and r["Location"] == "/help/" and "Larger claims uploads" in _bars(client)
+    r = client.post(reverse("releases:put_away"), {"bar": f"notice-{notice.pk}", "next": "https://elsewhere.example.org/"})
+    assert r["Location"] == "/"  # never off the site
+    html = _bars(client)
+    assert "Outage tonight" not in html and "Larger claims uploads" in html
+    client.get(reverse("releases:detail", args=[soon.pk]))  # opening the note
+    assert 'value="coming"' in _bars(client)
+    client.post(reverse("releases:put_away"), {"bar": "coming", "next": "/help/"})
+    assert "Larger claims uploads" not in _bars(client) and "Coming change" not in _bars(client)
+    # a new note brings the bar back, naming both notes, and it cannot be put away until the new one is opened
+    newer = service.create_draft(cpuc_admin, title="New rule set", summary="S", effective_on=timezone.localdate() + timedelta(days=12))
+    service.add_change(cpuc_admin, newer, kind=Change.Kind.SYSTEM, area="claims", text="New.")
+    service.publish(cpuc_admin, newer, short_notice_reason="Needed for the Q4 claims.")
+    second = post(cpuc_admin, text="Second notice")
+    html = _bars(client)
+    assert "Larger claims uploads" in html and "New rule set" in html and 'value="coming"' not in html
+    assert "Second notice" in html and "Outage tonight" not in html
+    # the cookie holds only note keys, and an unreadable one is read as empty
+    assert client.cookies["cedars_bars"].value == f"o=c{soon.pk};a=n{notice.pk}.c{soon.pk}"
+    client.cookies["cedars_bars"] = "o=<script>;a=x1.n" + str(second.pk)
+    assert "Second notice" not in _bars(client) and "Outage tonight" in _bars(client)

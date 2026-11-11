@@ -1,5 +1,5 @@
 """The legacy CEDARS crosswalk: the display labels of CEDARS' public record-level downloads (cedars.cpuc.ca.gov/reports/record-level/)
-and the canonical names they load under (decision L: ReCET's names are canonical). Phase 7 loads the years legacy CEDARS holds from those
+and the canonical names they load under (ReCET's names are canonical). Phase 7 loads the years legacy CEDARS holds from those
 files, so every column of every layout is either mapped to a canonical field or kept under a `Legacy_` name; none is dropped.
 
 `data/legacy_layouts.json` is each layout's header row in order, as CEDARS publishes it (the labels only, no data):

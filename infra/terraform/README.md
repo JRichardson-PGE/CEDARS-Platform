@@ -1,6 +1,6 @@
 # Infrastructure as code
 
-The platform on the CPUC's AWS account (decision A), written in Terraform and **never applied from this repository**. The
+The platform on the CPUC's AWS account, written in Terraform and **never applied from this repository**. The
 CPUC's cloud team reviews it against their landing zone (accounts, network, identity, central logging, guardrails), supplies
 the values below and runs `terraform plan` and `apply` from their own pipeline. CI checks only that it is formatted and valid.
 
@@ -8,7 +8,7 @@ the values below and runs `terraform plan` and `apply` from their own pipeline. 
 
 - `modules/platform/`: one environment's stack.
   - `network.tf`: VPC over two (or more) zones, public subnets for the load balancer only, private subnets for everything else, NAT, an S3 gateway endpoint, flow logs, and security groups. Only the web tasks reach the PII vault; calculation workers reach no database.
-  - `data.tf`: PostgreSQL 16 on RDS (encrypted, TLS only, 35-day backups, Performance Insights). The PII vault is a separate instance with its own KMS key (decision G).
+  - `data.tf`: PostgreSQL 16 on RDS (encrypted, TLS only, 35-day backups, Performance Insights). The PII vault is a separate instance with its own KMS key.
   - `storage.tf`: S3 buckets for uploads, results, data packs and snapshots (versioned, KMS, TLS only, never public), and ECR repositories with immutable tags.
   - `web.tf`: ECS Fargate web service behind an HTTPS load balancer (TLS 1.2+) with AWS WAF managed rules.
   - `jobs.tf`: the background work, in the web image with a management command. Three always-on ECS services, one task each: `profile-jobs` (`run_impact_profile_jobs --loop`: upload checks, profile generation, eTRM syncs started from the page, library writes; sized by `profile_jobs_cpu`, `profile_jobs_memory`, `profile_jobs_disk_gb`) `calculations-sync` (`calculations_sync --loop`: Batch runs' progress, receipts and ends once a minute) and `data-downloads` (`run_data_downloads --loop`: record downloads too large to make in a request). On EventBridge Scheduler, Pacific time: `purge_expired` 02:15, `close_recertifications` 02:30, `documents_read_text` 03:45 (files stored without their text), `send_deadline_reminders` 07:00, and `sync_etrm` 01:00 once `etrm_database` is true. The services, `documents_read_text` and `sync_etrm` run in the `jobs` security group, which reaches the core database only, and are not given the PII vault's URL.

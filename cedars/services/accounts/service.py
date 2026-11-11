@@ -1,4 +1,4 @@
-"""Access rules (decisions F and G). Every change goes through these functions, each writes an audit event, and a refused
+"""Access rules. Every change goes through these functions, each writes an audit event, and a refused
 action raises AccessDenied with a sentence the page can show as it is.
 
 Who may grant what:
@@ -851,7 +851,7 @@ ROLE_TEMPLATE_FIELDS = ["name", "description", "permissions", "kinds", "active"]
 
 def _template_values(name: str, permissions: list[str], kinds: list[str]) -> tuple[str, list[str], list[str]]:
     """The name, permissions and kinds checked and put in catalog order. A template bundles module permissions only: an organization's
-    first administrator, PII access and the CPUC's own roles each need a decision of their own (decision G), so they are granted
+    first administrator, PII access and the CPUC's own roles each need a decision of their own, so they are granted
     one by one."""
     name = (name or "").strip()
     if not name:
@@ -1511,7 +1511,7 @@ def federation_changes_waiting(org: Organisation | None = None):
     return qs.filter(value__organisation=org.pk) if org is not None else qs
 
 
-# --- policy (decision G: two stewards for rules that change everyone's PII access)
+# --- policy (two stewards for rules that change everyone's PII access)
 
 
 @transaction.atomic

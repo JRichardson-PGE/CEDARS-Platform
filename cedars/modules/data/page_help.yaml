@@ -130,7 +130,7 @@ data/dashboard/budget:
   guide:
     - The operating budget (the approved filing with the fund shifts in effect) against the forecast budget, the spending the PAs report
       monthly and the expenditure they claim, by year and by program, and the cost elements by sector.
-    - Monthly reports are the PAs' own figures and are not validated the way claims are; the page labels them so.
+    - Monthly reports are the PAs' own figures and are not validated the way claims are; the page labels them preliminary.
 
 data/dashboard/cost-effectiveness:
   <<: *dashboard

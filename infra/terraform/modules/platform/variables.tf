@@ -177,7 +177,7 @@ variable "alarm_5xx_per_5min" {
 }
 
 variable "log_retention_days" {
-  description = "Decision M: application logs 1 year"
+  description = "Retention: application logs 1 year"
   type        = number
   default     = 365
 }

@@ -122,7 +122,7 @@ def test_an_approver_sees_what_waits(signed_in, cpuc_admin, cpuc, pge, filer, fi
     html = c.get("/budgets/").content.decode()
     assert 'href="/filings/reopen-requests/"' in menu(html, "filings")
     assert '<th scope="col">Waiting for a decision</th>' in html and ">1 correction request</a>" in page_only(html)
-    who = html.split('<div class="who">', 1)[1]
+    who = html.split('<div class="who" id="header-person">', 1)[1]
     assert re.search(r'data-tour="queue"[^>]*>My queue <span class="count wait">1</span><span class="sr-only"> waiting</span>', who)
     # someone who decides nothing sees neither
     html = signed_in(filer).get("/budgets/").content.decode()

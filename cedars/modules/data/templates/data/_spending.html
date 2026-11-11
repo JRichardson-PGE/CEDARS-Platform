@@ -29,7 +29,7 @@
   <caption class="sr-only">Budget and spending by program, in nominal dollars</caption>
   <thead><tr><th scope="col">Program</th><th scope="col" class="num">Operating budget</th>
     {% for s in sp.results %}<th scope="col" class="num">{{ s|series_word|capfirst }} expenditure</th>{% endfor %}
-    <th scope="col" class="num">Monthly reported (unvalidated)</th><th scope="col" class="num">Monthly % of budget</th>
+    <th scope="col" class="num">Monthly reported (preliminary)</th><th scope="col" class="num">Monthly % of budget</th>
     {% if "claims" in sp.results %}<th scope="col" class="num">Claimed % of budget</th>{% endif %}</tr></thead>
   <tbody>
   {% for r in sp.by_program %}

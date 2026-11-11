@@ -26,7 +26,7 @@ from . import upload as up
 from .models import COMMITMENT_FIELDS, INCENTIVE_FIELDS, PROGRAM_COST_FIELDS, SPEND_FIELDS, ChangeLetter, YearSetup
 
 DEFAULT_ACCS = ["2021", "2022", "2024", "2026"]
-UNVALIDATED = "Unvalidated estimate"
+PRELIMINARY = "Preliminary estimate"
 
 
 def accs() -> list[str]:
@@ -261,7 +261,7 @@ def report(request, pk):
             "price_label": "Price the estimates",
             "price_help": "Prices the year-to-date BCA inputs (the engine checks them as it does any run); confirming needs it.",
             "confirm_url": reverse("monthly:confirm", args=[pk]),
-            "confirm_help": "Signs off on exactly this report; it becomes open to every user, the estimates labeled unvalidated.",
+            "confirm_help": "Signs off on exactly this report; it becomes open to every user, the estimates labeled preliminary.",
             "unconfirm_url": reverse("monthly:unconfirm", args=[pk]),
             "reopen_url": reverse("monthly:reopen", args=[pk]),
             "results_url": reverse("monthly:version", args=[v.pk]),
@@ -287,7 +287,7 @@ def _tiles(r) -> list[tuple[str, str]]:
         (service.COMMITTED, _money(t.get("YTDCommittedFunds"))),
     ]
     if r.estimated:
-        out.append(("Estimated TSB, year to date (unvalidated)", _money(t.estimate("TotalSystemBenefit"))))
+        out.append(("Estimated TSB, year to date (preliminary)", _money(t.estimate("TotalSystemBenefit"))))
     return out
 
 
@@ -425,7 +425,7 @@ def _cell(r, key):
 
 @login_required
 def version(request, pk):
-    """A report by program: spend and commitments against the operating budget, and the estimates (labeled unvalidated)."""
+    """A report by program: spend and commitments against the operating budget, and the estimates (labeled preliminary)."""
     v = _version(request, pk)
     r = service.report(v)
     rows = []
@@ -456,7 +456,7 @@ def version(request, pk):
             "walk_href": submissions.run_walkthrough(v),
             "commitment_fields": COMMITMENT_FIELDS,
             "cost_fields": PROGRAM_COST_FIELDS,
-            "unvalidated": UNVALIDATED,
+            "preliminary": PRELIMINARY,
             "paid_vs_committed": service.PAID_VS_COMMITTED,
             "letter": ChangeLetter.objects.filter(version=v).first(),
             **filing_parts.version_page(request, v, priced=service.priced(v)),
@@ -572,7 +572,7 @@ def year(request, year):
                 "Spend, year to date",
                 service.PAID,
                 service.COMMITTED,
-                "Estimated TSB, year to date (unvalidated)",
+                "Estimated TSB, year to date (preliminary)",
             ],
             "paid_vs_committed": service.PAID_VS_COMMITTED,
             "csv_query": f"?org={org.code}" if org else "",
@@ -649,7 +649,7 @@ def closing(request, year):
             "rows": rows,
             "columns": ["Operating budget", "Expenditures", "Share of budget spent"]
             + [label for k, label, _ in service.CLAIMED if k != "expenditures"]
-            + ["December report: spend, year to date", "Claims less December", "December report: estimated TSB (unvalidated)"],
+            + ["December report: spend, year to date", "Claims less December", "December report: estimated TSB (preliminary)"],
             "csv_query": f"?org={org.code}" if org else "",
         },
     )
@@ -724,7 +724,7 @@ def change_letter(request, pk):
                 "and the difference"
             ),
             "empty": "No program's spend, incentives or estimates changed.",
-            "unvalidated": UNVALIDATED,
+            "preliminary": PRELIMINARY,
             **letters.program_rows(c, service.LETTER_FIGURES),
         },
     )

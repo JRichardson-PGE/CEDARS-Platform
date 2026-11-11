@@ -3,7 +3,7 @@
 The CEDARS platform against WCAG 2.2 Level AA, criterion by criterion, with how each is met, the evidence for it, and the known
 exceptions. The architecture requires this report before program administrators' users are onboarded (CEDARS Replacement Architecture,
 security and delivery: "an independent penetration test and an accessibility conformance report before PA users are onboarded").
-Target: decision K, WCAG 2.2 AA, a California state agency requirement, for all public and authenticated pages and
+Target: WCAG 2.2 AA, a California state agency requirement, for all public and authenticated pages and
 published documents. How the checks run day to day is in `ACCESSIBILITY.md`; the visual rules that keep them are in `DESIGN.md`.
 
 It follows the shape of an ACR in the VPAT 2.5 WCAG edition. It is written from the code and the tests in this

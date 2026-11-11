@@ -1,4 +1,4 @@
-"""The calculation job API (decision J: calculations first): start a run from a job zip, follow it, stop it and fetch its
+"""The calculation job API: start a run from a job zip, follow it, stop it and fetch its
 files, as the New run and run pages do. A call acts for one organization, the API token's (or the session's active one); a run made
 with `personal` set, or with a token that has no organization, is the caller's own and seen only by them. The service checks the
 request exactly as it checks New run, so a run started here is the same record, job spec and audit trail."""

@@ -1,4 +1,4 @@
-"""The claims submissions API (decision J: the submissions API with claims, read-only endpoints first, writes staged after them).
+"""The claims submissions API (read-only endpoints first, writes staged after them).
 
 Reads: the claim years and their confirmations, a PA's versions with their check results, findings, results by program and published
 files, the change letters, and NMEC chains. A call acts for one organization, the API token's (or the session's active one), and reads

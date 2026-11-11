@@ -1,4 +1,4 @@
-# The CEDARS platform in one AWS account and region (decision A: the CPUC's AWS). Written, not applied: the CPUC's cloud team
+# The CEDARS platform in one AWS account and region (the CPUC's AWS). Written, not applied: the CPUC's cloud team
 # reviews it against their landing zone (account, network, identity, logging) before any apply.
 
 locals {
@@ -9,7 +9,7 @@ locals {
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
-# Encryption keys: one for the platform's data, one for the PII vault only (decision G), so access to one never implies the other.
+# Encryption keys: one for the platform's data, one for the PII vault only, so access to one never implies the other.
 resource "aws_kms_key" "data" {
   description             = "${local.name} data (database, object storage, logs, secrets)"
   enable_key_rotation     = true

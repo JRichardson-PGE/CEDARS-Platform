@@ -37,7 +37,11 @@ under an open menu.
 `core/base.html`: an identity bar (agency, product, environment), a header with the brand, seven navigation entries (Portfolio dashboard,
 Programs, Filings, Calculations, Published data, Reference data, Administration; `core/nav.py`), the grouped ones as native `<details>` disclosures, and a utility cluster (acting-for organization,
 notifications with the unread count, account, sign out), then `main`, then a footer with the agency and the public reference pages.
-Below 860 px the navigation stacks behind a Menu button that `app.js` adds; without scripts the list is simply shown. The open group is
+The utility cluster's plain controls (My queue, Help, Account, Sign out) are each a 32 px target with a rule between neighbors, so
+they read as separate controls. Below 860 px the navigation stacks behind a Menu button that `app.js` adds, and the person's own controls
+(`#header-person`) fold behind it too, stacked as the navigation is: the top row is the brand, the notification count (`.bell-compact`, a
+bell and the count, named "Notifications") and Menu; without scripts both lists are simply shown. Under the header, each site notice and
+the coming changes are a bar (`.coming-changes`) with a Put away button once its note has been read (`releases/banners.py`). The open group is
 marked with `.current` and the page inside it with `aria-current="page"`. A menu's heading is a link to the menu's own page (its pages,
 each with a sentence on what it is for; `core/nav.py` `Menu.landing`, `Item.about`) and the arrow beside it is the disclosure, a button of
 its own with an accessible name ("Filings pages"), as WAI-ARIA's disclosure navigation with top-level links has it. A long menu keeps its

@@ -81,7 +81,7 @@ class ReportLine(models.Model):
 
 
 class MonthlyResult(models.Model):
-    """One program's estimated results for one credited PA in one version, summed from the priced run's group sums: unvalidated
+    """One program's estimated results for one credited PA in one version, summed from the priced run's group sums: preliminary
     estimates, never part of a claim. Kept per run: a re-priced version reads its new run's results."""
 
     version = models.ForeignKey("submissions.SubmissionVersion", on_delete=models.CASCADE, related_name="monthly_results")

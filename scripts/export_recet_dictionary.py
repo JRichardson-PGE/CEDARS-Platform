@@ -1,4 +1,4 @@
-"""Export ReCET's field dictionary as the platform's catalog file (decision L: ReCET's names are canonical).
+"""Export ReCET's field dictionary as the platform's catalog file (ReCET's names are canonical).
 
     uv run python scripts/export_recet_dictionary.py data/dictionary/      (needs the pinned ReCET engine installed: engine/recet.txt)
 

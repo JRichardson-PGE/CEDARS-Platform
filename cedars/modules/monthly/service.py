@@ -6,7 +6,7 @@ submission with versions.
     -> priced (Calculations, through the submissions service: estimated savings and TSB) -> confirm -> published
 
 A report is year to date: its BCA inputs are the year's measures and program costs so far, so its estimates show how programs are
-trending toward their goals. The estimates are labeled unvalidated everywhere and never enter a claim. The BCA inputs get
+trending toward their goals. The estimates are labeled preliminary everywhere and never enter a claim. The BCA inputs get
 BCA-level validation only, the engine's own input check when they are priced, not the claims rules. Before the due date a PA can
 un-confirm, change and re-confirm; after it a correction is a new version. Each program's spend is read from the BCA inputs
 (ProgramCost and the measures' rebates and incentives, as Budgets counts a budget; Jake, 2026-10-30), the month's spend being the change
@@ -57,7 +57,7 @@ RESULT_KEYS = {"_pa", "_prg", "_prgname", "_sector", "_segment", "_year", "_n"}
 YTD_TOLERANCE = Decimal("1")  # dollars: year-to-date spend may move by rounding
 BCA_NOTE = (
     "The BCA inputs (Measure and ProgramCost) get BCA-level validation only: the calculation engine's own input check, run when the "
-    "report is priced, not the claims rules. Their savings and TSB are unvalidated estimates."
+    "report is priced, not the claims rules. Their savings and TSB are preliminary estimates."
 )
 
 
@@ -1150,7 +1150,7 @@ class ClosingRow:
     claimed: dict | None = None  # {CLAIMED key: total}, None when the program has no confirmed claims
     records: int = 0
     december_spend: Decimal | None = None  # December's report: spend, year to date
-    december_tsb: float | None = None  # December's report: estimated TSB (unvalidated)
+    december_tsb: float | None = None  # December's report: estimated TSB (preliminary)
 
     def get(self, key: str):
         return None if self.claimed is None else self.claimed.get(key)
