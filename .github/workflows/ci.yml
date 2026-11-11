@@ -70,7 +70,53 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - run: uv run playwright install --with-deps chromium
+      - name: Playwright version (the browser cache key)
+        id: playwright
+        run: echo "version=$(uv run python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright's Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium (from Playwright's download host, not apt; a no-op when cached)
+        run: |
+          for attempt in 1 2 3; do
+            uv run playwright install chromium && exit 0
+            echo "Chromium download attempt $attempt failed"; sleep $((attempt * 10))
+          done
+          exit 1
+      - name: Install Chromium's system packages (retried; skipped when the Ubuntu mirrors cannot be reached)
+        # The runner image already carries the libraries Chromium needs; apt adds only extra fonts. When the Ubuntu mirrors do not resolve,
+        # apt would spend ten minutes timing out and then fail, so the job goes on without those fonts. The next step fails the job if
+        # Chromium cannot start, and the axe tests run either way. (playwright runs apt through sudo itself.)
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          hosts=$(sed -E 's#^[a-z]+://([^/]+).*#\1#' /etc/apt/apt-mirrors.txt 2>/dev/null; echo archive.ubuntu.com; echo security.ubuntu.com)
+          reachable=""
+          for h in $(echo "$hosts" | sort -u); do
+            if timeout 10 getent hosts "$h" > /dev/null; then reachable="$h"; break; fi
+          done
+          if [ -z "$reachable" ]; then
+            echo "::warning::No Ubuntu mirror resolves; skipping Chromium's apt packages (extra fonts). The launch check below still runs."
+            exit 0
+          fi
+          for attempt in 1 2; do
+            if timeout --kill-after=15 180 uv run playwright install-deps chromium; then exit 0; fi
+            echo "install-deps attempt $attempt failed"; sleep 15
+          done
+          echo "::warning::Chromium's apt packages could not be installed after two attempts; going on if Chromium starts."
+      - name: Chromium starts
+        shell: uv run python {0}
+        run: |
+          from playwright.sync_api import sync_playwright
+
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              page = browser.new_page()
+              page.set_content("<p>Chromium starts</p>")
+              print(page.text_content("p"))
+              browser.close()
       - name: axe-core (WCAG 2.2 AA) on every page, both color schemes, and reflow at 320 px
         run: uv run pytest -q -m a11y -n auto
 

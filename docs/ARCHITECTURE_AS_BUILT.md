@@ -1323,9 +1323,10 @@ flowchart TD
   without it. `uv run pytest -m a11y` runs axe-core in Chromium on every page listed in `tests/a11y/pages.py`, in both color schemes
   and at 320 px.
 - CI (`.github/workflows/ci.yml`) on every pull request, on main and weekly: ruff (lint and format), migrations match the models,
-  Django's deployment checks on the production settings, the tests with the pinned engine, axe, the Docker image built with the pinned
-  engine and scanned by grype, pip-audit over `uv.lock`, gitleaks over the whole history with the noreply-author check, and Terraform
-  fmt and validate.
+  Django's deployment checks on the production settings, the tests with the pinned engine, axe (Playwright's Chromium cached between
+  runs; its extra apt fonts are skipped when the Ubuntu mirrors cannot be reached, and a launch check fails the job if Chromium cannot
+  start), the Docker image built with the pinned engine and scanned by grype, pip-audit over `uv.lock`, gitleaks over the whole
+  history with the noreply-author check, and Terraform fmt and validate.
 - Tests hold the documentation to the code: `test_dictionary.py` and `test_engine_docs.py` (the engine's catalog and documents),
   `test_us_spelling.py` (the docs too), `test_navigation.py` (every page in the header or listed), and `test_architecture_doc.py` (this
   file).
