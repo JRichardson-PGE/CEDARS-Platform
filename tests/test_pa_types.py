@@ -116,11 +116,11 @@ def test_the_organisation_pages(signed_in, cpuc_admin, pge, pge_admin):
     c = signed_in(cpuc_admin)
     listing = c.get("/admin/organizations/").content.decode()
     assert '<th scope="col">PA type</th>' in listing and "Not set" in listing
-    page = c.get("/admin/organizations/NEWPA/").content.decode()
+    page = c.get("/admin/organizations/NEWPA/details/").content.decode()
     assert "PA type" in page and "Not set" in page and "Change the name, PA type or statewide allocations" in page
-    r = c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "CCA", "reason": "a CCA"})
+    r = c.post("/admin/organizations/NEWPA/details/save", {"name": "New", "pa_type": "CCA", "reason": "a CCA"})
     assert r.status_code == 302 and Organisation.objects.get(code="NEWPA").pa_type == "CCA"
-    c.post("/admin/organizations/NEWPA/details", {"name": "New", "pa_type": "", "reason": "blank"})
+    c.post("/admin/organizations/NEWPA/details/save", {"name": "New", "pa_type": "", "reason": "blank"})
     assert Organisation.objects.get(code="NEWPA").pa_type == "CCA"  # refused: a PA needs a type
     # adding a PA asks for its type; another kind of organization has none
     r = c.post("/admin/organizations/new/", {"code": "XYZ", "name": "XYZ", "kind": "pa", "pa_type": ""})
@@ -128,8 +128,8 @@ def test_the_organisation_pages(signed_in, cpuc_admin, pge, pge_admin):
     r = c.post("/admin/organizations/new/", {"code": "EVAL", "name": "Evaluator", "kind": "other", "pa_type": "IOU"})
     assert r.status_code == 200 and "Only a program administrator has a PA type" in r.content.decode()
     pa = signed_in(pge_admin)  # the same client, now signed in as PG&E's administrator: no details form, no changes
-    assert "Change the name, PA type or statewide allocations" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
-    assert pa.post("/admin/organizations/NEWPA/details", {"name": "x", "pa_type": "IOU", "reason": "x"}).status_code == 404
+    assert "Change the name, PA type or statewide allocations" not in pa.get(f"/admin/organizations/{pge.code}/details/").content.decode()
+    assert pa.post("/admin/organizations/NEWPA/details/save", {"name": "x", "pa_type": "IOU", "reason": "x"}).status_code == 404
 
 
 # --- grouped selection on the dashboards and record downloads

@@ -1,0 +1,25 @@
+{% extends "core/base.html" %}
+{% comment %}The active API tokens of an organization's members, to revoke (its administrators; UI review 3, U7).{% endcomment %}
+{% block title %}{{ org.code }} API tokens{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:organisations' %}">Organizations</a></li><li><a href="{% url 'administration:organisation' org.code %}">{{ org.code }}</a></li></ol></nav>
+<div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation_tokens" %}</div>
+{% include "administration/_organisation_nav.html" %}
+<section aria-labelledby="tokens-h">
+<h2 id="tokens-h">API tokens</h2>
+{% if tokens %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Active API tokens">
+<table class="list">
+  <caption class="sr-only">Active API tokens</caption>
+  <thead><tr><th scope="col">Member</th><th scope="col">Name</th><th scope="col">Modules</th><th scope="col">Expires</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+  <tbody>
+  {% for t in tokens %}
+  <tr><th scope="row">{{ t.user|person }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|join:", " }}</td><td>{{ t.expires_at|date_words }}</td><td>{{ t.last_used_at|date_words|default:"Never" }}</td>
+    <td><form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<input type="hidden" name="from" value="organisation"><button type="submit">Revoke<span class="sr-only"> {{ t.user|person_name }}'s token {{ t.name }}</span></button></form></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>No member has an active API token for {{ org.code }}.</p>{% endif %}
+</section>
+{% endblock %}

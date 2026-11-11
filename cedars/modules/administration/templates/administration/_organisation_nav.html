@@ -1,0 +1,12 @@
+{% comment %}The part every page of an organization shares, under its heading: its status (CPUC view, retired, merged) and the
+sub-navigation of its pages (UI review 3, U7). Context from views._org_page: org, is_admin, page, requests_waiting, recert_open.{% endcomment %}
+{% if not is_admin %}<p class="muted">You are viewing this organization as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
+{% if not org.active and not org.successor %}<p><span class="status warn">Retired</span> {{ org.code }} no longer files or appears in pickers, and its members cannot act for it. Its data and history stay.</p>{% endif %}
+{% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date_words }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
+<nav class="subnav org-pages" aria-label="{{ org.code }} pages">
+  <a href="{% url 'administration:organisation' org.code %}"{% if page == "organisation" %} aria-current="page"{% endif %}>Members</a>
+  <a href="{% url 'administration:organisation_requests' org.code %}"{% if page == "organisation_requests" %} aria-current="page"{% endif %}>Access requests{% if requests_waiting %} <span class="count">({{ requests_waiting }}<span class="sr-only"> waiting</span>)</span>{% endif %}</a>
+  <a href="{% url 'administration:organisation_recertification' org.code %}"{% if page == "organisation_recertification" %} aria-current="page"{% endif %}>Recertification{% if recert_open %} <span class="count">(open)</span>{% endif %}</a>
+  {% if is_admin %}<a href="{% url 'administration:organisation_tokens' org.code %}"{% if page == "organisation_tokens" %} aria-current="page"{% endif %}>API tokens</a>{% endif %}
+  <a href="{% url 'administration:organisation_details' org.code %}"{% if page == "organisation_details" %} aria-current="page"{% endif %}>Details</a>
+</nav>

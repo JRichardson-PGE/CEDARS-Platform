@@ -121,7 +121,7 @@ ORGANIZATIONS = Item(
         "administration:organisation*",
         "administration:grant*",
         "administration:open_recertification",
-        "administration:recertify",
+        "administration:recertify*",
         "administration:revoke",
         "administration:reinstate",
         "administration:end_membership",

@@ -6,21 +6,24 @@ the system itself. Every change is recorded in the {% page_link 'administration:
 organization, why, and the record before and after.</p>
 <h2>An organization's administrators</h2>
 <ol>
-  <li>Open your organization from {% page_link 'administration:organisations' "Organizations" %}. Its page lists its codes, members
-  and their permissions, access requests waiting for a decision, its yearly recertification and its members' API tokens.</li>
-  <li>Approve or decline each access request. A request for personal information (PII) also needs a CPUC data steward's approval after
-  yours.</li>
-  <li>Grant a member a single permission, or a role template (such as Evaluator or Consultant) to give every permission of that role
-  at once. Revoke a permission, or remove a member, when it is no longer needed.</li>
-  <li>When a recertification opens, certify each grant to keep it or remove it by the due date. A grant not certified in time may be
-  suspended, as the access settings say; Reinstate restores it.</li>
+  <li>Open your organization from {% page_link 'administration:organisations' "Organizations" %}. It has five pages, linked under its
+  name: Members, Access requests (with the number waiting), Recertification, API tokens and Details (its kind, how its members sign in
+  and its codes).</li>
+  <li>On Access requests, approve or decline each request. A request for personal information (PII) also needs a CPUC data steward's
+  approval after yours.</li>
+  <li>On Members, Give access: pick a member from the list (or type the email address of someone with an account to add them), tick
+  one or more roles (such as Evaluator or Consultant, each giving every permission of that role) or single permissions, give one
+  reason and send it once. Revoke a permission, or remove a member, when it is no longer needed.</li>
+  <li>When a recertification opens, review each grant on Recertification by the due date. Remove the exceptions one by one, with a
+  reason, then Certify all shown keeps the rest; Certify all of a member's keeps one member's grants. A grant not certified in time
+  may be suspended, as the access settings say; Reinstate restores it.</li>
 </ol>
 <h2>CPUC system administrators</h2>
 <ul class="links">
   <li>{% page_link 'administration:organisations' "Organizations" %}: add an organization by its CEDARS code and name, assign its
   first administrator, change its name or PA type, rename its code (the history is kept) or merge in an organization recorded under a
-  former code. Until an organization has an administrator, its access requests come to you: decide them on its page or from My
-  queue.</li>
+  former code. Until an organization has an administrator, its access requests come to you: decide them on its Access requests page
+  or from My queue.</li>
   <li>{% page_link 'administration:role_templates' "Role templates" %}: named bundles of module permissions that organization
   administrators grant, and the roles people choose from when they ask for access. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
   decision of its own.</li>

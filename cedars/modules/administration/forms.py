@@ -1,35 +1,75 @@
 from django import forms
 
+from cedars.core.pickers import MemberField, not_found
+from cedars.core.tick_lists import tick_list
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
 from cedars.services.accounts.models import Organisation
 
 
-class GrantForm(forms.Form):
-    email = forms.EmailField(
-        label="Their email address", help_text="They need an account first: anyone can create one from the sign-up page."
-    )
-    permission = forms.ChoiceField(label="Permission")
+class PersonField(MemberField):
+    """Who to give access to: a member picked from the list, or the email address of anyone with an account (a new member)."""
+
+    default_help = "Pick a member from the list, or type the email address of someone with an account to add them."
+
+    def clean(self, value):
+        try:
+            return super().clean(value)
+        except forms.ValidationError:
+            from django.contrib.auth import get_user_model
+
+            text = (value or "").strip()
+            if "@" in text and get_user_model().objects.filter(email__iexact=text).exists():
+                return text
+            raise forms.ValidationError(
+                f"{not_found(text, self.choice_list(), 'member')} To add someone new, type the email address of their account; "
+                "anyone can create one from the sign-up page.",
+                code="not_found",
+            ) from None
+
+
+class GiveAccessForm(forms.Form):
+    """Give a member (or someone new) several permissions or role templates at once, with one reason: the organization's Members page.
+    Drawn with the prefix "give", so its ids never clash with another form on the page."""
+
+    person = PersonField(label="Who")
+    roles = forms.MultipleChoiceField(label="Roles", required=False)
+    permissions = forms.MultipleChoiceField(label="Permissions", required=False)
     expires = forms.DateField(label="Expires (optional)", required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    reason = forms.CharField(label="Reason", required=False, max_length=500)
+    reason = forms.CharField(label="Reason", required=False, max_length=500, help_text="Recorded with every permission given.")
 
-    def __init__(self, *args, codes=None, **kwargs):
+    def __init__(self, *args, organisation=None, codes=(), templates=(), **kwargs):
+        kwargs.setdefault("prefix", "give")
         super().__init__(*args, **kwargs)
-        codes = codes if codes is not None else perms.all_permissions()
-        self.fields["permission"].choices = [(c, perms.label(c)) for c in codes]
+        self.templates = list(templates)
+        self.fields["person"].set_organisation(organisation)
+        self.fields["roles"].choices = [(str(t.pk), t.name) for t in self.templates]
+        self.fields["permissions"].choices = [(c, perms.label(c)) for c in codes]
 
+    def clean(self):
+        d = super().clean()
+        if not self.errors and not d.get("roles") and not d.get("permissions"):
+            raise forms.ValidationError("Choose a role or at least one permission.")
+        d["templates"] = [t for t in self.templates if str(t.pk) in (d.get("roles") or [])]
+        return d
 
-class TemplateGrantForm(forms.Form):
-    """Grant a member every permission of a role template at once."""
+    def role_ticks(self):
+        chosen = set(self["roles"].value() or []) if self.is_bound else set()
+        return tick_list(
+            self.add_prefix("roles"),
+            "Roles",
+            [(str(t.pk), t.name, str(t.pk) in chosen, "gives " + perms.labels(t.permissions)) for t in self.templates],
+            id=self.add_prefix("roles"),
+        )
 
-    email = forms.EmailField(label="Their email address", help_text="They need an account first.")
-    template = forms.ChoiceField(label="Role template")
-    expires = forms.DateField(label="Expires (optional)", required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    reason = forms.CharField(label="Reason", required=False, max_length=500)
-
-    def __init__(self, *args, templates=(), **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields["template"].choices = [(str(t.pk), t.name) for t in templates]
+    def permission_ticks(self):
+        chosen = set(self["permissions"].value() or []) if self.is_bound else set()
+        return tick_list(
+            self.add_prefix("permissions"),
+            "Single permissions",
+            [(c, label, c in chosen) for c, label in self.fields["permissions"].choices],
+            id=self.add_prefix("permissions"),
+        )
 
 
 def _module_permission_choices():

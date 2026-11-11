@@ -1,0 +1,53 @@
+{% extends "core/base.html" %}
+{% comment %}An organization's recertification (UI review 3, U7): each grant to keep or remove, grouped by member. One form certifies:
+"Certify all shown", a member's "Certify all of their grants" and each row's Certify are its buttons (the row buttons join it by its id),
+so the page is one form and a Remove form for each grant, not two forms a grant. Removing stays one by one, with a reason.{% endcomment %}
+{% block title %}{{ org.code }} recertification{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:organisations' %}">Organizations</a></li><li><a href="{% url 'administration:organisation' org.code %}">{{ org.code }}</a></li></ol></nav>
+<div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation_recertification" %}</div>
+{% include "administration/_organisation_nav.html" %}
+<section aria-labelledby="recert-h" id="recertification">
+<h2 id="recert-h">Recertification</h2>
+{% if campaign %}
+<p>Open, due {{ campaign.due_at|date_words }}. Keep or remove each grant; what is not reviewed by then may be suspended.{% if shown %} {{ shown|length }} grant{{ shown|length|pluralize }} still to review.{% else %} Every grant has been reviewed.{% endif %}</p>
+{% if is_admin and shown %}
+<form method="post" action="{% url 'administration:recertify_all' org.code %}" id="certify" class="certify-all">{% csrf_token %}
+  {% for i in shown %}<input type="hidden" name="shown" value="{{ i.pk }}">{% endfor %}
+  <button type="submit" name="all" value="1" class="primary">Certify all shown <span class="small">({{ shown|length }})</span></button>
+  <span class="helptext">Keeps every grant below not yet reviewed. Remove the exceptions first.</span>
+</form>
+{% endif %}
+<div class="hscroll" tabindex="0" role="region" aria-label="Grants to recertify">
+<table class="list recert">
+  <caption class="sr-only">Grants to recertify, by member</caption>
+  <thead><tr><th scope="col">Permission</th><th scope="col">Review</th></tr></thead>
+  {% for m, rows, todo in groups %}
+  <tbody>
+  <tr class="group"><th scope="colgroup" colspan="2" id="rm-{{ m.pk }}">{{ m.user|person }}
+    {% if is_admin and todo|length > 1 %}<button type="submit" form="certify" name="member" value="{{ m.pk }}" class="small">Certify all {{ todo|length }} of {{ m.user|person_name }}'s</button>{% elif not todo %}<span class="small muted">All reviewed</span>{% endif %}</th></tr>
+  {% for item, label in rows %}
+  <tr><th scope="row" headers="rm-{{ m.pk }}">{{ label }}</th>
+    <td>{% if item.decision %}{{ item.get_decision_display }} {{ item.decided_at|date_words }}{% elif is_admin %}
+      <button type="submit" form="certify" name="item" value="{{ item.pk }}">Certify<span class="sr-only"> {{ label }} for {{ m.user|person_name }}</span></button>
+      <details class="inline"><summary>Remove<span class="sr-only"> {{ label }} for {{ m.user|person_name }}</span></summary>
+        <form method="post" action="{% url 'administration:recertify' item.pk %}">{% csrf_token %}<input type="hidden" name="decision" value="remove">
+          <label for="rc-{{ item.pk }}">Reason</label><input type="text" id="rc-{{ item.pk }}" name="reason" required>
+          <button type="submit">Remove</button>
+        </form>
+      </details>
+    {% else %}Not reviewed{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+  {% endfor %}
+</table>
+</div>
+{% elif is_admin %}
+<p>None open. A recertification asks you to keep or remove every active grant in {{ org.code }} by a due date.</p>
+<form method="post" action="{% url 'administration:open_recertification' org.code %}" class="stack form-narrow">{% csrf_token %}
+  {{ recert_form.due.as_field_group }}
+  <div class="actions"><button type="submit" class="primary">Start a recertification</button></div>
+</form>
+{% else %}<p>None open.</p>{% endif %}
+</section>
+{% endblock %}

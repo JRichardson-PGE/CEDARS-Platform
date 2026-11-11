@@ -138,10 +138,10 @@ def test_a_member_makes_a_token_and_sees_its_key_once(signed_in, analyst):
 def test_an_organisation_admin_sees_and_revokes_members_tokens(signed_in, analyst, pge, pge_admin):
     token, _ = tokens.create_token(analyst, pge, name="claims system", scopes=["calculations"], days=30)
     c = signed_in(pge_admin)
-    html = c.get("/admin/organizations/PGE/").content.decode()
+    html = c.get("/admin/organizations/PGE/tokens/").content.decode()
     assert "analyst@pge.example.org" in html and f"cedars_{token.prefix}" in html
     r = c.post(f"/account/tokens/{token.pk}/revoke", {"from": "organisation"})
-    assert r["Location"] == "/admin/organizations/PGE/"
+    assert r["Location"] == "/admin/organizations/PGE/tokens/"
     assert ApiToken.objects.get().status == "revoked"
 
 

@@ -152,7 +152,7 @@ def token_create(request):
 def token_revoke(request, pk):
     token = get_object_or_404(ApiToken, pk=pk)
     from_org = request.POST.get("from") == "organisation" and token.organisation is not None
-    back = f"/admin/organizations/{token.organisation.code}/" if from_org else "administration:account"
+    back = f"/admin/organizations/{token.organisation.code}/tokens/" if from_org else "administration:account"
     if not tokens.can_revoke(request.user, token):
         raise Http404
     try:
@@ -277,89 +277,150 @@ def _grantable_codes(user, org) -> list[str]:
     return codes if service.is_org_admin(user, org) or (org.kind == "cpuc" and service.is_system_admin(user)) else []
 
 
+def _org_page(request, code, page: str):
+    """The organization (by any code it has had) and the context every one of its pages shares: the heading, its status and the
+    sub-navigation (Members, Access requests, Recertification, API tokens, Details). An old link under a former code is sent on to
+    the same page under the current one."""
+    org = _org_or_404(request, code)
+    if org.code != code:
+        return org, redirect(f"administration:{page}", org.code)
+    is_admin = service.is_org_admin(request.user, org)
+    waiting = org.access_requests.filter(status=AccessRequest.Status.PENDING).count()
+    return org, {
+        "org": org,
+        "is_admin": is_admin,
+        "no_admin": not service.org_admins(org).exists(),
+        "page": page,
+        "requests_waiting": waiting,
+        "recert_open": org.recertifications.filter(closed_at__isnull=True).exists(),
+    }
+
+
 @login_required
 def organisation(request, code):
-    org = _org_or_404(request, code)
-    if org.code != code:  # an old link, under a former code
-        return redirect("administration:organisation", org.code)
-    is_admin = service.is_org_admin(request.user, org)
+    """An organization's Members page: its members and their permissions, and Give access (several permissions or roles at once)."""
+    org, ctx = _org_page(request, code, "organisation")
+    if not isinstance(ctx, dict):
+        return ctx
     codes = _grantable_codes(request.user, org)
     # role templates bundle module permissions, which only the organization's own administrators grant
-    templates = service.role_templates_for(org) if is_admin else []
+    templates = service.role_templates_for(org) if ctx["is_admin"] else []
     memberships = org.memberships.filter(ended_at__isnull=True).select_related("user").order_by("user__email")
     members = []
     for m in memberships:
         grants = m.grants.filter(status__in=Grant.OPEN).select_related("role_template", "granted_by").order_by("permission")
         members.append((m, [(g, perms.label(g.permission)) for g in grants]))
-    campaign = org.recertifications.filter(closed_at__isnull=True).first()
-    items = []
-    if campaign:
-        items = [
-            (i, perms.label(i.grant.permission)) for i in campaign.items.select_related("grant__membership__user").order_by("decision")
-        ]
+    give = None
+    if codes:
+        give = forms.GiveAccessForm(organisation=org, codes=codes, templates=templates)
+    return render(request, "administration/organisation.html", ctx | {"members": members, "give": give})
+
+
+@login_required
+def organisation_requests(request, code):
+    """An organization's access requests waiting for a decision, each approved (with the permissions to give) or declined."""
+    org, ctx = _org_page(request, code, "organisation_requests")
+    if not isinstance(ctx, dict):
+        return ctx
+    waiting = org.access_requests.filter(status=AccessRequest.Status.PENDING).select_related("user").order_by("created_at")
     return render(
         request,
-        "administration/organisation.html",
-        {
-            "org": org,
-            "is_admin": is_admin,
+        "administration/organisation_requests.html",
+        ctx
+        | {
             "can_decide": service.can_decide_request(request.user, org),
-            "members": members,
-            "grant_form": forms.GrantForm(codes=codes, auto_id="grant_%s") if codes else None,
-            "template_form": forms.TemplateGrantForm(templates=templates, auto_id="tpl_%s") if templates else None,
-            "templates": templates,
-            "requests": [
-                (r, [(c, perms.label(c)) for c in r.permissions])
-                for r in org.access_requests.filter(status="pending").select_related("user")
-            ],
-            "campaign": campaign,
-            "items": items,
-            "recert_form": forms.RecertificationForm(auto_id="recert_%s"),
+            "requests": [(r, [(c, perms.label(c)) for c in r.permissions]) for r in waiting],
+        },
+    )
+
+
+@login_required
+def organisation_recertification(request, code):
+    """An organization's recertification: each grant to certify or remove, grouped by member, with "Certify all shown" and "Certify all
+    of this member's"; or, with none open, starting one."""
+    org, ctx = _org_page(request, code, "organisation_recertification")
+    if not isinstance(ctx, dict):
+        return ctx
+    campaign = org.recertifications.filter(closed_at__isnull=True).first()
+    groups, shown = [], []
+    if campaign:
+        items = campaign.items.select_related("grant__membership__user").order_by("grant__membership__user__email", "grant__permission")
+        by_member = {}
+        for i in items:
+            by_member.setdefault(i.grant.membership, []).append((i, perms.label(i.grant.permission)))
+        for m, rows in by_member.items():
+            todo = [i for i, _ in rows if not i.decision]
+            groups.append((m, rows, todo))
+            shown += todo
+    return render(
+        request,
+        "administration/organisation_recertification.html",
+        ctx | {"campaign": campaign, "groups": groups, "shown": shown, "recert_form": forms.RecertificationForm(auto_id="recert_%s")},
+    )
+
+
+@login_required
+def organisation_tokens(request, code):
+    """The active API tokens of an organization's members, to revoke (its administrators)."""
+    org, ctx = _org_page(request, code, "organisation_tokens")
+    if not isinstance(ctx, dict):
+        return ctx
+    if not ctx["is_admin"]:
+        raise Http404
+    live = ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related("user")
+    return render(request, "administration/organisation_tokens.html", ctx | {"tokens": live})
+
+
+@login_required
+def organisation_details(request, code):
+    """An organization's details, how its members sign in, its status and its codes, with the CPUC system administrators' changes."""
+    org, ctx = _org_page(request, code, "organisation_details")
+    if not isinstance(ctx, dict):
+        return ctx
+    sysadmin = service.is_system_admin(request.user)
+    return render(
+        request,
+        "administration/organisation_details.html",
+        ctx
+        | {
             "details_form": forms.OrganisationDetailsForm(
                 org=org,
                 initial={"name": org.name, "pa_type": org.pa_type, "manages_allocation": org.manages_allocation},
                 auto_id="details_%s",
             )
-            if service.is_system_admin(request.user)
+            if sysadmin
             else None,
             "history": service.code_history(org),
-            "predecessors": service.party_members(org)[1:] if not org.successor_id else [],
             "code_forms": {
                 "rename": forms.RenameForm(auto_id="rename_%s"),
                 "former": forms.FormerCodeForm(auto_id="former_%s"),
                 "merge": forms.MergeForm(org=org, auto_id="merge_%s"),
             }
-            if service.is_system_admin(request.user) and not org.successor_id
+            if sysadmin and not org.successor_id
             else None,
-            "no_admin": not service.org_admins(org).exists(),
             "status_forms": {
                 "federation": forms.FederationForm(
                     initial={"federated": org.federated, "provider": org.federation_provider}, auto_id="fed_%s"
                 ),
                 "retire": forms.ReasonForm(auto_id="retire_%s"),
             }
-            if service.is_system_admin(request.user) and not org.successor_id and org.kind != Organisation.Kind.CPUC
+            if sysadmin and not org.successor_id and org.kind != Organisation.Kind.CPUC
             else None,
             "federation_waiting": service.federation_changes_waiting(org),
             "holds_pii": service.holds_pii_grants(org),
             "allocation_permission": perms.label(perms.ALLOCATION),
-            "tokens": ApiToken.objects.filter(organisation=org, revoked_at__isnull=True, expires_at__gt=timezone.now()).select_related(
-                "user"
-            )
-            if is_admin
-            else [],
         },
     )
 
 
 @login_required
 @require_POST
-def organisation_details(request, code):
+def organisation_details_save(request, code):
     """A CPUC system administrator changes an organization's name or PA type (with a reason)."""
     org = service.by_code_or_404(code)
     if not service.is_system_admin(request.user):
         raise Http404
-    back = f"/admin/organizations/{org.code}/"
+    back = f"/admin/organizations/{org.code}/details/"
     form = forms.OrganisationDetailsForm(request.POST, org=org)
     if not form.is_valid():
         problems = "; ".join(f"{form.fields[k].label if k in form.fields else k}: {' '.join(v)}" for k, v in form.errors.items())
@@ -380,7 +441,7 @@ def _form_problems(form) -> str:
 
 def _code_change(request, code, form_class, what: str, change):
     """A CPUC system administrator's change to an organization's codes (rename, former code, merge): check the form, make the change
-    through the accounts service, and go back to the organization's page under the code it has now."""
+    through the accounts service, and go back to the organization's Details page under the code it has now."""
     org = service.by_code_or_404(code)
     if not service.is_system_admin(request.user):
         raise Http404
@@ -388,14 +449,14 @@ def _code_change(request, code, form_class, what: str, change):
     form = form_class(request.POST, **kwargs)
     if not form.is_valid():
         messages.error(request, f"Check the {what} form: {_form_problems(form)}")
-        return redirect("administration:organisation", org.code)
+        return redirect("administration:organisation_details", org.code)
     try:
         message, target = change(org, form.cleaned_data)
     except AccessDenied as e:
         messages.error(request, str(e))
-        return redirect("administration:organisation", org.code)
+        return redirect("administration:organisation_details", org.code)
     messages.success(request, message)
-    return redirect("administration:organisation", target.code)
+    return redirect("administration:organisation_details", target.code)
 
 
 @login_required
@@ -473,52 +534,38 @@ def organisation_retire(request, code):
 @login_required
 @require_POST
 def grant(request, code):
+    """Give access: several permissions or role templates to one person (a member, or someone new with an account), with one reason."""
     org = _org_or_404(request, code)
     back = f"/admin/organizations/{org.code}/"
-    form = forms.GrantForm(request.POST, codes=_grantable_codes(request.user, org))
+    templates = service.role_templates_for(org) if service.is_org_admin(request.user, org) else []
+    form = forms.GiveAccessForm(request.POST, organisation=org, codes=_grantable_codes(request.user, org), templates=templates)
     if not form.is_valid():
-        messages.error(request, "Check the grant form: " + "; ".join(f"{k}: {' '.join(v)}" for k, v in form.errors.items()))
+        messages.error(request, f"Check the Give access form: {_form_problems(form)}")
         return redirect(back)
     d = form.cleaned_data
-    user = User.objects.filter(email__iexact=d["email"]).first()
+    user = User.objects.filter(email__iexact=d["person"]).first()
     if user is None:
-        messages.error(request, f"There is no account for {d['email']}. Ask them to create one, then grant access.")
+        messages.error(request, f"There is no account for {d['person']}. Ask them to create one, then give them access.")
         return redirect(back)
     try:
-        g = service.grant(request.user, user, org, d["permission"], expires_at=_end_of_day(d["expires"]), reason=d["reason"])
+        result = service.give_access(
+            request.user,
+            user,
+            org,
+            permissions=d["permissions"],
+            templates=d["templates"],
+            expires_at=_end_of_day(d["expires"]),
+            reason=d["reason"],
+        )
     except AccessDenied as e:
         return _refused(request, e, back)
-    if g.status == Grant.Status.PENDING:
-        return _done(request, f"{perms.label(g.permission)} for {user.email} is waiting for a data steward's approval.", back)
-    return _done(request, f"Granted {perms.label(g.permission)} to {user.email}.", back)
-
-
-@login_required
-@require_POST
-def grant_template(request, code):
-    """Grant a member every permission of a role template."""
-    org = _org_or_404(request, code)
-    back = f"/admin/organizations/{org.code}/"
-    templates = service.role_templates_for(org)
-    form = forms.TemplateGrantForm(request.POST, templates=templates)
-    if not form.is_valid():
-        messages.error(request, f"Check the role template form: {_form_problems(form)}")
-        return redirect(back)
-    d = form.cleaned_data
-    user = User.objects.filter(email__iexact=d["email"]).first()
-    if user is None:
-        messages.error(request, f"There is no account for {d['email']}. Ask them to create one, then grant access.")
-        return redirect(back)
-    template = next(t for t in templates if str(t.pk) == d["template"])
-    try:
-        result = service.apply_role_template(request.user, user, org, template, expires_at=_end_of_day(d["expires"]), reason=d["reason"])
-    except AccessDenied as e:
-        return _refused(request, e, back)
-    labels = ", ".join(perms.label(g.permission) for g in result.granted)
-    msg = f"Granted {template.name} to {user.email}: {labels}."
+    given = [g for g in result.granted if g.status != Grant.Status.PENDING]
+    msg = f"Gave {user.email}: {perms.labels([g.permission for g in given])}." if given else ""
+    if result.pending:
+        msg += f" {perms.labels([g.permission for g in result.pending])} waits for a data steward's approval."
     if result.already:
-        msg += f" Already held: {', '.join(perms.label(p) for p in result.already)}."
-    return _done(request, msg, back)
+        msg += f" Already held: {perms.labels(result.already)}."
+    return _done(request, msg.strip(), back)
 
 
 @login_required
@@ -569,7 +616,7 @@ def end_membership(request, pk):
 @require_POST
 def decide_request(request, pk):
     req = get_object_or_404(AccessRequest.objects.select_related("organisation", "user"), pk=pk)
-    back = f"/admin/organizations/{req.organisation.code}/"
+    back = f"/admin/organizations/{req.organisation.code}/requests/"
     approve = request.POST.get("decision") == "approve"
     chosen = request.POST.getlist("permissions") if approve else None
     try:
@@ -583,7 +630,7 @@ def decide_request(request, pk):
 @require_POST
 def open_recertification(request, code):
     org = _org_or_404(request, code)
-    back = f"/admin/organizations/{org.code}/"
+    back = f"/admin/organizations/{org.code}/recertification/"
     form = forms.RecertificationForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Choose a due date.")
@@ -599,7 +646,7 @@ def open_recertification(request, code):
 @require_POST
 def recertify(request, pk):
     item = get_object_or_404(RecertificationItem.objects.select_related("campaign__organisation", "grant__membership__user"), pk=pk)
-    back = f"/admin/organizations/{item.campaign.organisation.code}/#recertification"
+    back = f"/admin/organizations/{item.campaign.organisation.code}/recertification/"
     try:
         if request.POST.get("decision") == "remove":
             form = forms.ReasonForm(request.POST)
@@ -614,6 +661,40 @@ def recertify(request, pk):
     except AccessDenied as e:
         return _refused(request, e, back)
     return _done(request, msg, back)
+
+
+@login_required
+@require_POST
+def recertify_all(request, code):
+    """Certify several grants at once from the Recertification page: one (its Certify button), all of one member's ("Certify all of
+    this member's") or all shown ("Certify all shown")."""
+    org = _org_or_404(request, code)
+    back = f"/admin/organizations/{org.code}/recertification/"
+    campaign = org.recertifications.filter(closed_at__isnull=True).first()
+    if campaign is None:
+        messages.error(request, f"{org.code} has no recertification open.")
+        return redirect(back)
+    items = campaign.items.select_related("grant__membership__user").filter(decision="")
+    if request.POST.get("item"):
+        items = items.filter(pk=request.POST["item"])
+    elif request.POST.get("member"):
+        items = items.filter(grant__membership_id=request.POST["member"])
+    else:
+        items = items.filter(pk__in=[v for v in request.POST.getlist("shown") if v.isdigit()])
+    items = list(items)
+    if not items:
+        messages.error(request, "Nothing left to certify there: each grant shown has been reviewed.")
+        return redirect(back)
+    try:
+        done = service.certify_all(request.user, items)
+    except AccessDenied as e:
+        return _refused(request, e, back)
+    if len(done) == 1:
+        i = done[0]
+        return _done(request, f"Certified {perms.label(i.grant.permission)} for {i.grant.user.email}.", back)
+    people = {i.grant.membership_id for i in done}
+    whose = f" for {done[0].grant.user.email}" if len(people) == 1 else f" for {len(people)} members"
+    return _done(request, f"Certified {len(done)} grants{whose}.", back)
 
 
 # --- data stewards

@@ -248,7 +248,7 @@ The apps, in `INSTALLED_APPS` order:
 | Service | `cedars.services.feedback` | Feedback on any page |
 | Service | `cedars.services.sandbox` | The production bundle and the sandbox refresh |
 | Service | `cedars.services.accessibility` | Accessibility checks of stored PDFs and workbooks |
-| Module | `cedars.modules.administration` | Account, organizations, members and grants, access requests, recertification, stewardship, role templates, audit log, health, section landing pages (no models of its own) |
+| Module | `cedars.modules.administration` | Account, organizations (each with Members, Access requests, Recertification, API tokens and Details pages), members and grants, access requests, recertification, stewardship, role templates, audit log, health, section landing pages (no models of its own) |
 | Module | `cedars.modules.impact_profiles` | eTRM sync, load-shape uploads and their checks, generated and custom impact profiles, the profile library |
 | Module | `cedars.modules.monthly` | Monthly reports and the 13th-month report |
 | Module | `cedars.modules.calculations` | Engine releases, runs, dispatch, results, Compare, Edit inputs, output templates, the job API |
@@ -813,13 +813,15 @@ suspension and revocation; it is never deleted and every change is an audit even
 
 `has_permission(user, organisation, permission)` is the one check: the user's active, unexpired grants in that organization (plus the
 federated-session rule for `claims.pii`). **Role templates** (`RoleTemplate`) are named bundles of module permissions a system
-administrator defines and an organization's administrator applies, one grant per permission. An **access request**
+administrator defines and an organization's administrator applies, one grant per permission. An organization's administrators give
+access on its Members page, one person at a time with several role templates and single permissions and one reason (`give_access`:
+all or nothing, permissions already held left as they are, each permission a template brings recording that template). An **access request**
 (`AccessRequest`) asks one organization for one or more of its role templates or for single read and submit permissions; its
 administrators decide it, or, while it has none, the CPUC's system administrators (`request_deciders`, `can_decide_request`; until then a
 system administrator may grant that organization's permissions), and the request shows in the deciders' My queue. The CPUC and the
 statewide (SW) pseudo-PA take no requests. Every permission has a name and a sentence on what it lets a person do
 (`permissions.label`, `describe`), used wherever a person chooses or reads one. Organization administrators run
-periodic **recertification**; when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
+periodic **recertification**, keeping or removing each grant (one at a time, all of one member's or all shown: `certify_all`); when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
 access policy says so (never the last data steward).
 
 How the usual roles map onto grants:

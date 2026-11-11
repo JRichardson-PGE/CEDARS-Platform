@@ -280,9 +280,10 @@ def test_the_organisation_page_shows_the_codes_and_takes_changes(signed_in, cpuc
         f"/admin/organizations/{ebce.code}/rename",
         {"code": "AVA", "name": "Ava Community Energy", "effective": "2024-01-01", "reason": "CEDARS changelog"},
     )
-    assert r.status_code == 302 and r["Location"] == "/admin/organizations/AVA/"
+    assert r.status_code == 302 and r["Location"] == "/admin/organizations/AVA/details/"
     assert c.get("/admin/organizations/EBCE/")["Location"] == "/admin/organizations/AVA/"  # an old link still leads to it
-    page = c.get("/admin/organizations/AVA/").content.decode()
+    assert c.get("/admin/organizations/EBCE/details/")["Location"] == "/admin/organizations/AVA/details/"
+    page = c.get("/admin/organizations/AVA/details/").content.decode()
     assert '<h2 id="codes-h">Codes</h2>' in page and "until 2023-12-31" in page and "from 2024-01-01" in page
     assert "Rename: give AVA a new code" in page and "Merge in an organization recorded under an old code" in page
     assert "formerly EBCE" in c.get("/admin/organizations/").content.decode()
@@ -293,10 +294,10 @@ def test_the_organisation_page_shows_the_codes_and_takes_changes(signed_in, cpuc
     assert r.status_code == 302
     twice.refresh_from_db()
     assert twice.successor.code == "AVA"
-    merged = c.get("/admin/organizations/AVA2/").content.decode()
+    merged = c.get("/admin/organizations/AVA2/details/").content.decode()
     assert "is the same party as" in merged and "Rename: give" not in merged  # no further changes on a merged organization
     pa = signed_in(pge_admin)
-    assert "Rename: give" not in pa.get(f"/admin/organizations/{pge.code}/").content.decode()
+    assert "Rename: give" not in pa.get(f"/admin/organizations/{pge.code}/details/").content.decode()
     assert pa.post(f"/admin/organizations/{pge.code}/rename", {"code": "X", "effective": "2024-01-01", "reason": "x"}).status_code == 404
 
 

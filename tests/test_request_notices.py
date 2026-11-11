@@ -129,7 +129,9 @@ def test_an_access_request_reaches_the_organizations_administrators_or_the_cpucs
     with django_capture_on_commit_callbacks(execute=True):
         req = access.request_access(person, pge, ["claims.read"], "I file PG&E's claims")
     n = Notification.objects.get(user=cpuc_admin)  # PGE has no administrator yet
-    assert n.title == "Access requested: Nia New, PGE" and "no administrator yet" in n.body and n.link == "/admin/organizations/PGE/#req-h"
+    assert (
+        n.title == "Access requested: Nia New, PGE" and "no administrator yet" in n.body and n.link == "/admin/organizations/PGE/requests/"
+    )
     with django_capture_on_commit_callbacks(execute=True):
         access.withdraw_request(person, req)
     assert titles(cpuc_admin)[-1] == "Access request withdrawn: Nia New, PGE"

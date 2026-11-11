@@ -1,0 +1,31 @@
+{% extends "core/base.html" %}
+{% comment %}An organization's access requests waiting for a decision (UI review 3, U7): each approved with the permissions to give, or
+declined with a note. Decided by its administrators, or by the CPUC's system administrators while it has none.{% endcomment %}
+{% block title %}{{ org.code }} access requests{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:organisations' %}">Organizations</a></li><li><a href="{% url 'administration:organisation' org.code %}">{{ org.code }}</a></li></ol></nav>
+<div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation_requests" %}</div>
+{% include "administration/_organisation_nav.html" %}
+<section aria-labelledby="req-h">
+<h2 id="req-h">Access requests</h2>
+{% if no_admin %}<p>{{ org.code }} has no administrator yet, so the CPUC decides its access requests.</p>{% endif %}
+{% for r, labels in requests %}
+<div class="card access-request">
+  <h3>{{ r.user|person }} <span class="small muted">asked {{ r.created_at|date_words }}</span></h3>
+  {% if r.message %}<p>{{ r.message }}</p>{% endif %}
+  {% if can_decide %}
+  <form method="post" action="{% url 'administration:decide_request' r.pk %}" class="stack">{% csrf_token %}
+    <fieldset><legend>Permissions to give</legend>
+      <div class="checks">{% for code, label in labels %}<label><input type="checkbox" name="permissions" value="{{ code }}" checked> {{ label }}</label>{% endfor %}</div>
+    </fieldset>
+    <label for="note-{{ r.pk }}">Note to {{ r.user|person_name }} (optional)</label>
+    <input type="text" id="note-{{ r.pk }}" name="note">
+    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve</button><button type="submit" name="decision" value="decline">Decline</button></div>
+  </form>
+  {% else %}<p>Asked for: {% for code, label in labels %}{{ label }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+</div>
+{% empty %}
+<p>No access requests are waiting.</p>
+{% endfor %}
+</section>
+{% endblock %}
