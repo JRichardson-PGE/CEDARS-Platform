@@ -34,6 +34,11 @@ class ClaimsConfig(AppConfig):
         from . import service
 
         register_publisher("claims", service.on_publish, service.on_unpublish)
+        from cedars.core import search as site_search
+
+        from . import search
+
+        site_search.register("claims", "Confirmed claims", search.claims, order=65)  # site search finds a confirmed claim by ClaimID
         register_claims_totals(service.year_totals)
         from cedars.services.submissions.service import register_acc_needs
 

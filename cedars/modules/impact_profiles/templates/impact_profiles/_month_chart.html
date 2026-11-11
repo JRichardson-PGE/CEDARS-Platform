@@ -1,0 +1,7 @@
+{% comment %}A shape's share of the year by month as columns (views.month_chart). Decorative beside the table that lists the same
+percentages, so it is hidden from screen readers when `decorative`; otherwise one image named by `name`.{% endcomment %}
+<svg class="month-chart{% if not chart.labels %} small{% endif %}" width="{{ chart.width }}" height="{{ chart.height }}" viewBox="0 0 {{ chart.width }} {{ chart.height }}" focusable="false"{% if decorative %} aria-hidden="true"{% else %} role="img" aria-label="{{ name }}"{% endif %}>
+  <line class="month-axis" x1="0" x2="{{ chart.width }}" y1="{{ chart.base }}" y2="{{ chart.base }}"/>
+  {% for b in chart.bars %}<rect class="bar" x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}"/>{% if chart.labels %}<text class="month-label" x="{{ b.cx }}" y="{{ chart.height|add:"-3" }}" text-anchor="middle">{{ b.label }}</text>{% endif %}
+  {% endfor %}
+</svg>

@@ -207,7 +207,8 @@ def _require(request):
 def manage(request):
     """Drafts and a new note."""
     _require(request)
-    form = NoteForm(request.POST or None)
+    # another settings page may offer a note about the change just made (workflow settings): its title and summary start the draft
+    form = NoteForm(request.POST or None, initial={k: request.GET[k][:2000] for k in ("title", "summary") if k in request.GET})
     if request.method == "POST" and form.is_valid():
         try:
             note = service.create_draft(request.user, **form.cleaned_data)

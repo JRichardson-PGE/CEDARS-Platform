@@ -77,8 +77,9 @@ def test_templates_use_the_shared_filters():
             if re.search(r'\|date:"[^"]*[YmdHi][^"]*"', line):  # a month name (date:"F") is fine; datetime= attributes use 'c'
                 own_dates.append(f"{path.relative_to(root)}: {line.strip()[:80]}")
             allowed = any(
-                x in line for x in ("email_address.email", "user.email }}</dd>", "support.email")
-            )  # not a person: a confirmation, the account's own address, the support mailbox
+                x in line
+                for x in ("email_address.email", "emailaddress.email", "user.email }}</dd>", "person.email }}</dd>", "support.email")
+            )  # not a person: a confirmation or a pending change, the account's own address, the support mailbox
             if re.search(r"\{\{ [\w.]+\.email(\|[^}]*)? \}\}", line) and not allowed:
                 emails.append(f"{path.relative_to(root)}: {line.strip()[:80]}")
     assert not own_dates, own_dates

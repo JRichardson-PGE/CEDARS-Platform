@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+{% block title %}Workflow settings{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:filings' %}">Filings</a></li></ol></nav>
+<div class="page-title"><h1>Workflow settings</h1>{% page_help "submissions/workflow_settings" %}</div>
+<p>How each kind of filing may be corrected after its due date, and whether a first version can still be confirmed late. A change applies at
+once to every filing of that kind; versions already confirmed or corrected stay as they are. The <a href="{% url 'submissions:calendar' %}">filing calendar</a>
+shows these settings to everyone.</p>
+{% if note_url %}
+<div class="card" id="release-note-offer">
+  <h2>Tell the program administrators</h2>
+  <p>That change leaves program administrators less room than before. Announce it in a release note so they know before their next filing.</p>
+  <p><a class="button primary" href="{{ note_url }}">Write a release note</a></p>
+</div>
+{% endif %}
+{% for m in modules %}
+<section class="card" aria-labelledby="wf-{{ m.code }}-h" id="wf-{{ m.code }}">
+  <h2 id="wf-{{ m.code }}-h">{{ m.label }}</h2>
+  <dl class="facts">
+    <dt>Corrections after the due date</dt><dd>{{ m.policy.get_reopen_after_due_display }}</dd>
+    <dt>Late first confirmation</dt><dd>{% if m.policy.late_confirmation %}Allowed, marked late{% else %}Not allowed{% endif %}</dd>
+  </dl>
+  <details{% if m.form.errors %} open{% endif %}>
+    <summary>Change the {{ m.label|lower }} settings</summary>
+    <form method="post" class="stack form-narrow">{% csrf_token %}
+      <input type="hidden" name="module" value="{{ m.code }}">
+      {% if m.form.non_field_errors %}<div class="alert" role="alert">{{ m.form.non_field_errors }}</div>{% endif %}
+      {% for field in m.form %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">Save<span class="sr-only"> the {{ m.label|lower }} settings</span></button></div>
+    </form>
+  </details>
+  {% if m.history %}
+  <h3 id="wf-{{ m.code }}-history">Changes</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="wf-{{ m.code }}-history">
+  <table class="list">
+    <caption class="sr-only">Changes to the {{ m.label|lower }} workflow settings, newest first</caption>
+    <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Before</th><th scope="col">After</th><th scope="col">Reason</th></tr></thead>
+    <tbody>
+    {% for row in m.history %}{% with e=row.event %}
+    <tr><th scope="row">{{ e.at|datetime_words }}</th><td>{% if e.actor %}{{ e.actor|person }}{% else %}{{ e.actor_label }}{% endif %}</td>
+      <td>{{ row.before }}</td><td>{{ row.after }}</td><td>{{ e.reason|default:"–" }}</td></tr>{% endwith %}
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}
