@@ -37,8 +37,12 @@ account/email_confirm:
   guide:
     - The link CEDARS emailed you opens this page. Confirm the address and you can sign in. A link that has expired can be sent again
       from your email settings.
+    - The three steps under the heading show where a new account is in its set-up; this is the first.
   see: getting-started
   tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access.
     - target: main form
       title: Confirm
       text: Confirm that the address is yours, then sign in.
@@ -49,9 +53,14 @@ account/verification_sent:
   guide:
     - CEDARS has emailed a link to the address you gave. Open it to confirm the address and finish creating the account. If nothing
       arrives within a few minutes, look in your junk folder, then write to support.
+    - The three steps under the heading show where a new account is in its set-up. Confirming the address is the first; setting up the
+      second factor and asking an organization for access follow.
   see: getting-started
   tour:
-    - target: main .page-title + p
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access. This is the first step.
+    - target: main .page-title ~ p
       title: What happens next
       text: Open the link in the email. It confirms the address, then you can sign in.
 
@@ -118,11 +127,17 @@ mfa/totp/activate_form:
       time-based codes works.
     - Scan the QR code with the app, or type the key under it into the app. Then enter the code the app shows to finish. Keep the key
       somewhere safe; it sets the app up again on a new phone.
+    - Signing in for the first time, the three steps under the heading show where you are; this is the second.
   how:
-    - Copy the key copies it to the clipboard, for an app on the same computer.
-    - After this step CEDARS offers recovery codes. Print or save them; each signs you in once if you lose the app.
+    - Copy the key copies it to the clipboard, for an app on the same computer. The key is also shown whole, to type in or select.
+    - After this step CEDARS shows your recovery codes. Print or download them; each signs you in once if you lose the app. Continue
+      then takes you where you were going, or to Ask for access if you belong to no organization yet.
   see: getting-started
   tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email (done), set up your second factor (this page), then ask an organization for access.
+      optional: true
     - target: main form img
       title: The QR code
       text: Scan it with your authenticator app. The app then shows a new six-digit code for CEDARS every 30 seconds.
@@ -418,7 +433,8 @@ account/security:
     - The pages for your account's security, your second factor (the authenticator app), recovery codes, security keys, email addresses and
       password. Changing any of them asks you to confirm it is you first.
     - Recovery codes sign you in once each if you lose your authenticator app. Keep them somewhere safe, and make new ones when they run low;
-      making new ones replaces the old.
+      making new ones replaces the old. Download the codes or Print the codes saves them; right after you set up your first second
+      factor, Continue takes you where you were going, or to Ask for access if you belong to no organization yet.
   see: getting-started
   tour:
     - target: main form, main ul, main section

@@ -64,6 +64,13 @@
     });
   }
 
+  // "Print" buttons ([data-print], the recovery codes page) need a script, so they start hidden and show here; the print style sheet
+  // leaves only the page's own content.
+  document.querySelectorAll("button[data-print]").forEach(function (b) {
+    b.hidden = false;
+    b.addEventListener("click", function () { window.print(); });
+  });
+
   // Narrow screens: a Menu button shows and hides the navigation. Without this script the button stays hidden and the list is simply shown.
   var btn = document.querySelector(".menu-btn");
   if (btn && nav) {

@@ -808,7 +808,7 @@ flowchart TD
   req["Request"] --> sess["SessionMiddleware, AuthenticationMiddleware,<br/>allauth AccountMiddleware"]
   sess --> act["ActiveOrganisationMiddleware:<br/>request.organisation = the chosen active membership<br/>request.filing_organisation = it, when it files<br/>request.assurance = password, mfa or federated"]
   act --> mfa{"RequireMFAMiddleware:<br/>second factor set up?"}
-  mfa -- "no" --> setup["Sent to the second-factor<br/>set-up page (Help aside)"]
+  mfa -- "no" --> setup["Sent to the second-factor<br/>set-up page (Help aside),<br/>then recovery codes and Continue"]
   mfa -- "yes" --> auditctx["AuditContextMiddleware:<br/>who, organization, assurance<br/>for every audit event"]
   auditctx --> view["View"]
   view --> perm{"has_permission(user,<br/>organization, module.action)"}
@@ -821,6 +821,12 @@ flowchart TD
   per caller address and per account. A sign-in ends after the session_hours limit and after the session_idle_minutes limit
   unused (`SessionTimeoutMiddleware`; a page's background requests do not count as use). There is no Django admin site: every administrative action is a platform page that goes
   through a service and its audit event.
+- **A new account's first sign-in** has three steps, shown on its pages as a step line (`core/_set_up_steps.html`): confirm the email,
+  set up the second factor, ask an organization for access. The middleware sends a password-only session to the set-up page with the
+  address it was heading for (`next`), which the set-up form carries. Adding the account's first authenticator records that address in
+  the session (`accounts.signals`, `FIRST_SET_UP`, kept only when it stays on this site); the recovery codes page that follows says what
+  the codes are for, offers Download and Print, and Continue (`/account/continue/`, `core.views.after_set_up`), which goes to Ask for
+  access for an account in no organization and otherwise to that address.
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
 - The **header** is data (`cedars/core/nav.py`): every item names who sees it (`anon`, `user`, `member`, `guest`, `public`,

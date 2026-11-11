@@ -213,9 +213,7 @@ def test_a_new_account_sets_up_its_second_factor_with_one_password(client, make_
     r = client.get("/accounts/2fa/totp/activate/")
     assert r.status_code == 200, r["Location"] if r.status_code == 302 else ""  # not sent to type the password again
     html = r.content.decode()
-    assert (
-        'id="authenticator_secret"' in html and "readonly" in html and "disabled" not in html.split('id="authenticator_secret"')[0][-200:]
-    )
+    assert '<code class="totp-key" id="authenticator_secret"' in html  # the key whole, as selectable text (UI review 3, U6)
     assert 'data-copy="authenticator_secret"' in html
     assert '<img class="qr-code"' in html and 'width="200" height="200"' in html  # a fixed size, not the whole page width
     assert 'id="main-nav"' not in html  # no module menu yet

@@ -2245,3 +2245,73 @@ def test_walkthrough_chart_tooltips_by_keyboard_and_pointer(browser, axe_source,
     page.wait_for_timeout(400)
     assert tip.is_hidden()
     context.close()
+
+
+def _first_set_up_session(site):
+    """A new account that has just added its first second factor (UI review 3, U6): an authenticator app and recovery codes, and the
+    session's note of where its sign-in was heading."""
+    from allauth.mfa.recovery_codes.internal.auth import RecoveryCodes
+    from allauth.mfa.totp.internal.auth import TOTP, generate_totp_secret
+
+    from cedars.services.accounts.models import User
+    from cedars.services.accounts.signals import FIRST_SET_UP
+
+    user, _ = User.objects.get_or_create(email="first-set-up@example.org")
+    if not user.authenticator_set.exists():
+        TOTP.activate(user, generate_totp_secret())
+        RecoveryCodes.activate(user)
+    return _fresh_session(user, site, mfa=True, extra={FIRST_SET_UP: {"next": "/calculations/"}})
+
+
+def _fresh_session(user, site, mfa: bool, extra=None):
+    """A session signed in moments ago (allauth asks for a recent sign-in before the second-factor pages), with a second factor or not."""
+    import time
+
+    now = time.time()
+    cookie = _session_cookie(user, "mfa" if mfa else "password", site)
+    s = SessionStore(session_key=cookie["value"])
+    s["account_authentication_methods"] = [{"method": "password", "at": now, "reauthenticated": True}] + (
+        [{"method": "mfa", "at": now}] if mfa else []
+    )
+    for k, v in (extra or {}).items():
+        s[k] = v
+    s.save()
+    return cookie
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_first_recovery_codes_page(browser, axe_source, site, scene, scheme):
+    """The recovery codes page right after the first second factor: the steps, the codes, Download, Print (shown by the script) and
+    Continue; axe finds nothing in either scheme, and it reflows at 320 px."""
+    cookie = _first_set_up_session(site)
+    context = browser.new_context(color_scheme=scheme, bypass_csp=True)
+    context.add_cookies([cookie])
+    page = context.new_page()
+    assert page.goto(site.url + "/accounts/2fa/recovery-codes/").status == 200
+    assert page.locator("nav.set-up-steps li[aria-current=step]").count() == 1
+    assert page.locator(".recovery-codes li").count() == 10
+    assert page.get_by_role("button", name="Print the codes").is_visible()
+    assert page.get_by_role("link", name="Continue to Ask for access").is_visible()
+    found = _violations(page, axe_source)
+    page.set_viewport_size({"width": 320, "height": 640})
+    overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    context.close()
+    assert not found, json.dumps(found, indent=1)
+    assert overflow <= 0
+
+
+def test_the_set_up_page_sizes_the_code_field_and_shows_the_whole_key(browser, site, scene):
+    from cedars.services.accounts.models import User
+
+    user, _ = User.objects.get_or_create(email="setting-up@example.org")
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    context.add_cookies([_fresh_session(user, site, mfa=False)])
+    page = context.new_page()
+    assert page.goto(site.url + "/accounts/2fa/totp/activate/?next=/claims/").status == 200
+    code = page.locator("#id_code").bounding_box()
+    key = page.evaluate("(() => { const k = document.getElementById('authenticator_secret'); return [k.scrollWidth, k.clientWidth]; })()")
+    steps = page.locator("nav.set-up-steps li[aria-current=step]").inner_text()
+    context.close()
+    assert code["width"] < 200, f"the six-digit field is {code['width']} px wide"
+    assert key[0] <= key[1], "the key is clipped"
+    assert "Set up your second factor" in steps
