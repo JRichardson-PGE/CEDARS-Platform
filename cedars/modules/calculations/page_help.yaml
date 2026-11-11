@@ -334,8 +334,9 @@ calculations/engine_release:
 calculations/drafts:
   title: Edit inputs
   guide:
-    - Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to a set number of measures (edit larger jobs
-      offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.
+    - Edit a small job's Measure and ProgramCost tables here, as a spreadsheet or row by row, for jobs of up to a set number of measures
+      (edit larger jobs offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip
+      or job workbook ready for New run.
   how:
     - Start a draft from a job's .zip or job workbook (its Measure and ProgramCost tables; a draft does not keep the job's optional
       input files, so upload them again on New run), or empty from the templates. A finished run's Edit inputs and rerun starts one from that run.
