@@ -570,6 +570,21 @@ section.cycle { margin-bottom: .5rem; }
 .empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
 .empty .button { margin-top: .75rem; }
 
+/* ---------- Correcting records ---------- */
+/* A record's page (submissions/record.html): its fields in the wide grid, grouped as the data dictionary groups them; the Save bar stays
+   in view at the bottom of the window where there is room for it (at least 480 px tall), and scroll-padding keeps a focused field clear
+   of it (focus not obscured, 2.4.11). Below that height it is an ordinary row at the end of the form (reflow, 1.4.10). */
+.find-field { margin: 1rem 0; max-width: 32rem; }
+.inline-control { display: flex; gap: .5rem; align-items: stretch; }
+.inline-control > input { flex: 1 1 auto; min-width: 0; }
+.record-form fieldset + fieldset { margin-top: .25rem; }
+#fields-found { border-color: var(--bad); }
+ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
+@media (min-height: 480px) {
+  html:has(.save-bar) { scroll-padding-bottom: 5.5rem; }
+  .save-bar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: .75rem 0; margin-bottom: 0; }
+}
+
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }

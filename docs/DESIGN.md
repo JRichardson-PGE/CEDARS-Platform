@@ -82,6 +82,9 @@ says how many of its fields are not at their defaults, so a setting is never fol
 | `ui/empty.html` (`.empty`) | an empty state with its one action | `{% include "ui/empty.html" with title=... text=... action_url=... action=... %}` |
 | `.id` | an identifier (PA code, PrgID, field name) in the mono face | |
 | `.page-title` + `h1` + `{% page_help "<template>" %}` | every page's heading with its help button (?) | the guide and tour are in the app's `page_help.yaml` (`cedars/core/page_help.py`); the button opens a modal dialog with the guide and "Take a tour of this page", and is a link to `/help/pages/<key>/` without scripts |
+| `.save-bar` | a long form's buttons, kept at the bottom of the window (a record's page) | sticky where the window is at least 480 px tall, and `html:has(.save-bar)` gets a bottom scroll-padding so a focused field is never under it (2.4.11); below that height it is the form's last row |
+| `form.find-field` + `core/find_field.js` | "Find a field" on a long form | a search box with the fields' names as a datalist; the script moves the focus to the field and announces it; without scripts the server sends the page back at `#f-<field>` |
+| `input[list]` + `datalist` | a field whose value comes from a value list | the codes are suggestions and typing anything else is allowed (the checks say if it is not on the list); a list too long to offer links to its page |
 
 From the UI review of 2026-10-30, built: sortable headers with `aria-sort` (Results) and pagination on the long lists. Still planned:
 active-filter chips, and a `/ui/` gallery page that the axe suite visits.

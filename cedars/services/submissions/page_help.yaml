@@ -122,10 +122,17 @@ submissions/records:
       keeps its findings. The version is then priced again before it is confirmed, and every change is in the audit trail with the
       record before and after.
   how:
+    - Start from Records with findings, rejected records first, and choose Correct beside one.
     - Find a record by its key or any value, then open it to change it or delete it.
     - Add a record to any table of the filing.
     - Upload a partial correction (only the changed and new records, with a Delete table for records to remove), preview it, then apply it.
   tour:
+    - heading: Records with findings
+      title: Records with findings
+      text: >-
+        This version's records that its checks found something on, rejected ones first, each with its rules and a link to correct it.
+        A finding about a whole table (a missing column) is said above them; it is fixed by uploading a corrected file.
+      optional: true  # a confirmed version has no editor, only the reason
     - heading: Find a record
       title: Find a record
       text: Search by key or any value, in one table or every table. Records filed in an earlier confirmation are found too.
@@ -152,25 +159,46 @@ submissions/record:
   see: correcting-records
   guide:
     - >-
-      The record's fields, with what its last check found beside the fields concerned. Saving checks this record and those whose
-      checks it can affect again, and says what the check found.
+      The record's fields, with what its last check found beside the fields concerned. The fields with findings come first, then the
+      key, then the rest in sections (for a measure, the sections of the engine's input field reference). Each field's type and
+      definition are behind its "i" button; a field whose value comes from a value list suggests its codes as you type.
+    - >-
+      Saving checks this record and those whose checks it can affect again, and says what the check found, with a way back to the
+      filing.
     - >-
       A record filed in an earlier confirmation is corrected by adding the corrected record to this version, where it stands over the
       earlier one; its key stays.
   how:
-    - Change the fields and choose Save and check (or Add and check for a new record).
+    - Type part of a field's name in Find a field to jump to it.
+    - Change the fields and choose Save and check (or Add and check for a new record); the Save bar stays at the bottom of the window.
     - Delete this record removes it from this version, after you confirm.
   tour:
+    - target: "#saved"
+      title: Saved
+      text: The change is saved and checked; go back to the filing, or on to the other records with findings.
+      optional: true  # only right after saving
     - heading: Findings on this record
       title: Findings
       text: What the last check found on this record, rejects first, each linked to its field.
       optional: true
+    - target: "#find-field"
+      title: Find a field
+      text: Type part of a field's name and choose Go to jump to it.
+    - target: "#fields-found"
+      title: Fields with findings
+      text: The fields the last check found something on, first, each with what was found and how to fix it.
+      optional: true  # a record without findings
     - heading: Fields
       title: Fields
-      text: Every field of the table, with its type and description; a field with a finding is marked.
+      text: >-
+        Every field of the table, in sections; the "i" button beside a field gives its type and definition, and a value list's codes
+        are suggested as you type.
     - target: "#in-reason"
       title: Why
       text: An optional reason, kept with the change in the audit trail.
+    - target: "#save-bar"
+      title: Save
+      text: Save and check, delete the record or cancel; the bar stays at the bottom of the window as you go down the fields.
 
 submissions/record_delete:
   title: Deleting a record
