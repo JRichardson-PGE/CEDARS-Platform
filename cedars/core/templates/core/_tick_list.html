@@ -1,0 +1,17 @@
+{% comment %}A compact tick list (core/tick_lists.py; UI review 3). Context: tl. A closed disclosure whose summary names the list and what is
+chosen; open, the chosen values first, then the rest, and for a long list a box that narrows it (core/tick_lists.js shows the box and keeps
+the summary current; without scripts the box stays hidden and the boxes work as they are).{% endcomment %}
+{% with t=tl %}<details class="tick-list" data-tick-list data-none="{{ t.none }}">
+  <summary><span class="tick-legend">{{ t.legend }}</span> <span class="tick-summary" data-tick-summary>{{ t.summary }}</span></summary>
+  <fieldset class="tick-panel">
+    <legend class="sr-only">{{ t.legend }}</legend>
+    {% if t.narrow %}<div class="field tick-narrow" data-tick-narrow hidden>
+      <label for="{{ t.id }}-narrow">Narrow the list<span class="sr-only"> of {{ t.legend }}</span></label>
+      <input type="search" id="{{ t.id }}-narrow" autocomplete="off" aria-describedby="{{ t.id }}-shown" aria-controls="{{ t.id }}-ticks">
+      <span class="helptext" id="{{ t.id }}-shown" data-tick-shown>{{ t.ticks|length }} shown</span>
+    </div>{% endif %}
+    <ul class="tick-options" id="{{ t.id }}-ticks">
+      {% for k in t.ticks %}<li><label class="check"><input type="checkbox" name="{{ t.name }}" value="{{ k.value }}"{% if k.checked %} checked{% endif %}> <span data-tick-label>{{ k.label }}</span>{% if k.note %} <span class="muted small">({{ k.note }})</span>{% endif %}</label></li>{% endfor %}
+    </ul>
+  </fieldset>
+</details>{% endwith %}
