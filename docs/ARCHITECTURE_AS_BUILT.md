@@ -316,6 +316,7 @@ Every point where a service calls back into a module is a registration function.
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
+| `register` | core `page_access.py` | documents, impact_profiles, refdata, snapshots | Who may open a page outside the header's menus whose own check is finer than a role, so the Help guides link to it only for people it opens for |
 
 ```mermaid
 sequenceDiagram
@@ -1305,6 +1306,16 @@ flowchart TD
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
   programs, fields and documents. Security headers and a same-origin-only CSP (`SecurityHeadersMiddleware`); vendored scripts with
   their integrity checked.
+- **Error pages** (`cedars/core/errors.py`, the `handler404`, `handler403` and `handler500` in `cedars/urls.py`, and
+  `CSRF_FAILURE_VIEW`): every error page is in the site's layout, with one sentence, a search box and links to the front page, Help and
+  My queue. A page that does not exist and a page the account cannot open show the same page and sentence (the status stays 404 or
+  403), so neither says whether the page is there; under `/api/` both answer in JSON. The 500 page renders with no context, so a
+  failing database or context processor cannot take it down too; a form refused for its security token says why and how to send it
+  again.
+- **Links only to pages that open** (`cedars/core/page_access.py`, the `{% page_link %}` tag): a Help guide links to an
+  administrators' page only for a reader it opens for; anyone else reads its name and who it is for. Who may open a page comes from the
+  header's menus (`nav.Item.who`), or, for a page outside them with a finer check, from the check its owner registers.
+  `tests/test_help_links.py` follows every link in every guide as each kind of account and fails on one that ends at an error page.
 - **API**: Django REST Framework under `/api/v1` with an OpenAPI schema at `/api/v1/schema`; token or session authentication; per-user
   and per-address throttles. Pages and the API call the same service functions.
 - **Accessibility of files** (`cedars.services.accessibility`): stored PDFs and workbooks checked; generated workbooks are accessible by
@@ -1335,7 +1346,8 @@ caching or deployment updates this document and its diagrams in the same pull re
 - an app in `INSTALLED_APPS` under `cedars.` is not named here;
 - a model of those apps is not named here (section 4.4, and the ERDs where it has relationships worth drawing);
 - a management command is not named here (section 12);
-- an extension hook (`register_*` in the services, `register` in `core/queue.py` and `core/health.py`) is not named here (section 3.2);
+- an extension hook (`register_*` in the services, `register` in `core/queue.py`, `core/health.py` and `core/page_access.py`) is not
+  named here (section 3.2);
 - a Mermaid block does not start with a diagram type.
 
 What the test cannot see, the author keeps true: a changed flow (a new state, a new check, a new step in pricing or publication), a new

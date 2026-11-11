@@ -424,3 +424,75 @@ account/security:
     - target: main form, main ul, main section
       title: The settings
       text: What this page changes. Every change is recorded in the audit trail.
+
+core/error:
+  title: A page that is not available
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when the address does not lead to a page, or leads to one your account cannot open. It says the same in
+      both cases, so it never tells anyone which pages exist that they cannot see.
+    - >-
+      A page may need you to be signed in, to act for an organization that holds a permission, or to be a CPUC administrator. An old
+      link, or an address typed by hand, may also name a page that has moved or never was.
+  how:
+    - Search for the page with the box on this page; the words from the address are already in it.
+    - Signed out? Sign in, and CEDARS brings you back to the same address.
+    - Need a permission? Ask your organization's administrators from your account page, under Ask for access.
+    - Followed a link inside CEDARS to get here? Tell us with the link on this page, so it can be fixed.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: This address does not lead to a page, or your account cannot open it.
+    - target: main .error-search
+      title: Search for it
+      text: The words from the address are already in the box; change them and choose Search.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, My queue when you are a member of an organization, and a link to tell us about a broken link.
+
+core/form_expired:
+  title: A form that was not sent
+  see: getting-started
+  guide:
+    - >-
+      Every form in CEDARS carries a security token, so that another site cannot send it in your name. The token belongs to one
+      sign-in: a page opened before you last signed in or out sends an old one, and CEDARS refuses the form.
+    - Nothing was saved. Go back, reload the page so it has the new token, and send the form again.
+  how:
+    - Go back with your browser, reload the page, and send the form again.
+    - If it happens every time, check that your browser keeps cookies for this site; CEDARS needs its own cookies to accept a form.
+  tour:
+    - target: main .error-sentence
+      title: Why the form was refused
+      text: The page it came from was opened before you last signed in or out.
+    - target: main .error-search
+      title: Search
+      text: Find the page you were working on, if going back does not reach it.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, and My queue when you are a member of an organization.
+
+"500":
+  title: Something went wrong
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when a problem on its side stopped it from showing the page you asked for. The problem is recorded in the
+      site's log for the CPUC's administrators.
+    - >-
+      Anything you sent just before this page may not have been saved. Once the page opens again, check that your change is there
+      before you send it again.
+  how:
+    - Try again in a few minutes.
+    - If the page still does not open, tell the CPUC through the contact details on Help.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: A problem on CEDARS' side stopped this page; it is recorded.
+    - target: main .error-search
+      title: Search
+      text: Look for the page, or another way to what you need.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page and Help.

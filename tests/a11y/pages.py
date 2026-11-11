@@ -43,6 +43,8 @@ PAGES = [
             "administering",
         )
     ],
+    # an organization administrator's guide: links to their own pages, the CPUC's named with who they are for (UI review 3, U4)
+    ("help-administering-org-admin", "/help/administering/", "pge_admin"),
     # ReCET's own documents, from the pinned engine (core/engine_docs.py)
     ("recet-docs", "/calculations/engine-docs/", None),
     *[

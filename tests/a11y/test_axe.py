@@ -1442,6 +1442,61 @@ def test_reflows_at_320px_with_sound_markup(browser, site, scene, name, path, wh
     assert not problems, f"{name}: " + json.dumps(problems, indent=1)
 
 
+# The error pages (UI review 3, U4; cedars/core/errors.py) answer 403, 404 or 500, so they are not in PAGES (whose pages answer 200). A
+# page that does not exist and one the account cannot open are one page; a form sent without its security token is refused as a browser
+# would send it; the 500 page is its handler's HTML, which renders with no request, drawn at the site's address so its links resolve.
+ERROR_PAGES = [
+    ("not-found-signed-out", "/claims/no-such-page/", None, 404),
+    ("not-found-member", "/admin/role-templates/", "iou_filer", 404),
+    ("not-allowed", "/admin/retention/", "analyst", 403),
+    ("form-expired", "/feedback/", "analyst", 403),
+    ("server-error", "", None, 500),
+]
+
+
+def _open_error(browser, site, scene, name, path, who, status, **context_args):
+    from cedars.core import errors
+
+    context = browser.new_context(**context_args)
+    if who is not None:
+        context.add_cookies([_session_cookie(scene[who], "mfa", site)])
+    page = context.new_page()
+    if status == 500:
+        page.goto(site.url + "/help/")
+        page.set_content(errors.server_error(None).content.decode())
+    elif name == "form-expired":
+        page.goto(site.url + "/help/")
+        with page.expect_navigation() as sent:
+            page.evaluate(
+                f"() => {{ const f = document.createElement('form'); f.method = 'post'; f.action = '{path}'; document.body.append(f); "
+                "f.submit(); }"
+            )
+        assert sent.value.status == status
+    else:
+        response = page.goto(site.url + path)
+        assert response.status == status, f"{path} answered {response.status}"
+    return context, page
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("name,path,who,status", ERROR_PAGES, ids=[p[0] for p in ERROR_PAGES])
+def test_error_pages_axe_clean_and_reflow(browser, axe_source, site, scene, name, path, who, status, scheme):
+    context, page = _open_error(browser, site, scene, name, path, who, status, color_scheme=scheme, bypass_csp=True)
+    assert page.locator(".page-title > h1 + .page-help").count() == 1, f"{name}: no (?) beside the heading"
+    assert page.locator("main .error-sentence").count() == 1 and page.locator("main form[aria-label='Search CEDARS']").count() == 1
+    if status != 500:  # the 500 page has no request, so its (?) is a link to its help and there is no dialog to tour with
+        steps = page.evaluate("window.cedarsTourFound ? window.cedarsTourFound() : null")
+        assert steps and not [s["title"] for s in steps if not s["found"] and not s["optional"]], f"{name}: {steps}"
+    found = _violations(page, axe_source)
+    page.set_viewport_size({"width": 320, "height": 640})
+    overflow = page.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    markup = {k: v for k, v in page.evaluate(MARKUP).items() if v}
+    context.close()
+    assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
+    assert overflow <= 0, f"{name} scrolls sideways by {overflow} px at 320 px wide"
+    assert not markup, f"{name}: " + json.dumps(markup, indent=1)
+
+
 @pytest.mark.parametrize("who", [None, "pge_admin"], ids=["signed-out", "signed-in"])
 def test_the_narrow_header_folds_behind_a_menu_button(browser, site, scene, who):
     """At 320 px the navigation is behind a Menu button, signed in or not (UI review 2, #42), and the button shows and hides it."""
