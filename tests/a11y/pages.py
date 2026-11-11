@@ -175,6 +175,8 @@ PAGES = [
     ("account-community", "/account/", "community"),  # a community account may close itself
     ("account-email", "/accounts/email/", "pge_admin"),
     ("request-access", "/account/request-access/", "community"),
+    ("request-access-roles", "/account/request-access/?organisation={pge}", "community"),  # its roles first, single permissions folded
+    ("request-access-cpuc-decides", "/account/request-access/?organisation=SCE", "community"),  # no administrator yet: the CPUC decides
     ("organisations", "/admin/organizations/", "cpuc_admin"),
     ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),
     ("organisation-cpuc", "/admin/organizations/{cpuc}/", "cpuc_admin"),

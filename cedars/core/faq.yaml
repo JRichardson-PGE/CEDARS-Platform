@@ -49,9 +49,10 @@ topics:
         q: How do I get permission to file for my organization?
         a:
           - >-
-            Open your account page and choose Ask an organization for access. Pick the organization and the permissions you need
-            (for example claims, read and submit) and say why. Your organization's own administrators decide; the CPUC is not
-            asked. Access to personal information in claims also needs a CPUC data steward's approval.
+            Open your account page and choose Ask an organization for access. Choose the organization, then your role in it (or
+            single permissions, each with what it lets you do) and say who you are. Your organization's own administrators decide;
+            the CPUC decides only for an organization that has no administrator yet. Access to personal information in claims
+            also needs a CPUC data steward's approval.
         tags: [permission, grant, access request, role, organization administrator]
         guide: getting-started
       - id: api-calls

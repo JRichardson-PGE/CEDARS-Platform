@@ -72,7 +72,7 @@ def test_community_account_requests_access(signed_in, make_user, pge, pge_admin)
     u = make_user("community@example.com")
     c = signed_in(u)
     assert "community account" in c.get("/account/").content.decode()
-    r = c.post("/account/request-access/", {"organisation": pge.pk, "permissions": ["claims.read"], "message": "hi"})
+    r = c.post("/account/request-access/", {"organisation": pge.code, "permissions": ["claims.read"], "message": "hi"})
     assert r.status_code == 302
     req = AccessRequest.objects.get(user=u)
     assert req.permissions == ["claims.read"]

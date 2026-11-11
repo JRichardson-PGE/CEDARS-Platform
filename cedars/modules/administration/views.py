@@ -177,16 +177,36 @@ def switch_organisation(request):
 
 @login_required
 def request_access(request):
-    form = forms.RequestAccessForm(request.POST or None)
+    """Ask an organization for access in two steps that work without scripts: choose the organization, then its roles (the role templates
+    offered for it, in plain words) or single permissions behind a disclosure. The page says who decides: the organization's
+    administrators, or the CPUC while it has none (UI review 3, U6)."""
+    chosen = request.POST.get("organisation") or request.GET.get("organisation")
+    org = service.requestable_organisations().filter(code=chosen).first() if chosen else None
+    if org is None:
+        pick = forms.ChooseOrganisationForm(request.GET if chosen else None)
+        return render(request, "administration/request_access.html", {"pick": pick})
+    templates = service.role_templates_for(org)
+    form = forms.RequestAccessForm(request.POST or None, templates=templates, initial={"organisation": org.code})
     if request.method == "POST" and form.is_valid():
         try:
-            service.request_access(
-                request.user, form.cleaned_data["organisation"], form.cleaned_data["permissions"], form.cleaned_data["message"]
-            )
+            service.request_access(request.user, org, form.cleaned_data["codes"], form.cleaned_data["message"])
         except AccessDenied as e:
-            return _refused(request, e, "administration:request_access")
-        return _done(request, "Your request was sent to the organization's administrators.", "administration:account")
-    return render(request, "administration/request_access.html", {"form": form})
+            return _refused(request, e, f"{reverse('administration:request_access')}?organisation={org.code}")
+        return _done(request, f"Your request was sent to {service.decider_words(org)}.", "administration:account")
+    roles = [(t, perms.labels(t.permissions), next(cb for cb in form["roles"] if cb.data["value"] == str(t.pk))) for t in templates]
+    singles = [(cb, perms.describe(cb.data["value"])) for cb in form["permissions"]]
+    return render(
+        request,
+        "administration/request_access.html",
+        {
+            "org": org,
+            "form": form,
+            "roles": roles,
+            "singles": singles,
+            "singles_open": bool(form["permissions"].value()) or not templates,
+            "cpuc_decides": service.cpuc_decides(org),
+        },
+    )
 
 
 @login_required
@@ -283,6 +303,7 @@ def organisation(request, code):
         {
             "org": org,
             "is_admin": is_admin,
+            "can_decide": service.can_decide_request(request.user, org),
             "members": members,
             "grant_form": forms.GrantForm(codes=codes, auto_id="grant_%s") if codes else None,
             "template_form": forms.TemplateGrantForm(templates=templates, auto_id="tpl_%s") if templates else None,

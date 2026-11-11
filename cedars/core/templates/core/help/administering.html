@@ -19,9 +19,10 @@ organization, why, and the record before and after.</p>
 <ul class="links">
   <li><a href="{% url 'administration:organisations' %}">Organizations</a>: add an organization by its CEDARS code and name, assign its
   first administrator, change its name or PA type, rename its code (the history is kept) or merge in an organization recorded under a
-  former code.</li>
+  former code. Until an organization has an administrator, its access requests come to you: decide them on its page or from My
+  queue.</li>
   <li><a href="{% url 'administration:role_templates' %}">Role templates</a>: named bundles of module permissions that organization
-  administrators grant. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
+  administrators grant, and the roles people choose from when they ask for access. A template never holds an organization's administrator, PII access or the CPUC's own roles: each needs a
   decision of its own.</li>
   <li><a href="{% url 'administration:settings' %}">Access settings</a>: how often grants are recertified, whether grants not certified
   are suspended, and whether PII is only for federated organizations and sessions.</li>

@@ -43,16 +43,34 @@ administration/account:
 administration/request_access:
   title: Asking for access
   guide:
-    - Ask an organization's administrators for the permissions you need to act for it, such as filing budgets or claims, running
-      calculations or uploading impact profiles. They decide; PII access also needs a CPUC data steward's approval.
+    - Ask an organization for what you need to act for it, such as filing budgets or claims, running calculations or uploading impact
+      profiles. First choose the organization, then your role in it.
+    - A role (such as a filer or an analyst) gives a set of permissions at once, listed under its name. If none fits, open Or choose single
+      permissions; each says what it lets you do.
+    - The organization's administrators decide. An organization with no administrator yet has its requests decided by the CPUC, and the
+      page says so before you send. Access to personal information is added later, with a CPUC data steward's approval.
   how:
-    - Choose the organization and the permissions, say why, and Send the request.
-    - Your requests and where each stands are on your account page.
+    - Choose the organization and Next: choose your role.
+    - Tick your role, or single permissions, say who you are in the message, and Send the request.
+    - Your requests and where each stands are on your account page; you can withdraw one that is still waiting.
   see: getting-started
   tour:
-    - target: main form
-      title: The request
-      text: The organization, the permissions and why. Send the request; you are told when it is decided.
+    - target: main form.request-org
+      title: The organization
+      text: The program administrator or other organization you work for or with.
+      optional: true
+    - target: main .request-decider
+      title: Who decides
+      text: Its administrators, or the CPUC while it has none.
+      optional: true
+    - target: main fieldset.request-roles
+      title: Your role
+      text: Each role gives the permissions listed under it.
+      optional: true
+    - target: main details.request-singles
+      title: Single permissions
+      text: When no role fits, pick only what you need; each says what it lets you do.
+      optional: true
 
 administration/token_created:
   title: Your new API token
