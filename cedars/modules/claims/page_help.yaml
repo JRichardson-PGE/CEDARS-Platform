@@ -121,33 +121,45 @@ claims/period:
         Each PA files its own claim. CPUC staff, and anyone not acting for a PA, choose one here to see its claim; others' published
         versions are open to everyone signed in.
       optional: true  # only when you are not acting for a PA
-    - target: "#statewide-filing"
-      title: Statewide claims
-      text: This confirmation is the statewide one, filed first by the lead PA, and holds only the statewide programs it leads.
-      optional: true
-    - target: "#statewide-first"
-      title: Statewide claims, filed first
-      text: Which lead PAs have confirmed the statewide claims due before this one, and a link to what they credit to this PA.
-      optional: true
     - target: "#nothing-yet"
       title: Not started yet
       text: The PA has not started this claim, and you cannot upload it; its filers do that here.
       optional: true
-    - target: "#earlier-h"
-      title: Earlier confirmations
-      text: This year's confirmed quarters, which this upload is compiled over.
+    - target: "#filing-steps"
+      title: Where the claim stands
+      text: The five steps from upload to publication, with the one it is at said in words.
       optional: true
     - target: "#now-h"
-      title: The version in progress
-      text: Its status, the records by table, the findings by rule (rejects first), and the next step, which is check, price, confirm, un-confirm or ask to reopen.
+      title: The outcome and the next step
+      text: >-
+        What the last check or pricing found, and the one thing to do next: upload or correct, price, confirm, or ask to reopen after the
+        due date. While it is priced the page follows the run and shows the results when it finishes.
       optional: true
-    - heading: Year-to-date results
-      title: Year-to-date results
-      text: The priced totals that confirming signs off on.
+    - target: "#findings-h"
+      title: Findings by rule
+      text: >-
+        Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
+        correct that record.
       optional: true
     - target: "#upload-h"
       title: Upload
-      text: The new and changed records as one file, or several chosen together. It replaces this version's earlier upload.
+      text: >-
+        The new and changed records as one file, or several chosen together. It replaces this version's earlier upload. Once the version
+        passes its checks this section folds away.
+      optional: true
+    - target: "#version-details-h"
+      title: The file and its records
+      text: The file this version holds and its records by table, over the year to date.
+      optional: true
+    - target: "#sw-h"
+      title: Statewide claims
+      text: >-
+        In a statewide confirmation, the statewide programs its lead PA files first; in a PA's own, which lead PAs have confirmed the
+        statewide claims credited to it.
+      optional: true
+    - target: "#earlier-h"
+      title: Earlier confirmations
+      text: This year's confirmed quarters, which this upload is compiled over.
       optional: true
     - target: "#pii-h"
       title: Personal information
@@ -195,9 +207,17 @@ claims/version:
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: claims
   tour:
+    - target: "#confirm-here-h"
+      title: Ready to confirm
+      text: Once this version is priced, review its results here and confirm them to publish, without going back to the filing page.
+      optional: true  # the latest version, priced, for someone who may confirm it
     - target: main form.filters
       title: What to show
       text: The programs and years to show.
+      optional: true
+    - target: "#savings-differ"
+      title: Filed savings that differ
+      text: Programs whose filed first-year savings differ from what their records priced to are marked "Differs" in the Filed columns.
       optional: true
     - target: "#programs-h"
       title: By program

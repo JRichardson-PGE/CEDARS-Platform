@@ -18,7 +18,7 @@ from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
-from cedars.services.submissions import corrections
+from cedars.services.submissions import corrections, filing_page
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -272,6 +272,33 @@ def filing(request, pk):
             t = service.table(v)
             ctx["tiles"] = _tiles(t)
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
+    ctx.update(
+        filing_page.context(
+            v,
+            has_file=bool(ctx.get("file")) or bool(v and v.imported),
+            priced=ctx.get("priced", False),
+            pricing=ctx.get("pricing_run"),
+            can_correct=ctx.get("can_correct", False),
+        )
+    )
+    ctx["s"] = (v.findings or {}) if v else {}
+    ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the filing"
+    if v is not None:
+        ctx["out"] = {
+            "price_url": reverse("budgets:price", args=[pk]),
+            "price_label": "Price this version",
+            "price_help": "Runs the calculation and statewide allocation on this upload; confirming needs it.",
+            "confirm_url": reverse("budgets:confirm", args=[pk]),
+            "confirm_help": "Signs off on exactly these results; the inputs, run settings and results become public.",
+            "unconfirm_url": reverse("budgets:unconfirm", args=[pk]),
+            "reopen_url": reverse("budgets:reopen", args=[pk]),
+            "results_url": reverse("budgets:version", args=[v.pk]),
+            "results_heading": "Results",
+            "results_link": "By program and year",
+            "results_about": ", with the excluded programs, the reconciliation and the appendix tables.",
+            "what": "this filing",
+            "kept": "filed",
+        }
     return render(request, "budgets/filing.html", ctx)
 
 
@@ -325,7 +352,8 @@ def upload(request, pk):
             msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
             messages.info(request, msg + " Price it next.")
         else:
-            messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. Fix them and upload the file again.")
+            rejected = s.get("rejected", 0)
+            messages.warning(request, f"{rejected:,} records are rejected. " + filing_page.REJECTED_NEXT)
 
     deadline = _deadline(pk)
     if request.organisation is None:
@@ -458,6 +486,7 @@ def version(request, pk):
             "legacy": legacy.imported(v) if v.imported else None,
             "letter": ChangeLetter.objects.filter(version=v).first(),
             "operating": v.submission.organisation.files and shifts.can_read_operating(request.user, v.submission.organisation),
+            **filing_page.version_page(request, v, priced=service.priced(v)),
         },
     )
 

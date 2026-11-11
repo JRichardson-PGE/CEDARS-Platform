@@ -153,7 +153,13 @@ NO_MENU = (
     "api-*",
 )
 # Pages shared by several menus' work: each names its item itself (`belongs_to`), from the filing it shows.
-SHARED = ("submissions:attachment", "submissions:comment", "submissions:correction*", "submissions:record*")
+SHARED = (
+    "submissions:attachment",
+    "submissions:comment",
+    "submissions:correction*",
+    "submissions:record*",
+    "submissions:pricing_status",
+)
 
 MENUS = (
     Menu(

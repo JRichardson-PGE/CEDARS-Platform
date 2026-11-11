@@ -969,6 +969,18 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
     wrong = {"PII_Contact.csv": "ContactID,ContactName,ContactPhoneNumber\nPGE-C9,A. Customer,415-555-0100\n",
              "PII_Site.csv": "SiteID,SiteAddress\nPGE-S1,1 Market St\n"}  # fmt: skip
     claims.upload_pii(pii_filer, q2v, _zip(wrong), "pii.zip", "mfa")
+    # 2029's Q1 uploaded and priced, waiting to be confirmed: the filing page and the version page both offer Confirm and publish
+    claims.add_year(cpuc_admin, year=2029, acc_version="2026", due={k: d + timedelta(days=365) for k, d in due.items()})
+    next_q1 = claims.periods(2029)[0]
+    priced = tables(
+        claim("PGE-2029-001", prg="PGE_Res_HVAC", quarter="2029Q1"),
+        ProgramCost=[row("ProgramCost", PrgID="PGE_Res_HVAC", PrgYear="2029", ClaimYearQuarter="2029Q1")],
+        Site=first["Site"],
+    )
+    with no_rules:
+        q4v = claims.upload_claims(analyst, next_q1, pge, claims_zip(priced, full=True), "2029_q1.zip")
+    details = {**details, "job_sha256": q4v.findings["job_sha256"]}
+    q4v = submissions.record_calculation(None, q4v, run="claims2029", input_hash="h2029", details=details)
     # the filing's discussion: CPUC staff ask, with a file; PG&E answers, so the reply waits on the claims approver's queue
     from cedars.services.submissions import comments
 
@@ -990,6 +1002,8 @@ def _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer):
         "claims_q1": q1,
         "claims_q2": q2,
         "claims_q3": q3,
+        "claims_next_q1": next_q1,
+        "claims_priced": q4v,
         "claims_sw_q1": claims.periods(2028, statewide=True)[0],
         "claims_version": v,
         "claims_corrected": v2,

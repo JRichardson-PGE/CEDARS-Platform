@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -19,7 +19,7 @@ from cedars.services.accessibility import service as accessibility
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from . import comments, corrections, service
+from . import comments, corrections, filing_page, service
 from .models import Attachment, Deadline, ReopenRequest, SubmissionVersion, WorkflowPolicy
 
 MODULES = [("budgets", "Budgets"), ("claims", "Claims"), ("monthly", "Monthly reports")]
@@ -626,6 +626,18 @@ def attachment(request, pk):
         return HttpResponseRedirect(url)
     response = FileResponse(store.open(a.key), as_attachment=True, filename=a.name, content_type=a.content_type)
     response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+def pricing_status(request, pk):
+    """Where a filing version's pricing by run ?run=<id> stands, as JSON, for its filing page to update itself while it is priced (UI
+    review 3, U1): {"ended", "priced", "status", "text"}. For anyone who may read the filing."""
+    v = get_object_or_404(SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation"), pk=pk)
+    if not service.can_read_filing(request.user, v.submission):
+        raise Http404
+    response = JsonResponse(filing_page.pricing_state(v, request.GET.get("run", "")[:64]))
+    response["Cache-Control"] = "no-store"
     return response
 
 

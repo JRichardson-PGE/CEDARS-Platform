@@ -339,7 +339,7 @@ def test_the_pages(client, filer, filing, pge, programs, release, cpuc_admin, ma
     assert b"Price this version" in client.get(reverse("budgets:filing", args=[filing.pk])).content
     client.post(reverse("budgets:price", args=[filing.pk]))
     run = Run.objects.get()
-    assert b"the run's page" in client.get(reverse("budgets:filing", args=[filing.pk])).content
+    assert b"Follow the run" in client.get(reverse("budgets:filing", args=[filing.pk])).content
     finish_run(run)
     assert b"Confirm and publish" in client.get(reverse("budgets:filing", args=[filing.pk])).content
     client.post(reverse("budgets:confirm", args=[filing.pk]))

@@ -11,6 +11,7 @@ urlpatterns = [
     path("reopen-requests/", views.reopen_requests, name="reopen_requests"),
     path("reopen-requests/<int:pk>", views.decide, name="decide"),
     path("versions/<int:pk>/comments", views.comment, name="comment"),
+    path("versions/<int:pk>/pricing.json", views.pricing_status, name="pricing_status"),
     path("attachments/<int:pk>", views.attachment, name="attachment"),
     path("versions/<int:pk>/records/", views.records, name="records"),
     path("versions/<int:pk>/records/correction", views.correction_upload, name="correction_upload"),

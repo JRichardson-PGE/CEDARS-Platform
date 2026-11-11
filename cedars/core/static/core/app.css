@@ -570,6 +570,25 @@ section.cycle { margin-bottom: .5rem; }
 .empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
 .empty .button { margin-top: .75rem; }
 
+/* ---------- Filing pages (submissions/_filing_*.html, UI review 3): the step line, the outcome card, findings by rule ---------- */
+/* The step line: five steps in a row (wrapping at 320 px), each a pill with its number or a check; the current one bold with a filled
+   marker and aria-current="step", done ones with a check and "(done)" for screen readers, so the state is never shown by colour alone. */
+ol.steps { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: .75rem 0 .35rem; padding: 0; }
+ol.steps li { display: flex; align-items: center; gap: .45rem; min-height: 32px; padding: .2rem .75rem .2rem .25rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--fg-2); }
+ol.steps .step-mark { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 1px solid var(--control); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+ol.steps li.done .step-mark { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+ol.steps li.current { color: var(--fg); font-weight: 600; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+ol.steps li.current .step-mark { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.step-now { margin: .25rem 0 1rem; }
+.card.outcome { border-left: 4px solid var(--primary); }   /* the filing's outcome and its one next action, first on the page */
+.card.outcome .tiles { margin-bottom: .75rem; }
+details.inline-form { margin: .75rem 0 0; }
+details.inline-form > summary { color: var(--link); cursor: pointer; min-height: 24px; line-height: 24px; width: fit-content; }
+details.inline-form > form { margin-top: .5rem; }
+ul.finding-records { list-style: none; margin: 0; padding: 0; }
+ul.finding-records li { margin: 0 0 .2rem; }
+table.findings-by-rule td:last-child { min-width: 16rem; }
+
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }
 .small { font-size: .86rem; }

@@ -82,6 +82,10 @@ says how many of its fields are not at their defaults, so a setting is never fol
 | `ui/empty.html` (`.empty`) | an empty state with its one action | `{% include "ui/empty.html" with title=... text=... action_url=... action=... %}` |
 | `.id` | an identifier (PA code, PrgID, field name) in the mono face | |
 | `.page-title` + `h1` + `{% page_help "<template>" %}` | every page's heading with its help button (?) | the guide and tour are in the app's `page_help.yaml` (`cedars/core/page_help.py`); the button opens a modal dialog with the guide and "Take a tour of this page", and is a link to `/help/pages/<key>/` without scripts |
+| `#filing-steps` > `ol.steps` + `p.step-now` | a filing's step line: Upload, Check, Price, Confirm, Published | `submissions/_filing_steps.html`; done steps carry a check and "(done)", the current one `aria-current="step"` and "(now)" for screen readers; the sentence under it says the current step in words |
+| `section.card.outcome` | a filing's outcome and its one next action | `submissions/_filing_outcome.html`, right under the step line; it holds the page's only `.primary` button, and everything that is not the next step (the upload once validated, the file's details, the statewide card, earlier confirmations) folds below in `details.section` |
+| `table.findings-by-rule`, `ul.finding-records` | a filing's findings grouped by rule | `submissions/_filing_findings.html`: the rule ID links to the rule, a severity badge with its count, the message and how to fix it, then the records to correct, each a link to its correction page |
+| `[data-watch-url]` + `core/watch.js` | a part of a page that follows work still running elsewhere | polls the URL for `{"ended", "text"}` every 5 seconds, announces a change through `window.cedarsAnnounce`, reloads when the work ends unless something has the focus (then shows its `[data-watch-reload]` link); without scripts the reload link shows |
 
 From the UI review of 2026-10-30, built: sortable headers with `aria-sort` (Results) and pagination on the long lists. Still planned:
 active-filter chips, and a `/ui/` gallery page that the axe suite visits.

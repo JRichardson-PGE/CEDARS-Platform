@@ -117,6 +117,23 @@ def register_run_state(state: Callable[[str], dict | None]) -> None:
     _run_states[:] = [state]
 
 
+def run_state(run_id: str) -> dict | None:
+    """A run's state as the Calculations module reports it ({"status", "label", "ended", "error"}); None for an unknown run."""
+    return _run_states[0](run_id) if _run_states and run_id else None
+
+
+def started_run(v: SubmissionVersion, run_id: str) -> bool:
+    """Whether run `run_id` was started to price the version (its submission.pricing_started event names it)."""
+    from cedars.services.audit.models import AuditEvent
+
+    return (
+        bool(run_id)
+        and AuditEvent.objects.filter(
+            object_type="submissions.submissionversion", object_id=str(v.pk), action="submission.pricing_started", after__run=str(run_id)
+        ).exists()
+    )
+
+
 def pricing_run(v: SubmissionVersion, *, reset_on: tuple[str, ...] = ("submission.files_attached",)) -> dict | None:
     """The pricing run started for the version since its inputs last changed, while no finished run prices them: {"id", "status",
     "label", "ended", "error"}. None when no run was started since the inputs changed, or the version already records its calculation.

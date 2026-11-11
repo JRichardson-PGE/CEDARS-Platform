@@ -461,13 +461,15 @@ def _rule_findings_on(frames: dict, covers, rs) -> tuple[list, list[str]]:
         have = {c.lower() for c in df.columns}
         spec = rules.spec_columns(rs, table)
         missing = [c for c in spec if c.lower() not in have and _recet_name(c).lower() not in have]
-        if missing:  # CEDARS rejects a file without its spec's columns; the rules are run once they are there
+        skip: set[str] = set()
+        if missing:  # every missing column is reported; the rules that do not read one still run (UI review 3, U1)
             out += [
-                Problem(1, "", table, c, "BUD-COL", "reject", f"{table} has no {c} column", f"Add the {c} column (it may be blank).")
+                Problem(1, "", table, c, "BUD-COL", "reject", rules.canonical_text(f"{table} has no {c} column"),
+                        rules.canonical_text(f"Add the {c} column (it may be blank)."))
                 for c in missing
-            ]
-            notes.add(f"The {table} rules were not run: the file lacks {len(missing)} of the filing specification's columns.")
-            continue
+            ]  # fmt: skip
+            skip = rules.needing(rs, table, missing)
+            notes.add(rules.missing_columns_note(table, len(missing), len(skip), "filing specification"))
         if year_col not in df.columns:
             continue
         years = df[year_col].astype(str).str[:4]
@@ -476,7 +478,7 @@ def _rule_findings_on(frames: dict, covers, rs) -> tuple[list, list[str]]:
                 continue  # the module's own check reports it
             part = df[years == y]
             try:
-                found, n = rules.check(rs, table, part.reset_index(drop=True), filing_year=int(y), id_column=id_col)
+                found, n = rules.check(rs, table, part.reset_index(drop=True), filing_year=int(y), id_column=id_col, skip=skip)
             except (KeyError, ValueError) as e:  # the engine could not apply a rule: the version cannot be called valid
                 out.append(
                     Problem(1, "", table, "", "BUD-RULES", "reject", f"The {y} {table} rows could not be checked: {e}",

@@ -336,6 +336,9 @@ CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one c
 # and the most records a correction page lists at once (records found, a preview's changes; the rest are counted and downloadable).
 CEDARS_CORRECTION_MAX_ROWS = int(env("CEDARS_CORRECTION_MAX_ROWS", "5000"))
 CEDARS_CORRECTION_LIST_ROWS = int(env("CEDARS_CORRECTION_LIST_ROWS", "200"))
+# A filing page lists each rule's findings with the records they are in: this many records under each rule (the rest are counted and in
+# the findings CSV).
+CEDARS_FINDING_RECORDS_SHOWN = int(env("CEDARS_FINDING_RECORDS_SHOWN", "10"))
 ETRM_PACKAGE_LIST = int(env("ETRM_PACKAGE_LIST", "300"))  # eTRM measure packages Add a measure from eTRM lists per search
 # Feedback from every page's footer link: the most characters in one message, the most messages one sender sends an hour,
 # and an optional team inbox that gets a copy of each (the CPUC system administrators are told of each one either way).
