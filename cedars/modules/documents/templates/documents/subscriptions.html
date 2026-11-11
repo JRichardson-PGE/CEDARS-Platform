@@ -16,17 +16,7 @@ published documents are announced. Messages land on your <a href="{% url 'notifi
     {% for value, label, on in collections %}<label><input type="checkbox" name="collections" value="{{ value }}"{% if on %} checked{% endif %}> {{ label }}</label>{% endfor %}
   </div>
 </fieldset>
-{% for al, options in lists %}
-<details{% for o, on in options %}{% if on %} open{% endif %}{% endfor %}>
-  <summary>{{ al.name }}</summary>
-  <fieldset class="column-group">
-    <legend>{{ al.name }}</legend>
-    <div class="checks">
-      {% for o, on in options %}<label><input type="checkbox" name="options" value="{{ o.pk }}"{% if on %} checked{% endif %}> {{ o.label }}{% if o.retired_on %} <span class="muted">(retired)</span>{% endif %}</label>{% endfor %}
-    </div>
-  </fieldset>
-</details>
-{% endfor %}
+{% for tl in lists %}{% include "core/_tick_list.html" %}{% endfor %}
 <fieldset>
   <legend>How the messages come (for everything you follow)</legend>
   {% for value, label in channels %}<label class="inline"><input type="radio" name="channel" value="{{ value }}"{% if value == channel %} checked{% endif %}> {{ label }}</label>{% endfor %}
