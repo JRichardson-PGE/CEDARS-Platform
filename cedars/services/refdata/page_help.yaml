@@ -27,6 +27,7 @@ refdata/detail:
       the kind of pack requires.
   how:
     - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.
+    - On a draft, Record the result takes a check's JSON report and keeps the result it gives (for the pack's managers).
     - On an eTRM pack, Look it up finds a permutation by its measure detail ID.
     - On a cost-test set, Download the set file gives you its YAML, the starting point for the next set. Its engine check is recorded
       when it is registered, by the engine installed here; Check it with the engine again records it anew.
@@ -50,6 +51,10 @@ refdata/detail:
     - heading: Tie-outs
       title: Tie-outs
       text: The checks this kind of pack must pass, with the latest result of each.
+    - target: "#rec-h"
+      title: Record a result
+      text: For a draft's managers, upload a check's report to record its result.
+      optional: true
     - heading: Files
       title: Files
       text: Every file with its checksum.
@@ -316,3 +321,40 @@ refdata/builder/review:
     - heading: What next
       title: What next
       text: Register, copy or discard the set.
+
+refdata/checks:
+  title: Pack acceptance checks
+  guide:
+    - The checks each kind of data pack must pass before it is published, so filings can use it, such as reconciling an ACC to its
+      published workbook. A check's result is recorded on the pack's page from the report of the script or calculation that ran it.
+    - CPUC system administrators add a check or retire one, with a reason. A check is never edited, and a published pack keeps the checks
+      it was published under.
+  how:
+    - Add a check names the kind of pack, a short name and what it shows. Drafts of that kind then need it before they are published.
+    - Retire takes a check out of use, with a reason; it stays listed under Retired checks.
+  see: reference-data
+  tour:
+    - target: main section h2
+      title: A kind of pack
+      text: Each kind of pack with the checks in force for it.
+    - target: "#add-h"
+      title: Add a check
+      text: For CPUC system administrators.
+      optional: true
+
+refdata/etrm_upload:
+  title: Upload eTRM permutations
+  guide:
+    - Load eTRM's permutations downloads (CSV) as a draft data pack of published permutations, indexed by Measure Detail ID. Claims check
+      deemed records against the published pack in force.
+    - The CPUC's system administrators load them here and publish the pack on its page once a few permutations look right.
+  how:
+    - Choose the CSV files, give the pack a version (for example the download date) and Load as a draft. The pack's page opens.
+  see: reference-data
+  tour:
+    - target: main form.stack
+      title: The upload
+      text: The downloads, the pack's label and version, and when it applies from.
+    - heading: Recent eTRM permutation packs
+      title: Recent packs
+      text: The last ten loaded, with their status.
