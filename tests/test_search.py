@@ -71,7 +71,7 @@ def test_pages_follow_the_header_roles(client, signed_in, pge_admin, cpuc_admin)
 
 def test_glossary_terms_and_pa_codes(client):
     hits = {p.key: p for p in search.search(None_user(), "tsb")}
-    assert any(h.url.endswith("/help/glossary/#tsb") for h in hits["glossary"].hits)
+    assert any(h.url.endswith("/help/glossary/#tsb") for h in hits["best"].hits)  # the term named exactly leads
     hits = {p.key: p for p in search.search(None_user(), "BAYREN")}
     assert any(h.url.endswith("#pa-codes") for h in hits["glossary"].hits)
     assert search.glossary_entries() and all(a and t and d for a, t, d in search.glossary_entries())

@@ -53,7 +53,7 @@
 <table class="list">
   <caption class="sr-only">Output files</caption>
   <thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">SHA-256</th></tr></thead>
-  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small"><code>{{ f.sha256|truncatechars:20 }}</code></td></tr>{% endfor %}</tbody>
+  <tbody>{% for f in files %}<tr><th scope="row"><a href="{% url 'calculations:run_file' run.pk f.name %}">{{ f.name }}</a></th><td class="nowrap">{{ f.bytes|filesizeformat }}</td><td class="small">{% if f.sha256 %}<code>{{ f.sha256|truncatechars:20 }}</code>{% else %}<span class="muted">none recorded</span>{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
 </section>
@@ -115,7 +115,7 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
   <dt>Output files</dt><dd>{{ run.output_format }}</dd>
   {% if run.calculation == "recet" %}<dt>Cost tests</dt><dd>{% if run.cost_tests %}{{ run.cost_tests.id }} {{ run.cost_tests.version }}{% if run.cost_tests.status == "draft" %} (draft){% elif run.cost_tests.status == "custom" %} (custom file{% if run.cost_tests.file %}: {{ run.cost_tests.file }}{% endif %}{% if run.cost_tests.build %}, from the set builder{% endif %}){% endif %}{% if run.cost_tests.sha256 %} <span class="small muted">SHA-256 {{ run.cost_tests.sha256|truncatechars:14 }}</span>{% endif %}{% elif settings_cost_test_set %}{{ settings_cost_test_set }}{% else %}The engine's default set (no cost-test set registered){% endif %}</dd>{% endif %}
   <dt>Reference data</dt><dd>{% for p in reference_packs %}{{ p.label }}{% if p.version %} {{ p.version }}{% endif %}{% if p.status == "draft" %} (draft){% endif %} <span class="small muted">fingerprint {{ p.fingerprint|truncatechars:14 }}</span>{% if not forloop.last %}<br>{% endif %}{% empty %}{% if run.calculation == "recet" %}The worker's reference folder (no data pack registered to pin){% else %}The replica's own tables{% endif %}{% endfor %}</dd>
-  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}, SHA-256 {{ f.sha256|truncatechars:20 }})</span><br>{% endfor %}
+  <dt>Inputs</dt><dd>{% for f in inputs %}<a href="{% url 'calculations:run_input' run.pk f.name %}">{{ f.filename }}</a> <span class="small muted">({{ f.name }}{% if f.sha256 %}, SHA-256 {{ f.sha256|truncatechars:20 }}{% endif %})</span><br>{% endfor %}
     {% if inputs|length > 1 %}<a href="{% url 'calculations:run_inputs_zip' run.pk %}">Download every input (.zip)</a>{% endif %}</dd>
 </dl>
 {% if input_notes %}<ul class="small">{% for n in input_notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
@@ -140,8 +140,8 @@ differences are in <a href="{% url 'calculations:run_file' run.pk cet_comparison
 <p class="small">From the engine's receipt (receipt.json in the files): the exact release, reference data and allocation table used.</p>
 <dl class="facts">
   {% if engine.release %}<dt>Engine release</dt><dd>ReCET {{ engine.release }}{% if engine.commit %} ({{ engine.commit|truncatechars:12 }}){% endif %}</dd>{% endif %}
-  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd><code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}</dd>{% endfor %}
-  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
+  {% for rel, f in packs.items %}<dt>{{ rel }}</dt><dd>{% if f.sha256 %}<code class="small">{{ f.sha256|truncatechars:20 }}</code>{% if f.version %} version {{ f.version }}{% endif %}{% elif f.version %}Version {{ f.version }} <span class="small muted">(no checksum recorded)</span>{% else %}<span class="small muted">No checksum or version recorded</span>{% endif %}</dd>{% endfor %}
+  {% if run.receipt.allocation %}<dt>Allocation table</dt><dd>{% if run.receipt.allocation.applied %}{{ run.receipt.allocation.table }}{% if run.receipt.allocation.sha256 %} <code class="small">{{ run.receipt.allocation.sha256|truncatechars:20 }}</code>{% endif %}{% else %}Not applied (the run was not allocated){% endif %}</dd>{% endif %}
 </dl>
 {% if notes %}<h3>Notes</h3><ul>{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 </section>

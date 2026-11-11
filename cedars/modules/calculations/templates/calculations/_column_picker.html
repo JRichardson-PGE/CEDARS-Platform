@@ -1,7 +1,7 @@
 {% load static %}
-{# The column picker of Results and Compare (views._picker): saved views, the two lists (field_picker.js: columns you can add on the left,
+{% comment %}The column picker of Results and Compare (views._picker): saved views, the two lists (field_picker.js: columns you can add on the left,
    the columns shown in table order on the right, sent as one comma list), Default, and Save as a view. Without scripts the two lists stay
-   hidden and Find, the tick boxes by group and Clear choose the columns instead. #}
+   hidden and Find, the tick boxes by group and Clear choose the columns instead.{% endcomment %}
 <details class="card column-picker" id="picker"{% if picker.open %} open{% endif %}>
   <summary>Choose columns ({{ picker.count }} shown{% if picker.view %}, view "{{ picker.view.name }}"{% endif %})</summary>
   {% if picker.views %}

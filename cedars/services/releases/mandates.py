@@ -114,21 +114,90 @@ def _release_note(key):
     return f"Release note: {n.title}, {n.effective_on:%Y-%m-%d}", reverse("releases:detail", args=[n.pk])
 
 
+# --- the records of each kind that can be linked, for the form's lists (UI review 3: pick the record, don't type its number)
+
+
+def _rule_set_choices():
+    from cedars.services.rules.models import RuleSet
+
+    return [(str(rs.pk), f"{rs.label}, in force from {rs.effective_from:%Y-%m-%d}") for rs in RuleSet.objects.filter(status="published")]
+
+
+def _catalog_choices():
+    from cedars.services.dictionary.models import CatalogVersion
+
+    return [(str(v.pk), v.label) for v in CatalogVersion.objects.all()]
+
+
+def _value_list_choices():
+    from cedars.services.dictionary.models import ValueListVersion
+
+    versions = ValueListVersion.objects.filter(status="published").select_related("value_list").order_by("value_list__name", "-number")
+    return [
+        (str(v.pk), f"{v.value_list.name}, version {v.number}{f', from {v.effective_from:%Y-%m-%d}' if v.effective_from else ''}")
+        for v in versions
+    ]
+
+
+def _pack_choices():
+    from cedars.services.refdata.models import PackVersion
+
+    packs = PackVersion.objects.filter(status="published").order_by("kind", "label", "-pk")
+    return [(str(p.pk), f"{p.get_kind_display()}: {p.label}{f' {p.version}' if p.version else ''}") for p in packs]
+
+
+def _release_note_choices():
+    notes = ReleaseNote.objects.filter(published_at__isnull=False).order_by("-effective_on", "-pk")
+    return [(str(n.pk), f"{n.title}, {n.effective_on:%Y-%m-%d}") for n in notes]
+
+
 @dataclass(frozen=True)
 class LinkKind:
     label: str
     key_help: str
     resolve: object  # key -> (label, url); raises MandateError
     numeric: bool = True
+    choices: object = None  # () -> [(key, label)]: the records that can be linked; None for a field, which is picked by name
+    noun: str = ""  # the record, for the form's list ("Rule set")
 
 
 LINK_KINDS = {
-    "rule_set": LinkKind("A validation rule set", "the number in the rule set's address, /rules/<number>/", _rule_set),
-    "catalog": LinkKind("A data dictionary version", "the number in the version's address on the Changes page", _catalog),
-    "value_list": LinkKind("A value list version", "the version's number from its list page's address", _value_list),
-    "field": LinkKind("A field", "the field's name, e.g. TaxCredits", _field, numeric=False),
-    "pack": LinkKind("A reference data pack (an ACC, a cost-test set)", "the number in the pack's address", _pack),
-    "release_note": LinkKind("A release note", "the number in the note's address, /releases/<number>/", _release_note),
+    "rule_set": LinkKind(
+        "A validation rule set",
+        "the number in the rule set's address, /rules/<number>/",
+        _rule_set,
+        choices=_rule_set_choices,
+        noun="Rule set",
+    ),
+    "catalog": LinkKind(
+        "A data dictionary version",
+        "the number in the version's address on the Changes page",
+        _catalog,
+        choices=_catalog_choices,
+        noun="Dictionary version",
+    ),
+    "value_list": LinkKind(
+        "A value list version",
+        "the version's number from its list page's address",
+        _value_list,
+        choices=_value_list_choices,
+        noun="Value list version",
+    ),
+    "field": LinkKind("A field", "the field's name, e.g. TaxCredits", _field, numeric=False, noun="Field"),
+    "pack": LinkKind(
+        "A reference data pack (an ACC, a cost-test set)",
+        "the number in the pack's address",
+        _pack,
+        choices=_pack_choices,
+        noun="Data pack",
+    ),
+    "release_note": LinkKind(
+        "A release note",
+        "the number in the note's address, /releases/<number>/",
+        _release_note,
+        choices=_release_note_choices,
+        noun="Release note",
+    ),
 }
 
 

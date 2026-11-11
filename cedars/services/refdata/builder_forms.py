@@ -1,6 +1,9 @@
 """The set builder's forms (refdata/builder.py does the work). Plain Django forms: every control is a native input, and a list that
 depends on another choice (the pricings a stream can be read in) is built on the server."""
 
+import re
+from dataclasses import dataclass
+
 from django import forms
 
 from cedars.core import uploads
@@ -26,6 +29,18 @@ GROSS = [
     ("same", "The same column (the values are already gross)"),
     ("column", "Computed with NTG 1, under the column name below"),
 ]
+
+
+# An input stream adds up per-unit values times NumUnits, the NTG and market effects, in dollars. Of CET's Measure columns those are the
+# Unit... columns that are not energy savings (UnitMeaCost1stBaseline, UnitMiscBens, UnitTaxCredits ...); NumUnits, the NTG ratios,
+# realization and installation rates, EUL_Yrs, RUL_Yrs and MeasInflation are counts, rates and years, and the kW, kWh and therm
+# savings are priced by the engine's own streams.
+PER_UNIT_DOLLARS = re.compile(r"^Unit(?!(kW|kWh|Therm|kWhIOUWater)(1st|2nd)Baseline$)[A-Za-z0-9_]+$")
+
+
+def adds_up(column: str) -> bool:
+    """Whether a Measure column is a per-unit dollar value an input stream can add up."""
+    return bool(PER_UNIT_DOLLARS.match(column))
 
 
 def _names(text: str) -> list[str]:
@@ -211,7 +226,10 @@ class InputStreamForm(forms.Form):
     )
     kind = forms.ChoiceField(label="It is", choices=KINDS, widget=forms.RadioSelect)
     columns = forms.MultipleChoiceField(
-        label="Measure columns it adds up", required=False, widget=forms.CheckboxSelectMultiple, help_text="Per-unit values, added up"
+        label="Measure columns it adds up",
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="CET's per-unit dollar columns; counts, rates, years and energy savings cannot be added up and are not offered",
     )
     new_columns = forms.CharField(
         label="Other Measure columns (optional)",
@@ -242,8 +260,9 @@ class InputStreamForm(forms.Form):
         help_text="Shown in the run's field definitions and on its pages, so say what the values are",
     )
 
-    def __init__(self, *args, measure_columns=(), pricings=(), **kwargs):
+    def __init__(self, *args, measure_columns=(), not_offered=(), pricings=(), **kwargs):
         super().__init__(*args, **kwargs)
+        self.not_offered = set(not_offered)  # CET's Measure columns that cannot be added up (adds_up), refused when typed in the box
         cols = [(c, c) for c in measure_columns]
         self.fields["columns"].choices = cols
         self.fields["columns_2nd"].choices = cols
@@ -258,6 +277,10 @@ class InputStreamForm(forms.Form):
         for c in d["columns"] + d["columns_2nd"]:
             if not builder.NAME.match(c):
                 self.add_error("new_columns", f"{c} is not a column name (letters, digits and _, starting with a letter).")
+            elif c in self.not_offered:
+                field = "new_columns" if c in d["columns"] else "new_columns_2nd"
+                self.add_error(field, f"{c} is a count, rate, number of years or energy saving, not a per-unit dollar value, so it "
+                               "cannot be added up.")  # fmt: skip
         g = d.get("gross") or ""
         if g == "column":
             col = (d.get("gross_column") or "").strip()
@@ -406,6 +429,97 @@ class TestForm(forms.Form):
             "filing": bool(t.get("filing", True)),
             "definition": t.get("definition", ""),
         }
+
+
+# --- problems in the form's words
+#
+# The engine names the part of the set a problem is about (`tests.TRC.costs: ...`, `label: text is required`). A person sees the form, so
+# each problem is said with the form's own label ("Name: text is required"), linked to the field, and shown beside it (UI review 3).
+
+PATH = re.compile(r"^(?P<path>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*): (?P<text>.+)$", re.S)
+# the header's keys that are not a form field of the same name
+HEADER_KEYS = {"id": ("workstream", "Id"), "program_years": ("years_from", "Program years")}
+# the keys a part's form calls something else
+PART_KEYS = {"tests": {"program_costs": "share"}}
+PART_WORDS = {"pricings": "Pricing", "streams": "Stream", "aggregates": "Aggregate", "tests": "Test"}
+
+
+@dataclass
+class Problem:
+    """One problem with the set: the step it belongs to, the part and form field it is about (as the step's form calls it), and the
+    engine's words for what is wrong."""
+
+    step: str
+    part: str = ""  # pricings, streams, aggregates, tests; "" for the set's header
+    name: str = ""  # the pricing, stream, aggregate or test
+    field: str = ""  # the form field ("" when none fits)
+    label: str = ""  # that field's label
+    text: str = ""
+
+    @property
+    def where(self) -> str:
+        """Where the problem is, as the step's page says it: "Name", "Test TRC, Costs", "Stream NEBHealth"."""
+        part = f"{PART_WORDS[self.part]} {self.name}" if self.part else ""
+        return ", ".join(x for x in (part, self.label) if x)
+
+    def __str__(self) -> str:
+        return f"{self.where}: {self.text}" if self.where else self.text
+
+
+def _form_for(step: str):
+    return {"set": HeaderForm, "pricings": PricingForm, "inputs": InputStreamForm, "aggregates": AggregateForm, "tests": TestForm}.get(step)
+
+
+def problem(message: str, data: dict) -> Problem:
+    """A validator message as the form says it. A message that names no part of the set (an unknown top-level key, say) keeps its
+    words and belongs to the set step."""
+    step = builder.step_of(message, data)
+    m = PATH.match(message.strip())
+    if not m:
+        return Problem(step=step, text=message)
+    keys, text = m["path"].split("."), m["text"]
+    if keys[0] not in PART_WORDS:  # the header
+        field, label = HEADER_KEYS.get(keys[0], (keys[0], ""))
+        if keys[0] == "program_years" and "to is before from" in text:
+            field = "years_to"
+        f = HeaderForm.base_fields.get(field)
+        if f is None:
+            return Problem(step=step, text=message)
+        return Problem(step=step, field=field, label=label or str(f.label), text=text)
+    if len(keys) < 2:
+        return Problem(step=step, text=message)
+    part, name, key = keys[0], keys[1], (keys[2] if len(keys) > 2 else "")
+    field = PART_KEYS.get(part, {}).get(key, key)
+    if step == "engine":
+        label = {"pricings": "Read in the pricings", "unit": "Unit", "definition": "Definition"}.get(key, "")
+        return Problem(step=step, part=part, name=name, field=key if label else "", label=label, text=text)
+    form = _form_for(step)
+    f = form.base_fields.get(field) if form and key else None
+    if f is None or field in ("id", "remove"):
+        return Problem(step=step, part=part, name=name, text=text if not key else f"{key}: {text}")
+    return Problem(step=step, part=part, name=name, field=field, label=str(f.label), text=text)
+
+
+def problems(build) -> dict[str, list[Problem]]:
+    """The build's problems by step, in the form's words."""
+    return {step: [problem(m, build.data) for m in msgs] for step, msgs in (build.problems or {}).items()}
+
+
+def show_beside(form, found: list[Problem], *, part: str = "", name: str = "", fields=None) -> list[Problem]:
+    """Show each problem about one of the form's fields beside that field, as the form's own errors are (bound or not), and return
+    them. `part` and `name` pick the problems of one pricing, stream, aggregate or test; `fields` limits them to some of the form's
+    fields and names the form field for each ({problem field: form field}; step 3's form has a field per stream)."""
+    to = fields if fields is not None else {f: f for f in form.fields}
+    mine = [p for p in found if p.part == part and p.name == name and to.get(p.field) in form.fields]
+    if not mine:
+        return []
+    form.errors  # noqa: B018 - makes the error list (an unbound form has an empty one)
+    if not hasattr(form, "cleaned_data"):
+        form.cleaned_data = {}
+    for p in mine:
+        if p.text not in form.errors.get(to[p.field], []):
+            form.add_error(to[p.field], p.text)
+    return mine
 
 
 class OfferForm(forms.Form):

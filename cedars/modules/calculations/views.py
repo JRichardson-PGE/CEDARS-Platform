@@ -37,11 +37,14 @@ STAGES = {
 
 
 def duration(seconds) -> str:
+    """A length of time in words: "under a second", "under a minute", "about 3 min", "about 1.5 h"."""
     if seconds is None:
         return ""
+    if seconds < 1:
+        return "under a second"
     seconds = int(seconds)
     if seconds < 60:
-        return "under a minute" if seconds > 0 else "now"
+        return "under a minute"
     minutes = round(seconds / 60)
     if minutes < 90:
         return f"about {minutes} min"
@@ -78,7 +81,7 @@ def status_view(run: Run) -> dict:
             parts.append(f"done in {duration(est['done_in'])} (estimated)")
         out["text"] = ", ".join(parts) + "."
     elif run.status == Run.Status.SUCCEEDED:
-        out["text"] = f"Finished in {duration(run.seconds)}." if run.seconds else "Finished."
+        out["text"] = f"Finished in {duration(run.seconds)}." if run.seconds is not None else "Finished."
     elif run.status == Run.Status.CANCELLED:
         out["text"] = "Stopped."
     elif run.status == Run.Status.REFUSED:
@@ -849,10 +852,7 @@ def walkthrough(request, pk):
     run_readable = service.can_read(request.user, run)
     filings = [
         {
-            "label": " ".join(
-                str(x) for x in (v.submission.organisation.code, v.submission.deadline.title, v.submission.deadline.period or "") if x
-            )
-            + f", version {v.number}",
+            "label": f"{v.submission.plain_name}, version {v.number}",
             "href": submissions.version_page(v),
         }
         for v in submissions.versions_priced_by(request.user, run.pk)
