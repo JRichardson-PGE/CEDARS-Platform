@@ -242,6 +242,9 @@ programs/fields:
     - >-
       A field with a list of values says which ones are offered and how many programs carry each. A retired value stays on the versions
       that have it and is no longer offered to other programs; values on record that the list lacks are named under the table.
+    - >-
+      Status, segment, primary sector, implementer and category take their values from value lists that CPUC system administrators
+      keep on the data dictionary's Value lists pages, in versions with the date each takes effect; each field links to its list.
   how:
     - Pick a field under Fields to go to it. Each field's name on a program's page links here too.
     - A locked field says so; a change to it goes to a CPUC programs approver as a request.

@@ -138,6 +138,7 @@ PAGES = [
     ("value-lists", "/dictionary/lists/", None),
     ("value-list", "/dictionary/lists/sector/", None),
     ("value-list-admin", "/dictionary/lists/sector/?year=2018", "cpuc_admin"),
+    ("value-list-program", "/dictionary/lists/program_status/", "cpuc_admin"),  # a list the registry keeps, engine or not
     ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
     ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),

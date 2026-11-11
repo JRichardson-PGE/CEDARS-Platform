@@ -12,7 +12,8 @@
 #   guidance:    paragraphs on how to fill it in
 #   values:      the valid values, each {code, label, meaning}; a value no longer offered also has `retired_from` (a date): it stays on the
 #                versions that have it, is offered on the change form only to a program that already has it, and is listed as retired.
-#                Retire a value here, never delete it.
+#                These are the first version of the field's value list (field_guide.VALUE_LISTS): once a CPUC system administrator
+#                publishes a version on the data dictionary's Value lists pages, that version's codes are the values. Never delete one.
 #   values_note: for a field without a fixed list, what a valid value looks like
 #   set_by:      who sets it when it is not changed on the change form ("import": CEDARS' Programs list; "added": whoever adds the
 #                program, on Add a program)

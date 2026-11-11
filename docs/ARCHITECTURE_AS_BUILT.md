@@ -305,6 +305,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_concerns` | notifications | budgets (fund shifts), documents, releases | The same for a module's own records |
 | `register_purger` | retention | calculations, data, feedback, notifications, submissions | Find and delete expired records of a class |
 | `register_checker` | rules (`precheck.py`) | budgets, claims | The pre-upload checker runs the module's own rule-set step |
+| `register_list` | dictionary `value_lists.py` | registry (a service) | A list a service keeps as a versioned value list, never handed to the engine: a program's status, segment, primary sector, implementer and category (first version from the program fields guide, read back by `field_guide.values`) |
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
@@ -1088,7 +1089,7 @@ unit, source, cost-test treatment, time basis, aggregation, rounding and years i
 `manage.py load_dictionary data/dictionary/recet-<version>.json` publishes it as a `CatalogVersion` with `Field`, `Alias` and
 `Usage` rows, plus the platform's own records (every column of the tables listed in `dictionary/platform.py`, kind `record`) unless
 `--engine-only`. The canonical names are ReCET's (decision L); CET and legacy CEDARS names are accepted on upload through the aliases.
-Value lists and their versions are handed to the engine before the rules or Edit inputs read them (`value_lists.apply_to_engine`).
+Value lists and their versions are handed to the engine before the rules or Edit inputs read them (`value_lists.apply_to_engine`). The program registry's own lists (`register_list`) are not.
 
 ### 10.3 A run, end to end
 
