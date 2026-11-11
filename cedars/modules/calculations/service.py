@@ -552,7 +552,9 @@ def waiting_runs(user) -> int:
 def check_waiting_runs(user) -> None:
     """Refuses a new run when the person already has as many waiting or running as one account may (the queued_runs limit, which a
     CPUC system administrator sets). The person's row is locked first, so two runs sent at once are counted one after the other."""
-    type(user).objects.select_for_update().filter(pk=user.pk).values_list("pk", flat=True).first()
+    from django.contrib.auth import get_user_model
+
+    get_user_model().objects.select_for_update().filter(pk=user.pk).values_list("pk", flat=True).first()
     most, now = limits.value("queued_runs"), waiting_runs(user)
     if now >= most:
         raise AccessDenied(

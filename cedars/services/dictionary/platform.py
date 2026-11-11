@@ -124,6 +124,7 @@ TABLES: dict[str, str] = {
     # releases, the register of mandated changes, retention
     "releases.ReleaseNote": PUBLIC,
     "releases.Change": PUBLIC,
+    "releases.LimitChange": PUBLIC,
     "releases.Mandate": PUBLIC,
     "releases.MandateLink": PUBLIC,
     "retention.RetentionPolicy": PUBLIC,

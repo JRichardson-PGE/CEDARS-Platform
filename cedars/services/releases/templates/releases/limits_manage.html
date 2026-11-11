@@ -47,10 +47,10 @@ people will notice in the <a href="{% url 'releases:manage' %}">release notes</a
   <thead><tr><th scope="col">When</th><th scope="col">Limit</th><th scope="col">Set to</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
   <tbody>
   {% for change, lim in history %}<tr>
-    <td>{{ change.changed_at|date:"Y-m-d H:i" }}</td>
+    <td>{{ change.changed_at|datetime_words }}</td>
     <th scope="row">{% if lim %}{{ lim.label }}{% else %}{{ change.key }}{% endif %}</th>
     <td>{% if change.value is None %}The default{% else %}{{ change.value }} {{ lim.unit }}{% endif %}</td>
-    <td>{{ change.changed_by.email|default:"Unknown" }}</td>
+    <td>{{ change.changed_by|person }}</td>
     <td>{{ change.reason }}</td>
   </tr>{% endfor %}
   </tbody>
