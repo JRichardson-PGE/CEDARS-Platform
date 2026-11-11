@@ -33,6 +33,7 @@ from cedars.services.refdata import service as refdata
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion
+from cedars.services.releases import limits
 from cedars.services.submissions.service import PricingUnavailable
 
 from . import jobfiles, jobspec
@@ -543,6 +544,25 @@ def pack_files(packs, acc: str) -> dict:
     return files
 
 
+def waiting_runs(user) -> int:
+    """The runs a person started that are waiting or running, a filing's pricing runs left out."""
+    return Run.objects.filter(owner=user, status__in=[Run.Status.QUEUED, Run.Status.RUNNING], submission_version__isnull=True).count()
+
+
+def check_waiting_runs(user) -> None:
+    """Refuses a new run when the person already has as many waiting or running as one account may (the queued_runs limit, which a
+    CPUC system administrator sets). The person's row is locked first, so two runs sent at once are counted one after the other."""
+    from django.contrib.auth import get_user_model
+
+    get_user_model().objects.select_for_update().filter(pk=user.pk).values_list("pk", flat=True).first()
+    most, now = limits.value("queued_runs"), waiting_runs(user)
+    if now >= most:
+        raise AccessDenied(
+            f"You have {now:,} run{'s' if now != 1 else ''} waiting or running; one account may have at most {most:,} at once "
+            "(see Limits, /limits/). Start this one when one of yours finishes, or stop one you no longer need."
+        )
+
+
 @transaction.atomic
 def create_run(
     actor, organisation, req: RunRequest, job_zip: Path, *, submission_version=None, backend: str | None = None, job_name: str = ""
@@ -555,6 +575,8 @@ def create_run(
     # a filing's run: the submissions service has checked <module>.submit
     if submission_version is None and not can_submit(actor, organisation):
         raise AccessDenied(f"You need calculations.submit in {organisation.code} to start a run for it.")
+    if submission_version is None:
+        check_waiting_runs(actor)
     if not req.name.strip():
         req = replace(req, name=run_name(job_name, req.acc_version))
     st = _check(req)

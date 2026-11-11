@@ -682,59 +682,88 @@ ul.front-roles li { margin: 0; padding-left: .8rem; border-left: 3px solid var(-
 .faq { border-top: 1px solid var(--line-2); margin-top: 1rem; max-width: 72ch; }
 .faq .example { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .6rem 1rem; margin: .5rem 0 .75rem; }
 .faq .example table caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
-.front-cycle > .head-row { align-items: flex-end; }
-.cycle-pick { display: flex; gap: .5rem; align-items: flex-end; flex-wrap: wrap; margin: 0; }
-/* Seven compact cards, each with a gauge or a large ratio in its place (Jake, 2026-11-03): all in one row on a wide screen; between, four then three (a 12-column
-   grid, 3 + 3 + 3 + 3 and 4 + 4 + 4); on a phone one per row with the gauge beside its numbers; at 320 px the gauge above them. */
-.front-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; margin: .75rem 0 .5rem; }
-.front-card { margin: 0; padding: .7rem .85rem; display: flex; flex-direction: column; position: relative; min-width: 0; }
-.front-card.has-gauge { display: grid; grid-template-columns: minmax(6.5rem, 8rem) minmax(0, 1fr); gap: 0 .9rem; align-items: center; }
-.front-card.has-gauge > h3 { grid-column: 1 / -1; }
-@media (max-width: 22rem) { .front-card.has-gauge { display: flex; align-items: stretch; } }
-@media (min-width: 48rem) {
-  .front-cards { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-  .front-card { grid-column: span 3; }
-  .front-card:nth-child(n+5) { grid-column: span 4; }
-  .front-card.has-gauge { display: flex; align-items: stretch; }
+/* Portfolio trends (data/front.py, Jake 2026-11-11): metric and PA-type switches, a tile per metric, then four charts drawn on the
+   server as SVG. Colours: the chosen series --chart-claims (8.3:1 light, 5.8:1 dark on the surface); the second series of the indexed
+   chart --chart-second, dashed as well so the two differ by more than colour (5.0:1 light, 8.0:1 dark). Text in the charts uses the
+   text tokens, never a series colour. */
+:root { --chart-second: #b45309; }
+@media (prefers-color-scheme: dark) { :root { --chart-second: #f0a04b; } }
+.front-trends > .head-row { align-items: baseline; }
+.trend-controls { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; align-items: flex-end; margin: .5rem 0 .75rem; }
+.trend-controls .seg { display: flex; flex-direction: column; gap: .2rem; min-width: 0; }
+.seg-label { font-size: .86rem; color: var(--fg-2); }
+ul.seg-nav { display: flex; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; border: 1px solid var(--control); border-radius: var(--r); overflow: hidden; }
+ul.seg-nav li { margin: 0; border-left: 1px solid var(--control); }
+ul.seg-nav li:first-child { border-left: 0; }
+ul.seg-nav a { display: block; padding: .45rem .85rem; min-height: 24px; color: var(--fg); text-decoration: none; font-size: .92rem; font-weight: 500; }
+ul.seg-nav a:hover { text-decoration: underline; }
+ul.seg-nav a[aria-current] { background: var(--primary); color: var(--primary-fg); }
+ul.seg-nav a:focus-visible { outline-offset: -3px; }
+.trend-year { display: flex; gap: .5rem; align-items: center; margin: 0; }
+.trend-year label { font-size: .86rem; color: var(--fg-2); }
+.trend-year select { font: inherit; padding: .4rem .5rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg); }
+ul.trend-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11.5rem), 1fr)); gap: .75rem; list-style: none; margin: 0 0 1rem; padding: 0; }
+.trend-tile { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .65rem .85rem .45rem; min-width: 0; }
+.trend-tile:hover { border-color: var(--control); }
+.trend-tile.on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.trend-tile > a { font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--link); text-decoration: none; }
+.trend-tile > a::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-lg); }   /* the tile is the target */
+.trend-tile > a:hover { text-decoration: underline; }
+.trend-tile > a:focus-visible { outline: none; }
+.trend-tile > a:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
+.trend-tile .n { font-size: 1.5rem; font-weight: 700; line-height: 1.15; margin: .15rem 0 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.trend-tile .u { font-size: .8rem; font-weight: 500; color: var(--fg-2); }
+.chg { font-size: .86rem; font-weight: 500; margin: .1rem 0 0; min-height: 1.3em; }
+.chg.up { color: var(--ok); } .chg.down { color: var(--bad); } .chg.same, .chg.none { color: var(--fg-2); }
+svg.spark { display: block; width: 100%; height: 44px; margin-top: .25rem; }
+svg.spark .area { fill: var(--chart-claims); fill-opacity: .14; }
+svg.spark .line { fill: none; stroke: var(--chart-claims); stroke-width: 2; }
+svg.spark circle { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; margin-bottom: 1rem; }
+@media (min-width: 64rem) {
+  .trend-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .trend-grid > .trend-panel:nth-child(3) { grid-column: 1 / 2; }
 }
-@media (min-width: 84rem) {
-  .front-cards { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-  .front-card, .front-card:nth-child(n+5) { grid-column: auto; }
-}
-.front-card:not(.has-gauge) > .figures { margin-top: auto; }   /* a card without a gauge: its numbers at the foot, in line with the others' */
-.front-card h3 { margin: 0 0 .4rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; line-height: 1.3; text-wrap: balance; min-height: 2.1rem; }
-.front-card .card-scope { display: block; font-size: .78rem; font-weight: 500; text-transform: none; letter-spacing: normal; color: var(--fg-2); }   /* what the card counts: "Codes and standards only" */
-/* The title's link covers the card: the whole card is the target, and the focus ring is drawn round the card */
-.front-card a.card-title { color: var(--link); text-decoration: none; }
-.front-card a.card-title::after { content: ""; position: absolute; inset: 0; border-radius: var(--r-lg); }
-.front-card a.card-title:hover, .front-card a.card-title:focus-visible { text-decoration: underline; }
-.front-card a.card-title:focus-visible { outline: none; }
-.front-card a.card-title:focus-visible::after { outline: 3px solid var(--focus); outline-offset: 2px; }
-.front-card:hover { border-color: var(--control); }
-dl.figures { margin: 0; display: grid; gap: .3rem; min-width: 0; }
-dl.figures .figure { min-width: 0; }
-dl.figures dt { font-size: .8rem; color: var(--fg-2); }
-dl.figures dd { margin: 0; font-size: 1rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-dl.figures .lead dd { font-size: clamp(1.25rem, 1rem + .6vw, 1.55rem); line-height: 1.15; }
-dl.figures .unit { font-size: .8rem; font-weight: 600; color: var(--fg-2); }
-dl.figures .detail { display: block; font-size: .8rem; font-weight: 400; color: var(--fg-2); }
-/* The gauge: a half circle filled to the percent, which is written inside it and named under it (the drawing is aria-hidden).
-   Fill (--link) 3:1 on the card and on the track in both schemes (primary is 2.8:1 on the dark track); the track has a --control
-   edge (3:1) so its extent, the 100% mark, shows too. */
-.gauge { display: grid; justify-items: center; margin: 0 0 .35rem; min-width: 0; }
-.gauge svg { grid-area: 1 / 1; width: 100%; max-width: 8rem; height: auto; display: block; }
-.gauge-edge, .gauge-track, .gauge-fill { fill: none; stroke-linecap: butt; }
-.gauge-edge { stroke: var(--control); stroke-width: 14; }
-.gauge-track { stroke: var(--surface-2); stroke-width: 12; }
-.gauge-fill { stroke: var(--link); stroke-width: 12; }
-@media (forced-colors: active) { .gauge-edge { stroke: CanvasText; } .gauge-track { stroke: Canvas; } .gauge-fill { stroke: Highlight; } }
-.gauge-text { display: contents; }
-.gauge-pct { grid-area: 1 / 1; align-self: end; font-size: 1.3rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.gauge-of { font-size: .8rem; color: var(--fg-2); text-align: center; margin-top: .25rem; }
-/* A ratio in the gauge's place: no drawing (Jake: a ratio is a threshold measurement, it does not fill up), the number large in a box
-   the gauge's height and, under it, where it stands against 1 in words */
-.gauge-number { grid-template-rows: minmax(4.25rem, auto) auto; }
-.gauge-number .gauge-pct { grid-area: 1 / 1; font-size: 2.6rem; line-height: 1; padding-bottom: .1rem; }
+.trend-panel { position: relative; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: .9rem 1.1rem; min-width: 0; }
+.trend-panel h3 { margin: 0 0 .15rem; }
+.trend-panel .sub { margin: 0 0 .6rem; font-size: .86rem; color: var(--fg-2); max-width: 70ch; }
+.trend-panel .more { font-size: .88rem; margin: .5rem 0 0; }
+ul.pa-links { display: flex; flex-wrap: wrap; gap: .25rem 1rem; list-style: none; padding: 0; }
+ul.trend-legend { display: flex; flex-wrap: wrap; gap: .3rem 1.1rem; list-style: none; padding: 0; margin: 0 0 .4rem; font-size: .88rem; }
+.trend-plot { position: relative; }
+.trend-plot:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--r); }
+.trend-plot.recent { display: none; }
+@media (max-width: 40rem) { .trend-plot.has-recent { display: none; } .trend-plot.recent { display: block; } }
+svg.trend-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.trend-svg text { fill: var(--fg-2); font: 12px var(--sans); }
+.trend-svg text.val { fill: var(--fg); font-weight: 600; }
+.trend-svg text.label { fill: var(--fg); }
+.trend-svg .grid { stroke: var(--line-2); }
+.trend-svg .axis { stroke: var(--control); }
+.trend-svg .band { fill: var(--surface-2); }
+.trend-svg .missing { fill: var(--surface-2); fill-opacity: .7; }
+.trend-svg .ref { stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.trend-svg .col { fill: var(--chart-claims); }
+.trend-svg .col.chosen { fill: var(--primary-hover); }
+.trend-svg .col.negative { fill: var(--bad); fill-opacity: .6; }
+.trend-svg .chg { font-size: 12px; font-weight: 600; }
+.trend-svg .chg.up { fill: var(--ok); } .trend-svg .chg.down { fill: var(--bad); } .trend-svg .chg.same { fill: var(--fg-2); }
+.trend-svg .hit { fill: transparent; }
+.trend-svg .pt.active .hit { fill: var(--fg); fill-opacity: .06; }
+.line-a { fill: none; stroke: var(--chart-claims); stroke-width: 2.5; }
+.line-b { fill: none; stroke: var(--chart-second); stroke-width: 2.5; stroke-dasharray: 7 4; }
+.trend-svg .dot-a { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+.trend-svg .dot-b { fill: var(--chart-second); stroke: var(--surface); stroke-width: 2; }
+.trend-svg .span { stroke: var(--control); stroke-width: 3; }
+.trend-svg .dot-start { fill: var(--surface); stroke: var(--fg-2); stroke-width: 2; }
+.trend-svg .dot-end { fill: var(--chart-claims); stroke: var(--surface); stroke-width: 2; }
+@media (forced-colors: active) { .trend-svg .col, .trend-svg .dot-end, .trend-svg .dot-a { fill: Highlight; } .line-a { stroke: Highlight; } .line-b { stroke: CanvasText; } }
+.trend-tip { position: absolute; z-index: 5; top: 0; background: var(--surface); color: var(--fg); border: 1px solid var(--control); border-radius: var(--r);
+  padding: .4rem .6rem; font-size: .86rem; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); max-width: min(22rem, 100%); pointer-events: auto; margin: 0; }
+.trend-hint { font-size: .82rem; color: var(--fg-2); margin: .25rem 0 0; }
+details.trend-table { margin-top: .5rem; font-size: .9rem; }
+details.trend-table summary { cursor: pointer; color: var(--link); min-height: 24px; }
+details.trend-table table { margin-top: .4rem; }
 ul.front-notes { margin: 0 0 1rem; padding-left: 1.1rem; font-size: .85rem; color: var(--fg-2); }
 ul.front-notes li { margin: .1rem 0; }
 .front-help .card h3 { margin-top: 0; }
@@ -750,7 +779,7 @@ ol.tour-list h2, ol.tour-list h3 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
 
 /* ---------- The guided tour (core/tour.js): a modal dialog beside the part of the page a step describes ---------- */
 /* The step's part keeps the page's own colors with a focus-colored outline, and the rest of the page is dimmed behind it by a wide shadow.
-   The backdrop itself is clear, so the part shows through; in forced-colors mode the shadow drops and the outline stays. */
+   The backdrop itself is clear, so the part shows through the spotlight below; in forced-colors mode the shadow drops and the outline stays. */
 dialog.tour { position: fixed; inset: auto 1rem 1rem auto; margin: 0; width: min(26rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto;
   background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1rem 1.15rem;
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
@@ -763,8 +792,12 @@ dialog.tour .tour-count { display: block; font-size: .78rem; font-weight: 600; c
 dialog.tour p { margin: .3rem 0 .7rem; }
 .tour-actions { margin: .5rem 0 0; }
 .tour-actions [data-tour-close] { margin-left: auto; }
-.tour-target { position: relative; z-index: 5; outline: 3px solid var(--focus); outline-offset: 4px; border-radius: var(--r);
-  box-shadow: 0 0 0 4px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+/* The spotlight (one box laid over the step's part, so no scrolling box around the part cuts it off and the sticky header is dimmed too):
+   a focus-colored outline round the part, a ring of the page's surface inside it, and a wide shadow dimming the rest of the page. It sits
+   under the tour dialog (which is in the top layer) and never takes a click. */
+.tour-spot { position: fixed; z-index: 30; pointer-events: none; border-radius: var(--r); outline: 3px solid var(--focus); outline-offset: 0;
+  box-shadow: inset 0 0 0 2px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+.tour-spot[hidden] { display: none; }
 @media (max-width: 480px) { dialog.tour, dialog.tour.tour-top { inset: auto .5rem .5rem .5rem; width: auto; } dialog.tour.tour-top { inset: .5rem .5rem auto .5rem; } }
 
 /* ---------- Page help (cedars/core/page_help.py): the (?) beside each page's heading and the guide it opens ---------- */

@@ -1,10 +1,13 @@
+import tempfile
+from pathlib import Path
+
 from django import forms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
-from cedars.core import storage
+from cedars.core import storage, uploads
 from cedars.services.accounts.service import AccessDenied
 
 from . import cost_tests, etrm, service
@@ -22,7 +25,13 @@ def index(request):
     return render(
         request,
         "refdata/index.html",
-        {"packs": packs, "kinds": PackVersion.Kind.choices, "kind": kind, "in_force": [(label, p) for label, p in in_force if p]},
+        {
+            "packs": packs,
+            "kinds": PackVersion.Kind.choices,
+            "kind": kind,
+            "in_force": [(label, p) for label, p in in_force if p],
+            "can_load_etrm": service.can_manage(request.user, etrm.KIND),
+        },
     )
 
 
@@ -58,7 +67,8 @@ def detail(request, pk):
     latest = {}
     for t in pack.tie_outs.order_by("recorded_at", "id"):
         latest[t.name] = t
-    requirements = [(r, latest.get(r.name)) for r in TieOutRequirement.objects.filter(kind=pack.kind).order_by("name")]
+    required = service.required_checks(pack)
+    requirements = [(r, latest.get(r.name)) for r in required]
     ctx = {}
     if pack.kind == etrm.KIND:
         ctx = _permutation(pack, request.GET.get("id", "").strip())
@@ -83,6 +93,7 @@ def detail(request, pk):
             "files": sorted(pack.manifest.items())[:200],
             "requirements": requirements,
             "outstanding": service.outstanding(pack),
+            "report_form": ReportForm(checks=required) if manager and required and pack.status == PackVersion.Status.DRAFT else None,
             "tie_outs": pack.tie_outs.select_related("recorded_by"),
             **ctx,
         },
@@ -164,3 +175,150 @@ def cost_test_sets(request):
     offered = list(builder.offered()) if builder.is_manager(request.user) else None
     ctx = {"rows": rows, "form": form, "in_force": in_force, "builds": builds, "offered": offered}
     return render(request, "refdata/cost_tests.html", ctx)
+
+
+# --- the acceptance checks each kind of pack needs, and recording a check's result
+
+
+class CheckForm(forms.Form):
+    kind = forms.ChoiceField(label="Kind of pack", choices=PackVersion.Kind.choices)
+    name = forms.CharField(
+        label="Check name", max_length=40, help_text="Lower-case letters, digits and underscores, e.g. source_workbook. Never reused."
+    )
+    description = forms.CharField(label="What it shows", widget=forms.Textarea(attrs={"rows": 2}))
+    reason = forms.CharField(label="Reason for adding it", max_length=500)
+
+
+@login_required
+def checks(request):
+    """The acceptance checks each kind of pack must pass before it is published. CPUC system administrators add a check or retire one;
+    a check is never edited, and a published pack keeps the checks it was published under."""
+    manager = service.can_manage_checks(request.user)
+    form = CheckForm(request.POST or None) if manager else None
+    if request.method == "POST" and manager and form.is_valid():
+        d = form.cleaned_data
+        try:
+            r = service.add_requirement(request.user, kind=d["kind"], name=d["name"], description=d["description"], reason=d["reason"])
+        except AccessDenied as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, f"Check {r.name} added. Drafts of that kind need it before they are published.")
+            return redirect("refdata:checks")
+    rows = TieOutRequirement.objects.select_related("added_by", "retired_by").order_by("kind", "retired_at", "name")
+    by_kind = []
+    for code, label in PackVersion.Kind.choices:
+        mine = [r for r in rows if r.kind == code]
+        by_kind.append((code, label, [r for r in mine if r.active], [r for r in mine if not r.active]))
+    return render(request, "refdata/checks.html", {"by_kind": by_kind, "form": form, "manager": manager})
+
+
+@login_required
+def retire_check(request, pk):
+    r = get_object_or_404(TieOutRequirement, pk=pk)
+    if request.method != "POST":
+        return redirect("refdata:checks")
+    try:
+        service.retire_requirement(request.user, r, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, f"Check {r.name} retired. Drafts no longer need it; published packs keep it with their results.")
+    return redirect("refdata:checks")
+
+
+class ReportForm(forms.Form):
+    check = forms.ChoiceField(label="Check")
+    report = forms.FileField(
+        label="The check's report (JSON)",
+        validators=[uploads.check_size],
+        help_text=uploads.limit_text(
+            'The JSON a reconciliation script or the engine\'s tie-out writes: "passed" (true or false) or "status" ("PASS" or "FAIL"), '
+            "with its details.",
+            False,
+        ),
+    )
+
+    def __init__(self, *args, checks=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["check"].choices = [(r.name, r.name) for r in checks]
+
+
+@login_required
+def record_check(request, pk):
+    pack = get_object_or_404(PackVersion, pk=pk)
+    if request.method != "POST" or not service.can_manage(request.user, pack.kind):
+        return redirect("refdata:detail", pk=pack.pk)
+    form = ReportForm(request.POST, request.FILES, checks=service.required_checks(pack))
+    if not form.is_valid():
+        for errors in form.errors.values():
+            for e in errors:
+                messages.error(request, e)
+        return redirect("refdata:detail", pk=pack.pk)
+    f = form.cleaned_data["report"]
+    try:
+        t = service.record_report(request.user, pack, check=form.cleaned_data["check"], data=f.read(), file_name=f.name)
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        (messages.success if t.passed else messages.error)(request, f"{t.name} recorded as {'passed' if t.passed else 'failed'}.")
+    return redirect("refdata:detail", pk=pack.pk)
+
+
+# --- uploading an eTRM permutations download
+
+
+class EtrmUploadForm(forms.Form):
+    files = uploads.MultipleFileField(
+        label="eTRM permutations downloads (CSV)", help_text="One or more CSV files as eTRM's permutations download writes them."
+    )
+    label = forms.CharField(label="Label", max_length=120, initial="eTRM published permutations")
+    version = forms.CharField(label="Version", max_length=60, help_text="e.g. the download date, 2026-11-10")
+    valid_from = forms.DateField(
+        label="In force from (optional)",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="The first claim date the pack applies to, once published.",
+    )
+    source = forms.CharField(label="Where it came from (optional)", max_length=200, required=False)
+
+    def clean_files(self):
+        files = self.cleaned_data["files"]
+        for f in files:
+            if not f.name.lower().endswith((".csv", ".txt")):
+                raise forms.ValidationError(f"{f.name} is not a CSV file.")
+        return files
+
+
+@login_required
+def etrm_upload(request):
+    """Load eTRM permutations downloads as a draft pack (the load_etrm_permutations command, from the page). The ACC and profile-library
+    packs stay registered from storage by command: they are gigabytes and are already stored where the workers read them."""
+    if not service.can_manage(request.user, etrm.KIND):
+        raise Http404
+    form = EtrmUploadForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        d = form.cleaned_data
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = []
+            for f in d["files"]:
+                path = Path(tmp) / Path(f.name).name
+                with path.open("wb") as out:
+                    for chunk in f.chunks():
+                        out.write(chunk)
+                paths.append(path)
+            try:
+                pack = etrm.load(
+                    request.user,
+                    paths,
+                    label=d["label"].strip(),
+                    version=d["version"].strip(),
+                    valid_from=d["valid_from"],
+                    source=d["source"].strip(),
+                )
+            except (etrm.EtrmError, AccessDenied) as e:
+                form.add_error(None, str(e))
+            else:
+                messages.success(request, f"{pack} loaded as a draft: {pack.notes}. Look up a permutation, then publish it.")
+                return redirect("refdata:detail", pk=pack.pk)
+    latest = PackVersion.objects.filter(kind=etrm.KIND).order_by("-registered_at")[:10]
+    return render(request, "refdata/etrm_upload.html", {"form": form, "packs": latest})

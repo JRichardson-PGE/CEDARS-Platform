@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Upload eTRM permutations{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:index' %}">Data packs</a></li></ol></nav>
+<div class="page-title"><h1>Upload eTRM permutations</h1>{% page_help "refdata/etrm_upload" %}</div>
+<p>Load eTRM's permutations downloads as a draft data pack of published permutations, indexed by Measure Detail ID. Claims check
+deemed records against the published pack in force, so look up a few permutations on the new pack's page, then publish it there.</p>
+<p class="small muted">The avoided-cost and impact-profile library packs are not uploaded here: they are gigabytes, and they are
+registered from where they are already stored.</p>
+
+<form method="post" enctype="multipart/form-data" class="stack form-narrow">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  {% before_upload guide="reference-data#etrm-permutations" guide_label="the guide to eTRM permutation packs" rules_note="each row needs a Measure Detail ID; a repeated one keeps its first row" %}
+  <div class="actions"><button type="submit" class="primary">Load as a draft</button></div>
+</form>
+
+<h2>Recent eTRM permutation packs</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="Recent eTRM permutation packs">
+<table class="list">
+  <caption class="sr-only">The last ten eTRM permutation packs, newest first</caption>
+  <thead><tr><th scope="col">Pack</th><th scope="col">Status</th><th scope="col">Permutations</th><th scope="col">Registered</th></tr></thead>
+  <tbody>
+  {% for p in packs %}<tr><th scope="row"><a href="{% url 'refdata:detail' p.pk %}">{{ p }}</a></th><td><span class="status {{ p.status|status_tone }}">{{ p.get_status_display }}</span></td><td>{{ p.notes }}</td><td>{{ p.registered_at|date_words }}</td></tr>
+  {% empty %}<tr><td colspan="4">None yet.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

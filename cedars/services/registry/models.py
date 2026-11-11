@@ -68,7 +68,9 @@ class Program(models.Model):
 
 class ProgramVersion(models.Model):
     """A program's attributes from valid_from to valid_to (inclusive; open-ended when valid_to is blank). Versions never overlap and are
-    never edited: a change closes the current version and starts a new one, possibly on a future date."""
+    never edited by a change: a change closes the current version and starts a new one, possibly on a future date. A value entered wrongly
+    (an imported program's sector, a typo) is corrected in place by a CPUC system administrator or programs approver, with a reason, as an
+    audit event that keeps the old values (service.correct_version); filed and published results keep the values as filed."""
 
     program = models.ForeignKey(Program, on_delete=models.PROTECT, related_name="versions")
     valid_from = models.DateField()
@@ -96,6 +98,12 @@ class ProgramVersion(models.Model):
     reason = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
+    corrected_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When its values were last corrected (service.correct_version); the audit trail keeps what they were",
+    )
+    corrected_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
 
     class Meta:
         ordering = ["program__prg_id", "valid_from"]
@@ -259,8 +267,9 @@ class ProgramChangePolicy(models.Model):
 
 
 class ProgramChangeRequest(models.Model):
-    """A requested change to a program that touches a locked attribute. Approving it starts the new version, as a change by
-    the program's administrators would; declining or withdrawing it changes nothing. Requests are kept, decided or not."""
+    """A requested change to a program that touches a locked attribute, or a requested correction of one of its versions (`corrects`).
+    Approving a change starts the new version, as a change by the program's administrators would; approving a correction corrects the
+    version's values. Declining or withdrawing either changes nothing. Requests are kept, decided or not."""
 
     class Status(models.TextChoices):
         PENDING = "pending", "Waiting for a decision"
@@ -282,6 +291,14 @@ class ProgramChangeRequest(models.Model):
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_note = models.TextField(blank=True)
     version = models.ForeignKey(ProgramVersion, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    corrects = models.ForeignKey(
+        ProgramVersion,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="correction_requests",
+        help_text="A correction of this version's values instead of a new version (blank: a change from `effective`)",
+    )
 
     class Meta:
         ordering = ["-requested_at"]

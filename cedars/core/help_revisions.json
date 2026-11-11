@@ -1,7 +1,7 @@
 {
   "faq": {
     "release": "0.2.0",
-    "sha256": "f3415d173065200762d4f3363393e0cde493479bc19aa7bf16a60811c34454c7"
+    "sha256": "226658bb3b39689df168445ba76e0e1a4fbac85e71bb7210f4f2753540809425"
   },
   "guide:accessibility": {
     "release": "0.2.0",
@@ -41,7 +41,7 @@
   },
   "guide:impact-profiles": {
     "release": "0.2.0",
-    "sha256": "20fb4a20e83e068b779a9848f47b398f6f91183770f2458143f4d05db506d673"
+    "sha256": "d79e83cb614782ec15f593f2b46bcbb3ab5f869dc0f92b32d6c393eb36ffe259"
   },
   "guide:monthly-reports": {
     "release": "0.2.0",
@@ -49,7 +49,7 @@
   },
   "guide:programs": {
     "release": "0.2.0",
-    "sha256": "bee071428e854f2d2972d87dd0f26abe7cad298d83cc948acb3112749bde5a14"
+    "sha256": "502975e1e91a70ab89dd5b018c8520e295f301a6187a339398c7d2b53d3c07e4"
   },
   "guide:published-data": {
     "release": "0.2.0",
@@ -57,7 +57,7 @@
   },
   "guide:reference-data": {
     "release": "0.2.0",
-    "sha256": "48fab619a49df176a6ac171e1f930908a11e0d1b89fbfcbea8ab685c906c95dd"
+    "sha256": "9bf23b0665ed01874f649a4b82fab3865c0035bd8c87160d23e37b750727b042"
   },
   "guide:releases": {
     "release": "0.2.0",

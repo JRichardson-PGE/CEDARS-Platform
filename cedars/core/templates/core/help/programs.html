@@ -8,6 +8,20 @@
   <a href="{% url 'programs:locked' %}">locked attribute</a> needs a CPUC programs approver's decision.</li>
   <li>To add a document about it, choose <strong>Add a document</strong> on its page: the program is filled in for you.</li>
 </ol>
+<h2>Adding a program</h2>
+<p>A PA's administrators add their PA's programs with <strong>Add a program</strong> in the program catalog; CPUC system
+administrators add any PA's, and statewide programs. A new program gets its PrgID and a first version from the day it starts. The
+PrgID starts with its PA's code (a statewide program's with SW_), is kept for good and is never reused. A PA's ID of a statewide
+program (PGE_SW_FS for SW_FS) follows the statewide program from the start, so its attributes are copied from it.</p>
+<h2>Correcting a version</h2>
+<p>A change records something that changed from a date. A correction puts right a value a version held wrongly, such as a typo or a
+sector an import got wrong, without starting a new version: choose <strong>Correct</strong> beside the version in its page's Versions
+table. The version shows when it was corrected and by whom, and the audit trail keeps the values it had. CPUC system administrators
+and programs approvers correct directly; a program's administrators send a correction as a request for an approver's decision.
+Correcting a statewide program's version brings each PA's ID that follows it into line. Filings and published results keep the values
+they were filed with.</p>
+<p>How a program is delivered (resource, deemed, custom, upstream, midstream, downstream, audit, direct install and financing) is
+under <strong>Delivery</strong> on the change form.</p>
 <h2>Statewide programs and each PA's ID of them</h2>
 <p>A statewide program (for example SW_FS) is allocated to each funding PA under the PA's code in front of its PrgID (PGE_SW_FS,
 SCE_SW_FS). The statewide program is the source of truth for those IDs: they follow its definition, their PAs do not change them,

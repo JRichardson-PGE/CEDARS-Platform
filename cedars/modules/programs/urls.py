@@ -10,7 +10,9 @@ urlpatterns = [
     path("requests/<int:pk>/", views.change_request, name="request"),
     path("locked/", views.locked, name="locked"),
     path("fields/", views.fields, name="fields"),
+    path("new/", views.new_program, name="new"),
     path("<str:prg_id>/", views.program, name="program"),
     path("<str:prg_id>/change", views.change, name="change"),
     path("<str:prg_id>/lead", views.lead, name="lead"),
+    path("<str:prg_id>/versions/<int:pk>/correct", views.correct, name="correct"),
 ]
