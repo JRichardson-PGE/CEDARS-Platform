@@ -24,6 +24,7 @@ The approved budget (the standing filing) never changes. A PA's operating budget
 shifts that took effect after that filing was confirmed: a later filing is taken to carry the earlier shifts in its own numbers, and the
 pages say so wherever it matters (Jake, 2026-10-30)."""
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -33,6 +34,7 @@ from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
+from cedars.core import pickers
 from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
@@ -100,6 +102,16 @@ def cycles():
     return FilingCycle.objects.filter(deadlines__module=MODULE).distinct().order_by("-first_year")
 
 
+def current_cycle(among=None, today=None) -> FilingCycle | None:
+    """The cycle a new shift opens on: the one holding this year, else the nearest one after it, else the newest (UI review 3: it opened
+    on the newest, years ahead)."""
+    year = (today or timezone.localdate()).year
+    options = list(among if among is not None else cycles())
+    holding = [c for c in options if c.first_year <= year <= c.last_year]
+    later = sorted((c for c in options if c.first_year > year), key=lambda c: c.first_year)
+    return (holding or later or options or [None])[0]
+
+
 # --- making a shift
 
 
@@ -150,15 +162,24 @@ def _parse(shift: FundShift, entered: list[LineIn], organisation, *, statewide: 
     problems, out, seen = [], [], set()
     rows = [(n, ln) for n, ln in enumerate(entered, start=1) if not ln.blank()]
     programs = {p.prg_id: p for p in Program.objects.filter(prg_id__in={ln.prg_id.strip() for _, ln in rows})}
+    choices = None
+
+    def near(prg) -> str:  # the PA's programs closest to a PrgID it cannot use (core/pickers.py)
+        nonlocal choices
+        if choices is None:
+            choices = program_choices(shift, organisation if not statewide else None)
+        found = pickers.near_matches(prg, choices)
+        return f" Did you mean {', '.join(c.value + (f' ({c.label})' if c.label else '') for c in found)}?" if found and prg else ""
+
     for n, ln in rows:
         prg = ln.prg_id.strip()
         p = programs.get(prg)
         if p is None:
-            problems.append(f"Line {n}: PrgID {prg or '(blank)'} is not in the program registry.")
+            problems.append(f"Line {n}: PrgID {prg or '(blank)'} is not in the program registry.{near(prg)}")
         elif p.statewide and not statewide:
             problems.append(f"Line {n}: {prg} is a statewide program; place {organisation.code}'s portion in its own programs.")
         elif not p.statewide and p.administrator_id != organisation.pk:
-            problems.append(f"Line {n}: {prg} is not one of {organisation.code}'s programs.")
+            problems.append(f"Line {n}: {prg} is not one of {organisation.code}'s programs.{near(prg)}")
         year = int(ln.year) if ln.year.strip().isdigit() else None
         if year is None or not shift.cycle.covers(year):
             problems.append(f"Line {n}: the year must be one of {shift.cycle.first_year} to {shift.cycle.last_year}.")
@@ -377,18 +398,55 @@ def shortfalls(organisation, shift: FundShift, changes: dict[tuple[str, int], De
     """The changes that would leave one of the PA's program-years below zero (Jake, 2026-11-02: no fund shift may). What a
     program-year holds is its operating budget (a statewide program: the PA's portion of it) less what the PA's lines and portions in
     other shifts still waiting for co-funders already take out."""
-    ob = operating_budget(organisation, shift.cycle)
-    have = {(r.prg_id, r.year): r.operating for r in ob.rows}
-    for key, amount in pending_changes(organisation, shift).items():
-        have[key] = have.get(key, Decimal(0)) + amount
+    have = held(organisation, shift)
     out = []
     for (prg, year), change in sorted(changes.items(), key=lambda kv: (kv[0][1], kv[0][0])):
-        held = have.get((prg, year), Decimal(0))
-        if change < 0 and held + change < 0:
+        holds = have.get((prg, year), Decimal(0))
+        if change < 0 and holds + change < 0:
             out.append(
-                f"{organisation.code} {prg} {year}: moves {service_money(-change)} out of an operating budget of {service_money(held)}, "
-                f"which would leave it at {service_money(held + change)}. No fund shift may take a program's operating budget below zero."
+                f"{organisation.code} {prg} {year}: moves {service_money(-change)} out of an operating budget of {service_money(holds)}, "
+                f"which would leave it at {service_money(holds + change)}. No fund shift may take a program's operating budget below zero."
             )
+    return out
+
+
+def held(organisation, shift: FundShift) -> dict[tuple[str, int], Decimal]:
+    """What each of the PA's program-years holds for this shift: its operating budget (a statewide program: the PA's portion of it)
+    less what the PA's lines and portions in other shifts still waiting for co-funders already take out."""
+    have = {(r.prg_id, r.year): r.operating for r in operating_budget(organisation, shift.cycle).rows}
+    for key, amount in pending_changes(organisation, shift).items():
+        have[key] = have.get(key, Decimal(0)) + amount
+    return have
+
+
+def entry_budget(organisation, shift: FundShift) -> dict[str, dict]:
+    """For the amounts page, by "PrgID year": what the program-year holds and, for a statewide program, the PA's factor (its line's
+    portion counts in the PA's net by it). core's tables read it to show the budget beside a line and the running net as it is typed."""
+    out = {f"{prg} {year}": {"held": str(amount), "factor": None} for (prg, year), amount in held(organisation, shift).items()}
+    if organisation == shift.organisation:  # the shift's own PA may name statewide programs: their lines count by its factor
+        sw = statewide_ids(p for p, _ in programs_for(shift))
+        for prg in sorted(sw):
+            for year in range(shift.cycle.first_year, shift.cycle.last_year + 1):
+                factor = _factor(organisation, shift.cycle, prg, year)
+                entry = out.setdefault(f"{prg} {year}", {"held": "0", "factor": None})
+                entry["factor"] = str(factor) if factor is not None else None
+    return out
+
+
+def paste_lines(text: str) -> list[LineIn]:
+    """Lines pasted from a spreadsheet or typed one to a line: PrgID, year and amount, separated by tabs (as a spreadsheet copies them),
+    else by commas or semicolons (an amount's own thousands commas are kept). A heading line (no year) and blank lines are skipped."""
+    out = []
+    for raw in (text or "").splitlines():
+        if not raw.strip():
+            continue
+        parts = raw.split("\t") if "\t" in raw else re.split(r"[;,]", raw, maxsplit=2) if ";" in raw or "," in raw else raw.split()
+        parts = [x.strip() for x in parts]
+        if len(parts) > 3:  # commas inside the amount
+            parts = parts[:2] + [",".join(parts[2:])]
+        if len(parts) < 3 or not parts[1].isdigit():
+            continue
+        out.append(LineIn(parts[0], parts[1], parts[2]))
     return out
 
 
@@ -764,6 +822,12 @@ def operating_rows(organisation, cycle: FilingCycle) -> list[dict]:
         }
         for r in operating_budget(organisation, cycle).rows
     ]
+
+
+def program_choices(shift: FundShift, organisation=None) -> list:
+    """`programs_for` as the shared picker's choices (core/pickers.py Choice), statewide programs marked."""
+    sw = statewide_ids(p for p, _ in programs_for(shift, organisation))
+    return [pickers.Choice(p, name, "statewide" if p in sw else "") for p, name in programs_for(shift, organisation)]
 
 
 def programs_for(shift: FundShift, organisation=None) -> list[tuple[str, str]]:
