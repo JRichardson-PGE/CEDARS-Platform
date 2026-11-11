@@ -750,7 +750,7 @@ ol.tour-list h2, ol.tour-list h3 { font-size: 1.1rem; margin: 1.2rem 0 .3rem; }
 
 /* ---------- The guided tour (core/tour.js): a modal dialog beside the part of the page a step describes ---------- */
 /* The step's part keeps the page's own colors with a focus-colored outline, and the rest of the page is dimmed behind it by a wide shadow.
-   The backdrop itself is clear, so the part shows through; in forced-colors mode the shadow drops and the outline stays. */
+   The backdrop itself is clear, so the part shows through the spotlight below; in forced-colors mode the shadow drops and the outline stays. */
 dialog.tour { position: fixed; inset: auto 1rem 1rem auto; margin: 0; width: min(26rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto;
   background: var(--surface); color: var(--fg); border: 2px solid var(--primary); border-radius: var(--r-lg); padding: 1rem 1.15rem;
   box-shadow: 0 12px 32px rgba(0, 0, 0, .35); }
@@ -763,8 +763,12 @@ dialog.tour .tour-count { display: block; font-size: .78rem; font-weight: 600; c
 dialog.tour p { margin: .3rem 0 .7rem; }
 .tour-actions { margin: .5rem 0 0; }
 .tour-actions [data-tour-close] { margin-left: auto; }
-.tour-target { position: relative; z-index: 5; outline: 3px solid var(--focus); outline-offset: 4px; border-radius: var(--r);
-  box-shadow: 0 0 0 4px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+/* The spotlight (one box laid over the step's part, so no scrolling box around the part cuts it off and the sticky header is dimmed too):
+   a focus-colored outline round the part, a ring of the page's surface inside it, and a wide shadow dimming the rest of the page. It sits
+   under the tour dialog (which is in the top layer) and never takes a click. */
+.tour-spot { position: fixed; z-index: 30; pointer-events: none; border-radius: var(--r); outline: 3px solid var(--focus); outline-offset: 0;
+  box-shadow: inset 0 0 0 2px var(--surface), 0 0 0 200vmax rgba(15, 20, 24, .55); }
+.tour-spot[hidden] { display: none; }
 @media (max-width: 480px) { dialog.tour, dialog.tour.tour-top { inset: auto .5rem .5rem .5rem; width: auto; } dialog.tour.tour-top { inset: .5rem .5rem auto .5rem; } }
 
 /* ---------- Page help (cedars/core/page_help.py): the (?) beside each page's heading and the guide it opens ---------- */
