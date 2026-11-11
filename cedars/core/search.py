@@ -155,6 +155,7 @@ WHO = {
     "monthly:year_new": ("sysadmin",),
     "refdata:build_start": ("user",),
     "programs:locked": ("user",),
+    "programs:new": ("sysadmin", "org_admin"),
 }
 SKIP = {"core:search"}  # this page itself
 

@@ -1,18 +1,19 @@
 {% extends "core/base.html" %}
-{% block title %}Change to {{ r.program.prg_id }}{% endblock %}
+{% block title %}{% if r.corrects %}Correction of {{ r.program.prg_id }}{% else %}Change to {{ r.program.prg_id }}{% endif %}{% endblock %}
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:requests' %}">Program change requests</a></li></ol></nav>
-<div class="page-title"><h1>Change to <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a> from {{ r.effective|date_words }}</h1>{% page_help "programs/request" %}</div>
+<div class="page-title"><h1>{% if r.corrects %}Correction of <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a>'s version from {{ r.effective|date_words }}{% else %}Change to <a href="{% url 'programs:program' r.program.prg_id %}">{{ r.program.prg_id }}</a> from {{ r.effective|date_words }}{% endif %}</h1>{% page_help "programs/request" %}</div>
 <dl class="facts">
   <dt>Status</dt><dd><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span>{% if r.decided_at %} {{ r.decided_at|date_words }} by {{ r.decided_by|person }}{% if r.decided_as_delegate_of %} (delegate of {{ r.decided_as_delegate_of|person }}){% endif %}{% endif %}</dd>
   {% if r.decision_note %}<dt>Decision note</dt><dd>{{ r.decision_note }}</dd>{% endif %}
   <dt>Asked by</dt><dd>{{ r.requested_by|person }}, {{ r.requested_at|date_words }}</dd>
   <dt>Reason</dt><dd>{{ r.reason }}</dd>
-  {% if r.version %}<dt>New version</dt><dd>From {{ r.version.valid_from|date_words }}, in the <a href="{% url 'programs:program' r.program.prg_id %}">program's versions</a></dd>{% endif %}
+  {% if r.corrects %}<dt>What it does</dt><dd>Corrects the values of the version from {{ r.corrects.valid_from|date_words }} in place; its dates stay</dd>
+  {% elif r.version %}<dt>New version</dt><dd>From {{ r.version.valid_from|date_words }}, in the <a href="{% url 'programs:program' r.program.prg_id %}">program's versions</a></dd>{% endif %}
 </dl>
 <div class="hscroll" tabindex="0" role="region" aria-label="Requested changes">
 <table class="list">
-  <caption>What would change{% if r.status == "pending" %} (before: the latest version when it was asked for){% endif %}</caption>
+  <caption>What would change{% if r.status == "pending" %} (before: {% if r.corrects %}the version's values{% else %}the latest version{% endif %} when it was asked for){% endif %}</caption>
   <thead><tr><th scope="col">Attribute</th><th scope="col">Before</th><th scope="col">After</th></tr></thead>
   <tbody>{% for label, old, new in rows %}<tr><th scope="row">{{ label }}</th><td>{{ old }}</td><td>{{ new }}</td></tr>{% endfor %}</tbody>
 </table>

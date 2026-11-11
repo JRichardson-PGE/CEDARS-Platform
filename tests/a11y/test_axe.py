@@ -435,6 +435,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "cpuc_admin": cpuc_admin,
         "approver": approver,
         "change_request": change_request.pk,
+        "hvac_first": hvac.versions.order_by("valid_from").first().pk,
         "pge_admin": pge_admin,
         "community": community,
         **role_filers,

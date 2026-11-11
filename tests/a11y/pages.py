@@ -7,7 +7,7 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}."""
+{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}, {hvac_first}."""
 
 PAGES = [
     ("home", "/", None),
@@ -138,6 +138,7 @@ PAGES = [
     ("value-lists", "/dictionary/lists/", None),
     ("value-list", "/dictionary/lists/sector/", None),
     ("value-list-admin", "/dictionary/lists/sector/?year=2018", "cpuc_admin"),
+    ("value-list-program", "/dictionary/lists/program_status/", "cpuc_admin"),  # a list the registry keeps, engine or not
     ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
     ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
@@ -293,6 +294,10 @@ PAGES = [
     ("program-statewide-ids", "/programs/SW_X/", "pge_admin"),  # each PA's ID of it, which follow it
     ("program-follows-statewide", "/programs/SCE_SW_X/", None),  # an ID that follows its statewide program
     ("program-change", "/programs/PGE_Res_HVAC/change", "pge_admin"),
+    ("program-new", "/programs/new/", "pge_admin"),
+    ("program-new-statewide", "/programs/new/", "cpuc_admin"),  # with SW among the PAs
+    ("program-correct", "/programs/PGE_Res_HVAC/versions/{hvac_first}/correct", "cpuc_admin"),
+    ("program-correct-request", "/programs/PGE_Res_HVAC/versions/{hvac_first}/correct", "pge_admin"),  # sent for approval
     ("program-change-requests", "/programs/requests/", "approver"),
     ("program-change-request", "/programs/requests/{change_request}/", "approver"),
     ("program-change-request-own", "/programs/requests/{change_request}/", "pge_admin"),
