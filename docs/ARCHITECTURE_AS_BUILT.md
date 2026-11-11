@@ -565,6 +565,8 @@ erDiagram
   }
   Run {
     uuid id PK
+    string name "the owner renames it"
+    string note "the owner's note"
     string engine_release "release by value"
     string calculation
     string acc_version
@@ -1107,7 +1109,7 @@ split among the funding PAs by the weighted factors (section 8.1).
 | Module | What it does | Key mechanics |
 | --- | --- | --- |
 | Programs | Public catalog and program pages; Add a program; effective-dated change form (attributes and delivery flags); corrections of a version in place; change and correction requests decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
-| Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
+| Calculations | Engine releases, New run, runs, run pages with downloads (the owner renames a run or adds a note; nothing else about it changes), Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
 | Impact profiles | Nightly eTRM sync into versioned snapshots; load-shape uploads with four validation stages; generated profiles with CEDARS' formula; custom profiles; identical profiles stored once under several names; the library written in the engine's format and registered as an `impact_profiles` pack | `ProcessingJob` queues per PA; every 8,760 stored once by SHA-256 (`Shape`) |
 | Documents and EM&V | One library for PA documents, CPUC guidance, DEER resources, program files and EM&V documents; numbered versions; publication; full-text search over extracted file text; EM&V deliverable stages; study register; work orders; public comment; subscriptions; PDA, PSR and CEDARS imports with old addresses redirected | `FileText` with a PostgreSQL full-text index; triggers keep published versions unchanged |
 | Data | Front page, dashboards, record downloads, background downloads, saved views, the open data API (`/api/v1/data/`), parity checks against CEDARS' published totals | Section 11 |
