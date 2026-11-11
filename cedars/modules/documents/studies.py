@@ -17,7 +17,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError, transaction
 from django.db.models import Max, Prefetch, Q, QuerySet
@@ -286,6 +286,8 @@ def history(study: Study, *, public: bool = True) -> list[dict]:
             continue
         out.append(
             {
+                "lines": _history_lines(e, changes),
+                "reason": e.reason,
                 "at": e.at,
                 # The public sees the organization only, never a person.
                 "who": (e.organisation.code if e.organisation else "imported" if e.actor_id is None else "not recorded")
@@ -297,6 +299,95 @@ def history(study: Study, *, public: bool = True) -> list[dict]:
             }
         )
     return out
+
+
+# Each field as the study's page and form name it, for the history in plain words (UI review 3).
+FIELD_NAMES = {
+    "title": "Study name",
+    "manager": "Study manager",
+    "lead": "Study lead",
+    "status": "Status",
+    "study_type": "Study type",
+    "group": "Group or sub-sector",
+    "sectors": "Sectors",
+    "funding_cycles": "Funding cycles",
+    "budget": "Budget",
+    "work_order": "Work order",
+    "description": "Description",
+    "objective": "Objective",
+    "research_questions": "Research questions",
+    "methods": "Potential EM&V methods",
+    "next_activity": "Next activity",
+    "next_activity_due": "Next activity due",
+    "completion_date": "Completion date",
+    "calmac_id": "CALMAC ID",
+    "notes": "Notes",
+    "ed_program_manager": "ED program manager",
+    "contacts": "Contacts",
+}
+LONG = 80  # a text longer than this is quoted shortened, its old wording left out
+
+
+def _said(key: str, value) -> str:
+    """A field's value in words: a budget in dollars, a list joined, a long text shortened."""
+    if value in (None, "", []):
+        return ""
+    if key == "budget":
+        try:
+            return f"${Decimal(str(value)):,.0f}"
+        except (InvalidOperation, ValueError):
+            return str(value)
+    if isinstance(value, list | tuple):
+        return ", ".join(str(v) for v in value)
+    text = str(value)
+    return f"“{text[: LONG - 1].rstrip()}…”" if len(text) > LONG else text
+
+
+def _years(first, last) -> str:
+    if not first:
+        return ""
+    return f"program year {first}" if first == last or not last else f"program years {first} to {last}"
+
+
+def _coverage_line(action: str, before: dict, after: dict) -> str:
+    """A program evaluated, added, changed or removed, in one sentence ("PGE_Res_HVAC added to the programs evaluated: program years
+    2022 to 2024, the whole program.")."""
+    program = after.get("program") or before.get("program") or ""
+    if action == "documents.study_program_removed":
+        years = _years(before.get("first_year"), before.get("last_year"))
+        return f"{program} removed from the programs evaluated{f' ({years})' if years else ''}."
+    years = _years(after.get("first_year"), after.get("last_year"))
+    part = "the whole program" if after.get("whole", True) else "part of the program"
+    note = f" ({after['note']})" if after.get("note") else ""
+    if not before:
+        return f"{program} added to the programs evaluated: {years}, {part}{note}."
+    was = _years(before.get("first_year"), before.get("last_year"))
+    return f"{program} now covers {years}, {part}{note}{f' (was {was})' if was and was != years else ''}."
+
+
+def _history_lines(e, changes) -> list[str]:
+    """A history entry in plain words, one sentence per change ("Status changed from Design to Data/Analysis.")."""
+    if e.action in ("documents.study_program_set", "documents.study_program_removed"):
+        return [_coverage_line(e.action, e.before or {}, e.after or {})]
+    if e.action == "documents.study_added":
+        new = {k: n for k, _, n in changes}
+        said = [f"status {new['status']}" if new.get("status") else ""]
+        said.append(f"a budget of {_said('budget', new.get('budget'))}" if new.get("budget") not in (None, "") else "")
+        said = [x for x in said if x]
+        return [f"Added to the register{', with ' + ' and '.join(said) if said else ''}."]
+    lines = []
+    for key, old, new in changes:
+        name = FIELD_NAMES.get(key, key.replace("_", " ").capitalize())
+        before, after = _said(key, old), _said(key, new)
+        if not after:
+            lines.append(f"{name} cleared{f' (was {before})' if before and len(str(old)) <= LONG else ''}.")
+        elif not before:
+            lines.append(f"{name} set to {after}.")
+        elif len(str(old)) > LONG or len(str(new)) > LONG:
+            lines.append(f"{name} changed to {after}.")
+        else:
+            lines.append(f"{name} changed from {before} to {after}.")
+    return lines
 
 
 # --- programs evaluated

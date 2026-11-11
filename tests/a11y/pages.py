@@ -425,6 +425,8 @@ PAGES = [
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),
     ("document-value-lists", "/documents/lists/", None),
     ("document-value-lists-admin", "/documents/lists/", "cpuc_admin"),
+    ("document-value-list", "/documents/lists/sector/", None),
+    ("document-value-list-admin", "/documents/lists/sector/", "cpuc_admin"),
     ("deliverable", "/documents/{deliverable}/", None),
     ("deliverable-ed", "/documents/{deliverable}/", "cpuc_admin"),
     ("deliverable-version-new", "/documents/{deliverable}/versions/new/", "cpuc_admin"),
