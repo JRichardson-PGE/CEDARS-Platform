@@ -15,6 +15,30 @@ The version then needs pricing again before it is confirmed. Every change is rec
   {% if summary %}<dt>Corrected record by record so far</dt><dd>{{ summary.records|floatformat:"0g" }} record{{ summary.records|pluralize }}: {{ summary.edit|floatformat:"0g" }} changed, {{ summary.add|floatformat:"0g" }} added, {{ summary.delete|floatformat:"0g" }} deleted{% if summary.partial %}, {{ summary.partial }} by partial correction{{ summary.partial|pluralize }}{% endif %}</dd>{% endif %}
 </dl>
 
+<section aria-labelledby="flagged-h" id="flagged">
+<h2 id="flagged-h">Records with findings{% if flagged_count %}: {{ flagged_count|floatformat:"0g" }}{% endif %}</h2>
+{% if whole_table %}<div role="note" class="alert" id="whole-table"><p><strong>About a whole table:</strong></p>
+<ul>{% for f in whole_table %}<li>{% if f.severity == "reject" %}<strong>Rejected</strong>{% else %}Warning{% endif %} ({{ f.table }}, <span class="id">{{ f.rule_id }}</span>): {{ f.message }}. {{ f.fix }}</li>{% endfor %}</ul>
+<p class="small">A whole table is fixed by uploading a corrected file on <a href="{{ back }}">the filing's page</a>.</p></div>{% endif %}
+{% if flagged %}
+<p class="small muted">Rejected records first. Open one to see its findings beside the fields concerned.</p>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="flagged-h">
+<table class="list">
+  <caption class="sr-only">This version's records with findings</caption>
+  <thead><tr><th scope="col">Record</th><th scope="col">Line</th><th scope="col">Findings</th><th scope="col">Actions</th></tr></thead>
+  <tbody>{% for x, query in flagged %}<tr>
+    <th scope="row">{{ x.found.table }} {{ x.found.shown }}</th>
+    <td class="num">{{ x.found.line }}</td>
+    <td><span class="status {% if x.rejected %}bad{% else %}warn{% endif %}">{% if x.rejected %}Rejected{% else %}Warning{% endif %}</span>
+      <ul class="finding-list">{% for f in x.findings %}<li><span class="id">{{ f.rule_id }}</span>{% if f.field %} on {{ f.field }}{% endif %}: {{ f.message }}</li>{% endfor %}</ul></td>
+    <td><a href="{% url 'submissions:record' v.pk x.found.table %}?{{ query }}">Correct<span class="sr-only"> {{ x.found.table }} {{ x.found.shown }}</span></a></td>
+  </tr>{% endfor %}</tbody>
+</table>
+</div>
+{% if flagged_count > flagged|length %}<p class="small">The first {{ list_rows|floatformat:"0g" }} are listed. <a href="{{ back }}">The filing's page</a> has every finding as CSV.</p>{% endif %}
+{% elif not whole_table %}<p>No record of this version has findings.</p>{% endif %}
+</section>
+
 <section aria-labelledby="find-h">
 <h2 id="find-h">Find a record</h2>
 <form method="get" action="{% url 'submissions:records' v.pk %}" class="stack form-narrow" role="search" aria-label="Find a record">

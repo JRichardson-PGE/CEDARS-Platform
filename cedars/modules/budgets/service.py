@@ -142,6 +142,7 @@ def _setup_fields(setup: FilingSetup) -> dict:
         "acc": setup.acc_version,
         "allocation_version": str(setup.allocation_version or "most recent"),
         "cost_test_set": str(setup.cost_test_set or "in force"),
+        "notes": setup.notes,
     }
 
 
@@ -156,8 +157,11 @@ def _check_allocation(version: AllocationVersion | None) -> None:
 
 
 @transaction.atomic
-def change_setup(actor, setup: FilingSetup, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None) -> FilingSetup:
-    """Change how a filing is priced. Versions already priced keep what they were priced with; the next pricing uses the new setting."""
+def change_setup(
+    actor, setup: FilingSetup, *, acc_version: str, allocation_version=None, reason: str, cost_test_set=None, notes: str | None = None
+) -> FilingSetup:
+    """Change how a filing is priced, and its notes (`notes`; None keeps them). Versions already priced keep what they were priced
+    with; the next pricing uses the new setting."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator changes how a budget filing is priced.")
     if not reason.strip():
@@ -166,6 +170,8 @@ def change_setup(actor, setup: FilingSetup, *, acc_version: str, allocation_vers
     _check_cost_tests(cost_test_set)
     before = _setup_fields(setup)
     setup.acc_version, setup.allocation_version, setup.cost_test_set = acc_version, allocation_version, cost_test_set
+    if notes is not None:
+        setup.notes = notes.strip()
     setup.save()
     audit.record("budget_filing.setup_changed", obj=setup, before=before, after=_setup_fields(setup), reason=reason, actor=actor)
     return setup

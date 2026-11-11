@@ -99,7 +99,7 @@ budgets/setup:
   title: A budget filing's set-up
   guide:
     - The ACC and the statewide allocation version the next pricing of this filing uses. Versions already priced keep the ones they were
-      priced with; their run records both.
+      priced with; their run records both. Its notes change in the same form, with the reason for the change, which the audit trail keeps.
     - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.

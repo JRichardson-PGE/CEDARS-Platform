@@ -77,6 +77,22 @@ def section(request, page):
     return render(request, f"core/section_{page}.html", ctx)
 
 
+@login_required
+@require_GET
+def after_set_up(request):
+    """Continue, on the recovery codes page after the first second factor is set up (UI review 3, U6): an account that belongs to no
+    organization goes on to Ask for access, the third step; any other goes where its sign-in was heading, else the front page."""
+    from django.shortcuts import redirect
+
+    from cedars.services.accounts import service as access
+    from cedars.services.accounts.signals import FIRST_SET_UP
+
+    heading = (request.session.pop(FIRST_SET_UP, None) or {}).get("next", "")
+    if not access.organisations_of(request.user).exists():
+        return redirect("administration:request_access")
+    return redirect(heading or "core:home")
+
+
 def about(request):
     return render(request, "core/about.html", {"modules": MODULES})
 

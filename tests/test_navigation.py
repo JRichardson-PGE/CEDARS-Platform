@@ -291,6 +291,8 @@ TOP_PAGES = {
     "data/views", "dictionary/index", "feedback/form", "feedback/inbox", "monthly/index", "notifications/index", "programs/catalog",
     "refdata/index", "releases/index", "releases/limits", "releases/mandates", "retention/index", "rules/index", "snapshots/holds",
     "submissions/calendar", "submissions/reopen_requests", "core/about", "core/help/index", "core/queue", "core/search",
+    # the error pages (core/errors.py): in no menu, with their own ways on
+    "500", "core/error", "core/form_expired",
     # a menu's own page (its heading's link): the top of its section
     "core/section_administration", "core/section_calculations", "core/section_filings", "core/section_published", "core/section_reference",
 }  # fmt: skip
