@@ -51,11 +51,12 @@
 
 <section aria-labelledby="ver-h">
 <h2 id="ver-h">Versions</h2>
-<p class="small muted">Each change starts a new version on its effective date; earlier versions are kept as they were.</p>
+<p class="small muted">Each change starts a new version on its effective date; earlier versions are kept as they were. A value a version held
+wrongly is corrected in place, and the version says when.{% if can_correct %} To correct one, use its Correct link.{% endif %}</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Versions table">
 <table class="list">
   <caption class="sr-only">Versions of {{ p.prg_id }}, newest first</caption>
-  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">{% if signed_in %}Entered by{% else %}Entered{% endif %}</th></tr></thead>
+  <thead><tr><th scope="col">From</th><th scope="col">To</th><th scope="col">What changed</th><th scope="col">Reason</th><th scope="col">{% if signed_in %}Entered by{% else %}Entered{% endif %}</th>{% if can_correct %}<th scope="col">Correct</th>{% endif %}</tr></thead>
   <tbody>
   {% for ver, changes in history %}
   <tr>
@@ -63,7 +64,8 @@
     <td class="nowrap">{{ ver.valid_to|date_words|default:"open" }}</td>
     <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field|cut:"_"|capfirst }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
     <td>{{ ver.reason }}</td>
-    <td class="small">{% if signed_in %}{{ ver.created_by|person|default:"imported" }}<br>{% endif %}{{ ver.created_at|date_words }}</td>
+    <td class="small">{% if signed_in %}{{ ver.created_by|person|default:"imported" }}<br>{% endif %}{{ ver.created_at|date_words }}{% if ver.corrected_at %}<br>Corrected {{ ver.corrected_at|date_words }}{% if signed_in and ver.corrected_by %} by {{ ver.corrected_by|person }}{% endif %}{% endif %}</td>
+    {% if can_correct %}<td><a href="{% url 'programs:correct' p.prg_id ver.pk %}">Correct<span class="sr-only"> the version from {{ ver.valid_from|date_words }}</span></a></td>{% endif %}
   </tr>
   {% endfor %}
   </tbody>

@@ -99,7 +99,7 @@ SPECS = [
         "registry.ProgramVersion",
         ("program", "valid_from"),
         fks={"program": "registry.Program"},
-        clear=("created_by",),
+        clear=("created_by", "corrected_by"),
         refresh=("valid_to",),
     ),
     Spec("registry.FilingCycle", ("first_year",)),

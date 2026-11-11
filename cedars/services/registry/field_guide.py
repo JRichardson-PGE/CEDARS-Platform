@@ -17,7 +17,11 @@ from django.utils import timezone
 
 PATH = Path(__file__).with_name("program_fields.yaml")
 ENTRY_KEYS = {"label", "dictionary", "definition", "cedars", "hint", "guidance", "values", "values_note", "set_by"}
-SET_BY = {"": "", "import": "CEDARS' Programs list, when the registry imports it", "cpuc": "CPUC staff, when the program is added"}
+SET_BY = {
+    "": "",
+    "import": "CEDARS' Programs list, when the registry imports it",
+    "added": "whoever adds the program (its PA's administrators, or CPUC system administrators), once, when it is added",
+}
 COUNTED = {  # the fields whose values on record the guide counts (text fields of ProgramVersion with a list of values)
     "status",
     "segment",

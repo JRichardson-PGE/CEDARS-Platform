@@ -402,6 +402,7 @@ erDiagram
   Program |o--o{ Program : "follows (PA ID of a statewide program)"
   Program ||--o{ ProgramVersion : "effective-dated versions"
   Program ||--o{ ProgramChangeRequest : "locked-field requests"
+  ProgramVersion |o--o{ ProgramChangeRequest : "corrects (in place)"
   FilingCycle |o--o{ AllocationVersion : "for a cycle"
   AllocationVersion ||--o{ AllocationEntry : "per year and statewide PrgID"
   AllocationEntry ||--o{ AllocationShare : "per funding PA"
@@ -418,7 +419,9 @@ erDiagram
     date valid_to
     string name
     string segment
+    json flags
     bool exclude_from_ce
+    datetime corrected_at
   }
   FilingCycle {
     int first_year
@@ -438,6 +441,15 @@ erDiagram
 ```
 
 `ProgramChangePolicy` lists the locked program attributes. `ReportingPeriod` is referenced by filing deadlines (next diagram).
+
+A program is added on its page (`registry.create_program`; `can_add_program`: a PA's organization or programs administrators for
+that PA, CPUC system administrators for any PA and for statewide programs; `prg_id_problem`: the PrgID starts with one of the PA's
+codes, or SW_, and is never reused in any case). A change starts a new version after the latest one. A **correction** puts right a
+version's values in place, keeping its dates (`correct_version`: CPUC system administrators and programs approvers; the version
+records `corrected_at` / `corrected_by` and the audit event `program.corrected` keeps the values before). A program's own
+administrators send a correction as a `ProgramChangeRequest` with `corrects` set (`request_correction`), which `decide_change`
+applies with `correct_version` when approved. Correcting a statewide program's version brings every ID that follows it into line
+from that version's start (`_follow_from`); an ID that follows is corrected only through its statewide program.
 
 **Filings** (`cedars.services.submissions` and the filing modules)
 
@@ -765,7 +777,7 @@ How the usual roles map onto grants:
 | Funding PA allocation manager | An IOU | `allocation.manage` |
 | PII handler | The PA (upload), PA or CPUC (read) | `claims.pii`, approved by a data steward |
 | CPUC reviewer | CPUC | `<module>.read` |
-| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change requests; may delegate for a period (`Delegation`) |
+| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); may delegate for a period (`Delegation`) |
 | CPUC system administrator | CPUC | `system.admin`: set-up (claim years, filing setups, calendar), engine releases, reference packs, rules, value lists, release notes, organizations |
 | Data steward | CPUC | `pii.steward` |
 | Community account | none | Public pages, its own runs |
@@ -1029,7 +1041,7 @@ split among the funding PAs by the weighted factors (section 8.1).
 
 | Module | What it does | Key mechanics |
 | --- | --- | --- |
-| Programs | Public catalog and program pages; effective-dated change form; change requests for locked attributes decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
+| Programs | Public catalog and program pages; Add a program; effective-dated change form (attributes and delivery flags); corrections of a version in place; change and correction requests decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
 | Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
 | Impact profiles | Nightly eTRM sync into versioned snapshots; load-shape uploads with four validation stages; generated profiles with CEDARS' formula; custom profiles; identical profiles stored once under several names; the library written in the engine's format and registered as an `impact_profiles` pack | `ProcessingJob` queues per PA; every 8,760 stored once by SHA-256 (`Shape`) |
 | Documents and EM&V | One library for PA documents, CPUC guidance, DEER resources, program files and EM&V documents; numbered versions; publication; full-text search over extracted file text; EM&V deliverable stages; study register; work orders; public comment; subscriptions; PDA, PSR and CEDARS imports with old addresses redirected | `FileText` with a PostgreSQL full-text index; triggers keep published versions unchanged |
