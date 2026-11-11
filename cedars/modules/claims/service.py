@@ -122,6 +122,22 @@ def stream(deadline: Deadline) -> str:
     return "statewide" if is_statewide(deadline) else ""
 
 
+def suggested_due(year: int) -> tuple[int | None, dict[str, date]]:
+    """Due dates for a new claim year from the pattern of the latest earlier claim year that has them: each of its five confirmations'
+    dates moved on by the years between (29 February becomes the 28th). The year they come from, and the dates by kind; none when no
+    earlier claim year has deadlines."""
+    shown = Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year__lt=year).select_related("period")
+    last = shown.order_by("-period__year").values_list("period__year", flat=True).first()
+    if last is None:
+        return None, {}
+    out = {}
+    for d in shown.filter(period__year=last):
+        day = timezone.localdate(d.due_at)
+        y = day.year + (year - last)
+        out[d.kind] = day.replace(year=y, day=min(day.day, monthrange(y, day.month)[1]))
+    return last, out
+
+
 def default_sw_due(pa_due: datetime, sw_kind: str) -> datetime:
     """A statewide confirmation's default due date: two weeks before the PAs' quarter, a month before their annual claim."""
     if SW_FOR[sw_kind] == PERIODS[-1][0]:
