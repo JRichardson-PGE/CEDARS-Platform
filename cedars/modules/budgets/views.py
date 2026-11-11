@@ -464,7 +464,7 @@ def version(request, pk):
 
 @login_required
 def version_csv(request, pk):
-    """The table as shown, from the same filters (decision H), with the cost categories."""
+    """The table as shown, from the same filters, with the cost categories."""
     v = _version(request, pk)
     t = service.table(v, **_filters(request))
     response = HttpResponse(content_type="text/csv; charset=utf-8")

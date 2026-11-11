@@ -349,7 +349,7 @@ class RecertificationItem(models.Model):
 
 class AccessPolicy(models.Model):
     """The access settings the CPUC can change without a release (one row). Settings that change the rules for everyone's PII take one
-    data steward to propose and a second to confirm (PolicyChange, decision G); the others a system administrator changes, audited."""
+    data steward to propose and a second to confirm (PolicyChange); the others a system administrator changes, audited."""
 
     STEWARD_SETTINGS = frozenset({"pii_requires_federated"})
 
@@ -397,7 +397,7 @@ class PolicyChange(models.Model):
 
 
 class ApiToken(models.Model):
-    """A key a member's own systems use to call the API for one organization (decision J). Only the SHA-256 of the key is kept:
+    """A key a member's own systems use to call the API for one organization. Only the SHA-256 of the key is kept:
     the key is shown once, when it is made. A token never holds more than its user does: its permissions are the user's grants in its
     organization, limited to its scopes (modules), and it stops working when it expires, is revoked, or the membership ends."""
 

@@ -2,8 +2,8 @@ from django.apps import AppConfig
 
 
 class DataConfig(AppConfig):
-    """The Data, dashboards and downloads module (phase 6, decision H): queries over the publication snapshots' releases
-    (`query.py`, DuckDB over Parquet, decision I), the metric catalog every page and download uses (`metrics.py`), and stamped
+    """The Data, dashboards and downloads module (phase 6): queries over the publication snapshots' releases
+    (`query.py`, DuckDB over Parquet), the metric catalog every page and download uses (`metrics.py`), and stamped
     downloads (`downloads.py`). The dashboard pages build on these."""
 
     name = "cedars.modules.data"

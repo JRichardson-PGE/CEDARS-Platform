@@ -14,11 +14,11 @@ dependencies = [
     "openpyxl>=3.1",
     "numpy>=2.1",                # 8,760 arrays (impact profiles)
     "pyarrow>=18",               # the profile library in the engine's Parquet format
-    "djangorestframework>=3.15",  # the API (decision J), JSON only
+    "djangorestframework>=3.15",  # the API, JSON only
     "drf-spectacular>=0.28",      # its OpenAPI description at /api/v1/schema
     "boto3>=1.35",               # S3 storage and AWS Batch dispatch (imported only when used)
     "pypdf>=5.1",                # the text of PDF documents, for search
-    "duckdb>=1.1",               # dashboard queries over the publication snapshots (decision I)
+    "duckdb>=1.1",               # dashboard queries over the publication snapshots
     "pyyaml>=6.0",               # cost-test definition sets (ReCET's YAML), read for their header
     "markdown>=3.7",             # the pinned engine's documents shown under Help (data/recet_docs/)
 ]

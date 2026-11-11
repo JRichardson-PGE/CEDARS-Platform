@@ -4,7 +4,7 @@ from django.apps import AppConfig
 class MonthlyConfig(AppConfig):
     """The Monthly reports module (phase 5): each PA's report for each month of a program year, a submission with versions on the
     submissions service. A report holds the month's expenditures, its commitments (a separate file) and the year-to-date BCA inputs,
-    which are priced through the submissions service for estimated, unvalidated savings and TSB; each program is compared with
+    which are priced through the submissions service for estimated, preliminary savings and TSB; each program is compared with
     its operating budget from Budgets. Fund shifts are made in Budgets, not here."""
 
     name = "cedars.modules.monthly"

@@ -640,7 +640,7 @@ def _true_ups(v, t) -> dict | None:
 
 @login_required
 def version_csv(request, pk):
-    """The table as shown, from the same filter (decision H), with the cost categories and the filed totals."""
+    """The table as shown, from the same filter, with the cost categories and the filed totals."""
     from .models import FILED_TOTALS
 
     v = _version(request, pk)

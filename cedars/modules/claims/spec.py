@@ -2,7 +2,7 @@
 infrastructure cost table, which joins it as an ordinary non-PII claims table, and a Withdrawal table, which names the claims
 an upload withdraws and why (a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out), and
 a ClaimSite table, which lists the sites of a claim that covers more than one (population NMEC).
-`spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary, decision L:
+`spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary:
 AC_Climate_Zone for E3ClimateZone and so on), the name CEDARS gives it (accepted on upload), its type, whether it is required and
 CEDARS' description.
 

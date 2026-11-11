@@ -4,7 +4,7 @@ monthly/index:
   title: Monthly reports
   guide:
     - Each month a program administrator reports its commitments and the year's BCA inputs so far. Spend is read from the BCA inputs and
-      compared with the operating budget; savings and ratios are estimated from them and labeled as not validated.
+      compared with the operating budget; savings and ratios are estimated from them and labeled preliminary.
     - Each program year lists its twelve reports with their due dates and, when you act for a PA, where its reports stand, with the
       whole year in one view and the 13th-month report generated from the year's confirmed claims.
   how:

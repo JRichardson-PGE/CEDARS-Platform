@@ -13,7 +13,7 @@ Install it locally:
 
 CI installs it in every run. Without it installed locally, the tests that need the engine are skipped.
 
-The web image carries the engine too (Jake, 2026-10-30): the Results, Compare and Edit inputs pages call its code unchanged. Build its
+The web image carries the engine too: the Results, Compare and Edit inputs pages call its code unchanged. Build its
 wheel first, then the image:
 
     scripts/build_engine_wheel.sh       # or RECET_SOURCE=<a ReCET checkout at the pinned commit>

@@ -2,7 +2,7 @@
 
 Each filter is a GET parameter named after its field, so a filtered catalog is a link that can be shared and the CSV download carries
 the same filter. Several fields apply together; several values of one field keep programs with any of them. Pages render on the server
-and work without scripts (decision K): the panel is a native <details>, and a "Show its options" button chooses the field when there is
+and work without scripts: the panel is a native <details>, and a "Show its options" button chooses the field when there is
 no script (programs/catalog.js swaps the field's inputs in place instead).
 """
 

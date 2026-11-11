@@ -559,7 +559,7 @@ _NO_LIBRARY_HERE = (
 
 
 def canonical_text(text: str) -> str:
-    """A rule's wording with the data dictionary's field names (decision L): the first mention of a CET name becomes
+    """A rule's wording with the data dictionary's field names: the first mention of a CET name becomes
     "AC_Climate_Zone (E3ClimateZone)", later mentions the canonical name alone. Idempotent."""
     import re
 

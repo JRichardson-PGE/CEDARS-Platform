@@ -981,7 +981,7 @@ def _notify_owner(run: Run) -> None:
 
 
 def deletion_dates(runs) -> dict:
-    """When retention (decision M) deletes each run, as the run page and the runs list say it: {run pk: text}. A run that has not ended
+    """When retention deletes each run, as the run page and the runs list say it: {run pk: text}. A run that has not ended
     gets nothing yet (its period runs from its end); a run a filing was priced with is kept with the filing; a run under a legal hold
     is kept while the hold stands; a class with no period is kept for good; otherwise the day its period ends (the daily purge
     deletes it on or after that day)."""
@@ -1013,7 +1013,7 @@ def deletion_dates(runs) -> dict:
 
 
 def expired_runs(cutoff):
-    """Retention purger for record class "scratch_run" (decision M): runs that ended before the cutoff, with their files, except a run
+    """Retention purger for record class "scratch_run": runs that ended before the cutoff, with their files, except a run
     a submission version was priced with (it is kept with that version)."""
     from cedars.services.submissions.models import SubmissionVersion
 

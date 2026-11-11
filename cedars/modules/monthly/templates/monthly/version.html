@@ -13,7 +13,7 @@
   <dt>Statewide allocation</dt><dd>{{ calc.allocation_version.label|default:"Not allocated" }}</dd>{% endif %}
 </dl>
 {% publication_hold v %}
-<div class="card" role="note"><p><strong>{{ unvalidated }}s.</strong> Savings, total system benefit and ratios here are estimated from the
+<div class="card" role="note"><p><strong>{{ preliminary }}s.</strong> Savings, total system benefit and ratios here are estimated from the
 report's year-to-date BCA inputs, checked only as a calculation run checks them, not as claims are. They show how programs are
 trending and are never part of a claim.</p></div>
 {% if not report.budget %}<p>No operating budget was found for {{ v.submission.organisation.code }}'s {{ report.year }} cycle (no confirmed budget filing or fund shift), so spend is not compared with a budget.</p>{% endif %}
@@ -45,7 +45,7 @@ trending and are never part of a claim.</p></div>
 {% if report.estimated %}
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="est-caption">
 <table class="list data">
-  <caption id="est-caption">Estimates from the year-to-date BCA inputs ({{ unvalidated|lower }}s)</caption>
+  <caption id="est-caption">Estimates from the year-to-date BCA inputs ({{ preliminary|lower }}s)</caption>
   <thead><tr><th scope="col">Program</th>{% for h in estimates %}<th scope="col">{{ h }}</th>{% endfor %}</tr></thead>
   <tbody>
   {% for row in rows %}{% if not forloop.last and row.r.estimated %}<tr>

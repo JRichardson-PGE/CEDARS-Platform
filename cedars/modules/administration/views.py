@@ -507,7 +507,7 @@ def recertify(request, pk):
     return _done(request, msg, back)
 
 
-# --- data stewards (decision G)
+# --- data stewards
 
 
 @login_required

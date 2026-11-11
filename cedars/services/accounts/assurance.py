@@ -1,4 +1,4 @@
-"""How a session was established (decision F), read from the sign-in records django-allauth keeps in the session:
+"""How a session was established, read from the sign-in records django-allauth keeps in the session:
 
 federated  signed in through an organization's own directory (an OpenID Connect or SAML provider)
 mfa        platform password (or passkey) plus a second factor

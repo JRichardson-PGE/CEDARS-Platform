@@ -133,7 +133,7 @@ def catalog(request):
 
 
 def catalog_csv(request):
-    """The filtered catalog as a file, from the same filter (decision H), in CEDARS' Programs list column names."""
+    """The filtered catalog as a file, from the same filter, in CEDARS' Programs list column names."""
     rows = _filtered(forms.CatalogFilter(request.GET or None), request.GET)[0]
     response = HttpResponse(content_type="text/csv; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="programs.csv"'

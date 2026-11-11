@@ -1,4 +1,4 @@
-"""The PII vault's functions (decision G). A claims PII file (PII_Contact and PII_Site, as a .zip of CSVs or a workbook
+"""The PII vault's functions. A claims PII file (PII_Contact and PII_Site, as a .zip of CSVs or a workbook
 with a sheet per table) is checked at once against CEDARS' PII data rules and the claim's own keys, and kept only when nothing is
 rejected. Reading it needs claims.pii in the organization (a data steward approves every such grant, and the CPUC can require a
 federated session for it) or in the CPUC organization. Every upload, rejection and read is audited with counts and keys, never values.

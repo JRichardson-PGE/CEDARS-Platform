@@ -1,4 +1,4 @@
-"""Retention (decision M): a period per record class, legal holds, and a daily job that deletes what has expired. Services and
+"""Retention: a period per record class, legal holds, and a daily job that deletes what has expired. Services and
 modules that own a deletable class register a purger; classes kept permanently have none.
 
 A purger is `find(cutoff) -> iterable of (object_ref, delete)`: the records whose period started before `cutoff`, each with a

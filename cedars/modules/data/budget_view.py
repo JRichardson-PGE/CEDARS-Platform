@@ -20,7 +20,7 @@ from . import metrics as catalog
 from . import query as dq
 from .dashboard import SERIES, View
 
-BUDGET_SERIES = {"budget": "Operating budget", "monthly": "Monthly reported (unvalidated)"}
+BUDGET_SERIES = {"budget": "Operating budget", "monthly": "Monthly reported (preliminary)"}
 
 
 @dataclass

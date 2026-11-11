@@ -51,7 +51,7 @@ resource "aws_db_instance" "core" {
   tags                            = local.tags
 }
 
-# The PII vault: its own instance, key and security group (decision G). Only PII_Contact and PII_Site live here.
+# The PII vault: its own instance, key and security group. Only PII_Contact and PII_Site live here.
 resource "aws_db_instance" "vault" {
   count                         = var.pii_vault ? 1 : 0
   identifier                    = "${local.name}-vault"

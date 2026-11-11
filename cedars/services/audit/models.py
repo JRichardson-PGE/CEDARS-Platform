@@ -5,7 +5,7 @@ from django.db import models
 
 class AuditEvent(models.Model):
     """One change: who (and under which organization and sign-in assurance), when, what, why, before and after. Never updated or
-    deleted; kept permanently (decision M)."""
+    deleted; kept permanently."""
 
     at = models.DateTimeField(auto_now_add=True, db_index=True)
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")

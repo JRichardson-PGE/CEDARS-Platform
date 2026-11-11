@@ -12,7 +12,7 @@ from .models import LegalHold, PurgeRun, RetentionPolicy
 
 @login_required
 def index(request):
-    """Retention periods per record class, legal holds and the last purges (decision M; system administrators)."""
+    """Retention periods per record class, legal holds and the last purges (system administrators)."""
     if not access.is_system_admin(request.user):
         raise PermissionDenied("Only a CPUC system administrator manages retention.")
     if request.method == "POST":

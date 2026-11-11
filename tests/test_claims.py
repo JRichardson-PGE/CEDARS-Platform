@@ -165,7 +165,7 @@ def test_the_template_is_cedars_claims_specification_with_the_platforms_own_tabl
     assert spec.TABLES == (
         "Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal",
     )  # fmt: skip
-    assert len(spec.columns("Measure")) == 74 and "AC_Climate_Zone" in spec.columns("Measure")  # canonical names (decision L)
+    assert len(spec.columns("Measure")) == 74 and "AC_Climate_Zone" in spec.columns("Measure")  # canonical names
     assert spec.canonical("Measure", "E3ClimateZone") == "AC_Climate_Zone" and spec.canonical("Measure", "ceinputid") == "ClaimID"
     assert spec.field("InfrastructureCost", "TotalCost").type == "number" and spec.required("ContactClaim") == ["ClaimID", "ContactID"]
     from openpyxl import load_workbook

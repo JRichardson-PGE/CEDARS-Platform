@@ -2,7 +2,7 @@
 (/programs/fields/), the change form and the program page.
 
 The guidance and the valid values are data (`program_fields.yaml` beside this file). Each field's definition comes from the data
-dictionary where the dictionary has the field (ReCET's Prg_ columns, decision L), so the two never say different things; the file's own
+dictionary where the dictionary has the field (ReCET's Prg_ columns), so the two never say different things; the file's own
 definition is used only for a field the dictionary lacks, or before a catalog is loaded. A value is never deleted from the file: it is
 retired from a date, stays on the versions that carry it, and is offered on the change form only to a program that already has it."""
 

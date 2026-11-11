@@ -4,7 +4,7 @@
 #
 # An entry:
 #   label:       the field's name on the pages
-#   dictionary:  the data dictionary field(s) that carry it (ReCET's Prg_ columns, decision L). Where the dictionary has the field, its
+#   dictionary:  the data dictionary field(s) that carry it (ReCET's Prg_ columns). Where the dictionary has the field, its
 #                definition is the one shown; `definition` below is used only when it does not (or no catalog is loaded yet).
 #   definition:  what the field is, in one or two sentences
 #   cedars:      the column in CEDARS' Programs list download, which the registry imports

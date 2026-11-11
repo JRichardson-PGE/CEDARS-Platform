@@ -418,7 +418,7 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     v.refresh_from_db()
     assert v.status == "published"
     page = client.get(reverse("monthly:version", args=[v.pk]))
-    assert page.status_code == 200 and b"Unvalidated estimates" in page.content
+    assert page.status_code == 200 and b"Preliminary estimates" in page.content
     csv = client.get(reverse("monthly:version_csv", args=[v.pk])).content.decode()
     assert csv.splitlines()[0].startswith("PrgID,ProgramName,InBCAInputs") and "EstimatedTotalSystemBenefit" in csv
     assert client.get(reverse("monthly:file", args=[v.pk, 0])).status_code == 200

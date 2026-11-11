@@ -401,7 +401,7 @@ def test_budget_and_spending(both, pge, pge_admin, monkeypatch, client):
     g = budget_view.chart(s)
     assert g["goal"] == "Operating budget" and g["groups"][0]["goal"] == 100.0
     page = client.get("/data/budget/?year_from=2028&year_to=2029&pa=PGE").content.decode()
-    assert "Monthly reported (unvalidated)" in page and "through PGE 2028-06" in page and "Cost elements by primary sector, claimed" in page
+    assert "Monthly reported (preliminary)" in page and "through PGE 2028-06" in page and "Cost elements by primary sector, claimed" in page
     assert "not yet validated" in page
     assert "PGE_Com_Lt <span" in page and "(not in the program registry)" in page and "/programs/PGE_Com_Lt/" not in page
 

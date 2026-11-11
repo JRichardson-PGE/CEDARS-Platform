@@ -455,7 +455,7 @@ def superseded(snap: Snapshot) -> bool:
 
 
 def withdraw(version_id: int, *, reason: str = "un-confirmed before the due date", release: bool = True) -> None:
-    """A version un-confirmed before its due date: its snapshot and file go (decision M), and a release without it is made. Also used
+    """A version un-confirmed before its due date: its snapshot and file go, and a release without it is made. Also used
     to replace an imported version's snapshot built wrongly (`reason` says why; `release=False` leaves the release to the caller)."""
     snap = Snapshot.objects.select_related("version__submission__deadline__period", "version__submission__organisation").filter(
         version_id=version_id

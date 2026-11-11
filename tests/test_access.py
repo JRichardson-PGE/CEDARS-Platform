@@ -129,7 +129,7 @@ def test_ending_a_membership_demotes_to_community(pge, pge_admin, make_user):
     assert u.memberships.filter(organisation=pge).count() == 2  # a new membership; the old one keeps its history
 
 
-# --- PII (decisions F and G)
+# --- PII
 
 
 def test_pii_grants_wait_for_a_steward(cpuc_admin, pge, pge_admin, make_user):
