@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -911,6 +911,11 @@ stateDiagram-v2
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
+  Correct records opens on the version's records with findings (`with_findings`, rejected first; findings about a whole table said
+  apart). A record's form lays its fields out by section (`field_info`: the field's section in the pinned engine's input field
+  reference, read by `core.engine_docs.input_sections`, else its data dictionary group), with the fields that have findings first,
+  and offers a value list's codes (the version in force, else the engine's list, leaving out codes retired before the filing's first
+  year) as a datalist up to the `CEDARS_CORRECTION_LIST_CODES` limit; a longer list links to its dictionary page.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
 - **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the

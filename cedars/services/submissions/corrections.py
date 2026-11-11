@@ -59,8 +59,13 @@ def max_rows() -> int:
 
 
 def list_rows() -> int:
-    """Records a correction page lists at once (found records, a preview's changes): CEDARS_CORRECTION_LIST_ROWS."""
+    """Records a correction page lists at once (records with findings, found records, a preview's changes): CEDARS_CORRECTION_LIST_ROWS."""
     return settings.CEDARS_CORRECTION_LIST_ROWS
+
+
+def list_codes() -> int:
+    """The longest value list a record's field offers as suggestions (CEDARS_CORRECTION_LIST_CODES); a longer one links to its page."""
+    return settings.CEDARS_CORRECTION_LIST_CODES
 
 
 # --- what a module tells the service
@@ -438,6 +443,100 @@ def row_findings(v: SubmissionVersion, table: str, line: int | None) -> list[dic
     if line is None:
         return []
     return [f for f in editor(v).findings(v) if f.get("table") == table and f.get("row") in (line, 1)]
+
+
+@dataclass
+class Flagged:
+    """One of the version's own records with what its last check found."""
+
+    found: Found
+    findings: list[dict]
+
+    @property
+    def rejected(self) -> bool:
+        return any(f.get("severity") == "reject" for f in self.findings)
+
+    @property
+    def rules(self) -> list[str]:
+        return sorted({str(f.get("rule_id", "")) for f in self.findings if f.get("rule_id")})
+
+
+def with_findings(v: SubmissionVersion, limit: int | None = None) -> tuple[list[Flagged], list[dict], int]:
+    """The version's own records that have findings, rejected ones first, then by table and line: (the first `limit`, the findings
+    about a whole table (line 1, e.g. a missing column), how many records have findings)."""
+    e = editor(v)
+    defs = {t.name: t for t in e.tables(v)}
+    own = e.rows(v)
+    limit = list_rows() if limit is None else limit
+    by_row: dict[tuple[str, int], list[dict]] = {}
+    whole: list[dict] = []
+    for f in e.findings(v):
+        table, row = f.get("table"), f.get("row")
+        if row == 1:
+            whole.append(f)
+        elif table in defs and isinstance(row, int) and row >= 2:
+            by_row.setdefault((table, row), []).append(f)
+    out = []
+    for (table, row), found in by_row.items():
+        rows = own.get(table)
+        if rows is None or row - 2 >= len(rows.rows):
+            continue
+        r = rows.rows[row - 2]
+        out.append(Flagged(Found(table, tuple(r.get(c, "") for c in defs[table].key), r, row), found))
+    out.sort(key=lambda x: (not x.rejected, x.found.table, x.found.line or 0))
+    return out[:limit], whole, len(out)
+
+
+@dataclass
+class FieldInfo:
+    """What the data dictionary says of a record's field: its group, and the value list its codes come from."""
+
+    group: str = ""
+    list_name: str = ""
+    codes: tuple[str, ...] = ()  # the list's codes still in use in the filing's year; empty when it has none or too many to offer
+
+
+def field_info(v: SubmissionVersion, t: TableDef) -> dict[str, FieldInfo]:
+    """{field: FieldInfo} for a table's fields, by the data dictionary in force (canonical names and aliases, any case). The group is the
+    field's section in the engine's input field reference (Measure: "Quantities", "Useful life", ...), else its dictionary group when that
+    is more than the table's name. A value list's codes are offered when the list is no longer than `list_codes()`, leaving out codes
+    retired before the filing's first year."""
+    from cedars.core.engine_docs import input_sections
+    from cedars.services.dictionary import service as dictionary
+    from cedars.services.dictionary import value_lists
+    from cedars.services.dictionary.models import Field
+
+    catalog = dictionary.current()
+    by_name: dict[str, Field] = {}
+    for f in Field.objects.filter(version=catalog).prefetch_related("aliases") if catalog else ():
+        by_name.setdefault(f.name.lower(), f)
+        for a in f.aliases.all():
+            by_name.setdefault(a.name.lower(), f)
+    d = v.submission.deadline
+    year = d.period.year if d.period_id else d.cycle.first_year if d.cycle_id else None
+    most = list_codes()
+    sections = input_sections().get(t.name, {})
+    out: dict[str, FieldInfo] = {}
+    for fd in t.fields:
+        f = by_name.get(fd.name.lower())
+        if f is None:
+            out[fd.name] = FieldInfo(sections.get(fd.name.lower(), ""))
+            continue
+        names = [fd.name.lower(), f.name.lower(), *(a.name.lower() for a in f.aliases.all())]
+        group = next((sections[n] for n in names if n in sections), "") or (f.group if f.group.lower() != t.name.lower() else "")
+        name = value_lists.list_for_field(f) or ""
+        codes: tuple[str, ...] = ()
+        if name:
+            rows = value_lists.codes_in_force(name)
+            if rows is None:
+                try:
+                    rows = value_lists.shipped(name)
+                except (value_lists.EngineMissing, value_lists.ValueListError):
+                    rows = []
+            kept = [r["code"] for r in rows if r["code"] and (year is None or r.get("end_year") is None or r["end_year"] >= year)]
+            codes = tuple(dict.fromkeys(kept)) if len(kept) <= most else ()
+        out[fd.name] = FieldInfo(group, name, codes)
+    return out
 
 
 # --- applying changes

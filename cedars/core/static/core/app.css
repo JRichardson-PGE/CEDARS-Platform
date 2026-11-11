@@ -499,6 +499,27 @@ fieldset > .checks + .field { margin-top: .6rem; }   /* a field after a list of 
 label.inline { display: inline-flex; margin-right: .8rem; }
 .column-group .checks label { overflow-wrap: anywhere; }   /* long field names wrap at 320 px */
 .column-group { margin: .3rem 0; }
+/* Compact tick lists (core/_tick_list.html; UI review 3): a closed disclosure that names what is chosen, the chosen values first, a
+   narrowing box on a long list. In the page's flow, so it covers nothing and reflows at 320 px. */
+details.tick-list { margin: .3rem 0; max-width: 100%; }
+details.tick-list > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; min-height: 36px;
+  padding: .4rem .7rem; border: 1px solid var(--control); border-radius: var(--r); background: var(--surface); color: var(--fg);
+  list-style: none; }
+details.tick-list[open] > summary { border-radius: var(--r) var(--r) 0 0; }
+details.tick-list > summary::-webkit-details-marker { display: none; }
+details.tick-list > summary::after { content: ""; align-self: center; margin-left: auto; width: .5rem; height: .5rem; flex: none;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-2px); }   /* open or closed, by shape */
+details.tick-list[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
+.tick-legend { font-weight: 600; }
+.tick-summary { color: var(--fg-2); font-size: .9rem; overflow-wrap: anywhere; }
+fieldset.tick-panel { margin: 0; padding: .6rem .7rem; border: 1px solid var(--control); border-top: 0; border-radius: 0 0 var(--r) var(--r);
+  background: var(--surface); min-width: 0; }
+.tick-narrow { max-width: 22rem; margin-bottom: .5rem; }
+.tick-narrow[hidden] { display: none; }
+ul.tick-options { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: .2rem 1rem; }
+ul.tick-options li[hidden] { display: none; }
+ul.tick-options label.check { min-height: 24px; overflow-wrap: anywhere; }
 /* Output template page: the two-list field picker (calculations/field_picker.js; also Results and Compare's Choose columns), ReCET's Templates page laid out on these tokens */
 .picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: start; }
 .picker[hidden] { display: none; }
@@ -586,6 +607,21 @@ section.cycle { margin-bottom: .5rem; }
 .empty p { margin: .25rem auto; max-width: 48ch; }
 .empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
 .empty .button { margin-top: .75rem; }
+
+/* ---------- Correcting records ---------- */
+/* A record's page (submissions/record.html): its fields in the wide grid, grouped as the data dictionary groups them; the Save bar stays
+   in view at the bottom of the window where there is room for it (at least 480 px tall), and scroll-padding keeps a focused field clear
+   of it (focus not obscured, 2.4.11). Below that height it is an ordinary row at the end of the form (reflow, 1.4.10). */
+.find-field { margin: 1rem 0; max-width: 32rem; }
+.inline-control { display: flex; gap: .5rem; align-items: stretch; }
+.inline-control > input { flex: 1 1 auto; min-width: 0; }
+.record-form fieldset + fieldset { margin-top: .25rem; }
+#fields-found { border-color: var(--bad); }
+ul.finding-list { margin: .3rem 0 0; padding-left: 1.1rem; }
+@media (min-height: 480px) {
+  html:has(.save-bar) { scroll-padding-bottom: 5.5rem; }
+  .save-bar { position: sticky; bottom: 0; z-index: 5; background: var(--bg); border-top: 1px solid var(--line); padding: .75rem 0; margin-bottom: 0; }
+}
 
 /* ---------- Utilities ---------- */
 .muted { color: var(--fg-2); }
