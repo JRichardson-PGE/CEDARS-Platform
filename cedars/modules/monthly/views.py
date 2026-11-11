@@ -15,7 +15,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
-from cedars.services.submissions import corrections, filing_page
+from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -236,7 +236,7 @@ def report(request, pk):
             ctx["tiles"] = _tiles(service.report(v))
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     ctx.update(
-        filing_page.context(
+        filing_parts.context(
             v,
             has_file=bool(ctx.get("file")),
             priced=ctx.get("priced", False),
@@ -317,7 +317,7 @@ def upload(request, pk):
         if v.status == SubmissionVersion.Status.VALIDATED:
             msg = f"Checked {s.get('records', 0):,} records: none rejected"
             return msg + (f", {s['warnings']:,} with warnings." if s.get("warnings") else ".") + " Price it next."
-        return f"{s.get('rejected', 0):,} records are rejected. " + filing_page.REJECTED_NEXT
+        return f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT
 
     def do(d, o):
         c = up.combine(files)
@@ -450,7 +450,7 @@ def version(request, pk):
             "unvalidated": UNVALIDATED,
             "paid_vs_committed": service.PAID_VS_COMMITTED,
             "letter": ChangeLetter.objects.filter(version=v).first(),
-            **filing_page.version_page(request, v, priced=service.priced(v)),
+            **filing_parts.version_page(request, v, priced=service.priced(v)),
         },
     )
 

@@ -34,3 +34,9 @@ class CalculationsConfig(AppConfig):
         from . import health
 
         health.register()  # stalled and failed runs on the administrators' health page
+
+        from cedars.core import search as site_search
+
+        from . import search
+
+        site_search.register("runs", "Your runs", search.runs, order=30)  # site search finds the runs a person sees, by name

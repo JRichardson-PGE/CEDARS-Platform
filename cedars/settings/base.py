@@ -143,6 +143,12 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+# A person changes their own email address on allauth's email page, linked from Your account: one address at a time, the new one taking
+# over only once verified (CHANGE_EMAIL), after confirming their password again (REAUTHENTICATION_REQUIRED). The old address is told of
+# the change, as of a password change (EMAIL_NOTIFICATIONS); accounts.signals audits it and ends the person's other sessions.
+ACCOUNT_CHANGE_EMAIL = True
+ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_REAUTHENTICATION_REQUIRED = True
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
 # The platform's own wording on allauth's forms, pages and emails (cedars/core/templates/account, mfa); the subject prefix replaces
 # allauth's "[<site domain>] ". CEDARS_SUPPORT_EMAIL is the address the sign-in pages and Help give for support (blank = none shown);
@@ -339,6 +345,7 @@ CEDARS_CORRECTION_LIST_ROWS = int(env("CEDARS_CORRECTION_LIST_ROWS", "200"))
 # A filing page lists each rule's findings with the records they are in: this many records under each rule (the rest are counted and in
 # the findings CSV).
 CEDARS_FINDING_RECORDS_SHOWN = int(env("CEDARS_FINDING_RECORDS_SHOWN", "10"))
+CEDARS_CORRECTION_LIST_CODES = int(env("CEDARS_CORRECTION_LIST_CODES", "600"))
 ETRM_PACKAGE_LIST = int(env("ETRM_PACKAGE_LIST", "300"))  # eTRM measure packages Add a measure from eTRM lists per search
 # Feedback from every page's footer link: the most characters in one message, the most messages one sender sends an hour,
 # and an optional team inbox that gets a copy of each (the CPUC system administrators are told of each one either way).

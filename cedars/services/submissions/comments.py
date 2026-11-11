@@ -177,7 +177,7 @@ def reviewers(submission: Submission, on=None) -> list:
     module = submission.deadline.module
     approvers = list(access.holders(cpuc, f"{module}.approve"))
     day = on or timezone.localdate()
-    delegations = Delegation.objects.filter(module=module, approver__in=approvers, starts__lte=day, ends__gte=day, delegate__is_active=True)
+    delegations = Delegation.objects.in_force(day).filter(module=module, approver__in=approvers, delegate__is_active=True)
     out = {u.pk: u for u in approvers}
     for d in delegations.select_related("delegate"):
         out.setdefault(d.delegate_id, d.delegate)

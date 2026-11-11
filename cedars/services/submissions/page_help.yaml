@@ -122,10 +122,17 @@ submissions/records:
       keeps its findings. The version is then priced again before it is confirmed, and every change is in the audit trail with the
       record before and after.
   how:
+    - Start from Records with findings, rejected records first, and choose Correct beside one.
     - Find a record by its key or any value, then open it to change it or delete it.
     - Add a record to any table of the filing.
     - Upload a partial correction (only the changed and new records, with a Delete table for records to remove), preview it, then apply it.
   tour:
+    - heading: Records with findings
+      title: Records with findings
+      text: >-
+        This version's records that its checks found something on, rejected ones first, each with its rules and a link to correct it.
+        A finding about a whole table (a missing column) is said above them; it is fixed by uploading a corrected file.
+      optional: true  # a confirmed version has no editor, only the reason
     - heading: Find a record
       title: Find a record
       text: Search by key or any value, in one table or every table. Records filed in an earlier confirmation are found too.
@@ -152,25 +159,46 @@ submissions/record:
   see: correcting-records
   guide:
     - >-
-      The record's fields, with what its last check found beside the fields concerned. Saving checks this record and those whose
-      checks it can affect again, and says what the check found.
+      The record's fields, with what its last check found beside the fields concerned. The fields with findings come first, then the
+      key, then the rest in sections (for a measure, the sections of the engine's input field reference). Each field's type and
+      definition are behind its "i" button; a field whose value comes from a value list suggests its codes as you type.
+    - >-
+      Saving checks this record and those whose checks it can affect again, and says what the check found, with a way back to the
+      filing.
     - >-
       A record filed in an earlier confirmation is corrected by adding the corrected record to this version, where it stands over the
       earlier one; its key stays.
   how:
-    - Change the fields and choose Save and check (or Add and check for a new record).
+    - Type part of a field's name in Find a field to jump to it.
+    - Change the fields and choose Save and check (or Add and check for a new record); the Save bar stays at the bottom of the window.
     - Delete this record removes it from this version, after you confirm.
   tour:
+    - target: "#saved"
+      title: Saved
+      text: The change is saved and checked; go back to the filing, or on to the other records with findings.
+      optional: true  # only right after saving
     - heading: Findings on this record
       title: Findings
       text: What the last check found on this record, rejects first, each linked to its field.
       optional: true
+    - target: "#find-field"
+      title: Find a field
+      text: Type part of a field's name and choose Go to jump to it.
+    - target: "#fields-found"
+      title: Fields with findings
+      text: The fields the last check found something on, first, each with what was found and how to fix it.
+      optional: true  # a record without findings
     - heading: Fields
       title: Fields
-      text: Every field of the table, with its type and description; a field with a finding is marked.
+      text: >-
+        Every field of the table, in sections; the "i" button beside a field gives its type and definition, and a value list's codes
+        are suggested as you type.
     - target: "#in-reason"
       title: Why
       text: An optional reason, kept with the change in the audit trail.
+    - target: "#save-bar"
+      title: Save
+      text: Save and check, delete the record or cancel; the bar stays at the bottom of the window as you go down the fields.
 
 submissions/record_delete:
   title: Deleting a record
@@ -274,3 +302,70 @@ submissions/deadline:
     - heading: History
       title: History
       text: Every change to the deadline, oldest first, with the reason given.
+
+submissions/workflow_settings:
+  title: Workflow settings
+  guide:
+    - >-
+      For CPUC system administrators. Each kind of filing (budgets, claims, monthly reports) has two settings: whether a confirmed
+      filing can be corrected after its due date (with an approver's approval, with a reason and no approval, or not at all), and
+      whether a first version can still be confirmed after the due date, marked late.
+    - >-
+      A change applies at once to every filing of that kind. Versions already confirmed or corrected stay as they are. Every change
+      needs a reason, is in the audit log and is listed under its filing type. The filing calendar shows the settings to everyone.
+    - >-
+      When a change leaves program administrators less room than before (corrections harder, or late confirmation refused), the page
+      offers a release note with the change already written in, so you can tell them before their next filing.
+  how:
+    - Open Change the settings under a filing type, choose the settings, give the reason and select Save.
+    - After a change that tightens the rules, select Write a release note to announce it.
+  see: administering
+  tour:
+    - target: "#release-note-offer"
+      title: Tell the program administrators
+      text: Shown after a change that tightens the rules, with a release note started for you.
+      optional: true
+    - target: "#wf-budgets-h"
+      title: Budgets
+      text: How a budget filing may be corrected after its due date, and whether it may be confirmed late.
+    - target: "#wf-claims-h"
+      title: Claims
+      text: The same two settings for claims.
+    - target: "#wf-monthly-h"
+      title: Monthly reports
+      text: The same two settings for monthly reports.
+
+submissions/delegations:
+  title: Approver delegates
+  guide:
+    - >-
+      A CPUC approver names a delegate to decide for them on the days they choose, for example while on leave. The delegate decides
+      correction requests after a due date (budgets, claims, monthly reports) and, for programs, program change requests, in the
+      approver's name; each decision records that it was made as a delegate.
+    - >-
+      A delegate must be a member of the CPUC who can read the module. A CPUC system administrator can name or end a delegate on an
+      approver's behalf, with a reason. Ending a delegation early stops it at once; decisions already made stay as made. Every
+      delegation, and every early end, is in the audit log.
+  how:
+    - Choose the approvals, enter the delegate's email and the first and last day, and select Name the delegate.
+    - Open End early beside a delegation and select End it now to stop it before its last day.
+    - CPUC system administrators enter the approver's email to name a delegate on their behalf, and give the reason.
+  see: reviewing
+  tour:
+    - target: "#name-h"
+      title: Name a delegate
+      text: Who decides for you, in which approvals, and for which days.
+      optional: true
+    - target: "#for-me-h"
+      title: You decide for
+      text: The approvers you decide for, and until when.
+      optional: true
+    - target: "#own-h"
+      title: Your delegates
+      text: The delegates you have named, in force, coming or over, to end early.
+      optional: true
+    - target: "#every-h"
+      title: Every delegation
+      text: For CPUC system administrators, every delegation in force or coming, to end one on an approver's behalf.
+      optional: true
+

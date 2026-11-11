@@ -77,6 +77,7 @@ def detail(request, pk):
         ctx = {
             "cost_set": cost_tests.header(pack),
             "cost_years": cost_tests.years_text(pack),
+            "cost_in_force": cost_tests.for_year(None, workstream=pack.label.split("-", 1)[0]) == pack,
             "cost_sha": cost_tests.sha256(pack),
             "cost_file": cost_tests.download_name(pack),
             "cost_words": words,

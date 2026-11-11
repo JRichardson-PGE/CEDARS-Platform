@@ -103,6 +103,7 @@ def test_after_the_due_date_a_correction_is_a_new_version_with_approval(analyst,
     approver = make_user("approver@cpuc.example.org")
     access.grant(cpuc_admin, approver, cpuc, "claims.approve")
     deputy = make_user("deputy@cpuc.example.org")
+    access.grant(cpuc_admin, deputy, cpuc, "claims.read")
     service.delegate(approver, module="claims", delegate_to=deputy, starts=date.today(), ends=date.today() + timedelta(days=7))
     v2 = service.decide_reopen(deputy, req, True, "approved while the approver is away")
     req.refresh_from_db()
@@ -658,7 +659,7 @@ def test_a_set_up_page_moves_its_due_dates_still_to_come(cpuc_admin, signed_in, 
     early = (timezone.localdate() + timedelta(days=1)).isoformat()
     bad = form | {f"due-on_{q2.pk}": (new + timedelta(days=1)).isoformat(), f"due-on_{q3.pk}": early, "due-reason": "x"}
     r = c.post(url, bad, follow=True)
-    assert "Q3 claim, 2030Q3: A filing opens before it is due" in r.content.decode()
+    assert "2030 Q3 claim: A filing opens before it is due" in r.content.decode()
     q2.refresh_from_db()
     assert timezone.localtime(q2.due_at).date() == new
     with pytest.raises(AccessDenied, match="already due"):

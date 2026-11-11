@@ -18,7 +18,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import Program
-from cedars.services.submissions import corrections, filing_page
+from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -376,7 +376,7 @@ def period(request, pk):
         ctx.update(_pii(request, org, v, acting))
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     ctx.update(
-        filing_page.context(
+        filing_parts.context(
             v,
             has_file=bool(ctx.get("file")) or bool(v and v.imported),
             priced=ctx.get("priced", False),
@@ -473,7 +473,7 @@ def _checked_message(request, v: SubmissionVersion) -> None:
         msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
         messages.info(request, msg + " Price the year to date next.")
     else:
-        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. " + filing_page.REJECTED_NEXT)
+        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT)
 
 
 @login_required
@@ -654,7 +654,7 @@ def version(request, pk):
             "true_ups": _true_ups(v, t),
             "differing": differing,
             "tolerance": f"{service.SAVINGS_TOLERANCE:.0%}",
-            **filing_page.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
+            **filing_parts.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
         },
     )
 

@@ -8,6 +8,7 @@ empty. Who sees an item (`Item.who`, any one of them is enough):
   "guest"     signed in, a member of none (a consultant waiting for access, a community account)
   "public"    signed out, or a member of none: the Published data items a member finds under Filings and Reference data instead
   "sysadmin" / "org_admin" / "steward" / "approver" (a CPUC approver of any filing module, or their delegate)
+  "delegator" (a CPUC approver of programs or of a filing module, who may name delegates)
 
 The menu that holds the open page is highlighted, set by the page and not by its address (navigation review D4): each item names the
 pages it holds (`Item.pages`, view names, `*` for any ending; its own page always), and the open page's view name picks the item, the
@@ -141,6 +142,8 @@ NO_MENU = (
     "administration:request_access",
     "administration:withdraw_request",
     "administration:token_*",
+    "administration:account_name",
+    "administration:account_close",
     "feedback:form",
     "releases:index",
     "releases:feed",
@@ -209,6 +212,13 @@ MENUS = (
             about="Each budget filing, claim year and year of monthly reports set up: edit one, or cancel one of its filings.",
         ),
         Item(
+            "Workflow settings",
+            "submissions:workflow_settings",
+            SYSADMIN,
+            about="Whether each kind of filing can be corrected after its due date, and whether a late first confirmation is allowed.",
+            in_menu=False,
+        ),
+        Item(
             "Check a file before you file it",
             "rules:check",
             MEMBER,
@@ -220,6 +230,14 @@ MENUS = (
             ("approver",),
             pages=("submissions:decide",),
             about="Requests to correct a filing after its due date, waiting for an approver's decision.",
+        ),
+        Item(
+            "Approver delegates",
+            "submissions:delegations",
+            ("approver", "delegator", "sysadmin"),
+            pages=("submissions:end_delegation",),
+            about="Who decides for an approver while they are away, and for which days.",
+            in_menu=False,
         ),
         groups=(Group("Change logs", tuple(replace(i, who=MEMBER) for i in CHANGE_LOGS)),),
         landing="core:filings",
@@ -387,6 +405,14 @@ MENUS = (
                 "People and access",
                 (
                     ORGANIZATIONS,
+                    Item(
+                        "People",
+                        "administration:people",
+                        SYSADMIN,
+                        pages=("administration:person*",),
+                        about="Every account: find a person, correct their name, or deactivate and reactivate their account.",
+                        in_menu=False,
+                    ),
                     Item(
                         "Role templates",
                         "administration:role_templates",
@@ -572,10 +598,13 @@ def roles_of(user, orgs=None) -> set[str]:
         out.add("org_admin")
     if cpuc is not None and is_approver(user, cpuc, mine):
         out.add("approver")
+    if any(p.endswith(".approve") and p.split(".")[0] in DELEGATING_MODULES for p in mine):
+        out.add("delegator")
     return out
 
 
 FILING_MODULES = ("budgets", "claims", "monthly")
+DELEGATING_MODULES = ("programs", *FILING_MODULES)  # whose approvers may name delegates (submissions.service.DELEGABLE)
 
 
 def is_approver(user, cpuc, mine: set[str]) -> bool:
@@ -588,9 +617,7 @@ def is_approver(user, cpuc, mine: set[str]) -> bool:
     from cedars.services.submissions.models import Delegation
 
     day = timezone.localdate()
-    delegations = Delegation.objects.filter(module__in=FILING_MODULES, delegate=user, starts__lte=day, ends__gte=day).select_related(
-        "approver"
-    )
+    delegations = Delegation.objects.in_force(day).filter(module__in=FILING_MODULES, delegate=user).select_related("approver")
     return any(access.has_permission(d.approver, cpuc, f"{d.module}.approve") for d in delegations)
 
 

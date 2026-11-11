@@ -157,6 +157,8 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.rename_organisation(cpuc_admin, ava, code="AVA", name="Ava Community Energy", effective=date(2024, 1, 1), reason="renamed")
     twice = service.create_organisation(cpuc_admin, code="AVA2", name="Ava, loaded twice", kind="pa")
     service.merge_organisation(cpuc_admin, twice, into=ava, effective=date(2025, 1, 1), reason="the same party")
+    firm = service.create_organisation(cpuc_admin, code="OLDFIRM", name="An evaluator that closed", kind="other")
+    service.retire_organisation(cpuc_admin, firm, "the firm closed")  # retired without a merge: its page offers Bring back
     role_filers = _role_filers()
     analyst = make_user("analyst@pge.example.org", "Ana Lyst")
     service.grant(pge_admin, analyst, pge, "claims.submit", expires_at=timezone.now() + timedelta(days=90))
@@ -222,6 +224,16 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     service.grant(pge_admin, analyst, pge, "claims.confirm")
     approver = make_user("approver@cpuc.example.org", "Avery Prover")
     service.grant(cpuc_admin, approver, cpuc, "claims.approve")
+    deputy = make_user("deputy@cpuc.example.org", "Dee Puty")  # the approver's delegate for a week (Approver delegates page)
+    service.grant(cpuc_admin, deputy, cpuc, "claims.read")
+    submissions.delegate(
+        approver,
+        module="claims",
+        delegate_to=deputy,
+        starts=timezone.localdate(),
+        ends=timezone.localdate() + timedelta(days=7),
+        reason="leave",
+    )
     quarter = [p for p in registry.ensure_periods(2028) if p.kind == "quarter" and p.number == 1][0]
     deadline = submissions.add_deadline(
         cpuc_admin, module="claims", kind="quarterly claim", period=quarter, due_at=timezone.now() + timedelta(days=10)
@@ -391,6 +403,11 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     for p in ("claims.submit", "claims.confirm"):
         service.grant(pge_admin, pii_filer, pge, p)
     service.approve_pii(cpuc_admin, service.grant(pge_admin, pii_filer, pge, perms.PII, reason="keeps the claims' contacts"))
+    # PG&E holds PII grants, so a change to its members' sign-in waits for a data steward (stewardship page, PG&E's page)
+    service.change_federation(cpuc_admin, pge, federated=True, provider="pge-directory", reason="PG&E's directory is ready")
+    former = make_user("former@pge.example.org", "For Mer")
+    service.grant(pge_admin, former, pge, "claims.read")
+    service.deactivate_user(cpuc_admin, former, "left PG&E")  # the People page's deactivated account
     claims = _claims(cpuc_admin, pge, pge_admin, analyst, pii_filer)
     budgets = _budgets(cpuc_admin, pge, pge_admin, analyst, make_user)
     monthly = _monthly(cpuc_admin, pge, pge_admin, analyst)
@@ -421,6 +438,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "cost_set": cost_set,
         "analyst": analyst,
         "pii_filer": pii_filer,
+        "former_user": former,
         "queued_run": queued,
         "finished_run": finished,
         "own_run": own,

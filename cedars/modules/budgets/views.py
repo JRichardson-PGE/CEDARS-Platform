@@ -18,7 +18,7 @@ from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
-from cedars.services.submissions import corrections, filing_page
+from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
@@ -273,7 +273,7 @@ def filing(request, pk):
             ctx["tiles"] = _tiles(t)
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
     ctx.update(
-        filing_page.context(
+        filing_parts.context(
             v,
             has_file=bool(ctx.get("file")) or bool(v and v.imported),
             priced=ctx.get("priced", False),
@@ -353,7 +353,7 @@ def upload(request, pk):
             messages.info(request, msg + " Price it next.")
         else:
             rejected = s.get("rejected", 0)
-            messages.warning(request, f"{rejected:,} records are rejected. " + filing_page.REJECTED_NEXT)
+            messages.warning(request, f"{rejected:,} records are rejected. " + filing_parts.REJECTED_NEXT)
 
     deadline = _deadline(pk)
     if request.organisation is None:
@@ -486,7 +486,7 @@ def version(request, pk):
             "legacy": legacy.imported(v) if v.imported else None,
             "letter": ChangeLetter.objects.filter(version=v).first(),
             "operating": v.submission.organisation.files and shifts.can_read_operating(request.user, v.submission.organisation),
-            **filing_page.version_page(request, v, priced=service.priced(v)),
+            **filing_parts.version_page(request, v, priced=service.priced(v)),
         },
     )
 

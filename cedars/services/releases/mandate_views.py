@@ -11,6 +11,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
+from cedars.core import pickers
 from cedars.services.accounts.service import AccessDenied
 
 from . import mandates
@@ -115,14 +116,50 @@ class MandateForm(forms.ModelForm):
 
 
 class LinkForm(forms.Form):
-    kind = forms.ChoiceField(label="Carried by", choices=[(k, v.label) for k, v in LINK_KINDS.items()])
-    key = forms.CharField(
-        label="Which one",
-        max_length=400,
-        help_text="Its number, or its address pasted from the page (for a field, its name). "
-        + "; ".join(f"{v.label}: {v.key_help}" for v in LINK_KINDS.values()),
+    """Link a record: what carries the change, then that record picked from a list of the ones that exist and are public (a field by
+    its name, from the dictionary's picker), not its number typed or its address pasted (UI review 3). Each kind has its own list,
+    key_<kind>; core/pickers.js shows only the chosen kind's, and without scripts each says which kind it is for. A key given directly
+    (key=, as the form took it before) is still read."""
+
+    kind = forms.ChoiceField(
+        label="Carried by", choices=[(k, v.label) for k, v in LINK_KINDS.items()], widget=forms.Select(attrs={"data-reveal": ""})
     )
     reason = forms.CharField(label="Why (for an entry on the register)", required=False, max_length=500)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for code, k in LINK_KINDS.items():
+            help_text = f"When it is carried by {k.label[0].lower()}{k.label[1:]}."
+            if k.choices is None:
+                field = pickers.FieldField(label=k.noun, required=False, help_text=f"{help_text} Type part of its name, then pick it.")
+            else:
+                choices = k.choices()
+                field = forms.ChoiceField(
+                    label=k.noun,
+                    required=False,
+                    choices=[("", f"Choose a {k.noun.lower()}" if choices else f"No published {k.noun.lower()} yet"), *choices],
+                    help_text=help_text,
+                )
+            self.fields[f"key_{code}"] = field
+        self.order_fields(["kind", *(f"key_{c}" for c in LINK_KINDS), "reason"])
+
+    @property
+    def kind_fields(self):
+        """(kind, bound field) for each kind's list, for the template's show-for-the-chosen-kind wrappers."""
+        return [(code, self[f"key_{code}"]) for code in LINK_KINDS]
+
+    def clean(self):
+        d = super().clean()
+        kind = d.get("kind")
+        for code in LINK_KINDS:  # only the chosen kind's list counts: what the others hold (a script-less form shows them all) is ignored
+            if code != kind:
+                self._errors.pop(f"key_{code}", None)
+        if kind in LINK_KINDS:
+            key = d.get(f"key_{kind}") or (self.data.get("key") or "").strip()
+            if not key and f"key_{kind}" not in self.errors:
+                self.add_error(f"key_{kind}", f"Choose the {LINK_KINDS[kind].noun.lower()} to link.")
+            d["key"] = key
+        return d
 
 
 def _require(request):

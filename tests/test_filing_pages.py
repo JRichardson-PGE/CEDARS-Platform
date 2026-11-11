@@ -1,4 +1,4 @@
-"""The parts the filing pages share (UI review 3, U1; submissions/filing_page.py): the step line, the outcome with the one next action,
+"""The parts the filing pages share (UI review 3, U1; submissions/filing_parts.py): the step line, the outcome with the one next action,
 the findings grouped by rule with links to the rule and to each record, the page that follows its pricing run, Confirm and publish on
 the version page, and filed savings that disagree with the priced ones marked."""
 
@@ -9,7 +9,7 @@ from django.urls import reverse
 
 from cedars.modules.calculations.models import Run
 from cedars.modules.claims import service
-from cedars.services.submissions import filing_page
+from cedars.services.submissions import filing_parts
 from cedars.services.submissions.models import SubmissionVersion
 
 from .conftest import sign_in
@@ -113,20 +113,20 @@ def test_the_version_page_offers_confirm_and_marks_filed_savings_that_differ(cli
 
 def test_findings_by_rule_lists_every_missing_column_and_counts_records_once(filer, year, pge, programs):  # noqa: F811
     v = service.upload_claims(filer, deadline(), pge, bad(), "bad.zip")
-    groups = {g.rule_id: g for g in filing_page.findings_by_rule(v, link_records=True)}
+    groups = {g.rule_id: g for g in filing_parts.findings_by_rule(v, link_records=True)}
     assert groups["CLM-ID"].severity == "reject" and groups["CLM-ID"].count == len(groups["CLM-ID"].records)
     assert all(r["url"] for r in groups["CLM-PRG"].records)
-    shown = filing_page.findings_by_rule(v, limit=1)
+    shown = filing_parts.findings_by_rule(v, limit=1)
     assert all(len(g.records) <= 1 for g in shown) and any(g.more for g in shown)
 
 
 def test_the_stage_words():
     v = SubmissionVersion(number=1, status=SubmissionVersion.Status.VALIDATED, findings={"records": 3, "rejected": 0, "warnings": 1})
-    assert filing_page.stage(None, has_file=False, priced=False).key == "upload"
-    assert filing_page.stage(v, has_file=True, priced=False).key == "price"
-    assert filing_page.stage(v, has_file=True, priced=False, pricing={"id": "x", "ended": False}).key == "pricing"
-    assert filing_page.stage(v, has_file=True, priced=False, pricing={"id": "x", "ended": True}).key == "failed"
-    assert filing_page.stage(v, has_file=True, priced=True).key == "confirm"
-    assert filing_page.status_words(v, True) == "Validated and priced" and filing_page.status_words(v, False) == "Validated"
-    steps = filing_page.stage(v, has_file=True, priced=True).steps
+    assert filing_parts.stage(None, has_file=False, priced=False).key == "upload"
+    assert filing_parts.stage(v, has_file=True, priced=False).key == "price"
+    assert filing_parts.stage(v, has_file=True, priced=False, pricing={"id": "x", "ended": False}).key == "pricing"
+    assert filing_parts.stage(v, has_file=True, priced=False, pricing={"id": "x", "ended": True}).key == "failed"
+    assert filing_parts.stage(v, has_file=True, priced=True).key == "confirm"
+    assert filing_parts.status_words(v, True) == "Validated and priced" and filing_parts.status_words(v, False) == "Validated"
+    steps = filing_parts.stage(v, has_file=True, priced=True).steps
     assert [s["done"] for s in steps] == [True, True, True, False, False] and steps[3]["current"]
