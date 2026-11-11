@@ -263,7 +263,11 @@ def test_a_filing_pins_its_allocation_version(filer, filing, pge, programs, rele
     factors = (DATA / "statewide_factors_20260918.csv").read_bytes()
     first = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL", purpose="filing")
     first = registry.confirm_allocation(cpuc_admin, first)
-    service.change_setup(cpuc_admin, filing.budget_setup, acc_version="2026", allocation_version=first, reason="the TUAL's factors")
+    service.change_setup(
+        cpuc_admin, filing.budget_setup, acc_version="2026", allocation_version=first, reason="the TUAL's factors", notes="TUAL factors."
+    )
+    assert filing.budget_setup.notes == "TUAL factors."
+    assert AuditEvent.objects.get(action="budget_filing.setup_changed").after["notes"] == "TUAL factors."
     sw = factors.split(b"\n")[1].split(b",")[1].decode()
     p = registry.create_program(cpuc_admin, prg_id=sw, administrator=None, statewide=True, valid_from=date(2020, 1, 1), name="SW")
     registry.set_lead(cpuc_admin, p, pge, "PG&E leads it")  # only a statewide program's lead PA files it

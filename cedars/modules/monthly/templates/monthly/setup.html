@@ -5,7 +5,7 @@
 <div class="page-title"><h1>{{ setup.year }} monthly reports: set-up</h1>{% page_help "monthly/setup" %}</div>
 <section class="card" aria-labelledby="pricing-h" id="setup-pricing">
   <h2 id="pricing-h">How they are priced</h2>
-  <p>Reports already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses these.</p>
+  <p>Reports already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses these. The notes are kept with the set-up; a change to them is recorded with its reason.</p>
   <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
     {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
