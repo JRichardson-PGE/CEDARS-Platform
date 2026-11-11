@@ -91,6 +91,7 @@ class Run(models.Model):
     )
     owner = models.ForeignKey(conf.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="calculation_runs")
     name = models.CharField(max_length=200)
+    note = models.TextField(blank=True, max_length=2000, help_text="The owner's note on the run; the owner changes it and the name")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True)
     record_class = models.CharField(max_length=40, default="scratch_run", help_text="The retention record class (decision M)")
 

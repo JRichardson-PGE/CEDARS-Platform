@@ -491,6 +491,14 @@ MENUS = (
                         in_menu=False,
                     ),
                     Item(
+                        "Site notices",
+                        "releases:notices",
+                        SYSADMIN,
+                        pages=("releases:withdraw_notice",),
+                        about="A short dated notice every page shows at its top, such as an outage or an extended deadline.",
+                        in_menu=False,
+                    ),
+                    Item(
                         "Register a CPUC-mandated change",
                         "mandates:manage",
                         SYSADMIN,

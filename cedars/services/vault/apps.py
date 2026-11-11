@@ -8,3 +8,10 @@ class VaultConfig(AppConfig):
     name = "cedars.services.vault"
     label = "vault"
     verbose_name = "PII vault"
+
+    def ready(self):
+        from cedars.services.rules.coded import register_coded_checks
+
+        from . import coded_checks
+
+        register_coded_checks("vault", "Claims PII files", coded_checks.ABOUT, coded_checks.CHECKS, order=4)

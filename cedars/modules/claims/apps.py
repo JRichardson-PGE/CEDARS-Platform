@@ -19,6 +19,11 @@ class ClaimsConfig(AppConfig):
             "claims", checks.RULE_SET, "Quarterly claims", checks.precheck,
             year_help="The claim year; left blank, the one year the records are for.",
         )  # fmt: skip
+        from cedars.services.rules.coded import register_coded_checks
+
+        from . import coded_checks
+
+        register_coded_checks("claims", "Claims", coded_checks.ABOUT, coded_checks.CHECKS, order=2)
         from cedars.services.submissions.service import (
             register_claims_totals,
             register_deadline_page,

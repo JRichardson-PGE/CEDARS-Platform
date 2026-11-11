@@ -760,13 +760,27 @@ def deadline(request, pk):
 @login_required
 def reopen_requests(request):
     """Requests to correct filings after their due date, for approvers and their delegates. Each filing is named once, plainly
-    (Submission.plain_name), with a link to its page."""
+    (Submission.plain_name), with what the approver needs to decide: a link to the filing, its confirmed version (its records and
+    totals), the earlier corrections and the comments."""
     related = ("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
     pending = []
     for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(*related, "requested_by"):
         approver = service.approver_for(request.user, r.submission.module)
-        if approver is not None:
-            pending.append((r, approver, service.filing_page(r.submission, service.current(r.submission))))
+        if approver is None:
+            continue
+        stands = service.current(r.submission)
+        earlier = list(r.submission.versions.filter(number__gt=1).exclude(origin=SubmissionVersion.Origin.IMPORTED).order_by("number"))
+        pending.append(
+            {
+                "r": r,
+                "approver": approver,
+                "page": service.filing_page(r.submission, stands),
+                "stands": stands,
+                "stands_page": comments.version_page(stands) if stands else "",
+                "earlier": earlier,
+                "comments": comments.Comment.objects.filter(version__submission=r.submission).count(),
+            }
+        )
     decided = [
         (r, service.filing_page(r.submission, service.current(r.submission)))
         for r in ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related(*related, "decided_by")[:50]

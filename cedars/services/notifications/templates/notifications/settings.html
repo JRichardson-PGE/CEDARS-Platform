@@ -71,6 +71,20 @@
   </fieldset>
   {% endfor %}
 
+  <h2 id="requests-h">Requests</h2>
+  <fieldset aria-describedby="requests-help">
+    <legend>About your own requests, and the ones you decide</legend>
+    <p id="requests-help" class="helptext">Requests to correct a filing after its due date, to change or correct a locked program attribute, and to join an organization. These are on unless you turn them off, and they reach you whatever PAs you follow.</p>
+    <p><label for="own-requests">The decision on a request you made</label>
+      <select id="own-requests" name="own_requests">
+        {% for code, label in request_choices %}<option value="{{ code }}"{% if code == pref.own_requests %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></p>
+    <p><label for="requests-to-decide">A request waiting for your decision, or withdrawn before you decided (if you approve, or administer an organization)</label>
+      <select id="requests-to-decide" name="requests_to_decide">
+        {% for code, label in request_choices %}<option value="{{ code }}"{% if code == pref.requests_to_decide %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select></p>
+  </fieldset>
+
   <h2 id="reminders-h">Deadline reminders</h2>
   <p>Be reminded of the <a href="/filings/calendar/">filing calendar</a>'s deadlines as many days before each is due as you choose (0 is on the day). Add as many reminders as you like, for example 14 days and 2 days before; leave the days blank to remove one.{% if not has_reminders %} You have none yet.{% endif %}</p>
   <div class="hscroll" tabindex="0" role="region" aria-label="Your deadline reminders">

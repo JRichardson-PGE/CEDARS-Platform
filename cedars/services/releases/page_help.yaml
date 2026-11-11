@@ -79,6 +79,34 @@ releases/limits:
       title: API limits
       text: How many calls a minute the API answers, with and without a token, and how long a token lasts.
 
+releases/notices:
+  title: Site notices
+  see: releases
+  guide:
+    - >-
+      For CPUC system administrators. A site notice is a sentence or two every page shows at its top from its start until its end, such
+      as an outage or an extended deadline. It shows at once, without a release note's notice period; a change to CEDARS itself is
+      still announced in a release note.
+    - >-
+      A notice is never edited. Withdraw it with a reason (it stays listed, marked withdrawn) and post another. Posting and withdrawing
+      are in the audit log.
+  how:
+    - Fill in Post a notice with what it says, an optional link, when it is shown from and until, and why, then Post the notice.
+    - Withdraw takes a notice shown now, or still to start, off every page; give the reason.
+  tour:
+    - heading: Post a notice
+      title: Post a notice
+      text: What every page says, a link to more, when it shows (Pacific time; blank start means now) and why it is posted.
+    - heading: Shown now
+      title: Shown now
+      text: The notices every page shows at this moment, each with its dates and who posted it, and Withdraw.
+    - heading: Coming
+      title: Coming
+      text: Notices still to start.
+    - heading: Ended or withdrawn
+      title: Ended or withdrawn
+      text: Every earlier notice, kept with its dates and, for a withdrawn one, who withdrew it and why.
+
 releases/limits_manage:
   title: Change limits
   see: releases

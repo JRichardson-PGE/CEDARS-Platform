@@ -191,6 +191,44 @@ documents/lists:
       title: A list
       text: Each list's values, with when each was added and retired. Its keepers correct a label, retire or reinstate a value, and add new ones.
 
+documents/legacy_links:
+  title: Old CEDARS links
+  guide:
+    - The document addresses of the old CEDARS site, each leading to the document (and file) it now opens here, so a link in a decision,
+      a report or an email still works. CPUC Energy Division's document administrators keep them.
+    - When an old link leads to the wrong document or file, open it and repoint it, with the reason; the audit trail keeps what it led to
+      before.
+  how:
+    - Search by the old address or the document's title, then open a link to repoint it.
+  see: documents
+  tour:
+    - target: main form.filters
+      title: Find a link
+      text: Words from the old address or from the document's title.
+    - target: "#links-count"
+      title: How many
+      text: How many old links match, and how many are shown.
+    - target: main table.legacy-links
+      title: The links
+      text: Each old address, the document and file it opens, and a link to repoint it.
+      optional: true
+
+documents/legacy_link:
+  title: Repoint an old link
+  guide:
+    - One address of the old CEDARS site and the document it opens here. Point it at another document, or at one of a document's files by
+      its name, and give the reason; the audit trail keeps the change.
+  how:
+    - Enter the document's number, a file name if the link should open one file, and the reason, then Repoint the link.
+  see: documents
+  tour:
+    - target: "#link-now"
+      title: Where it leads now
+      text: The old address, the document and file it opens today.
+    - target: "#repoint-h"
+      title: Repoint it
+      text: The document (and file) it should open instead, and why.
+
 documents/subscriptions:
   title: Your document subscriptions
   guide:

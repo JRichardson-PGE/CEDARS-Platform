@@ -59,10 +59,12 @@ def metrics_csv(request):
 
 @require_GET
 def front_page(request):
-    """The site's front page (Jake, 2026-10-31): what CEDARS is, how the portfolio is doing year by year (front.py) and the way to Help."""
+    """The site's front page (Jake, 2026-10-31): what CEDARS is, the signed-in person's own work (core/yourwork.py; UI review 3,
+    U5), how the portfolio is doing year by year (front.py) and the way to Help."""
     from django.shortcuts import render
 
     from cedars.core import help as site_help
+    from cedars.core import yourwork
 
     from . import front
 
@@ -70,6 +72,7 @@ def front_page(request):
         request,
         "data/front.html",
         {
+            "your_work": yourwork.parts(request, yourwork.FRONT),  # signed in: the person's own work above the portfolio
             "t": front.trends(request.GET),
             "guides": site_help.GUIDES,
             "support": site_help.support(),

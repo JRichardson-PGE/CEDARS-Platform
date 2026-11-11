@@ -524,7 +524,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
 
     from cedars.modules.documents import comments, deliverables, studies, subscriptions
     from cedars.modules.documents import service as documents
-    from cedars.modules.documents.models import AttributeOption, Document
+    from cedars.modules.documents.models import AttributeOption, Document, LegacyLink
 
     importlib.import_module("cedars.modules.documents.migrations.0002_value_lists").seed(apps, None)
     importlib.import_module("cedars.modules.documents.migrations.0005_study_lists").seed(apps, None)
@@ -692,6 +692,7 @@ def _documents(cpuc_admin, cpuc, pge, hvac, community, pge_admin, analyst):
         "work_order": work_order.pk,
         "deliverable": plan.pk,
         "deliverable_open": open_plan.pk,
+        "legacy_link": LegacyLink.objects.create(path="/guidance-document/hvac-impact", document=report).pk,
     }
 
 
@@ -1582,6 +1583,8 @@ def test_the_tour_by_keyboard(browser, axe_source, site, scene, scheme, who):
         assert not page.evaluate("document.querySelector('[data-tour=nav-filings] details').open")
     page.keyboard.press("Escape")
     assert not page.locator("#tour").evaluate("d => d.open")
+    # the dialog's "close" event, which clears the outline and returns the focus, runs as a task after Escape: wait for it
+    page.wait_for_function("!document.querySelector('.tour-target') && !document.documentElement.classList.contains('touring')")
     assert page.evaluate("document.activeElement.hasAttribute('data-tour-start')")
     assert page.locator(".tour-target").count() == 0
     context.close()
