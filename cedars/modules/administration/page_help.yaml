@@ -298,7 +298,9 @@ administration/audit:
   tour:
     - target: main form.filters
       title: Filter
-      text: By what the action starts with, the actor's email and the record type, then Apply.
+      text: >-
+        Pick an action or every action of a kind, a record type and an organization from the ones the log holds, type part of the
+        actor's email, give a date range, then Apply.
     - target: main table.list
       title: Events
       text: Each event. Open Before and after to see what changed.

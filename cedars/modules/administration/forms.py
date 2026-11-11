@@ -179,9 +179,33 @@ class PolicyChangeForm(forms.Form):
 
 
 class AuditFilterForm(forms.Form):
-    action = forms.CharField(label="Action starts with", required=False)
+    """The audit log's filters, each list holding only what the log has: actions (each family, such as every grant action, then each
+    action), record types and organizations, with a date range and the actor."""
+
+    # lists to choose from; any value is still taken, so an earlier link's "action starts with" (?action=grant) keeps working
+    action = forms.CharField(label="Action", required=False, widget=forms.Select)
+    object_type = forms.CharField(label="Record type", required=False, widget=forms.Select)
+    organisation = forms.CharField(label="Organization", required=False, widget=forms.Select)
     actor = forms.CharField(label="Actor email contains", required=False)
-    object_type = forms.CharField(label="Record type", required=False)
+    since = forms.DateField(label="From", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    until = forms.DateField(label="To", required=False, widget=forms.DateInput(attrs={"type": "date"}))
+
+    def __init__(self, *args, actions=(), types=(), organisations=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        families = sorted({a.split(".")[0] for a in actions if "." in a})
+        self.fields["action"].widget.choices = [
+            ("", "Any action"),
+            ("Every action of a kind", [(f"{f}.", f"{f}: every action") for f in families]),
+            ("One action", [(a, a) for a in actions]),
+        ]
+        self.fields["object_type"].widget.choices = [("", "Any record type"), *[(t, t) for t in types]]
+        self.fields["organisation"].widget.choices = [("", "Any organization"), *[(o.code, f"{o.code}: {o.name}") for o in organisations]]
+
+    def clean(self):
+        d = super().clean()
+        if d.get("since") and d.get("until") and d["since"] > d["until"]:
+            self.add_error("until", "To is before From.")
+        return d
 
 
 class AllocationUploadForm(forms.Form):

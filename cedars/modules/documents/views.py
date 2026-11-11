@@ -72,8 +72,9 @@ def library(request):
     page = Paginator(results, PER_PAGE).get_page(request.GET.get("page"))
     query = request.GET.copy()
     query.pop("page", None)
-    chosen = set(form.cleaned_data.get("options") or []) if form.is_bound and form.is_valid() else set()
-    q = form.cleaned_data.get("q", "") if form.is_bound and form.is_valid() else ""
+    cleaned = form.cleaned_data if form.is_bound else {}  # read by form.search(); a field in error is left out, not the rest
+    chosen = set(cleaned.get("options") or [])
+    q = cleaned.get("q", "")
     found = service.text_matches(request.user, q, page.object_list)
     rows = []
     for doc in page.object_list:

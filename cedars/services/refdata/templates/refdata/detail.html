@@ -11,7 +11,7 @@
   {% if cost_set %}<dt>In force</dt><dd>{% if cost_in_force %}Yes, the set in force today{% elif pack.status == "published" %}Not today (its program years are under The set){% elif pack.status == "draft" %}Not until it is published{% else %}No: it was withdrawn{% endif %}</dd>
   {% else %}<dt>In force from</dt><dd>{{ pack.valid_from|date_words|default:"not dated" }}</dd>{% endif %}
   <dt>Fingerprint</dt><dd class="small">SHA-256 of the manifest: <code>{{ pack.fingerprint }}</code></dd>
-  <dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>
+  {% if manager %}<dt>Stored at</dt><dd><code>{{ pack.storage_uri }}</code></dd>{% endif %}
   <dt>Size</dt><dd>{{ pack.files }} file{{ pack.files|pluralize }}, {{ pack.bytes|filesizeformat }}</dd>
   {% if pack.source %}<dt>Source</dt><dd>{{ pack.source }}</dd>{% endif %}
   {% if pack.notes %}<dt>Notes</dt><dd>{{ pack.notes }}</dd>{% endif %}
