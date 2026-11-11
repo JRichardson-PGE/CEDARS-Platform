@@ -1,0 +1,7 @@
+{% load static %}
+{% comment %}While a version is priced (UI review 3, U1): the run's state, which core/watch.js keeps up to date and announces, reloading the
+page when the run ends (only when nothing has the focus). Context: v, pricing_run ({"id", "label"}).{% endcomment %}
+<p id="pricing-status" data-watch-url="{% url 'submissions:pricing_status' v.pk %}?run={{ pricing_run.id|urlencode }}"><span data-watch-text>Being priced: the run is {{ pricing_run.label|lower }}.</span>
+  <a href="{% url 'calculations:run' pricing_run.id %}">Follow the run</a>. <a href="" data-watch-reload>Reload this page</a></p>
+<p class="small muted">This page updates itself when the run finishes, and you get a notice.</p>
+<script src="{% static 'core/watch.js' %}" defer></script>

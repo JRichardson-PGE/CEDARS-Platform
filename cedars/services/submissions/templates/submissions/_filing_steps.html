@@ -1,0 +1,8 @@
+{% comment %}Where a filing stands (UI review 3, U1): the five steps, the current one marked by aria-current and in words, a done one by a
+check mark and "done" for screen readers, and the step said in a sentence below. Context: stage (submissions.filing_page.Stage).{% endcomment %}
+<div class="filing-steps" id="filing-steps">
+  <ol class="steps" aria-label="Filing steps">
+    {% for s in stage.steps %}<li class="{% if s.done %}done{% endif %}{% if s.current %} current{% endif %}"{% if s.current %} aria-current="step"{% endif %}><span class="step-mark" aria-hidden="true">{% if s.done %}&#10003;{% else %}{{ s.n }}{% endif %}</span><span class="step-name">{{ s.name }}</span>{% if s.done %}<span class="sr-only"> (done)</span>{% elif s.current %}<span class="sr-only"> (now)</span>{% endif %}</li>{% endfor %}
+  </ol>
+  <p class="step-now" id="step-now"><strong>{{ stage.lead }}</strong> {{ stage.words }}</p>
+</div>

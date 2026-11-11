@@ -40,7 +40,9 @@ claims/year_new:
     - It also has five statewide confirmations, which the statewide programs' lead PAs file first. Each must be due before the PAs'
       confirmation of the same period; left blank, it's due two weeks before a quarter's and a month before the annual claim.
   how:
-    - Choose the year and the five due dates, then Set up the claim year. Its ACC and allocation version are chosen on its pricing page.
+    - Choose the year and check the five due dates, then Set up the claim year. The dates start from the last claim year's, moved on to
+      the year shown; change any that differ, and all of them for another year. Its ACC and allocation version are chosen on its
+      pricing page.
     - Leave the statewide due dates blank for the usual lead time, or set your own.
   see: claims
   tour:
@@ -67,13 +69,15 @@ claims/setup:
       them that no organization has started can be canceled with a reason, leaving the rest of the set as it is: no filing starts for
       it and no reminders are sent. A canceled filing is restored the same way.
   how:
-    - Choose the ACC and the allocation version, then Save. The next pricing uses them.
+    - The links at the top go to each part of the page. Each part saves on its own, with its own reason.
+    - Choose the ACC and the allocation version, give the reason, then Save how they are priced. The next pricing uses them.
     - To move due dates, change them under Due dates, give the reason and Save the due dates.
-    - To remove the set-up, give the reason under Remove this set-up and press its button. It can be set up again afterward.
+    - To remove the set-up, open Remove under Remove this set-up, give the reason and press its button. It can be set up again
+      afterward.
     - To change who files, tick or untick program administrators under Who files, give the reason and Save who files. A PA that has
       started filing stays on it.
-    - To cancel one filing, choose it under Cancel one filing, give the reason and press Cancel the filing; to bring one back, choose
-      it under Restore a canceled filing.
+    - To cancel one filing, open Cancel one filing under Filings in this set, choose it, give the reason and press Cancel the filing;
+      to bring one back, choose it under Restore a canceled filing.
   see: claims
   tour:
     - target: "#setup-pricing"
@@ -123,33 +127,45 @@ claims/period:
         Each PA files its own claim. CPUC staff, and anyone not acting for a PA, choose one here to see its claim; others' published
         versions are open to everyone signed in.
       optional: true  # only when you are not acting for a PA
-    - target: "#statewide-filing"
-      title: Statewide claims
-      text: This confirmation is the statewide one, filed first by the lead PA, and holds only the statewide programs it leads.
-      optional: true
-    - target: "#statewide-first"
-      title: Statewide claims, filed first
-      text: Which lead PAs have confirmed the statewide claims due before this one, and a link to what they credit to this PA.
-      optional: true
     - target: "#nothing-yet"
       title: Not started yet
       text: The PA has not started this claim, and you cannot upload it; its filers do that here.
       optional: true
-    - target: "#earlier-h"
-      title: Earlier confirmations
-      text: This year's confirmed quarters, which this upload is compiled over.
+    - target: "#filing-steps"
+      title: Where the claim stands
+      text: The five steps from upload to publication, with the one it is at said in words.
       optional: true
     - target: "#now-h"
-      title: The version in progress
-      text: Its status, the records by table, the findings by rule (rejects first), and the next step, which is check, price, confirm, un-confirm or ask to reopen.
+      title: The outcome and the next step
+      text: >-
+        What the last check or pricing found, and the one thing to do next: upload or correct, price, confirm, or ask to reopen after the
+        due date. While it is priced the page follows the run and shows the results when it finishes.
       optional: true
-    - heading: Year-to-date results
-      title: Year-to-date results
-      text: The priced totals that confirming signs off on.
+    - target: "#findings-h"
+      title: Findings by rule
+      text: >-
+        Each rule that found something, rejects first: its code links to the rule, and each record it found links to the page where you
+        correct that record.
       optional: true
-    - target: "#upload-h"
+    - target: "#upload"
       title: Upload
-      text: The new and changed records as one file, or several chosen together. It replaces this version's earlier upload.
+      text: >-
+        The new and changed records as one file, or several chosen together. It replaces this version's earlier upload. Once the version
+        passes its checks this section folds away.
+      optional: true
+    - target: "#version-details"
+      title: The file and its records
+      text: The file this version holds and its records by table, over the year to date.
+      optional: true
+    - target: "#statewide-filing, #statewide-first"
+      title: Statewide claims
+      text: >-
+        In a statewide confirmation, the statewide programs its lead PA files first; in a PA's own, which lead PAs have confirmed the
+        statewide claims credited to it.
+      optional: true
+    - target: "#earlier"
+      title: Earlier confirmations
+      text: This year's confirmed quarters, which this upload is compiled over.
       optional: true
     - target: "#pii-h"
       title: Personal information
@@ -197,9 +213,17 @@ claims/version:
     - Comments, at the end, is where your organization and CPUC staff discuss the filing; Post comment adds one, with files.
   see: claims
   tour:
+    - target: "#confirm-here-h"
+      title: Ready to confirm
+      text: Once this version is priced, review its results here and confirm them to publish, without going back to the filing page.
+      optional: true  # the latest version, priced, for someone who may confirm it
     - target: main form.filters
       title: What to show
       text: The programs and years to show.
+      optional: true
+    - target: "#savings-differ"
+      title: Filed savings that differ
+      text: Programs whose filed first-year savings differ from what their records priced to are marked "Differs" in the Filed columns.
       optional: true
     - target: "#programs-h"
       title: By program

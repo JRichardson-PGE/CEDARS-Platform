@@ -5,9 +5,10 @@ documents/library:
   guide:
     - PA documents, CPUC staff guidance, DEER resources, program files and EM&V documents in one library. Published documents are open to
       everyone; drafts are seen only by the people who manage them.
-    - Search by text and collection, and narrow by program, year, dates and the attributes documents are filed with. Key dates lists what
-      is coming up and what passed in the last 30 days; Open for comment now lists the documents taking comments.
+    - The list comes first. Beside it on a wide screen (below it on a narrow one), Key dates lists what is coming up and what passed in the
+      last 30 days, and Open for comment now lists the documents taking comments. A search shows its results only.
   how:
+    - Search by text and collection; More filters narrows by program, year, dates and the attributes documents are filed with.
     - Under More filters, each list of values (sector, study type, cycle and the rest) is folded and says what is ticked. Open one to tick
       values; a long list has a box that narrows it as you type.
     - Follow a collection or value from My document subscriptions to hear when a matching document is published.
@@ -18,6 +19,13 @@ documents/library:
       title: File a document
       text: For the people who manage a collection.
       optional: true
+    - target: main form.filters
+      title: Search
+      text: Text, collection and type. More filters adds program, year, dates and attributes.
+    - target: main table.list
+      title: The documents
+      text: Newest publication first. Select a title to open the document and its versions.
+      optional: true
     - target: "#dates-h"
       title: Key dates
       text: Dates coming up and those in the last 30 days, such as comment deadlines and workshops.
@@ -25,13 +33,6 @@ documents/library:
     - target: "#open-h"
       title: Open for comment now
       text: Documents taking comments or questions, and until when.
-      optional: true
-    - target: main form.filters
-      title: Search
-      text: Text, collection and type. More filters adds program, year, dates and attributes.
-    - target: main table.list
-      title: The documents
-      text: Newest publication first. Select a title to open the document and its versions.
       optional: true
 
 documents/document:
@@ -90,24 +91,32 @@ documents/comments:
 documents/new:
   title: Filing a document
   guide:
-    - File a document in a collection you manage. Choose the collection first, then its type, the attributes it is filed with and the
-      files. It starts unpublished; publish it from its page when it is ready.
-    - Uploading for a study fills in the study ID and lists the document on the study's page.
+    - File a document in a collection you manage, in four short steps on one page. The collection is named at the top of step 1, with links
+      to file in another of yours instead. It starts unpublished unless you publish it now; publish it from its page when it is ready.
+    - Uploading for a study fills in the study and lists the document on the study's page; adding one to a program fills in the program.
     - >-
       An implementation plan filed before the full plan is ready is ticked as a placeholder. The program's page and the document's page
       then say the full plan is still to come; it arrives as a later version of the same document.
   how:
-    - Choose the collection, then the type, the attributes and the files, and File the document.
-    - It starts unpublished: publish it from its page.
+    - Step 1, what it is (its type, title and summary). Step 2, what it covers (the PAs, programs, years and, for EM&V, the study).
+    - Step 3, its values from the collection's lists. Each list is folded and says what is ticked; open one to tick values.
+    - Step 4, the files, and a comment period if the public may comment. Then File the document.
+    - Pick each program from the list as you type a PrgID or part of its name; untick one to drop it.
   see: documents
   tour:
-    - target: main form.filters
-      title: Collection
-      text: The collection the document belongs to; the form below follows it.
+    - target: "#step-what"
+      title: What it is
+      text: The collection, the document's type, its title and summary.
+    - target: "#step-covers"
+      title: What it covers
+      text: The PAs it applies to, its programs and years, and for EM&V its study and work order.
+    - target: "#step-lists"
+      title: Its values from the lists
+      text: Each of the collection's lists, folded; open one to tick the values that apply.
       optional: true
-    - target: main form.stack
-      title: The document
-      text: Its title, type, attributes and files. File the document saves it unpublished.
+    - target: "#step-files"
+      title: The files
+      text: The main file, any attachments, and a comment period. File the document saves it.
 
 documents/change:
   title: Changing a document's details
@@ -115,12 +124,13 @@ documents/change:
     - Change a document's title and attributes. The change is recorded with its reason and what each field was before. The files do not
       change here; add a version to replace them.
   how:
-    - Change the title or attributes, give the reason, and Save the change. Add a version to replace the files.
+    - Change what it is, what it covers or its values from the lists, give the reason, and Save the change. Add a version to replace the
+      files.
   see: documents
   tour:
     - target: main form
       title: The details
-      text: The fields to change and the reason. Save the change.
+      text: What it is, what it covers and its values from the lists, then the reason. Save the change.
 
 documents/version_new:
   title: Adding a version
@@ -323,16 +333,17 @@ documents/study:
 documents/study_form:
   title: Adding or updating a study
   guide:
-    - The study's facts and plans. A new study's ID is made from its first funding cycle's first year, its first sector and its number, as
-      the Project Status Report makes it, and never changes. Each change is recorded with its reason; status and budget changes show in the
-      history. Everything except the contacts is public.
+    - The study's facts and plans, in short parts. A new study's ID is made from its first funding cycle's first year, its first sector and
+      its number, as the Project Status Report makes it, and never changes. Each change is recorded with its reason; status and budget
+      changes show in the history. Everything except the contacts is public.
   how:
-    - Fill in the facts and plans, give the reason for a change, and save.
+    - Fill in the study, its budget and work order, what it studies and what comes next. Give the reason for a change, and save.
+    - Sectors and funding cycles are folded lists that say what is ticked; open one to tick values.
   see: documents
   tour:
     - target: main form
       title: The study
-      text: Title, status, lead, budget, cycles, sectors and plans, and the reason for a change. Everything except the contacts is public.
+      text: The study, its budget, what it studies, what comes next, notes and contacts. Everything except the contacts is public.
     - heading: Upload a document
       title: A document too
       text: Optionally upload a document for the study at the same time.

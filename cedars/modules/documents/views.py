@@ -1,5 +1,6 @@
 import csv
 import re
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -272,6 +273,16 @@ def can_file(request) -> bool:
     return bool(service.collections_for(request.user, _organisation(request)))
 
 
+def _new_url(collection, study=None, program=None) -> str:
+    """File a document in a collection, keeping the study or program it was started from."""
+    query = {"collection": collection}
+    if study is not None:
+        query["study"] = study.study_id
+    if program is not None:
+        query["program"] = program.prg_id
+    return f"{reverse('documents:new')}?{urlencode(query)}"
+
+
 @login_required
 def new(request):
     """File a new document in one of the collections the acting organization files in."""
@@ -320,7 +331,8 @@ def new(request):
         {
             "form": form,
             "collection": collection,
-            "collections": [(c, Collection(c).label) for c in allowed],
+            "collection_label": Collection(collection).label,
+            "other_collections": [(c, Collection(c).label, _new_url(c, study, program)) for c in allowed if c != collection],
             "study": study,
             "program": program,
             # the collection's document types, linked beside the control (navigation review D8, L7)

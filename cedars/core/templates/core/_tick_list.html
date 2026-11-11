@@ -3,7 +3,7 @@ chosen; open, the chosen values first, then the rest, and for a long list a box 
 the summary current; without scripts the box stays hidden and the boxes work as they are).{% endcomment %}
 {% with t=tl %}<details class="tick-list" data-tick-list data-none="{{ t.none }}">
   <summary><span class="tick-legend">{{ t.legend }}</span> <span class="tick-summary" data-tick-summary>{{ t.summary }}</span></summary>
-  <fieldset class="tick-panel">
+  <fieldset class="tick-panel"{% if t.describedby %} aria-describedby="{{ t.describedby }}"{% endif %}>
     <legend class="sr-only">{{ t.legend }}</legend>
     {% if t.narrow %}<div class="field tick-narrow" data-tick-narrow hidden>
       <label for="{{ t.id }}-narrow">Narrow the list<span class="sr-only"> of {{ t.legend }}</span></label>

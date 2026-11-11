@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`, with `TickListInput` for a form field), the shared program, field and member pickers (`pickers.py`, `ProgramsField` for several programs in a form; choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -934,6 +934,25 @@ stateDiagram-v2
   and offers a value list's codes (the version in force, else the engine's list, leaving out codes retired before the filing's first
   year) as a datalist up to the `CEDARS_CORRECTION_LIST_CODES` limit; a longer list links to its dictionary page.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
+- **Checks on a file with missing columns.** Each missing column of the module's specification is a finding of its own (`CLM-COL`,
+  `BUD-COL`; both its name and its CET name). The rules service's `needing(rule_set, table, missing)` names the rules that read a
+  missing column (its field, a spec rule's columns, condition fields and value operands); only those are skipped (`rules.check(...,
+  skip=)`), the other rules still run, and `missing_columns_note` tells the filer that more findings may appear once the columns are there.
+
+**The filing pages** (claims period, budget filing, monthly report) are built from shared parts in the submissions service:
+`filing_parts.py` and the `submissions/_filing_*.html` templates. `filing_parts.stage` turns a version's state into one of five steps
+(Upload, Check, Price, Confirm, Published) and a sentence, drawn as the step line with the current step marked `aria-current="step"`;
+the outcome card under it carries the one next action as the page's only primary button (Upload and check, Check again, Price,
+Confirm and publish). `findings_by_rule` groups a version's findings by rule, using the corrections editor's record keys: the rule ID
+links to the rule in the version's rule set, or, for a check written in code (`rules.coded`), to its row on Built-in checks with
+that check's own wording and fix; each rule lists its records (up to the `CEDARS_FINDING_RECORDS_SHOWN` limit) with a link
+to correct each one, and a column rule lists every missing column. The upload form, the file's details, the statewide card and
+earlier confirmations fold below once they are not the next step. While a pricing run is going, the page polls
+`submissions:pricing_status` (`/filings/versions/<pk>/pricing.json?run=<id>`, readers of the filing only; it reports only a run
+whose `submission.pricing_started` event names this version) through `core/watch.js`, announces the change through
+`window.cedarsAnnounce`, and reloads when the run ends unless something has the focus. Each module's version page shows the same
+status words (`filing_parts.status_words`) and offers Confirm and publish beside the results it confirms (`filing_parts.version_page`);
+the claims version page marks programs whose filed first-year savings differ from the priced ones by more than 1% (`savings_differ`).
 - **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
   filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the
