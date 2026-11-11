@@ -110,6 +110,8 @@ PAGES = [
     ("dashboard-records", "/data/records/?dataset=forecast&metric=tsb&metric=kwh", None),
     ("records-download", "/data/records/?dataset=forecast&columns=all&pa=PGE", None),
     ("records-default", "/data/records/", None),
+    # the program picker with one program chosen and one PrgID that names none (the near-match sentence)
+    ("records-programs", "/data/records/?dataset=forecast&program=PGE_Res_HVAC&program=PGE_Res_HVX", None),
     ("records-background", "/data/records/?dataset=forecast&columns=all", "community"),
     ("dashboard-records-background", "/data/overview/?series=forecast&cs=include&pension=include", "community"),
     ("downloads", "/data/downloads/", "community"),
@@ -419,6 +421,7 @@ PAGES = [
     ("documents-aging", "/documents/studies/aging/", "cpuc_admin"),
     ("studies", "/documents/studies/", None),
     ("studies-search", "/documents/studies/?q=hvac&program=PGE_Res_HVAC", None),
+    ("studies-unknown-program", "/documents/studies/?program=PGE_Res_HVX", None),
     ("studies-cpuc", "/documents/studies/", "cpuc_admin"),
     ("study", "/documents/studies/{study}/", None),
     ("study-manager", "/documents/studies/{study}/", "cpuc_admin"),

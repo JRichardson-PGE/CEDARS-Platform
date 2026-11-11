@@ -57,6 +57,7 @@
   <details class="dash-filters"{% if applied %} open{% endif %}>
     <summary>Filters{% if applied %} ({{ applied|length }} applied){% endif %}</summary>
     {% include "core/_pa_picker.html" %}
+    {% include "core/_program_picker.html" with picker=program_picker %}
     {% for f in filter_fields %}
     {% if f.options %}
     <fieldset>
