@@ -3,6 +3,7 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
 <div class="page-title"><h1>{{ cy.year }} claims: set-up</h1>{% page_help "claims/setup" %}</div>
+{% include "submissions/_setup_sections.html" with pricing_title="How they are priced" %}
 <section class="card" aria-labelledby="pricing-h" id="setup-pricing">
   <h2 id="pricing-h">How they are priced</h2>
   <p>Versions already priced keep the ACC and allocation version they were priced with (their run records both); the next pricing uses these. The notes are kept with the set-up; a change to them is recorded with its reason.
@@ -10,7 +11,7 @@
   <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
     {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     {% for field in form %}{{ field.as_field_group }}{% endfor %}
-    <button type="submit" class="primary">Save</button>
+    <div class="actions"><button type="submit" class="primary">Save how they are priced</button></div>
   </form>
 </section>
 {% if sw_form %}
@@ -21,7 +22,7 @@
   <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
     {% if sw_form.non_field_errors %}<div class="alert" role="alert">{{ sw_form.non_field_errors }}</div>{% endif %}
     {% for field in sw_form %}{{ field.as_field_group }}{% endfor %}
-    <button type="submit" name="add_statewide" value="1" class="primary">Add the statewide due dates</button>
+    <div class="actions"><button type="submit" name="add_statewide" value="1">Add the statewide due dates</button></div>
   </form>
 </section>
 {% endif %}

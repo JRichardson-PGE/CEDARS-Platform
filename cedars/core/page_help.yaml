@@ -180,6 +180,7 @@ core/section_filings:
     - Select a page's name to open it; the arrow beside Filings in the header opens the same pages as a menu.
     - Select Start, Continue or Open beside one of your organization's filings to work on it.
     - Select a status (a bordered badge with an arrow) to open that PA's filing, or a column's heading to open the deadline's page.
+    - "CPUC administrators: with a kind of filing not yet on the calendar, Set up a filing opens the pages that set one up."
   tour:
     - target: "#your-filings"
       title: Your organization's filings
