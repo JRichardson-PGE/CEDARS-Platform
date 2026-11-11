@@ -45,7 +45,7 @@ def accounts(db, cpuc_admin, pge, pge_admin, make_user):
     service.create_organisation(None, code="SOCALREN", name="Southern California Regional Energy Network", kind="pa", pa_type="REN")
     service.create_organisation(None, code="MCE", name="Marin Clean Energy", kind="pa", pa_type="CCA")
     dictionary.load_catalog(  # the data dictionary is a page only once a catalog is loaded
-        None, json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.93.json").read_text()), platform=True
+        None, json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json").read_text()), platform=True
     )
     made = {"signed-out": None, "cpuc-system-admin": cpuc_admin, "org-admin": pge_admin}
     for key, email, how in (

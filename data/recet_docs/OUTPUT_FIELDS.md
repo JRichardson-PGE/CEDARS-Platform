@@ -185,8 +185,7 @@ Tables 3.2 and 3.4 show each term of these sums for both examples. The entries `
 ## 1. The measure-level table
 
 One row per measure, in the order of the input file, column groups left to right. The CSV is UTF-8 with a byte-order mark so Excel opens it directly; Parquet is available with the
-"Output format" option. The measure-level files delivered for the 2024-versus-2026 comparison have one extra first column, `Job` (the claim year of the consolidated job each row
-came from), added by the export script `poc/tou/export_measure_level.py`, not by the package. The columns renamed in 0.1.50, and those no longer written, are listed in 2.1.
+"Output format" option. Renamed columns, and those no longer written, are listed in 2.1.
 
 ### 1.1 `Used_ACCVersion`, `Used_CostTestSet` and the echoed input columns
 
@@ -1866,19 +1865,16 @@ A run creates `<output folder>/<run name>_acc<version>/` (a timestamp `run_YYYYM
 
 The table of section 1.
 
-**Column names (0.1.50, 0.1.55).** Several columns were renamed from the field dictionary (0.1.50) and when the calculation code took the input and output field
-names (0.1.55: the annual quantities say they are net, and the societal participant PVs take CalcCE's `_SCT` suffix), and the restated inputs (`poc_*`),
-`ProgramCosts`, `WeightedSavings` and the per-record check columns (`FilingValidation`, `FilingRules`, `ACCCheck`) are no longer written. Output templates and saved
-Results views that use an old name still work (the new name is used). CET's own outputs file keeps CET's names; the CET comparison (2.6) reads them as ReCET's.
+**Old column names.** The table below lists columns renamed since the first releases. Output templates and saved Results views that use an old name
+still work (the new name is used). CET's own outputs file keeps CET's names; the CET comparison (2.6) reads them as ReCET's. `ProgramCosts`,
+`WeightedSavings` and the per-record check columns (`FilingValidation`, `FilingRules`, `ACCCheck`) are no longer written.
 
-**Column order (0.1.84).** The cost-test columns are written in the order of the run's cost-test set (COST_TESTS.md): `TotalSystemBenefit` and
+**Column order.** The cost-test columns are written in the order of the run's cost-test set (COST_TESTS.md): `TotalSystemBenefit` and
 `TotalSystemBenefitGross`, the program-cost weighting (`WeightedBenefits`, `WeightedProgramCost`, the `Wtd*` columns, `WeightedElecAlloc`,
 `TotalExpenditures`), then each test's columns together (`<T>Ben`, `<T>Cost`, `<T>CostNoAdmin`, `<T>CostGross`, `<T>Ratio`, `<T>RatioNoAdmin`,
-`<T>LifecycleNetBen`, its levelized columns; TRC, PAC, RIM, SCB, SCH, PCT in EE-2026), then `LevBenElec` and `LevBenGas`. Before 0.1.84 the PCT columns
-came right after the gross bill impacts and the costs were written before the ratios. Every value is unchanged; a reader that takes columns by name is
-not affected.
+`<T>LifecycleNetBen`, its levelized columns; TRC, PAC, RIM, SCB, SCH, PCT in EE-2026), then `LevBenElec` and `LevBenGas`.
 
-**A set's own streams (0.1.86).** A cost-test set that adds an input stream (COST_TESTS.md section 3: a non-energy benefit from a Measure column of its
+**A set's own streams.** A cost-test set that adds an input stream (COST_TESTS.md section 3: a non-energy benefit from a Measure column of its
 own, say `HealthNEB` from a health-benefit column the set names) writes it per pricing (`HealthNEB`, `HealthNEB_SB` ...) and its gross form (`HealthNEBGross` ...) after the
 pricing's own columns, before `TotalSystemBenefit`; the Measure column itself is echoed with the inputs. `field_definitions` takes their definitions
 from the set. EE-2026's input streams are `OtherBen`, `OtherCost` and `TaxCredits` (C7), which stay where they were.
@@ -2116,7 +2112,6 @@ filing's ACC within its program years; for *Any filing* (the default), the ACC o
 A measure is `ok` if the ACC normally applies to its program year, flagged if it does not, and `not checked` if the table says nothing about the year (before 2020, after
 the last filing, or claims after 2035) or the version is a label that names no ACC year. The flagged measures are in the input check (`acc_not_for_program_year`:
 preflight.txt, and each record in the Cells sheet of `preflight_findings.xlsx`), and `run_settings.json` counts them by ACC and program year (`acc_check`, 2.9).
-(Before 0.1.50 the measure-level table also carried an `ACCCheck` column.)
 
 ### 2.9c `cost_tests.yaml`
 
@@ -2131,8 +2126,7 @@ With **CEDARS filing checks** set to *Quarterly Claims* or *Budget filing* (`fil
 every record (`filing_rules.py`): the `validation_rules` and `warning_rules` files and the field constraints of the table spec that CEDARS publishes on its spec
 pages, shipped unchanged in the package (`recet/data/cet_rules/<set>_<effective date>/`). A record CEDARS would reject is still priced.
 
-One row per record that fails at least one CEDARS upload check, written by preflight, so a preflight-only run has it too. (Before 0.1.50 the measure-level table
-also carried `FilingValidation` and `FilingRules`; they are now only here.)
+One row per record that fails at least one CEDARS upload check, written by preflight, so a preflight-only run has it too.
 
 | Column | Meaning |
 |---|---|

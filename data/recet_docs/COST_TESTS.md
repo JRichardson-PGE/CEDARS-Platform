@@ -10,7 +10,7 @@ changes. This page is the repository's statement of the design; the module is `r
 * [4. Which set a run uses, and how it is recorded](#4-which-set-a-run-uses-and-how-it-is-recorded)
 * [5. Custom sets](#5-custom-sets)
 * [6. What stays in code](#6-what-stays-in-code)
-* [7. Build steps](#7-build-steps)
+* [7. History](#7-history)
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -21,7 +21,8 @@ is the energy-efficiency set, and another workstream (for example income-qualifi
 a lower-case tail (`EE-2028-draft`) and `draft: true`.
 
 The first set, **EE-2026**, is the TRC, PAC, RIM, SCB, SCH and PCT ReCET has priced since 0.1.53, written out as data, with the four suspected CalcCE
-errors still not copied (CALCULATIONS C17). It is in force for every program year until a later EE set's `program_years.from`.
+errors still not copied (CALCULATIONS C17, items 1 to 4: the gross cost columns, gross gas supply cost, the societal tests' program-cost
+discount rate and the societal electric rows). It is in force for every program year until a later EE set's `program_years.from`.
 
 A published set is never edited: a change is a new set (a new folder), so a run on an old set can always be repeated from the package alone, as the ACC
 tables and run parameters can. `recet cost-tests list` lists the sets shipped, `recet cost-tests show EE-2026` writes a set out as formulas, and
@@ -100,7 +101,7 @@ OUTPUT_FIELDS.md 1.8 to 1.10.
 
 ## 5. Custom sets
 
-Filings use the CPUC's set, which users cannot edit; anyone running ReCET by itself may price on a set of their own (Jake, 2026-10-31). So:
+Filings use the CPUC's set, which users cannot edit; anyone running ReCET by itself may price on a set of their own. So:
 
 * A run with CEDARS filing checks (`filing_validation`) or priced for a filing (`acc_purpose`) accepts only a **published built-in** set: a supplied
   file or a draft set is refused before anything is priced, with a message naming the built-in sets.
@@ -115,27 +116,9 @@ program-cost NPV, the share mechanics (positive parts, per-program totals, the 1
 `Weighted*` / `Wtd*` / `TotalExpenditures` columns (CET's program-cost components, on the headline test's share), the levelized formula and the CET
 replicas stay code.
 
-## 7. Build steps
+## 7. History
 
-1. **Sets and pinning** (0.1.83): this page, the EE-2026 set, the schema, `cost_test_sets.py`, the run option, `Used_CostTestSet`, the run_settings.json
-   and receipt block, the job spec, filing-run and draft handling, the program-year warning. The arithmetic is unchanged: `pipeline/cost_tests.py` still
-   prices, and a test checks that every column the set names is a column a run writes.
-2. **The evaluator** (0.1.84): `pipeline/test_evaluator.py` prices every aggregate and test of the run's set (`cost_tests.compute_cost_tests(...,
-   cset)`); 0.1.81's arithmetic is kept, frozen, as `tests/reference_cost_tests.py`, and tests/test_test_evaluator.py holds EE-2026 to it within 1e-9 on
-   every column (in one piece and in parts, with and without program costs, market effects, zero NTGs). The PCT is the set's (the engine writes only
-   its participant streams, `TaxCreditsGrossPV` among them, internal); CALCULATIONS C12 carries `test_evaluator.formulas` of the set in force, checked by a
-   test. The measure-level columns now follow the set: the aggregates, the `Weighted*` block, then each test's columns together (OUTPUT_FIELDS 2.1).
-3. **Consumers from the set** (0.1.85): the portfolio summary's ratios and numerators (`cost_test_sets.ratio_names` / `summary_ratios`), the key
-   metrics (a ratio row per test, the drivers on the headline tests), the field definitions' cost-test attribute (`cost_test_sets.benefit_cost_of`), the
-   Results page's ratio columns and labels, the run page's tiles (`tile_tests`) and the run email take their tests from the run's set; the run keeps
-   its set as `cost_tests.yaml` (OUTPUT_FIELDS 2.9c, `cost_test_sets.for_run`). EE-2026 runs write what they wrote, except a "PCT ratio" row in the
-   key metrics. The per-measure TRC / PAC / RIM / SCB / SCH arithmetic the pricing still carried (without program costs, dropped before the tests) is
-   gone. Output templates stay column lists: a template naming a test the run's set lacks has that column left out, with a note.
-4. **Input streams** (0.1.86): `pipeline/input_streams.py` prices every input stream of the run's set (`one_time` and `annual_over_life`, section 3) in
-   `run_poc.price_measure_values`; EE-2026's OtherBen / OtherCost / TaxCredits come out of it equal bit for bit to the engine's
-   (`engine.price_other_ben_cost`, still the per-measure reference), so EE runs are unchanged (regression gate). A set's own Measure columns are loaded,
-   allocated, checked and templated as section 3 says. tests/test_input_streams.py: the bases against a year-by-year loop, and a synthetic set
-   (`EE-2026-neb`: an annual health NEB from `UnitNEBHealth`, in the primary and SCT Base pricings, and a JST = ElecBen + GasBen + HealthNEB over
-   RebatesandIncentsPV and the TRC share of the program costs) run end to end, in one piece and in parts.
-5. **CEDARS platform**: the reference-data pack kind `cost_tests`, its admin page, the set in the job spec and on the run record, and the filing template's
-   required set.
+Built in four releases: 0.1.83 (sets and pinning), 0.1.84 (the evaluator, held to the earlier arithmetic within 1e-9 on every column by
+`tests/test_test_evaluator.py` against the frozen `tests/reference_cost_tests.py`), 0.1.85 (the summaries, key metrics, field attributes, Results and
+run page take their tests from the run's set) and 0.1.86 (input streams). `CHANGELOG.md` has each step and how it was checked. The CEDARS platform
+keeps the sets as reference data, with its own pages.

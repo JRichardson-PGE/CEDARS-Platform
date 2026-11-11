@@ -11,7 +11,7 @@ from cedars.services.dictionary import service
 from cedars.services.dictionary.models import CatalogVersion
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.93.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json"
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def catalog(db):
 
 
 def test_the_catalog_carries_every_attribute(catalog):
-    assert catalog.label == "ReCET 0.1.93"
+    assert catalog.label == "ReCET 0.1.94"
     f = service.resolve("ElecBen")
     assert f.kind == "output" and "TRC" in f.cost_tests and f.unit.startswith("Dollars") and f.time_basis and f.aggregation
     assert catalog.fields.count() > 300
