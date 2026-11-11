@@ -15,7 +15,7 @@
     var ticked = function () { return chosen.querySelectorAll("input[type=checkbox]:checked").length; };
     var update = function () {
       var n = ticked();
-      if (summary) summary.textContent = "(" + (n ? n + " program" + (n === 1 ? "" : "s") + " chosen" : "Every program") + ")";
+      if (summary) summary.textContent = "(" + (n ? n + " program" + (n === 1 ? "" : "s") + " chosen" : (picker.getAttribute("data-none") || "Every program")) + ")";
     };
 
     var add = function () {
