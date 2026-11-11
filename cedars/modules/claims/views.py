@@ -213,7 +213,12 @@ def setup(request, year):
     form = forms.SetupForm(
         request.POST if own else None,
         accs=accs(),
-        initial={"acc_version": cy.acc_version, "allocation_version": cy.allocation_version, "cost_test_set": cy.cost_test_set},
+        initial={
+            "acc_version": cy.acc_version,
+            "allocation_version": cy.allocation_version,
+            "cost_test_set": cy.cost_test_set,
+            "notes": cy.notes,
+        },
     )
     if own and form.is_valid():
         d = form.cleaned_data
@@ -225,6 +230,7 @@ def setup(request, year):
                 allocation_version=d["allocation_version"],
                 reason=d["reason"],
                 cost_test_set=d["cost_test_set"],
+                notes=d["notes"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))

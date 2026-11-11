@@ -6,7 +6,7 @@ profile: deemed profiles generated from eTRM load shapes, custom profiles upload
 profiles carried over from CEDARS. Profiles are versioned, and a run or claim keeps the version it was priced with.</p>
 <h2>A custom profile</h2>
 <ol>
-  <li><a href="{% url 'impact_profiles:custom_new' %}">Add a custom profile</a> from the template linked beside the form: one 8,760 per
+  <li>{% page_link 'impact_profiles:custom_new' "Add a custom profile" %} from the template linked beside the form: one 8,760 per
   climate zone (1 to 16, or System for a statewide profile), each adding up to 1.</li>
   <li>The file is checked before the profile is added. It belongs to the organization you act for and everyone signed in can read
   it.</li>
@@ -27,7 +27,7 @@ profiles carried over from CEDARS. Profiles are versioned, and a run or claim ke
 <ul class="links">
   <li><a href="{% url 'impact_profiles:exports' %}">Profile library files</a>: the library written in the engine's format, registered
   as a data pack. Filings use it once it is published under Reference data.</li>
-  <li><a href="{% url 'impact_profiles:settings' %}">Impact profile settings</a> (CPUC administrators): the IOU territories a profile with no territory is written for, and the start
+  <li>{% page_link 'impact_profiles:settings' "Impact profile settings" %} (CPUC administrators): the IOU territories a profile with no territory is written for, and the start
   date of the measure versions whose load shapes are taken. Each change needs a reason and is kept with its history.</li>
   <li><a href="{% url 'core:help_guide' 'reference-data' %}">Reference data and cost-test sets</a>.</li>
   <li><a href="{% url 'core:help_guide' 'calculations' %}">Cost-effectiveness runs</a>.</li>

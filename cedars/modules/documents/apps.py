@@ -47,6 +47,14 @@ class DocumentsConfig(AppConfig):
         my_queue.register("document_response", "Responses to recommendations", queue.responses, action="Respond", order=85)
         my_queue.register("document_question", "Questions to answer", queue.questions, action="Answer", order=90)
 
+        from cedars.core import page_access
+
+        from . import views, views_studies
+
+        # who the Help guides offer a link to these pages (UI review 3, U4): the pages' own checks
+        page_access.register("documents:new", views.can_file, "people who file documents for the organization they act for")
+        page_access.register("documents:aging", lambda r: views_studies._sees_aging(r.user), "the CPUC's documents and studies staff")
+
         from cedars.core import search as site_search
 
         from . import search
