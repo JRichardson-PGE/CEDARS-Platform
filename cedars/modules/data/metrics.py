@@ -1,5 +1,5 @@
 """The metric catalog: one definition for each number a dashboard page or download shows (spec "Metric definitions"). A metric sums
-canonical output fields (decision L) over the rows a query selects; a ratio divides two such sums after summing, never averages
+canonical output fields over the rows a query selects; a ratio divides two such sums after summing, never averages
 row ratios, and is blank when its denominator is 0. Display scaling (kWh to MWh, pounds to metric tons) happens after summing.
 
 Percent of goal, percent of forecast and program share compare two results, so the pages compute them (`DERIVED` documents them)."""

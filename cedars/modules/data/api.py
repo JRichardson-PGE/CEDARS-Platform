@@ -1,4 +1,4 @@
-"""/api/v1/data: the open data API (decision J) over the published snapshots, for anyone, with no account.
+"""/api/v1/data: the open data API over the published snapshots, for anyone, with no account.
 
 It serves what the dashboards and record downloads serve, through the same code, so an API answer equals the page and the file for the
 same query: the metric catalog (`metrics`), the dimensions, filters and exclusions the dashboards use (`dimensions`), aggregated queries

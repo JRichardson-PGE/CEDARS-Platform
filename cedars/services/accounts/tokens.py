@@ -1,4 +1,4 @@
-"""API tokens (decision J): made by members for their own systems, revoked by them or their organization's admins, every change
+"""API tokens: made by members for their own systems, revoked by them or their organization's admins, every change
 audited. A key reads `cedars_<prefix>_<secret>`; only its SHA-256 is stored, so a lost key is revoked and replaced, never shown again."""
 
 import hashlib

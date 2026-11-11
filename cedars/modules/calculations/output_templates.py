@@ -1,5 +1,5 @@
 """Output templates: which measure-level columns a run writes, and in what order. A template names fields of the published
-field catalog (the dictionary service, ReCET's renamed field names, decision L): the Measure input columns a run echoes and the output
+field catalog (the dictionary service, ReCET's renamed field names): the Measure input columns a run echoes and the output
 columns. A legacy CEDARS name (CET's) is saved under the field's canonical name, as the engine reads it.
 
 A run given a template carries it in its job spec's settings (`output_template`, `output_template_name`), so the run record says exactly

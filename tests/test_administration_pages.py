@@ -10,7 +10,7 @@ from cedars.services.accounts.models import AccessRequest, Grant, PolicyChange
 pytestmark = pytest.mark.django_db
 
 
-# --- sign-in and MFA (decision F)
+# --- sign-in and MFA
 
 
 def test_password_only_sessions_are_sent_to_set_up_a_second_factor(signed_in, make_user):

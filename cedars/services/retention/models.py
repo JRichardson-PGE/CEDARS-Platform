@@ -4,7 +4,7 @@ from django.db.models import Q
 
 
 class RetentionPolicy(models.Model):
-    """How long one class of record is kept (decision M). keep_days None = permanent; 0 = not kept once superseded. Changed on the
+    """How long one class of record is kept. keep_days None = permanent; 0 = not kept once superseded. Changed on the
     Retention page with a reason, never in code."""
 
     record_class = models.CharField(max_length=40, unique=True)

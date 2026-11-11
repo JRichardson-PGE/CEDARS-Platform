@@ -12,7 +12,7 @@ class Dataset(models.TextChoices):
 
 class Snapshot(models.Model):
     """One published version's measure-level results, frozen in the snapshots storage area (`snapshots/<dataset>/<id>.parquet`) exactly
-    as the run wrote them. Never changed. A version un-confirmed before its due date loses its snapshot (decision M: what is superseded
+    as the run wrote them. Never changed. A version un-confirmed before its due date loses its snapshot (retention: what is superseded
     before the due date is not kept)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

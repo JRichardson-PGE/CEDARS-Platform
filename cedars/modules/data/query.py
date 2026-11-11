@@ -1,5 +1,5 @@
 """The query layer: one query, over one release of one dataset, gives every number a page, its chart, its table and its download show,
-so their totals cannot disagree (spec "Foundations"). DuckDB reads the release's Parquet snapshots (decision I); each query opens its
+so their totals cannot disagree (spec "Foundations"). DuckDB reads the release's Parquet snapshots; each query opens its
 own in-memory connection, so requests never share state.
 
 A query sums the metric catalog's fields by the dimensions asked for, over the rows its filters and exclusions keep. Its state is

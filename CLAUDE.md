@@ -1,10 +1,10 @@
 # CEDARS Platform
 
 The CEDARS replacement: one Django project (a modular monolith) that the CPUC owns and hosts on its AWS account. Design: the CEDARS
-Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/CEDARS_Replacement_Architecture.html`, settled decisions
-A-M, 2026-10-29). The requirements document is internal (CEDARS-Research, private). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
-unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps the design onto this code and says what is built;
-`docs/ARCHITECTURE_AS_BUILT.md` describes the whole platform as built, with diagrams.
+Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/CEDARS_Replacement_Architecture.html`, settled
+2026-10-29). The requirements document is internal (CEDARS-Research, private). The calculation engine is ReCET (`JRichardson-PGE/ReCET`), imported
+unchanged as a package; never copy engine code here. `docs/ARCHITECTURE_AS_BUILT.md` is the one architecture document: the whole platform as
+built, with diagrams, and (section 17) where each part lives and how far it is built.
 
 ## Rules
 
@@ -27,7 +27,7 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
 - **Configure rather than recode.** Rule sets, periods, value lists, templates, retention periods and policy choices are data with
   effective dates and an admin page, not code paths.
 - **PII stays in the vault.** Only `PII_Contact` and `PII_Site`, in their own database; everything else holds SiteID / ContactID keys only.
-- **Names.** ReCET's renamed field dictionary is canonical (decision L); CET names are accepted on upload through the crosswalk. Name ACCs by year
+- **Names.** ReCET's renamed field dictionary is canonical; CET names are accepted on upload through the crosswalk. Name ACCs by year
   ("2024 ACC"). Never name the development vendor in pages, docs or commits.
 - **No requirement references** (Jake, 2026-11-09). The requirements document is internal: never name it, quote it or cite its
   requirement IDs, decision numbers or review gap numbers anywhere in this repository (pages, page help, the FAQ, release notes, docs,
@@ -39,7 +39,7 @@ unchanged as a package; never copy engine code here. `docs/ARCHITECTURE.md` maps
   names keep their original `organisation` spelling (renaming them is a schema and API change); write new identifiers in US spelling.
   Page URLs are US (`/admin/organizations/`; old `/admin/organisations/` links redirect). `tests/test_us_spelling.py` checks templates and docs.
   Data values from CEDARS or the PAs (e.g. the PSR's "Cancelled" status) stay as filed.
-- **WCAG 2.2 AA on every page** (decision K; a California state agency requirement). Pages render on the server and work without scripts.
+- **WCAG 2.2 AA on every page** (a California state agency requirement). Pages render on the server and work without scripts.
   Every page change keeps: a visible label or accessible name on every control; keyboard reach and a visible focus for everything a mouse can do;
   status in text, not color alone; 4.5:1 text and 3:1 control-border/focus contrast in both color schemes; announcements through
   `window.cedarsAnnounce` (one page-wide live region), never a new live region; never disable the focused control (use aria-disabled); targets

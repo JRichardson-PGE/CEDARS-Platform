@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
-    # shared services (cedars/services), then modules (cedars/modules); see docs/ARCHITECTURE.md
+    # shared services (cedars/services), then modules (cedars/modules); see docs/ARCHITECTURE_AS_BUILT.md
     "cedars.core",  # first, so its templates (allauth's layout and form elements) win
     "django.forms",  # after cedars.core, whose django/forms/field.html overrides Django's (FORM_RENDERER below)
     "cedars.services.accounts",
@@ -122,7 +122,7 @@ TEMPLATES = [
 
 # PostgreSQL only: the audit trail's append-only trigger and the registry's effective-date ranges need it.
 DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL", "postgres://cedars:cedars@localhost:5432/cedars"), conn_max_age=60)}
-# The PII vault (decision G): its own database, set only where PII is held (never the sandbox). Without it PII uploads are refused.
+# The PII vault: its own database, set only where PII is held (never the sandbox). Without it PII uploads are refused.
 if env("VAULT_DATABASE_URL", ""):
     DATABASES["vault"] = dj_database_url.parse(env("VAULT_DATABASE_URL"), conn_max_age=60)
 DATABASE_ROUTERS = ["cedars.services.vault.router.VaultRouter"]
@@ -133,7 +133,7 @@ AUTHENTICATION_BACKENDS = [
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 
-# Sign-in (decision F): the platform directory with MFA for everyone; organizations that can federate sign in through their own
+# Sign-in: the platform directory with MFA for everyone; organizations that can federate sign in through their own
 # directory as OpenID Connect providers (SOCIALACCOUNT_PROVIDERS["openid_connect"]["APPS"], one per organization, from the environment).
 LOGIN_URL = "account_login"
 LOGIN_REDIRECT_URL = "administration:account"
@@ -176,7 +176,7 @@ CEDARS_REQUIRE_MFA = True
 CEDARS_BASE_URL = env("CEDARS_BASE_URL", "http://localhost:8000")  # links in emails
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "cedars@localhost")
 
-# The API (/api/v1, decision J): API tokens for members' systems, the session for the platform's own pages' scripts. JSON only (no
+# The API (/api/v1): API tokens for members' systems, the session for the platform's own pages' scripts. JSON only (no
 # browsable API pages); the OpenAPI description is at /api/v1/schema. Pages and the API call the same service functions.
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

@@ -239,7 +239,7 @@ def test_metric_catalog():
 
 
 def test_metric_fields_are_canonical_output_fields():
-    """Every field a metric sums is in the field dictionary the platform ships (decision L)."""
+    """Every field a metric sums is in the field dictionary the platform ships."""
     from pathlib import Path
 
     catalog = json.loads((Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.93.json").read_text())

@@ -698,7 +698,7 @@ def recertify_all(request, code):
     return _done(request, f"Certified {len(done)} grants{whose}.", back)
 
 
-# --- data stewards (decision G)
+# --- data stewards
 
 
 @login_required

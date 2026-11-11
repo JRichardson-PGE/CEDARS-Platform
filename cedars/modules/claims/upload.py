@@ -1,7 +1,7 @@
 """A claims upload: a .zip of the template's tables as CSV files (comma-, pipe- or tab-delimited, named after the table: Claim.csv,
 Measure.csv, ...) or an Excel workbook with a sheet per table. A quarter's upload holds the records that are new or changed
 since the last confirmed quarter, so any of the tables may be left out. Columns are read under their canonical names (CEDARS' names
-and CET's are accepted, decision L); a column the template does not have is ignored, not rejected.
+and CET's are accepted); a column the template does not have is ignored, not rejected.
 
 The PII tables never come this way: a file named PII_Contact or PII_Site refuses the whole upload."""
 
