@@ -91,7 +91,7 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 
 | Process | Command | What it does | Where it runs |
 | --- | --- | --- | --- |
-| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks, Edit inputs, Results; queues runs and jobs; refreshes stale front-page cards on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
+| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks, Edit inputs, Results; queues runs and jobs; rereads the front page's stale claims rows on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
 | Calculations worker, local backend | `manage.py calculations_worker [--lane small\|large] [--once]` | Claims queued runs from PostgreSQL (`SELECT ... FOR UPDATE SKIP LOCKED`, small lane first), runs `recet worker run`, copies progress, records the receipt; heartbeats as a `Worker` row | Development, sandbox and a single server |
 | Calculations on AWS Batch | `recet worker run <spec URI>` in the release's job definition | The same worker, as a Batch job on the small-runs or large-runs queue | AWS Batch on Fargate |
 | Calculations sync | `manage.py calculations_sync --loop --sleep 60` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs; fails jobs Batch ended without a receipt | Always-on ECS service (`jobs.tf`) |
@@ -191,7 +191,7 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `CEDARS_BATCH_QUEUE_SMALL`, `CEDARS_BATCH_QUEUE_LARGE`, `CEDARS_BATCH_JOB_DEFINITION` | blank | The Batch queues and the job definition a release names none of |
 | `CALCULATIONS_SMALL_RUN_RECORDS`, `CALCULATIONS_MAX_RECORDS` | 10,000; 2,000,000 | The small-runs lane's size; the largest job accepted |
 | `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots |
-| `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | Stale front-page cards are remade on a thread after the response |
+| `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | The front page's stale claims rows are reread on a thread after the response |
 | `IMPACT_PROFILES_INLINE_JOBS`, `DATA_DOWNLOAD_INLINE_JOBS` | off (on in dev) | Run queued jobs in the request instead of a worker |
 | `ETRM_DATABASE_URL`, `ETRM_SYNC_RETRY_MINUTES` | blank; 10, 30 | The eTRM source and the nightly sync's retries |
 | `CEDARS_REQUIRE_MFA` | on (only dev may turn it off) | Every account needs a second factor |
@@ -1187,7 +1187,7 @@ several workers can share a queue.
 | `sync_etrm` | Nightly | eTRM sync, retried after `ETRM_SYNC_RETRY_MINUTES`; alerts administrators if the last try fails | 01:00 Pacific, once the eTRM URL is set |
 | `check_health` | Every 10 minutes | Runs every registered health check, alerts system administrators once per new set of failures, prints a JSON line for CloudWatch | `monitoring.tf` |
 | `export_sandbox_bundle`, `refresh_sandbox` | Scheduled when configured | Production writes its published, non-PII data; the sandbox loads it | Off unless a bundle place and schedule are set |
-| `warm_front_page` | On demand | Makes the front page's cards before anyone asks (after start-up, a deploy or a publication) | Not scheduled |
+| `warm_front_page` | On demand | Reads the front page's claims rows before anyone asks (after start-up, a deploy or a publication) | Not scheduled |
 
 One-off and administrative commands:
 
@@ -1208,42 +1208,44 @@ One-off and administrative commands:
 | `help_revisions` | Records which release each user guide and the FAQ were revised for |
 
 Work that runs after a response without a worker: notifications (`on_audit_event` defers delivery with `transaction.on_commit`),
-snapshots (`register_listener` defers the copy the same way), and the front page's card refresh thread (section 13).
+snapshots (`register_listener` defers the copy the same way), and the front page's refresh thread (section 13).
 
 ## 13. Caching
 
 | Cache | Where | What | Invalidated by |
 | --- | --- | --- | --- |
-| Django cache | Database table `cedars_cache` (`DatabaseCache`) | Front-page cards, the API throttle counts (so every web process sees one count) | Keys and timeouts below |
+| Django cache | Database table `cedars_cache` (`DatabaseCache`) | The front page's claims rows, the API throttle counts (so every web process sees one count) | Keys and timeouts below |
 | Run results | `CALCULATIONS_RESULTS_CACHE` | A run's group sums copied once from object storage for Results and Compare | A run's outputs never change |
 | Snapshots | `DATA_CACHE` | Local copies of S3 snapshots named by SHA-256, read by DuckDB | Content-addressed |
 
-### 13.1 Front-page cards
+### 13.1 Front-page claims rows
 
-The front page shows one program cycle in seven cards, about 20 queries over every published file. They are cached per cycle
-(`data/front.py`):
+The front page ("How the portfolio is doing") charts five metrics from the published claims: total system benefit, electricity saved,
+peak demand avoided, gas saved and spending, by year, against spending, by PA and as benefit per dollar. It reads one query over every
+claims file of the current release, every metric by year, PA type and PA with the dashboards' default exclusions, and keeps the rows
+(`data/front.py`); the visitor's choices (metric, PA type, year) are applied to the kept rows in the request, and the charts are drawn
+on the server as SVG with a table of the same values under each. `data/front.js` adds the values on hover and from the keyboard.
 
-- The key is `front<CACHE_VERSION>:<default exclusions>:<first year>-<last year>`; `CACHE_VERSION` is bumped whenever the cached shape
-  changes, so a deploy never reads an old pickle.
-- Each entry keeps a **fingerprint** of what the cards were made from: the current claims, forecast and monthly release numbers and the
-  confirmed goal sets. A different fingerprint (a new release or goal set) makes the cards again **in the request**, so nobody sees the
-  previous release's numbers.
-- An entry older than `FRESH_SECONDS` (600 s) is still shown, and the cards are remade **after the response** on a daemon thread (a
-  budget or fund shift changes them without changing the fingerprint). A lock key (`cache.add`, `REFRESH_LOCK_SECONDS` 300 s) keeps
-  one rebuild per cycle at a time; a failed rebuild leaves the old cards. Entries are kept for `KEEP_SECONDS` (7 days).
-- `FRONT_PAGE_REFRESH_IN_BACKGROUND` off (as in the tests) rebuilds in the request instead; `manage.py warm_front_page [--all]` makes
-  them ahead.
+- The key is `front<CACHE_VERSION>:<default exclusions>`; `CACHE_VERSION` is bumped whenever the cached shape changes, so a deploy
+  never reads an old pickle.
+- Each entry keeps a **fingerprint** of what the rows were read from: the current claims release. A different fingerprint (a new
+  release) reads them again **in the request**, so nobody sees the previous release's numbers.
+- An entry older than `FRESH_SECONDS` (600 s) is still shown, and the rows are reread **after the response** on a daemon thread. A
+  lock key (`cache.add`, `REFRESH_LOCK_SECONDS` 300 s) keeps one reread at a time; a failed reread leaves the old rows. Entries are
+  kept for `KEEP_SECONDS` (7 days).
+- `FRONT_PAGE_REFRESH_IN_BACKGROUND` off (as in the tests) rereads in the request instead; `manage.py warm_front_page` reads them
+  ahead.
 
 ```mermaid
 flowchart TD
-  visit["Front page request"] --> fp["Fingerprint: current releases<br/>and confirmed goal sets"]
-  fp --> get{"Cached entry for the cycle<br/>with this fingerprint?"}
-  get -- "no" --> build["Build the cards now,<br/>store them (7 days)"]
+  visit["Front page request"] --> fp["Fingerprint: current<br/>claims release"]
+  fp --> get{"Cached rows<br/>with this fingerprint?"}
+  get -- "no" --> build["Read the rows now,<br/>store them (7 days)"]
   get -- "yes" --> age{"Older than 600 s?"}
-  age -- "no" --> show["Show cached cards"]
+  age -- "no" --> show["Apply the visitor's metric,<br/>PA type and year; draw the charts"]
   age -- "yes" --> lock{"cache.add lock<br/>(300 s)"}
   lock -- "taken" --> show
-  lock -- "got it" --> thread["Daemon thread rebuilds<br/>after the response"]
+  lock -- "got it" --> thread["Daemon thread rereads<br/>after the response"]
   thread --> show
   build --> show
 ```

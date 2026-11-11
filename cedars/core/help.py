@@ -271,13 +271,13 @@ def tour_steps(who: Visitor | bool) -> list[Step]:
         PAGE_HELP_STEP,
         SEARCH_STEP,
         Step(
-            "cycle",
-            "This program cycle at a glance",
-            "The cards sum the published filings for one four-year program cycle. Gauges show spending against the budget, the "
-            "voluntary programs' total system benefit against the CPUC's goal, and the electricity, peak demand and gas saved by codes "
-            "and standards against their goal; the resource acquisition programs' TRC and PAC ratios say whether they are above or "
-            "below 1. Select a card to open the dashboard page that breaks its number down. Choose another cycle with the Program "
-            "cycle box.",
+            "trends",
+            "How the portfolio is doing",
+            "Five figures from the published claims, each with its change from the year before and a small trend line: total system "
+            "benefit, electricity saved, peak demand avoided, gas saved and spending. Choose a metric, a group of program "
+            "administrators or a year; the charts below show that metric by year, against spending, by PA and as benefit per dollar "
+            "spent. Point at a chart, or select it and use the arrow keys, to read each value; Show as a table lists them all. Each "
+            "chart links to the dashboard page that breaks it down.",
         ),
         Step(
             "nav-dashboard",
