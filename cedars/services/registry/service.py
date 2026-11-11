@@ -23,7 +23,7 @@ from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
-from cedars.services.submissions.service import approver_for
+from cedars.services.submissions.service import approver_for, deciders
 
 from .models import (
     AllocationEntry,
@@ -824,6 +824,7 @@ def request_change(actor, program: Program, *, effective: date, reason: str, **c
         changes={k: _json(v) for k, v in changes.items()},
         before={k: _json(getattr(latest, k)) for k in changes},
     )
+    _tell_about_change(req, "requested", actor)
     audit.record(
         "program_change.requested",
         obj=req,
@@ -833,6 +834,38 @@ def request_change(actor, program: Program, *, effective: date, reason: str, **c
         organisation=req.organisation,
     )
     return req
+
+
+def _tell_about_change(req: ProgramChangeRequest, step: str, actor, note: str = "") -> None:
+    """Tell the people a program change request concerns, directly (on by default; Notification settings): a new request reaches the
+    CPUC programs approvers and their delegates for today, a decision the person who asked, and a withdrawal the people told of the
+    request. Called before the step's audit event, so a person who also subscribed to it is told once."""
+    from cedars.services.notifications import service as notifications
+
+    what = "Correction" if req.corrects_id else "Change"
+    name = f"{req.program.prg_id}" + (f" from {req.effective}" if not req.corrects_id else "")
+    fields = ", ".join(k.replace("_", " ") for k in req.changes)
+    key = notifications.request_key("registry.programchangerequest", req.pk, step)
+    link = f"/programs/requests/{req.pk}/"
+    who = (getattr(actor, "name", "") or "").strip() or "Someone"
+    if step == "requested":
+        people, about = [u for u in deciders(APPROVALS) if u != actor], notifications.DECIDE
+        title = f"{what} requested: {name}"
+        body = f"{who} ({req.organisation.code if req.organisation else 'CPUC'}) asked to change {fields}.\n\nReason: {req.reason}"
+    elif step == "withdrawn":
+        people = [u for u in notifications.told(notifications.request_key("registry.programchangerequest", req.pk, "requested"))]
+        people, about = [u for u in people if u != actor], notifications.DECIDE
+        title = f"{what} request withdrawn: {name}"
+        body = "Nothing is left to decide." + (f"\n\nReason: {note}" if note.strip() else "")
+    else:
+        people, about = [req.requested_by] if req.requested_by_id != getattr(actor, "pk", None) else [], notifications.OWN
+        title = f"{what} {step}: {name}"
+        body = (
+            (f"Reason: {note}" if note.strip() else "")
+            if step == "declined"
+            else f"{fields} changed as you asked." + (f"\n\nNote: {note}" if note.strip() else "")
+        )
+    notifications.tell_about_request(people, title, body, link, key=key, about=about)
 
 
 def can_see_request(user, req: ProgramChangeRequest) -> bool:
@@ -872,6 +905,7 @@ def decide_change(actor, req: ProgramChangeRequest, approve: bool, note: str = "
     req.decided_by, req.decided_at, req.decision_note = actor, timezone.now(), note
     req.decided_as_delegate_of = on_behalf if on_behalf != actor else None
     req.save()
+    _tell_about_change(req, req.status, actor, note)
     audit.record(f"program_change.{req.status}", obj=req, reason=note, actor=actor, organisation=req.organisation)
     return req
 
@@ -885,6 +919,7 @@ def withdraw_change(actor, req: ProgramChangeRequest, reason: str = "") -> Progr
         raise AccessDenied("Only the requester or the program's administrators withdraw a request.")
     req.status = ProgramChangeRequest.Status.WITHDRAWN
     req.save(update_fields=["status"])
+    _tell_about_change(req, "withdrawn", actor, reason)
     audit.record("program_change.withdrawn", obj=req, reason=reason, actor=actor, organisation=req.organisation)
     return req
 
@@ -971,6 +1006,7 @@ def request_correction(actor, version: ProgramVersion, *, reason: str, **changes
         before={k: _json(getattr(version, k)) for k in changes},
         corrects=version,
     )
+    _tell_about_change(req, "requested", actor)
     audit.record(
         "program_change.requested",
         obj=req,

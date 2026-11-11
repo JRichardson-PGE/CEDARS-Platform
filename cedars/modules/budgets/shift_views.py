@@ -1,6 +1,7 @@
 """Fund shift and operating budget pages."""
 
 import csv
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -50,7 +51,8 @@ def shift_new(request):
     org = request.organisation
     if not shifts.can_submit(request.user, org):
         raise Http404
-    form = forms.ShiftForm(request.POST or None, cycles=shifts.cycles())
+    cycles = shifts.cycles()
+    form = forms.ShiftForm(request.POST or None, cycles=cycles, initial={"cycle": shifts.current_cycle(cycles)})
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
@@ -97,20 +99,56 @@ def shift(request, pk):
 
 
 def _entered(request) -> list:
-    return [
+    """The lines typed in the table, then any pasted into the Paste lines box (one line each: PrgID, year, amount)."""
+    typed = [
         shifts.LineIn(p, y, a)
         for p, y, a in zip(request.POST.getlist("prg_id"), request.POST.getlist("year"), request.POST.getlist("amount"), strict=False)
     ]
+    return [ln for ln in typed if not ln.blank()] + shifts.paste_lines(request.POST.get("paste", ""))
 
 
-def _rows(request, entered, saved) -> list[dict]:
+def _rows(request, entered, saved, budget=None) -> list[dict]:
+    """The table's rows, each with what its program-year holds (`shifts.entry_budget`), then blank ones to fill."""
     rows = (
         [{"prg_id": ln.prg_id, "year": ln.year, "amount": ln.amount} for ln in entered if not ln.blank()]
         if entered is not None
         else [{"prg_id": ln.prg_id, "year": str(ln.year), "amount": f"{ln.amount}"} for ln in saved]
     )
+    for r in rows:
+        b = (budget or {}).get(f"{r['prg_id'].strip()} {r['year'].strip()}")
+        r["held"] = Decimal(b["held"]) if b else None
     extra = BLANK_ROWS + (int(request.GET.get("more", 0)) if str(request.GET.get("more", "")).isdigit() else 0)
-    return rows + [{"prg_id": "", "year": "", "amount": ""}] * extra
+    return rows + [{"prg_id": "", "year": "", "amount": "", "held": None}] * extra
+
+
+def _net(rows, budget) -> Decimal | None:
+    """The lines' net for the PA: each line's amount, a statewide line's by the PA's factor. None while a line's amount is not a figure."""
+    total = Decimal(0)
+    for r in rows:
+        if not r["amount"].strip():
+            continue
+        try:
+            amount = Decimal(r["amount"].replace(",", "").replace("$", "").strip())
+        except InvalidOperation:
+            return None
+        b = budget.get(f"{r['prg_id'].strip()} {r['year'].strip()}") or {}
+        total += amount * Decimal(b["factor"]) if b.get("factor") else amount
+    return total.quantize(Decimal("0.01"))
+
+
+def _table(request, s, organisation, entered, saved) -> dict:
+    """What `budgets/_shift_lines_table.html` needs: the rows, years, the PA's programs for the picker, what each program-year holds
+    and the running net."""
+    budget = shifts.entry_budget(organisation, s)
+    rows = _rows(request, entered, saved, budget)
+    return {
+        "rows": rows,
+        "years": _years(s),
+        "programs": shifts.program_choices(s, organisation if organisation != s.organisation else None),
+        "budget": budget,
+        "net": _net(rows, budget),
+        "pa": organisation.code,
+    }
 
 
 def _years(s) -> list[str]:
@@ -142,13 +180,7 @@ def shift_lines(request, pk):
     return render(
         request,
         "budgets/shift_lines.html",
-        {
-            "s": s,
-            "rows": _rows(request, entered, s.lines.filter(pa=s.organisation.code)),
-            "years": _years(s),
-            "problems": problems,
-            "programs": shifts.programs_for(s),
-        },
+        {"s": s, "problems": problems, **_table(request, s, s.organisation, entered, s.lines.filter(pa=s.organisation.code))},
     )
 
 
@@ -183,10 +215,8 @@ def shift_acknowledge(request, pk):
             "part": part,
             "portion": shifts.portion(s, org.code),
             "owed": -shifts.portion(s, org.code),
-            "rows": _rows(request, entered, []),
-            "years": _years(s),
             "problems": problems,
-            "programs": shifts.programs_for(s, org),
+            **_table(request, s, org, entered, []),
             "note": request.POST.get("note", ""),
         },
     )

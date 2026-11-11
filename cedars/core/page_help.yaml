@@ -37,8 +37,12 @@ account/email_confirm:
   guide:
     - The link CEDARS emailed you opens this page. Confirm the address and you can sign in. A link that has expired can be sent again
       from your email settings.
+    - The three steps under the heading show where a new account is in its set-up; this is the first.
   see: getting-started
   tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access.
     - target: main form
       title: Confirm
       text: Confirm that the address is yours, then sign in.
@@ -49,9 +53,14 @@ account/verification_sent:
   guide:
     - CEDARS has emailed a link to the address you gave. Open it to confirm the address and finish creating the account. If nothing
       arrives within a few minutes, look in your junk folder, then write to support.
+    - The three steps under the heading show where a new account is in its set-up. Confirming the address is the first; setting up the
+      second factor and asking an organization for access follow.
   see: getting-started
   tour:
-    - target: main .page-title + p
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email, set up your second factor, then ask an organization for access. This is the first step.
+    - target: main .page-title ~ p
       title: What happens next
       text: Open the link in the email. It confirms the address, then you can sign in.
 
@@ -118,11 +127,17 @@ mfa/totp/activate_form:
       time-based codes works.
     - Scan the QR code with the app, or type the key under it into the app. Then enter the code the app shows to finish. Keep the key
       somewhere safe; it sets the app up again on a new phone.
+    - Signing in for the first time, the three steps under the heading show where you are; this is the second.
   how:
-    - Copy the key copies it to the clipboard, for an app on the same computer.
-    - After this step CEDARS offers recovery codes. Print or save them; each signs you in once if you lose the app.
+    - Copy the key copies it to the clipboard, for an app on the same computer. The key is also shown whole, to type in or select.
+    - After this step CEDARS shows your recovery codes. Print or download them; each signs you in once if you lose the app. Continue
+      then takes you where you were going, or to Ask for access if you belong to no organization yet.
   see: getting-started
   tour:
+    - target: main .set-up-steps
+      title: Setting up your account
+      text: Confirm your email (done), set up your second factor (this page), then ask an organization for access.
+      optional: true
     - target: main form img
       title: The QR code
       text: Scan it with your authenticator app. The app then shows a new six-digit code for CEDARS every 30 seconds.
@@ -148,8 +163,11 @@ core/section_filings:
   see: getting-started
   guide:
     - >-
-      The Filings menu's own page: every filing page you may open, with what each is for, and where each program administrator's
-      budgets, claims and monthly reports stand.
+      The Filings menu's own page: your organization's filings first, then where each program administrator's budgets, claims and
+      monthly reports stand, then every filing page you may open, with what each is for.
+    - >-
+      Your organization's filings (shown when you act for a program administrator) lists, for budgets, claims and monthly reports, the
+      filing last due and the next one due, its status and the one thing to do: Start, Continue, or Open one that is confirmed.
     - >-
       The status table takes, for each kind of filing, the deadline most recently due and the next one due on the filing calendar, and
       gives each PA's status on it: not started, started, draft, validated, confirmed or published, with past due, filed late or a
@@ -160,14 +178,19 @@ core/section_filings:
       there, and a PA on none of them is not listed.
   how:
     - Select a page's name to open it; the arrow beside Filings in the header opens the same pages as a menu.
-    - Select a status to open that PA's filing, or a column's heading to open the deadline's page.
+    - Select Start, Continue or Open beside one of your organization's filings to work on it.
+    - Select a status (a bordered badge with an arrow) to open that PA's filing, or a column's heading to open the deadline's page.
   tour:
+    - target: "#your-filings"
+      title: Your organization's filings
+      text: The filings last due and next due for the organization you act for, with each one's status and what to do next.
+      optional: true
+    - target: "#filing-status"
+      title: Where each PA's filings stand
+      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it. Your own row is marked.
     - target: main .section-pages
       title: The filing pages
       text: Each page under Filings, with what it is for.
-    - target: "#filing-status"
-      title: Where each PA's filings stand
-      text: For budgets, claims and monthly reports, the filing last due and the next one due, and each PA's status on it.
 
 core/section_calculations:
   title: Calculations
@@ -178,7 +201,12 @@ core/section_calculations:
       your runs and those shared with you; New run starts one.
   how:
     - Select a page's name to open it; the arrow beside Calculations in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows your last runs and the Edit inputs drafts you changed last; select one to open it.
   tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, your last runs and the Edit inputs drafts you changed last, each with a link to its full list.
+      optional: true
     - target: main .section-pages
       title: The calculation pages
       text: Each page under Calculations, with what it is for.
@@ -193,7 +221,12 @@ core/section_published:
       instead.
   how:
     - Select a page's name to open it; the arrow beside Published data in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows your saved views and your record downloads; select one to open it.
   tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, your saved views and your record downloads, each with a link to its full list.
+      optional: true
     - target: main .section-pages
       title: The published data
       text: Each page under Published data, with what it is for.
@@ -207,7 +240,12 @@ core/section_reference:
       lists the ACCs and the other packs; Cost-test sets the cost tests a run prices.
   how:
     - Select a page's name to open it; the arrow beside Reference data in the header opens the same pages as a menu.
+    - Signed in, Your work at the top shows the cost-test sets you are building and the data packs you registered and have not published; select one to open it.
   tour:
+    - target: .your-work
+      title: Your work
+      text: Signed in, the cost-test sets you are building and the data packs you registered and have not published, each with a link to its full list.
+      optional: true
     - target: main .section-pages
       title: The reference data
       text: Each page under Reference data, with what it is for.
@@ -432,9 +470,82 @@ account/security:
     - A new email address takes over once you open the link sent to it, and the old address is told of the change. You are then
       signed out everywhere else.
     - Recovery codes sign you in once each if you lose your authenticator app. Keep them somewhere safe, and make new ones when they run low;
-      making new ones replaces the old.
+      making new ones replaces the old. Download the codes or Print the codes saves them; right after you set up your first second
+      factor, Continue takes you where you were going, or to Ask for access if you belong to no organization yet.
   see: getting-started
   tour:
     - target: main form, main ul, main section
       title: The settings
       text: What this page changes. Every change is recorded in the audit trail.
+
+core/error:
+  title: A page that is not available
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when the address does not lead to a page, or leads to one your account cannot open. It says the same in
+      both cases, so it never tells anyone which pages exist that they cannot see.
+    - >-
+      A page may need you to be signed in, to act for an organization that holds a permission, or to be a CPUC administrator. An old
+      link, or an address typed by hand, may also name a page that has moved or never was.
+  how:
+    - Search for the page with the box on this page; the words from the address are already in it.
+    - Signed out? Sign in, and CEDARS brings you back to the same address.
+    - Need a permission? Ask your organization's administrators from your account page, under Ask for access.
+    - Followed a link inside CEDARS to get here? Tell us with the link on this page, so it can be fixed.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: This address does not lead to a page, or your account cannot open it.
+    - target: main .error-search
+      title: Search for it
+      text: The words from the address are already in the box; change them and choose Search.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, My queue when you are a member of an organization, and a link to tell us about a broken link.
+
+core/form_expired:
+  title: A form that was not sent
+  see: getting-started
+  guide:
+    - >-
+      Every form in CEDARS carries a security token, so that another site cannot send it in your name. The token belongs to one
+      sign-in: a page opened before you last signed in or out sends an old one, and CEDARS refuses the form.
+    - Nothing was saved. Go back, reload the page so it has the new token, and send the form again.
+  how:
+    - Go back with your browser, reload the page, and send the form again.
+    - If it happens every time, check that your browser keeps cookies for this site; CEDARS needs its own cookies to accept a form.
+  tour:
+    - target: main .error-sentence
+      title: Why the form was refused
+      text: The page it came from was opened before you last signed in or out.
+    - target: main .error-search
+      title: Search
+      text: Find the page you were working on, if going back does not reach it.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page, Help, and My queue when you are a member of an organization.
+
+"500":
+  title: Something went wrong
+  see: getting-started
+  guide:
+    - >-
+      CEDARS shows this page when a problem on its side stopped it from showing the page you asked for. The problem is recorded in the
+      site's log for the CPUC's administrators.
+    - >-
+      Anything you sent just before this page may not have been saved. Once the page opens again, check that your change is there
+      before you send it again.
+  how:
+    - Try again in a few minutes.
+    - If the page still does not open, tell the CPUC through the contact details on Help.
+  tour:
+    - target: main .error-sentence
+      title: What happened
+      text: A problem on CEDARS' side stopped this page; it is recorded.
+    - target: main .error-search
+      title: Search
+      text: Look for the page, or another way to what you need.
+    - target: main .error-links
+      title: Or go on from here
+      text: The front page and Help.

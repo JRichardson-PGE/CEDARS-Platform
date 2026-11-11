@@ -25,7 +25,14 @@ NOT_HOOKS = {
     "register_csv",  # releases.mandates: the register of mandates as CSV
 }
 # Files whose generic `register` is a hook: the document's hooks table has a row "| `register` | ... `<file name>` |"
-GENERIC_HOOKS = ["core/queue.py", "core/health.py", "core/search.py", "services/submissions/corrections.py"]
+GENERIC_HOOKS = [
+    "core/queue.py",
+    "core/yourwork.py",
+    "core/health.py",
+    "core/search.py",
+    "core/page_access.py",
+    "services/submissions/corrections.py",
+]
 # What the site shell (cedars.core) may import from the modules: the front page
 CORE_MAY_IMPORT = {"cedars.modules.data"}
 

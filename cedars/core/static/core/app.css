@@ -129,7 +129,7 @@ mark { background: #fde68a; color: #111; padding: 0 .1em; }   /* a matched word 
 .org-badge b { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; padding: .08rem .45rem; font-weight: 700; letter-spacing: .02em; }
 .bell { display: inline-flex; align-items: center; gap: .35rem; text-decoration: none; color: var(--fg-2); border: 1px solid var(--line); border-radius: 999px; padding: .2rem .7rem; min-height: 32px; font-size: .85rem; }
 .bell[aria-current="page"], .bell:hover { color: var(--link); border-color: var(--control); }
-.bell .count { background: var(--bad); color: #fff; border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
+.bell .count { background: var(--bad); color: var(--bg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }   /* 7.2:1 light, 8.1:1 dark (white on the dark scheme's red was 2.2:1) */
 /* My queue's count of items waiting (navigation review, D1): the primary pair, as buttons use it, so it reads as work rather than an alert. */
 .queue-link { display: inline-flex; align-items: center; gap: .3rem; }
 .queue-link .count { background: var(--primary); color: var(--primary-fg); border-radius: 999px; font-size: .7rem; font-weight: 700; padding: .05rem .4rem; }
@@ -699,6 +699,14 @@ ul.picker-chosen li { border: 1px solid var(--control); border-radius: var(--r, 
 ul.picker-chosen label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .1rem .4rem;
   font-weight: 400; min-height: 24px; }
 input.picker-input { width: 100%; max-width: 22rem; }   /* a percentage, so the box never widens its container at 320 px (1.4.10) */
+/* Fund shift lines (budgets/_shift_lines_table.html): what is wrong with a line, said beside it as it is typed (in words, with a mark
+   that is not color alone: the row's left rule and the words). */
+table.shift-lines input.shift-prg { min-width: 12rem; }
+.row-problem { display: block; color: var(--bad); font-size: .86rem; max-width: 28rem; }
+.row-problem:empty { display: none; }
+table.shift-lines tr.has-problem > th { box-shadow: inset 4px 0 0 var(--bad); }
+details.paste-lines { margin: .5rem 0; max-width: 40rem; }
+details.paste-lines > summary { cursor: pointer; font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }
@@ -918,6 +926,28 @@ ul.links.columns li { break-inside: avoid; }
 /* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
    schemes with a white margin (the quiet zone scanners need). */
 .qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }
+/* UI review 3, U6: the key shown whole (selectable, wrapping on a phone) with its copy button beside it; the code field six digits
+   wide, not the column's width */
+.totp-form .label { font-size: .88rem; font-weight: 600; color: var(--fg-2); }
+.totp-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: 0; }
+.totp-key { font-size: 1.05rem; letter-spacing: .06em; padding: .35rem .55rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+  overflow-wrap: anywhere; user-select: all; }
+.totp-form input.otp, .otp-field input { align-self: flex-start; width: 10ch; font-size: 1.15rem; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+/* Where a new account is in its set-up: three numbered steps, the current one marked in words and with aria-current */
+.set-up-steps ol { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .95rem; }
+.set-up-steps li { display: inline-flex; align-items: center; gap: .45rem; color: var(--fg-2); }
+.set-up-steps .n { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1px solid var(--control); font-weight: 600; font-size: .85rem; }
+.set-up-steps li.now { color: var(--fg); font-weight: 600; }
+.set-up-steps li.now .n { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.set-up-steps li.done .n { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.set-up-steps .state { font-weight: 400; color: var(--fg-2); }
+/* Recovery codes: the codes in two columns, each whole; printed, only the codes and their sentence */
+.recovery-codes { font-family: var(--mono, ui-monospace, monospace); font-size: 1.05rem; columns: 2 10ch; max-width: 26rem; padding: .75rem 1rem; margin: 0;
+  list-style: none; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.recovery-codes li { margin: 0 0 .3rem; letter-spacing: .05em; break-inside: avoid; }
+@media print {
+  body:has(.recovery-codes) :is(header, footer, .page-help, .actions, .set-up-steps, .messages, .banner, nav) { display: none !important; }
+}
 
 /* Cost-test builder: the test page's formula bar (refdata/builder_formula.js) */
 .formula-bar { position: relative; }
@@ -962,6 +992,34 @@ table.filing-status thead th[scope="colgroup"] { text-align: left; border-bottom
 table.filing-status td { min-width: 7.5rem; }
 table.filing-status td a { text-decoration: none; }
 table.filing-status td a .status { text-decoration: underline; text-underline-offset: .15em; }
+/* UI review 3, U5: a status that opens the filing looks like a link (a bordered badge with an arrow); the board wraps its headings so
+   it fits 1440 px; the reader's own organization's row is marked */
+table.filing-status td a.status-link .status { border: 1px solid currentColor; }
+table.filing-status td a.status-link .status::after { content: "\203A" / ""; font-weight: 700; margin-left: .1rem; }
+table.filing-status thead th { white-space: normal; text-transform: none; letter-spacing: 0; font-size: .82rem; min-width: 7rem; }
+table.filing-status td { min-width: 0; }
+table.filing-status tbody tr.own > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary); }
+
+/* ---------- Your work (core/_your_work.html; UI review 3, U5): the person's own work, one card per part ---------- */
+.your-work { margin: 1.25rem 0 1.75rem; }
+.your-work-parts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem 1.25rem; }
+.your-work-part { margin: 0; display: flex; flex-direction: column; }
+.your-work-part h3 { margin: 0 0 .5rem; font-size: 1.02rem; }
+.your-work-lines { list-style: none; margin: 0; padding: 0; }
+.your-work-lines li { margin: 0; padding: .45rem 0; border-top: 1px solid var(--line-2); display: grid; grid-template-columns: 1fr auto; column-gap: .75rem; }
+.your-work-lines li:first-child { border-top: 0; padding-top: 0; }
+.your-work-lines p { margin: 0; grid-column: 1; }
+.your-work-lines .what { font-weight: 500; overflow-wrap: anywhere; }
+.your-work-lines .what a { display: inline-block; min-height: 24px; }
+.your-work-lines .act { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.your-work-lines .act a { display: inline-flex; align-items: center; min-height: 24px; font-weight: 600; white-space: nowrap; }
+.your-work-part .more { margin: auto 0 0; padding-top: .6rem; }
+.your-work-part .more a { display: inline-block; min-height: 24px; }
+.your-filings { margin-bottom: 1.5rem; }
+/* Claims and Monthly reports: the next one to file stands out (a badge says so in words) */
+table.list tbody tr.next-to-file > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
+table.list tbody tr.next-to-file > th { box-shadow: inset 4px 0 0 var(--primary); }
 /* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
 table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
 table.list.factors .pa-first { border-left: 1px solid var(--line); }
@@ -1018,3 +1076,6 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 .walk-chart-data { margin-top: .4rem; }
 .walk-chart-data summary { min-height: 24px; cursor: pointer; }
 @media (forced-colors: active) { .walk-chart .s1, .walk-chart .s2 { forced-color-adjust: none; } .walk-chart svg .band.on { fill: Highlight; fill-opacity: .25; } }
+
+/* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
+.who-opens { color: var(--fg-2); }

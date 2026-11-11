@@ -1143,8 +1143,66 @@ def request_reopen(actor, submission: Submission, reason: str) -> ReopenRequest 
     if submission.reopen_requests.filter(status=ReopenRequest.Status.PENDING).exists():
         raise AccessDenied("A reopen request for this filing is already waiting.")
     req = ReopenRequest.objects.create(submission=submission, requested_by=actor, reason=reason)
+    _tell_deciders(req, actor, reason)  # before the audit event, so a decider who also subscribed gets this message, once
     audit.record("reopen.requested", obj=req, reason=reason, actor=actor)
     return req
+
+
+def deciders(module: str, on=None) -> list:
+    """The people who may decide the module's correction requests today: the CPUC members who hold `<module>.approve`, then the
+    delegates those approvers named for today."""
+    org = access.cpuc()
+    if org is None:
+        return []
+    approvers = list(access.holders(org, f"{module}.approve").order_by("pk"))
+    day = on or timezone.localdate()
+    delegations = Delegation.objects.in_force(day).filter(module=module, approver__in=approvers).select_related("delegate")
+    out = approvers + [d.delegate for d in delegations.order_by("delegate_id") if d.delegate.is_active]
+    return list(dict.fromkeys(out))
+
+
+def _who(user, organisation) -> str:
+    """A person as a notice names them: their name, never an email address."""
+    return (getattr(user, "name", "") or "").strip() or f"A {organisation.code} user"
+
+
+def _tell_deciders(req: ReopenRequest, actor, reason: str) -> None:
+    from cedars.services.notifications import service as notifications
+
+    s = req.submission
+    notifications.tell_about_request(
+        [u for u in deciders(s.module) if u != actor],
+        f"Correction requested: {s.plain_name}",
+        f"{_who(actor, s.organisation)} ({s.organisation.code}) asked to correct it after its due date.\n\nReason: {reason}",
+        "/filings/reopen-requests/",
+        key=notifications.request_key("submissions.reopenrequest", req.pk, "requested"),
+        about=notifications.DECIDE,
+    )
+
+
+def _tell_requester(req: ReopenRequest, approve: bool, note: str) -> None:
+    from cedars.services.notifications import service as notifications
+
+    s = req.submission
+    if approve:
+        prev = latest(s)
+        n = (prev.number if prev else 0) + 1
+        title = f"Correction approved: {s.plain_name}"
+        body = f"Version {n} is open for your correction: change the records, price it and confirm it." + (
+            f"\n\nNote: {note}" if note.strip() else ""
+        )
+        link = filing_page(s)
+    else:
+        title, body = f"Correction declined: {s.plain_name}", f"Reason: {note}"
+        link = filing_page(s, current(s))
+    notifications.tell_about_request(
+        [req.requested_by],
+        title,
+        body,
+        link,
+        key=notifications.request_key("submissions.reopenrequest", req.pk, "approved" if approve else "declined"),
+        about=notifications.OWN,
+    )
 
 
 def approver_for(actor, module: str, on=None):
@@ -1164,16 +1222,23 @@ def approver_for(actor, module: str, on=None):
 
 @transaction.atomic
 def decide_reopen(actor, req: ReopenRequest, approve: bool, note: str = "") -> SubmissionVersion | None:
-    req = ReopenRequest.objects.select_for_update().select_related("submission__deadline").get(pk=req.pk)
+    req = (
+        ReopenRequest.objects.select_for_update()
+        .select_related("submission__deadline", "submission__organisation", "requested_by")
+        .get(pk=req.pk)
+    )
     if req.status != ReopenRequest.Status.PENDING:
         raise AccessDenied("That request has been decided.")
     approver = approver_for(actor, req.submission.module)
     if approver is None:
         raise AccessDenied("Only an approver, or their delegate, decides reopen requests.")
+    if not approve and not (note or "").strip():
+        raise AccessDenied("Say why the request is declined: the filer reads it.")
     req.status = ReopenRequest.Status.APPROVED if approve else ReopenRequest.Status.DECLINED
     req.decided_by, req.decided_at, req.decision_note = actor, timezone.now(), note
     req.decided_as_delegate_of = approver if approver != actor else None
     req.save()
+    _tell_requester(req, approve, note or "")
     audit.record(f"reopen.{req.status}", obj=req, reason=note, actor=actor)
     return _new_version(actor, req.submission, req.reason) if approve else None
 

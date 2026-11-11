@@ -90,6 +90,12 @@ class SetupForm(forms.Form):
         empty_label="The published set in force for the program year",
         help_text="The cost tests it is priced on (Reference data, Cost-test sets); only published sets",
     )
+    notes = forms.CharField(
+        label="Notes",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Administrators' notes on this set-up, kept with it; a change is recorded with the reason below",
+    )
     reason = forms.CharField(label="Reason for the change", widget=forms.Textarea(attrs={"rows": 2}))
 
     def __init__(self, *args, accs=(), **kw):

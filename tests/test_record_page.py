@@ -26,6 +26,17 @@ def catalog(db):
     return dictionary.load_catalog(None, json.loads(CATALOG.read_text(encoding="utf-8")))
 
 
+@pytest.fixture
+def sector_list(monkeypatch):
+    """Sector's value list, given here so the pages are tested without the engine (whose lists they read when it is installed): four
+    codes, one retired before the filing's year."""
+    from cedars.services.dictionary import value_lists
+
+    codes = [("Res", None), ("Com", None), ("Ind", 2020), ("Ag", None)]
+    monkeypatch.setattr(value_lists, "list_for_field", lambda f: "sector" if f.name == "Sector" else None)
+    monkeypatch.setattr(value_lists, "codes_in_force", lambda name, on=None: [{"code": c, "end_year": e} for c, e in codes])
+
+
 def main(html: str) -> str:
     return html.split('<main id="main"', 1)[-1].split("</main>", 1)[0]
 
@@ -54,7 +65,7 @@ def test_findings_about_a_whole_table_are_said_apart(client, filer, year, pge, p
     assert 'id="whole-table"' in body and "About a whole table" in body
 
 
-def test_a_record_s_fields_by_section_with_findings_first(client, filer, year, pge, programs, catalog):  # noqa: F811
+def test_a_record_s_fields_by_section_with_findings_first(client, filer, year, pge, programs, catalog, sector_list):  # noqa: F811
     v = service.upload_claims(filer, deadline(), pge, bad_q1(), "q1.zip")
     sign_in(client, filer)
     body = main(client.get(reverse("submissions:record", args=[v.pk, "Measure"]) + "?k=PGE-2028-002").content.decode())
@@ -66,7 +77,9 @@ def test_a_record_s_fields_by_section_with_findings_first(client, filer, year, p
     assert body.count('class="info-btn"') == body.count('class="info-pop"') == len(re.findall(r'id="in-(?!reason)', body))
     assert 'aria-describedby="help-NumUnits"' in body and 'id="help-NumUnits"' in body
     # a value list's codes are suggested as you type, and typing anything else is still allowed
-    assert 'list="codes-Sector"' in body and '<datalist id="codes-Sector">' in body and 'type="text" id="in-Sector"' in body
+    assert 'list="codes-Sector"' in body and 'type="text" id="in-Sector"' in body
+    offered = re.findall(r'<option value="([^"]+)">', body.split('<datalist id="codes-Sector">', 1)[1].split("</datalist>", 1)[0])
+    assert offered == ["Res", "Com", "Ag"]  # the code retired in 2020 is left out of a 2028 filing's suggestions
     # the Save bar and the box that finds a field
     assert (
         'id="save-bar"' in body
@@ -75,8 +88,8 @@ def test_a_record_s_fields_by_section_with_findings_first(client, filer, year, p
     )
 
 
-def test_a_long_value_list_links_to_its_page_instead(client, filer, year, pge, programs, catalog, settings):  # noqa: F811
-    settings.CEDARS_CORRECTION_LIST_CODES = 3
+def test_a_long_value_list_links_to_its_page_instead(client, filer, year, pge, programs, catalog, settings, sector_list):  # noqa: F811
+    settings.CEDARS_CORRECTION_LIST_CODES = 2  # Sector has three codes in use in 2028
     v = service.upload_claims(filer, deadline(), pge, bad_q1(), "q1.zip")
     sign_in(client, filer)
     body = main(client.get(reverse("submissions:record", args=[v.pk, "Measure"]) + "?k=PGE-2028-002").content.decode())

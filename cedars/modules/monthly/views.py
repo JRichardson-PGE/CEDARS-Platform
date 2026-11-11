@@ -18,6 +18,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
+from cedars.services.submissions import status as filing_status
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 
 from . import forms, service
@@ -112,6 +113,7 @@ def index(request):
                     "can_open": can_open,
                 }
             )
+        filing_status.mark_next(rows, org)  # the one to file now, and each row's action (UI review 3, U5)
         years.append({"setup": setup, "months": rows})
     return render(
         request,
@@ -171,13 +173,20 @@ def setup(request, year):
         return done
     own = request.method == "POST" and not setup_calendar.is_calendar_post(request)
     form = forms.SetupForm(
-        request.POST if own else None, accs=accs(), initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version}
+        request.POST if own else None,
+        accs=accs(),
+        initial={"acc_version": s.acc_version, "allocation_version": s.allocation_version, "notes": s.notes},
     )
     if own and form.is_valid():
         d = form.cleaned_data
         try:
             service.change_setup(
-                request.user, s, acc_version=d["acc_version"], allocation_version=d["allocation_version"], reason=d["reason"]
+                request.user,
+                s,
+                acc_version=d["acc_version"],
+                allocation_version=d["allocation_version"],
+                reason=d["reason"],
+                notes=d["notes"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))

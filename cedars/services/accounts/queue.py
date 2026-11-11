@@ -42,3 +42,41 @@ def steward_decisions(user) -> list[Item]:
     for c in PolicyChange.objects.filter(status=PolicyChange.Status.PROPOSED).exclude(proposed_by=user):
         out.append(Item(f"Access policy change: {c.setting}", "/admin/stewardship/", "", c.proposed_at, None, c.reason))
     return out
+
+
+RECENT_DAYS = 14  # a decided access request stays in Your work this long, so the person sees the answer on the front page
+
+
+def your_requests(request, page):
+    """Your work on the front page (core/yourwork.py): the person's own access requests, waiting or decided in the last two weeks."""
+    from datetime import timedelta
+
+    from django.db.models import Q
+    from django.urls import reverse
+    from django.utils import timezone
+
+    from cedars.core.yourwork import Line, Part, day
+
+    since = timezone.now() - timedelta(days=RECENT_DAYS)
+    mine = (
+        AccessRequest.objects.filter(user=request.user)
+        .filter(Q(status=AccessRequest.Status.PENDING) | Q(decided_at__gte=since))
+        .select_related("organisation")
+        .order_by("-created_at")
+    )
+    account = reverse("administration:account")
+    lines = []
+    for r in mine:
+        org = r.organisation
+        if r.status == AccessRequest.Status.PENDING:
+            asked = f"asked {day(r.created_at).isoformat()}"
+            if service.org_admins(org).exists():
+                detail = f"{asked}; waiting for {org.code}'s administrators to decide"
+            else:
+                detail = f"{asked}; {org.code} has no administrator yet to decide it"
+        else:
+            detail = f"decided {day(r.decided_at).isoformat()}" + (f": {r.decision_note}" if r.decision_note else "")
+        lines.append(Line(f"Access to {org.code} ({org.name})", account, "See it", r.get_status_display(), detail))
+    if not lines:
+        return None
+    return Part("access", "Your access requests", lines, more_url=account, more_label="Your account")

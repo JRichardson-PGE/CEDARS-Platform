@@ -21,6 +21,7 @@ from cedars.services.registry.models import Program
 from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
+from cedars.services.submissions import status as filing_status
 from cedars.services.submissions.models import Deadline, ReopenRequest, Submission, SubmissionVersion
 from cedars.services.vault import service as vault
 from cedars.services.vault.service import PIIError
@@ -119,6 +120,7 @@ def index(request):
     for cy in cys:
         rows = rows_for(service.periods(cy.year))
         sw = rows_for(service.periods(cy.year, statewide=True), show_org=leads)
+        filing_status.mark_next(rows + sw, org)  # the one to file now, and each row's action (UI review 3, U5)
         years.append(
             {
                 "cy": cy,
@@ -211,7 +213,12 @@ def setup(request, year):
     form = forms.SetupForm(
         request.POST if own else None,
         accs=accs(),
-        initial={"acc_version": cy.acc_version, "allocation_version": cy.allocation_version, "cost_test_set": cy.cost_test_set},
+        initial={
+            "acc_version": cy.acc_version,
+            "allocation_version": cy.allocation_version,
+            "cost_test_set": cy.cost_test_set,
+            "notes": cy.notes,
+        },
     )
     if own and form.is_valid():
         d = form.cleaned_data
@@ -223,6 +230,7 @@ def setup(request, year):
                 allocation_version=d["allocation_version"],
                 reason=d["reason"],
                 cost_test_set=d["cost_test_set"],
+                notes=d["notes"],
             )
         except AccessDenied as e:
             messages.error(request, str(e))

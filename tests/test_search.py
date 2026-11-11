@@ -10,6 +10,7 @@ from django.urls import reverse
 
 from cedars.core import nav, page_help, search
 from cedars.modules.documents import service as docs
+from cedars.services.accounts import service as access
 from cedars.services.dictionary import service as dictionary
 from cedars.services.registry import service as registry
 
@@ -69,7 +70,8 @@ def test_pages_follow_the_header_roles(client, signed_in, pge_admin, cpuc_admin)
     assert reverse("retention:index") in links(client.get("/search/", {"q": "retention"}).content.decode())
 
 
-def test_glossary_terms_and_pa_codes(client):
+def test_glossary_terms_and_pa_codes(client, cpuc_admin):
+    access.create_organisation(cpuc_admin, code="BAY", name="Bay Area Regional Energy Network (BayREN)", kind="pa")
     hits = {p.key: p for p in search.search(None_user(), "tsb")}
     assert any(h.url.endswith("/help/glossary/#tsb") for h in hits["best"].hits)  # the term named exactly leads
     hits = {p.key: p for p in search.search(None_user(), "BAYREN")}

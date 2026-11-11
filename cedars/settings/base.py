@@ -282,6 +282,7 @@ DATA_API_MAX_ROWS = int(env("DATA_API_MAX_ROWS", "1000"))  # the most rows one d
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
+CSRF_FAILURE_VIEW = "cedars.core.errors.csrf_failure"  # a refused form says why in words, in the site's layout
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"

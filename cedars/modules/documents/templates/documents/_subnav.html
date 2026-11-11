@@ -11,5 +11,6 @@
   <a href="{% url 'documents:work_orders' %}"{% if section == 'work_orders' %} aria-current="page"{% endif %}>Work orders</a>
   {% if user.is_authenticated %}<a href="{% url 'documents:subscriptions' %}"{% if section == 'subscriptions' %} aria-current="{% if here == 'documents:subscriptions' %}page{% else %}true{% endif %}"{% endif %}>My subscriptions</a>{% endif %}
   <a href="{% url 'documents:lists' %}"{% if section == 'lists' %} aria-current="page"{% endif %}>Value lists</a>
+  {% if section == 'legacy' %}<a href="{% url 'documents:legacy_links' %}" aria-current="page">Old links</a>{% endif %}
 </nav>
 {% endwith %}

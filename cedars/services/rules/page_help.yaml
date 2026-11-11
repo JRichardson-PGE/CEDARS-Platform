@@ -6,21 +6,45 @@ rules/index:
     - The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective
       by then; every submission and run records the version it was checked against.
     - Check a file before you file it runs the rules in force on your file without filing it. Compare two rule sets shows what changed
-      between versions.
+      between versions. Built-in checks lists the checks written in the platform's code that run beside the rule sets.
   how:
     - Check a file before you file it runs the rules in force on your file.
     - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
+    - Built-in checks lists each filing's checks written in code, with their IDs, severity and message.
   see: rules-and-lists
   tour:
     - target: main p.actions
-      title: Check a file, or compare rule sets
-      text: Check your file against the rules in force, or see what changed between two sets.
+      title: Check a file, compare rule sets, or read the built-in checks
+      text: Check your file against the rules in force, see what changed between two sets, or read the checks written in code.
     - target: main table.list
       title: Rule sets
       text: Each set and version, its effective date and status. Select one to read its rules.
     - target: "#imp-h"
       title: Import CEDARS' rules
       text: For CPUC system administrators. Imported rules start as a draft until published.
+      optional: true
+
+rules/built_in:
+  title: Built-in checks
+  guide:
+    - The checks written in the platform's code that run beside the published rule sets, by filing (budget and application filings,
+      claims, monthly reports, claims PII files, load-shape uploads). They need what a rule set cannot see, such as the program registry,
+      the filing's cycle or month, its other tables, earlier confirmations and eTRM.
+    - Each check has its rule ID, as a finding on a validation report shows it, its severity, the tables and fields it looks at, what it
+      finds and how to fix it. Read only; they change with a release of the platform, which its release notes announce.
+  how:
+    - Filter by rule, field or words and by severity, then Apply.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: Filter
+      text: By rule ID, field or words and by severity, then Apply.
+    - target: "#built-in-count"
+      title: How many match
+      text: The number of checks shown, of all the built-in checks.
+    - target: main table.coded-checks
+      title: The checks
+      text: One table for each filing. Each check's ID, severity, tables, fields, what it finds and how to fix it.
       optional: true
 
 rules/detail:

@@ -107,7 +107,7 @@ budgets/setup:
   title: A budget filing's set-up
   guide:
     - The ACC and the statewide allocation version the next pricing of this filing uses. Versions already priced keep the ones they were
-      priced with; their run records both.
+      priced with; their run records both. Its notes change in the same form, with the reason for the change, which the audit trail keeps.
     - Its due dates still to come change here as on the filing calendar, with a reason (those who follow the calendar are told, and
       reminders are sent again); a date already passed moves on its own page of the calendar. While no PA has started filing for it,
       Remove this set-up takes it off the calendar for good, set-up and deadlines, for one set up by mistake.
@@ -229,7 +229,7 @@ budgets/shifts:
 budgets/shift_new:
   title: Starting a fund shift
   guide:
-    - Name the shift, choose its cycle and say why the money moves. The amounts come next, line by line.
+    - Name the shift, choose its cycle (it starts on the current one) and say why the money moves. The amounts come next, line by line.
   how:
     - Name the shift, choose its cycle and say why, then Start the shift and enter its lines.
   see: budgets
@@ -247,13 +247,24 @@ budgets/shift_lines:
       Two statewide lines move money between statewide programs; where their rates differ, each funder covers its net gap from its own programs.
     - No line may take a program's operating budget below zero; a shift that would is rejected.
   how:
-    - Enter each program and year with its amount; Save and add more lines keeps the form open for more.
-    - Save when the lines add up to zero, then submit the shift from its page.
+    - Type a PrgID or part of a program's name and pick it from the list (only the programs you can name in this shift are offered),
+      then the year and the amount. Beside each line is what that program-year's operating budget holds now.
+    - As you type, a line says what is wrong with it (a program you cannot name, an amount that is not a figure, a line that would take
+      a program-year below zero), and the net updates. Add a line gives another blank line; Save and add more lines does the same
+      without scripts.
+    - To enter many lines at once, open Paste lines and paste the PrgID, year and amount columns from a spreadsheet.
+    - Save when the net is zero, then submit the shift from its page.
   see: budgets
   tour:
-    - target: main form
+    - target: table.shift-lines
       title: The lines
-      text: Program, year and amount. Save, or Save and add more lines for another set of blank lines.
+      text: Program, year and amount, with each program-year's operating budget beside the line and the net below.
+    - target: details.paste-lines
+      title: Paste lines
+      text: Paste many lines at once from a spreadsheet; they are added when you save.
+    - target: main form .actions
+      title: Save
+      text: Save, or Save and add more lines for another set of blank lines.
 
 budgets/shift:
   title: A fund shift
