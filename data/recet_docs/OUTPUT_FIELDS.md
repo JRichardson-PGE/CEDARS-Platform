@@ -200,7 +200,7 @@ for claims or forecasts): `2021 ACC (Avoided Cost Version 2022)`, `2022 ACC (Avo
 
 #### `Used_CostTestSet`
 
-Which cost-test definition set the run priced the tests on (BRD BR-06.8; [COST_TESTS.md](COST_TESTS.md)). Unit: Text.
+Which cost-test definition set the run priced the tests on ([COST_TESTS.md](COST_TESTS.md)). Unit: Text.
 
 **Formula:** a built-in set's id (`EE-2026`); a set supplied as a file is `custom: <file name>` (its id and SHA-256 are in `run_settings.json`); a draft set ends in ` (draft)`.
 **Inputs:** the "Cost tests" setting (`cost_test_set`, INPUT_FIELDS.md section 3); blank = the set in force for the job's first program year.
@@ -1721,7 +1721,7 @@ AnnualNetKW   = AnnualGrossKW * (NTGRkW + MEB)
 ### 1.16 Discounted savings, lifecycle net benefits and levelized values
 
 CET's discounted savings and the "levelized" columns built on them (CalcCost): a benefit, or the electric (gas) share of a cost, per discounted net kWh (therm) saved. All present values are
-at the primary discount rate. Each levelized column is 0 when its denominator is 0. Whether the levelized columns are still needed is RAID decision D9 in the replacement BRD.
+at the primary discount rate. Each levelized column is 0 when its denominator is 0.
 
 #### `DiscountedSavingsGrosskWh`, `DiscountedSavingsNetkWh`, `DiscountedSavingsGrossThm`, `DiscountedSavingsNetThm`
 
@@ -1828,7 +1828,7 @@ Computed from CET's own columns, each reproduces CET's on every measure of CET j
 
 ### 1.17 A true-up against its parent's profile (`AC_Elec_Impact_Profile_Parent`, `AC_Elec_Impact_Profile_Parent_2nd_Baseline`)
 
-Written only when the Measure file has the ReCET-only parent-profile columns (INPUT_FIELDS 1.3; BRD BR-05.6), after the record's own priced values; the two
+Written only when the Measure file has the ReCET-only parent-profile columns (INPUT_FIELDS 1.3), after the record's own priced values; the two
 input columns are echoed with the inputs. A record that names a parent is priced a second time as the same record filed on the parent's profiles: the same
 ACC, claim quarter, life, rates and quantities, a blank `AC_Elec_Impact_Profile_Water` following the parent's profile, a kWh-per-unit profile carrying its
 own kWh (C21). Each incremental column is the record's value as filed less that second value. Blank on a record with no parent; the `_SB`, `_SH`, SCB and
@@ -1901,7 +1901,7 @@ from the set. EE-2026's input streams are `OtherBen`, `OtherCost` and `TaxCredit
 
 One row for the whole job (`group` = `portfolio`), then one row per `IOU_AC_Territory` (`group` = `IOU territory (PA)`), then one per credited PA (`group` = `credited PA`, from `CreditedPA`; left out when there is no `ProgramCost.csv`),
 then one per program segment (`group` = `program segment`, from `Prg_ProgramSegment`; `(blank)` for programs with no segment or not in the program metadata),
-then one per program year (`group` = `program year`, from `Used_Year`, the claim year; BRD BR-04.1, so a multi-year filing's tests and TSB are given year by year).
+then one per program year (`group` = `program year`, from `Used_Year`, the claim year, so a multi-year filing's tests and TSB are given year by year).
 Every number is computed over the measures of the row's group.
 
 The tests are those of the run's cost-test set ([COST_TESTS.md](COST_TESTS.md); the run keeps it as `cost_tests.yaml`, 2.9c). The table below is
@@ -1966,7 +1966,7 @@ The portfolio's net electric savings hour by hour, for each requested calendar y
 | `datetime` | That index laid on the ACC's calendar `A`: 2018 for the 2024/2026 ACCs, 2020 for the 2021/2022 ACCs (every forecast year of an ACC follows one calendar's weekdays, and the shapes are aligned to it; a 2020 calendar includes 29 February and ends on 30 December). Timestamp. | `A-01-01 00:00 plus (hour_of_year - 1) hours` |
 | `net_kwh_<Y>` | The portfolio's net kWh in that hour of calendar year `Y`, all IOUs. Positive = savings, negative = added load. kWh. | `SUM over measures m of weight_m(Y) * shape_m,Y(i)`, `i` = `hour_of_year` |
 | `net_kwh_<Y>_<PA>` | The same for the measures of one IOU territory `PA`. kWh. | the same sum over the measures with `IOU_AC_Territory` = `PA` |
-| `net_kwh_<Y>_CZ<zone>` | The same for the measures of one climate zone (BRD BR-06.13): the measure's `AC_Climate_Zone` as filed, `CZ` prepended when it is a bare number (`13` -> `CZ13`; `System` -> `CZSystem`). The zones add up to `net_kwh_<Y>`. kWh. | the same sum over the measures with that `AC_Climate_Zone` |
+| `net_kwh_<Y>_CZ<zone>` | The same for the measures of one climate zone: the measure's `AC_Climate_Zone` as filed, `CZ` prepended when it is a bare number (`13` -> `CZ13`; `System` -> `CZSystem`). The zones add up to `net_kwh_<Y>`. kWh. | the same sum over the measures with that `AC_Climate_Zone` |
 
 **Where**
 
@@ -1995,7 +1995,7 @@ the electric-profile fields of `ElecBen`; the "Year(s)" setting.
 
 ### 2.4b `portfolio_8760_peaks_acc<version>` (combined 8760 mode)
 
-The peaks of the combined profile (BRD BR-06.13): one row per year `Y` and group, the portfolio first, then each IOU territory, then each climate zone.
+The peaks of the combined profile: one row per year `Y` and group, the portfolio first, then each IOU territory, then each climate zone.
 
 | Field | Meaning and unit | Formula |
 |---|---|---|
@@ -2066,7 +2066,7 @@ source, water and gas measure counts, ACC year ranges), then every finding as `E
 `no_gas_profile`) and examples (for `loose_profile_match`: end use | IOU | the AC_Elec_Target_Sector given). Finding codes: `file_missing`, `no_delimiter`, `too_many_records` (the job has more records than the record cap, `max_records`, 2,000,000 by default; nothing else is checked), `not_pipe_delimited` (info: the file is comma- or tab-delimited and was read as such), `missing_columns`, `missing_descriptive_column` (warning: `MeasDescription` or `Sector` left out, read as blank),
 `missing_optional_column`, `blank_id`, `duplicate_id`, `bad_claim_year_quarter`, `bad_iou`, `non_numeric`, `blank_required_value` (a numeric field CET requires is blank), `negative_life` (`EUL_Yrs` or `RUL_Yrs` below 0), `rul_above_eul` (`RUL_Yrs` greater than `EUL_Yrs`), `outside_cet_range`, `rul_not_below_eul` (warning: `RUL_Yrs` equals `EUL_Yrs`), `measures_without_program_costs` (warning: measures whose `PrgID` has no `ProgramCost.csv` row, priced with no program costs), `program_costs_without_measures` (warning: `ProgramCost.csv` rows whose `PrgID` has no measures, with the nominal dollars no cost test includes; C17 item 11), `inputs_unreadable`,
 `no_program_costs`, `statewide_program_costs`, `bad_acc_version`, `acc_version_file_missing`, `no_electric_profile`, `no_electric_profile_2nd`, `no_parent_profile` (a true-up's parent profile matched nothing, C21), `parent_2nd_without_parent`, `loose_profile_match`, `kwh_per_unit_profile` (info: priced on an already-scaled kWh-per-unit profile), `zero_net_profile_water`, `no_profile_library`, `no_water_profile`, `no_gas_profile`, `bad_gas_sector`, `unknown_settings_version`, `before_acc_horizon`,
-`beyond_acc_horizon`, `acc_unreadable`, `program_costs_unreadable` (a job checked in parts could not read `ProgramCost.csv`), and from the program metadata `program_not_in_metadata`, `claim_outside_program_years` (claim year before `StartYear` or after `EndYear`),
+`beyond_acc_horizon`, `acc_not_for_program_year` (warning: records priced on an ACC that is not the one for their program year and the filing they are priced for; section 2.9b), `acc_unreadable`, `program_costs_unreadable` (a job checked in parts could not read `ProgramCost.csv`), and from the program metadata `program_not_in_metadata`, `claim_outside_program_years` (claim year before `StartYear` or after `EndYear`),
 `program_closed` (status `closed` or `closure_pending`), `program_excluded_from_ce` and `program_pa_differs` (the `ProgramCost.csv` `PA` differs from the list's `PA`),
 and with CEDARS filing checks `cet_reject` (warning: the records failing one rule CEDARS rejects on, the message starting with the rule's ID), `cet_warning` (the same for a
 CEDARS warning rule) and `cet_rule_not_checked` (info: a rule ReCET could not check, and why). With filing checks on, `outside_cet_range` is not reported: the spec's ranges are
@@ -2101,13 +2101,13 @@ Everything needed to reproduce the run.
 | `totals` | The portfolio totals (the first row of the portfolio summary). |
 | `parts` | A run in parts only: `chunk_size` and the number of parts (`count`). |
 | `notes` | Notes on the run, when there are any (for example a TRC-only ACC's blank societal columns, or Excel output written as CSV). |
-| `filing_validation` | With CEDARS filing checks: the rule set used (`rule_set`, `label`, `effective_date`), its number of rules, rejects and warnings, and the CEDARS files it was read from (BRD BR-03.3). |
+| `filing_validation` | With CEDARS filing checks: the rule set used (`rule_set`, `label`, `effective_date`), its number of rules, rejects and warnings, and the CEDARS files it was read from. |
 | `cost_tests` | The cost-test definition set the run priced on ([COST_TESTS.md](COST_TESTS.md)): `id`, `workstream`, `version`, `label`, `draft`, `source` (`built-in` or the supplied file's path), `sha256` (of the set's file), `program_years` (the years it is in force for), `tests`, `used_label` (what `Used_CostTestSet` says), `chosen` (`run option`, or the program year whose set was taken by default) and any `warnings` (a draft set, a set not in force for the job's program years). |
-| `acc_check` | The ACC check (2.9b, BRD BR-06.5): `purpose` and its `label` (what the run is priced for), the number of `measures`, how many were `flagged` (priced on an ACC that does not normally apply to their program year) and `not_checked`, and `by_acc_and_year`: one row per ACC version and program year with its `measures`, `status` (`ok`, `flagged` or `not checked`) and `expected_accs`. |
+| `acc_check` | The ACC check: `purpose` and its `label` (what the run is priced for), the number of `measures`, how many were `flagged` (priced on an ACC that does not normally apply to their program year) and `not_checked`, and `by_acc_and_year`: one row per ACC version and program year with its `measures`, `status` (`ok`, `flagged` or `not checked`) and `expected_accs`. |
 
-### 2.9b The ACC check (BRD BR-06.5)
+### 2.9b The ACC check
 
-BRD BR-06.5: whether the ACC a measure was priced on normally applies to its program year (its claim year), for what the run is priced for (the run setting
+Whether the ACC a measure was priced on normally applies to its program year (its claim year), for what the run is priced for (the run setting
 `acc_purpose`, "Priced for"). The ACC is the measure's `ACCVersion`, else the run's. Which ACCs apply comes from the table of budget filings and the ACC that
 prices each (`versions.BUDGET_FILING_ACC`, from CET's "Program year assignment to CET avoided cost version" table through 2027, then the schedule of
 expected filings): for *Quarterly Claims*, the ACC of the program year's final budget filing (one ACC per year, `versions.claims_acc`); for a named filing, that
@@ -2151,7 +2151,7 @@ and reported as not checked when the library is not installed. `UploadPA-YYYY` (
 
 ### 2.11 `field_definitions_acc<version>`
 
-One row per column of the measure-level file, in the file's order (BRD BR-06.10): what each column is, from this document (section 1) or, for an echoed
+One row per column of the measure-level file, in the file's order: what each column is, from this document (section 1) or, for an echoed
 input column, from INPUT_FIELDS.md. With an output template it lists exactly the template's columns.
 
 | Column | Meaning |
@@ -2169,12 +2169,12 @@ input column, from INPUT_FIELDS.md. With an output template it lists exactly the
 | `rounding` | Always "not rounded": ReCET writes full precision; the Results pages and Excel formats only change how numbers are shown. |
 | `years_in_use` | Which ACCs fill it ("2024 ACC on" for the SCT columns, blank on the TRC-only 2021 and 2022 ACCs; otherwise every ACC) and any earlier name of the column (renamed in 0.1.50 or from CET's E3 names). |
 
-These attributes (BRD BR-08.1) follow rules on the column's name and its documented unit (`field_attributes.py`), so a column added later gets them
+These attributes follow rules on the column's name and its documented unit (`field_attributes.py`), so a column added later gets them
 without an entry of its own; `tests/test_field_attributes.py` checks the cost-test treatment against the cost tests' arithmetic.
 
 ### 2.12 `key_metrics_acc<version>`
 
-The key-metrics summary (BRD BR-06.10): the headline results and the main drivers of them. Built from every measure, whatever the output template.
+The key-metrics summary: the headline results and the main drivers of them. Built from every measure, whatever the output template.
 
 | Column | Meaning |
 |---|---|
@@ -2189,7 +2189,7 @@ The key-metrics summary (BRD BR-06.10): the headline results and the main driver
 
 ### 2.13 `statewide_reconciliation_acc<version>` (with statewide allocation)
 
-With **Allocate statewide programs** on (C15), the check that the allocation reconciles (BRD BR-06.7): for each statewide program and year, every field the
+With **Allocate statewide programs** on (C15), the check that the allocation reconciles: for each statewide program and year, every field the
 allocation scales, added up before allocation and over each IOU's allocated rows, from the rows the run actually priced. One row per (table, year, program, field).
 
 | Column | Meaning |
