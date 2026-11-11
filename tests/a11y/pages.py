@@ -237,6 +237,7 @@ PAGES = [
     ("build-review-manager", "/reference-data/cost-tests/build/{manager_build}/review/", "cpuc_admin"),
     ("build-review-offered", "/reference-data/cost-tests/build/{offered_build}/review/", "cpuc_admin"),
     ("build-review-offering", "/reference-data/cost-tests/build/{offered_build}/review/", "analyst"),
+    ("build-discard", "/reference-data/cost-tests/build/{build}/discard/", "analyst"),
     (
         "pack-etrm-lookup",
         "/reference-data/{etrm_pack}/?id=SWHC052-02-A-NR-DnDeemDI-Com-Com-Ex-cWtd-CZ01-Com-Default%3E2yrs-Def-GSIA-Any-Any",

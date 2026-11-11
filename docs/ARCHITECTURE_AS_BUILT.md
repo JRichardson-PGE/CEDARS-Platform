@@ -1196,7 +1196,7 @@ ones the large lane; more than `CALCULATIONS_MAX_RECORDS` are refused before que
 | `calculations/drafts.py`, `draft_views.py` | `recet.editor`, `recet.fieldnames`, `recet.versions` | Edit inputs: cell checks and dropdowns |
 | `services/rules/service.py`, `precheck.py` | `recet.filing_rules`, `recet.editor`, `recet.fieldnames`, `recet.pipeline.real_impact_profiles` | Running stored rule sets with the engine's own rule runner, so the platform, ReCET runs and the checker never disagree |
 | `services/dictionary/value_lists.py` | `recet.editor`, `recet.paths` | Handing the value lists in force to the engine |
-| `services/refdata/cost_tests.py`, `builder.py` | `recet.cost_test_sets` | Validating, describing and building cost-test sets |
+| `services/refdata/cost_tests.py`, `builder.py` | `recet.cost_test_sets` | Validating, describing and building cost-test sets; the builder files each validator message under its step and shows it beside the form field it names, in that field's label (`builder_forms.problem`) |
 | `calculations/service.py`, `claims/service.py` | `recet.versions` | The ACC tables (the claims ACC of a year, Priced for, which ACC applies) |
 | `budgets/service.py`, `claims/service.py` | `recet.fieldnames` | Reading CET and older names as the canonical ones |
 | `calculations/input_templates.py`, `releases/limits.py` | `recet.templates`, `recet.editor` | Upload templates and the Edit inputs row limit |

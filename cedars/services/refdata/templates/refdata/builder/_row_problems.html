@@ -1,0 +1,2 @@
+{% comment %}The problems of one stream, aggregate or test, in its row of the step's list: each names the field it is about and links to it on
+the part's own page.{% endcomment %}{% if ps %}<ul class="errorlist">{% for p, link in ps %}<li><a href="{{ link }}">{{ p.label|default:"Problem" }}</a>: {{ p.text }}</li>{% endfor %}</ul>{% endif %}

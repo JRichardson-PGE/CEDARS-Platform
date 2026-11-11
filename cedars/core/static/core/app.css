@@ -839,6 +839,19 @@ textarea.formula { width: 100%; font-size: .92rem; line-height: 1.5; }
 .formula-check.ok { border-left-color: var(--ok); } .formula-check.warn { border-left-color: var(--warn); } .formula-check.bad { border-left-color: var(--bad); }
 .formula-check.ok::before { content: "OK. "; font-weight: 600; } .formula-check.warn::before { content: "Check: "; font-weight: 600; }
 .formula-check.bad::before { content: "Not yet: "; font-weight: 600; }
+/* Cost-test builder: step 3's streams as a table (UI review 3). The pricings sit on one line in their cell; the wording opens under its
+   "Change the wording" disclosure, wide enough for its definition box; a row's problems sit under the stream's name. */
+.stream-table fieldset { border: 0; padding: 0; margin: 0; background: none; }
+.inline-checks { display: flex; flex-wrap: wrap; gap: .2rem 1rem; }
+.inline-checks label { min-height: 24px; }
+.stream-table th[scope="row"] { min-width: 12rem; max-width: 26rem; }
+.stream-facts { display: block; font-weight: 400; margin: .2rem 0 0 calc(24px + .45rem); }
+.stream-table th[scope="row"] .errorlist, table.list th[scope="row"] .errorlist { font-weight: 400; margin-top: .3rem; }
+.stream-table td.wording { min-width: 12rem; }
+.stream-table td.wording details[open] { min-width: min(24rem, 70vw); }
+.stream-table td.wording p { margin: 0 0 .2rem; }
+.streams-left-out > summary { cursor: pointer; font-weight: 600; min-height: 44px; display: list-item; padding: .65rem 0; }
+.discard-set { margin-top: 1rem; }
 .test-grid th[scope="row"] { white-space: nowrap; }
 .test-grid tr.meta th, .test-grid tr.meta td { background: var(--surface-2); }
 .role { display: inline-block; font-weight: 600; padding: 0 .4rem; border-radius: 3px; border-left: 4px solid; }
