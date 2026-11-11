@@ -32,21 +32,30 @@ by 0.0001 first. Versions loaded before 6 November 2026 kept the weighted factor
 <p>Each statewide program's share of its budget and savings for each funding PA, by program year: the electric factor allocates
 electric savings, the gas factor gas savings, and the weighted factor (PercentElectric &times; electric + (1 &minus; PercentElectric)
 &times; gas) the program's costs. The download above has the same values.</p>
-<form method="get" action="#factors-h" class="filters" aria-label="Filter the factors">
-  <div><label for="f-year">Program year</label>
-  <select id="f-year" name="year"><option value="">Every year</option>{% for y in years %}<option value="{{ y }}"{% if y == year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select></div>
-  <div><label for="f-q">Program ID or name contains</label>
-  <input id="f-q" name="q" type="search" value="{{ query }}" maxlength="100"></div>
-  <button type="submit">Apply</button>
-</form>
-<p>{% if filtered %}Showing {{ rows|length }} of {{ count }} program-years. <a href="{% url 'administration:allocation' v.pk %}#factors-h">Show them all</a>{% else %}All {{ count }} program-years.{% endif %}</p>
+<div class="filters factor-filters">
+  <nav class="chip-group" aria-labelledby="factor-years-label" id="factor-years">
+    <span id="factor-years-label" class="chip-label">Program year</span>
+    <ul class="toggle-chips">{% for c in year_links %}
+      <li><a href="{{ c.url }}"{% if c.on %} aria-current="true"{% endif %}>{% if c.on %}<span aria-hidden="true">&#10003; </span>{% endif %}{{ c.label }}</a></li>{% endfor %}
+    </ul>
+  </nav>
+  <form method="get" action="#factors-h" class="row-form" aria-label="Find a program">
+    <input type="hidden" name="year" value="{% if every %}all{% else %}{{ year }}{% endif %}">
+    <div class="field"><label for="f-q">Program ID or name contains</label>
+    <input id="f-q" name="q" type="search" value="{{ query }}" maxlength="100"></div>
+    <button type="submit">Find</button>
+  </form>
+</div>
+{% include "ui/filter_chips.html" %}
+<p id="factors-count">{{ page.paginator.count }} program-year{{ page.paginator.count|pluralize }}{% if year %} in {{ year }}{% if nearest %} <span class="small muted">(this version has no factors for {{ today_year }}; the nearest year it has is shown)</span>{% endif %}{% else %} in every year{% endif %}{% if query %} matching &ldquo;{{ query }}&rdquo;{% endif %}, of {{ count }} in this version.</p>
+{% pager page query=pager_query label="Factor pages" where="above" anchor="factors-h" %}
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="factors-h">
 <table class="list factors">
-  <caption class="sr-only">Statewide allocation factors by program year and program, for each funding PA</caption>
-  <colgroup span="3"></colgroup>{% for pa in pas %}<colgroup span="3"></colgroup>{% endfor %}
+  <caption class="sr-only">Statewide allocation factors{% if year %} for {{ year }}{% endif %}, by program, for each funding PA</caption>
+  <colgroup span="{% if every %}3{% else %}2{% endif %}"></colgroup>{% for pa in pas %}<colgroup span="3" class="pa-group{% cycle '' ' pa-alt' %}"></colgroup>{% endfor %}
   <thead>
     <tr>
-      <th scope="col" rowspan="2">Year</th>
+      {% if every %}<th scope="col" rowspan="2">Year</th>{% endif %}
       <th scope="col" rowspan="2">Program</th>
       <th scope="col" rowspan="2" class="num">Percent<br>electric</th>
       {% for pa in pas %}<th scope="colgroup" colspan="3" class="pa">{{ pa }}</th>{% endfor %}
@@ -58,16 +67,17 @@ electric savings, the gas factor gas savings, and the weighted factor (PercentEl
   <tbody>
   {% for r in rows %}
   <tr>
-    <td>{{ r.entry.year }}</td>
+    {% if every %}<td>{{ r.entry.year }}</td>{% endif %}
     <th scope="row">{{ r.entry.program_id }}{% if r.entry.program_name %}<br><span class="small">{{ r.entry.program_name }}</span>{% endif %}</th>
     <td class="num">{{ r.entry.percent_electric }}</td>
     {% for s in r.shares %}{% if s %}<td class="num pa-first">{{ s.electric }}</td><td class="num">{{ s.gas }}</td><td class="num">{{ s.weighted }}</td>{% else %}<td class="num pa-first" colspan="3">Not given</td>{% endif %}{% endfor %}
   </tr>
-  {% empty %}<tr><td colspan="{{ ncols }}">{% if filtered %}No program-years match.{% else %}This version has no factors.{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="{{ ncols }}">{% if query %}No program-years match.{% else %}This version has no factors.{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+{% pager page query=pager_query label="Factor pages" where="below" anchor="factors-h" %}
 
 {% if v.status == "draft" %}
 {% if can_manage %}

@@ -291,8 +291,16 @@ table.data thead th a { color: inherit; display: inline-block; min-height: 24px;
 .engine-doc details.diagram-text { margin: 0 0 1rem; }
 .engine-doc details.diagram-text > summary { cursor: pointer; padding: .25rem 0; }   /* keeps its disclosure triangle; 24 px tall (2.5.8) */
 
-.pager { display: flex; gap: 1rem; align-items: center; margin: .9rem 0; font-size: .92rem; color: var(--fg-2); }
+.pager { display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; margin: .9rem 0; font-size: .92rem; color: var(--fg-2); }
 .pager a { padding: .3rem .2rem; min-height: 24px; display: inline-block; }
+.pager.pager-above { margin: .4rem 0 .6rem; }   /* the same pager drawn above a long list (core/tables.py) and again below it */
+/* A long list's sortable heading (ui/sort_th.html): a link in the link color with an arrow; the sorted one carries aria-sort and a filled
+   arrow, the others a neutral one so a sighted reader sees they sort too. 24 px targets (2.5.8). */
+table.list thead th a.sort { color: var(--link); display: inline-flex; align-items: center; gap: .3rem; min-height: 24px; text-decoration: underline; text-underline-offset: .15em; }
+table.list thead th a.sort:hover { text-decoration-thickness: 2px; }
+table.list thead th.num a.sort { justify-content: flex-end; }
+table.list thead th .sort-mark { font-size: .9em; line-height: 1; }
+table.list thead th:not([aria-sort]) .sort-mark { color: var(--fg-2); }
 .status { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem; font-weight: 600; padding: .1rem .55rem .1rem .45rem; border-radius: 999px; white-space: nowrap;
   background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--line); }
 .status::before { content: ""; width: .45rem; height: .45rem; border-radius: 50%; background: var(--fg-3); flex: none; }
@@ -1051,6 +1059,9 @@ table.filing-status tbody tr.own > th { box-shadow: inset 4px 0 0 var(--primary)
 table.list tbody tr.next-to-file > * { background: color-mix(in srgb, var(--primary) 7%, transparent); }
 table.list tbody tr.next-to-file > th { box-shadow: inset 4px 0 0 var(--primary); }
 /* Statewide allocation factors: each funding PA's three factors set off by a rule, the PA heading over them centered */
+table.list.factors colgroup.pa-alt { background: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }   /* every other PA's three columns shaded, so a row reads across by PA */
+.factor-filters { flex-direction: column; align-items: stretch; gap: .8rem; }
+.factor-filters > form { align-items: flex-end; }
 table.list.factors .pa { text-align: center; border-left: 1px solid var(--line); }
 table.list.factors .pa-first { border-left: 1px solid var(--line); }
 table.list.factors tbody td.pa-first[colspan] { padding: .55rem .8rem; text-align: right; }

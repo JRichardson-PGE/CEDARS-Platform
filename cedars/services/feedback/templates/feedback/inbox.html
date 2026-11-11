@@ -12,6 +12,7 @@
   </select></div>
   <button type="submit">Apply</button>
 </form>
+{% pager page query=feedback_query label="Pages of feedback" previous="Newer" next="Older" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Feedback messages">
 <table class="list">
   <caption class="sr-only">Feedback messages, newest first</caption>
@@ -30,11 +31,5 @@
   </tbody>
 </table>
 </div>
-{% if page.has_other_pages %}
-<nav aria-label="Pages of feedback"><p>
-  {% if page.has_previous %}<a href="?status={{ status }}&amp;page={{ page.previous_page_number }}">Newer</a>{% endif %}
-  Page {{ page.number }} of {{ page.paginator.num_pages }}
-  {% if page.has_next %}<a href="?status={{ status }}&amp;page={{ page.next_page_number }}">Older</a>{% endif %}
-</p></nav>
-{% endif %}
+{% pager page query=feedback_query label="Pages of feedback" previous="Newer" next="Older" where="below" %}
 {% endblock %}

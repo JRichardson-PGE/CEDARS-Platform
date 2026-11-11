@@ -1,17 +1,18 @@
 from datetime import datetime, time
+from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, QueryDict
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
-from cedars.core import health
+from cedars.core import health, tables
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.accounts.middleware import ORG_SESSION_KEY
@@ -1147,30 +1148,45 @@ def allocation(request, pk):
         except AccessDenied as e:
             return _refused(request, e, f"/allocations/{v.pk}/")
     years = sorted(set(v.entries.values_list("year", flat=True)))
-    year = request.GET.get("year", "")
-    year = int(year) if year.isdigit() and int(year) in years else None
+    year, every = _allocation_year(request.GET.get("year", ""), years)
     query = request.GET.get("q", "").strip()[:100]
-    entries = v.entries.prefetch_related("shares")
+    entries = v.entries.prefetch_related("shares").order_by("year", "program_id", "pk")
     if year:
         entries = entries.filter(year=year)
     if query:
         entries = entries.filter(Q(program_id__icontains=query) | Q(program_name__icontains=query))
+    page = Paginator(entries, ALLOCATION_ROWS).get_page(request.GET.get("page"))
     pas = list(registry.ALLOCATION_PAS)
     rows = []
-    for e in entries:
+    for e in page.object_list:
         by_pa = {s.funding_pa: s for s in e.shares.all()}
         rows.append({"entry": e, "shares": [by_pa.get(pa) for pa in pas]})
+    here = reverse("administration:allocation", args=[v.pk])
+    keep = f"&q={quote(query)}" if query else ""
+    year_links = [{"label": str(y), "url": f"{here}?year={y}{keep}#factors-h", "on": y == year} for y in years]
+    year_links.append({"label": "Every year", "url": f"{here}?year=all{keep}#factors-h", "on": every})
+    pager_query = QueryDict(mutable=True)
+    pager_query["year"] = str(year) if year else "all"
+    if query:
+        pager_query["q"] = query
     return render(
         request,
         "administration/allocation.html",
         {
             "v": v,
             "pas": pas,
-            "ncols": 3 + 3 * len(pas),
+            "ncols": (3 if every else 2) + 3 * len(pas),
             "rows": rows,
+            "page": page,
             "year": year,
+            "every": every,
+            "today_year": timezone.localdate().year,
+            # opened on the nearest year because the version has no factors for this one
+            "nearest": year is not None and request.GET.get("year", "") != str(year) and year != timezone.localdate().year,
             "query": query,
-            "filtered": bool(year or query),
+            "pager_query": pager_query.urlencode(),
+            "year_links": year_links,
+            "applied": tables.chips(pager_query, [("q", "Program ID or name contains", query)], anchor="factors-h") if query else [],
             "issues": registry.check_allocation(v),
             "years": years,
             "count": v.entries.count(),
@@ -1178,6 +1194,21 @@ def allocation(request, pk):
             "history": registry.allocation_history(v),
         },
     )
+
+
+# A version's factors are a few hundred rows (each statewide program for each year): the page shows one year at a time, paged.
+ALLOCATION_ROWS = 50
+
+
+def _allocation_year(asked: str, years: list[int]) -> tuple[int | None, bool]:
+    """(year, every year) for the Factors table. "all" shows every year; a year the version has shows that year; anything else opens on
+    the current year (Jake, 2026-11-11), or, when the version has no factors for it, the nearest year it has (the later of two as near)."""
+    if asked == "all" or not years:
+        return None, True
+    if asked.isdigit() and int(asked) in years:
+        return int(asked), False
+    today = timezone.localdate().year
+    return min(years, key=lambda y: (abs(y - today), -y)), False
 
 
 def allocation_template(request):

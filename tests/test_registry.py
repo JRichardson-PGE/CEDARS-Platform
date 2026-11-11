@@ -441,8 +441,39 @@ def test_allocation_pages(signed_in, cpuc_admin):
     assert c.get(f"/allocations/{v.pk}/factors.csv").content.decode().startswith("Year,ProgramID")
 
 
+def test_allocation_page_opens_on_the_current_year_or_the_nearest(signed_in, cpuc_admin, settings):
+    """Jake, 2026-11-11: the Factors table opens on the current year (site time zone). A version without factors for it opens on the
+    nearest year it has, and says so."""
+    from unittest import mock
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    c = signed_in(cpuc_admin)
+    c.post("/allocations/", {"file": SimpleUploadedFile("f.csv", _factors()), "label": "2028 TUAL", "purpose": "filing", "cycle": 2028})
+    v = AllocationVersion.objects.get(label="2028 TUAL")
+    years = sorted(set(v.entries.values_list("year", flat=True)))
+    inside, after = years[len(years) // 2], years[-1] + 5
+
+    def n(year):
+        return v.entries.filter(year=year).count()
+
+    with mock.patch("cedars.modules.administration.views.timezone.localdate", return_value=date(inside, 6, 1)):
+        page = c.get(f"/allocations/{v.pk}/").content.decode()
+    assert f"{n(inside)} program-years in {inside}, of 304" in page and "the nearest year it has is shown" not in page
+    assert f'href="/allocations/{v.pk}/?year={inside}#factors-h" aria-current="true"' in page
+    assert f'href="/allocations/{v.pk}/?year=all#factors-h">Every year</a>' in page
+    with mock.patch("cedars.modules.administration.views.timezone.localdate", return_value=date(after, 6, 1)):
+        page = c.get(f"/allocations/{v.pk}/").content.decode()
+    assert f"{n(years[-1])} program-years in {years[-1]}" in page and f"this version has no factors for {after}" in page
+    # a year asked for in the link is shown without the note, even when it is not this year
+    with mock.patch("cedars.modules.administration.views.timezone.localdate", return_value=date(after, 6, 1)):
+        page = c.get(f"/allocations/{v.pk}/", {"year": years[0]}).content.decode()
+    assert f"{n(years[0])} program-years in {years[0]}," in page and "no factors for" not in page
+
+
 def test_allocation_page_shows_the_factors(signed_in, cpuc_admin, client):
-    """The factors are on the page, not only in the CSV (Jake, 2026-11-09), for signed-out visitors too, and filter by year and program."""
+    """The factors are on the page, not only in the CSV (Jake, 2026-11-09), for signed-out visitors too, and filter by year and program.
+    The table opens on the current year, the other years one click away, and is paged (UI review 3, U9; Jake 2026-11-11)."""
     import re
 
     from django.core.files.uploadedfile import SimpleUploadedFile
@@ -450,23 +481,37 @@ def test_allocation_page_shows_the_factors(signed_in, cpuc_admin, client):
     c = signed_in(cpuc_admin)
     c.post("/allocations/", {"file": SimpleUploadedFile("f.csv", _factors()), "label": "2028 TUAL", "purpose": "filing", "cycle": 2028})
     v = AllocationVersion.objects.get(label="2028 TUAL")
-    page = c.get(f"/allocations/{v.pk}/").content.decode()
-    body = page.split('class="list factors"')[1].split("</table>")[0]
-    assert body.count("<tr>") == 2 + 304 and "All 304 program-years." in page
-    # The 2021 SW_WET_Work row as filed: PercentElectric, then each PA's electric, gas and weighted factors in the file's PA order.
-    row = next(r for r in body.split("<tr>") if "SW_WET_Work" in r and "<td>2021</td>" in r)
+
+    def body(page):
+        return page.split('class="list factors"')[1].split("</table>")[0]
+
+    page = c.get(f"/allocations/{v.pk}/", {"year": 2021}).content.decode()
+    assert body(page).count("<tr>") == 2 + 16 and "16 program-years in 2021, of 304 in this version." in page
+    # One year shown: no Year column. The 2021 SW_WET_Work row as filed: PercentElectric, then each PA's electric, gas and weighted
+    # factors in the file's PA order.
+    assert '<th scope="col" rowspan="2">Year</th>' not in page
+    row = next(r for r in body(page).split("<tr>") if "SW_WET_Work" in r)
     cells = re.findall(r'<td class="num[^"]*">([^<]+)</td>', row)
     assert cells == ["0.8000", "0.4440", "0.5040", "0.4560", "0.1550", "0.0780", "0.1396", "0.4010", "0.0000", "0.3208"] + [
         "0.0000",
         "0.4180",
         "0.0836",
     ]
-    # Every factor heading names its PA for a screen reader.
-    assert '<span class="sr-only">SCG </span>Weighted' in body
-    year = c.get(f"/allocations/{v.pk}/", {"year": 2021}).content.decode()
-    assert "Showing 16 of 304 program-years." in year
+    # Every factor heading names its PA for a screen reader; the year links say which is shown, in words as well as the check mark.
+    assert '<span class="sr-only">SCG </span>Weighted' in body(page)
+    assert f'href="/allocations/{v.pk}/?year=2021#factors-h" aria-current="true"' in page
     found = c.get(f"/allocations/{v.pk}/", {"q": "wet_work", "year": "2021"}).content.decode()
-    assert "Showing 1 of 304 program-years." in found
+    assert "1 program-year in 2021 matching &ldquo;wet_work&rdquo;, of 304 in this version." in found
+    # the search is a chip with its own Remove link, which keeps the year
+    assert 'href="?year=2021#factors-h">Remove<span class="sr-only"> the Program ID or name contains filter wet_work' in found
     assert "No program-years match." in c.get(f"/allocations/{v.pk}/", {"q": "nothing-like-this"}).content.decode()
+    # Every year: the Year column comes back and the 304 rows are paged, 50 at a time, with the pager above and below the table.
+    every = c.get(f"/allocations/{v.pk}/", {"year": "all"}).content.decode()
+    assert '<th scope="col" rowspan="2">Year</th>' in every and body(every).count("<tr>") == 2 + 50
+    assert "304 program-years in every year, of 304 in this version." in every and "Page 1 of 7" in every
+    assert 'aria-label="Factor pages, above the list"' in every and 'aria-label="Factor pages, below the list"' in every
+    assert 'href="?year=all&amp;page=2#factors-h"' in every
+    last = c.get(f"/allocations/{v.pk}/", {"year": "all", "page": 7}).content.decode()
+    assert body(last).count("<tr>") == 2 + 4
     c.post(f"/allocations/{v.pk}/", {"action": "confirm"})
     assert "SW_WET_Work" in client.get(f"/allocations/{v.pk}/").content.decode()

@@ -13,19 +13,21 @@
 <p class="small"><a href="{% url 'calculations:drafts' %}">Edit inputs</a>: edit a small job's tables here before running it.</p>
 {% if live %}<p class="small muted" id="runs-live" data-live="1">Runs still queued or running update on this page by themselves.</p>{% endif %}
 {% if rows %}
+{% pager page query=query label="Run pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Runs">
 <table class="list">
-  <caption class="sr-only">Runs, newest first</caption>
-  <thead><tr><th scope="col">Run</th><th scope="col">For</th><th scope="col">Engine</th><th scope="col">ACC</th><th scope="col">Measures</th><th scope="col">Status</th><th scope="col">Run time</th><th scope="col">Started by</th></tr></thead>
+  <caption class="sr-only">Runs, {{ sort.words }}</caption>
+  <thead><tr>{% for h in sort.head %}{% include "ui/sort_th.html" %}{% endfor %}</tr></thead>
   <tbody>
   {% for r, st, x in rows %}
   <tr>
-    <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a>{% if r.settings.preflight_only %} <span class="status info">Input check</span>{% endif %}<br><span class="small muted">{{ r.created_at|datetime_words }}</span>
+    <th scope="row"><a href="{% url 'calculations:run' r.pk %}">{{ r.name }}</a>{% if r.settings.preflight_only %} <span class="status info">Input check</span>{% endif %}
       <br><span class="small">{{ x.settings }}</span>{% if x.deletion %}<br><span class="small muted">{{ x.deletion }}</span>{% endif %}</th>
+    <td class="small">{{ r.created_at|datetime_words }}</td>
     <td>{{ r.organisation.code|default:"Only you" }}</td>
     <td class="nowrap">{% if r.calculation == "recet" %}ReCET{% else %}CET {{ r.calculation|cut:"cet-" }} replica{% endif %} <span class="small muted">{{ r.engine_release }}</span></td>
     <td>{{ r.acc_version }}</td>
-    <td>{{ r.measure_count|default_if_none:"" }}</td>
+    <td class="num">{{ r.measure_count|default_if_none:"" }}</td>
     <td><span class="status {{ r.status|status_tone }}" data-run-badge>{{ r.get_status_display }}</span>{% if not r.ended %}<br><span class="small" data-run-status="{% url 'calculations:run_status' r.pk %}">{{ st.text }}</span>{% endif %}</td>
     <td class="nowrap">{{ x.time }}</td>
     <td class="small">{{ r.owner|person }}</td>
@@ -38,12 +40,6 @@
 {% if can_start %}{% url 'calculations:new' as new_url %}{% endif %}
 {% include "ui/empty.html" with title="No runs yet" text="A run prices a measure file on the ReCET engine and keeps its inputs and results here, for you or your organization." action_url=new_url action="Start a run" action_primary=True %}
 {% endif %}
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Run pages">
-  {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Newer</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Older</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Run pages" where="below" %}
 {% endblock %}
 {% block scripts %}<script src="{% static 'calculations/runs.js' %}" defer></script>{% endblock %}

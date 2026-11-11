@@ -68,23 +68,16 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
   <button type="submit">Apply</button>
 </form>
 {% if notes %}<ul class="notices">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
-{% if applied %}
-<section aria-labelledby="applied-heading" class="applied">
-  <h2 id="applied-heading" class="sr-only">Applied filters</h2>
-  <ul class="chips">
-    {% for a in applied %}<li>{{ a.label }}: <strong>{{ a.value }}</strong> <a href="{{ a.remove }}">Remove<span class="sr-only"> the {{ a.label }} filter {{ a.value }}</span></a></li>{% endfor %}
-    <li><a href="{% url 'programs:catalog' %}">Clear all filters</a></li>
-  </ul>
-</section>
-{% endif %}
+{% url 'programs:catalog' as clear_url %}{% include "ui/filter_chips.html" with clear=clear_url %}
 <div class="head-row">
-  <p>{{ total }} program{{ total|pluralize }}{% if page.paginator.num_pages > 1 %}, {{ page.start_index }} to {{ page.end_index }} shown{% endif %}.</p>
+  <p>{{ total }} program{{ total|pluralize }}.</p>
   <p><a href="{% url 'programs:catalog_csv' %}{% if query %}?{{ query }}{% endif %}">Download these {{ total }} as CSV</a></p>
 </div>
+{% pager page query=query label="Program pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Programs">
 <table class="list">
-  <caption class="sr-only">Programs, by PrgID</caption>
-  <thead><tr><th scope="col">PrgID</th><th scope="col">Name</th><th scope="col">PA</th><th scope="col">Status</th><th scope="col">Segment</th><th scope="col">Years</th></tr></thead>
+  <caption class="sr-only">Programs, {{ sort.words }}</caption>
+  <thead><tr>{% for h in sort.head %}{% include "ui/sort_th.html" %}{% endfor %}</tr></thead>
   <tbody>
   {% for p, v, pa, status, segment in rows %}
   <tr>
@@ -100,12 +93,6 @@ that year.{% if user.is_authenticated %} Changes to locked attributes go through
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Program pages">
-  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Program pages" where="below" %}
 {% endblock %}
 {% block scripts %}<script src="{% static 'programs/catalog.js' %}" defer></script>{% endblock %}

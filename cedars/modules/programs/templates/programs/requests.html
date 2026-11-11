@@ -12,10 +12,11 @@ administrators; approving it corrects that version in place.</p>
   <select id="status" name="status">{% for code, label in statuses %}<option value="{{ code }}"{% if code == shown %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <button type="submit">Apply</button>
 </form>
+{% pager page query=query label="Request pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Change requests">
 <table class="list">
-  <caption class="sr-only">Program change requests, newest first</caption>
-  <thead><tr><th scope="col">Program</th><th scope="col">Changes</th><th scope="col">From</th><th scope="col">Asked by</th><th scope="col">Status</th></tr></thead>
+  <caption class="sr-only">Program change requests, {{ sort.words }}</caption>
+  <thead><tr>{% for h in sort.head %}{% include "ui/sort_th.html" %}{% endfor %}</tr></thead>
   <tbody>
   {% for r, names in rows %}
   <tr>
@@ -30,11 +31,5 @@ administrators; approving it corrects that version in place.</p>
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Request pages">
-  {% if page.has_previous %}<a href="?status={{ shown }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?status={{ shown }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Request pages" where="below" %}
 {% endblock %}

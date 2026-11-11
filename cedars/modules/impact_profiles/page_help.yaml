@@ -9,7 +9,9 @@ impact_profiles/library:
     - Profiles are versioned, and runs and claims record the version they used. Search by ID or sector and filter by kind and IOU
       territory; a profile's page shows its versions and its 8,760s by climate zone.
   how:
-    - Choose what to show and Apply; open a profile for its 8,760 by climate zone.
+    - Choose what to show and Apply; open a profile for its 8,760 by climate zone. Each filter applied shows as a chip with its own
+      Remove link.
+    - Select a column's heading to sort by it; select it again to turn the order round.
     - Add a custom profile uploads one for the organization you act for.
   see: impact-profiles
   tour:

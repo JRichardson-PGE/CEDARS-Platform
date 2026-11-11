@@ -104,6 +104,13 @@
 </nav>
 <h2 id="table-h">{{ table }}</h2>
 <p class="small">Columns in italics change no result (they are carried to the outputs). Marks: <span aria-hidden="true">✕</span> stops the run, <span aria-hidden="true">!</span> warning, <span aria-hidden="true">i</span> note; each is also written out for screen readers.</p>
+{% if pages > 1 %}
+<nav class="pager pager-above" aria-label="{{ table }} pages, above the list">
+  {% if page > 1 %}<a href="?table={{ table }}&amp;page={{ page|add:-1 }}{% if not grid %}&amp;view=rows{% endif %}">Previous</a>{% endif %}
+  <span>Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}<a href="?table={{ table }}&amp;page={{ page|add:1 }}{% if not grid %}&amp;view=rows{% endif %}">Next</a>{% endif %}
+</nav>
+{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="table-h">
 <table class="list compact">
   <caption class="sr-only">{{ table }}, rows {{ first_row }} to {{ last_row }}</caption>
@@ -117,7 +124,7 @@
 </table>
 </div>
 {% if pages > 1 %}
-<nav class="pager" aria-label="{{ table }} pages">
+<nav class="pager" aria-label="{{ table }} pages, below the list">
   {% if page > 1 %}<a href="?table={{ table }}&amp;page={{ page|add:-1 }}{% if not grid %}&amp;view=rows{% endif %}">Previous</a>{% endif %}
   <span>Page {{ page }} of {{ pages }}</span>
   {% if page < pages %}<a href="?table={{ table }}&amp;page={{ page|add:1 }}{% if not grid %}&amp;view=rows{% endif %}">Next</a>{% endif %}

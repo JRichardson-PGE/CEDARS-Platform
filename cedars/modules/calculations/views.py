@@ -6,13 +6,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db.models import F
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseRedirect, JsonResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
-from cedars.core import storage, zipstream
+from cedars.core import storage, tables, zipstream
 from cedars.core.templatetags.ui import status_tone
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
@@ -142,9 +143,24 @@ def _run_or_404(request, pk) -> Run:
     return run
 
 
+# The Runs list's columns (UI review 3, U9): newest first by default; any sortable heading sorts the whole list, not just the page.
+RUN_COLUMNS = [
+    tables.Column("name", "Run", field=("name", "created_at")),
+    tables.Column("started", "Started", descending_first=True, field="created_at"),
+    tables.Column("for", "For", field="organisation__code"),
+    tables.Column("engine", "Engine", field=("calculation", "engine_release")),
+    tables.Column("acc", "ACC", field="acc_version"),
+    tables.Column("measures", "Measures", numeric=True, descending_first=True, field="measure_count"),
+    tables.Column("status", "Status", field="status"),
+    tables.Column("time", "Run time", descending_first=True, field="run_time"),
+    tables.Column("by", "Started by", field=("owner__email",)),
+]
+
+
 @login_required
 def runs(request):
-    qs = service.visible_runs(request.user)
+    sort = tables.sorting(request.GET, RUN_COLUMNS, "-started")
+    qs = service.visible_runs(request.user).annotate(run_time=F("finished_at") - F("started_at")).order_by(*sort.ordering(RUN_COLUMNS))
     page = Paginator(qs, PER_PAGE).get_page(request.GET.get("page"))
     deletion = service.deletion_dates(page.object_list)
     rows = [
@@ -154,7 +170,14 @@ def runs(request):
     return render(
         request,
         "calculations/runs.html",
-        {"page": page, "rows": rows, "live": any(not r.ended for r, *_ in rows), "can_start": service.default_release() is not None},
+        {
+            "page": page,
+            "rows": rows,
+            "sort": sort,
+            "query": tables.clean(request.GET).urlencode(),
+            "live": any(not r.ended for r, *_ in rows),
+            "can_start": service.default_release() is not None,
+        },
     )
 
 

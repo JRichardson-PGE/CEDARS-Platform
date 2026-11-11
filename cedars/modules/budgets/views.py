@@ -559,19 +559,27 @@ def published_file(request, pk, which):
     return FileResponse(store.open(key), as_attachment=True, filename=filename, content_type=content_type)
 
 
+# The figures Compare opens on (UI review 3, U9): four of the eleven, so the table fits the page; the rest are a tick away.
+COMPARE_DEFAULT = ("budget", "TotalSystemBenefit", "TRC", "PAC")
+
+
 @login_required
 def compare(request):
-    """Any two versions the user can read, by program."""
+    """Any two versions the user can read, by program, for the figures chosen (four to start with)."""
     choices = list(service.readable_versions(request.user)[:200])
     by_pk = {str(v.pk): v for v in choices}
     a, b = by_pk.get(request.GET.get("a", "")), by_pk.get(request.GET.get("b", ""))
     years = request.GET.getlist("years")
     changed_only = request.GET.get("changed") == "1"
+    known = [m[0] for m in service.METRICS]
+    picked = [k for k in request.GET.getlist("m") if k in known] or list(COMPARE_DEFAULT)
+    shown = [i for i, k in enumerate(known) if k in picked]
     rows = []
     if a and b:
         for row in service.compare(a, b, years=years, changed_only=changed_only):
             cells = []
-            for (_, _, kind, _), (va, vb, diff) in zip(service.METRICS, row["cells"], strict=True):
+            for i in shown:
+                (_, _, kind, _), (va, vb, diff) = service.METRICS[i], row["cells"][i]
                 cells.append((_fmt(kind, va), _fmt(kind, vb), _diff(kind, diff)))
             rows.append({**row, "cells": cells})
     all_years = sorted({ln.year for v in (a, b) if v for ln in v.budget_lines.all()})
@@ -585,7 +593,8 @@ def compare(request):
             "a_label": _version_label(a) if a else "",
             "b_label": _version_label(b) if b else "",
             "rows": rows,
-            "metrics": [m[1] for m in service.METRICS],
+            "metrics": [service.METRICS[i][1] for i in shown],
+            "metric_choices": [(m[0], m[1], m[0] in picked) for m in service.METRICS],
             "all_years": all_years,
             "years": [int(y) for y in years if y.isdigit()],
             "changed_only": changed_only,

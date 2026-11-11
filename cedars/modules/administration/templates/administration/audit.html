@@ -6,6 +6,7 @@
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
 </form>
+{% pager page query=query label="Audit log pages" previous="Newer" next="Older" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Audit events">
 <table class="list">
   <caption class="sr-only">Audit events, newest first</caption>
@@ -29,11 +30,5 @@
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Audit log pages">
-  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Newer</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Older</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Audit log pages" previous="Newer" next="Older" where="below" %}
 {% endblock %}

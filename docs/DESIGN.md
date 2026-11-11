@@ -94,5 +94,18 @@ says how many of its fields are not at their defaults, so a setting is never fol
 | `form.find-field` + `core/find_field.js` | "Find a field" on a long form | a search box with the fields' names as a datalist; the script moves the focus to the field and announces it; without scripts the server sends the page back at `#f-<field>` |
 | `input[list]` + `datalist` | a field whose value comes from a value list | the codes are suggestions and typing anything else is allowed (the checks say if it is not on the list); a list too long to offer links to its page |
 
-From the UI review of 2026-10-30, built: sortable headers with `aria-sort` (Results) and pagination on the long lists. Still planned:
-active-filter chips, and a `/ui/` gallery page that the axe suite visits.
+### Tables (long lists)
+
+Shared parts in `cedars/core/tables.py`, everything in the link (a sorted, filtered, paged list can be shared and works without scripts):
+
+| Part | What it is | Notes |
+|---|---|---|
+| `tables.sorting(request.GET, columns, default)` + `ui/sort_th.html` | sortable column headings | `?sort=key` ascending, `?sort=-key` descending; a heading is a link in the link color with an arrow (filled on the sorted column, which carries `aria-sort`; a neutral one on the others); a heading's link keeps the filters and goes back to page 1. A queryset sorts with `sort.ordering(columns)` (blanks last, then a tie-breaker), a list with `sort.rows(rows, columns)`. The caption says the order (`sort.words`). Programs, Runs, Program change requests and the Impact profile library sort; Results keeps its own |
+| `{% pager page query=... label=... where="above" %}` and `where="below"` | the pager, drawn above the table and again below it | First and Last once they are more than one page away; "Page 2 of 7 (51 to 100 of 304)"; each copy is a `nav` named "… pages, above the list" / "below the list". `previous="Newer" next="Older"` where that reads better; `anchor=` keeps the reader at a section |
+| `tables.chips(query, items)` (`tables.form_chips(form)` for a filter form) + `ui/filter_chips.html` | the filters applied, one chip each | each chip has its own Remove link (keeps the other filters and the sort); "Clear all filters" once two or more apply |
+| year links (`ul.toggle-chips` in a `nav.chip-group`) | one click to another year | the allocation page's Program year: the current year first, the others and Every year one click away; the chosen one has a check mark and `aria-current` |
+
+A table wider than the window shows fewer columns first rather than scrolling: budget Compare opens on four figures, ticked to add
+the rest; the allocation page shows one year at a time (no Year column then) and shades every other funding PA's three columns.
+
+From the UI review of 2026-10-30, still planned: a `/ui/` gallery page that the axe suite visits.

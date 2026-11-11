@@ -188,6 +188,20 @@ def section_nav(context, menu: str):
     return {"label": shown.label if shown else "", "links": out if len(out) > 1 else []}
 
 
+@register.inclusion_tag("ui/pager.html")
+def pager(page, query="", label="Pages", where="", previous="Previous", next="Next", anchor=""):
+    """A long list's pager (docs/DESIGN.md, "Tables"): drawn above the table (where="above") and again below it (where="below"), so a
+    person never scrolls the whole page to turn it. First and Last appear once they are more than one page away. Nothing when there is
+    one page. previous / next name the two directions where "Newer" and "Older" say it better."""
+    from cedars.core import tables
+
+    if page is None or page.paginator.num_pages <= 1:
+        return {"show": False}
+    links = tables.pager_links(page, query or "", anchor)
+    name = label if not where else f"{label}, {'above' if where == 'above' else 'below'} the list"
+    return {"show": True, "name": name, "previous_word": previous, "next_word": next, "where": where, **links}
+
+
 @register.simple_tag(takes_context=True)
 def page_link(context, url_name: str, text: str):
     """A link to a page for a reader it opens for; for anyone else the page's name and who can open it (UI review 3, U4), so a Help

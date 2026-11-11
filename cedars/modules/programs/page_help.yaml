@@ -10,7 +10,8 @@ programs/catalog:
       with its versions, allocation factors, evaluations and filings. A PA's ID of a statewide program (PGE_SW_FS for SW_FS) opens the
       statewide program's page, whose definition it follows.
   how:
-    - Applied filters show as chips; Remove takes one off and Reset all clears them.
+    - Applied filters show as chips; Remove takes one off, and with two or more a link after them clears every filter.
+    - Select a column's heading to sort by it; select it again to turn the order round. The pager is above and below the list.
     - Program change requests (signed in) lists changes to locked attributes waiting for a CPUC decision.
     - A PA's administrators add their PA's programs with Add a program; CPUC system administrators add any PA's, and statewide ones.
   see: programs
@@ -199,7 +200,7 @@ programs/requests:
   title: Program change requests
   guide:
     - Changes to locked program attributes that a program's administrators asked for, waiting for a CPUC programs approver's decision,
-      and the ones already decided. Filter by status or program.
+      and the ones already decided, newest first. Filter by status; select a column's heading to sort by it.
   see: reviewing
   tour:
     - target: main form.filters

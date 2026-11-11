@@ -10,6 +10,7 @@ API; nothing about it is deleted. What a person may do in an organization is set
   <button type="submit">Find</button>
 </form>
 <p id="people-count">{{ total }} account{{ total|pluralize }}.</p>
+{% pager page query=query label="Pages of accounts" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="people-count">
 <table class="list">
   <caption class="sr-only">Accounts, by email address</caption>
@@ -27,11 +28,5 @@ API; nothing about it is deleted. What a person may do in an organization is set
   </tbody>
 </table>
 </div>
-{% if page.paginator.num_pages > 1 %}
-<nav class="pager" aria-label="Pages of accounts">
-  {% if page.has_previous %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
-  <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a href="?{{ query }}{% if query %}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
-</nav>
-{% endif %}
+{% pager page query=query label="Pages of accounts" where="below" %}
 {% endblock %}

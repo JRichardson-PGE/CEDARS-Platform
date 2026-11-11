@@ -4,7 +4,7 @@ calculations/runs:
   title: Your runs
   guide:
     - >-
-      Your cost-effectiveness runs and your organization's, newest first, with their status. Any job can be priced on the ReCET engine:
+      Your cost-effectiveness runs and your organization's, newest first unless you sort them, with their status. Any job can be priced on the ReCET engine:
       upload it as one .zip of Measure.csv and, optionally, ProgramCost.csv, the way CET takes a job, or as ReCET's job workbook (.xlsx).
     - A run is yours alone or your organization's, as you choose when you start it. Runs a filing starts (budgets, claims, monthly
       reports) are listed here too.
@@ -14,6 +14,8 @@ calculations/runs:
     - Under each run's name are its settings (what differs from New run's defaults, the cost-test set and the output format) and,
       once it has ended, the day retention deletes it. An input check (Check the inputs only) is tagged so. Run time is how long the
       engine took.
+    - Select a column's heading to sort the whole list by it (Started, newest first, to begin with); select it again to turn the order
+      round.
   see: calculations
   tour:
     - target: main .head-row .actions

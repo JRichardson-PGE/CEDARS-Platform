@@ -20,6 +20,7 @@ with the reason; fix it in eTRM and it comes in with the next sync. A nightly sy
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   <button type="submit">Apply</button>
 </form>
+{% pager page query=query label="Excluded package pages" where="above" %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Excluded packages">
 <table class="list">
   <caption class="sr-only">Packages excluded in the last successful sync, with the reason</caption>
@@ -32,7 +33,7 @@ with the reason; fix it in eTRM and it comes in with the next sync. A nightly sy
   </tbody>
 </table>
 </div>
-{% include "impact_profiles/_pager.html" with pager_label="Excluded package pages" %}
+{% pager page query=query label="Excluded package pages" where="below" %}
 
 <h2>Recent syncs</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Recent syncs">
