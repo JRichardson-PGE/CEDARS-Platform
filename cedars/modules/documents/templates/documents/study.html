@@ -108,8 +108,8 @@
   <tr>
     <th scope="row" class="nowrap">{{ h.at|date_words }}</th>
     <td>{{ h.who }}</td>
-    <td><ul class="grants">{% for field, old, new in h.changes %}<li>{{ field|cut:"_"|capfirst }}: {% if old or old == 0 %}{{ old }} to {% endif %}{{ new|default:"(blank)" }}</li>{% endfor %}</ul></td>
-    <td>{{ h.action }}</td>
+    <td>{% if h.lines|length == 1 %}{{ h.lines.0 }}{% else %}<ul class="grants">{% for line in h.lines %}<li>{{ line }}</li>{% endfor %}</ul>{% endif %}</td>
+    <td>{{ h.reason }}</td>
   </tr>
   {% endfor %}
   </tbody>

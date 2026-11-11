@@ -179,17 +179,34 @@ documents/response_new:
 documents/lists:
   title: Document value lists
   guide:
-    - The values a document can be filed with, each collection's document types, and the attributes the Public Document Area used for EM&V
-      documents. CPUC Energy Division keeps them. A retired value stays on the documents filed with it and in search but is not offered for
-      new ones; a value is never deleted.
+    - The values a document can be filed with, each collection's document types, and the attributes the Public Document Area used for
+      EM&V documents. CPUC Energy Division keeps them. One row for each list, with where it is used and how many values it offers; open
+      a list to see its values.
   how:
-    - Add a value to a list; Retire one to stop offering it, or Reinstate it.
+    - Open a list to see its values. Its keepers add, correct, retire and reinstate values there.
+  see: documents
+  tour:
+    - target: main table.list
+      title: The lists
+      text: Each list, where it is used, whether a document carries one value or several, and how many values are offered and retired.
+
+documents/list:
+  title: A document value list
+  guide:
+    - One list's values, each offered or retired. A retired value stays on the documents filed with it and in search but is not offered
+      for new ones; a value is never deleted.
+  how:
+    - Add a value to the list; Retire one to stop offering it, or Reinstate it.
     - Correct a value's label with a reason and Save; documents filed with it show the new label.
   see: documents
   tour:
-    - target: main section.card
-      title: A list
-      text: Each list's values, with when each was added and retired. Its keepers correct a label, retire or reinstate a value, and add new ones.
+    - target: main table.list
+      title: The values
+      text: Each value and whether it is offered. Its keepers correct a label, retire or reinstate a value here.
+    - heading: Add a value
+      title: Add a value
+      text: A new value for the list, with a reason.
+      optional: true
 
 documents/legacy_links:
   title: Old CEDARS links
@@ -307,7 +324,7 @@ documents/study:
       text: The study's workplans, results and responses.
     - target: "#history-h"
       title: History
-      text: Every change, newest first, with its reason.
+      text: Every change in plain words, newest first, with its reason.
     - target: main .head-row .actions
       title: Follow, update and upload
       text: Follow the study, and for its managers update it or upload a document.
@@ -392,7 +409,9 @@ documents/work_order:
   guide:
     - One work order, its tasks, the studies and the documents filed under it. Follow it to hear when its documents are published.
   how:
-    - Add the task to the work order. Mark the work order canceled, or reinstate it.
+    - Add the task to the work order.
+    - To cancel the work order, open Cancel the work order at the end of the page, give the reason, and Mark the work order canceled.
+      A canceled one is reinstated the same way.
   see: documents
   tour:
     - target: main .head-row .actions
@@ -407,3 +426,7 @@ documents/work_order:
     - target: "#docs-h"
       title: Documents
       text: The documents filed under it.
+    - target: "#wo-status"
+      title: Cancel or reinstate
+      text: For CPUC Energy Division, folded away at the end of the page; the reason is kept with the work order.
+      optional: true

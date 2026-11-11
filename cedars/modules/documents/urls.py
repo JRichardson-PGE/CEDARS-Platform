@@ -8,6 +8,7 @@ urlpatterns = [
     path("documents.csv", views.library_csv, name="library_csv"),
     path("new/", views.new, name="new"),
     path("lists/", views.value_lists, name="lists"),
+    path("lists/<slug:code>/", views.value_list, name="value_list"),
     path("old-links/", views.legacy_links, name="legacy_links"),
     path("old-links/<int:pk>/", views.legacy_link, name="legacy_link"),
     path("lists/<slug:code>/add", views.add_option, name="add_option"),

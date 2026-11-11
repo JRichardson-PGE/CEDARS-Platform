@@ -5,7 +5,7 @@ numbered as steps 1 to 3 of filing. Programs use the shared program picker, the 
   <h2>{% if step %}<span class="step-n">1</span> {% endif %}What it is</h2>
   {% if step %}{% include "documents/_collection_choice.html" %}{% endif %}
   {{ form.document_type.as_field_group }}
-  {% if type_list %}<p class="small" id="type-list-link"><a href="{% url 'documents:lists' %}#list-{{ type_list.code }}">{{ type_list.name }}</a>: the document types of this collection.</p>{% endif %}
+  {% if type_list %}<p class="small" id="type-list-link"><a href="{% url 'documents:value_list' type_list.code %}">{{ type_list.name }}</a>: the document types of this collection.</p>{% endif %}
   {{ form.title.as_field_group }}
   {{ form.summary.as_field_group }}
 </div>

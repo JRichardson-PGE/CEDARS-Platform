@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+{% block title %}{{ al.name }}: document value list{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'documents:lists' %}">Document value lists</a></li></ol></nav>
+<div class="page-title"><h1>{{ al.name }}</h1>{% page_help "documents/list" %}</div>
+<p>{% if al.type_of %}The document types of {{ used_in }}{% else %}Used in {{ used_in }}{% endif %}; {% if al.multiple %}a document can carry several of these values{% else %}one value per document{% endif %}.
+A retired value stays on what was filed with it and in search, but is not offered for new ones; a value is never deleted.</p>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ al.name }} values">
+<table class="list">
+  <caption class="sr-only">{{ al.name }} values</caption>
+  <thead><tr><th scope="col">Value</th><th scope="col">Status</th>{% if admin %}<th scope="col">Change</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for o in options %}
+  <tr>
+    <th scope="row">{{ o.label }}</th>
+    <td>{% if o.retired_on %}Retired {{ o.retired_on|date_words }}{% else %}Offered{% endif %}</td>
+    {% if admin %}<td>
+      <details class="inline"><summary>Correct the label<span class="sr-only"> of {{ o.label }}</span></summary>
+        <form method="post" action="{% url 'documents:change_option' o.pk 'rename' %}">{% csrf_token %}
+          <label>New label <input type="text" name="label" value="{{ o.label }}" required></label>
+          <label>Reason <input type="text" name="reason" required></label>
+          <button type="submit">Save</button>
+        </form>
+      </details>
+      <details class="inline"><summary>{% if o.retired_on %}Reinstate{% else %}Retire{% endif %}<span class="sr-only"> {{ o.label }}</span></summary>
+        <form method="post" action="{% url 'documents:change_option' o.pk o.retired_on|yesno:'reinstate,retire' %}">{% csrf_token %}
+          <label>Reason <input type="text" name="reason" required></label>
+          <button type="submit">{% if o.retired_on %}Reinstate{% else %}Retire{% endif %}</button>
+        </form>
+      </details>
+    </td>{% endif %}
+  </tr>
+  {% empty %}<tr><td colspan="{% if admin %}3{% else %}2{% endif %}">No values yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if admin %}
+<h2 id="add-h">Add a value</h2>
+<form method="post" action="{% url 'documents:add_option' al.code %}" class="row-form" aria-labelledby="add-h">{% csrf_token %}
+  <label>New value for {{ al.name|lower }} <input type="text" name="label" required></label>
+  <label>Reason <input type="text" name="reason"></label>
+  <button type="submit">Add</button>
+</form>
+{% endif %}
+{% endblock %}

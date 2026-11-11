@@ -343,7 +343,7 @@ def test_only_cpuc_ed_keeps_the_value_lists(people, signed_in, client):
     ed.post(f"/documents/lists/options/{nexus.pk}/retire", {"reason": "not used after all"})
     nexus.refresh_from_db()
     assert nexus.retired_on == timezone.localdate()
-    assert "Retired" in ed.get("/documents/lists/").content.decode()
+    assert f"Retired {timezone.localdate():%Y-%m-%d}" in ed.get("/documents/lists/sector/").content.decode()
     ed.post(f"/documents/lists/options/{nexus.pk}/reinstate", {"reason": "used after all"})
     nexus.refresh_from_db()
     assert nexus.retired_on is None and nexus.offered_on(timezone.localdate() + timedelta(days=1))
