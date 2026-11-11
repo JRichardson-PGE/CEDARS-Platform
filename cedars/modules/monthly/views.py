@@ -15,7 +15,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
-from cedars.services.submissions import corrections
+from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions import status as filing_status
@@ -244,6 +244,33 @@ def report(request, pk):
         if ctx["priced"]:
             ctx["tiles"] = _tiles(service.report(v))
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
+    ctx.update(
+        filing_parts.context(
+            v,
+            has_file=bool(ctx.get("file")),
+            priced=ctx.get("priced", False),
+            pricing=ctx.get("pricing_run"),
+            can_correct=ctx.get("can_correct", False),
+        )
+    )
+    ctx["s"] = (v.findings or {}) if v else {}
+    ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the report"
+    if v is not None:
+        ctx["out"] = {
+            "price_url": reverse("monthly:price", args=[pk]),
+            "price_label": "Price the estimates",
+            "price_help": "Prices the year-to-date BCA inputs (the engine checks them as it does any run); confirming needs it.",
+            "confirm_url": reverse("monthly:confirm", args=[pk]),
+            "confirm_help": "Signs off on exactly this report; it becomes open to every user, the estimates labeled unvalidated.",
+            "unconfirm_url": reverse("monthly:unconfirm", args=[pk]),
+            "reopen_url": reverse("monthly:reopen", args=[pk]),
+            "results_url": reverse("monthly:version", args=[v.pk]),
+            "results_heading": "The report",
+            "results_link": "By program",
+            "results_about": ", against the operating budget, with the estimates.",
+            "what": "this report",
+            "kept": "filed",
+        }
     return render(request, "monthly/report.html", ctx)
 
 
@@ -299,7 +326,7 @@ def upload(request, pk):
         if v.status == SubmissionVersion.Status.VALIDATED:
             msg = f"Checked {s.get('records', 0):,} records: none rejected"
             return msg + (f", {s['warnings']:,} with warnings." if s.get("warnings") else ".") + " Price it next."
-        return f"{s.get('rejected', 0):,} records are rejected. Fix them and upload the file again."
+        return f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT
 
     def do(d, o):
         c = up.combine(files)
@@ -432,6 +459,7 @@ def version(request, pk):
             "unvalidated": UNVALIDATED,
             "paid_vs_committed": service.PAID_VS_COMMITTED,
             "letter": ChangeLetter.objects.filter(version=v).first(),
+            **filing_parts.version_page(request, v, priced=service.priced(v)),
         },
     )
 

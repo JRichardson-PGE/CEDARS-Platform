@@ -74,10 +74,10 @@ def test_the_api_gives_a_claims_upload_s_own_rule_findings(filer, year, pge, pro
         assert body["findings_count"] == len(body["findings"]) and body["records"] == 2
         assert api_part(body) == rule_set_part(filed, table, claims_rules)
         assert body["findings"] or table == "ProgramCost"
-    # a Measure table without the specification's columns is refused on them, as on upload
+    # a Measure table without the specification's columns is refused on them, and the rules that do not read them still run, as on upload
     thin = claims.upload_claims(filer, deadline(), pge, q1(), "q1.zip")
     body = post(key, module="claims", table="Measure", filing_year=2028, content=table_of(q1(), "Measure")).json()
-    assert {f["rule_id"] for f in body["findings"]} == {"CLM-COL"}
+    assert "CLM-COL" in {f["rule_id"] for f in body["findings"]}
     assert api_part(body) == rule_set_part(claims.findings(thin), "Measure", claims_rules)
     assert [n for n in body["notes"] if "Measure rules were not run" in n]
 

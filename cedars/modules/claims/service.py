@@ -1586,16 +1586,25 @@ def _rule_findings(own: dict[str, upload.Table], year: int | None, rs=None) -> t
         have = {c.lower() for c in df.columns}
         names = rules.spec_columns(rs, table)
         missing = [c for c in names if c.lower() not in have and _recet_name(c).lower() not in have]
-        if missing:
+        skip: set[str] = set()
+        if missing:  # every missing column is reported; the rules that do not read one still run (UI review 3, U1)
             out += [
-                Problem(1, "", table, c if c != "CEInputID" else "ClaimID", "CLM-COL", "reject", f"{table} has no {c} column",
-                        f"Add the {c} column (it may be blank).")
+                Problem(
+                    1,
+                    "",
+                    table,
+                    c if c != "CEInputID" else "ClaimID",
+                    "CLM-COL",
+                    "reject",
+                    rules.canonical_text(f"{table} has no {c} column"),
+                    rules.canonical_text(f"Add the {c} column (it may be blank)."),
+                )
                 for c in missing
             ]  # fmt: skip
-            notes.add(f"The {table} rules were not run: the file lacks {len(missing)} of the claims specification's columns.")
-            continue
+            skip = rules.needing(rs, table, missing)
+            notes.add(rules.missing_columns_note(table, len(missing), len(skip), "claims specification"))
         try:
-            found, n = rules.check(rs, table, df, filing_year=year, id_column=id_col)
+            found, n = rules.check(rs, table, df, filing_year=year, id_column=id_col, skip=skip)
         except (KeyError, ValueError) as e:  # the engine could not apply a rule: the version cannot be called valid
             out.append(Problem(1, "", table, "", "CLM-RULES", "reject", f"The {table} records could not be checked: {e}",
                                "Tell the CPUC's CEDARS support; the file may be fine."))  # fmt: skip
@@ -2231,6 +2240,25 @@ METRICS = [
     ("TotalFirstYearNetTherm", "Filed first-year net therms", "filed", "The claims' own TotalFirstYearNetTherm, as filed"),
 ]
 RATIOS = {"TRC": ("TRCBen", "TRCCost"), "PAC": ("PACBen", "PACCost")}
+# Filed first-year savings and what they priced to: a pair that disagrees by more than SAVINGS_TOLERANCE (and one unit) is marked on
+# the version page, since a filed total that does not match its records is usually a mistake in the file (UI review 3, U1).
+SAVINGS_PAIRS = (("TotalFirstYearNetkWh", "FirstYearNetKWh"), ("TotalFirstYearNetTherm", "FirstYearNetThm"))
+SAVINGS_TOLERANCE = 0.01
+
+
+def savings_differ(r: "Row") -> set[str]:
+    """The filed first-year savings of a priced row (a program or the total) that differ from what its records priced to."""
+    out = set()
+    if not r.priced:
+        return out
+    for filed, priced in SAVINGS_PAIRS:
+        a, b = r.value(filed), r.value(priced)
+        if a is None or b is None:
+            continue
+        a, b = float(a), float(b)
+        if abs(a - b) > max(1.0, SAVINGS_TOLERANCE * max(abs(a), abs(b))):
+            out.add(filed)
+    return out
 
 
 @dataclass

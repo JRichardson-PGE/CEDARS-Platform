@@ -1,0 +1,32 @@
+{% comment %}A version's findings grouped by rule (UI review 3, U1): each rule's code links to the rule, its records each link to their
+correction page for a person who may correct them, a column rule lists every missing column. Context: rule_groups
+(filing_parts.findings_by_rule), s (the version's summary), findings_csv (URL), records_url ("" when the person may not correct),
+rule_set_label (optional).{% endcomment %}
+{% if "records" in s %}
+<section aria-labelledby="findings-h" id="findings">
+  <h2 id="findings-h">Findings{% if rule_groups %} by rule{% endif %}</h2>
+  <p>{{ s.records|floatformat:"0g" }} records checked{% if s.rule_set %} against {{ s.rule_set }} and the {{ checks_noun|default:"module's" }} built-in checks{% endif %}: <strong>{{ s.rejected|floatformat:"0g" }} rejected</strong>, {{ s.warnings|floatformat:"0g" }} with warnings only.</p>
+  {% for n in run_notes %}<p class="small">{{ n }}</p>{% endfor %}
+  {% if rule_groups %}
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="findings-caption">
+  <table class="list findings-by-rule">
+    <caption id="findings-caption" class="sr-only">Findings by rule, rejects first: each rule, what it checks, and the records it found</caption>
+    <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">What it checks</th><th scope="col">{% if records_url %}Records to correct{% else %}Records{% endif %}</th></tr></thead>
+    <tbody>
+    {% for g in rule_groups %}<tr id="finding-{{ g.rule_id }}">
+      <th scope="row" class="nowrap">{% if g.url %}<a class="id" href="{{ g.url }}">{{ g.rule_id }}</a>{% else %}<span class="id">{{ g.rule_id }}</span>{% endif %}</th>
+      <td><span class="status {% if g.severity == "reject" %}bad{% else %}warn{% endif %}">{% if g.severity == "reject" %}Rejected{% else %}Warning{% endif %}</span><br><span class="small">{{ g.count|floatformat:"0g" }} {{ g.unit }}</span></td>
+      <td>{{ g.text }}{% if g.fix %}<br><span class="small muted">How to fix: {{ g.fix }}</span>{% endif %}</td>
+      <td>{% if g.column_rule %}{% for table, cols in g.columns %}<p class="small"><strong>{{ table }}</strong>: {{ cols|join:", " }}</p>{% endfor %}
+      {% else %}<ul class="finding-records">{% for r in g.records %}<li>{% if r.url %}<a href="{{ r.url }}">{{ r.label }}</a>{% else %}{{ r.label }}{% endif %}{% if r.line %} <span class="small muted">line {{ r.line|floatformat:"0g" }}</span>{% endif %}{% if r.message != g.text %}<span class="small">: {{ r.message }}</span>{% endif %}</li>{% endfor %}</ul>
+      {% if g.more %}<p class="small">and {{ g.more|floatformat:"0g" }} more{% if records_url %} (<a href="{{ records_url }}">Correct records</a> lists them all){% endif %}.</p>{% endif %}{% endif %}</td>
+    </tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p><a href="{{ findings_csv }}">Download every finding (CSV)</a>: line, record, table, field, rule, severity, message and how to fix it.</p>
+  {% endif %}
+  {% if unchecked_notes %}<details class="small"><summary>{{ unchecked_notes|length }} rule{{ unchecked_notes|length|pluralize }} not checked here</summary>
+    <ul>{% for n in unchecked_notes %}<li>{{ n }}</li>{% endfor %}</ul></details>{% endif %}
+</section>
+{% endif %}
