@@ -41,10 +41,27 @@ def a_password_sign_in_goes_to_the_set_up_first(sender, request, user, **kwargs)
         request.session[RequireMFAMiddleware.FIRST_STOP] = True
 
 
+FIRST_SET_UP = "cedars_first_set_up"  # session key: the first second factor was just added; holds where the sign-in was heading
+
+
 @receiver(authenticator_added)
 def an_activated_authenticator_is_a_second_factor(sender, request, user, authenticator, **kwargs):
     if authenticator.type in (Authenticator.Type.TOTP, Authenticator.Type.WEBAUTHN) and request is not None:
         record_authentication(request, user, "mfa", id=authenticator.pk, type=authenticator.type)
+        first = not Authenticator.objects.filter(user=user, type__in=(Authenticator.Type.TOTP, Authenticator.Type.WEBAUTHN)).exclude(
+            pk=authenticator.pk
+        )
+        if first:  # the recovery codes page that follows offers Continue to where the sign-in was heading (UI review 3, U6)
+            request.session[FIRST_SET_UP] = {"next": safe_next(request, request.POST.get("next") or request.GET.get("next") or "")}
+
+
+def safe_next(request, url: str) -> str:
+    """A "next" address on this site, or blank: never a link that leaves CEDARS, and never back into the set-up pages."""
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    if not url or not url_has_allowed_host_and_scheme(url, allowed_hosts={request.get_host()}, require_https=request.is_secure()):
+        return ""
+    return "" if url.startswith("/accounts/") else url
 
 
 # --- a person's email address (Jake 2026-11-11)

@@ -168,6 +168,7 @@ PAGES = [
     ("claims-version-comments", "/claims/versions/{claims_version}/", "analyst"),
     ("sign-in", "/accounts/login/", None),
     ("sign-up", "/accounts/signup/", None),
+    ("check-your-email", "/accounts/confirm-email/", None),  # the first of a new account's three set-up steps (UI review 3, U6)
     ("password-reset", "/accounts/password/reset/", None),
     ("set-up-second-factor", "/accounts/2fa/totp/activate/", "password"),
     ("second-factor", "/accounts/2fa/", "pge_admin"),

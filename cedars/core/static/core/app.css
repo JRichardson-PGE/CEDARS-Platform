@@ -899,6 +899,28 @@ ul.links.columns li { break-inside: avoid; }
 /* The authenticator QR code: a fixed scannable size (its SVG has only a viewBox, so it would fill the column), dark on white in both
    schemes with a white margin (the quiet zone scanners need). */
 .qr-code { display: block; width: 200px; max-width: 100%; height: auto; background: #ffffff; padding: 12px; box-sizing: content-box; border: 1px solid var(--line); border-radius: var(--r); }
+/* UI review 3, U6: the key shown whole (selectable, wrapping on a phone) with its copy button beside it; the code field six digits
+   wide, not the column's width */
+.totp-form .label { font-size: .88rem; font-weight: 600; color: var(--fg-2); }
+.totp-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; margin: 0; }
+.totp-key { font-size: 1.05rem; letter-spacing: .06em; padding: .35rem .55rem; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+  overflow-wrap: anywhere; user-select: all; }
+.totp-form input.otp, .otp-field input { align-self: flex-start; width: 10ch; font-size: 1.15rem; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+/* Where a new account is in its set-up: three numbered steps, the current one marked in words and with aria-current */
+.set-up-steps ol { list-style: none; margin: 0 0 1rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem 1.25rem; font-size: .95rem; }
+.set-up-steps li { display: inline-flex; align-items: center; gap: .45rem; color: var(--fg-2); }
+.set-up-steps .n { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1px solid var(--control); font-weight: 600; font-size: .85rem; }
+.set-up-steps li.now { color: var(--fg); font-weight: 600; }
+.set-up-steps li.now .n { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.set-up-steps li.done .n { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.set-up-steps .state { font-weight: 400; color: var(--fg-2); }
+/* Recovery codes: the codes in two columns, each whole; printed, only the codes and their sentence */
+.recovery-codes { font-family: var(--mono, ui-monospace, monospace); font-size: 1.05rem; columns: 2 10ch; max-width: 26rem; padding: .75rem 1rem; margin: 0;
+  list-style: none; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.recovery-codes li { margin: 0 0 .3rem; letter-spacing: .05em; break-inside: avoid; }
+@media print {
+  body:has(.recovery-codes) :is(header, footer, .page-help, .actions, .set-up-steps, .messages, .banner, nav) { display: none !important; }
+}
 
 /* Cost-test builder: the test page's formula bar (refdata/builder_formula.js) */
 .formula-bar { position: relative; }
