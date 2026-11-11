@@ -91,9 +91,11 @@ calculations/run:
       reproduce them.
     - The input check the engine makes before pricing says what stopped the run, which measures it could not price and why, and
       every other finding. The log is what the engine printed, updated while the run runs.
-    - A finished run opens its Results and can be compared with another run. Rerun with different settings starts it again as a new run,
-      with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit inputs to change
-      and run again.
+    - A finished run opens its Results and can be compared with another run. Rerun with different settings, beside Results, starts it
+      again as a new run, with its own job file and input files, once you change what you want. A small job's inputs can be opened in Edit
+      inputs to change and run again (Edit inputs and rerun, beside it).
+    - The files are grouped as Results (the measure-level file, the portfolio summary, the key metrics and the other tables people read),
+      Checks (the input check before pricing) and Records (the receipt, the run's settings and its log), each with a line on what it is.
     - Your own runs (for Only me) can be deleted with their files once they end; an organization's runs stay until retention removes them.
     - The person who started a run can rename it or add a note at any time; its inputs, settings and results never change.
   how:
@@ -110,8 +112,8 @@ calculations/run:
       title: Status
       text: Queued, running (with its progress), finished or failed, what to do about a failure, and when retention deletes the run.
     - target: main .head-row .actions
-      title: Results, compare and delete
-      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, a walk through any one measure's calculation, and, on your own ended run, Delete this run (it asks first).
+      title: Results, rerun and delete
+      text: The results by portfolio, PA, program and measure, a comparison with any other finished run, a walk through any one measure's calculation, rerunning it with different settings or edited inputs, and, on your own ended run, Delete this run (it asks first).
       optional: true
     - target: "#rename-run"
       title: Name and note
@@ -123,7 +125,7 @@ calculations/run:
       optional: true
     - target: "#files-h"
       title: Files
-      text: Every file the run wrote, to download.
+      text: Every file the run wrote, grouped as Results, Checks and Records, each with a line on what it is.
       optional: true
     - target: "#check-h"
       title: Input check
