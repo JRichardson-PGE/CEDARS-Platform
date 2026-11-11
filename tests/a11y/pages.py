@@ -71,6 +71,7 @@ PAGES = [
     ("releases-manage", "/releases/manage/", "cpuc_admin"),
     ("release-draft", "/releases/manage/{release_draft}/", "cpuc_admin"),
     ("limits", "/limits/", None),
+    ("limits-manage", "/limits/manage/", "cpuc_admin"),
     # The register of CPUC-mandated changes; the scene's {mandate} (published, with history), {mandate_draft}
     ("mandates", "/mandates/", None),
     ("mandates-filtered", "/mandates/?status=implemented&q=tax", "community"),

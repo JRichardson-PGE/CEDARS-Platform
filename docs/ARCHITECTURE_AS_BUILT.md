@@ -201,7 +201,11 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `HEALTH_*` | see `base.py` | Thresholds of the job and system health checks |
 
 Every limit people meet (upload size and files, run records, Edit inputs rows, download rows, API rates, comment length ...) is such a
-setting, listed by `cedars/services/releases/limits.py` on the public Limits page.
+setting, listed by `cedars/services/releases/limits.py` on the public Limits page. A few are limits the CPUC sets without a release
+(`Limit.editable`): runs one account may have waiting or running, how long a sign-in lasts and may sit unused, and the pre-upload
+checker's file size. A CPUC system administrator changes them on Change limits (`/limits/manage/`, `releases.service.set_limit`, each
+change a `LimitChange` row with its reason and an audit event); the setting is then only the first-run default, and the code that
+enforces one reads `limits.value(key)`.
 
 ## 3. Code structure and the rules between its parts
 
@@ -720,7 +724,7 @@ erDiagram
 | vault | `PIIUpload`, `PIIContact`, `PIISite` |
 | legacy | `LegacySource`, `LegacyImport` |
 | snapshots | `Snapshot`, `Release`, `ScanSettings`, `PIIScan` |
-| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink` |
+| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink`, `LimitChange` |
 | feedback | `Feedback` |
 | sandbox | `Refresh`, `CopiedRecord` |
 | accessibility | `CheckSettings`, `FileCheck` |
@@ -802,7 +806,8 @@ flowchart TD
 
 - Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) for every account,
   or a federating organization's directory over OpenID Connect. Email verification is mandatory and failed sign-ins are rate limited,
-  per caller address and per account. There is no Django admin site: every administrative action is a platform page that goes
+  per caller address and per account. A sign-in ends after the session_hours limit and after the session_idle_minutes limit
+  unused (`SessionTimeoutMiddleware`; a page's background requests do not count as use). There is no Django admin site: every administrative action is a platform page that goes
   through a service and its audit event.
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
@@ -1280,7 +1285,8 @@ flowchart TD
   workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
   `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
-  they take effect, the Limits page read from the settings that enforce them, the register of CPUC-mandated changes.
+  they take effect, the Limits page read from the settings that enforce them (or the value the CPUC set, for an editable limit), Change
+  limits for CPUC system administrators, the register of CPUC-mandated changes.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,
