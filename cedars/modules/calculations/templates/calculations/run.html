@@ -9,6 +9,17 @@
   {% if run.status == "succeeded" or can_delete %}<div class="actions">{% if run.status == "succeeded" %}<a class="button primary" href="{% url 'calculations:results' run.pk %}">Results</a> <a class="button" href="{% url 'calculations:compare' run.pk %}">Compare with another run</a> <a class="button" href="{% url 'calculations:walkthrough' run.pk %}">Walk through a measure</a>{% endif %}
     {% if can_delete %}<a class="button danger" id="delete-run" href="{% url 'calculations:delete' run.pk %}">Delete this run</a>{% endif %}</div>{% endif %}
 </div>
+{% if run.note %}<p id="run-note"><strong>Note:</strong> {{ run.note|linebreaksbr }}</p>{% endif %}
+{% if can_rename %}
+<details id="rename-run"><summary>{% if run.note %}Rename or change the note{% else %}Rename or add a note{% endif %}</summary>
+<form method="post" action="{% url 'calculations:rename' run.pk %}" class="stack form-narrow">{% csrf_token %}
+  <p><label for="run-name">Name</label><input id="run-name" name="name" type="text" value="{{ run.name }}" maxlength="200" required></p>
+  <p><label for="run-note-text">Note (optional)</label><textarea id="run-note-text" name="note" rows="3" maxlength="2000" aria-describedby="run-note-help">{{ run.note }}</textarea></p>
+  <p class="small muted" id="run-note-help">Only the name and note change; the run's inputs, settings and results stay as they were.</p>
+  <div class="actions"><button type="submit">Save</button></div>
+</form>
+</details>
+{% endif %}
 
 <section class="card" aria-labelledby="status-h">
   <h2 id="status-h">Status: <span id="run-status-label">{{ status.status_label }}</span></h2>
