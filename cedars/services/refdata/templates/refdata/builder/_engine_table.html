@@ -1,0 +1,31 @@
+{% comment %}Step 3's streams as a table: a row a stream, with its Include box and what it is (the engine's, fixed), the pricings it is read in, and
+its unit and definition folded behind "Change the wording". A stream's problems sit in its row.{% endcomment %}
+<div class="hscroll" tabindex="0" role="region" {% if label_id %}aria-labelledby="{{ label_id }}"{% else %}aria-label="Streams not in the set"{% endif %}>
+<table class="list stream-table">
+  <caption class="sr-only">{{ caption }}</caption>
+  <thead><tr><th scope="col">Include, and what it is</th><th scope="col">Read in the pricings</th><th scope="col">Wording</th></tr></thead>
+  <tbody>
+  {% for r, include, pricings, unit, definition, ps, wording_open in rows %}
+  <tr id="stream-{{ r.name }}">
+    <th scope="row"><label class="check" for="{{ include.id_for_label }}">{{ include }} <span class="sr-only">Include </span>{{ r.name }}</label>
+      <span class="stream-facts small muted">{{ r.facts.kind|capfirst }}{% if r.facts.fuel != "none" %}, {{ r.facts.fuel }}{% endif %}; {% if r.facts.naming == "suffix" %}a column per pricing, with its suffix{% elif r.facts.naming == "participant_suffix" %}a column per pricing, with its participant suffix{% else %}one column{% endif %}; {% if r.facts.gross == "divide_ntg" %}gross form computed with NTG 1{% elif r.facts.gross == "same" %}already gross{% elif r.facts.gross %}gross form {{ r.facts.gross }}{% else %}no gross form{% endif %}{% if r.facts.internal %}; used inside the tests, not written as a column{% endif %}</span>
+      {% if ps %}<ul class="errorlist" id="stream-{{ r.name }}-problems">{% for p, link in ps %}<li>{% if p.label %}{{ p.label }}: {% endif %}{{ p.text }}</li>{% endfor %}</ul>{% endif %}</th>
+    <td>
+      {% if r.can %}
+      <fieldset class="bare"{% if ps %} aria-describedby="stream-{{ r.name }}-problems"{% endif %}><legend class="sr-only">Pricings {{ r.name }} is read in</legend>
+        <div class="inline-checks">{% for cb in pricings %}<label class="check">{{ cb.tag }} {{ cb.choice_label }}</label>{% endfor %}</div>
+      </fieldset>
+      {% else %}<p class="small">None of the set's pricings is one the engine prices {{ r.name }} in.</p>{% endif %}
+      {% if r.cannot %}<p class="small muted">Not in: {% for p, why in r.cannot.items %}{{ p }} ({{ why }}){% if not forloop.last %}; {% endif %}{% endfor %}.</p>{% endif %}
+    </td>
+    <td class="wording">
+      <p class="small">{{ r.unit|default:"No unit" }}</p>
+      <details{% if wording_open %} open{% endif %}><summary>Change the wording<span class="sr-only"> of {{ r.name }}</span></summary>
+        {{ unit.as_field_group }}{{ definition.as_field_group }}
+      </details>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

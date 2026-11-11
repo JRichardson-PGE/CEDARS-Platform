@@ -407,6 +407,204 @@ def calendar(request):
     )
 
 
+class WorkflowPolicyForm(forms.Form):
+    """One filing module's workflow settings, with the reason for changing them."""
+
+    reopen_after_due = forms.ChoiceField(
+        label="Correcting a confirmed filing after its due date",
+        choices=WorkflowPolicy.Reopen.choices,
+        widget=forms.RadioSelect,
+        help_text="A correction is always a new version; the version filed stays readable.",
+    )
+    late_confirmation = forms.BooleanField(
+        label="A first version may still be confirmed after the due date (it is marked late)",
+        required=False,
+    )
+    reason = forms.CharField(
+        label="Reason for the change",
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Kept in the audit trail and shown in the history below.",
+    )
+
+
+def _policy_words(module: str, before: dict, after: dict) -> str:
+    """A change in words, for the message after saving and a release note's summary."""
+    parts = []
+    if "reopen_after_due" in after:
+        parts.append(f"correcting a confirmed filing after its due date: {WorkflowPolicy.Reopen(after['reopen_after_due']).label.lower()}")
+    if "late_confirmation" in after:
+        parts.append("a late first confirmation is " + ("allowed (marked late)" if after["late_confirmation"] else "no longer allowed"))
+    return f"{dict(MODULES)[module]}: " + "; ".join(parts)
+
+
+def _settings_words(values: dict | None) -> str:
+    out = []
+    for k, v in (values or {}).items():
+        if k == "reopen_after_due" and v in WorkflowPolicy.Reopen.values:
+            out.append(f"corrections: {WorkflowPolicy.Reopen(v).label.lower()}")
+        elif k == "late_confirmation":
+            out.append("late first confirmation " + ("allowed" if v else "not allowed"))
+    return "; ".join(out)
+
+
+@login_required
+def workflow_settings(request):
+    """Each filing module's correction policy and late-confirmation rule (CPUC system administrators), with the history of changes."""
+    if not access.is_system_admin(request.user):
+        raise Http404
+    modules = []
+    for code, label in MODULES:
+        p = service.policy(code)
+        initial = {"reopen_after_due": p.reopen_after_due, "late_confirmation": p.late_confirmation}
+        bound = request.method == "POST" and request.POST.get("module") == code
+        form = WorkflowPolicyForm(request.POST if bound else None, initial=initial, prefix=code)
+        if bound and form.is_valid():
+            d = form.cleaned_data
+            after = {k: d[k] for k in service.POLICY_SETTINGS if d[k] != initial[k]}
+            if not after:
+                messages.info(request, f"{label}: nothing changed.")
+                return redirect("submissions:workflow_settings")
+            before = {k: initial[k] for k in after}
+            try:
+                service.set_policy(request.user, code, reason=d["reason"], **after)
+            except AccessDenied as e:
+                messages.error(request, str(e))
+                return redirect("submissions:workflow_settings")
+            words = _policy_words(code, before, after)
+            messages.success(request, f"Saved. {words}.")
+            if service.policy_tightens(before, after):
+                note = urlencode({"title": f"{label}: workflow change", "summary": f"{words}. {d['reason'].strip()}"})
+                request.session["workflow_note"] = note
+            return redirect("submissions:workflow_settings")
+        history = [
+            {"event": e, "before": _settings_words(e.before), "after": _settings_words(e.after)} for e in service.policy_history(code)
+        ]
+        modules.append({"code": code, "label": label, "policy": p, "form": form, "history": history})
+    note = request.session.pop("workflow_note", "")
+    return render(
+        request,
+        "submissions/workflow_settings.html",
+        {"modules": modules, "note_url": f"{reverse('releases:manage')}?{note}" if note else ""},
+    )
+
+
+class DelegationForm(forms.Form):
+    """Name a delegate: who decides for the approver in a module, and for which days."""
+
+    module = forms.ChoiceField(label="Approvals for")
+    approver = forms.EmailField(
+        label="Approver's email",
+        required=False,
+        help_text="For a CPUC system administrator naming a delegate on an approver's behalf. Blank: yourself.",
+    )
+    delegate = forms.EmailField(label="Delegate's email", help_text="A member of the CPUC who can read this module.")
+    starts = forms.DateField(label="First day", widget=forms.DateInput(attrs={"type": "date"}))
+    ends = forms.DateField(
+        label="Last day", widget=forms.DateInput(attrs={"type": "date"}), help_text="The delegate decides through this day."
+    )
+    reason = forms.CharField(
+        label="Reason (optional)",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="e.g. leave from 2 to 13 March. Needed when you name a delegate on someone else's behalf.",
+    )
+
+    def __init__(self, *args, modules, on_behalf, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["module"].choices = [(m, service.DELEGABLE[m]) for m in modules]
+        if not on_behalf:
+            del self.fields["approver"]
+
+
+def _delegation_rows(qs, user, today):
+    return [
+        {"d": d, "state": d.state(today), "can_end": service.can_end_delegation(user, d) and d.state(today) in ("in force", "upcoming")}
+        for d in qs
+    ]
+
+
+@login_required
+def delegations(request):
+    """Approvers name delegates to decide for them for a period (e.g. leave), and end them early; CPUC system administrators can do
+    it on an approver's behalf. A delegate sees whom they decide for."""
+    from cedars.services.accounts.models import User
+
+    from .models import Delegation
+
+    user = request.user
+    sysadmin = access.is_system_admin(user)
+    mine = service.delegable_modules(user)
+    today = timezone.localdate()
+    current = Delegation.objects.filter(ended_at__isnull=True, ends__gte=today).select_related("approver", "delegate", "created_by")
+    for_me = current.filter(delegate=user)
+    if not (sysadmin or mine or for_me.exists()):
+        raise Http404
+    modules = list(service.DELEGABLE) if sysadmin else mine
+    form = DelegationForm(request.POST or None, modules=modules, on_behalf=sysadmin, initial={"starts": today}) if modules else None
+    if request.method == "POST" and form is not None and form.is_valid():
+        d = form.cleaned_data
+        people = {}
+        for key in ("approver", "delegate"):
+            email = d.get(key) or ""
+            if email:
+                people[key] = User.objects.filter(email__iexact=email).first()
+                if people[key] is None:
+                    messages.error(request, f"There is no account for {email}.")
+                    return redirect("submissions:delegations")
+        try:
+            made = service.delegate(
+                user,
+                module=d["module"],
+                delegate_to=people["delegate"],
+                starts=d["starts"],
+                ends=d["ends"],
+                approver=people.get("approver") or user,
+                reason=d["reason"],
+            )
+        except AccessDenied as e:
+            messages.error(request, str(e))
+        else:
+            messages.success(
+                request,
+                f"{made.delegate.email} decides {service.DELEGABLE[made.module]} approvals for {made.approver.email} from "
+                f"{made.starts:%Y-%m-%d} to {made.ends:%Y-%m-%d}.",
+            )
+            return redirect("submissions:delegations")
+    own = Delegation.objects.filter(approver=user).select_related("delegate", "created_by", "ended_by")[:50]
+    return render(
+        request,
+        "submissions/delegations.html",
+        {
+            "form": form,
+            "sysadmin": sysadmin,
+            "own": _delegation_rows(own, user, today),
+            "for_me": _delegation_rows(for_me, user, today),
+            "every": _delegation_rows(current.order_by("starts"), user, today) if sysadmin else [],
+            "modules": [service.DELEGABLE[m] for m in mine],
+        },
+    )
+
+
+@login_required
+@require_POST
+def end_delegation(request, pk):
+    from .models import Delegation
+
+    d = get_object_or_404(Delegation.objects.select_related("approver", "delegate"), pk=pk)
+    if not service.can_end_delegation(request.user, d):
+        raise Http404
+    try:
+        service.end_delegation(request.user, d, request.POST.get("reason", ""))
+    except AccessDenied as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(
+            request,
+            f"Ended: {d.delegate.email} no longer decides {service.DELEGABLE.get(d.module, d.module)} approvals for {d.approver.email}.",
+        )
+    return redirect("submissions:delegations")
+
+
 @login_required
 def deadline_new(request):
     """Add a filing (CPUC system administrators): what can be set up, each on its module's set-up page, which puts its deadlines on
@@ -561,16 +759,17 @@ def deadline(request, pk):
 
 @login_required
 def reopen_requests(request):
-    """Requests to correct filings after their due date, for approvers and their delegates."""
+    """Requests to correct filings after their due date, for approvers and their delegates. Each filing is named once, plainly
+    (Submission.plain_name), with a link to its page."""
+    related = ("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
     pending = []
-    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(
-        "submission__deadline", "submission__organisation", "requested_by"
-    ):
+    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(*related, "requested_by"):
         approver = service.approver_for(request.user, r.submission.module)
         if approver is not None:
-            pending.append((r, approver))
-    decided = ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related("submission__organisation", "decided_by")[
-        :50
+            pending.append((r, approver, service.filing_page(r.submission, service.current(r.submission))))
+    decided = [
+        (r, service.filing_page(r.submission, service.current(r.submission)))
+        for r in ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related(*related, "decided_by")[:50]
     ]
     return render(request, "submissions/reopen_requests.html", {"pending": pending, "decided": decided})
 
@@ -585,7 +784,7 @@ def decide(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission}.")
+        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission.plain_name}.")
     return redirect("submissions:reopen_requests")
 
 

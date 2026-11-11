@@ -21,15 +21,15 @@ dictionary/index:
     - target: main p.actions
       title: Downloads and value lists
       text: The catalog and the name crosswalk as CSV, the value lists the rules check codes against, and every version's changes.
-    - heading: Upload templates
-      title: Upload templates
-      text: The templates for each filing's tables, with every column in order.
     - target: main form.filters
       title: Search
-      text: Search names and definitions, and narrow to inputs, outputs or platform records, one platform table, or retired fields.
+      text: Search names and definitions, and narrow to inputs, outputs or platform records, one platform table, or retired fields, then choose Apply.
     - target: main table.list
       title: Fields
       text: Each field by kind and group. Select a name for its full entry.
+    - heading: Upload templates
+      title: Upload templates
+      text: The templates for each filing's tables, with every column in order.
 
 dictionary/field:
   title: A field

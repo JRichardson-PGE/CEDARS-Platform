@@ -4,12 +4,14 @@
 {% if is_admin %}<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'administration:organisations' %}">Organizations</a></li></ol></nav>{% endif %}
 <div class="page-title"><h1>{{ org.code }} <span class="muted">{{ org.name }}</span></h1>{% page_help "administration/organisation" %}</div>
 {% if not is_admin %}<p class="muted">You are viewing this organization as a CPUC system administrator; its own administrators manage its members.</p>{% endif %}
+{% if not org.active and not org.successor %}<p><span class="status warn">Retired</span> {{ org.code }} no longer files or appears in pickers, and its members cannot act for it. Its data and history stay.</p>{% endif %}
 {% if org.successor %}<p><span class="status info">Merged</span> {{ org.code }} is the same party as <a href="{% url 'administration:organisation' org.successor.code %}">{{ org.successor.code }}</a> from {{ org.merged_on|date_words }}. Its records stay as filed under {{ org.code }} and count under {{ org.successor.code }}.</p>{% endif %}
 
 <section class="card" aria-labelledby="details-h">
   <h2 id="details-h">Details</h2>
   <dl class="facts">
-    <dt>Kind</dt><dd>{{ org.get_kind_display }}{% if org.federated %}, federated{% endif %}</dd>
+    <dt>Kind</dt><dd>{{ org.get_kind_display }}</dd>
+    <dt>Members sign in</dt><dd>{% if org.federated %}Through the organization's own directory ({{ org.federation_provider|default:"provider not named" }}){% else %}With a password and a second factor{% endif %}</dd>
     {% if org.kind == "pa" %}<dt>PA type</dt><dd>{% if org.pa_type %}{{ org.pa_type }} ({{ org.get_pa_type_display|lower }}){% else %}<span class="status warn">Not set</span> The dashboards cannot group this PA's data until it has a type.{% endif %}</dd>
     <dt>Statewide allocations</dt><dd>{% if org.manages_allocation %}Manages them: its administrators can grant "{{ allocation_permission }}" to members.{% else %}Does not manage them.{% endif %} <a href="{% url 'administration:allocations' %}">Statewide allocation factors</a></dd>{% endif %}
   </dl>
@@ -23,6 +25,34 @@
   </details>
   {% endif %}
 </section>
+
+{% if status_forms %}
+<section class="card" aria-labelledby="sign-in-h">
+  <h2 id="sign-in-h">Sign-in and status</h2>
+  {% for c in federation_waiting %}
+  <p><span class="status info">Waiting</span> {{ c.proposed_by|person }} proposed {{ c.proposed_at|date_words }} that its members sign in
+    {% if c.value.federated %}through its own directory ({{ c.value.federation_provider }}){% else %}with a password and a second factor{% endif %}.
+    A data steward confirms it on the <a href="{% url 'administration:stewardship' %}">stewardship page</a>.</p>
+  {% endfor %}
+  <details>
+    <summary>Change how its members sign in</summary>
+    <p class="small">{% if holds_pii %}Members of {{ org.code }} hold or wait for PII access, and the PII rule depends on directory sign-in, so a data steward must confirm this change before it takes effect.{% else %}Takes effect at once for its members' next sign-in. The directory itself is set up by the platform's operators.{% endif %}</p>
+    <form method="post" action="{% url 'administration:organisation_sign_in' org.code %}" class="stack form-narrow">{% csrf_token %}
+      {% for field in status_forms.federation %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit" class="primary">{% if holds_pii %}Propose the change{% else %}Save sign-in{% endif %}</button></div>
+    </form>
+  </details>
+  <details>
+    <summary>{% if org.active %}Retire {{ org.code }}{% else %}Bring {{ org.code }} back{% endif %}</summary>
+    <p class="small">{% if org.active %}For an organization that no longer takes part, without merging it into another: it stops filing and leaves the pickers, its members can no longer act for it and its API tokens stop working. Its data, filings, members and history stay, and it can be brought back.{% else %}Its members act for it again with the permissions they held, and it can file again.{% endif %}</p>
+    <form method="post" action="{% url 'administration:organisation_retire' org.code %}" class="stack form-narrow">{% csrf_token %}
+      <input type="hidden" name="action" value="{% if org.active %}retire{% else %}reinstate{% endif %}">
+      {% for field in status_forms.retire %}{{ field.as_field_group }}{% endfor %}
+      <div class="actions"><button type="submit">{% if org.active %}Retire{% else %}Bring back{% endif %}<span class="sr-only"> {{ org.code }}</span></button></div>
+    </form>
+  </details>
+</section>
+{% endif %}
 
 <section class="card" aria-labelledby="codes-h">
   <h2 id="codes-h">Codes</h2>
