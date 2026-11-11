@@ -6,8 +6,9 @@
 {% if no_engine %}
 <p class="alert" role="alert">Edit inputs needs the ReCET engine package installed on this server (engine/README.md).</p>
 {% else %}
-<p>Edit a small job's Measure and ProgramCost tables here, row by row, for jobs of up to {{ max_rows }} measures (edit larger jobs
-offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip ready for New run.</p>
+<p>Edit a small job's Measure and ProgramCost tables here, as a spreadsheet or row by row, for jobs of up to {{ max_rows }} measures
+(edit larger jobs offline). Each cell is checked by the engine's own input rules as you save, and the draft downloads as a job zip
+or job workbook ready for New run.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Drafts">
 <table class="list">
   <caption class="sr-only">Drafts, most recently changed first</caption>
