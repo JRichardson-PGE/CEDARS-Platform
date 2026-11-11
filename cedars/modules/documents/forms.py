@@ -1,9 +1,8 @@
-import re
-
 from django import forms
 from django.utils import timezone
 
 from cedars.core import pickers
+from cedars.core.tick_lists import TickListInput
 from cedars.services.accounts.models import Organisation
 from cedars.services.registry.models import Program
 
@@ -121,6 +120,25 @@ def study_named(text) -> Study | None:
     return found if found is not None and found.pk else None
 
 
+def study_choices() -> list[pickers.Choice]:
+    """The study register, by study ID, with each study's name."""
+    return [pickers.Choice(s.study_id, s.title) for s in Study.objects.order_by("study_id").only("study_id", "title")]
+
+
+class StudyField(pickers.PickerField):
+    """A study from the register, by its study ID (or name, or number), picked from a list that narrows as you type."""
+
+    noun = "study"
+    default_help = "The evaluation study it belongs to. Type its study ID or part of its name, then pick it from the list."
+
+    def default_choices(self):
+        return study_choices()
+
+    def lookup(self, value):
+        found = study_named(value)
+        return pickers.Choice(found.study_id, found.title) if found else None
+
+
 class DetailsForm(forms.Form):
     """A document's details for one collection: its type, the common metadata and the collection's attribute lists, one field per list
     (attr_<code>). Retired options are offered only where the document already carries them."""
@@ -132,13 +150,13 @@ class DetailsForm(forms.Form):
         label="PAs it applies to",
         queryset=Organisation.objects.none(),
         required=False,
-        widget=forms.CheckboxSelectMultiple,
+        widget=TickListInput(legend="PAs it applies to", none="None named"),
         help_text="Every PA named can see and manage the document (a joint document). A PA's own document always names the PA.",
     )
-    programs = forms.CharField(label="Programs (PrgIDs)", required=False, help_text="Separate several with commas or spaces")
+    programs = pickers.ProgramsField(label="Programs")
     first_year = forms.IntegerField(label="First program year", **YEAR)
     last_year = forms.IntegerField(label="Last program year", **YEAR, help_text="The same as the first for a single year")
-    study = forms.CharField(label="Study ID", required=False, help_text="The evaluation study it belongs to, e.g. 2025_Residential_733")
+    study = StudyField(label="Study", required=False)
     work_order = forms.ModelChoiceField(label="Work order", queryset=WorkOrder.objects.none(), required=False, empty_label="None")
     task = forms.ModelChoiceField(label="Task", queryset=Task.objects.none(), required=False, empty_label="None")
 
@@ -166,7 +184,7 @@ class DetailsForm(forms.Form):
         for al in self.lists:
             qs = AttributeOption.objects.filter(pk__in=[o.pk for o in al.options.all() if o.offered_on(today) or o.pk in keep])
             if al.multiple:
-                f = forms.ModelMultipleChoiceField(label=al.name, queryset=qs, required=False, widget=forms.CheckboxSelectMultiple)
+                f = forms.ModelMultipleChoiceField(label=al.name, queryset=qs, required=False, widget=TickListInput(legend=al.name))
             else:
                 f = forms.ModelChoiceField(label=al.name, queryset=qs, required=False, empty_label="Not given")
             f.label_from_instance = _option_label
@@ -177,7 +195,7 @@ class DetailsForm(forms.Form):
                 title=document.title,
                 summary=document.summary,
                 pas=list(document.pas.all()),
-                programs=", ".join(p.prg_id for p in document.programs.all()),
+                programs=[p.prg_id for p in document.programs.all()],
                 first_year=document.first_year,
                 last_year=document.last_year,
                 study=document.study.study_id if document.study else "",
@@ -193,25 +211,12 @@ class DetailsForm(forms.Form):
         return [self[f"attr_{al.code}"] for al in self.lists]
 
     def clean_programs(self):
-        found, missing = {}, []
-        for prg_id in (p for p in re.split(r"[\s,;]+", self.cleaned_data.get("programs") or "") if p):
-            program = Program.objects.filter(prg_id__iexact=prg_id).first()
-            if program is None:
-                missing.append(prg_id)
-            else:
-                found[program.pk] = program
-        if missing:
-            raise forms.ValidationError(f"Not in the program registry: {', '.join(missing)}.")
-        return list(found.values())
+        """The programs named, read by the program picker (its PrgIDs), as registry programs in the order given."""
+        by_id = {p.prg_id: p for p in Program.objects.filter(prg_id__in=self.cleaned_data.get("programs") or [])}
+        return [by_id[i] for i in self.cleaned_data.get("programs") or [] if i in by_id]
 
     def clean_study(self):
-        text = (self.cleaned_data.get("study") or "").strip()
-        if not text:
-            return None
-        found = _study(text)
-        if not found.pk:
-            raise forms.ValidationError(f"No study {text} in the register.")
-        return found
+        return study_named(self.cleaned_data.get("study"))
 
     def details(self) -> service.Details:
         d = self.cleaned_data
@@ -452,7 +457,7 @@ def _list_field(code, label, *, multiple=False, required=False, keep=()):
 
     qs = studies.options(code, keep)
     if multiple:
-        f = forms.ModelMultipleChoiceField(label=label, queryset=qs, required=required, widget=forms.CheckboxSelectMultiple)
+        f = forms.ModelMultipleChoiceField(label=label, queryset=qs, required=required, widget=TickListInput(legend=label))
     else:
         f = forms.ModelChoiceField(label=label, queryset=qs, required=required, empty_label=None if required else "Not given")
     f.label_from_instance = _option_label
@@ -525,6 +530,21 @@ class StudyForm(forms.Form):
                 self.initial[name] = list(value.all()) if name in ("sectors", "funding_cycles") else value
         elif organisation is not None and not admin:
             self.initial["manager"] = organisation
+
+    SECTIONS = [
+        ("The study", ["title", "manager", "lead", "status", "study_type", "group", "sectors", "funding_cycles"]),
+        ("Budget and work order", ["budget", "work_order"]),
+        ("What it studies", ["description", "objective", "research_questions", "methods"]),
+        ("What comes next", ["next_activity", "next_activity_due", "completion_date", "calmac_id"]),
+        ("Notes and contacts", ["notes", "ed_program_manager", "contacts"]),
+    ]
+
+    def sections(self) -> list[tuple[str, list]]:
+        """The fields in short parts with a heading each (Add a study; UI review 3); a field no part names (the reason) comes last."""
+        named = {n for _, names in self.SECTIONS for n in names}
+        out = [(title, [self[n] for n in names if n in self.fields]) for title, names in self.SECTIONS]
+        rest = [self[n] for n in self.fields if n not in named]
+        return out + ([("Why it changes", rest)] if rest else [])
 
     def data_object(self):
         from . import studies
@@ -634,17 +654,15 @@ class StudyDocumentForm(FilesMixin):
 
 
 class CoverageForm(forms.Form):
-    program = forms.CharField(label="Program (PrgID)")
+    program = pickers.ProgramField(label="Program", help_text="Type a PrgID or part of its name, then pick it from the list")
     first_year = forms.IntegerField(label="First program year", min_value=2000, max_value=2100)
     last_year = forms.IntegerField(label="Last program year", min_value=2000, max_value=2100)
     whole = forms.BooleanField(label="The whole program", required=False, initial=True, help_text="Untick when it covers a part")
     note = forms.CharField(label="Which part, or a note", max_length=255, required=False)
 
     def clean_program(self):
-        p = Program.objects.filter(prg_id__iexact=self.cleaned_data["program"].strip()).first()
-        if p is None:
-            raise forms.ValidationError("Not in the program registry.")
-        return p
+        """The program picked (core/pickers.py reads a PrgID in any case or a name only one program has)."""
+        return Program.objects.get(prg_id=self.cleaned_data["program"])
 
 
 class RegisterForm(forms.Form):

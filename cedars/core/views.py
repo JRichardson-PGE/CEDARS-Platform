@@ -71,10 +71,12 @@ def section(request, page):
         raise Http404
     ctx = {"menu": menu, "groups": menu.groups}
     if key == "filings":  # the person's own organization's filings first, then every PA's (UI review 3, U5)
+        from cedars.services.accounts import service as access
         from cedars.services.submissions import status
 
         ctx["board"] = board = status.board(request.user, org=getattr(request, "filing_organisation", None))
         ctx["own_filings"] = status.own_filings(board)
+        ctx["can_set_up"] = access.is_system_admin(request.user)  # an empty board offers the CPUC "Set up a filing" (UI review 3, U13)
     elif page in yourwork.PAGES:  # the person's own recent work in the section first (UI review 3, U5)
         ctx["your_work"] = yourwork.parts(request, page)
     return render(request, f"core/section_{page}.html", ctx)

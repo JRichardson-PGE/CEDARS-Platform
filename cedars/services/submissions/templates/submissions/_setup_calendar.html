@@ -22,6 +22,9 @@
     </tbody>
   </table>
   </div>
+  {% if cancel_form.deadlines or restore_form.deadlines %}
+  <details class="other-filters setup-fold" id="cancel-restore"{% if cancel_form.errors or restore_form.errors %} open{% endif %}>
+    <summary>{% if cancel_form.deadlines %}Cancel one filing{% if restore_form.deadlines %} or restore a canceled one{% endif %}{% else %}Restore a canceled filing{% endif %}</summary>
   {% if cancel_form.deadlines %}
   <h3 id="cancel-filing-h">Cancel one filing</h3>
   <form method="post" class="stack form-narrow" novalidate aria-labelledby="cancel-filing-h" id="cancel-filing-form">{% csrf_token %}
@@ -31,7 +34,7 @@
     {{ cancel_form.reason.as_field_group }}
     <div class="actions"><button type="submit">Cancel the filing</button></div>
   </form>
-  {% else %}<p class="small" id="nothing-to-cancel">No filing can be canceled: {% if filing_rows %}each one is canceled already or an organization has started it{% else %}the set has none{% endif %}.</p>{% endif %}
+  {% endif %}
   {% if restore_form.deadlines %}
   <h3 id="restore-filing-h">Restore a canceled filing</h3>
   <form method="post" class="stack form-narrow" novalidate aria-labelledby="restore-filing-h" id="restore-filing-form">{% csrf_token %}
@@ -42,6 +45,9 @@
     <div class="actions"><button type="submit">Restore the filing</button></div>
   </form>
   {% endif %}
+  </details>
+  {% endif %}
+  {% if not cancel_form.deadlines %}<p class="small" id="nothing-to-cancel">No filing can be canceled: {% if filing_rows %}each one is canceled already or an organization has started it{% else %}the set has none{% endif %}.</p>{% endif %}
 </section>
 <section class="card" aria-labelledby="due-dates-h" id="setup-due-dates">
   <h2 id="due-dates-h">Due dates</h2>
@@ -55,7 +61,7 @@
     {% if due_form.non_field_errors %}<div class="alert" role="alert">{{ due_form.non_field_errors }}</div>{% endif %}
     {% for field in due_form.date_fields %}{{ field.as_field_group }}{% endfor %}
     {{ due_form.reason.as_field_group }}
-    <div class="actions"><button type="submit" class="primary">Save the due dates</button></div>
+    <div class="actions"><button type="submit">Save the due dates</button></div>
   </form>
   {% else %}<p>Every due date has passed.</p>{% endif %}
 </section>
@@ -71,7 +77,7 @@
     {% if filers_form.non_field_errors %}<div class="alert" role="alert">{{ filers_form.non_field_errors }}</div>{% endif %}
     {{ filers_form.pas.as_field_group }}
     {{ filers_form.reason.as_field_group }}
-    <div class="actions"><button type="submit" class="primary">Save who files</button></div>
+    <div class="actions"><button type="submit">Save who files</button></div>
   </form>
 </section>
 {% endif %}
@@ -80,11 +86,14 @@
   {% if removable %}
   <p>Takes {{ setup_what }} off the filing calendar for good, its set-up and every one of its deadlines, for one set up by mistake.
   Nobody has filed for it yet. The audit trail keeps what was removed and why. It can be set up again afterward.</p>
+  <details class="other-filters setup-fold"{% if remove_form.errors %} open{% endif %}>
+    <summary>Remove {{ setup_what }}</summary>
   <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
     <input type="hidden" name="action" value="remove">
     {{ remove_form.reason.as_field_group }}
     <div class="actions"><button type="submit">Remove {{ setup_what }}</button></div>
   </form>
+  </details>
   {% else %}
   <p>An organization has started filing for {{ setup_what }}, so it cannot be removed: what was filed is kept. Its due dates can still change.</p>
   {% endif %}

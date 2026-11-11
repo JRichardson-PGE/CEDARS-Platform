@@ -411,7 +411,7 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert v.status == "validated" and b"Price the estimates" in client.get(reverse("monthly:report", args=[jan.pk])).content
     client.post(reverse("monthly:price", args=[jan.pk]))
     run = Run.objects.get()
-    assert b"the run's page" in client.get(reverse("monthly:report", args=[jan.pk])).content
+    assert b"Follow the run" in client.get(reverse("monthly:report", args=[jan.pk])).content
     finish_run(run)
     page = client.get(reverse("monthly:report", args=[jan.pk]))
     assert b"Confirm and publish" in page.content and b"Estimated TSB" in page.content
@@ -471,7 +471,7 @@ def test_a_pricing_run_that_ends_without_pricing_lets_the_report_be_priced_again
     sign_in(client, filer)
     url = reverse("monthly:report", args=[month(1).pk])
     html = client.get(url).content.decode()
-    assert "the run's page" in html and "Price the estimates" not in page_only(html)
+    assert "Follow the run" in html and "Price the estimates" not in page_only(html)
     calculations.finish(
         run, exit_code=2, error="recet worker: job refused: engine.release 0.1.80 was asked for; this worker is recet 0.1.83"
     )

@@ -1,11 +1,26 @@
-{{ form.document_type.as_field_group }}
-<p class="small" id="type-list-link">{% if type_list %}<a href="{% url 'documents:lists' %}#list-{{ type_list.code }}">{{ type_list.name }}</a>: the document types of this collection. {% endif %}The attributes below are kept on <a href="{% url 'documents:lists' %}">Document value lists</a>.</p>
-{{ form.title.as_field_group }}
-{{ form.summary.as_field_group }}
-{{ form.pas.as_field_group }}
-{{ form.programs.as_field_group }}
-{{ form.first_year.as_field_group }}
-{{ form.last_year.as_field_group }}
-{% if form.study %}{{ form.study.as_field_group }}{% endif %}
-{% if form.work_order %}{{ form.work_order.as_field_group }}{{ form.task.as_field_group }}{% endif %}
-{% for field in form.attribute_fields %}{{ field.as_field_group }}{% endfor %}
+{% comment %}A document's details in three parts (File a document and Change the details; UI review 3). With step set, the parts are
+numbered as steps 1 to 3 of filing. Programs use the shared program picker, the PAs and each multiple-value list a compact tick list
+(core/pickers.py, core/tick_lists.py), and the study a picker of the register.{% endcomment %}
+<div class="form-step" id="step-what">
+  <h2>{% if step %}<span class="step-n">1</span> {% endif %}What it is</h2>
+  {% if step %}{% include "documents/_collection_choice.html" %}{% endif %}
+  {{ form.document_type.as_field_group }}
+  {% if type_list %}<p class="small" id="type-list-link"><a href="{% url 'documents:value_list' type_list.code %}">{{ type_list.name }}</a>: the document types of this collection.</p>{% endif %}
+  {{ form.title.as_field_group }}
+  {{ form.summary.as_field_group }}
+</div>
+<div class="form-step" id="step-covers">
+  <h2>{% if step %}<span class="step-n">2</span> {% endif %}What it covers</h2>
+  {{ form.pas.as_field_group }}
+  {{ form.programs.as_field_group }}
+  <div class="row-fields">{{ form.first_year.as_field_group }}{{ form.last_year.as_field_group }}</div>
+  {% if form.study %}{{ form.study.as_field_group }}{% endif %}
+  {% if form.work_order %}{{ form.work_order.as_field_group }}{{ form.task.as_field_group }}{% endif %}
+</div>
+{% if form.attribute_fields %}
+<div class="form-step" id="step-lists">
+  <h2>{% if step %}<span class="step-n">3</span> {% endif %}Its values from the lists</h2>
+  <p class="small" id="step-lists-help">Open a list to tick the values that apply; leave the rest. The lists are kept on <a href="{% url 'documents:lists' %}">Document value lists</a>.</p>
+  {% for field in form.attribute_fields %}{{ field.as_field_group }}{% endfor %}
+</div>
+{% endif %}

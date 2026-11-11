@@ -20,7 +20,7 @@
   <p><label for="comment-files">Attach files (optional)</label>
     <input type="file" id="comment-files" name="files" multiple accept="{{ accept }}" aria-describedby="comment-files-help">
     <span class="small muted" id="comment-files-help">Up to {{ max_files }} files of {{ max_mb }} MB each: {{ accepted }}. See <a href="{% url 'limits:index' %}">Limits</a>.</span></p>
-  <div class="actions"><button type="submit" class="primary">Post comment</button></div>
+  <div class="actions"><button type="submit"{% if primary %} class="primary"{% endif %}>Post comment</button></div>
 </form>
 {% endif %}
 </section>

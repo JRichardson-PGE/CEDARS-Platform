@@ -18,7 +18,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import Program
-from cedars.services.submissions import corrections
+from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
 from cedars.services.submissions import status as filing_status
@@ -149,10 +149,14 @@ def year_new(request):
     if not access.is_system_admin(request.user):
         raise Http404
     form = forms.YearForm(request.POST or None, accs=accs())
+    # the five due dates follow the last claim year's pattern, for the administrator to change (the statewide ones follow from them)
+    suggested_from, due = service.suggested_due(form.fields["year"].initial)
     if request.method != "POST":
         acc = service.default_acc(form.fields["year"].initial)
         if acc in accs():
             form.fields["acc_version"].initial = acc
+        for kind, day in due.items():
+            form.fields[forms.due_field(kind)].initial = day
     if request.method == "POST" and form.is_valid():
         d = form.cleaned_data
         try:
@@ -172,7 +176,7 @@ def year_new(request):
         else:
             messages.success(request, f"{cy.year} claims are set up.")
             return redirect("claims:index")
-    return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS})
+    return render(request, "claims/year_new.html", {"form": form, "periods": service.PERIODS, "suggested_from": suggested_from})
 
 
 def _sw_due(cleaned: dict) -> dict:
@@ -383,6 +387,35 @@ def period(request, pk):
             ctx["tiles"] = _tiles(service.table(v))
         ctx.update(_pii(request, org, v, acting))
         ctx["can_correct"] = acting and ctx["can_submit"] and not v.locked and not corrections.refusal(request.user, v)
+    ctx.update(
+        filing_parts.context(
+            v,
+            has_file=bool(ctx.get("file")) or bool(v and v.imported),
+            priced=ctx.get("priced", False),
+            pricing=ctx.get("pricing_run"),
+            stale=ctx.get("stale", False),
+            nothing_to_price=v is not None and v.status == SubmissionVersion.Status.VALIDATED and not ctx["s"].get("job_key"),
+            can_correct=ctx.get("can_correct", False),
+        )
+    )
+    ctx["upload_title"] = "Upload a corrected file" if ctx.get("file") else "Upload the claims"
+    if v is not None:
+        ctx["out"] = {
+            "check_url": reverse("claims:check", args=[pk]),
+            "price_url": reverse("claims:price", args=[pk]),
+            "price_label": "Price the year to date",
+            "price_help": "Runs the calculation and statewide allocation on every measure of the year so far; confirming needs it.",
+            "confirm_url": reverse("claims:confirm", args=[pk]),
+            "confirm_help": "Signs off on exactly these results; the year-to-date inputs, run settings and results become public.",
+            "unconfirm_url": reverse("claims:unconfirm", args=[pk]),
+            "reopen_url": reverse("claims:reopen", args=[pk]),
+            "results_url": reverse("claims:version", args=[v.pk]),
+            "results_heading": "Year-to-date results",
+            "results_link": "By program",
+            "results_about": ": what was filed and what it priced to, and the files it publishes.",
+            "what": "these claims",
+            "kept": "confirmed",
+        }
     return render(request, "claims/period.html", ctx)
 
 
@@ -452,7 +485,7 @@ def _checked_message(request, v: SubmissionVersion) -> None:
         msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
         messages.info(request, msg + " Price the year to date next.")
     else:
-        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. Fix them and upload the file again.")
+        messages.warning(request, f"{s.get('rejected', 0):,} records are rejected. " + filing_parts.REJECTED_NEXT)
 
 
 @login_required
@@ -596,8 +629,15 @@ def version(request, pk):
     v = _version(request, pk)
     pa = request.GET.get("pa", "")
     t = service.table(v, pa=pa)
-    rows = [{"r": r, "cells": [_fmt(kind, r.value(key)) for key, _, kind, _ in service.METRICS]} for r in t.rows]
-    total = [_fmt(kind, t.total.value(key)) for key, _, kind, _ in service.METRICS]
+    compare = t.priced and not pa  # a PA's share of a statewide program is not compared with the whole program's filed totals
+
+    def cells(r) -> list[tuple[str, bool]]:
+        differ = service.savings_differ(r) if compare else set()
+        return [(_fmt(kind, r.value(key)), key in differ) for key, _, kind, _ in service.METRICS]
+
+    rows = [{"r": r, "cells": cells(r)} for r in t.rows]
+    total = cells(t.total)
+    differing = sum(1 for row in rows if any(mark for _, mark in row["cells"]))
     return render(
         request,
         "claims/version.html",
@@ -624,6 +664,9 @@ def version(request, pk):
             "restatements": list(restatements.visible(request.user, v)),
             "restatable": not restatements.restatable(v),
             "true_ups": _true_ups(v, t),
+            "differing": differing,
+            "tolerance": f"{service.SAVINGS_TOLERANCE:.0%}",
+            **filing_parts.version_page(request, v, priced=service.priced(v), ready=not service.stale(v)),
         },
     )
 

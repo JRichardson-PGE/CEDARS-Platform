@@ -523,9 +523,13 @@ class Finding:
     value: str = ""
 
 
-def _engine_rule_set(rs: RuleSet):
+def _engine_rule_set(rs: RuleSet, skip=()):
     filing_rules, _ = _engine()
-    rules = [filing_rules.Rule(r.rule_id, r.severity, r.table, r.field, r.message, r.kind, r.source, r.definition) for r in rs.rules.all()]
+    rules = [
+        filing_rules.Rule(r.rule_id, r.severity, r.table, r.field, r.message, r.kind, r.source, r.definition)
+        for r in rs.rules.all()
+        if r.rule_id not in skip
+    ]
     return filing_rules.RuleSet(rs.code, rs.effective_from.isoformat(), None, rules)
 
 
@@ -604,15 +608,80 @@ def spec_columns(rs: RuleSet, table: str) -> list[str]:
     return sorted(names)
 
 
-def check(rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_column: str = "CEInputID") -> tuple[list[Finding], list[str]]:
+def _names_in(value) -> set[str]:
+    """The column a rule's value names, if it names one: a bare word ("UnitkWh1stBaseline") or arithmetic on one ("EUL_Yrs /2.75");
+    not a number, a quoted text, a list or FilingYear. A bare word that is not a column is harmless: it is only compared with the
+    columns a file lacks."""
+    import re
+
+    v = str(value if value is not None else "").strip()
+    if not v or v[0] in "['" or v.lower() == "filingyear":
+        return set()
+    m = re.match(r"^(\w+)\s*[*/+-]\s*[\d.]+$", v)
+    if m:
+        return {m.group(1)}
+    try:
+        float(v)
+    except ValueError:
+        return {v}
+    return set()
+
+
+def columns_needed(rule: Rule) -> set[str]:
+    """Every column a rule reads: its field (both of a two-column key), a uniqueness rule's columns, its conditions' fields and the
+    columns its values name."""
+    d = rule.definition or {}
+    names = {p.strip() for p in (rule.field or "").split("+") if p.strip()}
+    if rule.kind == "spec":
+        names |= {str(c) for c in d.get("columns") or []}
+        return names
+    names |= {p.strip() for p in str(d.get("field", "")).split("+") if p.strip()}
+    for cond in d.get("conds") or []:
+        if len(cond) >= 4:
+            names.add(str(cond[1]).strip())
+            names |= _names_in(cond[3])
+    names |= _names_in(d.get("value"))
+    return names
+
+
+def needing(rs: RuleSet, table: str, missing) -> set[str]:
+    """The IDs of the rule set's rules for `table` that read a column the file lacks (`missing`, by either of its names). The other
+    rules can still run: a missing column would read as blank in every record and fail rules that are not the file's fault."""
+    _, fieldnames = _engine()
+    gone = {n.lower() for c in missing for n in (c, fieldnames.recet_name(c))}
+    if not gone:
+        return set()
+    return {
+        r.rule_id
+        for r in rs.rules.filter(table=table)
+        if any(n.lower() in gone or fieldnames.recet_name(n).lower() in gone for n in columns_needed(r))
+    }
+
+
+def missing_columns_note(table: str, missing: int, skipped: int, spec: str) -> str:
+    """What a filing page says when a table lacks some of the specification's columns: the rules that read them were not run, the
+    others were, and more findings may come once the columns are added."""
+    cols = f"{missing:,} of the {spec}'s column{'s' if missing != 1 else ''}"
+    if not skipped:
+        return f"The {table} file lacks {cols}; every {table} rule ran, since none reads them."
+    return (
+        f"Some {table} rules were not run: the file lacks {cols}, and {skipped:,} rule{'s read' if skipped != 1 else ' reads'} "
+        f"them. The other {table} rules ran. More findings may appear once the columns are there."
+    )
+
+
+def check(
+    rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_column: str = "CEInputID", skip=()
+) -> tuple[list[Finding], list[str]]:
     """Run a rule set's rules for `table` on a raw-text frame: every failing (record, rule) as a Finding, rejects first, and notes on rules
-    that could not be checked. Findings name fields and wording with the data dictionary's names."""
+    that could not be checked. Findings name fields and wording with the data dictionary's names. `skip`: rule IDs not to run (those
+    that read a column the file lacks, `needing`)."""
     from cedars.services.dictionary import value_lists
 
     filing_rules, _ = _engine()
     value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
     ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
-    results, notes = filing_rules.check_frame(_engine_rule_set(rs), table, df, ctx)
+    results, notes = filing_rules.check_frame(_engine_rule_set(rs, skip), table, df, ctx)
     notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]
     fixes = dict(rs.rules.values_list("rule_id", "fix"))
     ids = df[id_column].astype(str).to_numpy() if id_column in df.columns else [""] * len(df)

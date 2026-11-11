@@ -7,7 +7,8 @@ who: None (signed out), "password" (signed in with a password only: the second-f
 {monthly_jan}, {monthly_feb}, {monthly_mar}, {monthly_version}, {document}, {document_draft}, {study}, {work_order},
 {deliverable}, {deliverable_open}, {legacy_claims}, {legacy_claims_sw}, {legacy_claims_period}, {legacy_budget},
 {legacy_filing}, {cost_set}, {budget_letter}, {monthly_letter}, {restatement}, {claims_corrected}, {claims_draft},
-{claims_preview}, {monthly_draft}, {access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}, {hvac_first}."""
+{claims_preview}, {claims_next_q1}, {claims_priced}, {monthly_draft},
+{access_check}, {access_reviewed}, {build}, {manager_build}, {offered_build}, {hvac_first}."""
 
 PAGES = [
     ("home", "/", None),
@@ -339,6 +340,7 @@ PAGES = [
     ("claims-period-published", "/claims/periods/{claims_q1}/", "analyst"),
     ("claims-period-rejected", "/claims/periods/{claims_q2}/", "analyst"),
     ("claims-period-not-started", "/claims/periods/{claims_q3}/", "analyst"),
+    ("claims-period-priced", "/claims/periods/{claims_next_q1}/", "analyst"),  # priced, waiting to be confirmed
     ("claims-period-cpuc", "/claims/periods/{claims_q1}/?org=PGE", "cpuc_admin"),
     ("claims-period-regulator", "/claims/periods/{claims_q1}/", "cpuc_admin"),  # no PA chosen: the PAs to choose from
     ("claims-period-pii", "/claims/periods/{claims_q1}/", "pii_filer"),
@@ -364,6 +366,7 @@ PAGES = [
     ("record-monthly", "/filings/versions/{monthly_draft}/records/Commitments/?k=NOPE", "analyst"),
     ("claims-version", "/claims/versions/{claims_version}/", "community"),
     ("claims-version-corrected", "/claims/versions/{claims_corrected}/", "community"),
+    ("claims-version-priced", "/claims/versions/{claims_priced}/", "analyst"),  # Confirm and publish beside its results
     ("claims-changes", "/claims/changes/", "community"),
     ("claims-change-letter", "/claims/changes/{claims_letter}/", "community"),
     ("claims-links", "/claims/links/", "community"),
@@ -432,6 +435,8 @@ PAGES = [
     ("document-downloads", "/documents/{document}/downloads/", "cpuc_admin"),
     ("document-value-lists", "/documents/lists/", None),
     ("document-value-lists-admin", "/documents/lists/", "cpuc_admin"),
+    ("document-value-list", "/documents/lists/sector/", None),
+    ("document-value-list-admin", "/documents/lists/sector/", "cpuc_admin"),
     ("legacy-links", "/documents/old-links/", "cpuc_admin"),
     ("legacy-link", "/documents/old-links/{legacy_link}/", "cpuc_admin"),
     ("deliverable", "/documents/{deliverable}/", None),

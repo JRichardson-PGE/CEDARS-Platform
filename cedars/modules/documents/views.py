@@ -1,6 +1,6 @@
 import csv
 import re
-from urllib.parse import quote
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -8,6 +8,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.html import escape, format_html
 from django.utils.safestring import mark_safe
 from django.views.decorators.http import require_POST
@@ -272,6 +273,16 @@ def can_file(request) -> bool:
     return bool(service.collections_for(request.user, _organisation(request)))
 
 
+def _new_url(collection, study=None, program=None) -> str:
+    """File a document in a collection, keeping the study or program it was started from."""
+    query = {"collection": collection}
+    if study is not None:
+        query["study"] = study.study_id
+    if program is not None:
+        query["program"] = program.prg_id
+    return f"{reverse('documents:new')}?{urlencode(query)}"
+
+
 @login_required
 def new(request):
     """File a new document in one of the collections the acting organization files in."""
@@ -320,7 +331,8 @@ def new(request):
         {
             "form": form,
             "collection": collection,
-            "collections": [(c, Collection(c).label) for c in allowed],
+            "collection_label": Collection(collection).label,
+            "other_collections": [(c, Collection(c).label, _new_url(c, study, program)) for c in allowed if c != collection],
             "study": study,
             "program": program,
             # the collection's document types, linked beside the control (navigation review D8, L7)
@@ -406,17 +418,28 @@ def publish(request, pk, number):
 
 
 def value_lists(request):
-    """Every list and its values, retired ones marked; CPUC ED's document administrators add, correct, retire and reinstate values."""
-    lists = AttributeList.objects.prefetch_related("options")
-    admin = request.user.is_authenticated and service.is_admin(request.user)
+    """The document value lists, one row each with where it is used and how many values it offers, linked to a page for each list
+    (as the data dictionary's value lists are; UI review 3)."""
+    rows = []
+    for al in AttributeList.objects.prefetch_related("options"):
+        options = list(al.options.all())
+        retired = sum(1 for o in options if o.retired_on)
+        rows.append({"list": al, "used_in": _used_by(al), "offered": len(options) - retired, "retired": retired})
+    return render(request, "documents/lists.html", {"rows": rows, "admin": _keeps_lists(request.user)})
+
+
+def value_list(request, code):
+    """One list and its values, retired ones marked; CPUC ED's document administrators add, correct, retire and reinstate values."""
+    al = get_object_or_404(AttributeList.objects.prefetch_related("options"), code=code)
     return render(
         request,
-        "documents/lists.html",
-        {
-            "lists": [(al, _used_by(al), al.options.all()) for al in lists],
-            "admin": admin,
-        },
+        "documents/list.html",
+        {"al": al, "used_in": _used_by(al), "options": al.options.all(), "admin": _keeps_lists(request.user)},
     )
+
+
+def _keeps_lists(user) -> bool:
+    return user.is_authenticated and service.is_admin(user)
 
 
 def _used_by(al: AttributeList) -> str:
@@ -427,7 +450,7 @@ def _used_by(al: AttributeList) -> str:
 
 
 def _back(al: AttributeList):
-    return HttpResponseRedirect(f"/documents/lists/#list-{quote(al.code)}")
+    return HttpResponseRedirect(reverse("documents:value_list", args=[al.code]))
 
 
 @login_required

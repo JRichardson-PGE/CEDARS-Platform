@@ -21,10 +21,6 @@
   <label>New task <input type="text" name="name" required></label>
   <button type="submit">Add the task</button>
 </form>
-<form method="post" action="{% url 'documents:work_order_change' wo.pk wo.cancelled|yesno:'reinstate,cancel' %}" class="row-form">{% csrf_token %}
-  <label>Reason <input type="text" name="reason" required></label>
-  <button type="submit">{% if wo.cancelled %}Reinstate the work order{% else %}Mark the work order canceled{% endif %}</button>
-</form>
 {% endif %}
 </section>
 <section aria-labelledby="studies-h">
@@ -35,4 +31,15 @@
 <h2 id="docs-h">Documents</h2>
 <ul class="links">{% for d in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ d.document_type.label }}{% if d.task %}, task {{ d.task.name }}{% endif %}</span></li>{% empty %}<li>No documents are filed under this work order.</li>{% endfor %}</ul>
 </section>
+{% if admin %}
+<details class="section" id="wo-status">
+  <summary>{% if wo.cancelled %}Reinstate the work order{% else %}Cancel the work order{% endif %}</summary>
+  <p>{% if wo.cancelled %}It is open again for new documents and studies; the reason is kept with it.{% else %}A canceled work order stays
+  listed with its tasks, studies and documents, and can be reinstated. The reason is kept with it.{% endif %}</p>
+  <form method="post" action="{% url 'documents:work_order_change' wo.pk wo.cancelled|yesno:'reinstate,cancel' %}" class="row-form">{% csrf_token %}
+    <label>Reason <input type="text" name="reason" required></label>
+    <button type="submit">{% if wo.cancelled %}Reinstate the work order{% else %}Mark the work order canceled{% endif %}</button>
+  </form>
+</details>
+{% endif %}
 {% endblock %}

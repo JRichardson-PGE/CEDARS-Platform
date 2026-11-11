@@ -1,0 +1,22 @@
+{% if opens_later %}<p>This report opens on {{ deadline.opens_at|date_words }}, when the month has ended.</p>
+{% else %}
+<p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept.
+<a href="{% url 'monthly:template' %}">The monthly report template</a> has the three tables and defines every field.</p>
+{% url 'monthly:template' as tmpl %}{% before_upload template=tmpl template_label="the monthly report template" fields="calculations.Measure" fields_label="the Measure and ProgramCost field definitions" rules_note="the BCA inputs get the engine's own input check, run when the report is priced" guide="monthly-reports" guide_label="the monthly reports guide" %}
+<form method="post" enctype="multipart/form-data" action="{% url 'monthly:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
+  {{ upload_form.file.as_field_group }}
+  <div class="actions"><button type="submit"{% if upload_open %} class="primary"{% endif %}>Upload and check</button></div>
+</form>
+{% endif %}
+<details><summary>What the file holds</summary>
+  <p>Three tables: Commitments, and the year's BCA inputs so far, Measure and ProgramCost, as a calculation run takes them.
+  <a href="{% url 'monthly:template' %}">The monthly report template</a> has them all.</p>
+  <h3>Commitments</h3>
+  <p>One row per program with commitments, with the columns PA, PrgID, YearMonth ({{ deadline.period.year }}{{ deadline.period.number|stringformat:"02d" }}), the committed fields CEDARS' monthly reports have today and an optional Comments:</p>
+  <ul>{% for f, help in commitment_fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>
+  <h3>Measure and ProgramCost</h3>
+  <p>ProgramCost rows for {{ deadline.period.year }}, one per program, with its costs for the year to date; measures claimed from {{ deadline.period.year }}Q1 up to this month's quarter. Measure may have no rows.</p>
+  <p>Each program's spend is read from them, as Budgets counts a budget: the ProgramCost fields below plus its measures' rebates and incentives (<code>NumUnits</code> times {% for f in incentive_fields %}<code>{{ f }}</code>{% if not forloop.last %}{% if forloop.revcounter == 2 %} and {% else %}, {% endif %}{% endif %}{% endfor %}). Those rebates and incentives are the paid incentives, shown on their own as well as in spend. The Commitments table's committed incentives are incentives to be paid in the future: not spend, and not compared with the paid ones. <code>OnBillFinancing</code> is shown apart, as in Budgets. The month's spend is the change in the year-to-date spend since last month's report.</p>
+  <ul>{% for f, help in cost_fields %}<li><code>{{ f }}</code>: {{ help }}</li>{% endfor %}</ul>
+  <p>CEDARS' monthly columns for expenditures, fund shifts and savings are not read: spend comes from the BCA inputs, fund shifts are made in Budgets, and savings are estimated from the BCA inputs.</p>
+</details>
