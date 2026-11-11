@@ -550,6 +550,18 @@ ul.tick-options { list-style: none; margin: 0; padding: 0; display: grid; grid-t
   gap: .2rem 1rem; }
 ul.tick-options li[hidden] { display: none; }
 ul.tick-options label.check { min-height: 24px; overflow-wrap: anywhere; }
+/* A form in short numbered steps (File a document; UI review 3): each step a block under its heading, the number in a circle beside it
+   and in the heading's text, so it is read as well as seen. */
+.form-steps .form-step { display: flex; flex-direction: column; gap: .8rem; padding-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.form-step > h2 { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 0; font-size: 1.15rem; }
+.form-step > p { margin: 0; }
+.step-n { display: inline-grid; place-items: center; flex: none; width: 1.75rem; height: 1.75rem; border: 1px solid var(--control); border-radius: 50%;
+  font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The document library (UI review 3): the list first; key dates and what is open for comment beside it on a wide screen, after it on a
+   narrow one (the order in the page is the list, then the side). */
+.library-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1.5rem; align-items: start; }
+@media (min-width: 75rem) { .library-layout { grid-template-columns: minmax(0, 1fr) 20rem; } }
+.library-side .card:first-child { margin-top: 0; }
 /* Output template page: the two-list field picker (calculations/field_picker.js; also Results and Compare's Choose columns), ReCET's Templates page laid out on these tokens */
 .picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: start; }
 .picker[hidden] { display: none; }
@@ -638,6 +650,25 @@ section.cycle { margin-bottom: .5rem; }
 .empty .empty-title { color: var(--fg); font-weight: 600; font-size: 1.05rem; }
 .empty .button { margin-top: .75rem; }
 
+/* ---------- Filing pages (submissions/_filing_*.html, UI review 3): the step line, the outcome card, findings by rule ---------- */
+/* The step line: five steps in a row (wrapping at 320 px), each a pill with its number or a check; the current one bold with a filled
+   marker and aria-current="step", done ones with a check and "(done)" for screen readers, so the state is never shown by color alone. */
+ol.steps { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem; margin: .75rem 0 .35rem; padding: 0; }
+ol.steps li { display: flex; align-items: center; gap: .45rem; min-height: 32px; padding: .2rem .75rem .2rem .25rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--fg-2); }
+ol.steps .step-mark { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 1px solid var(--control); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+ol.steps li.done .step-mark { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+ol.steps li.current { color: var(--fg); font-weight: 600; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+ol.steps li.current .step-mark { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); }
+.step-now { margin: .25rem 0 1rem; }
+.card.outcome { border-left: 4px solid var(--primary); }   /* the filing's outcome and its one next action, first on the page */
+.card.outcome .tiles { margin-bottom: .75rem; }
+details.inline-form { margin: .75rem 0 0; }
+details.inline-form > summary { color: var(--link); cursor: pointer; min-height: 24px; line-height: 24px; width: fit-content; }
+details.inline-form > form { margin-top: .5rem; }
+ul.finding-records { list-style: none; margin: 0; padding: 0; }
+ul.finding-records li { margin: 0 0 .2rem; }
+table.findings-by-rule td:last-child { min-width: 16rem; }
+
 /* ---------- Correcting records ---------- */
 /* A record's page (submissions/record.html): its fields in the wide grid, grouped as the data dictionary groups them; the Save bar stays
    in view at the bottom of the window where there is room for it (at least 480 px tall), and scroll-padding keeps a focused field clear
@@ -713,7 +744,7 @@ li.pa-statewide { margin-top: .35rem; padding-top: .35rem; border-top: 1px solid
 .js-pa .pa-row > label:first-child { margin-left: calc(24px + .25rem); }
 /* Pickers (core/pickers.py, core/_program_picker.html; UI review 3): the chosen ones as ticked boxes, then a box that narrows a list as
    you type. The box is sized for what it holds (a PrgID and part of a name), not the window. */
-fieldset.picker { border: 0; padding: 0; margin: .25rem 0; min-width: 0; display: flex; flex-direction: column; gap: .3rem; max-width: 34rem; }
+fieldset.picker { border: 0; padding: 0; margin: .25rem 0; min-width: 0; background: none; display: flex; flex-direction: column; gap: .3rem; max-width: 34rem; }
 fieldset.picker > legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .2rem; }
 fieldset.picker > legend .muted { font-weight: 400; }
 ul.picker-chosen { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem .5rem; }
@@ -1118,3 +1149,21 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 details.discard { margin-top: 1rem; }
 details.discard > summary { cursor: pointer; color: var(--link); font-weight: 600; min-height: 24px; line-height: 24px; width: max-content; max-width: 100%; }
 details.discard > p { margin: .5rem 0; }
+
+/* An organization's pages (UI review 3, U7): Give access (one person, several roles or permissions, one reason) and the recertification
+   grouped by member, with one Certify form whose buttons sit in the rows. */
+.give-access fieldset.give-what { border: 0; padding: 0; margin: .5rem 0; min-width: 0; }
+.give-access fieldset.give-what > legend { font-weight: 600; padding: 0; }
+form.certify-all { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; margin: .75rem 0; }
+table.recert tr.group th { background: var(--surface-2); font-weight: 600; }
+table.recert tr.group th button { margin-left: .75rem; }
+table.recert td button { margin-right: .5rem; }
+
+/* A set-up page's parts, linked at its top (submissions/_setup_sections.html); its rarely used actions (cancel or restore one filing,
+   remove the set-up) fold away under .setup-fold */
+.setup-sections { margin: .75rem 0 1rem; }
+.setup-sections > p { margin: 0 0 .25rem; }
+.setup-sections ul { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
+.setup-sections a { display: inline-block; min-height: 24px; line-height: 24px; }
+.setup-fold { margin-top: 1rem; }
+.setup-fold > h3 { margin-top: .75rem; }

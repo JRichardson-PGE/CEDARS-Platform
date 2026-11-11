@@ -4,8 +4,9 @@
     filing for it stands. Each filing's set-up lists the PAs who file it, so only they are shown for it. {% if board.full %}As CPUC staff you see every PA's filings; select a status to open that filing.{% else %}You
     see where your organization's filings stand, and select a status to open the filing; for the other PAs, whether each filing is
     published.{% endif %} The <a href="{% url 'submissions:calendar' %}">filing calendar</a> lists every deadline.</p>
-  {% if board.without %}<p class="small">No deadlines are on the calendar yet for {{ board.without|join:", " }}.</p>{% endif %}
+  {% if can_set_up %}{% url 'submissions:deadline_new' as set_up_url %}{% endif %}
   {% if board.columns and board.rows %}
+  {% if board.without %}<p class="small" id="board-without">No deadlines are on the calendar yet for {{ board.without|join:", " }}.{% if set_up_url %} <a href="{{ set_up_url }}">Set up a filing</a>{% endif %}</p>{% endif %}
   <div class="hscroll" tabindex="0" role="region" aria-label="Where each PA's filings stand">
   <table class="list filing-status">
     <caption class="sr-only">Each program administrator's status on the budget, claims and monthly report filings most recently due and next due</caption>
@@ -21,5 +22,10 @@
     </tbody>
   </table>
   </div>
-  {% elif not board.rows %}<p class="empty">No program administrators file the filings shown yet.</p>{% endif %}
+  {% elif not board.columns %}
+  {% include "ui/empty.html" with title="No filing is on the calendar yet" text="Budgets, claims and monthly reports show here once the CPUC sets up their deadlines." action_url=set_up_url action="Set up a filing" action_primary=True %}
+  {% else %}
+  {% if can_set_up %}{% url 'submissions:filing_sets' as sets_url %}{% endif %}
+  {% include "ui/empty.html" with title="No program administrators file the filings shown yet" text="Each filing's set-up lists the PAs who file it." action_url=sets_url action="Choose who files, on the filing sets page" %}
+  {% endif %}
 </section>

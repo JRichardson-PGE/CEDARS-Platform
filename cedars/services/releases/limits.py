@@ -143,6 +143,16 @@ LIMITS = [
         "CEDARS_CORRECTION_LIST_ROWS",
     ),
     Limit(
+        "finding_records",
+        "Records listed under each rule on a filing page",
+        UPLOADS,
+        lambda: settings.CEDARS_FINDING_RECORDS_SHOWN,
+        "records",
+        "A filing page's findings, grouped by rule: the records each rule found, with a link to correct each one.",
+        "The rest are counted under the rule: every finding is in the findings CSV, and Correct records lists them all.",
+        "CEDARS_FINDING_RECORDS_SHOWN",
+    ),
+    Limit(
         "correction_codes",
         "Codes suggested for a field on a record's page",
         UPLOADS,

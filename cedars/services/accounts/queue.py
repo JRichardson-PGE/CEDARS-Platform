@@ -24,7 +24,7 @@ def access_requests(user) -> list[Item]:
         out.append(
             Item(
                 f"{who} asks to join {r.organisation.code}",
-                f"/admin/organizations/{r.organisation.code}/",
+                f"/admin/organizations/{r.organisation.code}/requests/",
                 r.organisation.code,
                 r.created_at,
                 None,

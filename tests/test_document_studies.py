@@ -149,7 +149,7 @@ def test_coverage_through_the_page(people, study, hvac, client):
     )
     assert r.status_code == 302 and study.coverage.get().program == hvac
     r = client.post(f"/documents/studies/{study.number}/programs", {"program": "NOPE", "first_year": 2022, "last_year": 2024}, follow=True)
-    assert "Not in the program registry" in r.content.decode()
+    assert "No program is “NOPE”." in r.content.decode()
 
 
 def test_the_register_filters_and_its_file(people, pge, study, hvac, client):

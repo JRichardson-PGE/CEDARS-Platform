@@ -230,7 +230,7 @@ The apps, in `INSTALLED_APPS` order:
 
 | Layer | App | What it owns |
 | --- | --- | --- |
-| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`), the shared program, field and member pickers (`pickers.py`, choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
+| Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), compact tick lists (`tick_lists.py`, with `TickListInput` for a form field), the shared program, field and member pickers (`pickers.py`, `ProgramsField` for several programs in a form; choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
 | Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
@@ -247,7 +247,7 @@ The apps, in `INSTALLED_APPS` order:
 | Service | `cedars.services.feedback` | Feedback on any page |
 | Service | `cedars.services.sandbox` | The production bundle and the sandbox refresh |
 | Service | `cedars.services.accessibility` | Accessibility checks of stored PDFs and workbooks |
-| Module | `cedars.modules.administration` | Account, organizations, members and grants, access requests, recertification, stewardship, role templates, audit log, health, section landing pages (no models of its own) |
+| Module | `cedars.modules.administration` | Account, organizations (each with Members, Access requests, Recertification, API tokens and Details pages), members and grants, access requests, recertification, stewardship, role templates, audit log, health, section landing pages (no models of its own) |
 | Module | `cedars.modules.impact_profiles` | eTRM sync, load-shape uploads and their checks, generated and custom impact profiles, the profile library |
 | Module | `cedars.modules.monthly` | Monthly reports and the 13th-month report |
 | Module | `cedars.modules.calculations` | Engine releases, runs, dispatch, results, Compare, Edit inputs, output templates, the job API |
@@ -812,13 +812,15 @@ suspension and revocation; it is never deleted and every change is an audit even
 
 `has_permission(user, organisation, permission)` is the one check: the user's active, unexpired grants in that organization (plus the
 federated-session rule for `claims.pii`). **Role templates** (`RoleTemplate`) are named bundles of module permissions a system
-administrator defines and an organization's administrator applies, one grant per permission. An **access request**
+administrator defines and an organization's administrator applies, one grant per permission. An organization's administrators give
+access on its Members page, one person at a time with several role templates and single permissions and one reason (`give_access`:
+all or nothing, permissions already held left as they are, each permission a template brings recording that template). An **access request**
 (`AccessRequest`) asks one organization for one or more of its role templates or for single read and submit permissions; its
 administrators decide it, or, while it has none, the CPUC's system administrators (`request_deciders`, `can_decide_request`; until then a
 system administrator may grant that organization's permissions), and the request shows in the deciders' My queue. The CPUC and the
 statewide (SW) pseudo-PA take no requests. Every permission has a name and a sentence on what it lets a person do
 (`permissions.label`, `describe`), used wherever a person chooses or reads one. Organization administrators run
-periodic **recertification**; when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
+periodic **recertification**, keeping or removing each grant (one at a time, all of one member's or all shown: `certify_all`); when a campaign closes (`close_recertifications`, daily), grants nobody certified are suspended if the
 access policy says so (never the last data steward).
 
 How the usual roles map onto grants:
@@ -934,6 +936,25 @@ stateDiagram-v2
   and offers a value list's codes (the version in force, else the engine's list, leaving out codes retired before the filing's first
   year) as a datalist up to the `CEDARS_CORRECTION_LIST_CODES` limit; a longer list links to its dictionary page.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
+- **Checks on a file with missing columns.** Each missing column of the module's specification is a finding of its own (`CLM-COL`,
+  `BUD-COL`; both its name and its CET name). The rules service's `needing(rule_set, table, missing)` names the rules that read a
+  missing column (its field, a spec rule's columns, condition fields and value operands); only those are skipped (`rules.check(...,
+  skip=)`), the other rules still run, and `missing_columns_note` tells the filer that more findings may appear once the columns are there.
+
+**The filing pages** (claims period, budget filing, monthly report) are built from shared parts in the submissions service:
+`filing_parts.py` and the `submissions/_filing_*.html` templates. `filing_parts.stage` turns a version's state into one of five steps
+(Upload, Check, Price, Confirm, Published) and a sentence, drawn as the step line with the current step marked `aria-current="step"`;
+the outcome card under it carries the one next action as the page's only primary button (Upload and check, Check again, Price,
+Confirm and publish). `findings_by_rule` groups a version's findings by rule, using the corrections editor's record keys: the rule ID
+links to the rule in the version's rule set, or, for a check written in code (`rules.coded`), to its row on Built-in checks with
+that check's own wording and fix; each rule lists its records (up to the `CEDARS_FINDING_RECORDS_SHOWN` limit) with a link
+to correct each one, and a column rule lists every missing column. The upload form, the file's details, the statewide card and
+earlier confirmations fold below once they are not the next step. While a pricing run is going, the page polls
+`submissions:pricing_status` (`/filings/versions/<pk>/pricing.json?run=<id>`, readers of the filing only; it reports only a run
+whose `submission.pricing_started` event names this version) through `core/watch.js`, announces the change through
+`window.cedarsAnnounce`, and reloads when the run ends unless something has the focus. Each module's version page shows the same
+status words (`filing_parts.status_words`) and offers Confirm and publish beside the results it confirms (`filing_parts.version_page`);
+the claims version page marks programs whose filed first-year savings differ from the priced ones by more than 1% (`savings_differ`).
 - **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
   filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the

@@ -8,12 +8,16 @@ study's history.{% else %}The study ID is made from the first funding cycle's fi
 the Project Status Report makes it, and never changes.{% endif %} Everything except the contacts is public.</p>
 {% if doc_form %}<p>You can upload the study's first document with it: see <a href="#doc-h">Upload a document</a> at the end of this form.</p>{% endif %}
 {% if s and can_file %}<p>Documents are not part of this form. To add one to the study, <a href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">upload a document</a>.</p>{% endif %}
-<form method="post" class="stack form-narrow"{% if doc_form %} enctype="multipart/form-data"{% endif %} novalidate>{% csrf_token %}
+<form method="post" class="stack form-narrow form-steps"{% if doc_form %} enctype="multipart/form-data"{% endif %} novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
-  {% if doc_form %}<h2 id="study-h">The study</h2>{% endif %}
-  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  {% for title, fields in form.sections %}
+  <div class="form-step">
+    <h2{% if forloop.first %} id="study-h"{% endif %}>{{ title }}</h2>
+    {% for field in fields %}{{ field.as_field_group }}{% endfor %}
+  </div>
+  {% endfor %}
   {% if doc_form %}
-  <fieldset class="stack" aria-describedby="doc-help">
+  <fieldset class="stack form-step" aria-describedby="doc-help">
     <legend><h2 id="doc-h">Upload a document <span class="small muted">(optional)</span></h2></legend>
     <p id="doc-help">Upload the study's first document now, such as its workplan or study results. It is filed in the EM&amp;V collection
     under this study. Add more documents later with <strong>Upload a document</strong> on the study's page. Accepted file types: PDF,

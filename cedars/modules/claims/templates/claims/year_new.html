@@ -13,8 +13,11 @@ confirmations, each due before the PAs' own so the funding PAs see their shares 
   {{ form.acc_version.as_field_group }}
   {{ form.allocation_version.as_field_group }}
   {{ form.cost_test_set.as_field_group }}
-  <fieldset class="stack">
+  <fieldset class="stack" aria-describedby="due-from">
     <legend>Due dates</legend>
+    <p class="small" id="due-from">{% if suggested_from %}Filled in from the {{ suggested_from }} claim year's due dates, moved to
+    {{ form.year.initial }}. Change any that differ, and all of them for another year.{% else %}
+    No earlier claim year has due dates to start from: give all five.{% endif %}</p>
     {% for field in form.due_fields %}{{ field.as_field_group }}{% endfor %}
   </fieldset>
   <fieldset class="stack">

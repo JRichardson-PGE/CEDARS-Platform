@@ -32,4 +32,5 @@ def filing_comments(context, v):
         "max_mb": service.max_mb(),
         "accept": ",".join(sorted(filetypes.FILE_TYPES)),
         "accepted": filetypes.accepted(),
+        "primary": not context.get("can_confirm_here"),  # one primary button a page: Confirm and publish, when the page offers it
     }

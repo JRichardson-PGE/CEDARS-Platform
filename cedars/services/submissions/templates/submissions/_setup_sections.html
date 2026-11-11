@@ -1,0 +1,13 @@
+{% comment %}A set-up page's sections, linked at its top: the page's own pricing part (its heading given as pricing_title), then the
+calendar part's (submissions/_setup_calendar.html). Each section saves on its own, with its own reason.{% endcomment %}
+<nav class="setup-sections" aria-label="On this page">
+  <p class="small">Each part saves on its own, with its own reason:</p>
+  <ul>
+    <li><a href="#setup-pricing">{{ pricing_title }}</a></li>
+    {% if sw_form %}<li><a href="#statewide-deadlines">Statewide due dates</a></li>{% endif %}
+    <li><a href="#setup-filings">Filings in this set</a></li>
+    <li><a href="#setup-due-dates">Due dates</a></li>
+    {% if filers_form.deadlines %}<li><a href="#setup-filers">Who files</a></li>{% endif %}
+    <li><a href="#remove-setup">Remove this set-up</a></li>
+  </ul>
+</nav>

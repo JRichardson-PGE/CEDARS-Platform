@@ -52,5 +52,5 @@ def test_program_changes_and_access_requests(cpuc_admin, cpuc, pge, pge_admin, m
     newcomer = make_user("new@example.com", "New Comer")
     access.request_access(newcomer, pge, ["claims.read"], "I work on PG&E's claims")
     (item,) = items(pge_admin, "access")
-    assert "New Comer asks to join PGE" == item.what and item.url == "/admin/organizations/PGE/"
+    assert "New Comer asks to join PGE" == item.what and item.url == "/admin/organizations/PGE/requests/"
     assert items(newcomer, "access") == []

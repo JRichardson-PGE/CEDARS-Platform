@@ -305,7 +305,7 @@ def test_an_email_change_is_verified_audited_told_and_signs_out_elsewhere(client
 
 def test_switching_directory_sign_in_without_pii_takes_effect_at_once(signed_in, cpuc_admin, pge):
     c = signed_in(cpuc_admin)
-    html = c.get(f"/admin/organizations/{pge.code}/").content.decode()
+    html = c.get(f"/admin/organizations/{pge.code}/details/").content.decode()
     assert "Change how its members sign in" in html and "Save sign-in" in html
     c.post(f"/admin/organizations/{pge.code}/sign-in", {"federated": "on", "provider": "pge-entra", "reason": "directory ready"})
     pge.refresh_from_db()
@@ -341,7 +341,7 @@ def test_retiring_an_organization_stops_filing_and_keeps_its_data(signed_in, cpu
     assert not pge.active and pge.successor is None
     assert pge not in access.organisations_of(pge_admin)
     assert pge not in submissions.filing_pas()  # a set-up no longer lists it among the filers
-    html = c.get(f"/admin/organizations/{pge.code}/").content.decode()
+    html = c.get(f"/admin/organizations/{pge.code}/details/").content.decode()
     assert "Retired" in html and "Bring PGE back" in html
     assert "Retired" in c.get("/admin/organizations/").content.decode()
     c.post(f"/admin/organizations/{pge.code}/retire", {"action": "reinstate", "reason": "rejoined"})
