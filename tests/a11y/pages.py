@@ -341,6 +341,7 @@ PAGES = [
     ("records", "/filings/versions/{claims_draft}/records/", "analyst"),
     ("records-found", "/filings/versions/{claims_draft}/records/?table=&q=2028", "analyst"),
     ("record-rejected", "/filings/versions/{claims_draft}/records/Measure/?k=PGE-2028-003", "analyst"),
+    ("record-saved", "/filings/versions/{claims_draft}/records/Measure/?k=PGE-2028-003&saved=1", "analyst"),  # just saved
     ("record-earlier", "/filings/versions/{claims_draft}/records/ContactClaim/?k=PGE-2028-001&k=PGE-C1", "analyst"),
     ("record-new", "/filings/versions/{claims_draft}/records/Site/new", "analyst"),
     ("record-delete", "/filings/versions/{claims_draft}/records/Claim/delete?k=PGE-2028-003", "analyst"),
