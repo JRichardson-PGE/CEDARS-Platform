@@ -644,6 +644,14 @@ ul.picker-chosen li { border: 1px solid var(--control); border-radius: var(--r, 
 ul.picker-chosen label.check { display: inline-flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: .1rem .4rem;
   font-weight: 400; min-height: 24px; }
 input.picker-input { width: 100%; max-width: 22rem; }   /* a percentage, so the box never widens its container at 320 px (1.4.10) */
+/* Fund shift lines (budgets/_shift_lines_table.html): what is wrong with a line, said beside it as it is typed (in words, with a mark
+   that is not color alone: the row's left rule and the words). */
+table.shift-lines input.shift-prg { min-width: 12rem; }
+.row-problem { display: block; color: var(--bad); font-size: .86rem; max-width: 28rem; }
+.row-problem:empty { display: none; }
+table.shift-lines tr.has-problem > th { box-shadow: inset 4px 0 0 var(--bad); }
+details.paste-lines { margin: .5rem 0; max-width: 40rem; }
+details.paste-lines > summary { cursor: pointer; font-weight: 600; }
 ul.chips { list-style: none; padding: 0; margin: 0 0 1rem; display: flex; flex-wrap: wrap; gap: .4rem; }
 ul.chips li { border: 1px solid var(--control); border-radius: 999px; padding: .15rem .7rem; background: var(--surface); font-size: .9rem; }
 ul.downloads { padding-left: 1.2rem; }

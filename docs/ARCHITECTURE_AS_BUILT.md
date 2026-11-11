@@ -1053,7 +1053,9 @@ split among the funding PAs by the weighted factors (section 8.1).
 - **Fund shifts** (`shifts.py`): a PA moves dollars among its programs and statewide programs within a cycle, with no calculation; a
   statewide line is split among the funding PAs by the weighted factors, each co-funder places and acknowledges its portion
   (`FundShiftAcknowledgement`), and the shift takes effect with the last one. No shift may take a program-year's operating budget below
-  zero.
+  zero. The amounts page picks programs with core's program picker (the PA's own and, for the shift's PA, the statewide ones), shows
+  what each program-year holds (`shifts.held`, `entry_budget`) and the running net, takes lines pasted from a spreadsheet
+  (`paste_lines`), and its script checks each line as it is typed; the save still runs the same checks on the server.
 - **Operating budget**: the standing filing's lines plus the shifts in effect since it was confirmed, by program and year; other modules
   read it through `registry.operating_budget` (`register_operating_budget`).
 

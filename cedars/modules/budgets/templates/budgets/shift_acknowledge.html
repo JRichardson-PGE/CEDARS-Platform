@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load static %}
 {% load budget_money %}
 {% block title %}Acknowledge for {{ org.code }}: {{ s.title }}{% endblock %}
 {% block content %}
@@ -24,3 +25,4 @@ operating budget below zero. The shift takes effect once every co-funder has ack
   <div class="actions"><button type="submit" class="primary">Place {{ org.code }}'s portion and acknowledge</button></div>
 </form>
 {% endblock %}
+{% block scripts %}<script src="{% static 'budgets/shift_lines.js' %}" defer></script>{% endblock %}
