@@ -73,10 +73,10 @@ def your_requests(request, page):
         org = r.organisation
         if r.status == AccessRequest.Status.PENDING:
             asked = f"asked {day(r.created_at).isoformat()}"
-            if service.org_admins(org).exists():
-                detail = f"{asked}; waiting for {org.code}'s administrators to decide"
+            if service.cpuc_decides(org):
+                detail = f"{asked}; {org.code} has no administrator yet, so the CPUC decides it"
             else:
-                detail = f"{asked}; {org.code} has no administrator yet to decide it"
+                detail = f"{asked}; waiting for {org.code}'s administrators to decide"
         else:
             detail = f"decided {day(r.decided_at).isoformat()}" + (f": {r.decision_note}" if r.decision_note else "")
         lines.append(Line(f"Access to {org.code} ({org.name})", account, "See it", r.get_status_display(), detail))
