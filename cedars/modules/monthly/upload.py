@@ -73,6 +73,9 @@ def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
 def read_tables(data: bytes, filename: str) -> dict[str, bytes]:
     """{table: file bytes} of the tables a .zip or .xlsx holds, without requiring all three or their columns: a partial correction's
     file holds only the records it changes."""
+    problem = uploads.too_large_unzipped("The file", data)
+    if problem:
+        raise UploadError(problem)
     if filename.lower().endswith(".xlsx"):
         return _from_workbook(data)
     try:

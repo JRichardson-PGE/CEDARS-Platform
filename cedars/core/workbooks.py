@@ -76,7 +76,22 @@ class Sheet:
         self.finished = False
 
     def append(self, row) -> None:
-        self.ws.append(list(row))
+        """Appends one row. Text is kept as text: openpyxl would write a string starting with "=" as a formula, so filed text such as
+        "=HYPERLINK(...)" would become a live formula in Excel."""
+        row = list(row)
+        texts = [i for i, v in enumerate(row) if isinstance(v, str) and len(v) > 1 and v.startswith("=")]
+        if texts and self.book.write_only:
+            from openpyxl.cell import WriteOnlyCell
+
+            for i in texts:
+                c = WriteOnlyCell(self.ws, value=row[i])
+                c.data_type = "s"
+                row[i] = c
+        self.ws.append(row)
+        if texts and not self.book.write_only:
+            r = self.ws.max_row
+            for i in texts:
+                self.ws.cell(row=r, column=i + 1).data_type = "s"
         self.rows += 1
 
     def extend(self, rows) -> None:
