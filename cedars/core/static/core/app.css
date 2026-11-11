@@ -1066,3 +1066,14 @@ table.list.factors td.num, table.list.factors th.num { padding-left: .5rem; padd
 
 /* A page a Help guide names but the reader cannot open (UI review 3, U4; the page_link tag): its name, then who it is for. */
 .who-opens { color: var(--fg-2); }
+
+/* Add a rule (rules/rule_form.html): the kind chosen first shows only its part (core/pickers.js, radios marked data-reveal); without
+   scripts both parts show, each with a note saying which kind reads it. The second to the fifth condition fold under More conditions. */
+.js .no-script-note { display: none; }
+.more-conditions { border-top: 0; padding-top: 0; }
+.more-conditions > .stack { padding-top: .6rem; }
+
+/* A data pack's Discard the draft (refdata/detail.html): folded apart from Publish, with its own reason */
+details.discard { margin-top: 1rem; }
+details.discard > summary { cursor: pointer; color: var(--link); font-weight: 600; min-height: 24px; line-height: 24px; width: max-content; max-width: 100%; }
+details.discard > p { margin: .5rem 0; }
