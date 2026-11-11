@@ -979,6 +979,72 @@ def apply_role_template(
     return TemplateResult(template, granted, sorted(held & set(template.permissions)))
 
 
+@dataclass
+class AccessResult:
+    granted: list[Grant]
+    already: list[str]  # permissions asked for that the person already held (left as they are)
+
+    @property
+    def pending(self) -> list[Grant]:
+        return [g for g in self.granted if g.status == Grant.Status.PENDING]
+
+
+@transaction.atomic
+def give_access(
+    actor: User | None,
+    user: User,
+    organisation: Organisation,
+    *,
+    permissions=(),
+    templates=(),
+    expires_at=None,
+    reason: str = "",
+) -> AccessResult:
+    """Give a person several permissions and role templates at once, with one reason (the organization page's Give access form),
+    making them a member if they are not one. The actor must be able to grant every one, or nothing is granted; permissions the person
+    already holds are left as they are. A permission a template brings records that template, and each template applied writes its
+    role_template.applied event, as apply_role_template does."""
+    templates = [RoleTemplate.objects.get(pk=t.pk) for t in templates]  # as they stand now
+    for t in templates:
+        if not t.offered_for(organisation):
+            why = "is retired" if not t.active else f"is not offered for {organisation.get_kind_display().lower()} organizations"
+            raise AccessDenied(f"The role template {t.name} {why}.")
+    membership = Membership.objects.filter(user=user, organisation=organisation, ended_at__isnull=True).first()
+    held = set(membership.grants.filter(status__in=Grant.OPEN).values_list("permission", flat=True)) if membership else set()
+    source: dict[str, RoleTemplate | None] = {}
+    for t in templates:
+        for p in t.permissions:
+            source.setdefault(p, t)
+    for p in permissions:
+        source.setdefault(p, None)
+    if not source:
+        raise AccessDenied("Choose a role or at least one permission.")
+    wanted = [p for p in source if p not in held]
+    refused = [why for p in wanted for ok, why in [can_grant(actor, user, organisation, p)] if not ok]
+    if refused:
+        raise AccessDenied(" ".join(dict.fromkeys(refused)))
+    if not wanted:
+        raise AccessDenied(f"{user.email} already has every permission chosen in {organisation.code}.")
+    granted = []
+    for p in wanted:
+        t = source[p]
+        text = reason.strip() or (f"role template {t.name}" if t else "")
+        granted.append(grant(actor, user, organisation, p, expires_at=expires_at, reason=text, role_template=t))
+    membership = granted[0].membership
+    for t in templates:
+        mine = [g.permission for g in granted if g.role_template_id == t.pk]
+        if mine:
+            audit.record(
+                "role_template.applied",
+                obj=membership,
+                after={"template": t.name, "template_id": t.pk, "granted": mine, "already_held": sorted(held & set(t.permissions))},
+                reason=reason,
+                organisation=organisation,
+                actor=actor,
+            )
+    return AccessResult(granted, sorted(held & set(source)))
+
+
 # --- access requests
 
 
@@ -1044,12 +1110,14 @@ def _tell_about_access_request(req: AccessRequest, step: str, note: str = "", gr
     who = (person.name or "").strip() or person.email
     wanted = perms.labels(req.permissions)
     key = notifications.request_key("accounts.accessrequest", req.pk, step)
-    page = f"/admin/organizations/{org.code}/#req-h"
+    page = f"/admin/organizations/{org.code}/requests/"
     if step == "requested":
         people, for_cpuc = access_deciders(org)
         body = f"{who} asked to join {org.code} with: {wanted}." + (f"\n\nTheir message: {req.message}" if req.message else "")
         if for_cpuc:
-            body += f"\n\n{org.code} has no administrator yet, so the CPUC decides: approve or decline it on {org.code}'s page."
+            body += (
+                f"\n\n{org.code} has no administrator yet, so the CPUC decides: approve or decline it on {org.code}'s Access requests page."
+            )
         notifications.tell_about_request(
             [u for u in people if u != person], f"Access requested: {who}, {org.code}", body, page, key=key, about=notifications.DECIDE
         )
@@ -1156,6 +1224,18 @@ def certify(actor: User, item: RecertificationItem) -> RecertificationItem:
     item.save()
     _change(actor, item.grant, "grant.certified", certified_by=actor, certified_at=now)
     return item
+
+
+@transaction.atomic
+def certify_all(actor: User, items) -> list[RecertificationItem]:
+    """Certify several grants of one recertification at once ("Certify all shown", "Certify all of this member's"): those not yet
+    reviewed, each recorded as certify does. Nothing is certified if any of them cannot be."""
+    out = []
+    for item in items:
+        if item.decision:
+            continue
+        out.append(certify(actor, item))
+    return out
 
 
 @transaction.atomic

@@ -123,26 +123,113 @@ administration/organisation_new:
       text: Its code, name, kind and PA type. Add.
 
 administration/organisation:
-  title: An organization
+  title: An organization's members
   guide:
-    - One organization's details, its codes (with the years each was in use), its members and their permissions, access requests waiting
-      for a decision, the yearly recertification and its API tokens.
-    - Its administrators grant and revoke permissions, approve or decline requests and certify each grant at recertification. CPUC system
-      administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an old code
-      can be merged in.
+    - One organization's members and the permissions each holds. Its other pages (Access requests, Recertification,
+      API tokens and Details) are linked under its name.
+    - Its administrators give access here; until it has one, a CPUC system administrator assigns its first administrator here.
+  how:
+    - To give access, pick a member from the list (or type the email address of someone with an account to add them), tick one or more
+      roles (each gives every permission listed beside it) or single permissions, give one reason, then select Give access.
+    - Revoke takes one permission away, with a reason; Remove member takes them out of the organization.
+    - Reinstate restores a grant suspended at recertification.
+    - CPUC system administrators assign the first administrator of an organization that has none, with Make administrator.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: Members, Access requests (with the number waiting), Recertification, API tokens and Details.
+    - target: "#give-h"
+      title: Give access
+      text: One person, several roles or permissions, one reason, one send.
+      optional: true
+    - target: "#first-admin-h"
+      title: First administrator
+      text: An organization with no administrator gets its first one from the CPUC.
+      optional: true
+    - target: "#members-h"
+      title: Members
+      text: Each member and their permissions, to revoke or remove.
+
+administration/organisation_requests:
+  title: An organization's access requests
+  guide:
+    - The requests to join this organization waiting for a decision, each with the permissions asked for and the person's message.
+    - Its administrators decide them; while it has none, the CPUC's system administrators do. A request for PII access also needs a CPUC
+      data steward's approval afterwards.
+  how:
+    - Untick any permission you will not give, add a note if you like, then Approve.
+    - Decline turns the request down; the note, if you give one, is sent to the person.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#req-h"
+      title: Access requests
+      text: Each request waiting, to approve or decline.
+
+administration/organisation_recertification:
+  title: An organization's recertification
+  guide:
+    - The yearly review of every active grant in this organization, grouped by member. Each grant is kept (certified) or removed by the due
+      date; one not reviewed by then may be suspended, as the access settings say.
+    - With none open, its administrators start one with a due date.
+  how:
+    - Remove the exceptions one by one, each with a reason.
+    - Certify all shown keeps every grant not yet reviewed; Certify all of a member's keeps that member's; Certify keeps one.
+    - With none open, choose a due date, then Start a recertification.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#recert-h"
+      title: Recertification
+      text: Whether one is open, and when it is due.
+    - target: form.certify-all
+      title: Certify all shown
+      text: Keeps every grant still to review, once the exceptions are removed.
+      optional: true
+    - target: table.recert
+      title: Each member's grants
+      text: Certify or remove each, or certify all of a member's at once.
+      optional: true
+
+administration/organisation_tokens:
+  title: An organization's API tokens
+  guide:
+    - For its administrators. The API tokens its members hold for this organization, with the modules each reaches, when it expires and
+      when it was last used.
+  how:
+    - Revoke stops a token at once; its member can make a new one from their account page.
+  see: administering
+  tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
+    - target: "#tokens-h"
+      title: API tokens
+      text: Each active token, to revoke.
+
+administration/organisation_details:
+  title: An organization's details
+  guide:
+    - Its kind and PA type, how its members sign in, whether it manages statewide allocations, and every code it has used and when.
+    - CPUC system administrators change its name, PA type and code; a renamed code keeps its history, and an organization recorded under an
+      old code can be merged in.
     - CPUC system administrators also switch how its members sign in (through the organization's own directory, or with a password and
       a second factor), and retire an organization that no longer takes part without merging it. When a member holds or waits for PII
       access, a data steward confirms a sign-in change first. A retired organization stops filing and leaves the pickers; its data and
       history stay, and it can be brought back.
   how:
-    - Grant gives a member a permission; Revoke takes one away and Remove member takes them out of the organization.
-    - Grant template gives a member every permission of a role template (such as Evaluator or Consultant) at once.
-    - Approve or Decline each access request waiting for a decision.
-    - Start a recertification, then Certify each grant to keep it or Remove it; Reinstate restores a suspended grant.
     - CPUC system administrators Save details, Rename the code, Record a former code or Merge another organization into this one.
     - CPUC system administrators change how its members sign in, or Retire it (Bring back reverses it), each with a reason.
   see: administering
   tour:
+    - target: nav.org-pages
+      title: Its pages
+      text: The organization's other pages.
     - target: "#details-h"
       title: Details
       text: Kind and PA type, and changing them.
@@ -153,31 +240,6 @@ administration/organisation:
     - target: "#codes-h"
       title: Codes
       text: The codes it has used, and when.
-      optional: true
-    - target: "#req-h"
-      title: Access requests
-      text: Requests waiting for a decision.
-      optional: true
-    - target: "#grant-h"
-      title: Grant a permission
-      text: Give a member, or someone new, a permission.
-      optional: true
-    - target: "#tpl-h"
-      title: Grant a role template
-      text: Give a member a whole role's permissions at once, such as an evaluator's or a consultant's.
-      optional: true
-    - target: "#members-h"
-      title: Members
-      text: Each member and their permissions, to revoke or remove.
-      optional: true
-    - target: "#recert-h"
-      title: Recertification
-      text: Each grant to certify or remove, by the due date.
-      optional: true
-    - target: "#tokens-h"
-      title: API tokens
-      text: Its members' tokens, to revoke.
-      optional: true
 
 administration/people:
   title: People

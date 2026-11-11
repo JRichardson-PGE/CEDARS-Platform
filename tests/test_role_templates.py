@@ -116,10 +116,11 @@ def test_the_pages(client, signed_in, make_user, cpuc_admin, pge, pge_admin, con
     signed_in(pge_admin)
     assert client.get("/admin/role-templates/").status_code == 404
     page = client.get(f"/admin/organizations/{pge.code}/").content.decode()
-    assert "Grant a role template" in page and "Test consultant" in page and "CPUC reviewer" not in page.split("Grant a role template")[1]
+    roles = page.split('id="give-roles-ticks"', 1)[1].split("</ul>", 1)[0]
+    assert "Test consultant" in roles and "CPUC reviewer" not in roles  # only the roles offered for a PA
     alex = make_user("alex@consultants.example.org", "Alex")
     r = client.post(
-        f"/admin/organizations/{pge.code}/grant-template", {"email": alex.email, "template": str(consultant.pk), "reason": "2028"}
+        f"/admin/organizations/{pge.code}/grant", {"give-person": alex.email, "give-roles": str(consultant.pk), "give-reason": "2028"}
     )
     assert r.status_code == 302
     assert service.effective_permissions(alex, pge) == set(consultant.permissions)

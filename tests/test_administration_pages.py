@@ -77,7 +77,7 @@ def test_community_account_requests_access(signed_in, make_user, pge, pge_admin)
     req = AccessRequest.objects.get(user=u)
     assert req.permissions == ["claims.read"]
     admin = signed_in(pge_admin)
-    page = admin.get(f"/admin/organizations/{pge.code}/").content.decode()
+    page = admin.get(f"/admin/organizations/{pge.code}/requests/").content.decode()
     assert "community@example.com" in page
     admin.post(f"/admin/requests/{req.pk}/decide", {"decision": "approve", "permissions": ["claims.read"]})
     assert service.effective_permissions(u, pge) == {"claims.read"}
@@ -104,7 +104,10 @@ def test_switching_organisation(signed_in, make_user, cpuc_admin, pge, pge_admin
 def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pge_admin):
     u = make_user("analyst@pge.example.org")
     c = signed_in(pge_admin)
-    c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": "claims.submit", "reason": "new analyst"})
+    c.post(
+        f"/admin/organizations/{pge.code}/grant",
+        {"give-person": u.email, "give-permissions": "claims.submit", "give-reason": "new analyst"},
+    )
     g = Grant.objects.get(membership__user=u, permission="claims.submit")
     assert g.status == "active" and g.grant_reason == "new analyst"
     r = c.post(f"/admin/grants/{g.pk}/revoke", {"reason": "moved teams"}, follow=True)
@@ -115,9 +118,10 @@ def test_admin_grants_and_revokes_through_the_page(signed_in, make_user, pge, pg
 
 def test_grant_for_an_unknown_email_explains(signed_in, pge, pge_admin):
     r = signed_in(pge_admin).post(
-        f"/admin/organizations/{pge.code}/grant", {"email": "nobody@pge.example.org", "permission": "claims.read"}, follow=True
+        f"/admin/organizations/{pge.code}/grant", {"give-person": "nobody@pge.example.org", "give-permissions": "claims.read"}, follow=True
     )
-    assert "There is no account for nobody@pge.example.org" in r.content.decode()
+    assert "No member is “nobody@pge.example.org”." in r.content.decode()
+    assert "To add someone new, type the email address of their account" in r.content.decode()
 
 
 def test_other_organisations_are_hidden(signed_in, make_user, cpuc_admin, pge, pge_admin):
@@ -131,17 +135,17 @@ def test_cpuc_assigns_a_first_admin_through_the_page(signed_in, make_user, cpuc_
     c = signed_in(cpuc_admin)
     page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
     assert "Assign the first administrator" in page
-    c.post(f"/admin/organizations/{pge.code}/grant", {"email": u.email, "permission": perms.ORG_ADMIN})
+    c.post(f"/admin/organizations/{pge.code}/grant", {"give-person": u.email, "give-permissions": perms.ORG_ADMIN})
     assert service.is_org_admin(u, pge)
     page = c.get(f"/admin/organizations/{pge.code}/").content.decode()
-    assert "Assign the first administrator" not in page and 'id="grant-h"' not in page
+    assert "Assign the first administrator" not in page and 'id="give-h"' not in page  # its own administrators give access now
 
 
 def test_recertification_through_the_page(signed_in, make_user, pge, pge_admin):
     u = make_user("a@pge.example.org")
     g = service.grant(pge_admin, u, pge, "claims.read")
     c = signed_in(pge_admin)
-    c.post(f"/admin/organizations/{pge.code}/recertification", {"due": "2099-01-31"})
+    c.post(f"/admin/organizations/{pge.code}/recertification/start", {"due": "2099-01-31"})
     item = g.recertification_items.get()
     c.post(f"/admin/recertification/{item.pk}", {"decision": "certify"})
     g.refresh_from_db()
