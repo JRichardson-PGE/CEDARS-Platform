@@ -713,6 +713,9 @@ def _split_deletes(data: bytes, filename: str, table_of) -> tuple[bytes | None, 
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr(f"{core_uploads.table_for(stem, table_of) or stem}.csv", data)
         return out.getvalue(), f"{stem}.zip", []
+    problem = core_uploads.too_large_unzipped(filename, data)
+    if problem:
+        raise CorrectionRefused(problem)
     if lower.endswith(".xlsx"):
         from openpyxl import load_workbook
 

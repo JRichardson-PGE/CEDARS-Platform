@@ -8,6 +8,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from cedars.core import health
@@ -34,6 +35,13 @@ from . import forms
 
 def _end_of_day(d):
     return timezone.make_aware(datetime.combine(d, time(23, 59, 59))) if d else None
+
+
+def _next(request, default):
+    """Where a form's `next` field sends the browser back to: a page on this site, else the default."""
+    nxt = request.POST.get("next", "")
+    ok = url_has_allowed_host_and_scheme(nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure())
+    return nxt if nxt and ok else default
 
 
 def _done(request, ok_message, to):
@@ -164,8 +172,7 @@ def switch_organisation(request):
     else:
         request.session[ORG_SESSION_KEY] = org.pk
         messages.success(request, f"You are now acting for {org.code}.")
-    nxt = request.POST.get("next", "")
-    return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else "administration:account")
+    return redirect(_next(request, "administration:account"))
 
 
 @login_required
@@ -497,7 +504,7 @@ def grant_template(request, code):
 @require_POST
 def revoke(request, pk):
     g = get_object_or_404(Grant.objects.select_related("membership__organisation", "membership__user"), pk=pk)
-    back = request.POST.get("next") or f"/admin/organizations/{g.organisation.code}/"
+    back = _next(request, f"/admin/organizations/{g.organisation.code}/")
     form = forms.ReasonForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Give a reason for revoking the permission.")

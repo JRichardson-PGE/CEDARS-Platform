@@ -37,7 +37,6 @@ ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -198,6 +197,8 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {"user": env("CEDARS_API_RATE_USER", "120/minute"), "anon": env("CEDARS_API_RATE_ANON", "30/minute")},
     "NUM_PROXIES": int(env("CEDARS_NUM_PROXIES", "0")),  # proxies in front (prod: 1, the load balancer); 0 = the socket address
 }
+# allauth's sign-in, sign-up and password reset rate limits read the caller's address the same way.
+ALLAUTH_TRUSTED_PROXY_COUNT = REST_FRAMEWORK["NUM_PROXIES"]
 SPECTACULAR_SETTINGS = {
     "TITLE": "CEDARS API",
     "DESCRIPTION": (
@@ -319,6 +320,9 @@ DOCUMENTS_MAX_FILE_MB = int(env("DOCUMENTS_MAX_FILE_MB", "200"))
 # Monthly reports, or as a calculation job (.zip), and how many files one filing upload may hold.
 CEDARS_UPLOAD_MAX_MB = int(env("CEDARS_UPLOAD_MAX_MB", "150"))
 CEDARS_UPLOAD_MAX_FILES = int(env("CEDARS_UPLOAD_MAX_FILES", "20"))
+# What an uploaded .zip or Excel workbook may unpack to, all its files together, checked before any of it is unpacked (a small .zip
+# can hold a very large file). The same as the calculation engine's own limit on a job's unzipped files.
+CEDARS_UPLOAD_MAX_UNZIPPED_MB = int(env("CEDARS_UPLOAD_MAX_UNZIPPED_MB", "1024"))
 IMPACT_PROFILES_CUSTOM_MAX_MB = int(env("IMPACT_PROFILES_CUSTOM_MAX_MB", "20"))  # a PA's custom impact profile file
 CEDARS_COMMENT_MAX_CHARS = int(env("CEDARS_COMMENT_MAX_CHARS", "4000"))  # one comment on a filing version
 # Correcting a filing's records in place: the most records one partial correction may change (a larger one is a new upload),
