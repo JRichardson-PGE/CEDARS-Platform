@@ -149,3 +149,38 @@ def test_the_zip_stream_round_trips_large_and_stored_entries():
     z = zipfile.ZipFile(io.BytesIO(b"".join(pieces)))
     assert z.read("a.csv") == big and z.read("b.parquet") == b"PAR1" and z.read("empty.txt") == b""
     assert z.getinfo("b.parquet").compress_type == zipfile.ZIP_STORED and z.getinfo("a.csv").compress_type == zipfile.ZIP_DEFLATED
+
+
+# --- UI review 3 (U19): the files grouped as Results, Checks and Records, each with what it is; Rerun at the top beside Results
+
+
+def test_files_are_grouped_with_a_line_on_each():
+    from cedars.modules.calculations import run_files
+
+    names = ["key_metrics_2026.csv", "log.txt", "measure_level_2026.csv", "portfolio_summary_2026.csv", "preflight.json",
+             "preflight.txt", "preflight_findings.xlsx", "receipt.json", "run_settings.json", "field_definitions_2026.csv",
+             "run_acc2024/measure_level_2024.csv", "cet_comparison_summary_2026.csv", "something_new.csv"]  # fmt: skip
+    groups = {g.key: g for g in run_files.grouped([{"name": n, "bytes": 1, "sha256": ""} for n in names])}
+    assert list(groups) == ["results", "checks", "records", "other"]
+    results = [f["name"] for f in groups["results"].files]
+    assert results[:3] == ["measure_level_2026.csv", "portfolio_summary_2026.csv", "key_metrics_2026.csv"]  # the main ones first
+    assert results[-1] == "run_acc2024/measure_level_2024.csv" and groups["results"].files[-1]["folder"] == "run_acc2024"
+    assert [f["name"] for f in groups["checks"].files] == ["preflight_findings.xlsx", "preflight.txt", "preflight.json"]
+    assert [f["name"] for f in groups["records"].files] == ["receipt.json", "run_settings.json", "log.txt"]
+    assert [f["name"] for f in groups["other"].files] == ["something_new.csv"] and groups["other"].files[0]["what"] == ""
+    assert all(f["what"] for k in ("results", "checks", "records") for f in groups[k].files)
+    assert run_files.describe("cet_comparison_measures_2026.csv")[1].startswith("Each measure's outputs beside the CET run's")
+
+
+def test_the_run_page_groups_its_files_and_offers_rerun_at_the_top(tmp_path, signed_in, analyst, pge, release):  # noqa: F811
+    run = ended(service.create_run(analyst, pge, request(release), job_zip(tmp_path)), Run.Status.SUCCEEDED)
+    for n in ("measure_level_2026.csv", "preflight.txt", "receipt.json"):
+        put(run, n, b"x")
+    page = signed_in(analyst).get(f"/calculations/runs/{run.pk}/").content.decode()
+    files = page.split('<h2 id="files-h">Files</h2>', 1)[1].split("</section>", 1)[0]
+    assert files.index(">Results</h3>") < files.index("measure_level_2026.csv") < files.index(">Checks</h3>")
+    assert files.index(">Checks</h3>") < files.index("preflight.txt") < files.index(">Records</h3>") < files.index("receipt.json")
+    assert "One row per measure: its inputs, how it was priced, and every output." in files and "Other files" not in files
+    head = page.split('<div class="head-row">', 1)[1].split('<section class="card"', 1)[0]
+    assert ">Results</a>" in head and ">Rerun with different settings</a>" in head
+    assert head.index(">Results</a>") < head.index(">Rerun with different settings</a>")
