@@ -20,6 +20,7 @@ class SubmissionsConfig(AppConfig):
         # each user's queue: what waits on them in the filings
         my_queue.register("reopen", "Correction requests to decide", queue.reopen_requests, action="Decide", order=10)
         my_queue.register("confirm", "Filings ready to confirm", queue.confirmations, action="Review and confirm", order=50)
+        my_queue.register("correct", "Filings reopened for a correction", queue.corrections, action="Correct", order=55)
         my_queue.register("reply", "Comments waiting for your reply", queue.replies, action="Read and reply", order=70)
 
         from django.conf import settings

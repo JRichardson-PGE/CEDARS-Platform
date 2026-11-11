@@ -909,7 +909,9 @@ stateDiagram-v2
 - **Imported versions** (legacy CEDARS years) are published on creation, never validated, priced, un-confirmed, reopened or corrected.
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
-- **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
+- **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user,
+  including a filing reopened for a correction (`submissions.queue.corrections`) until it is priced and moves to the confirmations.
+  Declining a correction request needs a reason, which the filer is told.
 - **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
   trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
   filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the
@@ -1315,7 +1317,14 @@ flowchart TD
   sign-in assurance and request id from the request context. Every service that changes a record writes one; the table is append-only.
 - **Notifications**: a `post_save` receiver on `AuditEvent` defers delivery until commit, so a rolled-back change notifies nobody; one
   message per user per event, narrowed by the PAs they follow, widened by the programs they follow; email per subscription; deadline
-  reminders; module messages through `notify`.
+  reminders; module messages through `notify`. **Requests are told directly** (`tell_about_request`, after commit): a correction request
+  (submissions), a program change or correction request (registry) and an access request (accounts) reach the people who may decide it
+  (the module's CPUC approvers and their delegates for today, `submissions.deciders`; an organization's administrators, or the CPUC
+  system administrators when it has none, `accounts.access_deciders`), its decision reaches the person who asked, and a withdrawal
+  reaches those told of the request (`told(key)`). Each person's `Preference.own_requests` / `requests_to_decide` (off, the page, or
+  the page and email; email by default) says how, on Notification settings' Requests section. The notice carries
+  `request_key(object, pk, step)`, the key the same audit event's subscription delivery uses, so a person who also subscribed is told
+  once.
 - **Retention** (decision M): a period per record class (`RetentionPolicy`), legal holds (`LegalHold`), and the daily purge, which
   calls each registered purger and logs `PurgeRun`s.
 - **Reference data**: packs registered as drafts, published once their required tie-outs pass (the checks in force, set on a page;

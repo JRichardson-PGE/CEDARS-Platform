@@ -44,8 +44,20 @@ def all_program_events() -> list[str]:
     return list(PROGRAM_EVENTS)
 
 
+class RequestNotice(models.TextChoices):
+    """How a person hears about requests: their own (decided), and the ones waiting on their decision (made or withdrawn)."""
+
+    OFF = "off", "Off"
+    IN_APP = "in_app", "On the notifications page"
+    EMAIL = "email", "On the notifications page and by email"
+
+
 class Preference(models.Model):
-    """Per-user settings beside the subscriptions: messages about the user's own runs and access, and what the user follows.
+    """Per-user settings beside the subscriptions: messages about the user's own runs, access and requests, and what the user follows.
+
+    Requests (to correct a filing after its due date, to change or correct a program, to join an organization) are told directly,
+    on by default: own_requests says how the person who asked hears the decision, requests_to_decide how the people who may decide
+    hear of a new request and of one withdrawn before they decided.
 
     The PAs followed (pa_scope: every PA, the ones chosen, or none) narrow each subscribed event that concerns a PA. The programs
     followed add to the subscriptions: whatever the PA choice, the user hears of the program_events that concern a program they follow
@@ -63,6 +75,15 @@ class Preference(models.Model):
     programs = models.ManyToManyField("registry.Program", blank=True, related_name="followers", help_text="The programs followed")
     program_events = models.JSONField(default=all_program_events, blank=True, help_text="What the programs' followers hear about")
     program_channel = models.CharField(max_length=10, choices=Subscription.Channel.choices, default=Subscription.Channel.EMAIL)
+    own_requests = models.CharField(
+        max_length=10, choices=RequestNotice.choices, default=RequestNotice.EMAIL, help_text="How I hear the decision on a request I made"
+    )
+    requests_to_decide = models.CharField(
+        max_length=10,
+        choices=RequestNotice.choices,
+        default=RequestNotice.EMAIL,
+        help_text="How I hear of a request waiting on my decision, and of one withdrawn before I decided",
+    )
 
     def __str__(self):
         return f"{self.user} notification preference"
