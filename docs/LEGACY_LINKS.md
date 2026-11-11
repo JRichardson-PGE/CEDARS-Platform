@@ -3,7 +3,7 @@
 Commission decisions, EM&V plans and reports cite PDA and PSR addresses (D.23-04-035 cites PDA document links). After cutover each old
 address leads to the same document, file or study here, for as long as CPUC Energy Division keeps the energydataweb.com domains.
 
-The platform answers the old addresses under two prefixes, keeping the rest of the address as it was, so the old domains need only a
+The platform answers the old addresses under three prefixes, keeping the rest of the address as it was, so the old domains need only a
 fixed rewrite:
 
 | Old address | Here | Leads to |
@@ -21,7 +21,7 @@ fixed rewrite:
 | EM&V site `/cpucFiles/pdaHomeDocs/<section>/<file>` | `/documents/edw/cpucFiles/pdaHomeDocs/...` | the home-page file, once migrated (below) |
 | any other EM&V site page | `/documents/edw/...` | the library's EM&V documents |
 
-The prefixes are three. The "EM&V site" is the 2006-2013 one at www.energydataweb.com/cpuc, the PDA's predecessor: from 2017 its search
+The "EM&V site" is the 2006-2013 one at www.energydataweb.com/cpuc, the PDA's predecessor: from 2017 its search
 page sent visitors to the PDA, which kept its deliverable ids and file names, so its documents are the PDA's and need no import of their
 own. It ran on IIS, so its addresses are matched in any case.
 

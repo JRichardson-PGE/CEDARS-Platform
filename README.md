@@ -4,8 +4,8 @@ The replacement for CEDARS (cedars.cpuc.ca.gov), the CPUC system California's pr
 budgets, claims and monthly reports. One Django application (a modular monolith) on the CPUC's AWS account, with the ReCET engine as its
 calculation service.
 
-The design is the CEDARS Replacement Architecture (CEDARS-Research `deliverables/cedars_platform/architecture/`) and `docs/ARCHITECTURE.md` maps that design onto this code and tracks what is built;
 `docs/ARCHITECTURE_AS_BUILT.md` describes the platform as built, with diagrams of its context, components, data model and main flows.
+`docs/ARCHITECTURE.md` maps the CEDARS Replacement Architecture (the design) onto this code and tracks what is built.
 
 ## Running it
 
@@ -38,7 +38,8 @@ makes a CPUC administrator: system administrator, data steward and every permiss
 
 ## Calculations locally
 
-Runs are priced by the ReCET worker (`recet worker run`), which the platform starts and never imports. With the engine installed
+Runs are priced by the ReCET worker (`recet worker run`), which the platform starts as its own process. (The Results, Compare, Edit inputs and
+Walk through a measure pages do call the engine's code, installed unchanged in the web image: `engine/README.md`.) With the engine installed
 (`engine/README.md`), add a release on the Engine releases page (CPUC system administrator), start a run on New run, and price queued
 runs with:
 

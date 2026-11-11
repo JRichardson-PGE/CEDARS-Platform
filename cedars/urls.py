@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.urls import include, path
 
 urlpatterns = [
@@ -31,5 +30,4 @@ urlpatterns = [
     path("api/v1/data/", include("cedars.modules.data.api_urls")),
     path("api/v1/", include("cedars.core.api_urls")),
     path("calculations/", include("cedars.modules.calculations.urls")),
-    path("django-admin/", admin.site.urls),
 ]

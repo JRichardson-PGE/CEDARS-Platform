@@ -224,7 +224,7 @@ SDG&E 7.36%, the same in every built-in ACC); the societal rate `DiscountRateAnn
 TRC, PAC and RIM as usual and leaves every SCT Base / SCT High column (`*_SB`, `*_SH`, `SCB*`, `SCH*`) blank, with a note in the log and `run_settings.json`. The same
 applies to any supplied ACC file without SCT rows.
 
-**C3.5 A different ACC version per measure (BRD BR-06.5).** A measure whose optional `ACCVersion` column names a version other than the run's is priced on that
+**C3.5 A different ACC version per measure.** A measure whose optional `ACCVersion` column names a version other than the run's is priced on that
 version: its electric and gas avoided costs, its run parameters (discount rates) and E3 tables (rate schedules, emissions), exactly as a run on that version would price
 it. The measure-level values of each version's measures are computed under that version, then joined, and the program costs (C11) are shared over all the job's measures
 and discounted at the rates of the run's own version. The societal tests are left blank for the whole job if any version in it is TRC only.
@@ -271,7 +271,27 @@ forecast year's own 1 January weekday (although the ACC data do not follow those
 **C4.3 Gas monthly shape.** `AC_Gas_Impact_Profile` names a profile of 12 monthly shares summing to 1 (`Annual`, `Winter Only`, `Summer Only`, and the three `...-FuelSub-ToElec` versions ship with the package;
 a supplied profile with the same name replaces it). A gas measure whose profile name matches nothing is not priced (`GasPricingStatus = UNPRICED ...`).
 
-**C4.5 Already-scaled profiles and load shifting (BRD BR-06.6).** A supplied profile with `profile_basis = kwh_per_unit` holds the kWh saved per unit in each hour
+**C4.4 The System climate zone.** A measure with `AC_Climate_Zone = System` is priced exactly as if its zone were the profile's **System zone**: the real climate zone, out of
+the zones the profile has, with the **lowest total electric avoided cost over the full length of the ACC data**:
+
+```text
+total(z)    = SUM over every year y in the ACC file, SUM over hours i:  shape_z,aligned(i) * AC_TRC(PA, z, y, i)        $ per annual kWh, undiscounted
+System zone = the zone z with the lowest total(z); a tie goes to the first zone in the order 1, 2, 3A, 3B, 4 ... 16
+```
+
+`shape_z,aligned` is the profile's own shape for zone z aligned as in C4.2, and `AC_TRC(PA, z, ...)` is the TRC total avoided cost found by the rules of C3.1 (so SCE CZ5 and
+SDG&E CZ6/CZ8 are options, priced on their stand-in zones, and SCG's options are the zones its routing reaches). A zone the ACC cannot price is not an option. The TRC cost
+test decides the zone; the same zone is then used for the shape, every cost test, every component, water energy and the hourly CO2 (NOx and PM10 still use the literal
+`System` key of the Emissions table, as CET does). For a supplied profile the options are the zones it gives; one given only for `ALL` (or `System`) uses that shape in every zone
+the measure's `PA` has prices for, so the prices alone decide.
+
+The choice depends only on the profile and the ACC file, so it is **cataloged**: the package ships the System zone of every library profile under each built-in ACC
+(`data/system_zones/system_zones.csv.gz`, with every option's total; rebuild with `recet data build-system-zones`). A run uses the catalog for a library profile
+priced on a built-in ACC file that matches the one the catalog was built from, and calculates the choice otherwise (a supplied profile or ACC file). Each measure reports
+the zone in `SystemClimateZone` and where it came from in `SystemZoneSource`. If no zone can be priced the measure falls back to the profile's `System` rows and the
+blended prices of C3.1 item 3.
+
+**C4.5 Already-scaled profiles and load shifting.** A supplied profile with `profile_basis = kwh_per_unit` holds the kWh saved per unit in each hour
 (negative = added load) and is priced as given; it is not rescaled. For such a measure
 
 ```text
@@ -296,26 +316,6 @@ annual-rate bill impacts are 0. (CET nets annual savings before shaping, so it v
   The phasing of C2 is linear in the two quantities, so with one shape the result is unchanged; the boundary quarter's split is kept. Electric benefits and supply costs (all
   three tests), emissions and the combined 8,760 output use the parts. If only one of the two shapes is found, the measure is `PARTLY PRICED`.
 * `AC_Elec_Impact_Profile_Water`: the water energy (C5.3) is spread over this shape for both baselines.
-
-**C4.4 The System climate zone.** A measure with `AC_Climate_Zone = System` is priced exactly as if its zone were the profile's **System zone**: the real climate zone, out of
-the zones the profile has, with the **lowest total electric avoided cost over the full length of the ACC data**:
-
-```text
-total(z)    = SUM over every year y in the ACC file, SUM over hours i:  shape_z,aligned(i) * AC_TRC(PA, z, y, i)        $ per annual kWh, undiscounted
-System zone = the zone z with the lowest total(z); a tie goes to the first zone in the order 1, 2, 3A, 3B, 4 ... 16
-```
-
-`shape_z,aligned` is the profile's own shape for zone z aligned as in C4.2, and `AC_TRC(PA, z, ...)` is the TRC total avoided cost found by the rules of C3.1 (so SCE CZ5 and
-SDG&E CZ6/CZ8 are options, priced on their stand-in zones, and SCG's options are the zones its routing reaches). A zone the ACC cannot price is not an option. The TRC cost
-test decides the zone; the same zone is then used for the shape, every cost test, every component, water energy and the hourly CO2 (NOx and PM10 still use the literal
-`System` key of the Emissions table, as CET does). For a supplied profile the options are the zones it gives; one given only for `ALL` (or `System`) uses that shape in every zone
-the measure's `PA` has prices for, so the prices alone decide.
-
-The choice depends only on the profile and the ACC file, so it is **cataloged**: the package ships the System zone of every library profile under each built-in ACC
-(`data/system_zones/system_zones.csv.gz`, with every option's total; rebuild with `recet data build-system-zones`). A run uses the catalog for a library profile
-priced on a built-in ACC file that matches the one the catalog was built from, and calculates the choice otherwise (a supplied profile or ACC file). Each measure reports
-the zone in `SystemClimateZone` and where it came from in `SystemZoneSource`. If no zone can be priced the measure falls back to the profile's `System` rows and the
-blended prices of C3.1 item 3.
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -825,10 +825,10 @@ weight_m(Y) = overlap( [Y, Y+1), 1st-baseline period ) * S1e + overlap( [Y, Y+1)
 ```
 
 `S1e`, `S2e` are `AC_Net_kWh_ScaledProfile_*_Baseline` (net, with IR and RR, without market effects). Each measure's 8,760 profile (supplied or library) is aligned to the ACC's weekdays (C4.2), and the `datetime` column labels the hours on the ACC's calendar (2018 or 2020); a measure with no shape is left out and listed in `portfolio_8760_unshaped_*`. Positive = savings, negative = added load. `net_kwh_<Y>` sums all IOUs, `net_kwh_<Y>_<PA>` by
-territory and `net_kwh_<Y>_CZ<zone>` by climate zone (BRD BR-06.13); `portfolio_8760_peaks_*` gives each one's peak savings hour, largest added load and kWh in the
+territory and `net_kwh_<Y>_CZ<zone>` by climate zone; `portfolio_8760_peaks_*` gives each one's peak savings hour, largest added load and kWh in the
 portfolio's peak hour (OUTPUT_FIELDS 2.4b).
 
-**C16.3 Portfolio summary.** `portfolio_summary_*` has one row for all measures, one per `IOU_AC_Territory`, one per `CreditedPA`, one per program segment (`Prg_ProgramSegment`, from the program metadata) and one per program year (`Used_Year`, BRD BR-04.1), with the sum of each of: `ElecBen`, `GasBen`, `WaterEnergyBen`, `OtherBen`, `ElecSupplyCost`, `GasSupplyCost`,
+**C16.3 Portfolio summary.** `portfolio_summary_*` has one row for all measures, one per `IOU_AC_Territory`, one per `CreditedPA`, one per program segment (`Prg_ProgramSegment`, from the program metadata) and one per program year (`Used_Year`), with the sum of each of: `ElecBen`, `GasBen`, `WaterEnergyBen`, `OtherBen`, `ElecSupplyCost`, `GasSupplyCost`,
 `WaterEnergyCost`, `TotalSystemBenefit`, `TRCBen`, `PACBen`, `RIMBen`, `SCBBen`, `SCHBen`, `TRCCost`, `PACCost`, `RIMCost`, `SCBCost`, `SCHCost`, `TRCCostNoAdmin`, `PACCostNoAdmin`, `WeightedProgramCost`, `LifecycleBillReducElec`, `LifecycleBillReducGas`, `PCTBen`, `PCTCost`, `FirstYearNetElecCO2`, `FirstYearNetGasCO2`, and portfolio ratios on CET's receipt definition (plus `PCT_ratio = sum(PCTBen) / sum(PCTCost)`):
 
 ```text
@@ -894,7 +894,7 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 10. `DiscountedSavingsGross...` on early-replacement measures (`RUL_Yrs` > 0): ReCET's is the net formula without NTG (C19.5). CET's gross kWh counts one 2nd-baseline year too many
    (`Raf ^ -(EUL - RUL)` where its net version has `- 1`) and its gross therms leave the 2nd baseline undiscounted (a misplaced bracket), so CET's gross and net disagree even at NTG = 1.
    Single-baseline measures match CET.
-11. **PrgIDs that do not line up between `Measure.csv` and `ProgramCost.csv`** do not stop the run (BRD BR-06.16, 0.1.59). CET stops the job on either kind. A measure whose program
+11. **PrgIDs that do not line up between `Measure.csv` and `ProgramCost.csv`** do not stop the run (0.1.59). CET stops the job on either kind. A measure whose program
    has no `ProgramCost.csv` row is priced with no program costs (C11: its share is of a program total of 0), and a `ProgramCost.csv` row whose program has no measures is charged to
    none; preflight warns about both (`measures_without_program_costs`, `program_costs_without_measures`, with the costs left out). A job whose PrgIDs all line up gives CET's results.
 
@@ -913,7 +913,7 @@ repository, which runs each year on the 2024 ACC with its claim year as First Ye
 * Emissions beyond the last ACC year are not counted (C14.1), and NOx/PM10 come from the Emissions table (CET's), which covers only part of the keys.
 * Input columns that are read but not used: `RateScheduleElec`, `RateScheduleGas` (rate schedules always come from `PA` and sector), and every descriptive column (INPUT_FIELDS.md lists them).
 * Every CET measure-level output column is produced (2026-10-23) except `JobID` (CET's job number) and `PA`, which in CET's output is the measure's `IOU_AC_Territory` (echoed with the
-  inputs). Whether the levelized `Lev...` columns are still needed is RAID decision D9 in the replacement BRD.
+  inputs).
 
 ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -1083,7 +1083,7 @@ on the 2024 ACC prices on the corrected tables. 21.0's backup lists a Version 20
 backup's tables for it are an unfinished load (Version labels `2020`, `2016`, `PG&E`). Neither Version is offered (`Release.not_offered`). Statewide programs: CEDARS does not pass statewide program data to CET (PA `SW` has no
 E3Settings row), and statewide allocations began in 2022 (Jake, 2026-10-29); a replica prices the PA records it is given, as RunCET does. A CEDARS upload's Measure.csv has no PA column: a replica run gives each record its IOU_AC_Territory as its PA, whatever its program's PA (the program's PA only when the territory is blank; `cet_versions/job.cet_inputs`), and every ProgramCost row whose PA has no settings at the run's Version (no `E3Settings` row: `job.settings_pas`) PA SCE (`job.cet_programs`), so a PA given its own discount rates in a release's `E3Settings` is costed on them (Jake, 2026-10-29). On CET 25.1's Versions 2024 to 2027 the PAs with settings are the IOUs (and PAC); on Versions up to 2022 the CCAs (MCE, BAY, SCR, LCE, TCR, RCEA, SJCE, ...) have their own. CEDARS passes non-IOU program costs (statewide, CCA, REN) to CET as SCE's, SCE having historically funded most statewide programs, whatever the program's lead (Jake, 2026-10-29; CET_UI job 122738: 35 records under MCE, BAY, SCR, SDRN, SW and PGE programs reached CET with their territories as PA, and every non-IOU ProgramCost row as SCE). Checked against the published CET 25.1 (CET_UI jobs 122714 and 122716, 2024 ACC, First Year 2028, 10,000 records each, 8,927 statewide in 122714): the replica on the raw uploads equals CET's outputs in every one of the 180 columns CET exports, to 1e-9. A job already in CET's input form (a PA column) is priced as given.
 
-**Engine.** A run's calculation engine is ReCET's own (the default) or one of these replicas (D13, BR-06.4): `RunConfig.engine` "cet-<release>",
+**Engine.** A run's calculation engine is ReCET's own (the default) or one of these replicas: `RunConfig.engine` "cet-<release>",
 `recet run --engine cet-24.3`, New run's **Calculation engine** (`cet_versions/job.py`). A replica run goes through the ordinary run path and writes the
 release's four tables plus a measure-level file in ReCET's layout (the input columns, then the Saved* columns under ReCET's names, then the program
 columns), so the Results and Compare pages read it and any two engines can be compared. `run_settings.json` records the engine (key, label, release,
@@ -1141,7 +1141,7 @@ CET_ID to CET and are priced together, in a last part.
 ## C21 A true-up priced against its parent's profile
 
 A NMEC true-up adjusts an earlier claim (its parent) to measured savings, and the measurement often changes the load shape: the parent was priced on an
-estimated 8,760 and the true-up has a metered one. BRD BR-05.6 asks that the difference from the original profile be priced. Two optional ReCET Measure
+estimated 8,760 and the true-up has a metered one. The difference from the original profile should be priced. Two optional ReCET Measure
 columns do it (INPUT_FIELDS 1.3):
 
 * `AC_Elec_Impact_Profile_Parent`: the parent's electric profile. Blank = the record has no parent and nothing below applies to it.
@@ -1150,7 +1150,7 @@ columns do it (INPUT_FIELDS 1.3):
 A record that names a parent is priced twice: as filed (every output column, unchanged), and as the same record filed with the parent's profiles in
 `AC_Elec_Impact_Profile` and `AC_Elec_Impact_Profile_2nd_Baseline`, the same ACC (its ACCVersion or the run's), the same claim quarter, life, NTG, rates,
 quantities and First Year. A blank `AC_Elec_Impact_Profile_Water` follows the profile in force, so the water energy is priced on the parent's profile in
-the second pricing too. When a profile is a kWh-per-unit profile (C4, BR-06.6) its own annual kWh is the quantity, in either pricing, exactly as a record
+the second pricing too. When a profile is a kWh-per-unit profile (C4) its own annual kWh is the quantity, in either pricing, exactly as a record
 filed on it would be priced (`run_poc.apply_scaled_profiles`). For each column X of the list below
 
     XIncremental = X (as filed) - X (on the parent's profiles)                  (ElecBenIncremental, ElecBenIncremental_SB, ...)
