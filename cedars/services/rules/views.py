@@ -8,7 +8,6 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from cedars.core import uploads
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
@@ -160,7 +159,7 @@ def check(request):
     """The pre-upload checker: the rule-set step of a module's validation, run on a file before it is filed, against the
     version in force or any other published one (rules.precheck: the same code the upload runs). Nothing uploaded is kept."""
     choices = _check_choices()
-    ctx = {"choices": choices, "max_mb": uploads.max_mb()}
+    ctx = {"choices": choices, "max_mb": precheck.max_mb()}
     if request.method == "POST":
         rs = RuleSet.objects.filter(pk=request.POST.get("rule_set") or 0, status=RuleSet.Status.PUBLISHED).first()
         upload = request.FILES.get("file")
@@ -169,9 +168,9 @@ def check(request):
         if rs is None or upload is None or table not in precheck.TABLES or (year and not year.isdigit()):
             messages.error(request, "Choose the rules, the table and a file.")
             return redirect("rules:check")
-        problem = uploads.too_large(upload.name, upload.size)
+        problem = precheck.too_large(upload.name, upload.size)
         if problem:
-            messages.error(request, f"{problem} Check the table in parts.")
+            messages.error(request, problem)
             return redirect("rules:check")
         try:
             result = precheck.check(None, table, upload.read(), rule_set=rs, filing_year=int(year) if year else None)

@@ -91,7 +91,7 @@ Everything runs from one image (the `Dockerfile`); a process is the web server o
 
 | Process | Command | What it does | Where it runs |
 | --- | --- | --- | --- |
-| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks, Edit inputs, Results; queues runs and jobs; refreshes stale front-page cards on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
+| Web | `gunicorn cedars.wsgi:application` (3 workers in the image) | Pages, API, uploads, module checks, Edit inputs, Results; queues runs and jobs; rereads the front page's stale claims rows on a thread after the response | ECS service behind the load balancer (AWS); `web` service (Compose) |
 | Calculations worker, local backend | `manage.py calculations_worker [--lane small\|large] [--once]` | Claims queued runs from PostgreSQL (`SELECT ... FOR UPDATE SKIP LOCKED`, small lane first), runs `recet worker run`, copies progress, records the receipt; heartbeats as a `Worker` row | Development, sandbox and a single server |
 | Calculations on AWS Batch | `recet worker run <spec URI>` in the release's job definition | The same worker, as a Batch job on the small-runs or large-runs queue | AWS Batch on Fargate |
 | Calculations sync | `manage.py calculations_sync --loop --sleep 60` | Copies Batch jobs' `progress.json` and `receipt.json` into their runs; fails jobs Batch ended without a receipt | Always-on ECS service (`jobs.tf`) |
@@ -191,9 +191,10 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `CEDARS_BATCH_QUEUE_SMALL`, `CEDARS_BATCH_QUEUE_LARGE`, `CEDARS_BATCH_JOB_DEFINITION` | blank | The Batch queues and the job definition a release names none of |
 | `CALCULATIONS_SMALL_RUN_RECORDS`, `CALCULATIONS_MAX_RECORDS` | 10,000; 2,000,000 | The small-runs lane's size; the largest job accepted |
 | `CALCULATIONS_RESULTS_CACHE`, `DATA_CACHE` | under `var/cache` | Local copies of run group sums and of publication snapshots |
-| `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | Stale front-page cards are remade on a thread after the response |
+| `FRONT_PAGE_REFRESH_IN_BACKGROUND` | on | The front page's stale claims rows are reread on a thread after the response |
 | `IMPACT_PROFILES_INLINE_JOBS`, `DATA_DOWNLOAD_INLINE_JOBS` | off (on in dev) | Run queued jobs in the request instead of a worker |
 | `ETRM_DATABASE_URL`, `ETRM_SYNC_RETRY_MINUTES` | blank; 10, 30 | The eTRM source and the nightly sync's retries |
+| `IMPACT_PROFILE_TERRITORIES`, `LOAD_SHAPE_FIRST_START` | PGE, SCE, SCG, SDGE; 2027-01-01 | First-run defaults only: CPUC administrators change both on Impact profiles' Settings page (`impact_profiles/policy.py`, `LibrarySettings`, one row per change) |
 | `CEDARS_REQUIRE_MFA` | on (only dev may turn it off) | Every account needs a second factor |
 | `CEDARS_API_RATE_USER`, `CEDARS_API_RATE_ANON`, `CEDARS_API_TOKEN_MAX_DAYS` | 120/min, 30/min, 365 | API throttles and token life |
 | `CEDARS_NUM_PROXIES` | 0 (prod: 1) | Proxies in front; the API throttles and the sign-in rate limits take the caller's address from the entry the load balancer added to `X-Forwarded-For` |
@@ -201,7 +202,11 @@ never from files: the database URLs, storage, the calculation backend, limits an
 | `HEALTH_*` | see `base.py` | Thresholds of the job and system health checks |
 
 Every limit people meet (upload size and files, run records, Edit inputs rows, download rows, API rates, comment length ...) is such a
-setting, listed by `cedars/services/releases/limits.py` on the public Limits page.
+setting, listed by `cedars/services/releases/limits.py` on the public Limits page. A few are limits the CPUC sets without a release
+(`Limit.editable`): runs one account may have waiting or running, how long a sign-in lasts and may sit unused, and the pre-upload
+checker's file size. A CPUC system administrator changes them on Change limits (`/limits/manage/`, `releases.service.set_limit`, each
+change a `LimitChange` row with its reason and an audit event); the setting is then only the first-run default, and the code that
+enforces one reads `limits.value(key)`.
 
 ## 3. Code structure and the rules between its parts
 
@@ -308,6 +313,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_purger` | retention | calculations, data, feedback, notifications, submissions | Find and delete expired records of a class |
 | `register_checker` | rules (`precheck.py`) | budgets, claims | The pre-upload checker runs the module's own rule-set step |
 | `register_coded_checks` | rules (`coded.py`) | budgets, claims, monthly, impact_profiles, vault | The checks each upload runs in code beside the rule sets, listed read only on Built-in checks (`/rules/built-in/`) |
+| `register_list` | dictionary `value_lists.py` | registry (a service) | A list a service keeps as a versioned value list, never handed to the engine: a program's status, segment, primary sector, implementer and category (first version from the program fields guide, read back by `field_guide.values`) |
 | `register` | submissions `corrections.py` | budgets, claims, monthly | Each module's record editor for corrections in place |
 | `register` | core `queue.py` | accounts, registry, submissions, snapshots, budgets, documents | Items waiting on the signed-in user in My queue |
 | `register` | core `health.py` | calculations, impact_profiles, documents, notifications, releases | Job and system health checks |
@@ -405,6 +411,7 @@ erDiagram
   Program |o--o{ Program : "follows (PA ID of a statewide program)"
   Program ||--o{ ProgramVersion : "effective-dated versions"
   Program ||--o{ ProgramChangeRequest : "locked-field requests"
+  ProgramVersion |o--o{ ProgramChangeRequest : "corrects (in place)"
   FilingCycle |o--o{ AllocationVersion : "for a cycle"
   AllocationVersion ||--o{ AllocationEntry : "per year and statewide PrgID"
   AllocationEntry ||--o{ AllocationShare : "per funding PA"
@@ -421,7 +428,9 @@ erDiagram
     date valid_to
     string name
     string segment
+    json flags
     bool exclude_from_ce
+    datetime corrected_at
   }
   FilingCycle {
     int first_year
@@ -441,6 +450,15 @@ erDiagram
 ```
 
 `ProgramChangePolicy` lists the locked program attributes. `ReportingPeriod` is referenced by filing deadlines (next diagram).
+
+A program is added on its page (`registry.create_program`; `can_add_program`: a PA's organization or programs administrators for
+that PA, CPUC system administrators for any PA and for statewide programs; `prg_id_problem`: the PrgID starts with one of the PA's
+codes, or SW_, and is never reused in any case). A change starts a new version after the latest one. A **correction** puts right a
+version's values in place, keeping its dates (`correct_version`: CPUC system administrators and programs approvers; the version
+records `corrected_at` / `corrected_by` and the audit event `program.corrected` keeps the values before). A program's own
+administrators send a correction as a `ProgramChangeRequest` with `corrects` set (`request_correction`), which `decide_change`
+applies with `correct_version` when approved. Correcting a statewide program's version brings every ID that follows it into line
+from that version's start (`_follow_from`); an ID that follows is corrected only through its statewide program.
 
 **Filings** (`cedars.services.submissions` and the filing modules)
 
@@ -562,12 +580,18 @@ erDiagram
     string status "draft, published, withdrawn"
     json manifest "path: sha256, bytes"
     string fingerprint
+    json checks_at_publication "the checks it was published under"
   }
 ```
 
 A run names its engine release by value (`Run.engine_release`), so it keeps naming the release it ran on whatever later happens to
-the `EngineRelease` row. `TieOutRequirement` says which tie-outs each pack kind needs before it can be published; `ScanSettings` holds
-the publication scan's settings.
+the `EngineRelease` row. `TieOutRequirement` says which tie-outs each pack kind needs before it can be published: CPUC system
+administrators add and retire them on the Pack acceptance checks page (`/reference-data/packs/checks/`), never edit one, and a pack
+keeps the checks it was published under (`PackVersion.checks_at_publication`). A check's result is recorded from its JSON report on the
+pack's page (`refdata.service.record_report`: `passed` or `status`, a SHA-256 that must name one of the pack's files) or by the
+`record_tie_out` command. eTRM permutation packs are uploaded on a page (`/reference-data/packs/etrm-permutations/`, the
+`load_etrm_permutations` command's `etrm.load`); the gigabyte ACC and profile-library packs stay registered from storage by command.
+`ScanSettings` holds the publication scan's settings.
 
 **Dictionary, rules and value lists** (`cedars.services.dictionary`, `cedars.services.rules`)
 
@@ -629,6 +653,11 @@ erDiagram
   MeasurePackage ||--o{ ProfileMapping : "NR/NC rows"
   LoadShapeUpload |o--o{ ProcessingJob : "checked by"
   PackVersion |o--o{ LibraryExport : "registered as"
+  LibrarySettings {
+    json territories "a profile with no territory is written for each"
+    date load_shape_first_start "the eTRM sync takes versions starting on or after"
+    string reason "one row per change, the newest in force"
+  }
   Shape {
     string sha256 UK "one float64 array in storage"
   }
@@ -708,11 +737,11 @@ erDiagram
 | vault | `PIIUpload`, `PIIContact`, `PIISite` |
 | legacy | `LegacySource`, `LegacyImport` |
 | snapshots | `Snapshot`, `Release`, `ScanSettings`, `PIIScan` |
-| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink` |
+| releases | `ReleaseNote`, `Change`, `Mandate`, `MandateLink`, `LimitChange` |
 | feedback | `Feedback` |
 | sandbox | `Refresh`, `CopiedRecord` |
 | accessibility | `CheckSettings`, `FileCheck` |
-| impact_profiles | `Shape`, `EtrmSyncRun`, `MeasurePackage`, `PackageVersion`, `Permutation`, `ExcludedPackage`, `LoadShapeUpload`, `UploadFinding`, `LoadShape`, `LoadShapeVersion`, `ImpactProfile`, `ProfileVersion`, `ProfileZone`, `ProfileMapping`, `ProcessingJob`, `LibraryExport` |
+| impact_profiles | `Shape`, `EtrmSyncRun`, `MeasurePackage`, `PackageVersion`, `Permutation`, `ExcludedPackage`, `LoadShapeUpload`, `UploadFinding`, `LoadShape`, `LoadShapeVersion`, `ImpactProfile`, `ProfileVersion`, `ProfileZone`, `ProfileMapping`, `ProcessingJob`, `LibraryExport`, `LibrarySettings` |
 | monthly | `YearSetup`, `ReportLine`, `MonthlyResult`, `ChangeLetter` |
 | calculations | `EngineRelease`, `InputDraft`, `Run`, `OutputTemplate`, `OutputTemplateDefault`, `ResultView`, `Worker` |
 | budgets | `FilingSetup`, `BudgetLine`, `BudgetResult`, `FundShift`, `FundShiftLine`, `FundShiftAcknowledgement`, `ChangeLetter` |
@@ -768,7 +797,7 @@ How the usual roles map onto grants:
 | Funding PA allocation manager | An IOU | `allocation.manage` |
 | PII handler | The PA (upload), PA or CPUC (read) | `claims.pii`, approved by a data steward |
 | CPUC reviewer | CPUC | `<module>.read` |
-| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change requests; may delegate for a period (`Delegation`) |
+| CPUC approver | CPUC | `<module>.approve`: decides reopen requests and program change and correction requests (a programs approver also corrects a program version directly); may delegate for a period (`Delegation`) |
 | CPUC system administrator | CPUC | `system.admin`: set-up (claim years, filing setups, calendar), engine releases, reference packs, rules, value lists, release notes, organizations |
 | Data steward | CPUC | `pii.steward` |
 | Community account | none | Public pages, its own runs |
@@ -790,7 +819,8 @@ flowchart TD
 
 - Sign-in is django-allauth: email and password with a second factor (TOTP, WebAuthn security keys, recovery codes) for every account,
   or a federating organization's directory over OpenID Connect. Email verification is mandatory and failed sign-ins are rate limited,
-  per caller address and per account. There is no Django admin site: every administrative action is a platform page that goes
+  per caller address and per account. A sign-in ends after the session_hours limit and after the session_idle_minutes limit
+  unused (`SessionTimeoutMiddleware`; a page's background requests do not count as use). There is no Django admin site: every administrative action is a platform page that goes
   through a service and its audit event.
 - A user acts for one organization at a time, switched in the session; runs and uploads made under a membership belong to the
   organization and stay with it when the person leaves.
@@ -1034,7 +1064,7 @@ split among the funding PAs by the weighted factors (section 8.1).
 
 | Module | What it does | Key mechanics |
 | --- | --- | --- |
-| Programs | Public catalog and program pages; effective-dated change form; change requests for locked attributes decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
+| Programs | Public catalog and program pages; Add a program; effective-dated change form (attributes and delivery flags); corrections of a version in place; change and correction requests decided by a CPUC approver; program fields guide | Records in the registry; each module adds its rows to a program page through `register_program_records` |
 | Calculations | Engine releases, New run, runs, run pages with downloads, Results and Compare, a walkthrough of any one measure's calculation, output templates, Edit inputs (up to the engine's 500 measures, checked cell by cell with `recet.editor`), parallel runs against CET outputs, the job API (`/api/v1/calculations/`) | Section 10 |
 | Impact profiles | Nightly eTRM sync into versioned snapshots; load-shape uploads with four validation stages; generated profiles with CEDARS' formula; custom profiles; identical profiles stored once under several names; the library written in the engine's format and registered as an `impact_profiles` pack | `ProcessingJob` queues per PA; every 8,760 stored once by SHA-256 (`Shape`) |
 | Documents and EM&V | One library for PA documents, CPUC guidance, DEER resources, program files and EM&V documents; numbered versions; publication; full-text search over extracted file text; EM&V deliverable stages; study register; work orders; public comment; subscriptions; PDA, PSR and CEDARS imports with old addresses redirected | `FileText` with a PostgreSQL full-text index; triggers keep published versions unchanged |
@@ -1081,7 +1111,7 @@ unit, source, cost-test treatment, time basis, aggregation, rounding and years i
 `manage.py load_dictionary data/dictionary/recet-<version>.json` publishes it as a `CatalogVersion` with `Field`, `Alias` and
 `Usage` rows, plus the platform's own records (every column of the tables listed in `dictionary/platform.py`, kind `record`) unless
 `--engine-only`. The canonical names are ReCET's (decision L); CET and legacy CEDARS names are accepted on upload through the aliases.
-Value lists and their versions are handed to the engine before the rules or Edit inputs read them (`value_lists.apply_to_engine`).
+Value lists and their versions are handed to the engine before the rules or Edit inputs read them (`value_lists.apply_to_engine`). The program registry's own lists (`register_list`) are not.
 
 ### 10.3 A run, end to end
 
@@ -1188,7 +1218,7 @@ several workers can share a queue.
 | `sync_etrm` | Nightly | eTRM sync, retried after `ETRM_SYNC_RETRY_MINUTES`; alerts administrators if the last try fails | 01:00 Pacific, once the eTRM URL is set |
 | `check_health` | Every 10 minutes | Runs every registered health check, alerts system administrators once per new set of failures, prints a JSON line for CloudWatch | `monitoring.tf` |
 | `export_sandbox_bundle`, `refresh_sandbox` | Scheduled when configured | Production writes its published, non-PII data; the sandbox loads it | Off unless a bundle place and schedule are set |
-| `warm_front_page` | On demand | Makes the front page's cards before anyone asks (after start-up, a deploy or a publication) | Not scheduled |
+| `warm_front_page` | On demand | Reads the front page's claims rows before anyone asks (after start-up, a deploy or a publication) | Not scheduled |
 
 One-off and administrative commands:
 
@@ -1209,42 +1239,44 @@ One-off and administrative commands:
 | `help_revisions` | Records which release each user guide and the FAQ were revised for |
 
 Work that runs after a response without a worker: notifications (`on_audit_event` defers delivery with `transaction.on_commit`),
-snapshots (`register_listener` defers the copy the same way), and the front page's card refresh thread (section 13).
+snapshots (`register_listener` defers the copy the same way), and the front page's refresh thread (section 13).
 
 ## 13. Caching
 
 | Cache | Where | What | Invalidated by |
 | --- | --- | --- | --- |
-| Django cache | Database table `cedars_cache` (`DatabaseCache`) | Front-page cards, the API throttle counts (so every web process sees one count) | Keys and timeouts below |
+| Django cache | Database table `cedars_cache` (`DatabaseCache`) | The front page's claims rows, the API throttle counts (so every web process sees one count) | Keys and timeouts below |
 | Run results | `CALCULATIONS_RESULTS_CACHE` | A run's group sums copied once from object storage for Results and Compare | A run's outputs never change |
 | Snapshots | `DATA_CACHE` | Local copies of S3 snapshots named by SHA-256, read by DuckDB | Content-addressed |
 
-### 13.1 Front-page cards
+### 13.1 Front-page claims rows
 
-The front page shows one program cycle in seven cards, about 20 queries over every published file. They are cached per cycle
-(`data/front.py`):
+The front page ("How the portfolio is doing") charts five metrics from the published claims: total system benefit, electricity saved,
+peak demand avoided, gas saved and spending, by year, against spending, by PA and as benefit per dollar. It reads one query over every
+claims file of the current release, every metric by year, PA type and PA with the dashboards' default exclusions, and keeps the rows
+(`data/front.py`); the visitor's choices (metric, PA type, year) are applied to the kept rows in the request, and the charts are drawn
+on the server as SVG with a table of the same values under each. `data/front.js` adds the values on hover and from the keyboard.
 
-- The key is `front<CACHE_VERSION>:<default exclusions>:<first year>-<last year>`; `CACHE_VERSION` is bumped whenever the cached shape
-  changes, so a deploy never reads an old pickle.
-- Each entry keeps a **fingerprint** of what the cards were made from: the current claims, forecast and monthly release numbers and the
-  confirmed goal sets. A different fingerprint (a new release or goal set) makes the cards again **in the request**, so nobody sees the
-  previous release's numbers.
-- An entry older than `FRESH_SECONDS` (600 s) is still shown, and the cards are remade **after the response** on a daemon thread (a
-  budget or fund shift changes them without changing the fingerprint). A lock key (`cache.add`, `REFRESH_LOCK_SECONDS` 300 s) keeps
-  one rebuild per cycle at a time; a failed rebuild leaves the old cards. Entries are kept for `KEEP_SECONDS` (7 days).
-- `FRONT_PAGE_REFRESH_IN_BACKGROUND` off (as in the tests) rebuilds in the request instead; `manage.py warm_front_page [--all]` makes
-  them ahead.
+- The key is `front<CACHE_VERSION>:<default exclusions>`; `CACHE_VERSION` is bumped whenever the cached shape changes, so a deploy
+  never reads an old pickle.
+- Each entry keeps a **fingerprint** of what the rows were read from: the current claims release. A different fingerprint (a new
+  release) reads them again **in the request**, so nobody sees the previous release's numbers.
+- An entry older than `FRESH_SECONDS` (600 s) is still shown, and the rows are reread **after the response** on a daemon thread. A
+  lock key (`cache.add`, `REFRESH_LOCK_SECONDS` 300 s) keeps one reread at a time; a failed reread leaves the old rows. Entries are
+  kept for `KEEP_SECONDS` (7 days).
+- `FRONT_PAGE_REFRESH_IN_BACKGROUND` off (as in the tests) rereads in the request instead; `manage.py warm_front_page` reads them
+  ahead.
 
 ```mermaid
 flowchart TD
-  visit["Front page request"] --> fp["Fingerprint: current releases<br/>and confirmed goal sets"]
-  fp --> get{"Cached entry for the cycle<br/>with this fingerprint?"}
-  get -- "no" --> build["Build the cards now,<br/>store them (7 days)"]
+  visit["Front page request"] --> fp["Fingerprint: current<br/>claims release"]
+  fp --> get{"Cached rows<br/>with this fingerprint?"}
+  get -- "no" --> build["Read the rows now,<br/>store them (7 days)"]
   get -- "yes" --> age{"Older than 600 s?"}
-  age -- "no" --> show["Show cached cards"]
+  age -- "no" --> show["Apply the visitor's metric,<br/>PA type and year; draw the charts"]
   age -- "yes" --> lock{"cache.add lock<br/>(300 s)"}
   lock -- "taken" --> show
-  lock -- "got it" --> thread["Daemon thread rebuilds<br/>after the response"]
+  lock -- "got it" --> thread["Daemon thread rereads<br/>after the response"]
   thread --> show
   build --> show
 ```
@@ -1258,8 +1290,9 @@ flowchart TD
   reminders; module messages through `notify`.
 - **Retention** (decision M): a period per record class (`RetentionPolicy`), legal holds (`LegalHold`), and the daily purge, which
   calls each registered purger and logs `PurgeRun`s.
-- **Reference data**: packs registered as drafts, published once their required tie-outs pass, withdrawn but never deleted; `pin()` is
-  recorded by every run and filing; a filing never uses a draft.
+- **Reference data**: packs registered as drafts, published once their required tie-outs pass (the checks in force, set on a page;
+  a published pack keeps the ones it was published under), withdrawn but never deleted; `pin()` is recorded by every run and filing; a
+  filing never uses a draft.
 - **Rules and the pre-upload checker**: stored rule sets run by the engine's rule runner; `/rules/check/` and
   `POST /api/v1/rules/check` run a module's rule-set step on a file without keeping it. The checks each upload runs in code beside the
   rule sets (the BUD-, CLM-, MON-, PII- and LS- rules) stay in code and are listed read only on `/rules/built-in/` from the lists the
@@ -1268,7 +1301,8 @@ flowchart TD
   workbook is refused before anything in it is unpacked when its files, by the sizes its own directory gives, add up to more than
   `CEDARS_UPLOAD_MAX_UNZIPPED_MB` (`too_large_unzipped`, called by every filing reader, the PII upload and corrections).
 - **Release notes, limits and mandates** (`cedars.services.releases`): notes published at least `CEDARS_RELEASE_NOTICE_DAYS` before
-  they take effect, the Limits page read from the settings that enforce them, the register of CPUC-mandated changes.
+  they take effect, the Limits page read from the settings that enforce them (or the value the CPUC set, for an editable limit), Change
+  limits for CPUC system administrators, the register of CPUC-mandated changes.
 - **Health** (`cedars/core/health.py`): checks modules register; `/admin/health/` and `check_health`.
 - **Pages**: server-rendered and usable without scripts; WCAG 2.2 AA (axe in CI on every page in both color schemes); a page help
   entry and tour for every page (`page_help.yaml`); breadcrumbs and section navigation from `nav.py`; site search over pages, guides,

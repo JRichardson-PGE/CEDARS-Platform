@@ -4,12 +4,12 @@ Export: every profile that is not retired, at its current version, written as Re
 (recet.pipeline.real_impact_profiles, ReCET 0.1.87's consolidated form): catalog.parquet (one row per name: id, end_use_name,
 iou_ac_territory, target_sector, year_represented ..., and shape_id) and hourly.parquet (impact_profile_id, climate_zone, hour_of_year
 1-8760, impact), one row group per STORED profile, which the engine indexes from the file's metadata; each catalog row's shape_id names
-the row group its 8,760s are in. Profiles whose current versions are identical (identical.py: every zone's 8,760 and the calendar)
-are stored once, under the first one's id, and each keeps its own catalog rows. A profile with no territory gets a catalog row
-for each of settings.IMPACT_PROFILE_TERRITORIES (CEDARS stores the deemed shapes once per IOU territory). An open mapping row adds a
-catalog row with the alias ID and the target's id and shape_id, so both IDs price on the same shapes. Each export is numbered,
-kept, hashed and registered as a draft impact_profiles pack in the reference-data service (usable for analysis runs at once,
-for filings once published there), so a run pins the one it used.
+the row group its 8,760s are in. Profiles whose current versions are identical (identical.py: every zone's 8,760 and the calendar) are
+stored once, under the first one's id, and each keeps its own catalog rows. A profile with no territory gets a catalog row for each IOU
+territory on the settings page (policy.territories; CEDARS stores the deemed shapes once per territory). An open mapping row adds a
+catalog row with the alias ID and the target's id and shape_id, so both IDs price on the same shapes. Each export is numbered, kept,
+hashed and registered as a draft impact_profiles pack in the reference-data service (usable for analysis runs at once, for filings once
+published there), so a run pins the one it used.
 
 Import: legacy CEDARS' library (the scraped catalog.parquet and hourly.parquet ReCET uses today, consolidated or not) into the catalog,
 as DEER, TOU and "imported from CEDARS" profiles, one per catalog row (identical ones share their shapes and are grouped as above), so
@@ -27,7 +27,6 @@ from pathlib import Path
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
-from django.conf import settings
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -38,7 +37,7 @@ from cedars.services import audit
 from cedars.services.accounts.models import Organisation
 from cedars.services.refdata import service as refdata
 
-from . import access, identical, shapes
+from . import access, identical, policy, shapes
 from .models import HOURS, ImpactProfile, LibraryExport, ProfileMapping, ProfileVersion, ProfileZone
 
 HOURLY_SCHEMA = pa.schema(
@@ -85,6 +84,7 @@ def export(actor=None) -> LibraryExport:
     """Write the library and record it as the next numbered export."""
     access.require_admin(actor, "write the profile library")
     mappings = list(ProfileMapping.objects.filter(ended_at__isnull=True).select_related("target"))
+    every_territory = policy.territories()  # a profile or mapping with no territory is written for each
     with tempfile.TemporaryDirectory() as tmp:
         cat_path, hourly_path = os.path.join(tmp, "catalog.parquet"), os.path.join(tmp, "hourly.parquet")
         rows, families, profiles, zone_shapes = [], Counter(), 0, 0
@@ -121,13 +121,13 @@ def export(actor=None) -> LibraryExport:
                 families[p.family] += 1
                 base = _catalog_row(p, version, [z.climate_zone for z in zones], shape_id)
                 written[p.pk] = base
-                territories = [p.iou_ac_territory] if p.iou_ac_territory else list(settings.IMPACT_PROFILE_TERRITORIES)
+                territories = [p.iou_ac_territory] if p.iou_ac_territory else list(every_territory)
                 rows += [dict(base, iou_ac_territory=t, pa=t) for t in territories]
         for m in mappings:
             base = written.get(m.target_id)
             if base is None:
                 continue
-            territories = [m.target.iou_ac_territory] if m.target.iou_ac_territory else list(settings.IMPACT_PROFILE_TERRITORIES)
+            territories = [m.target.iou_ac_territory] if m.target.iou_ac_territory else list(every_territory)
             alias = dict(base, end_use_name=m.alias_key, target_sector=m.target_sector, description=f"maps to {m.target.profile_key}")
             rows += [dict(alias, iou_ac_territory=t, pa=t, mapping=m.pk) for t in territories]
         catalog = pa.Table.from_pylist(rows, schema=_catalog_schema())

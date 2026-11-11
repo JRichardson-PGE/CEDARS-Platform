@@ -23,7 +23,7 @@ from django.utils import timezone
 from cedars.services import audit
 from cedars.services.accounts.service import AccessDenied
 
-from . import access, identical, shapes
+from . import access, identical, policy, shapes
 from .loadshapes import SUM_TOLERANCE, Finding, check_header, hour_problem, open_csv, zone
 from .models import HOURS, ImpactProfile, MeasurePackage, ProfileMapping, ProfileVersion, ProfileZone
 
@@ -132,8 +132,9 @@ def _check_key(profile_key: str, target_sector: str, territory: str) -> tuple[st
         raise AccessDenied("Give the profile ID and target sector.")
     if not profile_key.isascii() or len(profile_key) > 300:
         raise AccessDenied("A profile ID is plain text (ASCII), up to 300 characters.")
-    if territory and territory not in settings.IMPACT_PROFILE_TERRITORIES:
-        raise AccessDenied(f"IOU territory must be one of {', '.join(settings.IMPACT_PROFILE_TERRITORIES)}, or blank for every territory.")
+    allowed = policy.territories()
+    if territory and territory not in allowed:
+        raise AccessDenied(f"IOU territory must be one of {', '.join(allowed)}, or blank for every territory.")
     return profile_key, target_sector, territory
 
 

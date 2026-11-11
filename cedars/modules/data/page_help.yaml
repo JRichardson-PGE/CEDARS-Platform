@@ -3,18 +3,20 @@
 data/front:
   title: The front page
   guide:
-    - What CEDARS is, the current program cycle at a glance, and Help. The cards add up the published filings for one four-year program
-      cycle; each links to the dashboard page that breaks its numbers down and uses that page's exclusions, so the two agree.
-    - Each card says under its title what it counts. Total system benefit is voluntary programs only; Electricity saved, Peak demand
-      avoided and Gas saved are codes and standards only; TRC and PAC are resource acquisition programs only.
-    - Each gauge has its number written in it. Spending is the percent of the budget spent, Total system benefit the percent of the
-      CPUC's goals counted, and the savings cards the percent of the CPUC's codes and standards goals counted (of the forecast when
-      no goal is loaded). TRC and PAC have no gauge; each shows its ratio large and says whether it is above or below 1, where
-      benefits equal costs. The notes under the cards say what each one leaves out.
+    - What CEDARS is, how the portfolio is doing, and Help. "How the portfolio is doing" adds up the published claims of every PA,
+      year by year, leaving out what the dashboards leave out by default (the note under the charts names it).
+    - The five figures at the top are total system benefit, electricity saved, peak demand avoided, gas saved and spending in the
+      chosen year, each with its change from the year before (an arrow and the words, not color alone) and a line of every year.
+    - The charts show the chosen metric by year with the change from each year before and the average, the metric against
+      spending (each as a share of its first year), the largest PAs from the first year to the chosen one, and the total system
+      benefit per dollar spent. Years before a metric was published are marked as such, not shown as zero.
     - The tour walks through this page and the main parts of CEDARS. Signed in, it also shows the parts only signed-in users see.
   how:
-    - Choose a cycle and Apply to change the cards. Select a card (its title is the link) to open its dashboard page.
-    - Portfolio Dashboard, just above the cards, opens the full dashboard, where the published numbers break down by PA, sector, program and year.
+    - Choose a metric (the buttons, or select a figure), a group of program administrators (All, IOU, REN or CCA), or a year and
+      Apply. Every choice is a link, so the page works without scripts and the address can be shared.
+    - Point at a chart to see each value. With the keyboard, Tab to the chart and use the arrow keys, Home and End; Escape hides
+      the values. Show as a table under each chart lists them all.
+    - The links under each chart open the dashboard page that breaks its numbers down; Portfolio Dashboard opens the full dashboard.
     - Take the tour for the main parts of CEDARS; Hide this puts the offer away.
     - Sign in, or Create an account; the published data need neither.
   see: published-data
