@@ -133,6 +133,7 @@ PAGES = [
     ("rule", "/rules/{rules}/W4d5e6f/", "pge_admin"),
     ("rule-differences", "/rules/differences/?a={rules}&b={rules}", "pge_admin"),
     ("rule-checker", "/rules/check/", "pge_admin"),
+    ("rule-built-in", "/rules/built-in/", "pge_admin"),
     # Administrators edit value lists and rules as new versions
     ("rule-set-admin", "/rules/{rules}/", "cpuc_admin"),
     ("rule-set-draft", "/rules/{rules_draft}/", "cpuc_admin"),
