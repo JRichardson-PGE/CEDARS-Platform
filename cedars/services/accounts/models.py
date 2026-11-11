@@ -26,6 +26,11 @@ class User(AbstractUser):
 
     email = models.EmailField("email address", unique=True)
     name = models.CharField("full name", max_length=200, blank=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True, help_text="When the account was last deactivated (blank while active)")
+    deactivated_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="+", help_text="Who deactivated it"
+    )
+    deactivation_reason = models.TextField(blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []

@@ -143,6 +143,12 @@ ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False
+# A person changes their own email address on allauth's email page, linked from Your account: one address at a time, the new one taking
+# over only once verified (CHANGE_EMAIL), after confirming their password again (REAUTHENTICATION_REQUIRED). The old address is told of
+# the change, as of a password change (EMAIL_NOTIFICATIONS); accounts.signals audits it and ends the person's other sessions.
+ACCOUNT_CHANGE_EMAIL = True
+ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_REAUTHENTICATION_REQUIRED = True
 ACCOUNT_RATE_LIMITS = {"login_failed": "10/m/ip,5/5m/key"}
 # The platform's own wording on allauth's forms, pages and emails (cedars/core/templates/account, mfa); the subject prefix replaces
 # allauth's "[<site domain>] ". CEDARS_SUPPORT_EMAIL is the address the sign-in pages and Help give for support (blank = none shown);

@@ -3,6 +3,7 @@
 {% block content %}
 <div class="page-title"><h1>Requests to correct filings</h1>{% page_help "submissions/reopen_requests" %}</div>
 <p>After its due date a confirmed filing is corrected as a new version, for that organization and period only. The version filed stays readable.</p>
+<p>Away for a while? <a href="{% url 'submissions:delegations' %}" id="delegates-link">Name a delegate</a> to decide for you on the days you choose.</p>
 <h2>Waiting for you</h2>
 {% for r, approver in pending %}
 <div class="card">

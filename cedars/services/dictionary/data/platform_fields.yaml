@@ -48,6 +48,9 @@ submissions.WorkflowPolicy:
     reopen_after_due: >-
       Whether, and how, a filing may be corrected after its due date: the module's correction policy (the values
       below).
+submissions.Delegation:
+  fields:
+    end_reason: "Why the delegation was ended before its last day (blank when it ran its course or was ended by the approver without one)."
 submissions.SubmissionVersion:
   fields:
     late: "Whether the version was confirmed after the deadline's due date."

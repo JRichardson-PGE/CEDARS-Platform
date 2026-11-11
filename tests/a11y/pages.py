@@ -141,6 +141,9 @@ PAGES = [
     ("value-list-draft", "/dictionary/lists/sector/draft/", "cpuc_admin"),
     ("value-list-code", "/dictionary/lists/sector/draft/codes/{list_code}/", "cpuc_admin"),
     ("filing-calendar", "/filings/calendar/", "cpuc_admin"),
+    ("workflow-settings", "/filings/workflow-settings/", "cpuc_admin"),
+    ("delegations", "/filings/delegates/", "approver"),
+    ("delegations-admin", "/filings/delegates/", "cpuc_admin"),
     ("filing-calendar-public", "/filings/calendar/", None),
     ("filing-calendar-retired", "/filings/calendar/?retired=1", "cpuc_admin"),
     ("filing-calendar-list", "/filings/calendar/?view=list", "cpuc_admin"),  # the year of small months is the default view
@@ -165,6 +168,8 @@ PAGES = [
     ("set-up-second-factor", "/accounts/2fa/totp/activate/", "password"),
     ("second-factor", "/accounts/2fa/", "pge_admin"),
     ("account", "/account/", "pge_admin"),
+    ("account-community", "/account/", "community"),  # a community account may close itself
+    ("account-email", "/accounts/email/", "pge_admin"),
     ("request-access", "/account/request-access/", "community"),
     ("organisations", "/admin/organizations/", "cpuc_admin"),
     ("organisation-pa-admin", "/admin/organizations/{pge}/", "pge_admin"),
@@ -174,6 +179,12 @@ PAGES = [
     ("organisation-untyped", "/admin/organizations/NEWPA/", "cpuc_admin"),
     ("organisation-renamed", "/admin/organizations/AVA/", "cpuc_admin"),
     ("organisation-merged", "/admin/organizations/AVA2/", "cpuc_admin"),
+    ("organisation-retired", "/admin/organizations/OLDFIRM/", "cpuc_admin"),
+    ("organisation-sign-in-waiting", "/admin/organizations/{pge}/", "cpuc_admin"),  # a sign-in change waits for a data steward
+    # People: every account, one account, a deactivated one ({former_user})
+    ("people", "/admin/people/", "cpuc_admin"),
+    ("person", "/admin/people/{pge_admin}/", "cpuc_admin"),
+    ("person-deactivated", "/admin/people/{former_user}/", "cpuc_admin"),
     ("stewardship", "/admin/stewardship/", "cpuc_admin"),
     # Publication holds; the scene's {held_snapshot} is a held snapshot
     ("publication-holds", "/publication/holds/", "cpuc_admin"),

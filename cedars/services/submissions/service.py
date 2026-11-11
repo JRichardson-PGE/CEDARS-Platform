@@ -1124,7 +1124,7 @@ def approver_for(actor, module: str, on=None):
     if access.has_permission(actor, org, f"{module}.approve"):
         return actor
     day = on or timezone.localdate()
-    for d in Delegation.objects.filter(module=module, delegate=actor, starts__lte=day, ends__gte=day).select_related("approver"):
+    for d in Delegation.objects.in_force(day).filter(module=module, delegate=actor).select_related("approver"):
         if access.has_permission(d.approver, org, f"{module}.approve"):
             return d.approver
     return None
@@ -1159,34 +1159,151 @@ def pending_corrections(actor, module: str) -> dict[int, int] | None:
     return {r["submission__deadline"]: r["n"] for r in rows}
 
 
-@transaction.atomic
-def delegate(actor, *, module: str, delegate_to, starts, ends) -> Delegation:
+# The modules whose approvers may name delegates: the filing modules, and programs (program change requests, registry.APPROVALS).
+DELEGABLE = {"programs": "Programs", "budgets": "Budgets", "claims": "Claims", "monthly": "Monthly reports"}
+
+
+def approves(user, module: str) -> bool:
+    """Whether the user holds `<module>.approve` in the CPUC organization themselves (not as anyone's delegate)."""
     org = access.cpuc()
-    if org is None or not access.has_permission(actor, org, f"{module}.approve"):
-        raise AccessDenied("Only an approver can name a delegate.")
+    return org is not None and access.has_permission(user, org, f"{module}.approve")
+
+
+def delegable_modules(user) -> list[str]:
+    """The modules the user approves and so may name delegates for."""
+    return [m for m in DELEGABLE if approves(user, m)]
+
+
+def can_be_delegate(user, module: str) -> tuple[bool, str]:
+    """(allowed, reason refused): a delegate is an active CPUC staff member who can read the module."""
+    org = access.cpuc()
+    if not user.is_active:
+        return False, f"{user.email}'s account is deactivated."
+    if org is None or not access.has_permission(user, org, f"{module}.read"):
+        label = DELEGABLE.get(module, module)
+        return False, f"A delegate must be a member of the CPUC who can read {label}; {user.email} cannot. Grant them that first."
+    return True, ""
+
+
+@transaction.atomic
+def delegate(actor, *, module: str, delegate_to, starts, ends, approver=None, reason: str = "") -> Delegation:
+    """Name `delegate_to` to decide for `approver` (default: the actor) in `module` from `starts` to `ends`, both included. The approver
+    names their own delegates; a CPUC system administrator may name one on an approver's behalf (e.g. for leave), with a reason."""
+    approver = approver or actor
+    if module not in DELEGABLE:
+        raise AccessDenied(f"{module} has no approvals to delegate.")
+    if actor is not None and approver.pk != actor.pk and not access.is_system_admin(actor):
+        raise AccessDenied("Only a CPUC system administrator names a delegate on someone else's behalf.")
+    if not approves(approver, module):
+        who = "You are" if actor is not None and approver.pk == actor.pk else f"{approver.email} is"
+        raise AccessDenied(f"{who} not an approver for {DELEGABLE[module]}, so there is nothing to delegate.")
+    if actor is not None and approver.pk != actor.pk and not reason.strip():
+        raise AccessDenied("Give the reason for naming a delegate on the approver's behalf.")
+    if delegate_to.pk == approver.pk:
+        raise AccessDenied("An approver cannot be their own delegate.")
+    ok, why = can_be_delegate(delegate_to, module)
+    if not ok:
+        raise AccessDenied(why)
     if ends < starts:
         raise AccessDenied("The delegation ends before it starts.")
-    d = Delegation.objects.create(module=module, approver=actor, delegate=delegate_to, starts=starts, ends=ends)
+    if ends < timezone.localdate():
+        raise AccessDenied("The delegation would already be over: its last day is in the past.")
+    overlap = Delegation.objects.filter(
+        module=module, approver=approver, delegate=delegate_to, ended_at__isnull=True, starts__lte=ends, ends__gte=starts
+    ).first()
+    if overlap is not None:
+        raise AccessDenied(
+            f"{delegate_to.email} is already {approver.email}'s delegate for {DELEGABLE[module]} from {overlap.starts:%Y-%m-%d} to "
+            f"{overlap.ends:%Y-%m-%d}. End that one first, or choose other dates."
+        )
+    d = Delegation.objects.create(
+        module=module, approver=approver, delegate=delegate_to, starts=starts, ends=ends, created_by=actor, reason=reason.strip()
+    )
     audit.record(
         "delegation.created",
         obj=d,
-        after={"module": module, "delegate": delegate_to.email, "starts": str(starts), "ends": str(ends)},
+        after={"module": module, "approver": approver.email, "delegate": delegate_to.email, "starts": str(starts), "ends": str(ends)},
+        reason=reason.strip(),
         actor=actor,
     )
     return d
 
 
+def can_end_delegation(actor, d: Delegation) -> bool:
+    return actor is not None and (actor.pk == d.approver_id or access.is_system_admin(actor))
+
+
 @transaction.atomic
-def set_policy(actor, module: str, **settings) -> WorkflowPolicy:
+def end_delegation(actor, d: Delegation, reason: str = "") -> Delegation:
+    """End a delegation before its last day (its approver, or a CPUC system administrator with a reason): from now on the delegate no
+    longer decides for the approver. Decisions already made stay as made."""
+    d = Delegation.objects.select_for_update().get(pk=d.pk)
+    if actor is not None and not can_end_delegation(actor, d):
+        raise AccessDenied("Only the approver, or a CPUC system administrator, ends a delegation.")
+    if d.ended_at or d.ends < timezone.localdate():
+        raise AccessDenied("That delegation has already ended.")
+    if actor is not None and actor.pk != d.approver_id and not reason.strip():
+        raise AccessDenied("Give the reason for ending the delegation on the approver's behalf.")
+    d.ended_at, d.ended_by, d.end_reason = timezone.now(), actor, reason.strip()
+    d.save(update_fields=["ended_at", "ended_by", "end_reason"])
+    audit.record(
+        "delegation.ended",
+        obj=d,
+        before={"ends": str(d.ends)},
+        after={"ended_at": d.ended_at.isoformat()},
+        reason=reason.strip(),
+        actor=actor,
+    )
+    return d
+
+
+POLICY_SETTINGS = ("reopen_after_due", "late_confirmation")
+# How much each correction rule lets a program administrator do after the due date: a change to a lower number tightens the rule.
+REOPEN_FREEDOM = {WorkflowPolicy.Reopen.CLOSED: 0, WorkflowPolicy.Reopen.APPROVAL: 1, WorkflowPolicy.Reopen.OPEN: 2}
+
+
+def policy_tightens(before: dict, after: dict) -> bool:
+    """Whether a workflow change leaves program administrators less to do than before (corrections after the due date harder, or a late
+    first confirmation refused): the CPUC announces such a change as a release note."""
+    reopen = "reopen_after_due" in after and REOPEN_FREEDOM[after["reopen_after_due"]] < REOPEN_FREEDOM[before["reopen_after_due"]]
+    late = "late_confirmation" in after and before["late_confirmation"] and not after["late_confirmation"]
+    return bool(reopen or late)
+
+
+@transaction.atomic
+def set_policy(actor, module: str, *, reason: str = "", **settings) -> WorkflowPolicy:
+    """Change a filing module's workflow settings (a CPUC system administrator, with the reason recorded): whether a confirmed filing can
+    be corrected after its due date (reopen_after_due) and whether a first version can still be confirmed late (late_confirmation). The
+    change applies at once, to every filing of the module; filings already corrected or confirmed stay as they are."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator changes workflow settings.")
-    p = policy(module)
+    unknown = set(settings) - set(POLICY_SETTINGS)
+    if unknown:
+        raise AccessDenied(f"{', '.join(sorted(unknown))} is not a workflow setting.")
+    if "reopen_after_due" in settings and settings["reopen_after_due"] not in WorkflowPolicy.Reopen.values:
+        raise AccessDenied("Choose whether a filing can be corrected after its due date: with approval, with a reason, or not at all.")
+    if "late_confirmation" in settings:
+        settings["late_confirmation"] = bool(settings["late_confirmation"])
+    p = WorkflowPolicy.objects.select_for_update().get(pk=policy(module).pk)
     before = {k: getattr(p, k) for k in settings}
+    if before == settings:
+        return p
     for k, val in settings.items():
         setattr(p, k, val)
     p.save()
-    audit.record("workflow_policy.changed", obj=p, before=before, after=settings, actor=actor)
+    audit.record("workflow_policy.changed", obj=p, before=before, after=settings, reason=reason.strip(), actor=actor)
     return p
+
+
+def policy_history(module: str, limit: int = 20) -> list:
+    """The audited changes to a module's workflow settings, newest first."""
+    from cedars.services.audit.models import AuditEvent
+
+    p = WorkflowPolicy.objects.filter(module=module).first()
+    if p is None:
+        return []
+    events = AuditEvent.objects.filter(object_type="submissions.workflowpolicy", object_id=str(p.pk), action="workflow_policy.changed")
+    return list(events.select_related("actor").order_by("-at", "-id")[:limit])
 
 
 def _delete_comment_files(version_ids) -> None:

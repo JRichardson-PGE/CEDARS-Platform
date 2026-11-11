@@ -1,0 +1,85 @@
+{% extends "core/base.html" %}
+{% block title %}{{ person|person_name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:administration' %}">Administration</a></li><li><a href="{% url 'administration:people' %}">People</a></li></ol></nav>
+<div class="page-title"><h1>{{ person|person_name }}</h1>{% page_help "administration/person" %}</div>
+
+<section class="card" aria-labelledby="account-h">
+  <h2 id="account-h">Account</h2>
+  <dl class="facts">
+    <dt>Name</dt><dd>{{ person.name|default:"Not given: pages show the email address" }}</dd>
+    <dt>Email</dt><dd>{{ person.email }}</dd>
+    <dt>Status</dt><dd>{% if person.is_active %}<span class="status ok">Active</span>{% else %}<span class="status warn">Deactivated</span> {{ person.deactivated_at|date_words }}{% if person.deactivated_by %} by {{ person.deactivated_by|person }}{% endif %}{% if person.deactivation_reason %}: {{ person.deactivation_reason }}{% endif %}{% endif %}</dd>
+    <dt>Account made</dt><dd>{{ person.date_joined|date_words }}</dd>
+    <dt>Last signed in</dt><dd>{{ person.last_login|datetime_words|default:"Never" }}</dd>
+    <dt>Active API tokens</dt><dd>{{ tokens }}</dd>
+  </dl>
+  <details>
+    <summary>Correct the name</summary>
+    <form method="post" action="{% url 'administration:person_name' person.pk %}" class="stack form-narrow">{% csrf_token %}
+      {% if is_self %}{{ name_form.name.as_field_group }}{% else %}{% for field in name_form %}{{ field.as_field_group }}{% endfor %}{% endif %}
+      <div class="actions"><button type="submit" class="primary">Save the name</button></div>
+    </form>
+  </details>
+</section>
+
+<section class="card" aria-labelledby="status-h">
+  <h2 id="status-h">{% if person.is_active %}Deactivate{% else %}Reactivate{% endif %}</h2>
+  {% if person.is_active %}
+    {% if is_self %}
+    <p>You cannot deactivate your own account here. Ask another CPUC system administrator.</p>
+    {% else %}
+    <p>A deactivated account cannot sign in or use the API: it is signed out everywhere at once and its API tokens are revoked. Its
+      memberships, permissions and history stay, so reactivating it brings them back. The last system administrator or data steward
+      cannot be deactivated.</p>
+    <form method="post" action="{% url 'administration:person_deactivate' person.pk %}" class="stack form-narrow">{% csrf_token %}
+      <label for="deactivate-reason">Reason</label><input type="text" id="deactivate-reason" name="reason" maxlength="500" required>
+      <div class="actions"><button type="submit">Deactivate the account</button></div>
+    </form>
+    {% endif %}
+  {% else %}
+  <p>Reactivating lets them sign in again with the memberships and permissions they had. Their revoked API tokens stay revoked.</p>
+  <form method="post" action="{% url 'administration:person_reactivate' person.pk %}" class="stack form-narrow">{% csrf_token %}
+    <label for="reactivate-reason">Reason</label><input type="text" id="reactivate-reason" name="reason" maxlength="500" required>
+    <div class="actions"><button type="submit" class="primary">Reactivate the account</button></div>
+  </form>
+  {% endif %}
+</section>
+
+<section aria-labelledby="memberships-h">
+<h2 id="memberships-h">Organizations</h2>
+{% if memberships %}
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="memberships-h">
+<table class="list">
+  <caption class="sr-only">Organizations this person belongs or belonged to</caption>
+  <thead><tr><th scope="col">Organization</th><th scope="col">Membership</th><th scope="col">Permissions</th></tr></thead>
+  <tbody>
+  {% for m, labels in memberships %}
+  <tr><th scope="row"><a href="{% url 'administration:organisation' m.organisation.code %}">{{ m.organisation.code }}</a> <span class="small muted">{{ m.organisation.name }}</span></th>
+    <td>{% if m.ended_at %}Ended {{ m.ended_at|date_words }}{% if m.end_reason %}: {{ m.end_reason }}{% endif %}{% else %}Since {{ m.started_at|date_words }}{% endif %}</td>
+    <td>{% if labels %}{{ labels|join:", " }}{% else %}<span class="muted">None</span>{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}<p>None: a community account (public data and their own runs).</p>{% endif %}
+</section>
+
+{% if events %}
+<section aria-labelledby="history-h">
+<h2 id="history-h">Account history</h2>
+<div class="hscroll" tabindex="0" role="region" aria-labelledby="history-h">
+<table class="list">
+  <caption class="sr-only">Changes to this account, newest first</caption>
+  <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Who</th><th scope="col">Reason</th></tr></thead>
+  <tbody>
+  {% for e, label in events %}
+  <tr><td class="nowrap">{{ e.at|datetime_words }}</td><th scope="row">{{ label }}</th><td>{% if e.actor %}{{ e.actor|person }}{% else %}{{ e.actor_label }}{% endif %}</td><td>{{ e.reason|default:"–" }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="small"><a href="{% url 'administration:audit' %}?object_type=accounts.user">Every account change in the audit log</a></p>
+</section>
+{% endif %}
+{% endblock %}
