@@ -117,6 +117,14 @@ def test_an_account_with_a_pending_access_request_sees_it(signed_in, make_user, 
     assert 'data-part="filings"' not in work  # it acts for no organization yet
 
 
+def test_a_request_to_an_organization_with_no_administrator_says_the_cpuc_decides(signed_in, make_user, cpuc_admin):
+    mce = access.create_organisation(cpuc_admin, code="MCE", name="Marin Clean Energy", kind="pa", pa_type="CCA")
+    u = make_user("new@example.org", "New Comer")
+    access.request_access(u, mce, ["claims.read"])
+    work = your_work(signed_in(u).get("/").content.decode())
+    assert "MCE has no administrator yet, so the CPUC decides it" in work
+
+
 def test_the_queue_part_shows_three_items_and_the_count(signed_in, pge_admin, pge, make_user):
     for n in range(4):
         access.request_access(make_user(f"p{n}@example.org"), pge, ["claims.read"])
