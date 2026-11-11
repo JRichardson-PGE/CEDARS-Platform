@@ -832,15 +832,28 @@ def audit_log(request):
             | qs.filter(object_type="accounts.grant", object_id__in=[str(p["pk"]) for p in grant_ids])
             | qs.filter(object_type="accounts.membership", object_id__in=[str(p["pk"]) for p in member_ids])
         )
-    form = forms.AuditFilterForm(request.GET or None)
+    orgs = list(Organisation.objects.order_by("code")) if sysadmin else sorted(admin_orgs, key=lambda o: o.code)
+    actions = list(qs.order_by("action").values_list("action", flat=True).distinct())
+    form = forms.AuditFilterForm(
+        request.GET or None,
+        actions=actions,
+        types=[t for t in qs.order_by("object_type").values_list("object_type", flat=True).distinct() if t],
+        organisations=orgs,
+    )
     if form.is_valid():
         d = form.cleaned_data
-        if d["action"]:
-            qs = qs.filter(action__startswith=d["action"])
+        if d["action"]:  # one action, or every action that starts so (a family from the list, "grant.")
+            qs = qs.filter(action=d["action"]) if d["action"] in actions else qs.filter(action__startswith=d["action"])
         if d["actor"]:
             qs = qs.filter(actor_label__icontains=d["actor"])
         if d["object_type"]:
             qs = qs.filter(object_type=d["object_type"])
+        if d["organisation"]:
+            qs = qs.filter(organisation__code=d["organisation"])
+        if d["since"]:
+            qs = qs.filter(at__date__gte=d["since"])
+        if d["until"]:
+            qs = qs.filter(at__date__lte=d["until"])
     page = Paginator(qs.order_by("-at", "-id"), 50).get_page(request.GET.get("page"))
     query = request.GET.copy()
     query.pop("page", None)

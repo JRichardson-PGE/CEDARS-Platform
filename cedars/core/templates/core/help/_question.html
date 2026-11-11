@@ -1,7 +1,10 @@
-{# One FAQ question, its answer and its worked example. hl = the heading level: h3 under a topic, h2 in search results. #}
-<article class="faq" id="{{ q.id }}" aria-labelledby="{{ q.id }}-q">
+{# One FAQ question, its answer and its worked example. hl = the heading level: h3 under a topic, h2 in search results. fold: the answer folded under its question (the whole list), a native disclosure that works without scripts. #}
+{% if fold %}<details class="faq" id="{{ q.id }}">
+  <summary><h3 id="{{ q.id }}-q">{{ q.q }}</h3></summary>
+  <div class="faq-answer">
+{% else %}<article class="faq" id="{{ q.id }}" aria-labelledby="{{ q.id }}-q">
   {% if hl == 2 %}<h2 id="{{ q.id }}-q">{{ q.q }}</h2>{% else %}<h3 id="{{ q.id }}-q">{{ q.q }}</h3>{% endif %}
-  {% for p in q.a %}<p>{{ p }}</p>{% endfor %}
+{% endif %}  {% for p in q.a %}<p>{{ p }}</p>{% endfor %}
   {% if q.example %}
   <div class="example">
     <p class="example-title"><strong>Worked example: {{ q.example.title }}</strong></p>
@@ -20,4 +23,5 @@
   </div>
   {% endif %}
   <p class="small">{% for text, href in q.links %}<a href="{{ href }}">{{ text }}</a> · {% endfor %}<a href="{% url 'core:help_guide' q.guide %}">The user guide</a> · <a href="{% url 'core:help_faq' %}#{{ q.id }}">Link to this answer</a></p>
-</article>
+{% if fold %}  </div>
+</details>{% else %}</article>{% endif %}
