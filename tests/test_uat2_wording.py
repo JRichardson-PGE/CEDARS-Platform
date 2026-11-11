@@ -53,6 +53,20 @@ def test_sign_in_and_new_codes_messages_in_the_sites_words(make_user):
     assert text == "New recovery codes are ready. Save them somewhere safe now: they are not shown again."
 
 
+def test_first_recovery_codes_do_not_speak_of_earlier_codes(rf):
+    """UI review 3, X6: setting up a first second factor makes the first set of codes; regenerating them replaces the earlier ones."""
+    from django.urls import resolve
+
+    def message(path):
+        request = rf.get(path)
+        request.resolver_match = resolve(path)
+        return render_to_string("mfa/messages/recovery_codes_generated.txt", {"MFA_RECOVERY_CODES_SHOW_ONCE": False}, request).strip()
+
+    first = message("/accounts/2fa/totp/activate/")
+    assert "earlier" not in first and first.startswith("Your recovery codes are ready: each one signs you in once")
+    assert message("/accounts/2fa/recovery-codes/generate/") == "New recovery codes are ready; your earlier codes no longer work."
+
+
 @pytest.mark.skipif(shutil.which("recet") is None, reason="the pinned engine is not installed")
 def test_import_rules_says_a_published_set_is_published(cpuc_admin):
     out = io.StringIO()

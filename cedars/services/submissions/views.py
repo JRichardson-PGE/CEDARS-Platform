@@ -759,16 +759,17 @@ def deadline(request, pk):
 
 @login_required
 def reopen_requests(request):
-    """Requests to correct filings after their due date, for approvers and their delegates."""
+    """Requests to correct filings after their due date, for approvers and their delegates. Each filing is named once, plainly
+    (Submission.plain_name), with a link to its page."""
+    related = ("submission__deadline__period", "submission__deadline__cycle", "submission__organisation")
     pending = []
-    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(
-        "submission__deadline", "submission__organisation", "requested_by"
-    ):
+    for r in ReopenRequest.objects.filter(status=ReopenRequest.Status.PENDING).select_related(*related, "requested_by"):
         approver = service.approver_for(request.user, r.submission.module)
         if approver is not None:
-            pending.append((r, approver))
-    decided = ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related("submission__organisation", "decided_by")[
-        :50
+            pending.append((r, approver, service.filing_page(r.submission, service.current(r.submission))))
+    decided = [
+        (r, service.filing_page(r.submission, service.current(r.submission)))
+        for r in ReopenRequest.objects.exclude(status=ReopenRequest.Status.PENDING).select_related(*related, "decided_by")[:50]
     ]
     return render(request, "submissions/reopen_requests.html", {"pending": pending, "decided": decided})
 
@@ -783,7 +784,7 @@ def decide(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission}.")
+        messages.success(request, f"{'Approved' if approve else 'Declined'}: {req.submission.plain_name}.")
     return redirect("submissions:reopen_requests")
 
 

@@ -1,6 +1,9 @@
+import calendar
+
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class DeadlineQuerySet(models.QuerySet):
@@ -53,13 +56,38 @@ class Deadline(models.Model):
         ]
 
     def __str__(self):
-        what = self.period or self.cycle
-        return f"{self.module} {self.title} {what} due {self.due_at:%Y-%m-%d}"
+        return self.plain_name()
 
     @property
     def title(self) -> str:
         """What people call the filing: its name, else what is due (`kind`, which code matches on and never changes)."""
         return self.name or self.kind
+
+    @property
+    def due_date(self):
+        """The due date in the site's time zone (due_at is stored in UTC: 23:59 Pacific is the next day there)."""
+        return timezone.localtime(self.due_at).date()
+
+    def plain_name(self, organisation_code: str = "", *, due: bool = True) -> str:
+        """The one name a person reads for a filing: "PGE 2027 Q1 claim, due 2026-11-01" (the organization when given, the period or
+        cycle in words, the filing's title, the due date in the site's time zone)."""
+        title = self.title
+        when = ""
+        if self.period_id:
+            p = self.period
+            if p.kind == "month":
+                when = f"{calendar.month_name[p.number]} {p.year}"
+            elif p.kind == "quarter" and not title.startswith(f"Q{p.number} "):
+                when = f"{p.year} Q{p.number}"
+            else:
+                when = str(p.year)
+        elif self.cycle_id:
+            c = self.cycle
+            when = str(c.first_year) if c.first_year == c.last_year else f"{c.first_year}-{c.last_year}"
+        if when and when in title:
+            when = ""
+        text = " ".join(x for x in (organisation_code, when, title) if x)
+        return f"{text}, due {self.due_date:%Y-%m-%d}" if due else text
 
 
 class WorkflowPolicy(models.Model):
@@ -96,7 +124,12 @@ class Submission(models.Model):
         constraints = [models.UniqueConstraint(fields=["deadline", "organisation"], name="submissions_one_per_org_and_deadline")]
 
     def __str__(self):
-        return f"{self.organisation.code} {self.deadline}"
+        return self.plain_name
+
+    @property
+    def plain_name(self) -> str:
+        """The filing as a person reads it: "PGE 2027 Q1 claim, due 2026-11-01" (Deadline.plain_name)."""
+        return self.deadline.plain_name(self.organisation.code)
 
     @property
     def module(self) -> str:
@@ -147,7 +180,7 @@ class SubmissionVersion(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.submission} v{self.number}"
+        return f"{self.submission}, version {self.number}"
 
     @property
     def locked(self) -> bool:

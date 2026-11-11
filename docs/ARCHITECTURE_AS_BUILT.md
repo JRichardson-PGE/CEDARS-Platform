@@ -910,6 +910,10 @@ stateDiagram-v2
 - **Corrections in place** (`corrections.py`): on an open draft only, a record is changed, added or deleted on a form or by a partial
   upload, previewed, then applied; the module re-checks only the records the change affects and every record change is an audit event.
 - **Comments** on versions between the filer and CPUC staff, never public and never edited; **My queue** lists what waits on the user.
+- **One name for a filing.** Wherever a person reads a filing (My queue, Requests to correct filings, notices, messages, the audit
+  trail's object names) it is `Deadline.plain_name` / `Submission.plain_name`: the organization, the period or cycle in words, the
+  filing's title and the due date in the site's time zone ("PGE 2027 Q1 claim, due 2026-11-01"); `submissions.filing_page` finds the
+  page that filing is worked on (the module's page for the deadline, else the version's page).
 
 The whole path of one filing, with the calculation and publication:
 

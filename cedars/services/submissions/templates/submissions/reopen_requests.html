@@ -5,15 +5,15 @@
 <p>After its due date a confirmed filing is corrected as a new version, for that organization and period only. The version filed stays readable.</p>
 <p>Away for a while? <a href="{% url 'submissions:delegations' %}" id="delegates-link">Name a delegate</a> to decide for you on the days you choose.</p>
 <h2>Waiting for you</h2>
-{% for r, approver in pending %}
+{% for r, approver, page in pending %}
 <div class="card">
-  <h3>{{ r.submission }}</h3>
+  <h3>{% if page %}<a href="{{ page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</h3>
   <p>{{ r.requested_by|person }} asked {{ r.requested_at|date_words }}: {{ r.reason }}</p>
   {% if approver != user %}<p class="small muted">You decide as {{ approver|person_name }}'s delegate.</p>{% endif %}
   <form method="post" action="{% url 'submissions:decide' r.pk %}" class="stack">{% csrf_token %}
     <label for="note-{{ r.pk }}">Note (optional)</label><input type="text" id="note-{{ r.pk }}" name="note">
-    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> reopening {{ r.submission }}</span></button>
-      <button type="submit" name="decision" value="decline">Decline<span class="sr-only"> reopening {{ r.submission }}</span></button></div>
+    <div class="actions"><button type="submit" name="decision" value="approve" class="primary">Approve<span class="sr-only"> reopening {{ r.submission.plain_name }}</span></button>
+      <button type="submit" name="decision" value="decline">Decline<span class="sr-only"> reopening {{ r.submission.plain_name }}</span></button></div>
   </form>
 </div>
 {% empty %}<p>Nothing waiting.</p>
@@ -22,7 +22,7 @@
 <h2>Decided</h2>
 <div class="hscroll" tabindex="0" role="region" aria-label="Decided requests">
 <table class="list"><thead><tr><th scope="col">Filing</th><th scope="col">Decision</th><th scope="col">By</th><th scope="col">Reason</th></tr></thead>
-<tbody>{% for r in decided %}<tr><th scope="row">{{ r.submission }}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
+<tbody>{% for r, page in decided %}<tr><th scope="row">{% if page %}<a href="{{ page }}">{{ r.submission.plain_name }}</a>{% else %}{{ r.submission.plain_name }}{% endif %}</th><td><span class="status {{ r.status|status_tone }}">{{ r.get_status_display }}</span> <span class="small muted nowrap">{{ r.decided_at|date_words }}</span></td><td>{{ r.decided_by|person }}</td><td>{{ r.reason }}</td></tr>{% endfor %}</tbody></table>
 </div>
 {% endif %}
 {% endblock %}
