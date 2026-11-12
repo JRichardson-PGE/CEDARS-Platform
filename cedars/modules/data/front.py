@@ -312,7 +312,10 @@ def trends(params=None) -> Trends:
             v = values.get(m.field)
             if v is not None:
                 out[y] = out.get(y, 0) + v
-        return out
+        # the years before the first one with a value are not published, even when filed as 0 (Jake, 2026-11-12: the legacy claims
+        # before 2022 carry a total system benefit column of zeros, and TSB starts in 2022)
+        first = next((y for y in sorted(out) if out[y]), None)
+        return {y: v for y, v in out.items() if first is not None and y >= first}
 
     all_series = {m.key: series(m) for m in METRICS}
     t.tiles = [_tile(t, m, all_series[m.key]) for m in METRICS]

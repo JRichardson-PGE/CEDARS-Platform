@@ -35,7 +35,7 @@ def values(tsb=None, kwh=None, kw=None, therms=None, spent=None) -> dict:
 
 ROWS = [  # TSB published from 2022 only, as in the legacy claims
     (2020, "IOU", "PGE", values(None, 400e6, 80e3, 10e6, 300e6)),
-    (2021, "IOU", "PGE", values(None, 420e6, 82e3, 11e6, 320e6)),
+    (2021, "IOU", "PGE", values(0, 420e6, 82e3, 11e6, 320e6)),  # filed as 0 before TSB took effect: still not published
     (2022, "IOU", "PGE", values(1.0e9, 450e6, 85e3, 12e6, 350e6)),
     (2022, "REN", "BAYREN", values(20e6, 5e6, 1e3, 1e6, 10e6)),
     (2023, "IOU", "PGE", values(1.1e9, 460e6, 86e3, 12e6, 400e6)),
