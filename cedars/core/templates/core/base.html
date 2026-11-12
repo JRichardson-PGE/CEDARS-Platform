@@ -51,7 +51,7 @@
   {# The public header has the same narrow-screen Menu button as the signed-in one (UI review 2, #42). #}
   <button type="button" class="menu-btn" aria-expanded="false" aria-controls="main-nav" data-tour="menu" hidden>Menu</button>
   {% include "core/_nav.html" %}
-  <div class="who"><a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a> <a class="button primary" href="{% url 'account_login' %}" data-tour="sign-in">Sign in</a></div>
+  <div class="who"><a href="{% url 'core:help' %}"{% if request.path|slice:":6" == '/help/' %} aria-current="page"{% endif %}>Help</a> <a class="button primary" href="{{ sign_in_url }}" data-tour="sign-in">Sign in</a></div>
   {% endif %}{% endblock %}
 </div>
 </header>
