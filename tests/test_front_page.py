@@ -67,7 +67,11 @@ def test_the_charts(legacy):
     t = front.trends({})
     assert set(t.charts) == {"by_year", "indexed", "by_pa", "per_dollar"}  # four years: no shorter chart for phones
     by_year = t.charts["by_year"]
-    assert "No total system benefit published before 2022" in by_year["svg"]
+    assert by_year["years"] == [2022, 2023]  # from 2022, when TSB took effect: the years before it are not drawn (Jake, 2026-11-12)
+    assert ">2020<" not in by_year["svg"] and ">2021<" not in by_year["svg"]
+    assert front.trends({"metric": "kwh"}).charts["by_year"]["years"] == [2020, 2021, 2022, 2023]  # savings: every year
+    tsb_tile = {x["key"]: x for x in t.tiles}["tsb"]
+    assert tsb_tile["spark"]["line"].startswith("4.0,")  # the sparkline starts at its first published year
     assert 'style="' not in "".join(c["svg"] for c in t.charts.values())  # the CSP blocks inline styles
     assert len(by_year["table"]) == 2 and by_year["tips"]
     assert by_year["table"][1] == {"year": 2023, "value": "$1.64B", "change": "up 60% from 2022"}
