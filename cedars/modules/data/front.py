@@ -34,6 +34,7 @@ from django.utils.html import escape
 from cedars.services.snapshots import service as snapshots
 
 from . import dashboard
+from . import metrics as catalog
 from . import query as dq
 
 log = logging.getLogger(__name__)
@@ -45,7 +46,7 @@ log = logging.getLogger(__name__)
 FRESH_SECONDS = 600
 KEEP_SECONDS = 7 * 24 * 3600
 REFRESH_LOCK_SECONDS = 300  # one rebuild at a time; a rebuild that dies frees the lock after this
-CACHE_VERSION = 5  # the cached entry's shape: bump when it changes, so a deploy never reads an old pickle
+CACHE_VERSION = 6  # the cached entry's shape: bump when it changes, so a deploy never reads an old pickle
 PA_TYPES = ("IOU", "REN", "CCA")
 TOP_PAS = 4  # the PAs named in the by-PA chart; the rest are added up as "Other PAs"
 PHONE_YEARS = 5  # the by-year chart on a narrow screen shows the last few years only
@@ -55,8 +56,8 @@ PHONE_YEARS = 5  # the by-year chart on a narrow screen shows the last few years
 class Metric:
     key: str  # the page's ?metric= value and the dashboard's metric code
     title: str
-    field: str  # the query catalog's metric
-    scale: float  # the value is divided by this for display
+    field: str  # the query catalog's metric, read in its fields' own units ($, kWh, kW, therms; `_raw`)
+    scale: float  # the value is divided by this for display (kWh / 1e6 = GWh)
     unit: str  # after the number ("GWh"); money is "$" (before it, scaled to K, M or B)
     link: str  # the dashboard page that breaks it down
     noun: str  # in a sentence: "electricity saved"
@@ -169,11 +170,20 @@ def _fingerprint() -> str:
     return str(release.pk) if release else "0"
 
 
+def _raw(r: dict, code: str) -> float | None:
+    """A query row's metric in its fields' own units ($, kWh, kW, therms), or None when no record of the row carries the field. The
+    query's own value is already divided by the catalog's display scale (kWh to MWh, therms to MMTherms) and counts a field no file
+    has as 0; the front page scales once, by its own Metric.scale, and says "none published" for a field nobody filed."""
+    m = catalog.get(code)
+    filled = [f for f in m.numerator if f in r.get("_filled", ())]
+    return sum(r["_sums"][f] for f in filled) if filled else None
+
+
 def _read() -> Rows:
     fields = tuple(m.field for m in METRICS)
     result = dq.run(dq.Query("claims", fields, by=("year", "pa_type", "pa")))
     rows = [
-        (r["year"], (r.get("pa_type") or "").upper(), r.get("pa") or "", {f: r.get(f) for f in fields})
+        (r["year"], (r.get("pa_type") or "").upper(), r.get("pa") or "", {f: _raw(r, f) for f in fields})
         for r in result.rows
         if r.get("year") is not None
     ]
