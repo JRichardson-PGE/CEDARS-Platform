@@ -171,6 +171,8 @@ def _write_packs(tmp_path):
             ("hour_of_year", pa.int32()),
             ("datetime", pa.timestamp("ms")),
             ("total_avoided_cost", pa.float64()),
+            ("transmission", pa.float64()),
+            ("distribution", pa.float64()),
         ]
     )
     with pq.ParquetWriter(accdir / "electric_hourly.parquet", schema) as wr:
@@ -191,6 +193,8 @@ def _write_packs(tmp_path):
                             "hour_of_year": np.tile(np.arange(1, 8761, dtype=np.int32), len(YEARS)),
                             "datetime": stamps * len(YEARS),
                             "total_avoided_cost": np.concatenate([_price(y) + bump + (5.0 if cz != "CZ13" else 0.0) for y in YEARS]),
+                            "transmission": np.concatenate([_price(y) * 0.1 for y in YEARS]),
+                            "distribution": np.full(n, 3.0),
                         },
                         schema=schema,
                     )
@@ -260,6 +264,8 @@ def test_the_load_shape_and_the_value_charts_from_the_runs_packs(analyst, pge, r
     assert sum(q["pv"] for q in data["priced"]["quarters"]) == pytest.approx(rows[0]["ElecBen"], rel=1e-9)
     shifted = _shape()[(np.arange(8760) - 72) % 8760]  # 2009 starts on a Thursday, 2018 on a Monday: moved three days
     assert data["priced"]["per_kwh"][0]["value"] == pytest.approx(float((shifted * _price(2028)).sum() / 1000), rel=1e-9)
+    td = float((shifted * (_price(2028) * 0.1 + 3.0)).sum() / 1000)
+    assert data["priced"]["per_kwh"][0]["td"] == pytest.approx(td, rel=1e-9)  # transmission + distribution, read beside the total
     assert storage.store("results").exists(walkchart._cache_key(run, "", "W1"))  # kept beside the run's outputs
     assert walkchart.pack_series(run, "", rows[1], settings, walk.RECET)["why"] == "does not add up"
 
@@ -267,7 +273,9 @@ def test_the_load_shape_and_the_value_charts_from_the_runs_packs(analyst, pge, r
     assert [c.key for c in steps["timing"].charts] == ["shape-months", "shape-hours"]
     value, worth = steps["value"].charts
     assert value.table["rows"][-1][-1] == walk.dollars(rows[0]["ElecBen"])
-    assert worth.table["rows"][0][2] == "2028" and len(worth.table["rows"]) == 12  # 2028 to 2039: a 12-year life claimed in Q1
+    assert worth.table["columns"] == ["Year", "Value of a kWh", "Generation", "Transmission and distribution", "ACC year used"]
+    assert worth.table["rows"][0][4] == "2028" and len(worth.table["rows"]) == 12  # 2028 to 2039: a 12-year life claimed in Q1
+    assert worth.table["rows"][0][3] == f"${td:,.4f}" and "not discounted" in worth.title and "discounting is applied only" in worth.note
 
     copy.deepcopy(steps)  # plain data, kept as JSON
     page = web.get(f"/calculations/runs/{run.pk}/walkthrough/", {"measure": "W1", "step": "value"})
@@ -291,3 +299,20 @@ def test_added_load_is_charted_by_its_size_as_a_supply_cost_or_a_negative_benefi
     negative = walkchart.value_charts(w, {"priced": {"quarters": quarters, "per_kwh": [], "total": -40.0, "cost": False}})
     assert cost[0].title.startswith("The cost of supplying the added electricity") and cost[0].table["rows"][-1][-1] == "$40.00"
     assert negative[0].title.startswith("The value of the added electricity use (a negative electric benefit)")
+
+
+def test_the_value_of_a_kwh_is_split_into_generation_and_td_or_drawn_as_one_line():
+    per = [{"year": 2028 + i, "acc_year": 2028 + i, "value": 0.2 + 0.01 * i, "td": 0.05} for i in range(3)]
+    split = walkchart.per_kwh_chart(per, 2030)
+    assert split.legend == [("s1", "Generation (energy, capacity, GHG and the rest)"), ("s2", "Transmission and distribution")]
+    assert split.table["rows"][0][1:4] == ["$0.2000", "$0.1500", "$0.0500"] and not split.lines and split.marks
+    assert [r["text"] for r in split.slots[0]["rows"]][:3] == [
+        "A kWh saved is worth $0.2000",
+        "Generation: $0.1500",
+        "Transmission and distribution: $0.0500",
+    ]
+    # Without the T&D columns (or with a negative part) the chart stays one line of the total.
+    one = walkchart.per_kwh_chart([{k: v for k, v in p.items() if k != "td"} for p in per], 2029)
+    assert one.lines and one.table["columns"] == ["Year", "Value of a kWh", "ACC year used"] and "run to 2029" in one.note
+    negative = walkchart.per_kwh_chart([dict(p, td=0.5) for p in per], None)
+    assert negative.lines and not negative.marks
