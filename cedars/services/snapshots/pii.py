@@ -21,7 +21,10 @@ values and only those the check also matches are hits. The street address patter
 numbers followed by a few words and a word that is also a street suffix ("131 to 190 Watt Street Light", "75 HP Variable Speed Drive",
 "17W 3 Way A19 LED"): an address needs a street name after the house number, not a unit or a connector (watt, HP, ton, to, up ...),
 every word of the name has a letter in it, and "Street Light" is never an address. Run over every legacy CEDARS claim year and real
-CET inputs (2026-11-12), the old pattern held 12 PA-years on descriptions like these and found no addresses."""
+CET inputs (2026-11-12), the old pattern held 12 PA-years on descriptions like these and found no addresses.
+
+A phone number needs its area code set off, by parentheses or a separator ("415-555-0123", "(415) 555-0123", "415.555.0123"): codes
+such as "430123-0001" (a measure code) and amounts such as "234567.8901" have six digits run together and are not phone numbers."""
 
 import re
 from collections.abc import Iterable, Iterator
@@ -59,7 +62,7 @@ class Pattern:
 
 PATTERNS = (
     Pattern("email", "email addresses", r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}"),
-    Pattern("phone", "phone numbers", _B + r"(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\) ?|[2-9][0-9]{2}[ .-]?)[2-9][0-9]{2}[ .-][0-9]{4}" + _E),
+    Pattern("phone", "phone numbers", _B + r"(?:\+?1[ .-]?)?(?:\([2-9][0-9]{2}\) ?|[2-9][0-9]{2}[ .-])[2-9][0-9]{2}[ .-][0-9]{4}" + _E),
     Pattern(
         "street_address",
         "street addresses",
