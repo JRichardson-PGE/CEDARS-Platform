@@ -1,8 +1,27 @@
+import os
+
 import pytest
 
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service
 from cedars.services.accounts.models import User
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(config, items):
+    """CI splits a long run across parallel jobs: PYTEST_SHARD=k/n keeps every n-th test, starting at the k-th, of those the other
+    options selected (trylast: after -m and -k). The n jobs together run every test once. Unset, nothing changes."""
+    shard = os.environ.get("PYTEST_SHARD")
+    if not shard:
+        return
+    k, n = (int(x) for x in shard.split("/"))
+    if not 1 <= k <= n:
+        raise pytest.UsageError(f"PYTEST_SHARD={shard}: expected k/n with 1 <= k <= n")
+    keep = [item for i, item in enumerate(items) if i % n == k - 1]
+    dropped = [item for i, item in enumerate(items) if i % n != k - 1]
+    if dropped:
+        config.hook.pytest_deselected(items=dropped)
+    items[:] = keep
 
 
 @pytest.fixture(autouse=True)
