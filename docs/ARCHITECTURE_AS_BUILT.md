@@ -1703,7 +1703,8 @@ summarize. A pull request that builds part of a service or module updates its ro
   PrgID and ClaimID, the PAs' claim record key) for what look like email addresses, phone numbers, street addresses, Social Security
   numbers and account numbers of 9 or more digits. A pattern may add a stricter check that RE2's candidates must also pass (Python's
   `re`, for lookaheads; `pii.Pattern.confirm`): a street address needs a street name after the house number, not a unit or connector
-  ("28 Watt Street Light", "75 HP Variable Speed Drive" are measure descriptions). The patterns are code; which run and which columns are left out are the CPUC's settings (`ScanSettings`, page
+  ("28 Watt Street Light", "75 HP Variable Speed Drive" are measure descriptions), and a phone number needs its area code set
+  off by parentheses or a separator (so a measure code such as "430123-0001" is not one). The patterns are code; which run and which columns are left out are the CPUC's settings (`ScanSettings`, page
   `/publication/scan-settings/`, a reason and an audit event for every change). It matches each row group's distinct values with
   pyarrow's RE2 matcher, so the cost grows with the distinct text, not the rows. A file it cannot read is held. Nothing it finds is
   stored: a finding keeps the column, the pattern, the record count, up to five CEInputIDs and up to three examples masked to their

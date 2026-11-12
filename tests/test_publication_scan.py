@@ -153,6 +153,17 @@ def test_street_addresses_are_found_and_measure_descriptions_are_not(tmp_path):
     assert {x["record"] for x in pii.records(path, [f.as_dict()])} == {f"M{len(NOT_ADDRESSES) + i}" for i in range(len(ADDRESSES))}
 
 
+def test_phone_numbers_need_their_area_code_set_off(tmp_path):
+    p = pii.BY_CODE["phone"]
+    phones = ["415-555-0123", "(415) 555-0123", "(415)555-0123", "415.555.0123", "415 555 0123", "+1 415-555-0123", "1-415-555-0123"]
+    not_phones = ["430123-0001", "415555-0123", "234567.8901", "SDGE-430123-0001"]
+    assert [x for x in phones if not pii.matches(p, x)] == []
+    assert [x for x in not_phones if pii.matches(p, x)] == []
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table(["LED"] * 2, extra={"MeasCode": ["430123-0001", "430123-0002"]}))
+    assert pii.scan(path).clear
+
+
 def test_claim_ids_are_left_out_by_default(tmp_path):
     path = tmp_path / "r.parquet"
     claim_ids = ["BAY-2019 X - 1234567890 - 12W A-Line", "BAY-2019 X - 2345678901 - Advanced Power Strip"]
@@ -181,7 +192,7 @@ def test_dictionary_columns_and_ids_from_later_row_groups(tmp_path):
     assert f.record_ids == [f"M{len(CLEAN)}"] and f.records == 1
 
 
-# --- numbers (legacy budgets are filed text; "234567.8901" has a phone number's shape)
+# --- numbers (legacy budgets are filed text; a whole-dollar amount such as "9876543210" has an account number's shape)
 
 # Legacy CEDARS amounts as the downloads have them: dollars to four places, whole dollars, negatives, thousands commas, exponents
 BUDGETS = ["234567.8901", "415555.0123", "987654321", "-234567.8901", "1,234,567.25", "2.345678e5", "", "0", "0.0000", ".5"]
@@ -192,7 +203,7 @@ def test_legacy_budget_amounts_are_numbers_not_phone_or_account_numbers(tmp_path
     n = len(BUDGETS)
     path.write_bytes(table(CLEAN[:1] * n, extra={"Legacy_Budget": BUDGETS, "UnitMeaCost1stBaseline": ["315555.1234"] * n}))
     before = pii.scan(path)  # no column read as numbers: the old behaviour, which held legacy filings
-    assert {(f.column, f.pattern) for f in before.findings} >= {("Legacy_Budget", "phone"), ("Legacy_Budget", "account_number")}
+    assert ("Legacy_Budget", "account_number") in {(f.column, f.pattern) for f in before.findings}
     r = pii.scan(path, numeric=["legacy_budget", "UnitMeaCost1stBaseline"])
     assert r.clear and r.numeric == ["Legacy_Budget", "UnitMeaCost1stBaseline"]
     assert "Legacy_Budget" in r.columns  # still searched: only its plain numbers are left out
@@ -201,7 +212,7 @@ def test_legacy_budget_amounts_are_numbers_not_phone_or_account_numbers(tmp_path
 def test_text_in_a_numeric_column_and_numbers_in_a_text_column_are_still_searched(tmp_path):
     path = tmp_path / "r.parquet"
     budgets = ["234567.8901", f"Call {PHONE}", f"acct {ACCOUNT}", "1,250,000"]
-    path.write_bytes(table([f"acct {ACCOUNT}", "234567.8901", "LED", "x"], extra={"Legacy_Budget": budgets}))
+    path.write_bytes(table([f"acct {ACCOUNT}", "234.567.8901", "LED", "x"], extra={"Legacy_Budget": budgets}))
     r = pii.scan(path, numeric=["Legacy_Budget"])
     found = {(f.column, f.pattern): f for f in r.findings}
     assert set(found) == {
@@ -241,7 +252,7 @@ def test_a_legacy_style_budget_is_published_and_recorded_as_numeric(filer, cpuc_
 
 def test_a_hold_from_before_the_fix_clears_on_a_new_scan(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
     monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # the scan as it was
-    extra = {"Legacy_Budget": ["234567.8901"] * len(CLEAN)}
+    extra = {"Legacy_Budget": ["9876543210"] * len(CLEAN)}
     v = confirm(filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, extra=extra), django_capture_on_commit_callbacks)
     snap = Snapshot.objects.get(version=v)
     assert snap.pii_scan.held and in_release() == set()
@@ -452,7 +463,7 @@ def test_the_command_rescans_every_hold(filer, cpuc_admin, pge, django_capture_o
     from django.core.management import call_command
 
     monkeypatch.setattr(snapshots, "numeric_columns", lambda: set())  # holds made before the fix
-    budget = {"Legacy_Budget": ["234567.8901"] * len(CLEAN)}
+    budget = {"Legacy_Budget": ["9876543210"] * len(CLEAN)}
     a = confirm(
         filer, priced(filer, claims_deadline(cpuc_admin, 1), pge, CLEAN, run="r1", extra=budget), django_capture_on_commit_callbacks
     )
