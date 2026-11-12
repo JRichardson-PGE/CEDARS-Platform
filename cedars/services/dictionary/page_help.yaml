@@ -83,7 +83,7 @@ dictionary/lists:
       values a program's change form offers for those fields. Their first version is the program fields guide's values; the engine
       never checks them.
     - A code is accepted for claim years from its start year to its end year. A retired code keeps its row with an end year; a code is
-      never deleted.
+      never deleted. A program list's retired code is offered only to a program that already has it.
   how:
     - Select a list for its codes and versions.
   see: rules-and-lists
@@ -126,6 +126,8 @@ dictionary/list_draft:
     - Add or change many codes at once from a CSV with a code column and any of description, start_year and end_year; codes the file
       leaves out stay as they are. Publish with the date the version takes effect and why the list changes. Every change is recorded in
       the audit trail.
+    - Once published, the rules and the input editor (for a program list, a program's change form) accept exactly its codes from the date
+      it takes effect, and the version never changes.
   how:
     - Add a code, or read a file into the draft.
     - Select Change beside a code to retire, reinstate or describe it.

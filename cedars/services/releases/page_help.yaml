@@ -235,6 +235,8 @@ releases/mandates_manage:
       where CEDARS carries it, then publish it. Only administrators see drafts.
     - >-
       The register is public: enter only what the CPUC's public document says, and link the document on a ca.gov site.
+    - A published entry is never deleted (one entered in error is withdrawn), and every later change needs a reason, which its public
+      history shows.
   how:
     - Fill in the new entry and save the draft, then open it to link records and publish.
   tour:

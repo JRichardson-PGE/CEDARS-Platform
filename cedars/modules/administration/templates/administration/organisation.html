@@ -36,7 +36,7 @@ pages are in the sub-navigation (_organisation_nav.html).{% endcomment %}
       {{ give.expires.as_field_group }}
       {{ give.reason.as_field_group }}
     </div>
-    <div class="actions"><button type="submit" class="primary">Give access</button></div>
+    <div class="actions"><button type="submit"{% if not no_admin %} class="primary"{% endif %}>Give access</button></div>
   </form>
 </section>
 {% endif %}

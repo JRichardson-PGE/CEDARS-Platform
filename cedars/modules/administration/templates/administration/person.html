@@ -18,7 +18,7 @@
     <summary>Correct the name</summary>
     <form method="post" action="{% url 'administration:person_name' person.pk %}" class="stack form-narrow">{% csrf_token %}
       {% if is_self %}{{ name_form.name.as_field_group }}{% else %}{% for field in name_form %}{{ field.as_field_group }}{% endfor %}{% endif %}
-      <div class="actions"><button type="submit" class="primary">Save the name</button></div>
+      <div class="actions"><button type="submit">Save the name</button></div>
     </form>
   </details>
 </section>

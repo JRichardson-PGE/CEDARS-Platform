@@ -22,6 +22,19 @@
 {% if sw %}<div class="card" role="note" id="follows-note"><p><strong>{{ p.prg_id }} is {{ p.administrator.name }}'s part of the statewide program <a href="{% url 'programs:program' sw.prg_id %}">{{ sw.prg_id }}</a>.</strong> Since {{ p.follows_from|date_words }} its definition is {{ sw.prg_id }}'s: a change to {{ sw.prg_id }} reaches it the same day, and {{ pa }} does not change it here{% if sw.lead %} ({{ sw.lead.code }}, the lead PA, changes {{ sw.prg_id }}){% endif %}. It shows {{ sw.prg_id }}'s documents and evaluations; its filings and reports below are its own.</p></div>{% endif %}
 {% if following %}<p>You follow this program: you hear when a filing that includes it is published or corrected, when a fund shift moves its funds, when its details change and when a document about it is published, as you chose on your <a href="{% url 'notifications:settings' %}">notification settings</a>.</p>{% endif %}
 {% for r in pending %}<p>A change from {{ r.effective|date_words }} is waiting for a decision: <a href="{% url 'programs:request' r.pk %}">see the request</a>.</p>{% endfor %}
+<nav class="page-sections" id="program-sections" aria-label="On this page">
+  <ul>
+    <li><a href="#def-h">Definition</a></li>
+    <li><a href="#ver-h">Versions</a></li>
+    <li><a href="#alloc-h">Statewide allocation</a></li>
+    <li><a href="#bud-h">Budget filings</a></li>
+    <li><a href="#shift-h">Fund shifts</a></li>
+    <li><a href="#claim-h">Claims</a></li>
+    <li><a href="#mon-h">Monthly reports</a></li>
+    <li><a href="#eval-h">Evaluations</a></li>
+    <li><a href="#doc-h">Documents</a></li>
+  </ul>
+</nav>
 
 <section aria-labelledby="def-h">
 <h2 id="def-h">Definition{% if v %} <span class="small muted">in force since {{ v.valid_from|date_words }}</span>{% endif %}</h2>

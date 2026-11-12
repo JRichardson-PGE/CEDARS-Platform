@@ -7,6 +7,9 @@ budgets/index:
       letters. This page lists each cycle's filings with their due dates, where your PA's filings stand when you act for one, and the
       budgets that stand for each PA.
     - The newest cycle is open; earlier cycles are folded under their headings. Open a filing to upload, check, price and confirm it.
+    - Every confirmed version is kept and can be compared with any other; a correction is a new version, published with a change letter
+      in the change log. A cycle's budgets that stand are each PA's most recent confirmed filing in it. Confirmed filings, their inputs
+      and results are open to every signed-in user.
   how:
     - Budget filing template (Excel) is the workbook to fill in, Measure and ProgramCost with a Fields sheet defining every column.
     - Compare two versions shows any two budget versions you can read side by side, by program.
@@ -91,6 +94,8 @@ budgets/filing_new:
       CEDARS. Then its first and last program years, the due date, and the ACC and statewide allocation version it is priced with.
     - Setting it up puts it on the filing calendar. From then on it is changed there, on its deadline's page (its name, dates and
       notes, and its program years until a PA starts filing).
+    - It is priced on the ACC chosen here, with statewide programs allocated by the allocation version chosen (or the most recent
+      confirmed one for each program year).
   how:
     - Choose the type and name it (an advice letter needs a name, e.g. 2028-2031 True-up advice letter (TUAL); an application may
       go without), enter the first and last program years, the due date, the ACC and the allocation version, then Set up the filing.

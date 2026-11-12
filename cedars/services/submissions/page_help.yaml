@@ -341,7 +341,8 @@ submissions/delegations:
     - >-
       A CPUC approver names a delegate to decide for them on the days they choose, for example while on leave. The delegate decides
       correction requests after a due date (budgets, claims, monthly reports) and, for programs, program change requests, in the
-      approver's name; each decision records that it was made as a delegate.
+      approver's name; each decision records that it was made as a delegate. Ending a delegation early stops it at once; decisions
+      already made stay as made.
     - >-
       A delegate must be a member of the CPUC who can read the module. A CPUC system administrator can name or end a delegate on an
       approver's behalf, with a reason. Ending a delegation early stops it at once; decisions already made stay as made. Every

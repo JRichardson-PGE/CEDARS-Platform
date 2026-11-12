@@ -38,7 +38,7 @@
 </div>
 {% else %}
 {% if can_start %}{% url 'calculations:new' as new_url %}{% endif %}
-{% include "ui/empty.html" with title="No runs yet" text="A run prices a measure file on the ReCET engine and keeps its inputs and results here, for you or your organization." action_url=new_url action="Start a run" action_primary=True %}
+{% include "ui/empty.html" with title="No runs yet" text="A run prices a measure file on the ReCET engine and keeps its inputs and results here, for you or your organization." action_url=new_url action="Start a run" %}
 {% endif %}
 {% pager page query=query label="Run pages" where="below" %}
 {% endblock %}

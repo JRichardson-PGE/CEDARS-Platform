@@ -1,9 +1,8 @@
 {% extends "refdata/builder/base.html" %}
 {% block heading %}<div class="page-title"><h1>Tests: {{ build }}</h1>{% page_help "refdata/builder/tests" %}</div>{% endblock %}
 {% block step %}
-<p>Each test is a ratio, <code>&lt;T&gt;Ben / &lt;T&gt;Cost</code>, over streams read in its pricing, with a share of the program costs when it has
-one. Each is written as its formula: <code>adder(X)</code> is added to the benefits, <code>share x ProgramCosts</code> is the test's own
-share of the program costs and <code>share(TRC) x ProgramCosts</code> is TRC's. The order here is the order a run writes the tests and its pages show them.</p>
+<p>Each test is a ratio, <code>&lt;T&gt;Ben / &lt;T&gt;Cost</code>, written as its formula: <code>adder(X)</code> is added to the benefits and
+<code>share x ProgramCosts</code> is the test's share of the program costs.</p>
 {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
 <h2>The set's tests</h2>
 {% if tests %}

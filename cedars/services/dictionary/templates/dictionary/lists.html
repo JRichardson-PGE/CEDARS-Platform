@@ -5,14 +5,7 @@
 {% section_nav "reference" %}
 <div class="page-title"><h1>Value lists</h1>{% page_help "dictionary/lists" %}</div>
 <p>The codes a field may hold, such as the sectors or the climate zones, that the validation rules and the input editor check values
-against. Each list is kept in versions: the version in force on a date is the newest published one effective by then, and until a list
-has a version here, the list shipped with the calculation engine{% if release %} (ReCET {{ release }}){% endif %} is the one in force.
-A code is accepted for claim years from its start year to its end year; a retired code keeps its row with an end year, and a code is
-never deleted.</p>
-<p>The program lists (program_status, program_segment, program_primary_sector, program_implementer and program_category) are the
-values a program's status, segment, primary sector, implementer and category may take on its change form. They start from the
-<a href="{% url 'programs:fields' %}">program fields guide</a>, and a code retired here is offered only to a program that already
-has it.</p>
+against. Until a list has a version here, the engine's own list{% if release %} (ReCET {{ release }}){% endif %} is in force.</p>
 {% if not engine %}<p class="alert" role="alert">The calculation engine is not installed on this server, so its lists are not shown.</p>{% endif %}
 <div class="hscroll" tabindex="0" role="region" aria-label="Value lists">
 <table class="list">

@@ -64,7 +64,7 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
     </details>
     {% endfor %}
   </fieldset>{% endif %}
-  <button type="submit" class="primary">Show these records</button>
+  <button type="submit">Show these records</button>
 </form>
 {% if user.is_authenticated and page.columns %}
 <form method="post" action="{% url 'data:records_default_columns' %}" class="filters default-columns" aria-label="Your default columns">

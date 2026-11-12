@@ -1,10 +1,8 @@
 {% extends "refdata/builder/base.html" %}
 {% block heading %}<div class="page-title"><h1>Pricings: {{ build }}</h1>{% page_help "refdata/builder/pricings" %}</div>{% endblock %}
 {% block step %}
-<p>A pricing is how a stream is priced for a test: which rows of the ACC, which run-parameter discount rates, and the suffix its columns
-carry (ElecBen_SB is ElecBen in a pricing with suffix _SB). The engine prices its own streams only on its own pricings: the TRC rows at
-the primary rates with no suffix, and the SCT Base and High rows at the societal rates with _SB and _SH (participant columns _SCT). A
-pricing of your own is for streams from input columns and the program costs.</p>
+<p>A pricing is how a stream is priced for a test: which rows of the ACC, which discount rates, and the suffix its columns carry
+(ElecBen_SB is ElecBen in a pricing with suffix _SB).</p>
 {% if error %}<div class="alert" role="alert">{{ error }}</div>{% endif %}
 <form method="post" class="stack">{% csrf_token %}
   {{ formset.management_form }}

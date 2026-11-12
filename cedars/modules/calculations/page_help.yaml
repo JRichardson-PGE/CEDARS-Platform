@@ -311,6 +311,9 @@ calculations/engines:
       produced them. The default is what New run offers first; a retired release keeps its runs but takes no new ones.
     - A new ReCET version is a release of its own, added here by its number; the old one is retired, never edited into the new one, so
       each run keeps naming the release it ran on.
+    - Filings (budgets, claims and monthly reports) are priced on the default release, so it needs the ACC of every filing still to come.
+      To move to a new release, add it and make it the default; the release it replaces can be retired in the same step, and stays on
+      this list with its runs naming it.
   how:
     - >-
       Add the release registers a ReCET release by its version number (e.g. 0.1.90). Its calculations start as the default release's,

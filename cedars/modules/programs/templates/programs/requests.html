@@ -3,10 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li></ol></nav>
 <div class="page-title"><h1>Program change requests</h1>{% page_help "programs/requests" %}</div>
-<p>A program's administrators change most of its attributes themselves. A change to a <a href="{% url 'programs:locked' %}">locked attribute</a>
-is a request{% if approver %}, which you or another CPUC programs approver decides{% else %} that a CPUC programs approver decides{% endif %}.
-Approving it starts the new version on the date asked for. A correction of a version's values is a request too, from a program's
-administrators; approving it corrects that version in place.</p>
+<p>A change to a <a href="{% url 'programs:locked' %}">locked attribute</a>, or a correction of a version's values, is a
+request{% if approver %}, which you or another CPUC programs approver decides{% else %} that a CPUC programs approver decides{% endif %}.</p>
 <form method="get" class="filters" aria-label="Filter the requests">
   <div><label for="status">Show</label>
   <select id="status" name="status">{% for code, label in statuses %}<option value="{{ code }}"{% if code == shown %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>

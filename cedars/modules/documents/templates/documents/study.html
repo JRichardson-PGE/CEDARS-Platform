@@ -93,7 +93,7 @@
   {% for d, stage in documents %}<li><a href="{{ d.get_absolute_url }}">{{ d.title }}</a> <span class="small muted">{{ stage }}, {% if d.published_at %}published {{ d.published_at|date_words }}{% else %}not published{% endif %}</span></li>
   {% empty %}<li>No documents are filed for this study yet.</li>{% endfor %}
 </ul>
-{% if can_file %}<p><a class="button primary" href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">Upload a document<span class="sr-only"> for {{ s.study_id }}</span></a></p>{% endif %}
+{% if can_file %}<p><a class="button" href="{% url 'documents:new' %}?collection=emv&amp;study={{ s.study_id|urlencode }}">Upload a document<span class="sr-only"> for {{ s.study_id }}</span></a></p>{% endif %}
 <p><a href="{% url 'documents:study_comments_csv' s.number %}">Comment-and-response report for this study (CSV)</a></p>
 </section>
 

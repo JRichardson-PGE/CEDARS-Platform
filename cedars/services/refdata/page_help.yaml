@@ -4,8 +4,8 @@ refdata/index:
   title: Data packs
   guide:
     - The data packs the engine and the modules read, ACCs, eTRM packs, the impact profile library, cost-test sets and the rest. Every
-      run and every filing records the packs it used. A draft can be used for analysis runs but not for filings; a published pack is never
-      changed, and a withdrawn one keeps the runs that used it.
+      run and every filing records the packs it used. A draft can be used for analysis runs but not for filings, and a pack is published
+      only once its checks pass; a published pack is never changed, and a withdrawn one keeps the runs that used it.
   see: reference-data
   tour:
     - heading: In force today
@@ -68,6 +68,8 @@ refdata/cost_tests:
   guide:
     - A cost-test definition set says which value streams each cost test adds up and how it shares the program costs. Every run is pinned to
       one. A filing is priced only on a published set, the one its filing setup names or the one in force for its first program year.
+      An analysis run may also use a draft. A change to a set is a new version, never an edit; the engine's documents (Cost tests as
+      configuration) describe what a set holds.
     - Anyone may build a set with the set builder and price their own analysis runs on it. Only the CPUC registers a set for everyone,
       publishes it and pins it to a filing.
   how:
@@ -98,6 +100,7 @@ refdata/builder/start:
       changed in a step or two. You can also copy one of your own sets or a set the engine ships, read in a set file you have (written by
       hand or downloaded; one with problems is still read in, and its problems shown), or start from a blank set.
     - Shared with your organization, the set can be opened and changed by its members who may start runs there.
+    - The CPUC registers and publishes the sets everyone uses and the one a filing is priced on.
   how:
     - Choose what to start from in the Start from list. The page then shows only what that choice needs (which set, or the file);
       without scripts, select Next to show it. Then select Start.
@@ -142,6 +145,8 @@ refdata/builder/pricings:
   guide:
     - A pricing says how a stream is priced for a test, which ACC rows and which discount rates, and the suffix its columns carry. The
       engine prices its own streams only on its own pricings; a pricing of your own is for streams from input columns and the program costs.
+    - The engine's own pricings are the TRC rows at the primary rates with no suffix, and the SCT Base and High rows at the societal rates
+      with _SB and _SH (participant columns _SCT).
     - A pricing a stream, aggregate or test uses cannot be removed until they no longer use it.
   how:
     - Change a pricing's fields, tick Remove on one nothing uses, or fill in Add a pricing, then select Save.
@@ -257,6 +262,8 @@ refdata/builder/tests:
   guide:
     - The set's cost tests, in the order a run writes them and its pages show them. Each is a ratio of the streams it adds as benefits
       to those it adds as costs, read in its pricing, with a share of the program costs when it has one; each is shown as its formula.
+    - In a formula, adder(X) is added to the benefits, share x ProgramCosts is the test's own share of the program costs and share(TRC) x
+      ProgramCosts is TRC's.
   how:
     - Add a test, or Change, Remove, or move a test Up or Down in the list.
   see: reference-data

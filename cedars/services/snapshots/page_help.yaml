@@ -4,8 +4,11 @@ snapshots/holds:
   title: Publication holds
   see: reviewing
   guide:
-    - Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may
-      be personal information. A filing with a hit is held, and the public data keep what was published before.
+    - >-
+      Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may
+      be personal information: email addresses, phone numbers, street addresses, Social Security numbers and account numbers. A filing
+      with a hit is held, the public data keep what was published before, and the filing's organization and the CPUC system
+      administrators are told.
     - The filing's organization sees its own holds here, and those who confirm its filings certify a hold whose findings are not
       personal information, which releases it. CPUC system administrators see every hold and can release them too.
   how:

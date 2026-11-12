@@ -3,9 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:filings' %}">Filings</a></li></ol></nav>
 <div class="page-title"><h1>Approver delegates</h1>{% page_help "submissions/delegations" %}</div>
-<p>An approver names a delegate to decide for them for a set of days, for example while on leave: correction requests after a due date and,
-for programs, change requests. The delegate decides in the approver's name, and each decision records that it was made as a delegate.
-Ending a delegation early stops it at once; decisions already made stay as made.</p>
+<p>An approver names a delegate to decide for them for a set of days, for example while on leave; each decision records that it was made
+as a delegate.</p>
 
 {% if form %}
 <section class="card" aria-labelledby="name-h">

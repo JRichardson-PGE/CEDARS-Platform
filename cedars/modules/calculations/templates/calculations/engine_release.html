@@ -3,8 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li><li><a href="{% url 'calculations:engines' %}">Engine releases</a></li></ol></nav>
 <div class="page-title"><h1>Change ReCET {{ release.release }}</h1>{% page_help "calculations/engine_release" %}</div>
-<p>Change what this release offers: its calculations and the ACCs each has, the worker image and the AWS Batch job definition. Its
-number stays, so every run on it ({{ runs }} so far) still names it, and each run keeps the calculation and ACC it ran with. A new ReCET version is a release of its own: add it on <a href="{% url 'calculations:engines' %}">Engine releases</a>.</p>
+<p>Change what this release offers. Its number stays, so every run on it ({{ runs }} so far) still names it; a new ReCET version is added
+on <a href="{% url 'calculations:engines' %}">Engine releases</a>.</p>
 <p>Status: {% if not release.active %}Retired{% elif release.default %}Default for new runs and filings{% else %}Available{% endif %}.</p>
 <section class="card" aria-labelledby="change-h">
   <h2 id="change-h">What it offers</h2>

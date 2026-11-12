@@ -5,6 +5,8 @@ monthly/index:
   guide:
     - Each month a program administrator reports its commitments and the year's BCA inputs so far. Spend is read from the BCA inputs and
       compared with the operating budget; savings and ratios are estimated from them and labeled preliminary.
+    - Spend is the program costs plus paid incentives (the measures' rebates and incentives); the operating budget is the approved
+      budget plus the fund shifts in effect. Committed incentives, to be paid in the future, are reported apart from spend.
     - Each program year lists its twelve reports with their due dates and, when you act for a PA, where its reports stand, with the
       whole year in one view and the 13th-month report generated from the year's confirmed claims.
   how:
@@ -35,6 +37,8 @@ monthly/year_new:
       month's report and the 13th-month report's, due with the year's annual claim. Each month's report opens when its month ends;
       the 13th-month report, generated from each PA's confirmed claims, opens when the year ends.
     - A due date can be moved afterwards on the filing calendar, with a reason.
+    - The year-to-date inputs are priced on the ACC chosen here for the estimates, with statewide programs allocated by the allocation
+      version chosen (or the most recent confirmed one).
   how:
     - Choose the program year and the ACC, enter the thirteen due dates, then Set up the year.
   see: monthly-reports
