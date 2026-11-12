@@ -123,6 +123,19 @@ def test_published_claims(both):  # noqa: F811
     assert tsb["number"] == "$180" and tsb["change"] is None  # one year: nothing to compare with
 
 
+def test_published_savings_are_read_in_their_own_units(both):  # noqa: F811
+    """The query's values are already scaled for display (kWh to MWh, therms to MMTherms): the front page reads the fields' sums, so
+    1,234 GWh shows as 1,234 GWh and not 1.23; a field no file carries (kW here) is "none published", not 0."""
+    [(year, _, pa, values)] = front._read().rows
+    assert (year, pa) == (2028, "PGE")
+    assert values == {"tsb": 180, "kwh_first_year_net": 3500, "kw_first_year_net": None, "therms_first_year_net": 10, "expenditure": 110}
+    tiles = {x["key"]: x for x in front.trends({}).tiles}
+    assert (tiles["kwh"]["number"], tiles["kwh"]["unit"]) == ("0.00", "GWh")  # 3,500 kWh
+    assert (tiles["kw"]["number"], tiles["kw"]["unit"]) == ("None", "published")
+    kwh = front.BY_KEY["kwh"]
+    assert front.amount(kwh, 1_234e6) == "1,234 GWh" and front.amount(front.BY_KEY["kw"], 512e3) == "512 MW"
+
+
 @pytest.fixture
 def reads(both, monkeypatch):  # noqa: F811
     """Counts how often the claims are read, and a clock the test moves."""

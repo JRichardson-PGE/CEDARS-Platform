@@ -233,7 +233,8 @@ class Result:
     query: Query
     release: Release | None
     files: list[dict]  # the snapshots read (snapshots.release_files entries)
-    rows: list[dict]  # the dimensions by code, each metric by code, and "_sums" (each field's sum) and "_rows"
+    # the dimensions by code, each metric by code, "_sums" (each field's sum), "_filled" (the fields some record carries) and "_rows"
+    rows: list[dict]
     totals: dict  # each metric over every row kept, and "_sums" and "_rows"
     notes: list[str] = field(default_factory=list)
     used: set = field(default_factory=set)  # the snapshots that gave rows (a file read but matched by nothing is not one of them)
@@ -542,10 +543,12 @@ def run(q: Query) -> Result:
         key = tuple(_fold(record[d]) for d in q.by)
         row = rows.get(key)
         if row is None:
-            row = rows[key] = {d: record[d] for d in q.by} | {"_sums": dict.fromkeys(numbers, 0), "_rows": 0}
+            row = rows[key] = {d: record[d] for d in q.by} | {"_sums": dict.fromkeys(numbers, 0), "_rows": 0, "_filled": set()}
             row["_spellings"] = [Counter() for _ in q.by]
         for c in numbers:
             row["_sums"][c] += record[c] or 0
+            if record[c] is not None:  # a field no record of the group carries (blank or not in the file) sums to 0 but is not filed
+                row["_filled"].add(c)
         row["_rows"] += record["_rows"]
         for counter, d in zip(row["_spellings"], q.by, strict=True):
             value = record[d]
