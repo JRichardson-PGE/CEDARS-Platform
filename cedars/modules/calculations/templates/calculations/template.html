@@ -15,7 +15,7 @@ order on the right. You can also write or paste them, one per line. Every field'
   <div class="form-narrow stack">
     {{ form.name.as_field_group }}
   </div>
-  {% include "calculations/_field_picker.html" with fp=field_picker %}
+  {% include "core/_field_picker.html" with fp=field_picker %}
   <div class="form-narrow stack">
     {{ form.columns.as_field_group }}
     <p class="small" id="columns-count">{{ count }} column{{ count|pluralize }} in the template{% if unknown %}; not measure-level columns: {{ unknown|join:", " }}{% endif %}.</p>
@@ -44,4 +44,4 @@ order on the right. You can also write or paste them, one per line. Every field'
 {{ picker_fields|json_script:"field-catalog" }}
 {% endif %}
 {% endblock %}
-{% block scripts %}{% if catalog %}<script src="{% static 'calculations/field_picker.js' %}" defer></script>{% endif %}{% endblock %}
+

@@ -553,3 +553,27 @@ def test_saved_settings_gain_claim_id_once_and_audited(db):
     assert ScanSettings.objects.get().exempt_columns == ["CEInputID", "PrgID", "ClaimID"]
     [event] = AuditEvent.objects.filter(action="snapshot.scan_settings_changed")
     assert event.before["exempt_columns"] == ["CEInputID", "PrgID"] and event.actor_label == "system" and event.reason
+
+
+def test_the_columns_left_out_are_chosen_with_the_two_lists(client, cpuc_admin):
+    """The scan settings page chooses the columns left out with the two-list column picker over the data dictionary (each field once,
+    grouped by kind and group); the picker fills the text box, which still takes names the dictionary lacks and is what is saved."""
+    from cedars.services.dictionary import service as dictionary
+
+    dictionary.load_catalog(
+        None,
+        {
+            "source": "test",
+            "fields": [
+                {"name": "CEInputID", "kind": "input", "group": "Measure", "definition": "The measure's ID."},
+                {"name": "ClaimID", "kind": "record", "group": "Claim", "definition": "The claim's ID."},
+            ],
+        },
+    )
+    sign_in(client, cpuc_admin)
+    html = client.get(reverse("snapshots:scan_settings")).content.decode()
+    tag = html.split('id="field-picker"', 1)[1].split(">", 1)[0]
+    assert 'data-target="exempt" data-sep="newline"' in tag and 'data-order="catalog"' in tag
+    catalog = json.loads(html.split('<script id="field-catalog" type="application/json">', 1)[1].split("</script>", 1)[0])
+    assert {c["c"]: c["g"] for c in catalog} == {"CEInputID": "Input: Measure", "ClaimID": "Platform record: Claim"}
+    assert '<option value="g:Input: Measure">' in html and 'name="exempt_columns"' in html

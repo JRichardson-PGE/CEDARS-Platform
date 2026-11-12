@@ -1,0 +1,51 @@
+{% comment %}The two-list column picker (core/field_picker.js), one for every page that chooses columns: the output template page, Results and
+   Compare's Choose columns, the record downloads page, the cost-test builder's streams from input columns and the publication scan settings.
+   Hidden until the script shows it; the page keeps a no-script way to choose ([data-without-picker]). Variables (fp):
+   target (id of the input it fills), sep ("newline" or "comma"), noun ("the template", "the table"), kinds (offer input / program / output
+   fields), groups (the groups the Show box offers), left, right, find_right (labels); optional: prefix (the ids' prefix, "pick" by default, so
+   a page can hold two pickers), id (the picker's own id, "field-picker" by default), catalog (the id of its json_script catalog,
+   "field-catalog" by default), ordered (false: the chosen columns keep the catalog's order and the Order buttons are left out),
+   unknown (how a chosen name the catalog lacks is said, "not a measure-level column" by default), item and plural (the word for one and
+   several, "column" / "columns" unless kinds offers fields).{% endcomment %}
+{% with p=fp.prefix|default:"pick" one=fp.item|default:"column" %}{% with many=fp.plural|default:"columns" %}
+<div class="picker" id="{{ fp.id|default:'field-picker' }}" data-field-picker data-prefix="{{ p }}" data-catalog="{{ fp.catalog|default:'field-catalog' }}" data-target="{{ fp.target }}" data-sep="{{ fp.sep }}" data-noun="{{ fp.noun }}"{% if fp.ordered is False %} data-order="catalog"{% endif %}{% if fp.unknown %} data-unknown="{{ fp.unknown }}"{% endif %} data-item="{{ one }}" hidden>
+  <div class="picker-side">
+    <label for="{{ p }}-kind">Show</label>
+    <select id="{{ p }}-kind">
+      <option value="">All {% if fp.kinds %}fields{% else %}{{ many }}{% endif %}</option>
+      {% if fp.kinds %}<option value="k:input">Input fields</option>
+      <option value="k:program">Program fields (Prg_)</option>
+      <option value="k:output">Output fields</option>
+      <optgroup label="Output field groups">{% for g in fp.groups %}<option value="g:{{ g }}">{{ g }}</option>{% endfor %}</optgroup>
+      {% elif fp.groups %}<optgroup label="Groups">{% for g in fp.groups %}<option value="g:{{ g }}">{{ g }}</option>{% endfor %}</optgroup>{% endif %}
+    </select>
+    <label for="{{ p }}-find">Search names and definitions</label>
+    <input type="search" id="{{ p }}-find">
+    <label for="{{ p }}-available">{{ fp.left }}</label>
+    <select id="{{ p }}-available" multiple size="14" aria-describedby="{{ p }}-count {{ p }}-keys"></select>
+    <p class="small" id="{{ p }}-count"></p>
+  </div>
+  <div class="picker-moves" role="group" aria-label="Add and remove">
+    <button type="button" id="{{ p }}-add">Add the selected {% if fp.kinds %}fields{% else %}{{ many }}{% endif %}</button>
+    <button type="button" id="{{ p }}-add-all">Add every {% if fp.kinds %}field{% else %}{{ one }}{% endif %} shown</button>
+    <button type="button" id="{{ p }}-remove">Remove the selected {{ many }}</button>
+    <button type="button" id="{{ p }}-clear">Remove every {{ one }}</button>
+  </div>
+  <div class="picker-side">
+    <label for="{{ p }}-find-sel">{{ fp.find_right }}</label>
+    <input type="search" id="{{ p }}-find-sel">
+    <label for="{{ p }}-selected">{{ fp.right }}</label>
+    <select id="{{ p }}-selected" multiple size="14" aria-describedby="{{ p }}-sel-count {{ p }}-keys"></select>
+    <p class="small" id="{{ p }}-sel-count"></p>
+  </div>
+  {% if fp.ordered is not False %}<div class="picker-moves" role="group" aria-label="Order">
+    <button type="button" id="{{ p }}-top">Move to the top</button>
+    <button type="button" id="{{ p }}-up">Move up</button>
+    <button type="button" id="{{ p }}-down">Move down</button>
+    <button type="button" id="{{ p }}-bottom">Move to the bottom</button>
+  </div>{% endif %}
+  <p class="picker-keys small" id="{{ p }}-keys">Keys: in either list, select {% if fp.kinds %}fields{% else %}{{ many }}{% endif %} (Shift or Ctrl with the arrows or a click selects several).
+  Enter adds the selected {% if fp.kinds %}fields{% else %}{{ many }}{% endif %}; Delete removes the selected {{ many }}{% if fp.ordered is not False %}; Alt+Up and Alt+Down move them{% endif %}.</p>
+  <div class="picker-def" id="{{ p }}-def"><span class="muted">Select a {% if fp.kinds %}field{% else %}{{ one }}{% endif %} to see its definition here.</span></div>
+</div>
+{% endwith %}{% endwith %}

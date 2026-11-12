@@ -287,6 +287,8 @@ def records_page(request):
     try:
         if request.method == "POST":
             posted = {k: request.POST.getlist(k) for k in request.POST if k not in FORM_SKIP}
+            if "cols" in posted:  # the two-list column picker sends the chosen columns as one comma list
+                posted["col"] = [c for v in posted.pop("cols") for c in v.split(",") if c.strip()] + posted.get("col", [])
             if "program" in posted:  # the program picker: names and PrgIDs in any case read as PrgIDs
                 posted["program"] = pickers.resolve_programs(posted["program"])
             rq = records.from_params(posted)
@@ -364,6 +366,24 @@ def _records_context(request, page, number, error) -> dict:
             for g in page.catalog.groups
         ],
         "column_count": len(page.catalog.columns),
+        # the two-list column picker (core/field_picker.js): every column with its group and definition, in the catalog's order
+        "column_catalog": [
+            {"c": c.name, "g": g.label, "d": c.definition or ""}
+            | ({"l": reverse("dictionary:field", args=[c.name])} if c.definition and g.label != records.SOURCE else {})
+            for g in page.catalog.groups
+            for c in g.columns
+        ],
+        "column_picker": {
+            "target": "records-cols",
+            "sep": "comma",
+            "noun": "the download",
+            "groups": [g.label for g in page.catalog.groups],
+            "ordered": False,
+            "unknown": "not a column of these records",
+            "left": "Columns you can add",
+            "right": "Columns chosen, in file order",
+            "find_right": "Find in the columns chosen",
+        },
         "presets": [
             ("Key columns only", "?" + records.query_string(q, preset="key")),
             ("Every column", "?" + records.query_string(q, preset="all")),

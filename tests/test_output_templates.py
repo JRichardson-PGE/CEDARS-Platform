@@ -159,7 +159,8 @@ def test_the_field_pickers_catalog(web, catalog):
     assert first["g"] == output_templates.INPUT_GROUP and first["k"] == "input" and first["l"] == f"/dictionary/fields/{first['c']}/"
     assert all(f["k"] == "program" for f in fields if f["c"].startswith("Prg_"))
     page = web.get("/calculations/templates/new/").content.decode()
-    assert 'id="field-picker" data-target="id_columns" data-sep="newline" data-noun="the template" hidden' in page
+    tag = page.split('id="field-picker"', 1)[1].split(">", 1)[0]
+    assert 'data-target="id_columns" data-sep="newline" data-noun="the template"' in tag and tag.endswith(" hidden")
     assert 'id="field-catalog"' in page and "field_picker.js" in page
     assert "data-without-picker" in page  # the tick boxes, for a browser without scripts
     data = json.loads(page.split('id="field-catalog" type="application/json">', 1)[1].split("</script>", 1)[0])

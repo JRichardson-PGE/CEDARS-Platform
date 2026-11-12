@@ -5,16 +5,30 @@
 <form method="post" class="stack form-narrow">{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {{ form.name.as_field_group }}{{ form.kind.as_field_group }}
-  <fieldset><legend>Measure columns</legend>
-    {% if form.columns.field.choices %}{{ form.columns.as_field_group }}{% endif %}{{ form.new_columns.as_field_group }}
-  </fieldset>
+  {% comment %}Each set of Measure columns is chosen with the two-list column picker (core/_field_picker.html) over the columns offered,
+     filling its own hidden comma field; without scripts the tick boxes. The box for other names works either way.{% endcomment %}
+  {% with p=pickers.0 %}<fieldset class="column-choice"><legend>Measure columns</legend>
+    {% if form.columns.field.choices %}
+    {% if p %}<div data-with-picker hidden><p class="small">{{ form.columns.label }}: {{ form.columns.help_text }}.</p>
+      {% if form.columns.errors %}<ul class="errorlist">{% for e in form.columns.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>
+    <input type="hidden" name="{{ p.name }}" id="id_{{ p.name }}" value="{{ p.value }}" disabled>
+    {% include "core/_field_picker.html" with fp=p.fp %}{% endif %}
+    <div data-without-picker>{{ form.columns.as_field_group }}</div>
+    {% endif %}{{ form.new_columns.as_field_group }}
+  </fieldset>{% endwith %}
   {{ form.basis.as_field_group }}
-  <fieldset><legend>2nd baseline (each year of the life only)</legend>
-    {% if form.columns_2nd.field.choices %}{{ form.columns_2nd.as_field_group }}{% endif %}{{ form.new_columns_2nd.as_field_group }}
-  </fieldset>
+  {% with p=pickers.1 %}<fieldset class="column-choice"><legend>2nd baseline (each year of the life only)</legend>
+    {% if form.columns_2nd.field.choices %}
+    {% if p %}<p class="small" data-with-picker hidden>{{ form.columns_2nd.label }}: {{ form.columns_2nd.help_text }}.</p>
+    <input type="hidden" name="{{ p.name }}" id="id_{{ p.name }}" value="{{ p.value }}" disabled>
+    {% include "core/_field_picker.html" with fp=p.fp %}{% endif %}
+    <div data-without-picker>{{ form.columns_2nd.as_field_group }}</div>
+    {% endif %}{{ form.new_columns_2nd.as_field_group }}
+  </fieldset>{% endwith %}
   {{ form.ntg.as_field_group }}{{ form.market_effects.as_field_group }}{{ form.pricings.as_field_group }}{{ form.naming.as_field_group }}
   <fieldset><legend>Gross form</legend>{{ form.gross.as_field_group }}{{ form.gross_column.as_field_group }}</fieldset>
   {{ form.unit.as_field_group }}{{ form.definition.as_field_group }}
   {% if can_change %}<div class="actions"><button type="submit" class="primary">Save the stream</button></div>{% endif %}
 </form>
+{% if column_catalog %}{{ column_catalog|json_script:"field-catalog" }}{% endif %}
 {% endblock %}

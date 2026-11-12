@@ -260,6 +260,17 @@ class InputStreamForm(forms.Form):
         help_text="Shown in the run's field definitions and on its pages, so say what the values are",
     )
 
+    # The two-list column pickers (core/field_picker.js) send the columns chosen as one comma field each; without scripts the fields
+    # are disabled, so the tick boxes alone are sent.
+    PICKED = {"columns": "columns_picked", "columns_2nd": "columns_2nd_picked"}
+
+    def picked(self, field: str) -> list[str]:
+        """The offered columns chosen for `field` (columns or columns_2nd), as its picker starts: what was sent, else the initial ones."""
+        if self.is_bound:
+            sent = self.data.get(self.PICKED[field])
+            return _names(sent) if sent is not None else list(self.data.getlist(field))
+        return list(self.initial.get(field) or [])
+
     def __init__(self, *args, measure_columns=(), not_offered=(), pricings=(), **kwargs):
         super().__init__(*args, **kwargs)
         self.not_offered = set(not_offered)  # CET's Measure columns that cannot be added up (adds_up), refused when typed in the box
@@ -270,8 +281,9 @@ class InputStreamForm(forms.Form):
 
     def clean(self):
         d = super().clean()
-        d["columns"] = list(dict.fromkeys([*(d.get("columns") or []), *_names(d.get("new_columns"))]))
-        d["columns_2nd"] = list(dict.fromkeys([*(d.get("columns_2nd") or []), *_names(d.get("new_columns_2nd"))]))
+        picked = {f: _names(self.data.get(p)) for f, p in self.PICKED.items()}
+        d["columns"] = list(dict.fromkeys([*(d.get("columns") or []), *picked["columns"], *_names(d.get("new_columns"))]))
+        d["columns_2nd"] = list(dict.fromkeys([*(d.get("columns_2nd") or []), *picked["columns_2nd"], *_names(d.get("new_columns_2nd"))]))
         if not d["columns"]:
             self.add_error("columns", "Choose or name at least one Measure column.")
         for c in d["columns"] + d["columns_2nd"]:
