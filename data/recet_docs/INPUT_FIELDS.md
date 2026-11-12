@@ -415,6 +415,6 @@ ReCET's names drop the `E3` prefix of the CET tables they copy; the CET name is 
 
 ## 7. CET outputs file (for comparison)
 
-Optional. A CET run's `*_outputs.csv` (pipe or comma delimited) with a `CET_ID` column; measures are matched to the POC's `CEInputID`. Columns compared when present: `TotalSystemBenefit`, `ElecBen`, `GasBen`, `WaterEnergyBen` (+ `_SB`, `_SH`,
+Optional. A CET run's `*_outputs.csv` (pipe or comma delimited) with a `CET_ID` column; measures are matched to ReCET's `CEInputID`. Columns compared when present: `TotalSystemBenefit`, `ElecBen`, `GasBen`, `WaterEnergyBen` (+ `_SB`, `_SH`,
 `Gross`), `OtherBen`, `ElecSupplyCost`, `GasSupplyCost`, `WaterEnergyCost`, `TRCCost`, `PACCost`, `RIMCost`, `SCBCost`, `SCHCost`, `TRCRatio`, `PACRatio`, `RIMRatio`, and CET's `NetElecCO2`, `NetGasCO2`, `BillReducElec`, `BillReducGas` (compared with ReCET's `FirstYearNetElecCO2`, `FirstYearNetGasCO2`, `LifecycleBillReducElec`, `LifecycleBillReducGas`). The comparison is only
 meaningful when the job is run the way the CET run was (same First Year, ACC version, and statewide allocation).
