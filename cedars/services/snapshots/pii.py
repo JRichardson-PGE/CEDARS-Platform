@@ -14,7 +14,14 @@ and their punctuation ("j***@e******.c**").
 Numeric columns (fields the data dictionary types as numbers, and the legacy amounts kept as filed text, such as Legacy_Budget) are
 stored as text in some snapshots, and a budget such as "234567.8901" has the shape of a phone number. In those columns a value that is a
 plain number (`NUMBER`: a sign, digits with or without thousands commas, a decimal part, an exponent) is read as the number it is and
-not searched; any other value in them (text where a number belongs) is still searched. Text columns are searched in full."""
+not searched; any other value in them (text where a number belongs) is still searched. Text columns are searched in full.
+
+A pattern can carry a second, stricter check (`confirm`, Python's `re`, which has the lookaheads RE2 lacks): RE2 picks the candidate
+values and only those the check also matches are hits. The street address pattern uses it, because measure descriptions are full of
+numbers followed by a few words and a word that is also a street suffix ("131 to 190 Watt Street Light", "75 HP Variable Speed Drive",
+"17W 3 Way A19 LED"): an address needs a street name after the house number, not a unit or a connector (watt, HP, ton, to, up ...),
+every word of the name has a letter in it, and "Street Light" is never an address. Run over every legacy CEDARS claim year and real
+CET inputs (2026-11-12), the old pattern held 12 PA-years on descriptions like these and found no addresses."""
 
 import re
 from collections.abc import Iterable, Iterator
@@ -32,6 +39,13 @@ _E = r"(?:[^0-9A-Za-z_.-]|$)"
 _SUFFIX = (
     "street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct|place|pl|parkway|pkwy|highway|hwy|circle|cir|terrace|ter"
 )
+# What follows a number in a measure description and never starts a street name: units, sizes and connectors ("40 HP", "28 Watt",
+# "5 up to 15", "3 Ton", "26W CFL"). Single letters are not here: "4500 W Olive Ave" is an address.
+_NOT_A_STREET = (
+    "watts?|kw|kwh|hp|horsepower|tons?|ft|feet|foot|inch(?:es)?|in|volts?|amps?|gal(?:lons?)?|lbs?|btuh?|mbh|cfm|gpm|psi|sq|lumens?|lm|"
+    "to|up|and|or|x|way|stage|speed|ct|pk|pack|count|pcs?|yrs?|years?|hrs?|hours?|mm|cm|deg(?:rees)?|seer|eer|led|cfl"
+)
+_WORD = r"(?:[a-z0-9'.-]*[a-z][a-z0-9'.-]*)"  # a word of a street name: at least one letter ("5th", "O'Farrell"; not "3")
 
 
 @dataclass(frozen=True)
@@ -40,6 +54,7 @@ class Pattern:
     label: str  # "look like ...": what a finding says the values look like
     regex: str  # RE2 (pyarrow) and Python re both read it
     ignore_case: bool = False
+    confirm: str = ""  # a stricter Python `re` check of RE2's candidates (lookaheads); blank = RE2's match is the hit
 
 
 PATTERNS = (
@@ -50,6 +65,10 @@ PATTERNS = (
         "street addresses",
         r"(?:^|[^0-9a-z])(?:[0-9]{1,6}[a-z]?(?: [a-z0-9'.-]+){1,4} (?:" + _SUFFIX + r")\.?(?:[^a-z0-9]|$)|p\.? ?o\.? box [0-9]+)",
         ignore_case=True,
+        confirm=(
+            r"(?:^|[^0-9a-z])(?:[0-9]{1,6}[a-z]?(?: (?!(?:" + _NOT_A_STREET + r")(?![a-z0-9'.-]))" + _WORD + r")(?: " + _WORD + r"){0,3} "
+            r"(?:" + _SUFFIX + r")\.?(?![a-z0-9])(?!\s+light)|p\.? ?o\.? box [0-9]+)"
+        ),
     ),
     Pattern("ssn", "Social Security numbers", _B + r"[0-9]{3}-[0-9]{2}-[0-9]{4}" + _E),
     Pattern("account_number", "account numbers (9 or more digits)", _B + r"(?:[0-9]{9,19}|[0-9]{4}[ -][0-9]{4}[ -][0-9]{4,7})" + _E),
@@ -57,7 +76,9 @@ PATTERNS = (
 BY_CODE = {p.code: p for p in PATTERNS}
 # A plain number, the whole value: what a numeric column's values are, so they are not read as phone, SSN or account numbers.
 NUMBER = r"^\s*[+-]?\$?(?:(?:[0-9]+|[0-9]{1,3}(?:,[0-9]{3})+)(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\s*$"
-DEFAULT_EXEMPT = ("CEInputID", "PrgID")  # keys the platform assigns or registers; never personal information
+# Keys the platform assigns or registers, and the PAs' own claim record key; never personal information (Jake, 2026-11-12: a PA's
+# claim ID may embed its tracking numbers, which read as account numbers).
+DEFAULT_EXEMPT = ("CEInputID", "PrgID", "ClaimID")
 
 
 @dataclass
@@ -112,8 +133,31 @@ def mask(text: str) -> str:
     return "".join(out)
 
 
+def _flags(pattern: Pattern) -> int:
+    return re.IGNORECASE if pattern.ignore_case else 0
+
+
+def matches(pattern: Pattern, value: str) -> bool:
+    """Whether one value is a hit, as the scan decides it (RE2's pattern, then the stricter check when the pattern has one)."""
+    return re.search(pattern.regex, value, _flags(pattern)) is not None and (
+        not pattern.confirm or re.search(pattern.confirm, value, _flags(pattern)) is not None
+    )
+
+
+def _hits(distinct, pattern: Pattern):
+    """The distinct values that are hits: RE2 over all of them, then the stricter check over its (few) candidates."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+
+    hits = distinct.filter(pc.match_substring_regex(distinct, pattern.regex, ignore_case=pattern.ignore_case))
+    if pattern.confirm and len(hits):
+        check = re.compile(pattern.confirm, _flags(pattern))
+        hits = hits.filter(pa.array([check.search(v) is not None for v in hits.to_pylist()], pa.bool_()))
+    return hits
+
+
 def _example(pattern: Pattern, value: str) -> str:
-    m = re.search(pattern.regex, value, re.IGNORECASE if pattern.ignore_case else 0)
+    m = re.search(pattern.confirm or pattern.regex, value, _flags(pattern))
     found = (m.group(0) if m else value).strip(" ,;:")
     return mask(found[:80])
 
@@ -163,7 +207,7 @@ def scan(path: Path | str, *, patterns: list[str] | None = None, exempt: list[st
                 if len(distinct) == 0:
                     continue
                 for p in chosen:
-                    hits = distinct.filter(pc.match_substring_regex(distinct, p.regex, ignore_case=p.ignore_case))
+                    hits = _hits(distinct, p)
                     if len(hits) == 0:
                         continue
                     rows = pc.is_in(arr, value_set=hits)
@@ -211,7 +255,7 @@ def records(path: Path | str, findings: list[dict], *, numeric: Iterable[str] = 
             distinct = pc.unique(arr).drop_null()
             if col.lower() in numbers and len(distinct):
                 distinct = distinct.filter(pc.invert(pc.match_substring_regex(distinct, NUMBER)))
-            hits = distinct.filter(pc.match_substring_regex(distinct, p.regex, ignore_case=p.ignore_case)) if len(distinct) else distinct
+            hits = _hits(distinct, p) if len(distinct) else distinct
             if len(hits) == 0:
                 continue
             for i in pc.indices_nonzero(pc.is_in(arr, value_set=hits)).to_pylist():

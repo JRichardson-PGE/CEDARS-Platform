@@ -20,7 +20,7 @@ from cedars.services.notifications.models import Notification
 from cedars.services.registry.models import FilingCycle
 from cedars.services.snapshots import pii
 from cedars.services.snapshots import service as snapshots
-from cedars.services.snapshots.models import PIIScan, Snapshot
+from cedars.services.snapshots.models import PIIScan, ScanSettings, Snapshot
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
@@ -106,6 +106,60 @@ def test_ordinary_measure_text_is_clear(tmp_path):
     path = tmp_path / "r.parquet"
     path.write_bytes(table(CLEAN))
     assert pii.scan(path).clear
+
+
+# Measure descriptions the first street address pattern held (every legacy CEDARS claim year, 2026-11-12) and others shaped like them.
+NOT_ADDRESSES = [
+    "131 to 190 Watt Street Light LED replacing 250 Watt High Pressure Sodium",
+    "Up to 28 Watt Street Light LED replacing 50 Watt High Pressure Sodium",
+    "91 to 130 Watt Street Light LED",
+    "Greater than 5 HP to 75 HP Variable Speed Drive on Process Fan Control",
+    "11 HP - 40 HP Variable Speed Drive on Garage Exhaust Fan Control",
+    "<10 HP Variable Speed Drive on Garage Exhaust Fan Control",
+    "Air Compressor VSD (5 up to 15 HP Variable Speed Drive on Air Compressor Control)",
+    "17W 3 Way A19 LED Bulbs",
+    "26W CFL PL lamp",
+    "100 W Street Light LED",
+    "2 Stage Furnace Drive",
+    "3 Ton Split AC Heat Pump Way",
+    "60 Gallon Water Heater Ct",
+]
+ADDRESSES = [
+    "742 Evergreen Ter",
+    "123 Main St",
+    "Site: 4500 W Olive Ave., Burbank",
+    "1600 Pennsylvania Avenue NW",
+    "12 3rd Street",
+    "22B Baker Street",
+    "350 Mission St, San Francisco",
+    "8 Elm Dr Apt 2",
+    "456 N Wolfe Rd",
+    "1234 El Camino Real Way",
+    "PO Box 123",
+    "P.O. Box 9",
+]
+
+
+def test_street_addresses_are_found_and_measure_descriptions_are_not(tmp_path):
+    p = pii.BY_CODE["street_address"]
+    assert [d for d in NOT_ADDRESSES if pii.matches(p, d)] == []
+    assert [a for a in ADDRESSES if not pii.matches(p, a)] == []
+    path = tmp_path / "r.parquet"
+    path.write_bytes(table([*NOT_ADDRESSES, *ADDRESSES]))
+    r = pii.scan(path, patterns=["street_address"])
+    [f] = r.findings
+    assert (f.column, f.records) == ("MeasDescription", len(ADDRESSES))
+    assert f.record_ids == [f"M{len(NOT_ADDRESSES) + i}" for i in range(5)]
+    assert {x["record"] for x in pii.records(path, [f.as_dict()])} == {f"M{len(NOT_ADDRESSES) + i}" for i in range(len(ADDRESSES))}
+
+
+def test_claim_ids_are_left_out_by_default(tmp_path):
+    path = tmp_path / "r.parquet"
+    claim_ids = ["BAY-2019 X - 1234567890 - 12W A-Line", "BAY-2019 X - 2345678901 - Advanced Power Strip"]
+    path.write_bytes(table(["LED retrofit"] * 2, extra={"ClaimID": claim_ids}))
+    r = pii.scan(path)
+    assert r.clear and r.skipped == ["CEInputID", "PrgID", "ClaimID"]
+    assert [f.column for f in pii.scan(path, exempt=["CEInputID", "PrgID"]).findings] == ["ClaimID"]
 
 
 def test_settings_choose_patterns_and_columns(tmp_path):
@@ -272,7 +326,7 @@ def test_a_settings_change_and_a_new_scan_clear_a_false_hit(filer, cpuc_admin, p
         cpuc_admin, patterns=list(pii.BY_CODE), exempt_columns=["CEInputID", "PrgID", "MeasureCode"], reason="codes"
     )
     changed = AuditEvent.objects.get(action="snapshot.scan_settings_changed")
-    assert changed.before["exempt_columns"] == ["CEInputID", "PrgID"] and changed.after["exempt_columns"][-1] == "MeasureCode"
+    assert changed.before["exempt_columns"] == ["CEInputID", "PrgID", "ClaimID"] and changed.after["exempt_columns"][-1] == "MeasureCode"
     scan = snapshots.rescan(cpuc_admin, snap)
     assert scan.outcome == "clear" and scan.skipped == ["CEInputID", "PrgID", "MeasureCode"] and in_release() == {v.pk}
     assert AuditEvent.objects.get(action="snapshot.rescanned").after["outcome"] == "clear"
@@ -473,3 +527,18 @@ def test_only_the_filing_organization_s_confirmers_certify(client, make_user, cp
     assert PIIScan.objects.get(snapshot=held_snap).held
     snapshots.release_hold(cpuc_admin, held_snap, "the CPUC keeps its own release")
     assert PIIScan.objects.get(snapshot=held_snap).outcome == "released"
+
+
+def test_saved_settings_gain_claim_id_once_and_audited(db):
+    import importlib
+
+    from django.apps import apps
+
+    migration = importlib.import_module("cedars.services.snapshots.migrations.0005_scan_exempts_claimid")
+    ScanSettings.objects.all().delete()
+    ScanSettings.objects.create(patterns=list(pii.BY_CODE), exempt_columns=["CEInputID", "PrgID"])
+    migration.exempt_claim_id(apps, None)
+    migration.exempt_claim_id(apps, None)
+    assert ScanSettings.objects.get().exempt_columns == ["CEInputID", "PrgID", "ClaimID"]
+    [event] = AuditEvent.objects.filter(action="snapshot.scan_settings_changed")
+    assert event.before["exempt_columns"] == ["CEInputID", "PrgID"] and event.actor_label == "system" and event.reason
