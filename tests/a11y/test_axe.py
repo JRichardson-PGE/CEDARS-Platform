@@ -1254,12 +1254,16 @@ def _open(browser, site, scene, path, who, **context_args):
     return context, page
 
 
-def _violations(page, axe_source):
+def _violations(page, axe_source, header_menus=True):
     page.add_script_tag(content=axe_source)
     # Check what is folded away too: every disclosure on the page is opened, except the header's menus, which are dropdowns. An open
     # dropdown covers whatever is under it, as it should, so each menu is opened on its own and only the header is checked in that state.
+    # The header's menus are the same on every page for one kind of user, so the every-page check leaves them to
+    # test_header_menus_axe_clean, which opens them on one page for each kind of user.
     page.evaluate("document.querySelectorAll('details:not(.top nav details)').forEach(d => d.open = true)")
     found = _run_axe(page)
+    if not header_menus:
+        return found
     for i in range(page.evaluate("document.querySelectorAll('.top nav details').length")):
         page.evaluate("(i) => document.querySelectorAll('.top nav details').forEach((d, j) => { d.open = j === i })", i)
         found += [v for v in _run_axe(page, within=".top") if v not in found]
@@ -1469,9 +1473,25 @@ def test_header_scrolls_away_where_there_is_no_room(browser, site, scene, viewpo
 def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
     # axe is injected inline, so this context bypasses the page's CSP; nothing else does
     context, page = _open(browser, site, scene, path, who, color_scheme=scheme, bypass_csp=True)
-    found = _violations(page, axe_source)
+    found = _violations(page, axe_source, header_menus=False)
     context.close()
     assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
+
+
+# The header's menus on one page for each kind of user (signed out and every role in PAGES): the first page PAGES lists for it.
+HEADER_PAGES = []
+for _page in PAGES:
+    if _page[2] not in [p[2] for p in HEADER_PAGES]:
+        HEADER_PAGES.append(_page)
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+@pytest.mark.parametrize("name,path,who", HEADER_PAGES, ids=[p[2] or "signed-out" for p in HEADER_PAGES])
+def test_header_menus_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
+    context, page = _open(browser, site, scene, path, who, color_scheme=scheme, bypass_csp=True)
+    found = _violations(page, axe_source)
+    context.close()
+    assert not found, f"{name} as {who or 'signed out'} ({scheme}), header menus: " + json.dumps(found, indent=1)
 
 
 # Markup checks axe does not make (UI review 2, 2026-10-31): an id used twice (a label's for and a hint's aria-describedby reach only the
