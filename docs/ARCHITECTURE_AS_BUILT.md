@@ -233,7 +233,7 @@ The apps, in `INSTALLED_APPS` order:
 | --- | --- | --- |
 | Core | `cedars.core` | Base templates and static files, the header and its menus (`nav.py`), page help and tours (`page_help.py`), Help and the FAQ, site search (`search.py`), My queue (`queue.py`), Your work (`yourwork.py`), sortable and paged tables (`tables.py`), compact tick lists (`tick_lists.py`, with `TickListInput` for a form field), the shared program, field and member pickers (`pickers.py`, `ProgramsField` for several programs in a form; choices read from the registry, dictionary and accounts services), health checks (`health.py`), object storage (`storage.py`), uploads (`uploads.py`), accessible workbooks (`workbooks.py`), zip streaming, the API base and `/healthz`; the database cache table `cedars_cache` (migration) |
 | Service | `cedars.services.accounts` | Users, organizations and their codes, memberships, grants, role templates, access requests, recertification, access policy, API tokens, sign-in middleware |
-| Service | `cedars.services.audit` | The append-only audit trail and the request context it stamps on every event |
+| Service | `cedars.services.audit` | The append-only audit trail, the request context it stamps on every event, and each action in words (`words`) for the histories and the audit log |
 | Service | `cedars.services.registry` | Programs and their effective-dated versions, statewide leads and IDs that follow a statewide program, filing cycles, reporting periods, statewide allocation versions, program change policy and requests, goal sets; the operating budget, reported spend, program records and evaluation hooks |
 | Service | `cedars.services.dictionary` | Field catalog versions (the engine's and the platform's own records), aliases, usages, value lists, field retirement, templates and schemas, the legacy crosswalk |
 | Service | `cedars.services.rules` | Rule sets and rules as data, run by the engine's rule runner; the pre-upload checker; the list of checks written in code |
@@ -1431,12 +1431,15 @@ flowchart TD
 
 - `uv run pytest` on PostgreSQL (pytest-django; the transactional tests and triggers need PostgreSQL); tests that need the engine skip
   without it. `uv run pytest -m a11y` runs axe-core in Chromium on every page listed in `tests/a11y/pages.py`, in both color schemes
-  and at 320 px.
+  and at 320 px; the header's menus, each opened on its own, are checked on one page for each kind of user.
 - CI (`.github/workflows/ci.yml`) on every pull request, on main and weekly: ruff (lint and format), migrations match the models,
-  Django's deployment checks on the production settings, the tests with the pinned engine, axe (Playwright's Chromium cached between
-  runs; its extra apt fonts are skipped when the Ubuntu mirrors cannot be reached, and a launch check fails the job if Chromium cannot
-  start), the Docker image built with the pinned engine and scanned by grype, pip-audit over `uv.lock`, gitleaks over the whole
-  history with the noreply-author check, and Terraform fmt and validate.
+  Django's deployment checks on the production settings, the tests with the pinned engine (on four workers), axe (split across four
+  parallel jobs, each taking every fourth check through `PYTEST_SHARD` in `tests/conftest.py`, reported together as the accessibility
+  check; Playwright's Chromium cached between runs; its extra apt fonts are skipped when the Ubuntu mirrors cannot be reached, and a
+  launch check fails the job if Chromium cannot start), the Docker image built with the pinned engine and scanned by grype, pip-audit over `uv.lock`, gitleaks over the whole
+  history with the noreply-author check, and Terraform fmt and validate. CI's PostgreSQL runs without disk syncing (a throwaway
+  database), and a new push to a pull request cancels that pull request's run still in progress (main and the weekly run are never
+  canceled).
 - Tests hold the documentation to the code: `test_dictionary.py` and `test_engine_docs.py` (the engine's catalog and documents),
   `test_us_spelling.py` (the docs too), `test_navigation.py` (every page in the header or listed), and `test_architecture_doc.py` (this
   file).

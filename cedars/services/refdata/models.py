@@ -67,6 +67,23 @@ class PackVersion(models.Model):
         return sum(int(m.get("bytes", 0)) for m in self.manifest.values())
 
 
+# A check's name in words, wherever a person reads it (UI review 3, U12). The name itself (source_workbook) is what a check's report and
+# the scripts use, and stays on the checks page in small type for them.
+CHECK_WORDS = {
+    "source_workbook": "Matches the published workbook",
+    "reference_measures": "Reference measures price alike",
+    "profile_checks": "Profiles are complete and sum to 1",
+    "engine_check": "Engine check",
+}
+
+
+def check_words(name: str) -> str:
+    """A pack check in plain words: "Matches the published workbook" for source_workbook; a check added later reads as its name in
+    words ("load_shapes_match" is "Load shapes match")."""
+    said = CHECK_WORDS.get(name) or (name or "").replace("_", " ")
+    return said[:1].upper() + said[1:]
+
+
 class TieOutRequirement(models.Model):
     """A check a kind of pack must pass before it is published (configuration, not code; the first ones seeded by migration 0002).
     CPUC system administrators add and retire checks on the Pack acceptance checks page; a check is never edited (retire it and add
@@ -91,6 +108,10 @@ class TieOutRequirement(models.Model):
     @property
     def active(self) -> bool:
         return self.retired_at is None
+
+    @property
+    def words(self) -> str:
+        return check_words(self.name)
 
 
 class TieOut(models.Model):
@@ -117,6 +138,10 @@ class TieOut(models.Model):
 
     def __str__(self):
         return f"{self.pack} {self.name}: {'passed' if self.passed else 'failed'}"
+
+    @property
+    def words(self) -> str:
+        return check_words(self.name)
 
 
 class EtrmPermutation(models.Model):

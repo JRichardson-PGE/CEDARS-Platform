@@ -36,6 +36,7 @@ from django.utils import timezone
 
 from cedars.core import pickers
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
@@ -126,7 +127,9 @@ def _fields(shift: FundShift) -> dict:
 
 def _require_submit(actor, organisation) -> None:
     if not can_submit(actor, organisation):
-        raise AccessDenied(f"Making {organisation.code}'s fund shifts needs Budgets: Submit in {organisation.code}.")
+        raise AccessDenied(
+            f"Making {organisation.code}'s fund shifts needs the {perms.label('budgets.submit')} permission in {organisation.code}."
+        )
 
 
 def _require_draft(shift: FundShift) -> None:

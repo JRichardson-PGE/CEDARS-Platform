@@ -62,7 +62,7 @@ wrongly is corrected in place, and the version says when.{% if can_correct %} To
   <tr>
     <th scope="row" class="nowrap">{{ ver.valid_from|date_words }}</th>
     <td class="nowrap">{{ ver.valid_to|date_words|default:"open" }}</td>
-    <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field|cut:"_"|capfirst }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
+    <td>{% if changes %}<ul class="grants">{% for field, old, new in changes %}<li>{{ field }}: {{ old }} to {{ new }}</li>{% endfor %}</ul>{% else %}First version{% endif %}</td>
     <td>{{ ver.reason }}</td>
     <td class="small">{% if signed_in %}{{ ver.created_by|person|default:"imported" }}<br>{% endif %}{{ ver.created_at|date_words }}{% if ver.corrected_at %}<br>Corrected {{ ver.corrected_at|date_words }}{% if signed_in and ver.corrected_by %} by {{ ver.corrected_by|person }}{% endif %}{% endif %}</td>
     {% if can_correct %}<td><a href="{% url 'programs:correct' p.prg_id ver.pk %}">Correct<span class="sr-only"> the version from {{ ver.valid_from|date_words }}</span></a></td>{% endif %}

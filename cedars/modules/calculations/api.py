@@ -15,6 +15,7 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from cedars.core import api, storage, uploads
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import AllocationVersion
 
@@ -404,7 +405,7 @@ def _start(request):
         if not _personal_allowed(request):
             raise PermissionDenied("This token cannot start your own runs; it needs the calculations module.")
     elif not api.allowed(request, "calculations.submit"):
-        raise PermissionDenied(f"This call needs calculations.submit in {org.code}.")
+        raise PermissionDenied(f"This call needs the {perms.label('calculations.submit')} permission (calculations.submit) in {org.code}.")
     try:
         run = service.create_run_from_upload(request.user, org, _request(data, request.user), data["job"])
     except AccessDenied as e:

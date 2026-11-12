@@ -268,6 +268,24 @@ def file_sha256(doc: Doc) -> str:
     return hashlib.sha256((DOCS_DIR / doc.file).read_bytes()).hexdigest()
 
 
+def reference(link: str) -> dict | None:
+    """A link into the engine's documents ("INPUT_FIELDS.md#13-keys-that-select-prices-profiles-and-rates", as the data dictionary
+    holds it) named in words, for a person to read: {"doc": "Input fields", "section": "1.3 Keys that select prices, profiles and
+    rates", "href": its page here}. None for a document not shown here; when the anchor names no heading, the section is blank and the
+    link goes to the top of the document."""
+    path, _, frag = (link or "").strip().partition("#")
+    doc = BY_FILE.get(path)
+    if doc is None:
+        return None
+    anchor = _anchor(doc.slug, f"#{frag}" if frag else "")[1:]
+    section = ""
+    if anchor:
+        m = re.search(rf'<h[1-6][^>]*\sid="{re.escape(anchor)}"[^>]*>(.*?)</h[1-6]>', _convert(doc.slug)[1], re.S)
+        if m:
+            section = _us(unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip()
+    return {"doc": doc.title, "section": section, "href": page_url(doc.slug) + (f"#{anchor}" if section else "")}
+
+
 @lru_cache(maxsize=1)
 def input_sections() -> dict[str, dict[str, str]]:
     """{table: {field name, lower case: its section}} from the engine's input field reference (INPUT_FIELDS.md): the subsections of

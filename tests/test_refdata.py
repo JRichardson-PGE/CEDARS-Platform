@@ -59,12 +59,12 @@ def test_a_draft_is_for_analysis_only_until_its_tie_outs_pass(cpuc_admin, acc):
     assert not ok and "draft" in why
     assert service.in_force("acc_electric", date(2028, 1, 1)) is None
     assert service.in_force("acc_electric", date(2028, 1, 1), include_drafts=True) == acc
-    with pytest.raises(AccessDenied, match="reference_measures, source_workbook"):
+    with pytest.raises(AccessDenied, match="Reference measures price alike, Matches the published workbook"):
         service.publish_pack(cpuc_admin, acc)
     service.record_tie_out(cpuc_admin, acc, check="source_workbook", passed=True)
     t = service.record_tie_out(cpuc_admin, acc, check="reference_measures", passed=True, precision=1e-9, largest_difference=2e-6)
     assert not t.passed  # over the stated precision is a failure whatever the script said
-    with pytest.raises(AccessDenied, match="reference_measures"):
+    with pytest.raises(AccessDenied, match="Reference measures price alike"):
         service.publish_pack(cpuc_admin, acc)
     service.record_tie_out(cpuc_admin, acc, check="reference_measures", passed=True, precision=1e-9, largest_difference=1e-12)
     service.publish_pack(cpuc_admin, acc)
@@ -162,9 +162,8 @@ def test_pages(signed_in, cpuc_admin, pge_admin, acc):
     signed_in(pge_admin).post(f"/reference-data/{acc.pk}/", {"action": "discard"})
     assert PackVersion.objects.filter(pk=acc.pk).exists()  # not theirs to manage
     c = signed_in(cpuc_admin)
-    assert (
-        "Publishing needs a passed tie-out for: reference_measures, source_workbook" in c.get(f"/reference-data/{acc.pk}/").content.decode()
-    )
+    needs = "Publishing needs a passed result of these checks: Reference measures price alike, Matches the published workbook"
+    assert needs in c.get(f"/reference-data/{acc.pk}/").content.decode()
     _tie_outs(cpuc_admin, acc)
     c.post(f"/reference-data/{acc.pk}/", {"action": "publish"})
     acc.refresh_from_db()

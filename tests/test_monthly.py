@@ -271,7 +271,7 @@ def test_a_report_with_no_measures_has_nothing_to_estimate(filer, year, pge, pro
     assert service.priced(v) and v.calculation["nothing_priced"] and not Run.objects.exists()
     assert service.confirm(filer, v).status == SubmissionVersion.Status.PUBLISHED
     v2 = service.upload(filer, month(2), pge, report("202802", measures=[], costs=[]), "february.zip")
-    with pytest.raises(AccessDenied, match="monthly.submit"):
+    with pytest.raises(AccessDenied, match="Monthly reports: submit permission"):
         service.price(make_user("stranger@example.com"), v2)
 
 

@@ -23,7 +23,7 @@ refdata/detail:
       published. An eTRM pack lets you look up a permutation by its measure detail ID; a cost-test set shows its tests, a grid of how they
       are built (each stream's part in each test, and each test as a formula), the set in words as the engine reads it, and a link to
       download its file.
-    - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed tie-out for each check
+    - Its managers publish or discard a draft, or withdraw a published pack with a reason. Publishing needs a passed result of each check
       the kind of pack requires.
   how:
     - Publish a draft once its tie-outs pass, or Discard the draft; Withdraw takes a published pack out of use, with a reason.

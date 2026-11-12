@@ -27,6 +27,7 @@ from django.db import transaction
 
 from cedars.core import storage
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.registry.models import Program
@@ -218,7 +219,7 @@ def start(
     if not service.can_read(actor, v):
         raise AccessDenied("You cannot read these claims.")
     if organisation is not None and organisation not in organisations_for(actor):
-        raise AccessDenied(f"You need calculations.submit in {organisation.code} to start runs for it.")
+        raise AccessDenied(f"You need the {perms.label('calculations.submit')} permission in {organisation.code} to start runs for it.")
     option = next((o for o in submissions.restate_options() if o["release"] == release), None)
     if option is None:
         raise AccessDenied(f"ReCET {release} is not an active release with ReCET's own calculation.")

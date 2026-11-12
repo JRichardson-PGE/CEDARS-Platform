@@ -27,6 +27,7 @@ from django.utils import timezone
 
 from cedars.core import letters, storage
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.notifications.service import Concern
@@ -719,7 +720,7 @@ def price(actor, v: SubmissionVersion) -> str:
     setup = setup_for(v.submission.deadline)
     if not f.get("measures"):
         if not access.has_permission(actor, v.submission.organisation, f"{MODULE}.submit"):
-            raise AccessDenied(f"You need {MODULE}.submit in {v.submission.organisation.code} to do that.")
+            raise AccessDenied(f"You need the {perms.label(f'{MODULE}.submit')} permission in {v.submission.organisation.code} to do that.")
         if v.status != SubmissionVersion.Status.VALIDATED:
             raise AccessDenied("Only a validated version is priced for confirmation.")
         submissions.record_calculation(

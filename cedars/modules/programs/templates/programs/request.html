@@ -42,7 +42,7 @@
 {% if events %}
 <section aria-labelledby="hist-h">
 <h2 id="hist-h">History</h2>
-<ul>{% for e in events %}<li>{{ e.at|datetime_words }}: {{ e.action }} by {{ e.actor|person|default:"the system" }}{% if e.reason %} ({{ e.reason }}){% endif %}</li>{% endfor %}</ul>
+<ul>{% for e, what in events %}<li>{{ e.at|datetime_words }}: {{ what }} by {{ e.actor|person|default:"the system" }}{% if e.reason %} ({{ e.reason }}){% endif %}</li>{% endfor %}</ul>
 </section>
 {% endif %}
 {% endblock %}

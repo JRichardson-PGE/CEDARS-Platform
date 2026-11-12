@@ -63,7 +63,7 @@ def test_a_set_file_is_a_draft_pack_of_that_one_file(cpuc_admin):
 
 def test_publishing_needs_the_engine_check_and_a_final_file(cpuc_admin, pge_admin):
     p = cost_tests.register_set(cpuc_admin, set_file())
-    with pytest.raises(AccessDenied, match="engine_check"):
+    with pytest.raises(AccessDenied, match="Engine check"):
         refdata.publish_pack(cpuc_admin, p)
     refdata.record_tie_out(cpuc_admin, p, check="engine_check", passed=True)
     assert refdata.publish_pack(cpuc_admin, p).status == "published"

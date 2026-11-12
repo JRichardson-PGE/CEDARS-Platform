@@ -111,7 +111,7 @@ def test_lines_are_checked_and_nothing_is_saved_with_a_problem(filer, pge, cycle
 def test_making_a_shift_needs_budgets_submit(pge, pge_admin, cycle, make_user, programs):  # noqa: F811
     reader = make_user("reader@pge.example.org")
     access.grant(pge_admin, reader, pge, "budgets.read")
-    with pytest.raises(AccessDenied, match="Budgets: Submit"):
+    with pytest.raises(AccessDenied, match="Budgets: submit permission"):
         shifts.create(reader, pge, cycle, title="t", reason="r")
 
 

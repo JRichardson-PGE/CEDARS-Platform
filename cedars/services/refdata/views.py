@@ -203,7 +203,7 @@ def checks(request):
         except AccessDenied as e:
             form.add_error(None, str(e))
         else:
-            messages.success(request, f"Check {r.name} added. Drafts of that kind need it before they are published.")
+            messages.success(request, f"Check {r.words} added. Drafts of that kind need it before they are published.")
             return redirect("refdata:checks")
     rows = TieOutRequirement.objects.select_related("added_by", "retired_by").order_by("kind", "retired_at", "name")
     by_kind = []
@@ -223,7 +223,7 @@ def retire_check(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, f"Check {r.name} retired. Drafts no longer need it; published packs keep it with their results.")
+        messages.success(request, f"Check {r.words} retired. Drafts no longer need it; published packs keep it with their results.")
     return redirect("refdata:checks")
 
 
@@ -241,7 +241,7 @@ class ReportForm(forms.Form):
 
     def __init__(self, *args, checks=(), **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["check"].choices = [(r.name, r.name) for r in checks]
+        self.fields["check"].choices = [(r.name, r.words) for r in checks]
 
 
 @login_required
@@ -261,7 +261,7 @@ def record_check(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        (messages.success if t.passed else messages.error)(request, f"{t.name} recorded as {'passed' if t.passed else 'failed'}.")
+        (messages.success if t.passed else messages.error)(request, f"{t.words} recorded as {'passed' if t.passed else 'failed'}.")
     return redirect("refdata:detail", pk=pack.pk)
 
 

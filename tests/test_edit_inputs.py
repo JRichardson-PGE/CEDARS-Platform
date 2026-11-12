@@ -101,7 +101,7 @@ def test_who_sees_and_changes_a_draft(analyst, pge, make_user, tmp_path):  # noq
     assert list(drafts.visible(outsider)) == []
     with pytest.raises(AccessDenied):
         drafts.set_row(outsider, own, "Measure", 0, {"NumUnits": "2"})
-    with pytest.raises(AccessDenied, match="calculations.submit"):
+    with pytest.raises(AccessDenied, match="Calculations: submit permission"):
         drafts.create_blank(outsider, pge, "Not theirs")
 
 

@@ -683,7 +683,7 @@ def deadline_history(d: Deadline) -> list[dict]:
                 for k in FIELD_LABELS
                 if k in before or k in after
             ]
-        out.append({"e": e, "what": EVENT_LABELS.get(e.action, e.action), "changes": changes})
+        out.append({"e": e, "what": EVENT_LABELS.get(e.action) or audit.words(e.action), "changes": changes})
     return out
 
 
