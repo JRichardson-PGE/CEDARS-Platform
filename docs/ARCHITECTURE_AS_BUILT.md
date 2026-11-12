@@ -1699,9 +1699,11 @@ summarize. A pull request that builds part of a service or module updates its ro
   catalog (Measure inputs and outputs; CET and older names saved as the canonical name). Templates with no owner are offered to everyone
   and kept by CPUC system administrators (ReCET's two shipped ones added by migration); the rest are their owner's. A run carries the
   chosen template's columns in its settings (`output_template`, `output_template_name`), so a later change never alters what it asked for.
-- The publication scan searches every text column of a snapshot (leaving out the settings' columns, by default CEInputID and
-  PrgID) for what look like email addresses, phone numbers, street addresses, Social Security numbers and account numbers of 9 or more
-  digits. The patterns are code; which run and which columns are left out are the CPUC's settings (`ScanSettings`, page
+- The publication scan searches every text column of a snapshot (leaving out the settings' columns, by default CEInputID,
+  PrgID and ClaimID, the PAs' claim record key) for what look like email addresses, phone numbers, street addresses, Social Security
+  numbers and account numbers of 9 or more digits. A pattern may add a stricter check that RE2's candidates must also pass (Python's
+  `re`, for lookaheads; `pii.Pattern.confirm`): a street address needs a street name after the house number, not a unit or connector
+  ("28 Watt Street Light", "75 HP Variable Speed Drive" are measure descriptions). The patterns are code; which run and which columns are left out are the CPUC's settings (`ScanSettings`, page
   `/publication/scan-settings/`, a reason and an audit event for every change). It matches each row group's distinct values with
   pyarrow's RE2 matcher, so the cost grows with the distinct text, not the rows. A file it cannot read is held. Nothing it finds is
   stored: a finding keeps the column, the pattern, the record count, up to five CEInputIDs and up to three examples masked to their
