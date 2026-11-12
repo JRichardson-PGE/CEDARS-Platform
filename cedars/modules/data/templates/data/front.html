@@ -46,18 +46,18 @@
       {% if t.metric.key != "tsb" %}<input type="hidden" name="metric" value="{{ t.metric.key }}">{% endif %}
       {% if t.pa_type %}<input type="hidden" name="type" value="{{ t.pa_type }}">{% endif %}
       <label for="trend-year">Year</label>
-      <select id="trend-year" name="year">{% for y in t.years reversed %}<option value="{{ y }}"{% if y == t.year %} selected{% endif %}>{{ y }}</option>{% endfor %}</select>
+      <select id="trend-year" name="year">{% for o in t.year_options %}<option value="{{ o.year }}"{% if o.current %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select>
       <button type="submit">Apply</button>
     </form>
   </div>
 
-  <ul class="trend-tiles" aria-label="Every metric in {{ t.year }}">
+  <ul class="trend-tiles" aria-label="Every metric in {{ t.year }}{% if t.year_partial %}, {{ t.year_partial }}{% endif %}">
     {% for tile in t.tiles %}
     <li class="trend-tile{% if tile.current %} on{% endif %}" data-tile="{{ tile.key }}">
       <a href="{{ tile.href }}"{% if tile.current %} aria-current="true"{% endif %}>{{ tile.title }}</a>
       <p class="n">{{ tile.number }} <span class="u">{{ tile.unit }}</span></p>
-      <p class="chg {{ tile.change.dir|default:'none' }}">{% if tile.change %}<span aria-hidden="true">{% if tile.change.dir == "up" %}▲{% elif tile.change.dir == "down" %}▼{% endif %}</span> {{ tile.change.text }}{% elif tile.since and tile.since == t.year %}first published for {{ t.year }}{% endif %}</p>
-      {% if tile.spark %}<svg class="spark" viewBox="0 0 {{ tile.spark.w }} {{ tile.spark.h }}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="area" points="{{ tile.spark.area }}"/><polyline class="line" points="{{ tile.spark.line }}"/><circle cx="{{ tile.spark.dot.0 }}" cy="{{ tile.spark.dot.1 }}" r="3.5"/></svg>{% endif %}
+      <p class="chg {{ tile.change.dir|default:'none' }}">{% if tile.change %}<span aria-hidden="true">{% if tile.change.dir == "up" %}▲{% elif tile.change.dir == "down" %}▼{% endif %}</span> {{ tile.change.text }}{% elif tile.partial %}<span class="partial-note">{{ tile.partial }}</span>{% elif tile.since and tile.since == t.year %}first published for {{ t.year }}{% endif %}</p>
+      {% if tile.spark %}<svg class="spark" viewBox="0 0 {{ tile.spark.w }} {{ tile.spark.h }}" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="area" points="{{ tile.spark.area }}"/><polyline class="line" points="{{ tile.spark.line }}"/><circle{% if tile.spark.partial %} class="partial"{% endif %} cx="{{ tile.spark.dot.0 }}" cy="{{ tile.spark.dot.1 }}" r="3.5"/></svg>{% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -83,7 +83,7 @@
     <figure class="trend-panel" data-chart="{{ c.title }}" aria-labelledby="ch-indexed">
       <h3 id="ch-indexed">{{ c.metric }} and {{ c.other|lower }}{% if c.base %} since {{ c.base }}{% endif %}</h3>
       {% if c.empty %}<p class="muted">{{ c.empty }}</p>{% else %}
-      <p class="sub">Each as a share of its {{ c.base }} value ({{ c.base }} = 100).</p>
+      <p class="sub">Each as a share of its {{ c.base }} value ({{ c.base }} = 100).{% if c.left_out %} {{ c.left_out }}{% endif %}</p>
       <ul class="trend-legend"><li><svg width="22" height="10" aria-hidden="true" focusable="false"><line class="line-a" x1="0" x2="22" y1="5" y2="5"/></svg> {{ c.metric }}</li><li><svg width="22" height="10" aria-hidden="true" focusable="false"><line class="line-b" x1="0" x2="22" y1="5" y2="5"/></svg> {{ c.other }} (dashed)</li></ul>
       <div class="trend-plot">{{ c.svg|safe }}</div>
       <details class="trend-table"><summary>Show as a table</summary>
@@ -102,7 +102,7 @@
       <p class="sub">{{ t.metric.title }}, the largest PAs{% if c.start %}, with the change since {{ c.start }}{% endif %}.</p>
       <div class="trend-plot">{{ c.svg|safe }}</div>
       <details class="trend-table"><summary>Show as a table</summary>
-        <table><caption class="sr-only">{{ c.title }}</caption><thead><tr><th scope="col">PA</th>{% if c.start %}<th scope="col">{{ c.start }}</th>{% endif %}<th scope="col">{{ c.end }}</th>{% if c.start %}<th scope="col">Change</th>{% endif %}</tr></thead>
+        <table><caption class="sr-only">{{ c.title }}</caption><thead><tr><th scope="col">PA</th>{% if c.start %}<th scope="col">{{ c.start }}</th>{% endif %}<th scope="col">{{ c.end_label }}</th>{% if c.start %}<th scope="col">Change</th>{% endif %}</tr></thead>
         <tbody>{% for row in c.table %}<tr><th scope="row"><a href="{{ row.href }}">{{ row.label }}</a></th>{% if c.start %}<td>{{ row.start }}</td>{% endif %}<td>{{ row.end }}</td>{% if c.start %}<td>{{ row.change }}</td>{% endif %}</tr>{% endfor %}</tbody></table>
       </details>
       <ul class="more pa-links">{% for row in c.table %}<li><a href="{{ row.href }}">{{ row.label }}</a></li>{% endfor %}</ul>

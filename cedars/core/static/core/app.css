@@ -922,6 +922,8 @@ svg.trend-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .trend-svg .col { fill: var(--chart-claims); }
 .trend-svg .col.chosen { fill: var(--primary-hover); }
 .trend-svg .col.negative { fill: var(--bad); fill-opacity: .6; }
+.trend-svg .col.partial { fill-opacity: .35; stroke: var(--chart-claims); stroke-width: 2; stroke-dasharray: 4 3; }  /* a year not complete yet */
+svg.spark circle.partial { fill: var(--surface); stroke: var(--chart-claims); }
 .trend-svg .chg { font-size: 12px; font-weight: 600; }
 .trend-svg .chg.up { fill: var(--ok); } .trend-svg .chg.down { fill: var(--bad); } .trend-svg .chg.same { fill: var(--fg-2); }
 .trend-svg .hit { fill: transparent; }
