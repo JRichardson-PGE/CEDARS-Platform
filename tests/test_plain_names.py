@@ -79,12 +79,12 @@ def test_an_engine_document_link_names_the_document_and_its_section():
 
 def test_a_dictionary_field_links_to_its_documentation_by_name(signed_in, make_user):
     import json
-    from pathlib import Path
 
     from cedars.services.dictionary import service
 
-    catalog = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.93.json"
-    service.load_catalog(None, json.loads(catalog.read_text(encoding="utf-8")))
+    from .test_dictionary import CATALOG
+
+    service.load_catalog(None, json.loads(CATALOG.read_text(encoding="utf-8")))
     html = page_only(signed_in(make_user("someone@example.com")).get("/dictionary/fields/AC_Elec_Impact_Profile/").content.decode())
     assert (
         '<a href="/calculations/engine-docs/input-fields/#13-keys-that-select-prices-profiles-and-rates">1.3 Keys that select prices, '
