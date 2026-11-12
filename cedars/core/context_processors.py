@@ -24,7 +24,7 @@ def _header(request) -> dict:
 
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"menus": nav.header(request)}
+        return {"menus": nav.header(request), "sign_in_url": sign_in_url(request)}
     from cedars.services.accounts.middleware import mfa_pending
     from cedars.services.notifications.service import unread
 
@@ -38,3 +38,18 @@ def _header(request) -> dict:
         ctx["queue_count"] = queue.count(user)
     ctx["unread_notifications"] = unread(user)
     return ctx
+
+
+def sign_in_url(request) -> str:
+    """The header's Sign in link, carrying the page it was clicked on so signing in (and any second-factor step) comes back to it.
+    Only this site's own address is carried, as a path, so the link can never send anyone elsewhere; the sign-in, sign-up and other
+    account pages carry nothing (signing in from them goes to the usual first page)."""
+    from urllib.parse import urlencode
+
+    from django.urls import reverse
+
+    url = reverse("account_login")
+    path = request.get_full_path()
+    if not path.startswith("/") or path.startswith(("//", "/accounts/")):
+        return url
+    return f"{url}?{urlencode({'next': path})}"

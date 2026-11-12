@@ -14,7 +14,7 @@
   </ul>
   {% if not user.is_authenticated %}
   <div class="actions">
-    <a class="button primary" href="{% url 'account_login' %}">Sign in</a>
+    <a class="button primary" href="{{ sign_in_url }}">Sign in</a>
     <a class="button" href="{% url 'account_signup' %}">Create an account</a>
   </div>
   {% endif %}

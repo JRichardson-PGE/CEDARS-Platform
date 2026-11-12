@@ -860,6 +860,9 @@ flowchart TD
   per caller address and per account. A sign-in ends after the session_hours limit and after the session_idle_minutes limit
   unused (`SessionTimeoutMiddleware`; a page's background requests do not count as use). There is no Django admin site: every administrative action is a platform page that goes
   through a service and its audit event.
+- **Signing in comes back to the page** it started from: the header's and the front page's Sign in link carry the page's own path and
+  query as `next` (`core.context_processors.sign_in_url`; the account pages under `/accounts/` carry none), and allauth keeps it through
+  the second-factor step and follows it only when it stays on this site. Signing out goes to the front page.
 - **A new account's first sign-in** has three steps, shown on its pages as a step line (`core/_set_up_steps.html`): confirm the email,
   set up the second factor, ask an organization for access. The middleware sends a password-only session to the set-up page with the
   address it was heading for (`next`), which the set-up form carries. Adding the account's first authenticator records that address in
