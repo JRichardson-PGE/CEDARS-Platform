@@ -5,8 +5,8 @@ One metric is chosen at a time (total system benefit, electricity saved, peak de
 PA type, and one claim year (the latest by default). The page shows:
 
   tiles      every metric in the chosen year, its change from the year before and a sparkline of every year; a tile chooses its metric
-  by year    the chosen metric for every claim year, the change from the year before under each column, the average of the years with
-             data, the current program cycle shaded, and the years before the metric was first published said in words
+  by year    the chosen metric for every claim year since it was first published (total system benefit from 2022), the change from
+             the year before under each column, the average of the years with data and the current program cycle shaded
   indexed    the metric and spending (total system benefit when the metric is spending), each as a share of its value in the first year
              both were published (= 100): one axis for two measures of different scale
   by PA      the metric for the largest PAs (and the rest together) in the first published year and the chosen year
@@ -317,9 +317,12 @@ def trends(params=None) -> Trends:
     all_series = {m.key: series(m) for m in METRICS}
     t.tiles = [_tile(t, m, all_series[m.key]) for m in METRICS]
     s = all_series[metric.key]
-    t.charts["by_year"] = _by_year(t, s, years)
-    if len(years) > PHONE_YEARS:
-        t.charts["by_year_recent"] = _by_year(t, s, years[-PHONE_YEARS:], recent=True)
+    # the years since the metric was first published (Jake, 2026-11-12: total system benefit from 2022, when it took effect, not
+    # empty years before it)
+    shown = [y for y in years if not s or y >= min(s)]
+    t.charts["by_year"] = _by_year(t, s, shown)
+    if len(shown) > PHONE_YEARS:
+        t.charts["by_year_recent"] = _by_year(t, s, shown[-PHONE_YEARS:], recent=True)
     other = BY_KEY["tsb" if metric.key == "expenditure" else "expenditure"]
     t.charts["indexed"] = _indexed(t, metric, s, other, all_series[other.key])
     t.charts["by_pa"] = _by_pa(t, kept, s)
@@ -349,7 +352,7 @@ def _tile(t: Trends, m: Metric, s: dict[int, float]) -> dict:
         "number": number,
         "unit": unit,
         "change": change(value, s.get(t.year - 1), t.year - 1),
-        "spark": _spark(points, t.years),
+        "spark": _spark(points, [y for y, _ in points]),  # from the first year published
         "since": min(s) if s else None,
     }
 
@@ -440,15 +443,6 @@ def _by_year(t: Trends, s: dict[int, float], years: list[int], recent: bool = Fa
                 f'<rect class="band" x="{x0:.1f}" y="{pad_t - 20}" width="{bw * len(shaded):.1f}" height="{plot_h + 20}"/>'
                 f'<text class="note" x="{x0 + 6:.1f}" y="{pad_t - 6}">{escape(str(cycle))} cycle</text>'
             )
-    missing = [i for i, y in enumerate(years) if y not in s and y < min(s)]
-    if len(missing) >= 2:
-        x0, x1 = pad_l + bw * missing[0] + 4, pad_l + bw * (missing[-1] + 1) - 4
-        mid = (x0 + x1) / 2
-        parts.append(f'<rect class="missing" x="{x0:.1f}" y="{pad_t + 20}" width="{x1 - x0:.1f}" height="{plot_h - 20}" rx="4"/>')
-        parts.append(
-            f'<text class="note" x="{mid:.1f}" y="{pad_t + plot_h / 2:.1f}" text-anchor="middle">'
-            f"No {escape(m.noun)} published before {min(s)}</text>"
-        )
     zero = sy(0)
     for i, y in enumerate(years):
         x = pad_l + bw * i + bw * 0.18

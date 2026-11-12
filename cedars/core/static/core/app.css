@@ -918,7 +918,6 @@ svg.trend-svg { display: block; width: 100%; height: auto; overflow: visible; }
 .trend-svg .grid { stroke: var(--line-2); }
 .trend-svg .axis { stroke: var(--control); }
 .trend-svg .band { fill: var(--surface-2); }
-.trend-svg .missing { fill: var(--surface-2); fill-opacity: .7; }
 .trend-svg .ref { stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .trend-svg .col { fill: var(--chart-claims); }
 .trend-svg .col.chosen { fill: var(--primary-hover); }
