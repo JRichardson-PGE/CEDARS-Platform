@@ -12,12 +12,8 @@
     {% if sysadmin %}<a class="button primary" href="{% url 'claims:year_new' %}">Set up a claim year</a>{% endif %}
   </div>
 </div>
-<p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims. A quarter's upload holds
-the records that are new or changed since the last confirmation; it is compiled over the earlier confirmed quarters, checked, priced
-for the year to date and confirmed. Confirmed claims, their inputs and results are open to every signed-in user. After a due date a
-correction is a new version, published with a change letter in the <a href="{% url 'claims:changes' %}">change log</a>.</p>
-<p>Statewide programs are claimed first, by their lead PA, in statewide confirmations due before the PAs' own (two weeks before a
-quarter's, a month before the annual claim). Each funding PA sees what those claims credit to it before it files, and its totals count it.</p>
+<p>Each claim year is confirmed five times: after each quarter, then once more with the final annual claims. Statewide programs are
+claimed first, by their lead PA.</p>
 {% for y in years %}
 {# The newest year is open; earlier years are collapsed behind their heading, so the page is one screen for most visits. #}
 {% if forloop.first %}<section class="cycle" aria-labelledby="year-{{ y.cy.year }}">

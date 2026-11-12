@@ -511,6 +511,16 @@ a.yday:hover .n { text-decoration: underline; }
 .other-filters { flex-basis: 100%; min-width: 0; max-width: 100%; border-top: 1px solid var(--line); padding-top: .6rem; }
 .other-filters > summary { cursor: pointer; font-weight: 600; min-height: 24px; line-height: 24px; color: var(--link); width: max-content; max-width: 100%; }
 .other-filters > summary .count { color: var(--fg-2); font-weight: 400; }
+/* The Programs catalog's filters on one row at desktop widths: the PA picker beside the other fields, its list opening over the page,
+   and Other filters inline until it is opened (then it takes the row below, with Apply after it). */
+.catalog-filters fieldset.pa-picker { flex: 0 1 20rem; margin: 0; }
+/* The list opens over the page only where there is room beside it; on a narrow screen it stays in the flow so nothing scrolls sideways. */
+@media (min-width: 48rem) {
+  .catalog-filters .pa-menu { position: relative; }
+  .catalog-filters .pa-panel { position: absolute; z-index: 5; left: 0; top: 100%; min-width: 100%; width: max-content; max-width: min(34rem, calc(100vw - 4rem)); box-shadow: 0 6px 18px rgb(0 0 0 / .18); }
+}
+.catalog-filters .other-filters:not([open]) { flex-basis: auto; border-top: 0; padding-top: 0; }
+.catalog-filters .other-filters:not([open]) > summary { padding: .45rem 0; }
 .other-body { display: flex; flex-direction: column; gap: .75rem; align-items: stretch; padding: .6rem 0 .2rem; }
 .other-body > .helptext { max-width: 60ch; margin: 0; }
 .other-pick { display: flex; gap: .6rem 1rem; align-items: flex-end; flex-wrap: wrap; }
@@ -1174,7 +1184,9 @@ table.recert td button { margin-right: .5rem; }
    remove the set-up) fold away under .setup-fold */
 .setup-sections { margin: .75rem 0 1rem; }
 .setup-sections > p { margin: 0 0 .25rem; }
-.setup-sections ul { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
-.setup-sections a { display: inline-block; min-height: 24px; line-height: 24px; }
+.setup-sections ul, .page-sections ul { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; list-style: none; margin: 0; padding: 0; }
+.setup-sections a, .page-sections a { display: inline-block; min-height: 24px; line-height: 24px; }
+/* "On this page": a long page's sections linked under its heading (the program page) */
+.page-sections { margin: .5rem 0 1rem; padding: .4rem 0; border-bottom: 1px solid var(--line); }
 .setup-fold { margin-top: 1rem; }
 .setup-fold > h3 { margin-top: .75rem; }

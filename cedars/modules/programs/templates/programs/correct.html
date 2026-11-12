@@ -3,10 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'programs:catalog' %}">Programs</a></li><li><a href="{% url 'programs:program' p.prg_id %}">{{ p.prg_id }}</a></li></ol></nav>
 <div class="page-title"><h1>Correct {{ p.prg_id }}'s version from {{ version.valid_from|date_words }}</h1>{% page_help "programs/correct" %}</div>
-<p>A correction puts right values this version holds wrongly, such as a sector an import got wrong or a typo. The version keeps its
-dates ({{ version.valid_from|date_words }} to {{ version.valid_to|date_words|default:"open" }}); the program's history shows it was
-corrected, and the audit trail keeps the values it had. Filings and published results keep the values they were filed with.</p>
-<p>To record a real change from a date, such as a new implementer, <a href="{% url 'programs:change' p.prg_id %}">change the program</a> instead.</p>
+<p>A correction puts right values this version ({{ version.valid_from|date_words }} to {{ version.valid_to|date_words|default:"open" }})
+holds wrongly; filings keep the values they were filed with. To record a real change from a date, <a href="{% url 'programs:change' p.prg_id %}">change the program</a> instead.</p>
 {% if not direct %}<p><strong>Your correction is sent as a <a href="{% url 'programs:requests' %}">request</a></strong> for a CPUC programs approver's decision; nothing changes until it is approved.</p>{% endif %}
 {% if reaches %}<p>{{ p.prg_id }} is a statewide program: each PA's ID that follows it ({{ reaches|join:", " }}) is brought into line from the same date.</p>{% endif %}
 {% if version.corrected_at %}<p class="small muted">Last corrected {{ version.corrected_at|date_words }}.</p>{% endif %}

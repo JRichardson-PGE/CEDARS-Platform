@@ -341,6 +341,7 @@ administration/role_templates:
       its permissions at once; each grant records the template it came from, and every step is in the audit log.
     - A template holds module permissions only. An organization's administrator, PII access and the CPUC's own roles each need a decision
       of their own, so they are granted one by one.
+    - Changing a template changes what it grants from then on, never the grants it already made.
   how:
     - Add template with a name, who it is for, the kinds of organization it is offered in and the permissions it grants.
     - Open a template to change it, retire it or offer it again.
@@ -421,6 +422,7 @@ administration/allocations:
       that names none uses the most recently confirmed version with factors for its program year.
     - The funding PAs manage the factors. Their organization administrators grant the permission to manage them to members; a member
       with it loads a draft and confirms or discards it, and the other funding PAs are told. The CPUC can do the same.
+    - The CPUC's energy efficiency goals are kept apart from the factors, on CPUC goal decisions (Administration).
   how:
     - Open a version for its factors, checks and history, or to download it.
     - With the permission to manage the factors, download the factor file template, fill in PercentElectric and each PA's electric and

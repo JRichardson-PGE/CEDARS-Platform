@@ -39,7 +39,7 @@ administrators' changes to each.{% endcomment %}
     <p class="small">{% if holds_pii %}Members of {{ org.code }} hold or wait for PII access, and the PII rule depends on directory sign-in, so a data steward must confirm this change before it takes effect.{% else %}Takes effect at once for its members' next sign-in. The directory itself is set up by the platform's operators.{% endif %}</p>
     <form method="post" action="{% url 'administration:organisation_sign_in' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in status_forms.federation %}{{ field.as_field_group }}{% endfor %}
-      <div class="actions"><button type="submit" class="primary">{% if holds_pii %}Propose the change{% else %}Save sign-in{% endif %}</button></div>
+      <div class="actions"><button type="submit">{% if holds_pii %}Propose the change{% else %}Save sign-in{% endif %}</button></div>
     </form>
   </details>
   <details>
@@ -78,14 +78,14 @@ administrators' changes to each.{% endcomment %}
     <summary>Rename: give {{ org.code }} a new code</summary>
     <form method="post" action="{% url 'administration:organisation_rename' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in code_forms.rename %}{{ field.as_field_group }}{% endfor %}
-      <div class="actions"><button type="submit" class="primary">Rename</button></div>
+      <div class="actions"><button type="submit">Rename</button></div>
     </form>
   </details>
   <details>
     <summary>Record a code {{ org.code }} used before</summary>
     <form method="post" action="{% url 'administration:organisation_former_code' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in code_forms.former %}{{ field.as_field_group }}{% endfor %}
-      <div class="actions"><button type="submit" class="primary">Record former code</button></div>
+      <div class="actions"><button type="submit">Record former code</button></div>
     </form>
   </details>
   <details>
@@ -93,7 +93,7 @@ administrators' changes to each.{% endcomment %}
     <p class="small">For the same party added twice, e.g. legacy files loaded under its old code before the rename was recorded. The other organization keeps its own records and codes, becomes inactive and counts under {{ org.code }}. Move or remove its members first.</p>
     <form method="post" action="{% url 'administration:organisation_merge' org.code %}" class="stack form-narrow">{% csrf_token %}
       {% for field in code_forms.merge %}{{ field.as_field_group }}{% endfor %}
-      <div class="actions"><button type="submit" class="primary">Merge</button></div>
+      <div class="actions"><button type="submit">Merge</button></div>
     </form>
   </details>
   {% endif %}

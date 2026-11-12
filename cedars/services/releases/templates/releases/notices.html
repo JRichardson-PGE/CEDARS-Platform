@@ -3,9 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:administration' %}">Administration</a></li></ol></nav>
 <div class="page-title"><h1>Site notices</h1>{% page_help "releases/notices" %}</div>
-<p>A short notice every page shows at its top from its start until its end: an outage, an extended deadline. It shows at once, without a
-release note's notice period; a change to CEDARS itself is still announced in a <a href="{% url 'releases:manage' %}">release note</a>.
-A notice is never edited: withdraw it with a reason and post another. Posting and withdrawing are in the audit log.</p>
+<p>A short notice every page shows at its top from its start until its end, such as an outage or an extended deadline. A change to CEDARS
+itself is announced in a <a href="{% url 'releases:manage' %}">release note</a> instead.</p>
 
 <section class="card" aria-labelledby="post-h">
   <h2 id="post-h">Post a notice</h2>

@@ -23,7 +23,7 @@
   <p class="small">The name pages show beside what you file, comment and decide, and in organization member lists.</p>
   <form method="post" action="{% url 'administration:account_name' %}" class="stack form-narrow">{% csrf_token %}
     {% for field in name_form %}{{ field.as_field_group }}{% endfor %}
-    <div class="actions"><button type="submit" class="primary">Save your name</button></div>
+    <div class="actions"><button type="submit">Save your name</button></div>
   </form>
 </details>
 
@@ -44,7 +44,7 @@
 {% else %}
 <p>You are not a member of any organization yet.</p>
 {% endif %}
-<p><a class="button primary" href="{% url 'administration:request_access' %}">Ask an organization for access</a></p>
+<p><a class="button{% if not rows %} primary{% endif %}" href="{% url 'administration:request_access' %}">Ask an organization for access</a></p>
 
 <h2 id="tokens-h">API tokens</h2>
 <p>A token lets your own systems call the CEDARS API for one organization. It can do no more than you can, only in the modules you pick,
@@ -69,7 +69,7 @@ and stops working when it expires, when you revoke it, or when you leave the org
   <summary>Make a token</summary>
   <form method="post" action="{% url 'administration:token_create' %}" class="stack form-narrow">{% csrf_token %}
     {% for field in token_form %}{{ field.as_field_group }}{% endfor %}
-    <div class="actions"><button type="submit" class="primary">Make the token</button></div>
+    <div class="actions"><button type="submit">Make the token</button></div>
   </form>
 </details>
 

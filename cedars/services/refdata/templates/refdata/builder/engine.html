@@ -1,8 +1,7 @@
 {% extends "refdata/builder/base.html" %}
 {% block heading %}<div class="page-title"><h1>Streams the engine prices: {{ build }}</h1>{% page_help "refdata/builder/engine" %}</div>{% endblock %}
 {% block step %}
-<p>The value streams the engine prices. Tick the ones the set's tests and aggregates read, and the pricings each is read in. The engine's
-words for each are kept unless you change them. A value of the set's own is a stream from input columns, the next step.</p>
+<p>The value streams the engine prices. Tick the ones the set's tests and aggregates read, and the pricings each is read in.</p>
 {% if no_catalog %}
 <p class="card" role="note">The engine installed here {% if engine_here %}is older than ReCET 0.1.92 and has no catalog of its streams{% else %}is missing{% endif %}, so the
 engine's streams cannot be changed on this server. The set keeps the ones it has.</p>

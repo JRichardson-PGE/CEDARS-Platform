@@ -3,9 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:reference' %}">Reference data</a></li><li><a href="{% url 'refdata:index' %}">Data packs</a></li></ol></nav>
 <div class="page-title"><h1>Pack acceptance checks</h1>{% page_help "refdata/checks" %}</div>
-<p>The checks each kind of data pack must pass before it is published, so filings can use it. A check's result is recorded on the
-pack's page, from the report of the script or calculation that ran it. A check is never edited: the CPUC retires it and adds another.
-A published pack keeps the checks it was published under.</p>
+<p>The checks each kind of data pack must pass before it is published, so filings can use it. A check is never edited: the CPUC retires
+it and adds another.</p>
 
 {% for code, label, active, retired in by_kind %}
 <section aria-labelledby="k-{{ code }}">

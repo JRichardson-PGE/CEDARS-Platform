@@ -3,11 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>Engine releases</h1>{% page_help "calculations/engines" %}</div>
-<p>The ReCET releases runs can use, the calculations each offers (ReCET's own and CET replicas) and the ACCs each has. A job asks for
-exactly one release, and the worker refuses any other, so a run's results always name the release that produced them. Filings
-(budgets, claims and monthly reports) are priced on the default release, so it needs the ACC of every filing still to come.</p>
-<p>To move to a new release, add it below and make it the default; the release it replaces can be retired in the same step. A retired
-release stays on this list and its runs keep naming it.</p>
+<p>The ReCET releases runs can use, with the calculations and ACCs each offers. Filings are priced on the default release, so it needs
+the ACC of every filing still to come.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">
 <table class="list">
   <caption class="sr-only">Engine releases</caption>

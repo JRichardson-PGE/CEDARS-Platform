@@ -3,11 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'monthly:index' %}">Monthly reports</a></li></ol></nav>
 <div class="page-title"><h1>Set up a program year's monthly reports</h1>{% page_help "monthly/year_new" %}</div>
-<p>This puts the whole program year on the filing calendar: thirteen due dates, one for each month's report and a final one for the
-13th-month report, due with the year's annual claim. Each month's report opens when its month ends; the 13th-month report, generated
-from each PA's confirmed claims, opens when the year ends. A due date can then be moved on the filing calendar. The year-to-date BCA
-inputs are priced on the ACC chosen here for the estimates, with statewide programs allocated by the allocation version chosen (or
-the most recent confirmed one).</p>
+<p>This puts the whole program year on the filing calendar: a due date for each month's report and one for the 13th-month report, due
+with the year's annual claim. The estimates are priced on the ACC chosen here.</p>
 <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% for field in form.setup_fields %}{% if field.name != "notes" %}{{ field.as_field_group }}{% endif %}{% endfor %}

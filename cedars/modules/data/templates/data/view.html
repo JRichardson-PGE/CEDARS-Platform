@@ -106,7 +106,7 @@
 <form method="post" class="filters" aria-label="Publish or decline">
   {% csrf_token %}
   <label>Reason <input type="text" name="reason" required maxlength="500" aria-describedby="publish-help"></label>
-  <button type="submit" name="action" value="publish" class="primary">Publish for everyone</button>
+  <button type="submit" name="action" value="publish">Publish for everyone</button>
   {% if view.publish_requested_at %}<button type="submit" name="action" value="decline">Decline</button>{% endif %}
   <span class="helptext" id="publish-help">Recorded with the change; a declined owner is told it. Published, the view is open to everyone,
     signed in or not, and does not change until it is unpublished.</span>

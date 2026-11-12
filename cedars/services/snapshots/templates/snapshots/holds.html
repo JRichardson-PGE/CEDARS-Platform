@@ -2,7 +2,7 @@
 {% block title %}Publication holds{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Publication holds</h1>{% page_help "snapshots/holds" %}</div>
-<p>Before a confirmed filing's records reach the public dashboards and record downloads, every text column is scanned for what may be personal information: email addresses, phone numbers, street addresses, Social Security numbers and account numbers. A filing with a hit is held: the public data keep what was published before, and the filing's organization and the CPUC system administrators are told.{% if sysadmin %} <a href="{% url 'snapshots:scan_settings' %}">Publication scan settings</a>{% endif %}</p>
+<p>A confirmed filing whose records may hold personal information is held from the public data until it is released.{% if sysadmin %} <a href="{% url 'snapshots:scan_settings' %}">Publication scan settings</a>{% endif %}</p>
 
 <h2>Waiting</h2>
 {% if waiting %}

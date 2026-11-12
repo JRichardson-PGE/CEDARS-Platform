@@ -3,10 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'budgets:index' %}">Budgets</a></li></ol></nav>
 <div class="page-title"><h1>Set up a budget filing</h1>{% page_help "budgets/filing_new" %}</div>
-<p>A filing is due from the PAs ticked below (every PA unless some are unticked) on one date for the program years chosen here, any number of them. It goes on the
-<a href="{% url 'submissions:calendar' %}">filing calendar</a> as it is set up, where its name, dates and notes are changed afterwards
-(its program years too, until a PA starts filing). It is priced on the ACC chosen here, with statewide programs allocated by the
-allocation version chosen (or the most recent confirmed one for each program year).</p>
+<p>A filing is due from the PAs ticked below on one date, for the program years chosen here. It goes on the
+<a href="{% url 'submissions:calendar' %}">filing calendar</a>, where it is changed afterwards.</p>
 <form method="post" class="stack form-narrow" novalidate>{% csrf_token %}
   {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
   {% for field in form %}{{ field.as_field_group }}{% endfor %}

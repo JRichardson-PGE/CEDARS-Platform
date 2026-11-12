@@ -4,9 +4,7 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'mandates:index' %}">CPUC-mandated changes</a></li></ol></nav>
 <div class="page-title"><h1>Keep the register</h1>{% page_help "releases/mandates_manage" %}</div>
 <p>Draft an entry for each CPUC decision or resolution that changes CEDARS' data or calculations, link where CEDARS carries it, then
-publish it on the register. Only CPUC system administrators see drafts. A published entry is never deleted (one entered in error is
-withdrawn), and every later change needs a reason, which its public history shows. The register is public: enter only what the
-CPUC's public document says, and link the document on a ca.gov site.</p>
+publish it. The register is public: enter only what the CPUC's public document says.</p>
 <h2 id="drafts-h">Drafts</h2>
 {% if drafts %}
 <ul class="links">{% for m in drafts %}<li><a href="{% url 'mandates:edit' m.pk %}">{{ m.reference }}: {{ m.title }}</a>, takes effect {{ m.effective_on|date_words }}, {{ m.links.all|length }} link{{ m.links.all|length|pluralize }}</li>{% endfor %}</ul>

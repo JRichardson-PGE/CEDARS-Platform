@@ -6,9 +6,8 @@
   <div class="page-title"><h1>Programs</h1>{% page_help "programs/catalog" %}</div>
   {% if can_add %}<div class="actions"><a class="button" id="add-program" href="{% url 'programs:new' %}">Add a program</a></div>{% endif %}
 </div>
-<p>Every program in the registry, closed programs included. Search by name or PrgID; pick a program year to see the attributes that applied
-that year.{% if user.is_authenticated %} Changes to locked attributes go through <a href="{% url 'programs:requests' %}">change requests</a>
-(<a href="{% url 'programs:locked' %}">which attributes are locked</a>).{% endif %}</p>
+<p>Every program in the registry, closed programs included; pick a program year to see the attributes that applied that year.{% if user.is_authenticated %}
+Changes to <a href="{% url 'programs:locked' %}">locked attributes</a> go through <a href="{% url 'programs:requests' %}">change requests</a>.{% endif %}</p>
 <form method="get" class="filters catalog-filters" aria-label="Filter the programs" data-clean-get>
   {% for field in form %}{{ field.as_field_group }}{% endfor %}
   {% include "core/_pa_picker.html" %}

@@ -2,7 +2,8 @@
 {% block title %}Document accessibility{% endblock %}
 {% block content %}
 <div class="page-title"><h1>Document accessibility</h1>{% page_help "accessibility/files" %}</div>
-<p>Every PDF and workbook stored as a document's file, or attached to a comment on a document or a filing, is checked for accessibility as it is stored: tagged PDF text, a title and a language, marked header rows, no merged cells, alternative text. The uploader is warned of what was found. Mark a file reviewed with a note once an accessible version is filed, or say why it stands.</p>
+<p>Every PDF and workbook stored with a document or a comment is checked for accessibility as it is stored. Mark a file reviewed with a
+note once an accessible version is filed, or say why it stands.</p>
 <p>{% if cfg.block %}<span class="status warn">Blocking on</span> Uploads with {{ cfg.blocking|length }} kind{{ cfg.blocking|length|pluralize }} of finding are refused.{% else %}<span class="status info">Warning only</span> No upload is refused.{% endif %} <a href="{% url 'accessibility:settings' %}">Check settings</a></p>
 <form method="get" class="filters" aria-label="Filter the checked files">
   <div><label for="state">Show</label>

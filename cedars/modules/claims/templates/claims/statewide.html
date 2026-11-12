@@ -4,9 +4,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'claims:index' %}">Claims</a></li></ol></nav>
 <div class="page-title"><h1>{{ cy.year }} statewide claims{% if org %} credited to {{ org.code }}{% endif %}</h1>{% page_help "claims/statewide" %}</div>
-<p>A statewide program's lead PA claims it in the statewide confirmations, due before the PAs' own. Each record is priced with the
-statewide allocation, so its results are credited to the PAs that fund the program. Once the lead PA confirms, each funding PA sees its
-share here before it files its own claim, and its year's totals (the 13th-month report) count it. A lead PA's draft is not counted.</p>
+<p>Each statewide program's lead PA claims it first; once it confirms, each funding PA sees its share here before it files its own
+claim.</p>
 
 <form method="get" class="filters" aria-label="Whose share to show">
   <label>Program administrator <select name="org">{% if not org %}<option value="">Choose a PA</option>{% endif %}{% for p in pas %}<option value="{{ p.code }}"{% if org and p.pk == org.pk %} selected{% endif %}>{{ p.name }} ({{ p.code }})</option>{% endfor %}</select></label>

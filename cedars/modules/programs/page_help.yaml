@@ -66,6 +66,9 @@ programs/program:
       a request for an approver's decision. An ID that follows a statewide program is corrected through the statewide program.
   see: programs
   tour:
+    - target: "#program-sections"
+      title: On this page
+      text: The page's sections, each one link away, from the definition to the documents that name the program.
     - target: "#def-h"
       title: The definition
       text: The program's attributes in force today, and since when.
@@ -201,6 +204,8 @@ programs/requests:
   guide:
     - Changes to locked program attributes that a program's administrators asked for, waiting for a CPUC programs approver's decision,
       and the ones already decided, newest first. Filter by status; select a column's heading to sort by it.
+    - A program's administrators change most attributes themselves. Approving a change starts the new version on the date asked for;
+      approving a correction corrects that version in place.
   see: reviewing
   tour:
     - target: main form.filters

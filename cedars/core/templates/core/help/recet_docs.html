@@ -3,9 +3,8 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>Engine documentation</h1>{% page_help "core/help/recet_docs" %}</div>
-<p>ReCET's own documents: the full reference for ReCET, the cost-effectiveness engine behind <a href="{% url 'core:calculations' %}">Calculations</a>: every input
-format and field, every output column with its formula, the method, and how the cost tests are defined. For first steps on CEDARS, read
-the <a href="{% url 'core:help_guide' 'calculations' %}">Calculations guide</a>.</p>
+<p>The full reference for ReCET, the engine behind <a href="{% url 'core:calculations' %}">Calculations</a>. For first steps on CEDARS,
+read the <a href="{% url 'core:help_guide' 'calculations' %}">Calculations guide</a>.</p>
 <p class="small muted">These are the engine's own documents, from ReCET {{ engine.version }} (commit <span class="mono">{{ engine.short }}</span>),
 the version CEDARS runs, so they change only when CEDARS moves to a new engine version. Where they describe ReCET's own web site or desktop
 window, the CEDARS Calculations pages do the same things but may look different.
