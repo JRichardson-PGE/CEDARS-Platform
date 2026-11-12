@@ -9,10 +9,16 @@
     <legend>Look for</legend>
     {% for p, on in patterns %}<p><label class="check"><input type="checkbox" name="patterns" value="{{ p.code }}"{% if on %} checked{% endif %}> {{ p.label|capfirst }}</label></p>{% endfor %}
   </fieldset>
-  <p><label for="exempt">Columns left out, one per line</label>
+  <fieldset class="column-choice"><legend>Columns left out</legend>
+    {% if column_catalog %}<p class="small" data-with-picker hidden>Add the columns from the data dictionary on the left; the box below holds
+      the same list and takes names the dictionary does not have.</p>
+    {% include "core/_field_picker.html" with fp=column_picker %}{% endif %}
+    <p><label for="exempt">Columns left out, one per line</label>
     <span class="helptext" id="exempt-hint">Keys that are never personal information, such as CEInputID. Names are compared without case.</span>
     <textarea id="exempt" name="exempt_columns" rows="5" aria-describedby="exempt-hint">{{ exempt }}</textarea></p>
+  </fieldset>
   <p><label for="reason">Reason</label><input id="reason" name="reason" required></p>
   <div class="actions"><button type="submit" class="primary">Save</button></div>
 </form>
+{% if column_catalog %}{{ column_catalog|json_script:"field-catalog" }}{% endif %}
 {% endblock %}

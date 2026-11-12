@@ -168,7 +168,11 @@ data/records:
       ticked keeps every PA.
     - Under Program, type a PrgID or part of a program's name and pick it from the list; pick as many as you need, and untick one to
       drop it. A PrgID that is not in the registry is named, with the programs closest to it.
-    - Start from a column preset, then open a group to tick its columns. Every column is defined in the data dictionary.
+    - Start from a column preset, then choose columns in the two lists. On the left, narrow the list with Show (a group) or the search
+      box (names and definitions), select columns and press Add (or Enter); the list on the right is what the download holds, in the
+      order the file has them. Select columns there and press Remove (or Delete) to take them out. Selecting a column shows its
+      definition below the lists. Without scripts, open a group to tick its columns instead. Every column is defined in the data
+      dictionary.
     - Signed in, make the columns you chose your default, or save the whole choice of records and columns as a view under Saved views.
     - Each file records its release, when its data last changed, the filters, what was left out and the columns under their canonical
       names.
@@ -183,7 +187,8 @@ data/records:
         effectiveness).
     - target: fieldset.column-picker
       title: Columns
-      text: Start from a preset, then tick columns group by group. The count says how many you have chosen.
+      text: Start from a preset, then add columns from the list on the left to the list on the right, searching by name or
+        definition. The count says how many you have chosen.
       optional: true
     - heading: Download
       title: Download

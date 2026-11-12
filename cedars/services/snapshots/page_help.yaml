@@ -63,7 +63,8 @@ snapshots/scan_settings:
     - For CPUC system administrators. What the scan for personal information looks for before a filing is published, and the columns
       it leaves out (keys such as CEInputID that are never personal information). Every change needs a reason and is in the audit log.
   how:
-    - Tick the patterns to look for, list the columns to leave out one per line, give the reason and Save.
+    - Tick the patterns to look for, choose the columns to leave out in the two lists (the data dictionary's fields, searched by name or
+      definition) or list them one per line in the box, give the reason and Save.
     - A change applies to the next publication; open a held filing and scan it again to apply it there.
   tour:
     - heading: Look for
@@ -71,4 +72,4 @@ snapshots/scan_settings:
       text: The kinds of personal information the scan searches for.
     - target: "#exempt"
       title: Columns left out
-      text: Columns the scan skips, compared without case.
+      text: Columns the scan skips, compared without case. The two lists above fill this box from the data dictionary.

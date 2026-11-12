@@ -54,7 +54,12 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
     <legend>Columns: {{ page.columns|length }} of {{ column_count }} chosen</legend>
     {% if default_columns.on %}<p class="small"><strong>These are your default columns.</strong> The page starts from them when a link names no columns.</p>{% endif %}
     <p class="small">Start from: {% for label, href in presets %}<a href="{{ href }}">{{ label }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}.
-      Open a group to tick its columns. Each column is defined in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+      <span data-without-picker>Open a group to tick its columns.</span><span data-with-picker hidden>Add columns from the list on the left; the list
+      on the right is what the download holds, in the order the file has them.</span>
+      Each column is defined in the <a href="{% url 'dictionary:index' %}">data dictionary</a>.</p>
+    <input type="hidden" name="cols" id="records-cols" value="{{ page.columns|join:',' }}" disabled>
+    {% include "core/_field_picker.html" with fp=column_picker %}
+    <div data-without-picker>
     {% for g in groups %}
     <details>
       <summary>{{ g.label }} <span class="muted">({{ g.chosen }} of {{ g.count }} chosen)</span></summary>
@@ -63,7 +68,8 @@ Excel or Parquet. A download from a dashboard row holds exactly the records behi
       </ul>
     </details>
     {% endfor %}
-  </fieldset>{% endif %}
+    </div>
+  </fieldset>{{ column_catalog|json_script:"field-catalog" }}{% endif %}
   <button type="submit">Show these records</button>
 </form>
 {% if user.is_authenticated and page.columns %}

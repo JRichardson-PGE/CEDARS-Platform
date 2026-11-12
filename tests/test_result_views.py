@@ -101,7 +101,8 @@ def test_the_two_list_column_picker(analyst, pge, release, worker, tmp_path, web
     html = web.get(url, {"level": "program", "columns": "ElecBen,TRC_ratio"}).content.decode()
     picker = html.split('id="picker"')[1].split("</details>")[0]
     assert '<form method="get" data-with-picker hidden>' in picker and "<div data-without-picker>" in picker
-    assert 'id="field-picker" data-target="pick-columns" data-sep="comma" data-noun="the table" hidden' in picker
+    tag = picker.split('id="field-picker"', 1)[1].split(">", 1)[0]
+    assert 'data-target="pick-columns" data-sep="comma" data-noun="the table"' in tag and tag.endswith(" hidden")
     assert '<input type="hidden" name="columns" id="pick-columns" value="ElecBen,TRC_ratio">' in picker
     assert 'name="level" value="program"' in picker and "field_picker.js" in html
     catalog = json.loads(re.search(r'<script id="field-catalog" type="application/json">(.*?)</script>', html, re.S).group(1))

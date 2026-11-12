@@ -172,6 +172,27 @@ def test_the_form_posts_and_lands_on_the_short_link(two_pas, client):
     assert 'href="/data/records/download.csv?' in html
 
 
+def test_the_page_chooses_columns_with_the_two_lists(two_pas, client):
+    """The two-list column picker (core/_field_picker.html): every column offered with its group, the chosen ones in a comma field
+    that is sent only when the picker runs (disabled until then, so unticking a box without scripts still drops the column), kept in
+    the file's order; the tick boxes stay for a page without scripts."""
+    html = client.get("/data/records/?dataset=claims&columns=none&col=TotalSystemBenefit&col=CEInputID").content.decode()
+    tag = html.split('id="field-picker"', 1)[1].split(">", 1)[0]
+    assert 'data-target="records-cols" data-sep="comma"' in tag and 'data-order="catalog"' in tag and tag.endswith(" hidden")
+    assert '<input type="hidden" name="cols" id="records-cols" value="CEInputID,TotalSystemBenefit" disabled>' in html
+    assert 'id="pick-top"' not in html  # the file keeps the catalog's order, so there is nothing to reorder
+    assert "<div data-without-picker>" in html and 'name="col" value="CEInputID" checked' in html
+    catalog = json.loads(html.split('<script id="field-catalog" type="application/json">', 1)[1].split("</script>", 1)[0])
+    names = [c["c"] for c in catalog]
+    assert names[:3] == ["FiledBy", "Filing", "CountedPA"] and "TotalSystemBenefit" in names
+    assert {c["g"] for c in catalog if c["c"] == "FiledBy"} == {records.SOURCE} and "l" not in catalog[0]
+    # what the picker sends: the columns as one comma list (with the form's "none" start), read as the columns chosen
+    form = {"dataset": "claims", "year_from": "2028", "columns": "none", "cols": "TotalSystemBenefit,CEInputID"}
+    form |= {code: "include" for code in dq.EXCLUSIONS}
+    params = parse_qs(urlparse(client.post("/data/records/", form)["Location"]).query)
+    assert sorted(params["col"]) == ["CEInputID", "TotalSystemBenefit"]
+
+
 def test_the_page_shows_the_records_and_says_what_is_missing(two_pas, client):
     html = client.get("/data/records/?dataset=claims&metric=tsb&program=PGE_Res_HVAC").content.decode()
     assert "M0" in html and "M1" in html and "2 records" in html and "Total system benefit ($): 150" in html

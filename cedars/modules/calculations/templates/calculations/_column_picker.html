@@ -16,7 +16,7 @@
     {% for k, v in picker.state %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
     <input type="hidden" name="columns" id="pick-columns" value="{{ picker.ticked|join:',' }}">
     <input type="hidden" name="picker" value="1">
-    {% include "calculations/_field_picker.html" with fp=picker.field_picker %}
+    {% include "core/_field_picker.html" with fp=picker.field_picker %}
     <div class="actions">
       <button type="submit" class="primary">Show these columns</button>
       <a href="{{ picker.base }}">Default columns</a>
@@ -69,4 +69,3 @@
   {% endif %}
 </details>
 {{ picker.catalog|json_script:"field-catalog" }}
-<script src="{% static 'calculations/field_picker.js' %}" defer></script>

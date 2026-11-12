@@ -286,6 +286,49 @@ def _measure_columns(build) -> tuple[list[str], list[str]]:
     return [c for c in numbers if bf.adds_up(c)], [c for c in numbers if not bf.adds_up(c)]
 
 
+def _column_catalog(columns: list[str]) -> list[dict]:
+    """The two-list column picker's catalog (core/field_picker.js) for an input stream: each Measure column offered, with its
+    dictionary definition and page."""
+    from cedars.services.dictionary import service as dictionary
+
+    try:
+        defs = {f.name: (f.definition or "").strip() for f, _ in dictionary.table_fields("calculations", "Measure")}
+    except Exception:  # noqa: BLE001 - no catalog loaded: the names alone
+        defs = {}
+    return [{"c": c, "g": "Measure columns", "d": defs.get(c, ""), "l": reverse("dictionary:field", args=[c])} for c in columns]
+
+
+def _stream_pickers(form) -> list[dict]:
+    """The input stream page's two pickers: the Measure columns it adds up and the 2nd-baseline ones, each filling its own hidden
+    comma field (InputStreamForm.PICKED), which is sent only when the picker runs."""
+    words = {
+        "columns": ("pick", "field-picker", "Columns it adds up", "the stream"),
+        "columns_2nd": ("pick2", "field-picker-2nd", "2nd-baseline columns", "the 2nd baseline"),
+    }
+    out = []
+    for field, (prefix, box, right, noun) in words.items():
+        out.append(
+            {
+                "field": field,
+                "name": form.PICKED[field],
+                "value": ",".join(form.picked(field)),
+                "fp": {
+                    "prefix": prefix,
+                    "id": box,
+                    "target": f"id_{form.PICKED[field]}",
+                    "sep": "comma",
+                    "noun": noun,
+                    "ordered": False,
+                    "unknown": "not one of the Measure columns offered",
+                    "left": "Measure columns you can add",
+                    "right": right,
+                    "find_right": f"Find in the {right[0].lower()}{right[1:]}",
+                },
+            }
+        )
+    return out
+
+
 @login_required
 def build_input(request, pk, name=None):
     """Step 4: add or change one input stream."""
@@ -321,7 +364,10 @@ def build_input(request, pk, name=None):
             return _part_saved(request, build, "inputs", form.cleaned_data["name"])
     if name:
         bf.show_beside(form, _found(build, "inputs"), part="streams", name=name)
-    return render(request, "refdata/builder/input_stream.html", _ctx(request, build, "inputs", form=form, name=name))
+    context = _ctx(request, build, "inputs", form=form, name=name)
+    if cols:
+        context |= {"pickers": _stream_pickers(form), "column_catalog": _column_catalog(cols)}
+    return render(request, "refdata/builder/input_stream.html", context)
 
 
 def _streams_for(build, named=()) -> list[tuple[str, dict]]:

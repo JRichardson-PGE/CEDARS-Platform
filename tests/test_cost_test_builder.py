@@ -193,7 +193,7 @@ def test_saving_every_page_unchanged_gives_back_the_same_set(analyst):  # noqa: 
 
 
 @needs_catalog
-def test_a_neb_built_through_the_forms(analyst):  # noqa: F811
+def test_a_neb_built_through_the_forms(analyst, monkeypatch):  # noqa: F811
     """ReCET's synthetic EE-2026-neb, as far as steps 1 to 4 go: the id, and an annual health NEB from a new column in the primary and SCT
     Base pricings."""
     b = builder.start_from_engine(analyst, "EE-2026")
@@ -205,6 +205,14 @@ def test_a_neb_built_through_the_forms(analyst):  # noqa: F811
     neb = {"name": "HealthNEB", "kind": "benefit", "new_columns": "UnitNEBHealth", "basis": "annual_over_life", "ntg": "kwh",
            "market_effects": "benefits", "pricings": ["primary", "sct_base"], "naming": "suffix", "gross": "divide_ntg",
            "unit": "$ (PV)", "definition": "Health benefits."}  # fmt: skip
+    from cedars.services.refdata import builder_views
+
+    offered = (["UnitMiscBens", "UnitTaxCredits"], ["NumUnits"])
+    monkeypatch.setattr(builder_views, "_measure_columns", lambda build: offered)  # as a loaded data dictionary offers them
+    page = c.get(f"/reference-data/cost-tests/build/{b.pk}/inputs/new/").content.decode()
+    assert 'id="field-picker"' in page and 'id="field-picker-2nd"' in page and 'data-prefix="pick2"' in page  # two lists for each set
+    assert '<input type="hidden" name="columns_picked" id="id_columns_picked" value="" disabled>' in page
+    assert 'id="field-catalog"' in page and "UnitMiscBens" in page
     assert c.post(f"/reference-data/cost-tests/build/{b.pk}/inputs/new/", neb).status_code == 302
     b.refresh_from_db()
     assert b.data["id"] == "EE-2026-neb" and b.problems == {}
@@ -856,6 +864,15 @@ def test_an_input_stream_offers_only_columns_that_add_up():
     f = bf.InputStreamForm({**post, "new_columns": "UnitNEBHealth"}, measure_columns=["UnitMiscBens"], not_offered=["NumUnits"],
                            pricings=["primary"])  # fmt: skip
     assert f.is_valid() and f.cleaned_data["columns"] == ["UnitMiscBens", "UnitNEBHealth"]
+    # the two-list column pickers send each set of columns as one comma field instead of the tick boxes
+    picked = {**post, "columns": [], "new_columns": "", "columns_picked": "UnitMiscBens", "columns_2nd_picked": "UnitMiscBens"}
+    f = bf.InputStreamForm(picked, measure_columns=["UnitMiscBens"], not_offered=["NumUnits"], pricings=["primary"])
+    assert f.is_valid() and f.cleaned_data["columns"] == ["UnitMiscBens"] and f.cleaned_data["columns_2nd"] == ["UnitMiscBens"]
+    assert f.picked("columns") == ["UnitMiscBens"]
+    f = bf.InputStreamForm({**picked, "columns_picked": "NumUnits"}, measure_columns=["UnitMiscBens"], not_offered=["NumUnits"],
+                           pricings=["primary"])  # fmt: skip
+    assert not f.is_valid() and "NumUnits is a count" in f.errors["new_columns"][0]
+    assert bf.InputStreamForm(initial={"columns": ["UnitMiscBens"]}, measure_columns=["UnitMiscBens"]).picked("columns") == ["UnitMiscBens"]
 
 
 def test_only_its_starter_discards_a_set_and_is_asked_first(analyst):  # noqa: F811

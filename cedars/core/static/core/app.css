@@ -383,6 +383,7 @@ main.page .info-pop .helptext { font-size: .9rem; color: var(--fg); margin: 0; m
 fieldset { border: 1px solid var(--line); border-radius: var(--r-lg); padding: .75rem 1rem; min-width: 0; margin: 0 0 .5rem; background: var(--surface); }   /* min-content wide by default, which overflows at 320 px */
 legend { font-weight: 600; padding: 0 .3rem; font-size: .92rem; }
 .form-narrow { max-width: 40rem; }
+.form-narrow:has(fieldset.column-choice .picker) { max-width: 64rem; }   /* the two lists need more room than one column of fields */
 /* A long form that uses the window (New run): each section's fields flow into as many columns as fit, in reading order, left to right
    (1.3.2: the visual order is the DOM order). A .field-cell keeps fields that go together in one column (a box and the option it turns
    on). At 320 px every grid is one column (min(100%, ...): 1.4.10). Small sections share a row in .fieldset-row. */
@@ -580,7 +581,7 @@ ul.tick-options label.check { min-height: 24px; overflow-wrap: anywhere; }
 .library-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1.5rem; align-items: start; }
 @media (min-width: 75rem) { .library-layout { grid-template-columns: minmax(0, 1fr) 20rem; } }
 .library-side .card:first-child { margin-top: 0; }
-/* Output template page: the two-list field picker (calculations/field_picker.js; also Results and Compare's Choose columns), ReCET's Templates page laid out on these tokens */
+/* The two-list column picker (core/field_picker.js): output templates, Results and Compare's Choose columns, record downloads, builder streams, scan settings; ReCET's Templates page laid out on these tokens */
 .picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: .6rem 1rem; align-items: start; }
 .picker[hidden] { display: none; }
 .picker-side { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
@@ -787,6 +788,8 @@ form.inline-download { display: inline-flex; flex-wrap: wrap; align-items: cente
 form.inline-download label { flex-direction: row; align-items: center; }
 table.list.records thead th { text-transform: none; letter-spacing: 0; }   /* canonical field names keep their case */
 table.records td { white-space: nowrap; }
+fieldset.column-picker { flex-basis: 100%; min-width: 0; }
+fieldset.column-picker > .picker, fieldset.column-picker > [data-without-picker], fieldset.column-picker > p { flex-basis: 100%; min-width: 0; }
 .column-picker details { margin: .2rem 0; min-width: 0; }   /* a flex item: without this its min-content width (the longest field name) pushes past 320 px */
 .column-picker summary { cursor: pointer; min-height: 24px; }
 ul.column-list { list-style: none; padding: 0 0 0 1.2rem; margin: .3rem 0 .6rem; columns: 22rem 2; }

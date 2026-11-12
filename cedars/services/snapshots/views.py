@@ -108,8 +108,45 @@ def scan_settings(request):
             messages.success(request, "Scan settings saved. They apply to the next publication, and to a held one scanned again.")
         return redirect("snapshots:scan_settings")
     cfg = service.scan_settings()
+    catalog = _column_catalog()
     return render(
         request,
         "snapshots/scan_settings.html",
-        {"cfg": cfg, "patterns": [(p, p.code in cfg.patterns) for p in pii.PATTERNS], "exempt": "\n".join(cfg.exempt_columns)},
+        {
+            "cfg": cfg,
+            "patterns": [(p, p.code in cfg.patterns) for p in pii.PATTERNS],
+            "exempt": "\n".join(cfg.exempt_columns),
+            "column_catalog": catalog,
+            "column_picker": {
+                "target": "exempt",
+                "sep": "newline",
+                "noun": "the columns left out",
+                "groups": list(dict.fromkeys(c["g"] for c in catalog)),
+                "ordered": False,
+                "unknown": "not in the data dictionary",
+                "left": "Columns you can leave out",
+                "right": "Columns left out",
+                "find_right": "Find in the columns left out",
+            },
+        },
     )
+
+
+def _column_catalog() -> list[dict]:
+    """The two-list column picker's catalog (core/field_picker.js) for the columns the scan leaves out: the current data dictionary's
+    fields, by group, with their definitions and pages. Empty when no dictionary is loaded (the box for names still works)."""
+    from django.urls import reverse
+
+    from cedars.services.dictionary import service as dictionary
+
+    version = dictionary.current()
+    if version is None:
+        return []
+    out, seen = [], set()
+    for f in version.fields.all():
+        if f.name.lower() in seen:  # compared without case, as the scan compares them
+            continue
+        seen.add(f.name.lower())
+        group = f"{f.get_kind_display()}: {f.group}" if f.group else f.get_kind_display()
+        out.append({"c": f.name, "g": group, "d": (f.definition or "").strip(), "l": reverse("dictionary:field", args=[f.name])})
+    return out

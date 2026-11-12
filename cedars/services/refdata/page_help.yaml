@@ -218,12 +218,15 @@ refdata/builder/input_stream:
     - Only CET's per-unit dollar columns are offered (UnitMeaCost1stBaseline, UnitMiscBens, UnitTaxCredits and the like). Counts, rates,
       years and energy savings, such as NumUnits, NTGRkW, EUL_Yrs or UnitkWh1stBaseline, cannot be added up and are refused if typed in.
   how:
-    - Fill in the fields and select Save the stream.
+    - Choose the Measure columns it adds up in the two lists, and any 2nd-baseline columns in the two lists below them; search by name
+      or definition on the left, select and press Add (or Enter), and Remove (or Delete) on the right. Name a new column of your own in
+      the box under the lists.
+    - Fill in the other fields and select Save the stream.
   see: reference-data
   tour:
     - heading: Measure columns
       title: Measure columns
-      text: The per-unit columns it adds up; name a new column of your own in the box.
+      text: The per-unit columns it adds up, chosen in the two lists; name a new column of your own in the box.
     - heading: Gross form
       title: Gross form
       text: How the stream's gross form is made, for tests with the Gross variant.

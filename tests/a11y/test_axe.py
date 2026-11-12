@@ -2281,6 +2281,41 @@ def test_the_results_column_picker_by_keyboard(browser, axe_source, site, scene,
     context.close()
 
 
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_records_column_picker_by_keyboard(browser, axe_source, site, scene, scheme):
+    """Record downloads choose columns with the same two lists (Jake, 2026-11-12): a column found by search and added with Enter,
+    the right list kept in the file's order (no reordering), removed with Delete, the hidden comma field sent as the columns, and axe
+    clean. Without scripts: the tick boxes by group, and the comma field is not sent."""
+    path = "/data/records/?dataset=forecast&columns=none&col=TotalSystemBenefit"
+    context, page = _open(browser, site, scene, path, None, color_scheme=scheme, bypass_csp=True)
+    assert page.locator("#field-picker").is_visible() and page.locator("[data-without-picker]").first.is_hidden()
+    assert page.locator("#records-cols").input_value() == "TotalSystemBenefit" and not page.locator("#records-cols").is_disabled()
+    assert page.locator("#pick-up").count() == 0
+    page.fill("#pick-find", "CEInputID")
+    page.locator("#pick-available").focus()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Enter")
+    assert page.locator("#records-cols").input_value() == "CEInputID,TotalSystemBenefit"  # the catalog's order, not the order added
+    page.wait_for_selector("#announcer:has-text('2 columns in the download')", state="attached")
+    found = _violations(page, axe_source, header_menus=False)
+    assert not found, f"records column picker ({scheme}): " + json.dumps(found, indent=1)
+    page.locator("#pick-selected").select_option("TotalSystemBenefit")
+    page.locator("#pick-selected").focus()
+    page.keyboard.press("Delete")
+    assert page.locator("#records-cols").input_value() == "CEInputID"
+    page.locator("form.records-form button[type=submit]").last.click()
+    page.wait_for_load_state()
+    assert "col=CEInputID" in page.url and "TotalSystemBenefit" not in page.url
+    context.close()
+
+    context = browser.new_context(java_script_enabled=False)
+    page = context.new_page()
+    page.goto(f"{site.url}{path}")
+    assert page.locator("#field-picker").is_hidden() and page.locator("[data-without-picker]").first.is_visible()
+    assert page.locator("#records-cols").is_disabled()
+    context.close()
+
+
 # ---------- Edit inputs as a spreadsheet (calculations/edit_grid.js, Tabulator 6.3.1 with ReCET's NVDA-tested fixes) ----------
 
 
