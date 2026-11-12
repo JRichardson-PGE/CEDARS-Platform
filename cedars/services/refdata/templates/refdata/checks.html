@@ -17,11 +17,11 @@ A published pack keeps the checks it was published under.</p>
   <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Added</th>{% if manager %}<th scope="col">Retire</th>{% endif %}</tr></thead>
   <tbody>
   {% for r in active %}
-  <tr><th scope="row"><code>{{ r.name }}</code></th><td>{{ r.description }}</td>
+  <tr><th scope="row">{{ r.words }}<br><code class="small">{{ r.name }}</code></th><td>{{ r.description }}</td>
     <td>{% if r.added_at %}{{ r.added_at|date_words }} by {{ r.added_by|person|default:"the system" }}{% if r.reason %}: {{ r.reason }}{% endif %}{% else %}With the platform{% endif %}</td>
     {% if manager %}<td><form method="post" action="{% url 'refdata:retire_check' r.pk %}" class="row-form">{% csrf_token %}
       <p><label for="why-{{ r.pk }}">Reason</label><input id="why-{{ r.pk }}" name="reason" type="text" required maxlength="500"></p>
-      <div class="actions"><button type="submit">Retire {{ r.name }}</button></div></form></td>{% endif %}</tr>
+      <div class="actions"><button type="submit">Retire<span class="sr-only"> {{ r.words }}</span></button></div></form></td>{% endif %}</tr>
   {% endfor %}
   </tbody>
 </table>
@@ -29,7 +29,7 @@ A published pack keeps the checks it was published under.</p>
 {% else %}<p>No check: a draft of this kind is published without one.</p>{% endif %}
 {% if retired %}
 <details><summary>Retired checks ({{ retired|length }})</summary>
-<ul>{% for r in retired %}<li><code>{{ r.name }}</code>: {{ r.description }} Retired {{ r.retired_at|date_words }} by {{ r.retired_by|person|default:"the system" }}: {{ r.retired_reason }}</li>{% endfor %}</ul>
+<ul>{% for r in retired %}<li>{{ r.words }} <code class="small">{{ r.name }}</code>: {{ r.description }} Retired {{ r.retired_at|date_words }} by {{ r.retired_by|person|default:"the system" }}: {{ r.retired_reason }}</li>{% endfor %}</ul>
 </details>
 {% endif %}
 </section>

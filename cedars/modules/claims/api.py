@@ -23,6 +23,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from cedars.core import api, storage, uploads
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.submissions import service as submissions
@@ -460,7 +461,9 @@ def _acting(request, organisation, permission: str) -> None:
     if acting is None:
         raise PermissionDenied("The call acts for no organization.")
     if acting != organisation or not api.allowed(request, f"{MODULE}.{permission}"):
-        raise PermissionDenied(f"This call needs {MODULE}.{permission} in {organisation.code}.")
+        raise PermissionDenied(
+            f"This call needs the {perms.label(f'{MODULE}.{permission}')} permission ({MODULE}.{permission}) in {organisation.code}."
+        )
 
 
 def _latest_version(request, pk, permission: str) -> SubmissionVersion:

@@ -56,7 +56,7 @@ and stops working when it expires, when you revoke it, or when you leave the org
   <thead><tr><th scope="col">Name</th><th scope="col">Key starts</th><th scope="col">Acting for</th><th scope="col">Modules</th><th scope="col">Status</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for t in tokens %}
-  <tr><th scope="row">{{ t.name }}</th><td><code>cedars_{{ t.prefix }}</code></td><td>{{ t.organisation.code|default:"Own calculations" }}</td><td>{{ t.scopes|join:", " }}</td>
+  <tr><th scope="row">{{ t.name }}</th><td><code>cedars_{{ t.prefix }}</code></td><td>{{ t.organisation.code|default:"Own calculations" }}</td><td>{{ t.scopes|module_names }}</td>
     <td>{% if t.status == "active" %}Active until {{ t.expires_at|date_words }}{% elif t.status == "expired" %}Expired {{ t.expires_at|date_words }}{% else %}Revoked {{ t.revoked_at|date_words }}{% endif %}</td>
     <td>{{ t.last_used_at|datetime_words|default:"Never" }}</td>
     <td>{% if t.status == "active" %}<form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<button type="submit">Revoke<span class="sr-only"> the token {{ t.name }}</span></button></form>{% endif %}</td></tr>

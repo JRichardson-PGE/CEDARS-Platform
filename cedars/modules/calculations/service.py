@@ -26,6 +26,7 @@ from django.utils import timezone
 
 from cedars.core import storage
 from cedars.services import audit
+from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata import cost_tests
@@ -574,7 +575,7 @@ def create_run(
 
     # a filing's run: the submissions service has checked <module>.submit
     if submission_version is None and not can_submit(actor, organisation):
-        raise AccessDenied(f"You need calculations.submit in {organisation.code} to start a run for it.")
+        raise AccessDenied(f"You need the {perms.label('calculations.submit')} permission in {organisation.code} to start a run for it.")
     if submission_version is None:
         check_waiting_runs(actor)
     if not req.name.strip():

@@ -115,7 +115,7 @@ def test_what_cannot_be_restated(filer, year, pge, programs, release, cpuc_admin
     finish_run(Run.objects.get(pk=service.price(filer, v)))
     v.refresh_from_db()
     v = service.confirm(filer, v)
-    with pytest.raises(AccessDenied, match="calculations.submit in PGE"):
+    with pytest.raises(AccessDenied, match="Calculations: submit permission in PGE"):
         restatements.start(filer, v, organisation=pge, release="0.1.80", acc_version="2026")
     calculations.add_release(cpuc_admin, release="0.1.90", calculations=["recet"], accs={"recet": ["2024"]})
     with pytest.raises(AccessDenied, match="no 2026 ACC, which these claims were filed on"):

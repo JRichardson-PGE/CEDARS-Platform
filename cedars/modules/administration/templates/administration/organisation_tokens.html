@@ -14,7 +14,7 @@
   <thead><tr><th scope="col">Member</th><th scope="col">Name</th><th scope="col">Modules</th><th scope="col">Expires</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
   <tbody>
   {% for t in tokens %}
-  <tr><th scope="row">{{ t.user|person }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|join:", " }}</td><td>{{ t.expires_at|date_words }}</td><td>{{ t.last_used_at|date_words|default:"Never" }}</td>
+  <tr><th scope="row">{{ t.user|person }}</th><td>{{ t.name }} <code class="small">cedars_{{ t.prefix }}</code></td><td>{{ t.scopes|module_names }}</td><td>{{ t.expires_at|date_words }}</td><td>{{ t.last_used_at|date_words|default:"Never" }}</td>
     <td><form method="post" action="{% url 'administration:token_revoke' t.pk %}">{% csrf_token %}<input type="hidden" name="from" value="organisation"><button type="submit">Revoke<span class="sr-only"> {{ t.user|person_name }}'s token {{ t.name }}</span></button></form></td></tr>
   {% endfor %}
   </tbody>

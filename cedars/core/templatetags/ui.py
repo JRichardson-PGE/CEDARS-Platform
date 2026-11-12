@@ -101,6 +101,22 @@ def person(user):
 
 
 @register.filter
+def action_words(action, verb_only=False) -> str:
+    """An audit action in words ("Program change requested"; with an argument, "Requested"): services.audit.words."""
+    from cedars.services import audit
+
+    return audit.words(str(action or ""), verb_only=bool(verb_only))
+
+
+@register.filter
+def module_names(keys) -> str:
+    """An API token's modules in words ("Claims, Impact profiles"), from permissions.MODULES."""
+    from cedars.services.accounts import permissions
+
+    return ", ".join(permissions.MODULES.get(k, str(k)) for k in keys or [])
+
+
+@register.filter
 def audit_rows(event) -> list[tuple[str, str, str]]:
     """An audit event's before and after as rows (field, before, after), one per field either side names, for a small table (UI review
     2, #7: they printed as Python dict text on one line). Field names read as words, in US spelling ("organization"); a nested value

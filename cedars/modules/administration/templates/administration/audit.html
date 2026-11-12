@@ -16,7 +16,7 @@
   <tr>
     <td class="nowrap">{{ e.at|datetime_words }}</td>
     <td>{{ e.actor_label }}{% if e.organisation %} <span class="small muted">for {{ e.organisation.code }}</span>{% endif %}{% if e.assurance %} <span class="small muted">({{ e.assurance }})</span>{% endif %}</td>
-    <th scope="row">{{ e.action }}</th>
+    <th scope="row">{{ e.action|action_words }} <span class="small muted"><code>{{ e.action }}</code></span></th>
     <td>{{ e.object_repr }} <span class="small muted">{{ e.object_type }} {{ e.object_id }}</span></td>
     <td>{{ e.reason }}</td>
     <td class="small change-cell">{% if e.before or e.after %}<details><summary>Before and after<span class="sr-only"> for event {{ e.pk }}</span></summary>

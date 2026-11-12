@@ -97,7 +97,7 @@ electric savings, the gas factor gas savings, and the weighted factor (PercentEl
   <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Who</th><th scope="col">For</th></tr></thead>
   <tbody>
   {% for e in history %}
-  <tr><th scope="row">{{ e.at|date_words }}</th><td>{{ e.action|cut:"allocation_version."|capfirst }}</td><td>{% if not user.is_authenticated %}{% if e.organisation %}A member of {{ e.organisation.code }}{% else %}CPUC staff{% endif %}{% elif e.actor %}{{ e.actor|person }}{% else %}{{ e.actor_label }}{% endif %}</td><td>{% if e.organisation %}{{ e.organisation.code }}{% else %}CPUC{% endif %}</td></tr>
+  <tr><th scope="row">{{ e.at|date_words }}</th><td>{{ e.action|action_words:True }}</td><td>{% if not user.is_authenticated %}{% if e.organisation %}A member of {{ e.organisation.code }}{% else %}CPUC staff{% endif %}{% elif e.actor %}{{ e.actor|person }}{% else %}{{ e.actor_label }}{% endif %}</td><td>{% if e.organisation %}{{ e.organisation.code }}{% else %}CPUC{% endif %}</td></tr>
   {% empty %}<tr><td colspan="4">Nothing recorded.</td></tr>
   {% endfor %}
   </tbody>

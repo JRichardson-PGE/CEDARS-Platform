@@ -77,7 +77,7 @@ published pack in force: blank fields are filled from it and filed values that d
 <table class="list">
   <caption class="sr-only">Checks this kind of pack must pass before it is published, with the latest result</caption>
   <thead><tr><th scope="col">Check</th><th scope="col">What it shows</th><th scope="col">Latest result</th></tr></thead>
-  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.name }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date_words }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
+  <tbody>{% for r, t in requirements %}<tr><th scope="row">{{ r.words }}</th><td>{{ r.description }}</td><td>{% if t %}{% if t.passed %}Passed{% else %}Failed{% endif %}{% if t.largest_difference is not None %}: largest difference {{ t.largest_difference }}{% if t.precision is not None %} (allowed {{ t.precision }}){% endif %}{% endif %}, {{ t.recorded_at|date_words }}{% else %}Not run{% endif %}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
 {% else %}<p>This kind of pack needs no tie-out before it is published.</p>{% endif %}
@@ -95,7 +95,7 @@ published pack in force: blank fields are filled from it and filed values that d
 {% endif %}
 {% if tie_outs %}
 <h3>Every result</h3>
-<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date_words }}: {{ t.name }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
+<ul>{% for t in tie_outs %}<li>{{ t.recorded_at|date_words }}: {{ t.words }} {% if t.passed %}passed{% else %}failed{% endif %}{% if t.engine_release %} (engine {{ t.engine_release }}){% endif %}{% if t.summary %}. {{ t.summary }}{% endif %}</li>{% endfor %}</ul>
 {% endif %}
 
 <h2>Files</h2>
@@ -111,7 +111,7 @@ published pack in force: blank fields are filled from it and filed values that d
 {% if pack.status == "draft" %}
 <section class="card" aria-labelledby="act-h">
   <h2 id="act-h">Publish or discard</h2>
-  {% if outstanding %}<p>Publishing needs a passed tie-out for: {% for r in outstanding %}{{ r.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+  {% if outstanding %}<p>Publishing needs a passed result of these checks: {% for r in outstanding %}{{ r.words }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
   <p>Once published, filing runs can use the pack. A published pack is kept for good: it can be withdrawn, never discarded.</p>
   <form method="post" class="actions">{% csrf_token %}
     <button type="submit" name="action" value="publish" class="primary"{% if outstanding %} aria-disabled="true"{% endif %}>Publish</button>

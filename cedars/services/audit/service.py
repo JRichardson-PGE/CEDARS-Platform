@@ -67,3 +67,37 @@ def record(
 def changes(obj: models.Model):
     """Every event about one record, oldest first: its change history."""
     return AuditEvent.objects.filter(object_type=obj._meta.label_lower, object_id=str(obj.pk)).order_by("at", "id")
+
+
+# An event's action in words, wherever a person reads a history or the audit trail (UI review 3, U12): "program_change.requested" is
+# "Program change requested", or "Requested" beside the thing it happened to. The action names themselves keep their original spelling
+# ("organisation", "cancelled"); the words are US English.
+_SUBJECT_WORDS = {
+    "organisation": "organization",
+    "api_token": "API token",
+    "etrm_sync": "eTRM sync",
+    "pack": "data pack",
+    "pack_check": "data pack check",
+    "calculation_run": "run",
+    "submission": "filing",
+    "user": "account",
+}
+_VERB_WORDS = {
+    "cancelled": "canceled",
+    "set_up": "set up",
+    "setup_changed": "set-up changed",
+    "etrm_indexed": "eTRM permutations indexed",
+    "code_added": "code added",
+}
+
+
+def words(action: str, *, verb_only: bool = False) -> str:
+    """An audit action in plain words: "Program change requested", or with verb_only "Requested"."""
+    subject, _, verb = (action or "").partition(".")
+    if not verb:
+        subject, verb = "", subject
+    said = _VERB_WORDS.get(verb, verb.replace("_", " ").replace("cancelled", "canceled").replace("organisation", "organization"))
+    if verb_only or not subject:
+        return said[:1].upper() + said[1:]
+    thing = _SUBJECT_WORDS.get(subject, subject.replace("_", " ").replace("organisation", "organization"))
+    return f"{thing[:1].upper()}{thing[1:]} {said}"

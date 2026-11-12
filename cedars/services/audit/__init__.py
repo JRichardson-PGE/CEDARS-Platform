@@ -6,7 +6,7 @@
 Who and from where come from the request context (audit.context, set by AuditContextMiddleware) unless passed explicitly.
 The table refuses UPDATE and DELETE at the database level (migration 0002)."""
 
-__all__ = ["changes", "diff", "record", "snapshot"]
+__all__ = ["changes", "diff", "record", "snapshot", "words"]
 
 
 def __getattr__(name):

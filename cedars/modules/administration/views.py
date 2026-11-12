@@ -13,6 +13,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from cedars.core import health, tables
+from cedars.services import audit
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service, tokens
 from cedars.services.accounts.middleware import ORG_SESSION_KEY
@@ -859,7 +860,7 @@ def person(request, pk):
             "memberships": [(m, [perms.label(g.permission) for g in m.grants.filter(status__in=Grant.OPEN)]) for m in memberships],
             "name_form": forms.NameForm(initial={"name": u.name}, correcting=True, auto_id="name_%s"),
             "tokens": ApiToken.objects.filter(user=u, revoked_at__isnull=True, expires_at__gt=timezone.now()).count(),
-            "events": [(e, PEOPLE_EVENTS.get(e.action, e.action)) for e in events],
+            "events": [(e, PEOPLE_EVENTS.get(e.action) or audit.words(e.action)) for e in events],
             "is_self": u.pk == request.user.pk,
         },
     )
@@ -1036,7 +1037,7 @@ def role_template(request, pk):
                 for g in grants.order_by("membership__organisation__code", "membership__user__email", "permission")
             ],
             "history": [
-                (e, TEMPLATE_EVENTS.get(e.action, e.action))
+                (e, TEMPLATE_EVENTS.get(e.action) or audit.words(e.action))
                 for e in AuditEvent.objects.filter(object_type="accounts.roletemplate", object_id=str(t.pk)).order_by("-at", "-id")[:20]
             ],
         },
