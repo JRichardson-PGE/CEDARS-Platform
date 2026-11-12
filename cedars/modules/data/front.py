@@ -12,6 +12,11 @@ PA type, and one claim year (the latest by default). The page shows:
   by PA      the metric for the largest PAs (and the rest together) in the first published year and the chosen year
   per $1     total system benefit over claimed spending, each year both are published
 
+A year whose claims are not complete yet (Jake, 2026-11-12: 2026 is only through the Q2 filing) is said so everywhere it shows: the
+year menu, the tiles (no change from the year before: part of a year against a whole one), its column (lighter, outlined, "thru Q2"
+under it, left out of the average), the by-PA chart and the tables; the indexed chart leaves it out. How far a year runs is the
+latest ClaimYearQuarter its published claims carry (`_through`), so it moves on with each filing; a year at Q4 is complete.
+
 Every number is summed from the claims release with the dashboards' default exclusions (query.DEFAULT_EXCLUDE), so each chart agrees with
 the dashboard page it links to. The page reads one query: every metric by year, PA type and PA, cached (below); the choices are applied to
 it in the request.
@@ -46,7 +51,7 @@ log = logging.getLogger(__name__)
 FRESH_SECONDS = 600
 KEEP_SECONDS = 7 * 24 * 3600
 REFRESH_LOCK_SECONDS = 300  # one rebuild at a time; a rebuild that dies frees the lock after this
-CACHE_VERSION = 6  # the cached entry's shape: bump when it changes, so a deploy never reads an old pickle
+CACHE_VERSION = 7  # the cached entry's shape: bump when it changes, so a deploy never reads an old pickle
 PA_TYPES = ("IOU", "REN", "CCA")
 TOP_PAS = 4  # the PAs named in the by-PA chart; the rest are added up as "Other PAs"
 PHONE_YEARS = 5  # the by-year chart on a narrow screen shows the last few years only
@@ -159,6 +164,7 @@ class Rows:
     rows: list[tuple]  # (year, pa_type or "", pa, {field: value or None})
     as_of: object = None
     notes: list[str] = field(default_factory=list)
+    through: dict[int, int] = field(default_factory=dict)  # a year not complete yet: the latest quarter (1-3) its claims carry
 
 
 def _cache_key() -> str:
@@ -187,7 +193,25 @@ def _read() -> Rows:
         for r in result.rows
         if r.get("year") is not None
     ]
-    return Rows(rows, as_of=result.as_of, notes=[n for n in result.notes if n.startswith("Nothing")])
+    notes = [n for n in result.notes if n.startswith("Nothing")]
+    return Rows(rows, as_of=result.as_of, notes=notes, through=_through(result.query, result.files))
+
+
+def _through(q: dq.Query, files: list[dict]) -> dict[int, int]:
+    """For each year whose published claims stop before Q4, the latest quarter any of its records carries (ClaimYearQuarter "2026Q2"
+    is 2). Claims are year to date, so the latest quarter is how far the year's data run; a year without quarters reads as complete."""
+    if not files:
+        return {}
+    source, where, args = dq._source(q, files, [], ["ClaimYearQuarter"])
+    quarter = "try_cast(regexp_extract(upper(\"ClaimYearQuarter\"), 'Q\\s*([1-4])', 1) AS INTEGER)"
+    sql = (
+        source
+        + f"SELECT {dq.YEAR_OF_ROW} AS y, max({quarter}) AS q FROM data"
+        + (f" WHERE {' AND '.join(where)}" if where else "")
+        + " GROUP BY 1"
+    )
+    _, found = dq._fetch(sql, args)
+    return {int(y): int(qn) for y, qn in found if y is not None and qn is not None and qn < 4}
 
 
 def _store(fingerprint: str) -> Rows:
@@ -247,6 +271,7 @@ class Trends:
     years: list[int]  # every claim year published
     pa_types: list[str]  # the PA types that have rows
     as_of: object = None
+    through: dict[int, int] = field(default_factory=dict)  # a year not complete yet: its latest quarter
     tiles: list[dict] = field(default_factory=list)
     charts: dict = field(default_factory=dict)  # by_year, by_year_recent, indexed, by_pa, per_dollar: {"svg", "table", "tips", ...}
     notes: list[str] = field(default_factory=list)
@@ -257,6 +282,21 @@ class Trends:
         default = {"metric": "tsb", "type": "", "year": self.years[-1] if self.years else None}
         kept = {k: v for k, v in params.items() if v not in (None, "") and v != default[k]}
         return "?" + urlencode(kept) if kept else "?"
+
+    def partial(self, year: int | None) -> str:
+        """ "through Q2" for a year whose claims are not complete yet, else blank."""
+        return f"through Q{self.through[year]}" if year in self.through else ""
+
+    @property
+    def year_partial(self) -> str:
+        return self.partial(self.year)
+
+    @property
+    def year_options(self) -> list[dict]:
+        return [
+            {"year": y, "label": f"{y} ({self.partial(y)})" if self.partial(y) else str(y), "current": y == self.year}
+            for y in reversed(self.years)
+        ]
 
     @property
     def metric_links(self) -> list[dict]:
@@ -300,7 +340,7 @@ def trends(params=None) -> Trends:
     years = sorted({r[0] for r in data.rows})
     year_param = (params.get("year") or "").strip()
     year = int(year_param) if year_param.isdigit() and int(year_param) in years else (years[-1] if years else None)
-    t = Trends(metric, pa_type, year, years, pa_types, as_of=data.as_of, notes=list(data.notes))
+    t = Trends(metric, pa_type, year, years, pa_types, as_of=data.as_of, notes=list(data.notes), through=dict(data.through))
     if not years:
         t.notes = t.notes or ["No claims are published yet, so there is nothing to chart."]
         return t
@@ -331,9 +371,12 @@ def trends(params=None) -> Trends:
     t.charts["by_pa"] = _by_pa(t, kept, s)
     t.charts["per_dollar"] = _per_dollar(t, all_series["tsb"], all_series["expenditure"])
     labels = [dq.EXCLUSIONS[e].label for e in dq.DEFAULT_EXCLUDE]
-    t.footnotes.append(
+    for y in sorted(t.through):
+        t.footnotes.append(f"{y} is not complete yet: its claims are {t.partial(y)} (year to date).")
+    t.footnotes.insert(
+        0,
         f"Claims as published, adding up {t.who}. Like the dashboards, the totals leave out {_words(labels)}; each dashboard "
-        "page can put them back."
+        "page can put them back.",
     )
     return t
 
@@ -354,13 +397,15 @@ def _tile(t: Trends, m: Metric, s: dict[int, float]) -> dict:
         "current": m is t.metric,
         "number": number,
         "unit": unit,
-        "change": change(value, s.get(t.year - 1), t.year - 1),
-        "spark": _spark(points, [y for y, _ in points]),  # from the first year published
+        # part of a year against a whole one is no change
+        "change": None if t.partial(t.year) else change(value, s.get(t.year - 1), t.year - 1),
+        "partial": f"{t.year} {t.partial(t.year)} only" if t.partial(t.year) and value is not None else "",
+        "spark": _spark(points, [y for y, _ in points], partial=bool(points) and points[-1][0] in t.through),
         "since": min(s) if s else None,
     }
 
 
-def _spark(points, years, w=200, h=44) -> dict | None:
+def _spark(points, years, w=200, h=44, partial=False) -> dict | None:
     if len(points) < 2:
         return None
     lo = min(0, *(v for _, v in points))
@@ -376,7 +421,8 @@ def _spark(points, years, w=200, h=44) -> dict | None:
 
     line = " ".join(f"{x(y):.1f},{yv(v):.1f}" for y, v in points)
     area = f"{x(points[0][0]):.1f},{h} {line} {x(points[-1][0]):.1f},{h}"
-    return {"w": w, "h": h, "line": line, "area": area, "dot": (round(x(points[-1][0]), 1), round(yv(points[-1][1]), 1))}
+    dot = (round(x(points[-1][0]), 1), round(yv(points[-1][1]), 1))
+    return {"w": w, "h": h, "line": line, "area": area, "dot": dot, "partial": partial}  # partial: the last year is not complete
 
 
 def _ticks(low: float, high: float, count: int = 5) -> list[float]:
@@ -454,10 +500,10 @@ def _by_year(t: Trends, s: dict[int, float], years: list[int], recent: bool = Fa
         v = s.get(y)
         if v is None:
             continue
-        before = s.get(y - 1)
-        ch = change(v, before, y - 1)
-        tip = f"{y}: {amount(m, v)}" + (f", {ch['text']}" if ch else "")
-        cls = "col" + (" chosen" if y == t.year else "") + (" negative" if v < 0 else "")
+        part = t.partial(y)
+        ch = None if part else change(v, s.get(y - 1), y - 1)
+        tip = f"{y}: {amount(m, v)}" + (f", {ch['text']}" if ch else "") + (f", {part} (year to date)" if part else "")
+        cls = "col" + (" chosen" if y == t.year else "") + (" negative" if v < 0 else "") + (" partial" if part else "")
         parts.append(f'<g class="pt" data-tip="{escape(tip)}">')
         parts.append(f'<rect class="hit" x="{pad_l + bw * i:.1f}" y="{pad_t - 20}" width="{bw:.1f}" height="{h - pad_t + 20}"/>')
         parts.append(_column(x, sy(v), zero, bw * 0.64, cls))
@@ -467,10 +513,13 @@ def _by_year(t: Trends, s: dict[int, float], years: list[int], recent: bool = Fa
             arrow = {"up": "▲", "down": "▼", "same": "●"}[ch["dir"]]
             shown = f"{arrow} {abs(ch['pct']):.0f}%" if ch["dir"] != "same" else "● 0%"
             parts.append(f'<text class="chg {ch["dir"]}" x="{cx:.1f}" y="{h - pad_b + 34}" text-anchor="middle">{shown}</text>')
+        if part:
+            parts.append(f'<text class="note" x="{cx:.1f}" y="{h - pad_b + 34}" text-anchor="middle">thru Q{t.through[y]}</text>')
         parts.append("</g>")
         out["tips"].append(tip)
-        out["table"].append({"year": y, "value": amount(m, v), "change": ch["text"] if ch else ""})
-    shown_values = [s[y] for y in years if y in s]
+        change_text = f"{part[0].upper()}{part[1:]} only (year to date)" if part else (ch["text"] if ch else "")
+        out["table"].append({"year": y, "value": amount(m, v), "change": change_text})
+    shown_values = [s[y] for y in years if y in s and y not in t.through]  # the average is of complete years
     if len(shown_values) >= 2:
         avg = sum(shown_values) / len(shown_values)
         first_x = pad_l + bw * min(i for i, y in enumerate(years) if y in s)
@@ -488,8 +537,11 @@ def _by_year(t: Trends, s: dict[int, float], years: list[int], recent: bool = Fa
 
 
 def _indexed(t: Trends, m: Metric, s: dict[int, float], other: Metric, o: dict[int, float]) -> dict:
-    both = [y for y in t.years if s.get(y) and o.get(y)]
+    both = [y for y in t.years if s.get(y) and o.get(y) and y not in t.through]  # a year not complete yet would dip: left out
     out = {"name": "indexed", "title": f"{m.title} and {other.noun}", "tips": [], "table": [], "metric": m.title, "other": other.title}
+    left = [y for y in t.years if y in t.through and s.get(y) and o.get(y)]
+    if left:
+        out["left_out"] = f"{_words([f'{y} ({t.partial(y)})' for y in left])} left out until complete."
     if len(both) < 2:
         out["empty"] = f"{m.title} and {other.noun} need two years published together to compare."
         return out
@@ -553,7 +605,9 @@ def _by_pa(t: Trends, kept: list[tuple], s: dict[int, float]) -> dict:
         out["title"] = f"{m.title} by PA"
         return out
     start = published[0] if published[0] < t.year else None
-    out["title"] = f"{start} to {t.year}, by PA" if start else f"{t.year}, by PA"
+    end = f"{t.year} ({t.partial(t.year)})" if t.partial(t.year) else str(t.year)
+    out["title"] = f"{start} to {end}, by PA" if start else f"{end}, by PA"
+    out["end_label"] = end
     out["start"], out["end"] = start, t.year
     per: dict[str, dict[int, float]] = {}
     for y, _, pa, values in kept:
@@ -584,8 +638,8 @@ def _by_pa(t: Trends, kept: list[tuple], s: dict[int, float]) -> dict:
     for i, (code, label, d) in enumerate(groups):
         yy = pad_t + row_h * i + row_h / 2
         a, b = d.get(start) if start else None, d.get(t.year)
-        ch = change(b, a, start) if start else None
-        tip = f"{label}: {amount(m, b)} in {t.year}" + (f", {amount(m, a)} in {start}" if a is not None else "")
+        ch = change(b, a, start) if start and not t.partial(t.year) else None  # part of a year against a whole one: no change
+        tip = f"{label}: {amount(m, b)} in {end}" + (f", {amount(m, a)} in {start}" if a is not None else "")
         parts.append(f'<g class="pt" data-tip="{escape(tip)}">')
         parts.append(f'<rect class="hit" x="0" y="{yy - row_h / 2:.1f}" width="{w}" height="{row_h}"/>')
         parts.append(f'<text class="label" x="{pad_l - 10}" y="{yy + 4:.1f}" text-anchor="end">{escape(label)}</text>')
@@ -634,14 +688,14 @@ def _per_dollar(t: Trends, tsb: dict[int, float], spent: dict[int, float]) -> di
     parts = [_svg_open("per-dollar", f"Total system benefit per dollar of claimed spending, {span(ys)}, {t.who}", w, h)]
     for i, y in enumerate(ys):
         x = bw * i + bw * 0.2
-        tip = f"{y}: ${vals[y]:.2f} of total system benefit per $1 spent"
+        tip = f"{y}: ${vals[y]:.2f} of total system benefit per $1 spent" + (f" ({t.partial(y)})" if t.partial(y) else "")
         parts.append(f'<g class="pt" data-tip="{escape(tip)}">')
         parts.append(f'<rect class="hit" x="{bw * i:.1f}" y="0" width="{bw:.1f}" height="{h}"/>')
         parts.append(_column(x, sy(vals[y]), sy(0), bw * 0.6, "col" + (" chosen" if y == t.year else "")))
         parts.append(f'<text class="val" x="{x + bw * 0.3:.1f}" y="{sy(vals[y]) - 6:.1f}" text-anchor="middle">${vals[y]:.2f}</text>')
         parts.append(f'<text class="tick" x="{x + bw * 0.3:.1f}" y="{h - 8}" text-anchor="middle">{y}</text></g>')
         out["tips"].append(tip)
-        out["table"].append({"year": y, "value": f"${vals[y]:.2f}"})
+        out["table"].append({"year": f"{y} ({t.partial(y)})" if t.partial(y) else y, "value": f"${vals[y]:.2f}"})
     parts.append(f'<line class="axis" x1="0" x2="{w}" y1="{sy(0):.1f}" y2="{sy(0):.1f}"/></svg>')
     out["svg"] = "".join(parts)
     return out

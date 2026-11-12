@@ -96,6 +96,55 @@ def test_a_pa_type_and_a_year(legacy):
     assert (t.pa_type, t.year, t.metric.key) == ("", 2023, "tsb")
 
 
+def test_a_year_not_complete_yet_is_marked(monkeypatch, client):
+    """Jake, 2026-11-12: a year whose claims are only through some quarter says so wherever it shows."""
+    monkeypatch.setattr(front, "rows", lambda: front.Rows(list(ROWS), through={2023: 2}))
+    t = front.trends({})
+    assert t.year == 2023 and t.year_partial == "through Q2"
+    assert t.year_options[0] == {"year": 2023, "label": "2023 (through Q2)", "current": True}
+    tsb = {x["key"]: x for x in t.tiles}["tsb"]
+    assert tsb["change"] is None and tsb["partial"] == "2023 through Q2 only"  # part of a year against a whole one: no change
+    assert tsb["spark"]["partial"]
+    by_year = t.charts["by_year"]
+    assert by_year["table"][-1] == {"year": 2023, "value": "$1.64B", "change": "Through Q2 only (year to date)"}
+    assert 'class="col chosen partial"' in by_year["svg"] and ">thru Q2<" in by_year["svg"] and "%</text>" not in by_year["svg"]
+    assert "average" not in by_year  # one complete year: no average of complete years
+    assert t.charts["indexed"]["empty"] and "2023 (through Q2) left out" in t.charts["indexed"]["left_out"]
+    by_pa = t.charts["by_pa"]
+    assert by_pa["title"] == "2022 to 2023 (through Q2), by PA" and by_pa["table"][0]["change"] == ""
+    assert t.charts["per_dollar"]["table"][-1]["year"] == "2023 (through Q2)"
+    assert any("2023 is not complete yet: its claims are through Q2" in n for n in t.footnotes)
+    assert "Energy Savings Assistance" in t.footnotes[0]
+    page = client.get("/").content.decode()
+    assert ">2023 (through Q2)</option>" in page and "2023 through Q2 only" in page
+
+
+def test_how_far_a_year_runs_is_read_from_its_claims(filer, cpuc_admin, pge, django_capture_on_commit_callbacks, monkeypatch):  # noqa: F811
+    from . import test_data_query as tdq
+
+    base = tdq.results_file
+
+    def with_quarters(**kw):
+        import io
+
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(io.BytesIO(base(**kw)))
+        quarters = ["2028Q1", "2028Q2", "2028Q1", "2028Q2", "2028Q1"][: table.num_rows]
+        buf = io.BytesIO()
+        pq.write_table(table.append_column("ClaimYearQuarter", [quarters]), buf)
+        return buf.getvalue()
+
+    monkeypatch.setattr(tdq, "results_file", with_quarters)
+    tdq.publish(filer, tdq.claims_deadline(cpuc_admin, 1), pge, django_capture_on_commit_callbacks, "c1")
+    assert front._read().through == {2028: 2}
+    assert front.trends({}).year_options[0]["label"] == "2028 (through Q2)"
+
+
+def test_a_year_through_q4_is_complete(both):  # noqa: F811
+    assert front._read().through == {}  # no quarters filed: complete
+
+
 def test_a_long_history_gets_a_short_chart_for_phones(monkeypatch):
     rows = [(y, "IOU", "PGE", values(1e9 + y, 1e6, 1e3, 1e6, 1e8)) for y in range(2016, 2026)]
     monkeypatch.setattr(front, "rows", lambda: front.Rows(rows))
