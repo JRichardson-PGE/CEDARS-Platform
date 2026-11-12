@@ -495,22 +495,20 @@ audit log; a mail failure never changes the run.
 
 ### 8.7 Accessibility
 
-The web pages must meet WCAG 2.2 Level AA (Jake, 2026-10-29), in light and dark color schemes, with a keyboard alone and with a screen reader. The rules
-for page changes are in the repository's CLAUDE.md. The vendored Tabulator grid (Edit inputs) and Mermaid diagrams (Docs) count as part of the page:
-where they fall short, the page gives an equivalent (a text alternative for a diagram, keyboard commands for the grid). The audit of 2026-10-29
-(0.1.64) found the pages short of it. 0.1.67 fixed every gap outside the Edit inputs grid: a `--control` border color of at least 3:1 for fields
-and buttons, a visible focus ring and a skip link, Apply buttons instead of filters that reload on change, live regions for run status and row counts,
-help shown on the page instead of only in tooltips, focusable scroll boxes, text alternatives (`accTitle` / `accDescr`) on the diagrams, error messages
-that take the focus, sort buttons in table headings, and tables that scroll inside their box at 320 px. 0.1.68 fixed the grid's: Tabulator's roles repaired, a help line that follows the active cell from the keyboard and names its
-problems, symbols on flagged cells, focus rings and ARIA tabs. axe-core finds no violations on any page in either scheme; column widths still change only
-by dragging. 0.1.70 added a screen-reader walk-through (`tests/screenreader`: NVDA driven by Guidepup in Chrome on Windows, recording what NVDA says after
-each key on sign in, Runs, New run, a run, Results and Edit inputs) and fixed what NVDA 2026.2 showed: headings for each card on the Run, Results and
-Compare pages; Validate inputs keeping the focus; its result and the row-filter count spoken through one page-wide announcer (`#announcer`,
-`recetAnnounce` in app.js); short descriptions on New run's ACC and Priced for fields. The Edit inputs grid is one tab stop with the focus on the active cell, so
-NVDA switches to focus mode on it and reads each cell with its column and any problem; Tab and Shift+Tab leave the grid (Tabulator's Tab had moved to
-the next cell, a keyboard trap); the column's description is on the help line just before the grid, which is not a live region. NVDA keeps Escape for
-leaving focus mode, so an edit ends with Enter or Tab. The walk-through is
-run by hand on a Windows machine (unlocked, left alone for about 5 minutes); its transcripts are read against these rules, not asserted.
+The web pages meet WCAG 2.2 Level AA in light and dark color schemes, with a keyboard alone and with a screen reader; the rules for page changes are in
+the repository's CLAUDE.md. The vendored Tabulator grid (Edit inputs) and Mermaid diagrams (Docs) count as part of the page: where they fall short, the
+page gives an equivalent (a text alternative, `accTitle` / `accDescr`, for a diagram; keyboard commands for the grid).
+
+How it is met: a `--control` border color of at least 3:1 for fields and buttons, a visible focus ring and a skip link; filters sent by an Apply button,
+never on change; status changes and row counts spoken through one page-wide announcer (`#announcer`, `recetAnnounce` in app.js); help on the page, not
+only in tooltips; focusable scroll boxes; error messages that take the focus; sort buttons in table headings; tables that scroll inside their box at
+320 px. The Edit inputs grid has its roles repaired, is one tab stop with the focus on the active cell (NVDA switches to focus mode and reads each cell with
+its column and any problem; Tab and Shift+Tab leave the grid; an edit ends with Enter or Tab, as NVDA keeps Escape), a help line just before it that
+follows the active cell, symbols on flagged cells and ARIA tabs. Column widths still change only by dragging.
+
+Checked by axe-core on every page in both schemes (no violations) and by hand with `tests/screenreader`: NVDA driven by Guidepup in Chrome on Windows,
+recording what NVDA says after each key on sign in, Runs, New run, a run, Results and Edit inputs. It runs on an unlocked Windows machine left alone for
+about 5 minutes; its transcripts are read against these rules, not asserted.
 
 ## 9. Performance and memory design
 
@@ -543,7 +541,7 @@ would use the second vCPU but needs twice the pricing memory, so it waits for a 
 * **Reproduce the CET unless it is wrong.** Where the CET's own data or code is in error, ReCET does not copy it, and each difference is documented
   (C17).
 * **Prior CET releases are replicas, checked against the releases themselves.** `recet/cet_versions` prices a job exactly as CET 21.0, 22.1, 24.1,
-  24.2, 24.3, 25.0 or 25.1 does, errors included (Jake, 2026-10-29; CALCULATIONS C20). It shares no code with ReCET's hourly engine.
+  24.2, 24.3, 25.0 or 25.1 does, errors included (CALCULATIONS C20). It shares no code with ReCET's hourly engine.
   `tests/test_cet_versions.py` requires every output column of every measure to equal that release's own RunCET run to 1e-9, on 19 reference runs
   made on restored copies of each release's database backup. A run's engine is a choice (`RunConfig.engine`, New run, `recet run
   --engine`): ReCET's own, or a replica, whose run goes through `jobs.run_job` and writes a measure-level table in ReCET's layout, so the Results and
