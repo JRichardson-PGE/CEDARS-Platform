@@ -33,7 +33,7 @@ from cedars.core import storage
 
 TOLERANCE = 1e-6  # relative: a chart is drawn only when its numbers add up to the engine's output this closely
 REPLICA_TOLERANCE = 1e-5  # CET rounds each discount factor to six decimal places
-CACHE_VERSION = 1
+CACHE_VERSION = 2  # 2: the value of a kWh carries its transmission and distribution part
 MONTHS = [calendar.month_abbr[m] for m in range(1, 13)]
 
 # --- the numbers
@@ -285,6 +285,11 @@ def _priced(run, acc, row, settings, values, represents, zone) -> tuple[dict | N
     series = packed_acc.hourly(pack, utility, cz, "TRC")
     if series is None:
         return None, "zone not in ACC"
+    # The total is the sum of every ACC component; transmission and distribution are read beside it to split a kWh's value into its
+    # generation part (energy, generation capacity, GHG, air quality, ancillary services, losses, methane) and its T&D part.
+    wires = [packed_acc.hourly(pack, utility, cz, "TRC", column) for column in ("transmission", "distribution")]
+    if any(s is None or sorted(s.years) != sorted(series.years) for s in wires):
+        wires = []
     rates = discount_rates(row, settings)
     fy = num((settings.get("inputs") or {}).get("first_year"))
     year, quarter = num(row.get("Used_Year")), num(row.get("Used_Quarter"))
@@ -334,7 +339,10 @@ def _priced(run, acc, row, settings, values, represents, zone) -> tuple[dict | N
     per_kwh = []
     for y in range(first_year, last_year + 1):
         nearest = min(acc_years, key=lambda a: abs(a - y))
-        per_kwh.append({"year": y, "acc_year": nearest, "value": float((aligned * series.years[nearest]).sum()) / weight})
+        point = {"year": y, "acc_year": nearest, "value": float((aligned * series.years[nearest]).sum()) / weight}
+        if wires:
+            point["td"] = sum(float((aligned * s.years[nearest]).sum()) for s in wires) / weight
+        per_kwh.append(point)
     return {"quarters": quarters, "per_kwh": per_kwh, "acc_last_year": acc_years[-1], "total": total, "cost": cost}, ""
 
 
@@ -739,7 +747,8 @@ def value_charts(w, data: dict | None) -> list[Chart]:
         tips,
         [("s1", "Value in the years before"), ("s2", "Value that year")],
         {
-            "caption": f"Each year's part of {what}, before discounting and in today's dollars, and the running total",
+            "caption": f"Each year's part of {what}, as paid that year (not discounted) and in today's dollars (discounted), and the "
+            "running total",
             "columns": [
                 "Year of life",
                 "Starts",
@@ -757,37 +766,83 @@ def value_charts(w, data: dict | None) -> list[Chart]:
     out = [built]
     per = priced.get("per_kwh") or []
     if per:
-        last = priced.get("acc_last_year")
-        worth = lines(
+        out.append(per_kwh_chart(per, priced.get("acc_last_year")))
+    return out
+
+
+def per_kwh_chart(per: list[dict], last: int | None) -> Chart:
+    """Step 6's second chart: what a kWh saved in each calendar year is worth at this load shape's hours, in that year's own dollars (the
+    ACC's prices are nominal; nothing here is discounted). Columns split into the generation and the T&D parts when both are known and
+    not negative in any year, else one line of the total."""
+    title = "What a kWh saved in each year is worth on this measure's load shape (in each year's own dollars, not discounted)"
+    labels = [str(p["year"]) for p in per]
+    first, final = per[0], per[-1]
+    acc_words = [
+        f"Priced on the {p['acc_year']} prices of the ACC" if p["acc_year"] != p["year"] else "Priced on that year's ACC prices"
+        for p in per
+    ]
+    split = all("td" in p for p in per) and all(p["td"] >= 0 and p["value"] - p["td"] >= 0 for p in per)
+    if split:
+        gen = [p["value"] - p["td"] for p in per]
+        td = [p["td"] for p in per]
+        chart = stacked_columns(
             "per-kwh",
-            "What a kWh saved in each year is worth on this measure's load shape (before discounting)",
-            f"Line chart of the calendar years {per[0]['year']} to {per[-1]['year']}: the avoided cost of a kWh saved at this load "
-            f"shape's hours, from ${per[0]['value']:,.4f} in {per[0]['year']} to ${per[-1]['value']:,.4f} in {per[-1]['year']}.",
+            title,
+            f"Column chart of the calendar years {first['year']} to {final['year']}: the avoided cost of a kWh saved at this load shape's "
+            f"hours, as paid that year, from ${first['value']:,.4f} in {first['year']} to ${final['value']:,.4f} in {final['year']}. "
+            "Each column stacks the transmission and distribution part on the generation part.",
             "$/kWh",
-            [str(p["year"]) for p in per],
-            [("s1", [p["value"] for p in per])],
-            [],
-            {
-                "caption": "Avoided cost of a kWh saved on this load shape, by year",
-                "columns": ["Year", "Value of a kWh", "ACC year used"],
-                "rows": [[str(p["year"]), f"${p['value']:,.4f}", str(p["acc_year"])] for p in per],
-            },
-            [f"${per[-1]['value']:,.4f}"],
+            labels,
+            gen,
+            td,
             [
                 tip(
                     str(p["year"]),
-                    ("s1", f"A kWh saved is worth ${p['value']:,.4f}"),
-                    (
-                        "",
-                        f"Priced on the {p['acc_year']} prices of the ACC"
-                        if p["acc_year"] != p["year"]
-                        else "Priced on that year's ACC prices",
-                    ),
+                    ("", f"A kWh saved is worth ${p['value']:,.4f}"),
+                    ("s1", f"Generation: ${g:,.4f}"),
+                    ("s2", f"Transmission and distribution: ${t:,.4f}"),
+                    ("", words),
                 )
-                for p in per
+                for p, g, t, words in zip(per, gen, td, acc_words, strict=True)
+            ],
+            [("s1", "Generation (energy, capacity, GHG and the rest)"), ("s2", "Transmission and distribution")],
+            {
+                "caption": "Avoided cost of a kWh saved on this load shape, by year, as paid that year (not discounted)",
+                "columns": ["Year", "Value of a kWh", "Generation", "Transmission and distribution", "ACC year used"],
+                "rows": [
+                    [str(p["year"]), f"${p['value']:,.4f}", f"${g:,.4f}", f"${t:,.4f}", str(p["acc_year"])]
+                    for p, g, t in zip(per, gen, td, strict=True)
+                ],
+            },
+        )
+    else:
+        chart = lines(
+            "per-kwh",
+            title,
+            f"Line chart of the calendar years {first['year']} to {final['year']}: the avoided cost of a kWh saved at this load "
+            f"shape's hours, as paid that year, from ${first['value']:,.4f} in {first['year']} to ${final['value']:,.4f} in "
+            f"{final['year']}.",
+            "$/kWh",
+            labels,
+            [("s1", [p["value"] for p in per])],
+            [],
+            {
+                "caption": "Avoided cost of a kWh saved on this load shape, by year, as paid that year (not discounted)",
+                "columns": ["Year", "Value of a kWh", "ACC year used"],
+                "rows": [[str(p["year"]), f"${p['value']:,.4f}", str(p["acc_year"])] for p in per],
+            },
+            [f"${final['value']:,.4f}"],
+            [
+                tip(str(p["year"]), ("s1", f"A kWh saved is worth ${p['value']:,.4f}"), ("", words))
+                for p, words in zip(per, acc_words, strict=True)
             ],
         )
-        if last and per[-1]["year"] > last:
-            worth.note = f"The ACC's prices run to {last}; a later year is priced at {last}'s, as the engine does."
-        out.append(worth)
-    return out
+    note = (
+        "Each year is the ACC's total avoided cost (every component, generation and transmission and distribution) averaged over the "
+        "hours of this load shape, in that year's dollars. The rise and fall from year to year is in the ACC's prices; discounting is "
+        "applied only in the chart above."
+    )
+    if last and final["year"] > last:
+        note += f" The ACC's prices run to {last}; a later year is priced at {last}'s, as the engine does."
+    chart.note = note
+    return chart
