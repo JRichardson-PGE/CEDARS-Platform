@@ -36,6 +36,11 @@ class ClaimsConfig(AppConfig):
         register_example_checker(  # a specification version's example files are checked as a filing is
             "claims", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE, values=example_checks.EXAMPLE_VALUES
         )
+        from cedars.services.specifications.impact import register_impact_checker
+
+        register_impact_checker(  # the impact test checks confirmed filings' records under a draft version
+            "claims", example_checks.impact_rows, example_checks.impact_findings, list_rule="CLM-LIST"
+        )
         from cedars.services.submissions.service import (
             register_claims_totals,
             register_deadline_page,

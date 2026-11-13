@@ -253,3 +253,23 @@ class ExampleSet(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ImpactTest(models.Model):
+    """One run of the impact test on a version (specifications.impact): how the latest confirmed filings of each organization would
+    fare under it, against the version each was checked with. Nothing it tests is changed; its report is kept so staff can read it
+    before publishing and the published version keeps the test it was published on."""
+
+    version = models.ForeignKey(SpecificationVersion, on_delete=models.CASCADE, related_name="impact_tests")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    state = models.CharField(max_length=64, help_text="The state of the version it tested (impact.state)")
+    report = models.JSONField(
+        default=dict, blank=True, help_text="Per filing and per rule: records newly rejected or warned, no longer rejected, fields missing"
+    )
+
+    class Meta:
+        ordering = ["version", "-created_at", "-pk"]
+
+    def __str__(self):
+        return f"Impact test of {self.version} at {self.created_at:%Y-%m-%d %H:%M}"

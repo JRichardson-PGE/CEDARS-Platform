@@ -501,6 +501,31 @@ def _specification_draft(cpuc_admin):
     rows = example.rows
     rows["Commitments"][0]["ReportingNote"] = "Unlisted"
     examples.replace_rows(cpuc_admin, example, rows, "Show a failure")
+    from cedars.services.specifications import impact
+    from cedars.services.specifications.models import ImpactTest
+
+    ImpactTest.objects.create(  # an impact test's report with every part, for the Impact test page
+        version=v,
+        created_by=cpuc_admin,
+        state=impact.state(v),
+        report={
+            "filings": [
+                {"pa": "PGE", "filing": "PGE 2028 March monthly report", "submission_version": 1, "number": 1, "checked_with":
+                 "Monthly reports 2026", "records": 120, "before": {"rejected": 0, "warned": 2}, "after": {"rejected": 3, "warned": 2},
+                 "newly_rejected": 3, "newly_warned": 0, "cleared": 0, "absent": ["Commitments.ReportingNote"], "blank": {}, "note": ""},
+            ],
+            "rules": [
+                {"rule_id": "MON-LIST", "severity": "reject", "table": "Commitments", "field": "ReportingNote", "message": "Not listed",
+                 "records": 3, "by_pa": {"PGE": 3},
+                 "examples": [{"pa": "PGE", "row": 2, "record_id": "PGE_Example", "message": "Not listed"}]},
+            ],
+            "fields": [{"field": "Commitments.ReportingNote", "absent": ["PGE"], "blank": {}}],
+            "records": 120,
+            "newly_rejected": 3,
+            "newly_warned": 0,
+            "cleared": 0,
+        },
+    )  # fmt: skip
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):

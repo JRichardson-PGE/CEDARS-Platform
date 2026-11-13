@@ -1118,6 +1118,10 @@ def publish(
     problem = notice_problem(effective_on, short_notice_reason)
     if problem:
         raise EditError(problem)
+    from . import impact
+
+    if impact.stale(v):  # the version keeps the impact test of the draft as it is published
+        impact.run(actor, v)
     changes = (changes or "").strip() or " ".join(change_lines(v))
     if not changes:
         raise EditError("Say what changes, for the release note that announces the version.")

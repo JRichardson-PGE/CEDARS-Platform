@@ -1346,3 +1346,34 @@ def _example_table(rows: list[dict]) -> bytes:
     w.writerow(cols)
     w.writerows([[r.get(c, "") for c in cols] for r in rows])
     return out.getvalue().encode()
+
+
+# --- the impact test (specifications.impact)
+
+
+def impact_rows(v: SubmissionVersion) -> dict[str, tuple[list[str], list[dict]]]:
+    """The records an organization filed in a confirmed monthly report version (its report's tables), for the impact test."""
+    f = report_file(v)
+    if f is None:
+        return {}
+    tables = up.read_upload(storage.store("uploads").get_bytes(f["key"]), "report.zip")
+    return {t: up.rows(content) for t, content in tables.items()}
+
+
+def _table_bytes(columns: list[str], rows: list[dict]) -> bytes:
+    out = io.StringIO()
+    w = csv.writer(out, delimiter="|", lineterminator="\n")
+    w.writerow(columns)
+    w.writerows([[r.get(c, "") for c in columns] for r in rows])
+    return out.getvalue().encode()
+
+
+def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[str], list[dict]]]) -> list[rules.Finding]:
+    """A confirmed monthly report version's records checked as `_store_and_check` checks them, but under specification `version`: the
+    module's checks against the month before, values on its value lists, its built-in checks. Nothing is stored."""
+    tables = {t: _table_bytes(cols, records) for t, (cols, records) in rows.items()}
+    deadline, organisation = v.submission.deadline, v.submission.organisation
+    prev = previous_month(deadline)
+    _lines, found, _records, _notes = derive(tables, organisation, deadline.period, standing(organisation, prev) if prev else None)
+    found += list_problems(tables, deadline, lay=specifications.layout(version))
+    return specifications.apply_checks(version, found)

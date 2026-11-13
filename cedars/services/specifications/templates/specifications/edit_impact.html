@@ -1,0 +1,75 @@
+{% extends "core/base.html" %}
+{% block title %}Impact test: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_impact" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-impact">How real filings already in CEDARS would fare under the draft: the latest confirmed version of each program
+administrator's most recent {{ v.specification.name|lower }} filing, checked by the same checks a filing gets, once under the version it
+was checked against and once under the draft. Nothing is changed. The test runs again when the draft is published, if it has changed
+since.</p>
+<section aria-labelledby="impact-run-h" class="card">
+  <h2 id="impact-run-h">Run the impact test</h2>
+  <p>{% if tested %}It checks {{ tested|length }} filing{{ tested|pluralize }}: {% for t in tested %}{{ t.submission.organisation.code }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+  A large filing takes a while.{% else %}No program administrator has a confirmed {{ v.specification.name|lower }} filing on CEDARS yet,
+  so there is nothing to test against.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:run_impact' v.specification.code v.slug %}">{% csrf_token %}
+    <button type="submit">{% if test %}Run it again{% else %}Run the impact test{% endif %}</button>
+  </form>
+</section>
+<section aria-labelledby="impact-result" id="impact-section">
+  <h2 id="impact-result">Result</h2>
+  {% if not test %}
+  <p>Not run yet.</p>
+  {% else %}
+  <p class="impact-status">{% if stale %}<span class="status warn">Out of date</span> The draft has changed since this test was run
+  on {{ test.created_at|datetime_words }}: run it again to see the draft as it stands.{% else %}<span class="status ok">Current</span>
+  Run on {{ test.created_at|datetime_words }}{% if test.created_by %} by {{ test.created_by|person_name }}{% endif %}, on the draft as it stands.{% endif %}</p>
+  {% if not report.filings %}
+  <p>There was no confirmed filing to test against.</p>
+  {% else %}
+  <p id="impact-summary">{{ report.records|floatformat:"0g" }} record{{ report.records|pluralize }} in {{ report.filings|length }} filing{{ report.filings|pluralize }}:
+  <strong>{{ report.newly_rejected|floatformat:"0g" }}</strong> would newly be rejected, <strong>{{ report.newly_warned|floatformat:"0g" }}</strong> would newly be
+  warned, and {{ report.cleared|floatformat:"0g" }} rejected before would pass.</p>
+  <h3 id="impact-filings-h">By program administrator</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="impact-filings-h">
+  <table class="list" id="impact-filings">
+    <caption class="sr-only">Each filing tested: records rejected and warned under its own version and under the draft</caption>
+    <thead><tr><th scope="col">PA</th><th scope="col">Filing tested</th><th scope="col">Checked with</th><th scope="col">Records</th>
+      <th scope="col">Rejected before, now</th><th scope="col">Warned before, now</th><th scope="col">Newly rejected</th><th scope="col">Newly warned</th>
+      <th scope="col">No longer rejected</th></tr></thead>
+    <tbody>{% for f in report.filings %}<tr>
+      <th scope="row">{{ f.pa }}</th><td>{{ f.filing }}, version {{ f.number }}{% if f.note %}<br><span class="small">{{ f.note }}</span>{% endif %}</td>
+      <td>{{ f.checked_with }}</td><td>{{ f.records|floatformat:"0g" }}</td>
+      <td>{{ f.before.rejected|floatformat:"0g" }}, {{ f.after.rejected|floatformat:"0g" }}</td><td>{{ f.before.warned|floatformat:"0g" }}, {{ f.after.warned|floatformat:"0g" }}</td>
+      <td>{% if f.newly_rejected %}<strong>{{ f.newly_rejected|floatformat:"0g" }}</strong>{% else %}0{% endif %}</td>
+      <td>{{ f.newly_warned|floatformat:"0g" }}</td><td>{{ f.cleared|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  <h3 id="impact-rules-h">By rule</h3>
+  {% if report.rules %}
+  <p>The findings under the draft that these filings did not have, with how many records each rule finds and a few of them.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="impact-rules-h">
+  <table class="list" id="impact-rules">
+    <caption class="sr-only">New findings under the draft, by rule</caption>
+    <thead><tr><th scope="col">Check or rule</th><th scope="col">Severity</th><th scope="col">Table and field</th><th scope="col">Records</th>
+      <th scope="col">By PA</th><th scope="col">For example</th></tr></thead>
+    <tbody>{% for r in report.rules %}<tr>
+      <th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejects the record{% else %}Warning{% endif %}</td>
+      <td>{{ r.table }}{% if r.field %}.{{ r.field }}{% endif %}</td><td>{{ r.records|floatformat:"0g" }}</td>
+      <td>{% for pa, n in r.by_pa.items %}{{ pa }} {{ n|floatformat:"0g" }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td><ul class="compact">{% for x in r.examples %}<li>{{ x.pa }} line {{ x.row }}{% if x.record_id %} ({{ x.record_id }}){% endif %}: {{ x.message }}</li>{% endfor %}</ul></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>None: the draft finds nothing these filings did not already have.</p>{% endif %}
+  <h3 id="impact-fields-h">Required fields the filings lack</h3>
+  {% if report.fields %}
+  <ul class="compact" id="impact-fields">{% for f in report.fields %}<li>{{ f.field }}:
+    {% if f.absent %}not in {% for pa in f.absent %}{{ pa }}{% if not forloop.last %}, {% endif %}{% endfor %}'s file{{ f.absent|pluralize }}{% if f.blank %}; {% endif %}{% endif %}
+    {% if f.blank %}blank in {% for pa, n in f.blank.items %}{{ n|floatformat:"0g" }} of {{ pa }}'s records{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.</li>{% endfor %}</ul>
+  {% else %}<p>None: every filing has every required field, filled in.</p>{% endif %}
+  {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

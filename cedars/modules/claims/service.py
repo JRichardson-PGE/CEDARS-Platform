@@ -2594,3 +2594,48 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     problems = derive_checks(own, own, org, year, 4, rules_run=rs is not None, lay=lay)
     found, _notes, _label = _rule_findings(own, year, rs)
     return specifications.apply_checks(version, problems + found)
+
+
+# --- the impact test (specifications.impact)
+
+
+def impact_rows(v: SubmissionVersion) -> dict[str, tuple[list[str], list[dict]]]:
+    """The records an organization filed in a confirmed claims version (its own upload), for the impact test."""
+    return {name: (list(t.columns), [dict(r) for r in t.rows]) for name, t in own_tables(v).items()}
+
+
+def _impact_tables(version, tables: dict[str, upload.Table]) -> dict[str, upload.Table]:
+    from cedars.services.specifications import impact
+
+    fitted = impact.refit(version, {n: (t.columns, t.rows) for n, t in tables.items()})
+    return {n: upload.Table(n, cols, rows) for n, (cols, rows) in fitted.items()}
+
+
+def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[str], list[dict]]]) -> list[Problem]:
+    """A confirmed claims version's own records checked as `check` checks them, but under specification `version`: its tables and
+    fields, its rule set and its built-in checks, against the same year so far. Nothing is stored."""
+    deadline, org = v.submission.deadline, v.submission.organisation
+    year = deadline.period.year
+    lay = spec.Layout(specifications.layout(version))
+    own = {n: upload.Table(n, cols, records) for n, (cols, records) in rows.items() if n in lay.TABLES}
+    base_v = base_for(org, deadline)
+    base = _impact_tables(version, compiled_tables(base_v)) if base_v else {}
+    previous = corrected_version(v)
+    corrected = _impact_tables(version, compiled_tables(previous)) if previous else {}
+    deemed, _ = fill_deemed(lay, own, base)
+    comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
+    rs = specifications.rule_set_of(version, RULE_SET)
+    problems = deemed + derive_checks(
+        own,
+        comp.tables,
+        org,
+        year,
+        last_quarter(deadline),
+        base,
+        corrected,
+        statewide=is_statewide(deadline),
+        rules_run=rs is not None,
+        lay=lay,
+    )
+    found, _notes, _label = _rule_findings(own, year, rs)
+    return specifications.apply_checks(version, problems + found)

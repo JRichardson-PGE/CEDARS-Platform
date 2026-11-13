@@ -234,21 +234,49 @@ def fit(version, rows: dict[str, list[dict]], year: int | None = None) -> dict[s
 def state(version) -> str:
     """What a check depends on: the version as a document (its fields, checks and examples) and its rule set's rules."""
     doc = service.as_document(version)
-    rules = sorted(version.rule_set.rules.values_list("rule_id", flat=True)) if version.rule_set_id else []
+    rules = (
+        sorted(version.rule_set.rules.values_list("rule_id", "severity", "table", "field", "definition"), key=lambda r: r[0])
+        if version.rule_set_id
+        else []
+    )
     return hashlib.sha256(json.dumps([doc, rules], sort_keys=True, default=str).encode()).hexdigest()
+
+
+def made_lists(version, year: int) -> dict[str, set[str]]:
+    """{list name, lower case: its codes accepted in `year`, lower case} for each value list made in a draft and not yet published: the
+    filing modules' own check (`value_lists.codes_for_check`) does not have it yet, so the example's and the impact test's checks do."""
+    from cedars.services.dictionary import value_lists
+    from cedars.services.dictionary.models import ValueList
+
+    return {
+        vl.name.lower(): {c.lower() for c in _codes(vl.name, version, year)}
+        for vl in ValueList.objects.exclude(made_for="")
+        if value_lists.latest_published(vl) is None
+    }
+
+
+def made_list_findings(version, rows, year: int, rule_id: str = "FIELD") -> list[dict]:
+    """A value not a code of the unpublished value list (made in a draft) its field names, accepted in `year`."""
+    made = made_lists(version, year)
+    if not made:
+        return []
+    out = []
+    for t in _tables(version):
+        coded = [f for f in t.fields if f.value_list and f.value_list.lower() in made]
+        for i, r in enumerate(rows.get(t.name, []), start=2):
+            rid = " / ".join(str(r.get(k, "")) for k in t.keys)
+            for f in coded:
+                value = str(r.get(f.name, "") or "").strip()
+                if value and value.lower() not in made[f.value_list.lower()]:
+                    out.append(_finding(i, rid, t.name, f.name, rule_id, "reject",
+                                        f"{f.name} {value} is not a code of the new {f.value_list} value list accepted for {year}",
+                                        f"Use a code from {f.value_list}.", value))  # fmt: skip
+    return out
 
 
 def _field_findings(version, rows, year: int) -> list[dict]:
     """The fields' own checks: a required field filled, each value valid for its type, and on a value list made in the draft (the
     engine's and the platform's lists are the rules' and the modules' to check)."""
-    from cedars.services.dictionary import value_lists
-    from cedars.services.dictionary.models import ValueList
-
-    made = {  # not yet published, so the modules' own check (codes_for_check) does not have it yet
-        vl.name.lower(): {c.lower() for c in _codes(vl.name, version, year)}
-        for vl in ValueList.objects.exclude(made_for="")
-        if value_lists.latest_published(vl) is None
-    }
     out = []
     for t in _tables(version):
         for i, r in enumerate(rows.get(t.name, []), start=2):
@@ -264,11 +292,7 @@ def _field_findings(version, rows, year: int) -> list[dict]:
                 problem = service.value_problem(f, value)
                 if problem:
                     out.append(_finding(i, rid, t.name, f.name, "FIELD", "reject", f"{f.name} {value}: {problem}", "", value))
-                elif f.value_list.lower() in made and value.lower() not in made[f.value_list.lower()]:
-                    out.append(_finding(i, rid, t.name, f.name, "FIELD", "reject",
-                                        f"{f.name} {value} is not a code of the new {f.value_list} value list accepted for {year}",
-                                        f"Use a code from {f.value_list}.", value))  # fmt: skip
-    return out
+    return out + made_list_findings(version, rows, year)
 
 
 def _finding(row, record_id, table, field, rule_id, severity, message, fix="", value="") -> dict:

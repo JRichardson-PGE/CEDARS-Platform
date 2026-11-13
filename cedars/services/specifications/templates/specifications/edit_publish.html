@@ -14,6 +14,14 @@
   <p id="publish-problems"><span class="status ok">Passed</span> The tables, fields and settings are consistent, every locked field is
   kept, every example passes the version's checks, and the version changes something from the one it was copied from.</p>
   {% endif %}
+  {% url 'specifications:edit_impact' v.specification.code v.slug as impact_url %}
+  <p id="publish-impact">{% if not impact_test %}<span class="status warn">Not run</span> The <a href="{{ impact_url }}">impact test</a> has
+  not been run on this draft: it runs when the version is published, and its result is kept with the version.{% elif impact_stale %}<span
+  class="status warn">Out of date</span> The draft has changed since the <a href="{{ impact_url }}">impact test</a> was run: it runs again
+  when the version is published.{% else %}<span class="status info">Impact test</span> {% with r=impact_test.report %}{% if r.filings %}Of
+  {{ r.records }} record{{ r.records|pluralize }} in {{ r.filings|length }} confirmed filing{{ r.filings|length|pluralize }},
+  {{ r.newly_rejected }} would newly be rejected and {{ r.newly_warned }} newly warned{% else %}No confirmed filing to test against{% endif %}{% endwith %}:
+  <a href="{{ impact_url }}">the impact test</a>.{% endif %}</p>
 </section>
 <section aria-labelledby="publish-h" class="card">
   <h2 id="publish-h">Publish this version</h2>
