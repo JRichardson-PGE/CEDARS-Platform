@@ -1,5 +1,6 @@
 """The specification editor's pages, for CPUC system administrators: start a draft from a published version, then a page per part
-of the draft (Settings, Tables and fields, Rules, Built-in checks, Changes, Publish), each field's and table's own form, and discard.
+of the draft (Settings, Tables and fields, Rules, Built-in checks, Examples, Changes, Publish), each field's and table's own form, and
+discard.
 Every page renders on the server and works without scripts."""
 
 from django.contrib import messages
@@ -11,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, forms, service
+from . import editor, examples, forms, service
 from .models import SpecificationVersion
 
 TABS = [
@@ -19,6 +20,7 @@ TABS = [
     ("edit", "Tables and fields"),
     ("edit_rules", "Rules"),
     ("edit_checks", "Built-in checks"),
+    ("edit_examples", "Examples"),
     ("edit_changes", "Changes"),
     ("edit_publish", "Publish"),
 ]
@@ -173,6 +175,81 @@ class _CheckShown:
 
 
 @login_required
+def edit_examples(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    if examples.stale(v):  # checked as the draft now stands
+        examples.check_all(v)
+    sets = [
+        {"e": e, "form": forms.ExampleFileForm(auto_id=f"file-{e.slug}-%s"), "records": sum(len(r) for r in (e.rows or {}).values()),
+         "rejects": len(examples.rejects(e.report))}
+        for e in v.examples.all()
+    ]  # fmt: skip
+    return _page(
+        request, "edit_examples.html", v, "edit_examples", sets=sets, year=examples.example_year(), pa=examples.EXAMPLE_PA,
+        has_generated=any(x["e"].slug == examples.GENERATED for x in sets), generate_form=forms.ReasonForm(auto_id="generate_%s"),
+    )  # fmt: skip
+
+
+@login_required
+@require_POST
+def generate_examples(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why the example is written again.")
+        return redirect("specifications:edit_examples", code, slug)
+    try:
+        e = examples.generate(request.user, v, form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as err:
+        messages.error(request, str(err))
+        return redirect("specifications:edit_examples", code, slug)
+    n = len(examples.rejects(e.report))
+    messages.success(
+        request, f"Wrote the example {e.name} again and checked it: {n} rejected finding{'s' if n != 1 else ''}." if n else
+        f"Wrote the example {e.name} again and checked it: it passes.",
+    )  # fmt: skip
+    return redirect(f"{_examples_url(v)}#example-{e.slug}")
+
+
+def _examples_url(v) -> str:
+    from django.urls import reverse
+
+    return reverse("specifications:edit_examples", args=[v.specification.code, v.slug])
+
+
+@login_required
+@require_POST
+def example_file(request, code: str, slug: str, example: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    e = v.examples.filter(slug=example).first()
+    if e is None:
+        raise Http404("No such example.")
+    form = forms.ExampleFileForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, "Choose the example's file and say why it changes.")
+        return redirect(f"{_examples_url(v)}#example-{e.slug}")
+    f = form.cleaned_data["file"]
+    try:
+        rows = examples.read_file(v, f.name, f.read())
+        e = examples.replace_rows(request.user, e, rows, form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError, examples.ExampleError) as err:
+        messages.error(request, str(err))
+        return redirect(f"{_examples_url(v)}#example-{e.slug}")
+    n = len(examples.rejects(e.report))
+    messages.success(
+        request, f"Loaded the example {e.name} and checked it: {n} rejected finding{'s' if n != 1 else ''}." if n else
+        f"Loaded the example {e.name} and checked it: it passes.",
+    )  # fmt: skip
+    return redirect(f"{_examples_url(v)}#example-{e.slug}")
+
+
+@login_required
 def edit_changes(request, code: str, slug: str):
     v, away = _editable(request, code, slug)
     if away:
@@ -186,6 +263,8 @@ def edit_publish(request, code: str, slug: str):
     v, away = _editable(request, code, slug)
     if away:
         return away
+    if request.method != "POST" and examples.stale(v):  # the checks below include the examples, as the draft now stands
+        examples.check_all(v)
     initial = {"effective_on": editor.earliest_day(), "changes": " ".join(editor.change_lines(v))}
     if request.method == "POST":
         form = forms.PublishForm(request.POST)

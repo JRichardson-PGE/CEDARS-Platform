@@ -22,6 +22,13 @@ class MonthlyConfig(AppConfig):
         from . import locked_fields
 
         register_locked_fields("monthly", locked_fields.LOCKED)  # a draft keeps the fields this module reads
+        from cedars.services.specifications.examples import register_example_checker
+
+        from . import service as example_checks
+
+        register_example_checker(  # a specification version's example files are checked as a filing is
+            "monthly", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE
+        )
         from cedars.services.submissions.service import (
             register_acc_needs,
             register_deadline_page,

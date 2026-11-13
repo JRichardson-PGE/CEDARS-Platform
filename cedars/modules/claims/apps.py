@@ -29,6 +29,13 @@ class ClaimsConfig(AppConfig):
         from . import locked_fields
 
         register_locked_fields("claims", locked_fields.LOCKED)  # a draft keeps the fields this module reads
+        from cedars.services.specifications.examples import register_example_checker
+
+        from . import service as example_checks
+
+        register_example_checker(  # a specification version's example files are checked as a filing is
+            "claims", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE, values=example_checks.EXAMPLE_VALUES
+        )
         from cedars.services.submissions.service import (
             register_claims_totals,
             register_deadline_page,

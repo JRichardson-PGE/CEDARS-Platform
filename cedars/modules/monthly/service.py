@@ -14,6 +14,8 @@ in the year to date since the previous month's report, and compared with its ope
 effect, read from Budgets through the registry service. Commitments are their own table, with CEDARS' committed columns.
 """
 
+import csv
+import io
 import json
 import tempfile
 from collections import defaultdict
@@ -622,17 +624,18 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     return _store_and_check(actor, v, tables, entry)
 
 
-def list_problems(tables: dict[str, bytes], deadline) -> list[rules.Finding]:
+def list_problems(tables: dict[str, bytes], deadline, lay=None, year: int | None = None) -> list[rules.Finding]:
     """Values not in their field's value list made for the report's specification version (MON-LIST), against the codes accepted in
-    the report's year."""
-    lay = specifications.layout_for_filing(deadline, MODULE)
+    the report's year. `lay` and `year`: the version's layout and the year, else the filing's."""
+    lay = lay or specifications.layout_for_filing(deadline, MODULE)
+    year = year or deadline.period.year
     out = []
     for table in up.TABLES:
         if table not in tables or not specifications.list_fields(lay, table):
             continue
         _, rows = up.rows(tables[table])
         id_col = "CEInputID" if table == "Measure" else "PrgID"
-        for p in specifications.list_problems(lay, table, rows, year=deadline.period.year, get=up.get):
+        for p in specifications.list_problems(lay, table, rows, year=year, get=up.get):
             out.append(_finding(p["index"] + 2, up.get(rows[p["index"]], id_col), table, p["field"], "MON-LIST", "reject", p["message"],
                                 p["fix"], p["value"]))  # fmt: skip
     return out
@@ -1310,3 +1313,36 @@ COMMITMENT_KEYS = [
     ("PrgID", "The program, as in the program registry."),
     ("YearMonth", "The report's month, as YYYYMM (202801 for January 2028)."),
 ]
+
+
+# --- the specification's example files
+
+
+EXAMPLE_REFERENCE = ("MON-PRG", "MON-ORG", "MON-YTD")  # need the program registry and the month before
+
+
+@dataclass(frozen=True)
+class _ExampleMonth:
+    year: int
+    number: int
+
+
+def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -> list[rules.Finding]:
+    """A specification version's example records (specifications.examples), checked as `pa`'s January report for `year`: the module's
+    checks and values on the version's own value lists, the built-in checks as the version has them. Nothing is stored."""
+    from cedars.services.accounts.models import Organisation
+
+    tables = {t: _example_table(rows.get(t, [])) for t in up.TABLES}
+    org = Organisation(pk=0, code=pa, name="Example PA", pa_type="IOU")  # never saved (no such row): no program is its own
+    _lines, found, _records, _notes = derive(tables, org, _ExampleMonth(year, 1), None)
+    found += list_problems(tables, None, lay=specifications.layout(version), year=year)
+    return specifications.apply_checks(version, found)
+
+
+def _example_table(rows: list[dict]) -> bytes:
+    cols = list(dict.fromkeys(k for r in rows for k in r))
+    out = io.StringIO()
+    w = csv.writer(out, delimiter="|", lineterminator="\n")
+    w.writerow(cols)
+    w.writerows([[r.get(c, "") for c in cols] for r in rows])
+    return out.getvalue().encode()

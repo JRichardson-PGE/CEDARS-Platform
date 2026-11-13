@@ -2572,3 +2572,25 @@ def setup_link(deadline) -> str:
     if deadline.kind not in ALL_KINDS or deadline.period_id is None or not ClaimYear.objects.filter(year=deadline.period.year).exists():
         return ""
     return reverse("claims:setup", args=[deadline.period.year])
+
+
+# --- the specification's example files
+
+
+# what the module's own checks accept for the fields they read (a site in California, a measure that is not fuel substitution)
+EXAMPLE_VALUES = {"SiteState": "CA", "SiteZipCode": "94105", "MeasImpactType": "Cust-Gen"}
+EXAMPLE_REFERENCE = ("CLM-PRG", "CLM-SW", "CLM-ORG", "CLM-ETRM", "CLM-CHAIN", "CLM-WD")  # need the registry, eTRM or the year so far
+
+
+def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -> list[Problem]:
+    """A specification version's example records (specifications.examples), checked as a claim filed by `pa` for `year`'s fourth
+    quarter: the module's checks and the version's rule set, the built-in checks as the version has them. Nothing is stored."""
+    from cedars.services.accounts.models import Organisation
+
+    lay = spec.Layout(specifications.layout(version))
+    org = Organisation(pk=0, code=pa, name="Example PA", pa_type="IOU")  # never saved (no such row): no program is its own
+    own = {t: upload.Table(t, lay.columns(t), [dict(r) for r in rs]) for t, rs in rows.items() if t in lay.TABLES and rs}
+    rs = specifications.rule_set_of(version, RULE_SET)
+    problems = derive_checks(own, own, org, year, 4, rules_run=rs is not None, lay=lay)
+    found, _notes, _label = _rule_findings(own, year, rs)
+    return specifications.apply_checks(version, problems + found)
