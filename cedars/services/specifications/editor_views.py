@@ -1,6 +1,6 @@
 """The specification editor's pages, for CPUC system administrators: start a draft from a published version, then a page per part
-of the draft (Settings, Tables and fields, Rules, Built-in checks, Examples, Changes, Publish), each field's and table's own form, and
-discard.
+of the draft (Settings, Tables and fields, Rules, Built-in checks, Examples, Impact test, Changes, Publish), each field's and table's
+own form, and discard.
 Every page renders on the server and works without scripts."""
 
 from django.contrib import messages
@@ -8,11 +8,12 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, examples, forms, service
+from . import editor, examples, forms, impact, service
 from .models import SpecificationVersion
 
 TABS = [
@@ -21,6 +22,7 @@ TABS = [
     ("edit_rules", "Rules"),
     ("edit_checks", "Built-in checks"),
     ("edit_examples", "Examples"),
+    ("edit_impact", "Impact test"),
     ("edit_changes", "Changes"),
     ("edit_publish", "Publish"),
 ]
@@ -250,6 +252,43 @@ def example_file(request, code: str, slug: str, example: str):
 
 
 @login_required
+def edit_impact(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    test = impact.latest(v)
+    return _page(
+        request, "edit_impact.html", v, "edit_impact", test=test, report=test.report if test else {}, stale=impact.stale(v),
+        tested=impact.filings(v),
+    )  # fmt: skip
+
+
+@login_required
+@require_POST
+def run_impact(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    try:
+        test = impact.run(request.user, v)
+    except (AccessDenied, editor.EditError) as err:
+        messages.error(request, str(err))
+        return redirect("specifications:edit_impact", code, slug)
+    r = test.report
+    n = len(r["filings"])
+    if not n:
+        messages.success(request, "Ran the impact test: there is no confirmed filing of this kind to test yet.")
+    else:
+        rejected, warned = r["newly_rejected"], r["newly_warned"]
+        messages.success(
+            request,
+            f"Ran the impact test on {n} filing{'s' if n != 1 else ''}: {rejected:,} record{'s' if rejected != 1 else ''} newly "
+            f"rejected, {warned:,} newly warned.",
+        )
+    return redirect(reverse("specifications:edit_impact", args=[code, slug]) + "#impact-result")
+
+
+@login_required
 def edit_changes(request, code: str, slug: str):
     v, away = _editable(request, code, slug)
     if away:
@@ -293,8 +332,9 @@ def edit_publish(request, code: str, slug: str):
     from cedars.services.releases import service as releases
 
     return _page(
-        request, "edit_publish.html", v, "edit_publish", form=form, earliest=editor.earliest_day(), notice_days=releases.notice_days()
-    )
+        request, "edit_publish.html", v, "edit_publish", form=form, earliest=editor.earliest_day(), notice_days=releases.notice_days(),
+        impact_test=impact.latest(v), impact_stale=impact.stale(v),
+    )  # fmt: skip
 
 
 @login_required

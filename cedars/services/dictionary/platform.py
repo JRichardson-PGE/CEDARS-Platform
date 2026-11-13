@@ -128,6 +128,7 @@ TABLES: dict[str, str] = {
     "specifications.SpecField": PUBLIC,
     "specifications.CheckSetting": PUBLIC,
     "specifications.ExampleSet": PUBLIC,
+    "specifications.ImpactTest": RESTRICTED,  # a draft's test, read by CPUC staff: counts per PA of confirmed filings
     # releases, the register of mandated changes, retention
     "releases.ReleaseNote": PUBLIC,
     "releases.Change": PUBLIC,

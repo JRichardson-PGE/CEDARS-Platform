@@ -183,6 +183,39 @@ specifications/edit_examples:
       text: Whether it passes, what it fails, the rules it does not show and the checks that need real reference data.
       optional: true
 
+specifications/edit_impact:
+  title: A draft's impact test
+  guide:
+    - How real filings already in CEDARS would fare under the draft. It takes the latest confirmed version of each program
+      administrator's most recent filing of this kind, filed on CEDARS, and checks it twice by the same checks a filing gets, once under
+      the version it was checked against and once under the draft, so the difference is the draft's alone.
+    - The result says, for each program administrator and each rule, how many records that were not rejected before would now be
+      rejected, how many would newly be warned and how many would no longer be rejected, and which required fields the filings do not
+      have or leave blank. Nothing is changed by the test.
+    - The test does not stop a version being published. It runs again when the draft is published, if the draft has changed since, so
+      the published version keeps the test it was published on.
+  how:
+    - Run the impact test, or run it again after changing the draft.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-impact"
+      title: The impact test
+      text: Which filings it checks, and how.
+    - target: "#impact-run-h"
+      title: Run it
+      text: The filings it will check, and the button that runs it.
+    - target: "#impact-result"
+      title: Result
+      text: Whether it is current, and what would newly be rejected or warned.
+    - target: "#impact-filings"
+      title: By program administrator
+      text: Each filing tested, before and under the draft.
+      optional: true
+    - target: "#impact-rules-h"
+      title: By rule
+      text: The new findings, by rule, with a few of the records.
+      optional: true
+
 specifications/edit_changes:
   title: What a draft changes
   guide:
@@ -205,6 +238,8 @@ specifications/edit_publish:
       publishes its rules with it and publishes a release note that announces it.
     - A version takes effect at least the usual notice after the day it is published, unless a reason is given and shown with it.
       Filing sets set up from that day use it; filings already set up keep their version for every later upload and correction.
+    - The impact test's result is shown beside the checks. It does not stop publishing; it runs again as the version is published if
+      the draft has changed since, so the version keeps the test it was published on.
   how:
     - Settle each check that is not passed; each links the part of the draft it is in.
     - Choose the day it takes effect, word what changes and what filers need to do, then publish.
@@ -214,6 +249,9 @@ specifications/edit_publish:
     - target: "#checks-h"
       title: Checks before publishing
       text: What is still to settle, or that the draft passes.
+    - target: "#publish-impact"
+      title: Impact test
+      text: How confirmed filings would fare under the draft, and whether the test is current.
     - target: "#publish-form"
       title: Publish
       text: The day it takes effect, the release note's words, and the button.

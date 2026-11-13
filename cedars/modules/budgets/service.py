@@ -1287,3 +1287,34 @@ def _example_table(rows: list[dict]) -> bytes:
     w.writerow(cols)
     w.writerows([[r.get(c, "") for c in cols] for r in rows])
     return out.getvalue().encode()
+
+
+# --- the impact test (specifications.impact)
+
+
+def impact_rows(v: SubmissionVersion) -> dict[str, tuple[list[str], list[dict]]]:
+    """The records an organization filed in a confirmed budget filing version (its job's tables), for the impact test."""
+    f = job_file(v)
+    if f is None:
+        return {}
+    tables, _ = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
+    return {t: jobfile.rows(content) for t, content in tables.items()}
+
+
+def _table_bytes(columns: list[str], rows: list[dict]) -> bytes:
+    out = io.StringIO()
+    w = csv.writer(out, delimiter="|", lineterminator="\n")
+    w.writerow(columns)
+    w.writerows([[r.get(c, "") for c in columns] for r in rows])
+    return out.getvalue().encode()
+
+
+def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[str], list[dict]]]) -> list[Problem]:
+    """A confirmed budget filing version's records checked as `_store_and_check` checks them, but under specification `version`: the
+    module's checks, its value lists and rule set, its built-in checks. Nothing is stored."""
+    tables = {t: _table_bytes(cols, records) for t, (cols, records) in rows.items()}
+    cycle = v.submission.deadline.cycle
+    _lines, problems, _records = derive(tables, v.submission.organisation, cycle)
+    problems += list_problems(tables, v.submission.deadline, lay=specifications.layout(version))
+    found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET))
+    return specifications.apply_checks(version, problems + found)

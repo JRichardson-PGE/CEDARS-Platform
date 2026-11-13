@@ -36,13 +36,17 @@ upload page links the version under "Before you upload", and its findings name t
   <li id="editing-specifications">Specifications change without a code change. On a published version's page, start a new version
   from it: a draft copy with a copy of its rules. The draft has a page for each part: its settings (name, summary, the engine release
   and cost-test set that price its filings), its tables and fields (add a field from the data dictionary or a new one, change a field's
-  requirement, type, value list and wording, rename it, or remove it), its rules, its built-in checks, its examples, what changes from the version it was copied
+  requirement, type, value list and wording, rename it, or remove it), its rules, its built-in checks, its examples, its impact test, what changes from the version it was copied
   from, and Publish. A locked field, one the engine or CEDARS' own processing reads, stays with its type, and a required one stays
   required. There is one draft per specification at a time.</li>
   <li>Every version has example files filers download, checked by the same checks a filing gets. CEDARS writes the first example from
   the draft's fields, one record per table, and the draft's Examples page reports what it fails, the conditional rules no record meets
   (so the example does not show them) and the built-in checks that need real reference data, which do not count. Download an example,
   change its records and load it back; a file with anything that looks like personal information is refused.</li>
+  <li>The draft's impact test shows how real filings would fare under it before it is published: the latest confirmed version of each
+  program administrator's most recent filing of the kind, checked once under the version it was checked against and once under the
+  draft. It says, by program administrator and by rule, how many records would newly be rejected or warned and which required fields
+  the filings lack. Nothing is changed, and the test runs again as the version is published if the draft has changed since.</li>
   <li>Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
   least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
   and filings already set up keep theirs.</li>
