@@ -289,6 +289,7 @@ def lists(request):
                 "name": name,
                 "label": vl.label if vl else value_lists.label_for(name),
                 "platform": value_lists.is_platform(name),
+                "made_for": vl.made_for if vl else "",
                 "version": v,
                 "codes": v.codes.count() if v else len(_shipped_or_empty(name)),
                 "draft": value_lists.draft_of(vl) if vl else None,
@@ -358,7 +359,7 @@ def _shown_codes(request, vl: ValueList) -> dict:
         "rows": rows,
         "total": len(rows),
         "origin": value_lists.origin(vl.name),
-        "platform": value_lists.is_platform(vl.name),
+        "platform": value_lists.kept_here(vl.name),
         **filters,
     }
 
@@ -444,7 +445,7 @@ def draft(request, name):
         {
             "vl": vl,
             "draft": d,
-            "platform": value_lists.is_platform(vl.name),
+            "platform": value_lists.kept_here(vl.name),
             "changes": value_lists.changes_in(d),
             "latest": value_lists.latest_published(vl),
             "page": Paginator(rows, 100).get_page(request.GET.get("page")),

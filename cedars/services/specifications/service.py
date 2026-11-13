@@ -911,3 +911,61 @@ def check_group_labels() -> dict[str, str]:
     from cedars.services.rules import coded
 
     return {g.module: g.label for g in coded.groups()}
+
+
+# --- values checked against a value list made for a specification
+
+
+def list_fields(lay: VersionLayout, table: str) -> list[tuple[FieldLayout, str]]:
+    """The fields of `table` whose codes come from a value list made for a specification (in a draft, `editor.new_value_list`), with
+    the list's name. The engine has no such list, so the filing modules check these fields themselves (`list_problems`)."""
+    t = lay.table(table)
+    if t is None:
+        return []
+    named = {f.value_list.lower() for f in t.fields if f.value_list}
+    if not named:
+        return []
+    from cedars.services.dictionary import value_lists
+
+    made = {n.lower(): n for n in value_lists.made_here_names()}
+    return [(f, made[f.value_list.lower()]) for f in t.fields if f.value_list and f.value_list.lower() in made]
+
+
+def list_problems(lay: VersionLayout, table: str, rows, *, year=None, year_of=None, get=None) -> list[dict]:
+    """The values of `rows` (records of `table`, as dicts) that are not a code of their field's value list made for a specification,
+    accepted in the record's year (`year`, or `year_of(row)`; any year when neither gives one). One dict per value: `index` (the row's
+    place in `rows`, from 0), `field`, `value`, `list`, `message` and `fix`, which the module puts in its own finding under its own
+    rule ID. A blank value passes (whether a field may be blank is another check). `get(row, name)` reads a value (default: the row's
+    own key, then the field's other names)."""
+    from cedars.services.dictionary import value_lists
+
+    fields = list_fields(lay, table)
+    if not fields:
+        return []
+
+    def read(row, f):
+        if get is not None:
+            return get(row, f.name) or next((get(row, n) for n in f.other_names if get(row, n)), "")
+        return row.get(f.name) or next((row.get(n) for n in f.other_names if row.get(n)), "") or ""
+
+    out = []
+    for f, name in fields:
+        codes = value_lists.codes_for_check(name)
+        if codes is None:  # published with the version it was made for, so a filing on that version always has it
+            continue
+        for i, row in enumerate(rows):
+            value = str(read(row, f) or "").strip()
+            y = year_of(row) if year_of is not None else year
+            if value and not value_lists.accepts(codes, value, y):
+                out.append(
+                    {
+                        "index": i,
+                        "field": f.name,
+                        "value": value,
+                        "list": name,
+                        "message": f"{f.name} {value} is not a code of the {name} value list" + (f" accepted for {y}" if y else ""),
+                        "fix": f"Use a code from the {name} value list that is accepted for the year (the list's page shows each code's "
+                        "first and last year).",
+                    }
+                )
+    return out

@@ -14,7 +14,7 @@ against. Until a list has a version here, the engine's own list{% if release %} 
   <tbody>
   {% for r in rows %}
   <tr><th scope="row"><a href="{% url 'dictionary:list' r.name %}">{{ r.name }}</a></th><td>{{ r.label }}</td>
-    <td>{% if r.version %}Version {{ r.version.number }}, from {{ r.version.effective_from|date_words }}{% elif r.platform %}As first listed{% else %}As shipped with the engine{% endif %}</td>
+    <td>{% if r.version %}Version {{ r.version.number }}, from {{ r.version.effective_from|date_words }}{% elif r.made_for %}None yet: made for {{ r.made_for }}{% elif r.platform %}As first listed{% else %}As shipped with the engine{% endif %}</td>
     <td>{{ r.codes }}</td>
     <td>{% if r.later %}Version {{ r.later.number }} from {{ r.later.effective_from|date_words }}{% endif %}{% if r.later and r.draft %}; {% endif %}{% if r.draft %}<a href="{% url 'dictionary:draft' r.name %}">A draft<span class="sr-only"> of {{ r.name }}</span></a>{% endif %}</td></tr>
   {% empty %}<tr><td colspan="5">No value lists.</td></tr>

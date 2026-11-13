@@ -54,6 +54,10 @@ upload page links the version under "Before you upload", and its findings name t
   on the draft's Built-in checks page. A filing runs them as its version has them.</li>
   <li>A value list's draft starts as a copy of its newest version. Add codes, retire a code by giving its last claim year, or reinstate
   it by clearing that year; many codes at once from a CSV.</li>
+  <li>A new field with new codes gets a new value list, made from the field's page in a specification draft: its name and its codes,
+  typed one to a line, with more added or loaded from a CSV on the list's page. The list is published with the version, taking effect
+  the same day, and dropped if the draft is discarded. The engine has no such list, so CEDARS checks the field against it: a value not
+  in it, or not accepted for the record's year, rejects the record. A locked field keeps the codes CEDARS' processing reads.</li>
   <li>A field in the <a href="{% url 'dictionary:index' %}">data dictionary</a> is retired, never deleted, after usage, audience and
   regulatory reviews. Every dictionary version's changes are on the <a href="{% url 'dictionary:changes' %}">specification change
   log</a>.</li>

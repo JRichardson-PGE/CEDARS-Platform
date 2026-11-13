@@ -159,10 +159,17 @@ class Usage(models.Model):
 
 class ValueList(models.Model):
     """A code set the rules and the input editor check values against, under the engine's name for it (e.g. `sector`,
-    `ac_climate_zone`). Until a version is published here, the list the pinned engine ships is the one in force."""
+    `ac_climate_zone`). Until a version is published here, the list the pinned engine ships is the one in force. A list made for a new
+    field in a filing specification draft (`made_for`) has no engine list: it starts empty and is published with the version."""
 
     name = models.CharField(max_length=60, unique=True, help_text="The engine's name for the list (its file in recet/data/value_lists)")
     label = models.CharField(max_length=120, blank=True, help_text="The field it fills, e.g. Sector")
+    made_for = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="A list made in a filing specification draft: the version it was made for (blank for the others)",
+    )
+    made_in = models.CharField(max_length=60, blank=True, db_index=True, help_text='The draft it was made in, e.g. "specification:12"')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

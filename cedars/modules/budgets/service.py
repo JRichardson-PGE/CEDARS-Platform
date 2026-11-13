@@ -559,6 +559,26 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     return _store_and_check(actor, v, tables, job, entry)
 
 
+def list_problems(tables: dict[str, bytes], deadline) -> list[Problem]:
+    """Values not in their field's value list made for the filing's specification version (BUD-LIST), each record against the codes
+    accepted in its own year (ProgramCost's PrgYear, a measure's claim year)."""
+    lay = specifications.layout_for_filing(deadline, MODULE)
+    out = []
+    for table, year_col, id_col in (("ProgramCost", "PrgYear", "PrgID"), ("Measure", "ClaimYearQuarter", "CEInputID")):
+        if table not in tables or not specifications.list_fields(lay, table):
+            continue
+        _, rows = jobfile.rows(tables[table])
+        found = specifications.list_problems(
+            lay, table, rows, year_of=lambda r, c=year_col: jobfile.year_of(jobfile.get(r, c)), get=jobfile.get
+        )
+        out += [
+            Problem(p["index"] + 2, jobfile.get(rows[p["index"]], id_col), table, p["field"], "BUD-LIST", "reject", p["message"], p["fix"],
+                    p["value"])
+            for p in found
+        ]  # fmt: skip
+    return out
+
+
 def _store_and_check(
     actor, v: SubmissionVersion, tables: dict[str, bytes], job: bytes, entry: dict, *, scope: Scope | None = None, before=None
 ) -> SubmissionVersion:
@@ -573,6 +593,7 @@ def _store_and_check(
     cycle = v.submission.deadline.cycle
     rs = _rule_set(v)
     lines, problems, records = derive(tables, v.submission.organisation, cycle)
+    problems += list_problems(tables, v.submission.deadline)
     rescope = _scoped(tables, cycle, scope, before, rs) if scope is not None else None
     if rescope is not None:
         found, notes, rule_set, rechecked = rescope
@@ -609,7 +630,8 @@ def _store_and_check(
 # --- correcting records in place
 
 KEYS = {"Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
-MODULE_RULES = {"BUD-PRG", "BUD-ORG", "BUD-YEAR", "BUD-NUM", "BUD-DUP", "BUD-NOCOST"}  # derive's; the rule-set step's are the rest
+# run on every record; the rule set's are the rest
+MODULE_RULES = {"BUD-PRG", "BUD-ORG", "BUD-YEAR", "BUD-NUM", "BUD-DUP", "BUD-NOCOST", "BUD-LIST"}
 
 
 def _rule_set(v: SubmissionVersion):

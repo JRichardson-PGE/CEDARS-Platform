@@ -81,6 +81,7 @@ specifications/edit_fields:
     - Add a field to a table from the data dictionary, or a new one with its definition.
     - Select Change beside a field to change its requirement, type, value list, wording or place, to rename it, or to remove it.
     - A field another specification renamed in the data dictionary is listed at the top: rename it here too, or keep the name.
+    - The value lists made in the draft for new codes are listed at the top; open one to change its codes or load them from a CSV.
     - Change a table's other accepted names and the guidance shown above its fields.
   see: rules-and-lists
   tour:
@@ -93,6 +94,10 @@ specifications/edit_fields:
     - target: "#pending-renames"
       title: Renamed in the data dictionary
       text: Fields another specification renamed; rename each here too, or keep its name.
+      optional: true
+    - target: "#made-lists"
+      title: New value lists
+      text: The lists made in this draft for new codes, published with it.
       optional: true
     - target: main section.spec-table
       title: A table and its fields
@@ -203,6 +208,8 @@ specifications/edit_field:
     - Rename a field that is not locked; it stays the same field, its old name is still accepted on upload, its rules follow it and
       the data dictionary renames it when the version is published.
     - Remove a field that is not locked; data filed under earlier versions keeps it.
+    - For new codes no list has, make a new value list for a field that is not locked; give its name and codes, one to a line. It is
+      published with the version, and a value not in it is rejected.
   see: rules-and-lists
   tour:
     - target: "#field-form"
@@ -219,6 +226,10 @@ specifications/edit_field:
     - target: "#remove-field"
       title: Remove the field
       text: Take it out of the draft, with the reason.
+      optional: true
+    - target: "#new-value-list"
+      title: A new value list
+      text: New codes for the field, in a list published with the version.
       optional: true
 
 specifications/edit_table:

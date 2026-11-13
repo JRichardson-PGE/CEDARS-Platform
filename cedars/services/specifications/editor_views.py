@@ -87,7 +87,10 @@ def edit(request, code: str, slug: str):
     tables = []
     for t in v.tables.prefetch_related("fields"):
         tables.append({"t": t, "fields": [{"f": f, "lock": lock.get((t.name, f.name), "")} for f in t.fields.all()]})
-    return _page(request, "edit_fields.html", v, "edit", tables=tables, engine=editor.engine_available(), pending=editor.pending_renames(v))
+    return _page(
+        request, "edit_fields.html", v, "edit", tables=tables, engine=editor.engine_available(), pending=editor.pending_renames(v),
+        made=editor.made_lists(v),
+    )  # fmt: skip
 
 
 @login_required
@@ -338,7 +341,34 @@ def edit_field(request, code: str, slug: str, table: str, field: str):
     return _page(
         request, "edit_field.html", v, "edit", sub=True, t=t, form=form, f=f, lock=lock, adding=False,
         remove_form=forms.ReasonForm(auto_id="remove_%s"), rename_form=forms.RenameForm(auto_id="rename_%s"),
+        list_form=forms.NewListForm(auto_id="list_%s"), made=next((m for m in editor.made_lists(v) if m.value_list.name == f.value_list),
+                                                                  None),
     )  # fmt: skip
+
+
+@login_required
+@require_POST
+def new_value_list(request, code: str, slug: str, table: str, field: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    t = _table(v, table)
+    f = _field(t, field)
+    form = forms.NewListForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the new list's name and say why the field needs it.")
+        return redirect("specifications:edit_field", code, slug, t.name, f.name)
+    d = form.cleaned_data
+    try:
+        vl = editor.new_value_list(request.user, f, d["name"], codes=d["codes"], reason=d["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+        return redirect("specifications:edit_field", code, slug, t.name, f.name)
+    messages.success(
+        request,
+        f"Made the value list {vl.name} for {t.name}.{f.name}. It is published with this version; change its codes on its page.",
+    )
+    return redirect(f"{_edit_url(v)}#made-lists")
 
 
 @login_required
