@@ -31,20 +31,21 @@ KEYS = {
 }
 # Tables whose rows for a claim are a set: a later upload's rows for a ClaimID replace every earlier row for it.
 BY_CLAIM = ("ContactClaim", "InfrastructureCost", "ClaimSite")
+# Other names an upload may give a table (case, spaces, dashes and underscores aside)
+OTHER_TABLE_NAMES = {
+    "InfrastructureCost": ("FuelSubstitutionInfrastructureCost", "FuelSubInfrastructureCost", "InfraCost"),
+    "ClaimSite": ("ClaimSites",),
+    "Withdrawal": ("Withdrawals", "WithdrawnClaims"),
+}
 TABLE_NAMES = {
     **{t.lower(): t for t in TABLES},
-    "fuelsubstitutioninfrastructurecost": "InfrastructureCost",
-    "fuelsubinfrastructurecost": "InfrastructureCost",
-    "infracost": "InfrastructureCost",
-    "claimsites": "ClaimSite",
-    "withdrawals": "Withdrawal",
-    "withdrawnclaims": "Withdrawal",
+    **{other.lower(): t for t, names in OTHER_TABLE_NAMES.items() for other in names},
 }
 PII_TABLES = ("pii_contact", "pii_site", "piicontact", "piisite")
 # Columns CEDARS fills in, not the PA: an uploaded value is replaced.
 SYSTEM_FIELDS = {"Withdrawal": ("WithdrawnIn",)}
 # Other names a column is given: CET's own job files call a claim CEInputID.
-ALIASES = {"Measure": {"ceinputid": "ClaimID"}}
+ALIASES = {"Measure": {"CEInputID": "ClaimID"}}
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ def _lookup(table: str) -> dict[str, str]:
     for f in fields()[table]:
         out[f.name.lower()] = f.name
         out[f.cedars_name.lower()] = f.name
-    out.update(ALIASES.get(table, {}))
+    out.update({k.lower(): v for k, v in ALIASES.get(table, {}).items()})
     return out
 
 

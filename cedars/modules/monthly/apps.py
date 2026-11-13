@@ -69,3 +69,9 @@ class MonthlyConfig(AppConfig):
         from .corrections import MonthlyEditor
 
         record_corrections.register(MonthlyEditor())  # records corrected in place on an open draft
+
+        from cedars.services.specifications.service import register_layout
+
+        from . import specification
+
+        register_layout("monthly", module="monthly", make=specification.layout, check_groups=("monthly",))  # the starting specification

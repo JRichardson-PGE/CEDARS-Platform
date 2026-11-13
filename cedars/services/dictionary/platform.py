@@ -122,6 +122,12 @@ TABLES: dict[str, str] = {
     "refdata.EtrmPermutation": PUBLIC,
     "rules.RuleSet": PUBLIC,
     "rules.Rule": PUBLIC,
+    "specifications.Specification": PUBLIC,
+    "specifications.SpecificationVersion": PUBLIC,
+    "specifications.SpecTable": PUBLIC,
+    "specifications.SpecField": PUBLIC,
+    "specifications.CheckSetting": PUBLIC,
+    "specifications.ExampleSet": PUBLIC,
     # releases, the register of mandated changes, retention
     "releases.ReleaseNote": PUBLIC,
     "releases.Change": PUBLIC,

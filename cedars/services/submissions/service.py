@@ -34,6 +34,7 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.specifications import service as specifications
 
 from .models import Deadline, Delegation, ReopenRequest, Submission, SubmissionVersion, WorkflowPolicy
 
@@ -44,6 +45,7 @@ VERSION_FIELDS = [
     "reason",
     "files",
     "rule_set",
+    "specification_version",
     "findings",
     "calculation",
     "late",
@@ -689,9 +691,15 @@ def add_deadline(
     d = Deadline.objects.create(
         module=module, kind=kind, name=name, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes
     )
+    if not nothing_to_file(d):  # pinned to its specification's current version, which every later upload and correction uses
+        d.specification_version = specifications.for_new_deadline(module)
+        if d.specification_version is not None:
+            d.save(update_fields=["specification_version"])
     after = {"module": module, "kind": kind, "due_at": due_at.isoformat(), "opens_at": _when(opens_at), "notes": notes}
     if name:
         after["name"] = name
+    if d.specification_version is not None:
+        after["specification"] = str(d.specification_version)
     if cycle is not None:
         after["years"] = cycle.slug
     audit.record("deadline.created", obj=d, after=after, actor=actor)
@@ -884,6 +892,7 @@ def record_validation(actor, v: SubmissionVersion, rule_set, summary: dict) -> S
         v,
         "submission.validated" if ok else "submission.validation_failed",
         rule_set=rule_set,
+        specification_version=v.submission.deadline.specification_version,
         findings=summary,
         status=SubmissionVersion.Status.VALIDATED if ok else SubmissionVersion.Status.DRAFT,
         validated_at=timezone.now() if ok else None,
@@ -990,6 +999,26 @@ def record_calculation(
 # --- imported (legacy CEDARS) versions
 
 
+def _unpin_legacy(actor, deadline: Deadline) -> None:
+    """A legacy CEDARS year imported as published was never checked on this platform, so its deadline names no specification version
+    (unless an organization has filed it here)."""
+    if deadline.specification_version_id is None:
+        return
+    if SubmissionVersion.objects.filter(submission__deadline=deadline, origin=SubmissionVersion.Origin.FILED).exists():
+        return
+    before = {"specification": str(deadline.specification_version)}
+    deadline.specification_version = None
+    deadline.save(update_fields=["specification_version"])
+    audit.record(
+        "deadline.specification_cleared",
+        obj=deadline,
+        before=before,
+        after={"specification": None},
+        reason="Legacy CEDARS filings imported as published are not checked against a specification",
+        actor=actor,
+    )
+
+
 @transaction.atomic
 def import_version(
     actor,
@@ -1013,6 +1042,7 @@ def import_version(
         raise AccessDenied(
             f"{organisation.code} has filed {deadline.plain_name(due=False)} on this platform; legacy data is not imported over it."
         )
+    _unpin_legacy(actor, deadline)
     n = (submission.versions.aggregate(n=Max("number"))["n"] or 0) + 1
     now = timezone.now()
     v = SubmissionVersion.objects.create(
