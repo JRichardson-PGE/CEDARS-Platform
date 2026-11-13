@@ -577,3 +577,217 @@ def for_new_deadline(module: str, kind: str = ""):
     """The version a deadline put on the calendar now is pinned to: the current version of its module's specification (None for a module
     without one)."""
     return for_module(module)
+
+
+# --- reading a version's parts
+
+
+def rules(version) -> list:
+    """The rules of the version's rule set (none when it takes no rule set, or none is published yet)."""
+    if version.rule_set_id is None:
+        return []
+    return list(version.rule_set.rules.order_by("table", "field", "rule_id"))
+
+
+def _rule_fields(rule) -> list[str]:
+    """The field names a rule is about: a two-column key names both."""
+    from cedars.services.rules import service as rules_service
+
+    out = []
+    for part in (rule.field or "").split("+"):
+        part = part.strip()
+        if not part:
+            continue
+        out.append(part)
+        try:
+            out.append(rules_service.canonical_field(part))
+        except rules_service.EngineMissing:
+            pass
+    return out
+
+
+def rules_by_field(version) -> tuple[dict[tuple[str, str], list], dict[str, list]]:
+    """({(table, field): [rule, ...]}, {table: [rule, ...]}): each rule under the field it is about (its name or another accepted name),
+    else under its table (a key over two columns, a rule about a field the table does not have)."""
+    names = {}
+    for t in version.tables.prefetch_related("fields"):
+        for f in t.fields.all():
+            for n in (f.name, *f.other_names):
+                names[(t.name, n.lower())] = f.name
+    by_field: dict[tuple[str, str], list] = {}
+    by_table: dict[str, list] = {}
+    for r in rules(version):
+        fields = _rule_fields(r)
+        hit = next((names[(r.table, n.lower())] for n in fields if (r.table, n.lower()) in names), None)
+        if hit and "+" not in (r.field or ""):
+            by_field.setdefault((r.table, hit), []).append(r)
+        else:
+            by_table.setdefault(r.table, []).append(r)
+    return by_field, by_table
+
+
+def settings_rows(version) -> list[list[str]]:
+    """The version's settings in words: what prices it, its rules and its file format."""
+    rs = version.rule_set
+    rows = [
+        ["Specification", version.specification.name],
+        ["Version", version.name],
+        ["Status", version.get_status_display()],
+        ["Published", version.published_at.date().isoformat() if version.published_at else ""],
+        ["Rules", f"The {rs.label} rules effective {rs.effective_from:%Y-%m-%d}" if rs else "Field checks only (no rule set)"],
+        ["Engine release", f"ReCET {version.engine_release}" if version.engine_release else "The release marked default for new runs"],
+        [
+            "Cost-test set",
+            f"{version.cost_test_set.label} {version.cost_test_set.version}"
+            if version.cost_test_set
+            else "The set the filing set names, else the one in force for the program year",
+        ],
+        ["Fingerprint (SHA-256)", version.fingerprint],
+    ]
+    fmt = version.file_format or {}
+    labels = {
+        "files": "Files",
+        "delimiters": "Delimiters",
+        "encoding": "Encoding",
+        "names": "Names",
+        "column_order": "Column order",
+        "unknown_columns": "Columns the table does not have",
+        "unknown_files": "Other files",
+    }
+    for k, label in labels.items():
+        if k in fmt:
+            v = fmt[k]
+            if k == "delimiters":
+                v = ", ".join({"|": "pipe (|)", ",": "comma", "\t": "tab"}.get(d, d) for d in v)
+            elif isinstance(v, list):
+                v = "; or ".join(v)
+            rows.append([label, v])
+    return rows
+
+
+# --- comparing two versions
+
+
+@dataclass
+class Comparison:
+    tables_added: list
+    tables_removed: list
+    fields_added: list  # (table, SpecField)
+    fields_removed: list
+    fields_changed: list  # (table, field name, [(attribute words, old, new), ...])
+    rules_added: list
+    rules_removed: list
+    rules_changed: list  # (old rule, new rule) with the same ID? an ID is its test: a changed test is a new ID
+    checks_added: list
+    checks_removed: list
+    checks_changed: list
+    settings_changed: list  # (setting, old, new)
+
+    @property
+    def empty(self) -> bool:
+        return not any(getattr(self, k) for k in self.__dataclass_fields__)
+
+
+FIELD_WORDS = {
+    "requirement": "Requirement",
+    "type": "Type",
+    "max_length": "Most characters",
+    "decimals": "Most decimal places",
+    "value_list": "Value list",
+    "default": "Default",
+    "example": "Example",
+    "unit": "Unit",
+    "other_names": "Also accepted as",
+    "definition": "Definition",
+    "guidance": "Guidance",
+}
+
+
+def _show(attr, value):
+    if attr == "requirement":
+        return REQUIREMENT_WORDS.get(value, value)
+    if attr == "type":
+        return TYPE_WORDS.get(value, value)
+    if isinstance(value, list):
+        return ", ".join(value)
+    return "" if value is None else str(value)
+
+
+def compare(a, b) -> Comparison:
+    """What changes from version a to version b (of one specification, or across two: a table is matched by its name)."""
+    at = {t.name: t for t in a.tables.prefetch_related("fields")}
+    bt = {t.name: t for t in b.tables.prefetch_related("fields")}
+    fields_added, fields_removed, fields_changed = [], [], []
+    for name in at.keys() & bt.keys():
+        af = {f.name: f for f in at[name].fields.all()}
+        bf = {f.name: f for f in bt[name].fields.all()}
+        fields_added += [(name, bf[n]) for n in bf if n not in af]
+        fields_removed += [(name, af[n]) for n in af if n not in bf]
+        for n in [n for n in bf if n in af]:
+            diffs = [
+                (words, _show(k, getattr(af[n], k)), _show(k, getattr(bf[n], k)))
+                for k, words in FIELD_WORDS.items()
+                if getattr(af[n], k) != getattr(bf[n], k)
+            ]
+            if diffs:
+                fields_changed.append((name, n, diffs))
+    ar, br = {r.rule_id: r for r in rules(a)}, {r.rule_id: r for r in rules(b)}
+    replaced = {r.replaces: r for r in br.values() if r.replaces and r.replaces in ar and r.rule_id not in ar}
+    rules_changed = [(ar[old], new) for old, new in replaced.items()]
+    rules_changed += [
+        (ar[i], br[i])
+        for i in ar.keys() & br.keys()
+        if (ar[i].message, ar[i].fix, ar[i].severity) != (br[i].message, br[i].fix, br[i].severity)
+    ]
+    ac, bc = {c.rule_id: c for c in a.checks.all()}, {c.rule_id: c for c in b.checks.all()}
+    keys = ("severity", "tables", "fields", "finds", "fix", "settings")
+    sa, sb = dict((r[0], r[1]) for r in settings_rows(a)), dict((r[0], r[1]) for r in settings_rows(b))
+    skip = {"Specification", "Version", "Status", "Published", "Fingerprint (SHA-256)"}
+    return Comparison(
+        tables_added=[bt[n] for n in bt if n not in at],
+        tables_removed=[at[n] for n in at if n not in bt],
+        fields_added=fields_added,
+        fields_removed=fields_removed,
+        fields_changed=fields_changed,
+        rules_added=[r for i, r in br.items() if i not in ar and r not in replaced.values()],
+        rules_removed=[r for i, r in ar.items() if i not in br and i not in replaced],
+        rules_changed=sorted(rules_changed, key=lambda p: (p[1].table, p[1].field, p[1].rule_id)),
+        checks_added=[c for i, c in bc.items() if i not in ac],
+        checks_removed=[c for i, c in ac.items() if i not in bc],
+        checks_changed=[(ac[i], bc[i]) for i in ac.keys() & bc.keys() if any(getattr(ac[i], k) != getattr(bc[i], k) for k in keys)],
+        settings_changed=[(k, sa.get(k, ""), sb.get(k, "")) for k in dict.fromkeys([*sa, *sb]) if k not in skip and sa.get(k) != sb.get(k)],
+    )
+
+
+# --- who may read a version
+
+
+def can_read(user, version) -> bool:
+    """Published and withdrawn versions: anyone. Proposed: anyone signed in. Drafts: CPUC system administrators."""
+    if version.public:
+        return True
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if version.status == version.Status.PROPOSED:
+        return True
+    from cedars.services.accounts import service as access
+
+    return access.is_system_admin(user)
+
+
+def readable_versions(user, specification):
+    _, Version = _models()
+    qs = Version.objects.filter(specification=specification)
+    return [v for v in qs if can_read(user, v)]
+
+
+def in_use(version) -> list:
+    """The deadlines (filings) pinned to the version that are on the calendar, by due date."""
+    return list(version.deadlines.filter(retired_at__isnull=True).select_related("period", "cycle").order_by("due_at"))
+
+
+def check_group_labels() -> dict[str, str]:
+    """{group: label} of the built-in check lists (rules.coded), e.g. claims: Claims."""
+    from cedars.services.rules import coded
+
+    return {g.module: g.label for g in coded.groups()}

@@ -1,0 +1,88 @@
+{% extends "core/base.html" %}
+{% block title %}{{ v.specification.name }}: {{ v.name }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/version" %}</div>
+<p id="spec-status"><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>
+  {% if v.published_at %}{{ v.published_at|date_words }}.{% endif %}
+  {% if is_current %}<strong>The current version:</strong> new filings are set up with it.{% elif v.status == "published" %}A newer version is published; filings set up with this one keep it.{% endif %}
+  {% if v.status == "withdrawn" %}Withdrawn {{ v.withdrawn_at|date_words }}: {{ v.withdrawn_reason }}{% endif %}</p>
+{% if v.summary %}<p>{{ v.summary }}</p>{% endif %}
+
+<section aria-labelledby="downloads-h" class="card">
+  <h2 id="downloads-h">Templates and downloads</h2>
+  <ul class="downloads">
+    <li><a href="{% url 'specifications:template' v.specification.code v.slug 'xlsx' %}" download>Upload template (Excel workbook)</a> or <a href="{% url 'specifications:template' v.specification.code v.slug 'zip' %}" download>as a .zip of pipe-delimited files</a></li>
+    {% if has_vault %}<li><a href="{% url 'specifications:template' v.specification.code v.slug 'pii-xlsx' %}" download>PII upload template (Excel workbook)</a> or <a href="{% url 'specifications:template' v.specification.code v.slug 'pii-zip' %}" download>as a .zip</a>: the vault tables, uploaded on their own page</li>{% endif %}
+    <li><a href="{% url 'specifications:fields' v.specification.code v.slug %}" download>Every field and rule (Excel workbook)</a></li>
+    <li><a href="{% url 'specifications:document' v.specification.code v.slug %}" download>The whole specification as data (JSON)</a>, with a JSON Schema for each table below and the same by the <a href="{% url 'specifications-api:version' v.specification.code v.slug %}">API</a></li>
+    {% for e in v.examples.all %}<li>Example: {{ e.name }}{% if e.about %} ({{ e.about }}){% endif %}: <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'xlsx' %}" download>workbook</a> or <a href="{% url 'specifications:example' v.specification.code v.slug e.slug 'zip' %}" download>.zip</a></li>{% endfor %}
+  </ul>
+  {% if not v.examples.exists %}<p class="small">Example input files for this version are not published yet.</p>{% endif %}
+  <p class="actions"><a class="button" href="{% url 'specifications:compare' %}?a={% if v.based_on %}{{ v.based_on.specification.code }}/{{ v.based_on.slug }}{% elif others %}{{ others.0.specification.code }}/{{ others.0.slug }}{% endif %}&amp;b={{ v.specification.code }}/{{ v.slug }}">Compare with another version</a></p>
+</section>
+
+<section aria-labelledby="about-h">
+  <h2 id="about-h">About this version</h2>
+  <dl class="facts">
+    {% for label, value in settings %}{% if label != "Specification" and label != "Version" and label != "Status" and label != "Published" %}<dt>{{ label }}</dt><dd>{% if label == "Rules" and v.rule_set and user.is_authenticated %}<a href="{% url 'rules:detail' v.rule_set.pk %}">{{ value }}</a>{% else %}{{ value|default:"-" }}{% endif %}</dd>{% endif %}{% endfor %}
+  </dl>
+  <h3 id="in-use-h">Filings that use it</h3>
+  {% if in_use %}<ul class="compact">{% for d in in_use %}<li>{{ d.plain_name }}</li>{% endfor %}</ul>{% else %}<p>No filing on the calendar uses this version.</p>{% endif %}
+</section>
+
+<nav aria-labelledby="tables-h" class="contents">
+  <h2 id="tables-h">Tables</h2>
+  <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}
+    <li><a href="#checks-h">Built-in checks</a></li></ul>
+</nav>
+
+{% for x in tables %}
+<section aria-labelledby="table-{{ x.t.name }}" class="spec-table">
+  <h2 id="table-{{ x.t.name }}">{{ x.t.name }}</h2>
+  <p>{% if x.t.required %}Every upload holds this table.{% else %}An upload may leave this table out.{% endif %}
+    {% if x.t.keys %}A record is identified by {{ x.t.keys|join:" and " }}.{% endif %}
+    {% if x.t.replace == "claim" %}A claim's rows in a later upload replace all its earlier rows.{% endif %}
+    {% if x.t.other_names %}Also accepted as {{ x.t.other_names|join:", " }}.{% endif %}
+    {% if x.t.refuse_without %}An upload without the column{{ x.t.refuse_without|length|pluralize }} {{ x.t.refuse_without|join:", " }} is refused at once.{% endif %}
+    {{ x.t.guidance }}</p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ x.t.name }}: fields">
+  <table class="list spec-fields">
+    <caption class="sr-only">{{ x.t.name }}: fields, in template order</caption>
+    <thead><tr><th scope="col">Field</th><th scope="col">Requirement</th><th scope="col">Type</th><th scope="col">Value list</th><th scope="col">Definition and rules</th></tr></thead>
+    <tbody>
+    {% for row in x.fields %}{% with f=row.f %}
+    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
+      <td>{{ f.get_requirement_display }}</td><td>{{ f.type_words }}{% if f.default %}<br><span class="small">Blank means {{ f.default }}</span>{% endif %}</td>
+      <td>{% if f.value_list %}<a href="{% url 'dictionary:list' f.value_list %}">{{ f.value_list }}</a>{% else %}-{% endif %}</td>
+      <td>{{ f.definition }}{% if f.example %}<br><span class="small">Example: {{ f.example }}</span>{% endif %}{% if f.guidance %}<br>{{ f.guidance }}{% endif %}
+        {% if row.rules %}<details><summary>{{ row.rules|length }} rule{{ row.rules|length|pluralize }} about {{ f.name }}</summary>
+          <ul class="rules">{% for r in row.rules %}<li><strong>{{ r.get_severity_display }}:</strong> {{ r.message }} <span class="small muted">Fix: {{ r.fix }} ({{ r.rule_id }})</span></li>{% endfor %}</ul></details>{% endif %}</td></tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if x.rules %}<h3 id="table-{{ x.t.name }}-rules">Rules about the {{ x.t.name }} table</h3>
+  <ul class="rules">{% for r in x.rules %}<li><strong>{{ r.get_severity_display }}:</strong> {{ r.message }} <span class="small muted">Fix: {{ r.fix }} ({{ r.rule_id }})</span></li>{% endfor %}</ul>{% endif %}
+  <p class="small"><a href="{% url 'specifications:schema' v.specification.code v.slug x.t.name %}" download>JSON Schema for a {{ x.t.name }} record</a></p>
+</section>
+{% endfor %}
+
+<section aria-labelledby="checks-h">
+  <h2 id="checks-h">Built-in checks</h2>
+  <p>Checks written in CEDARS' code that run beside the rules, because they need what a rule cannot see: the program registry, earlier
+  confirmed quarters, the filing's other tables, eTRM. A finding shows the check's ID.</p>
+  {% for group, label, list in checks %}
+  <h3 id="checks-{{ group }}">{{ label }}</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}: built-in checks">
+  <table class="list">
+    <caption class="sr-only">{{ label }}: built-in checks</caption>
+    <thead><tr><th scope="col">Check</th><th scope="col">Severity</th><th scope="col">Tables and fields</th><th scope="col">What it finds and how to fix it</th></tr></thead>
+    <tbody>{% for c in list %}<tr id="check-{{ c.rule_id }}"><th scope="row">{{ c.rule_id }}</th><td>{% if c.severity == "reject" %}Rejects the record{% elif c.severity == "warning" %}Warning{% else %}Rejects the record or warns, by case{% endif %}</td>
+      <td>{{ c.tables }}{% if c.fields %}<br><span class="small">{{ c.fields }}</span>{% endif %}</td><td>{{ c.finds }}<br><span class="small muted">Fix: {{ c.fix }}</span></td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% empty %}<p>No built-in checks.</p>
+  {% endfor %}
+</section>
+{% endblock %}

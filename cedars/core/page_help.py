@@ -40,6 +40,7 @@ AREAS = {  # the Help index groups the pages by the file they come from, in this
     "documents": "Documents and evaluation studies",
     "dictionary": "Data dictionary",
     "rules": "Validation rules",
+    "specifications": "Filing specifications",
     "refdata": "Reference data",
     "releases": "Release notes and limits",
     "notifications": "Notifications",

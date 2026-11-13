@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block title %}Filing specifications{% endblock %}
+{% block content %}
+{% section_nav nav_menu %}
+<div class="page-title"><h1>Filing specifications</h1>{% page_help "specifications/index" %}</div>
+<p>What each kind of filing must contain: its tables, the fields of each table, which are required, each field's type and value list,
+and the rules and built-in checks every record is checked against. The CPUC publishes each specification in named versions that never
+change once published, and each filing set (a claim year, a budget filing, a year of monthly reports) is set up with one: its uploads
+and corrections use that version, whenever they are made. Several versions can be in use at once.</p>
+<p class="actions"><a class="button" href="{% url 'specifications:compare' %}">Compare two versions</a></p>
+{% for s in specs %}
+<section aria-labelledby="spec-{{ s.spec.code }}">
+  <h2 id="spec-{{ s.spec.code }}">{{ s.spec.name }}</h2>
+  <p>{{ s.spec.about }}</p>
+  {% if s.current %}<p>Current version: <a href="{% url 'specifications:version' s.spec.code s.current.slug %}">{{ s.current.name }}</a>, published {{ s.current.published_at|date_words }}.</p>{% endif %}
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ s.spec.name }}: versions">
+  <table class="list">
+    <caption class="sr-only">{{ s.spec.name }}: versions, newest first</caption>
+    <thead><tr><th scope="col">Version</th><th scope="col">Status</th><th scope="col">Published</th><th scope="col">Filings on the calendar that use it</th></tr></thead>
+    <tbody>
+    {% for v, used in s.versions %}
+    <tr><th scope="row"><a href="{% url 'specifications:version' s.spec.code v.slug %}">{{ v.name }}</a></th>
+      <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if s.current and v.pk == s.current.pk %} <strong>(current)</strong>{% endif %}</td>
+      <td>{{ v.published_at|date_words|default:"-" }}</td><td>{{ used }}</td></tr>
+    {% empty %}<tr><td colspan="4">No published version yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

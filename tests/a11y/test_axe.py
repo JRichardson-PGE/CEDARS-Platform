@@ -150,6 +150,7 @@ def _role_filers():
 
 
 def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
+    _specifications()
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
@@ -466,6 +467,16 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         **impact_profiles,
         "sw": sw_id,
     }
+
+
+def _specifications():
+    """The filing specifications' starting versions (published by a migration, which the transactional tests flush, so published again),
+    before any deadline is put on the calendar, so the deadlines are pinned to them."""
+    import importlib
+
+    from django.apps import apps
+
+    importlib.import_module("cedars.services.specifications.migrations.0002_starting_versions").load_starting(apps, None)
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):

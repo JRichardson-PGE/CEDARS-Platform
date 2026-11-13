@@ -180,6 +180,13 @@ class SpecField(models.Model):
     def __str__(self):
         return f"{self.table.name}.{self.name}"
 
+    @property
+    def type_words(self) -> str:
+        """Its type in words, e.g. "Text (up to 255 characters)"."""
+        from .service import type_words
+
+        return type_words(self)
+
 
 class CheckSetting(models.Model):
     """A built-in check (written in code) that a filing on the version meets, in the words its findings use, with the settings the
