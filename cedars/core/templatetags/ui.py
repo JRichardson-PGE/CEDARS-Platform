@@ -157,9 +157,10 @@ def before_upload(
     file will be checked against and the guide section, each part only when the form has one.
 
     template: the template's URL; specification: the filing's specification version (its page, which is public); fields:
-    "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the code of the rule set in force
-    (rules.in_force: its page when one is published, else "none published yet"), or rules_note: the words to say instead (e.g. the
-    engine checks the file); guide: a Help guide's slug, with an #anchor if any, or a URL."""
+    "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the code of the filing's rule set: the
+    one `specification` names, the one the file is checked against on any date (specifications.rule_set_of; its page when there is
+    one, else "none published yet"), or rules_note: the words to say instead (e.g. the engine checks the file); guide: a Help guide's
+    slug, with an #anchor if any, or a URL."""
     from django.urls import NoReverseMatch, reverse
 
     parts = []
@@ -178,9 +179,9 @@ def before_upload(
             url = f"{reverse('dictionary:index')}?table={fields}"
         parts.append({"url": url, "label": fields_label or "the field definitions"})
     if rule_set:
-        from cedars.services.rules import service as rules
+        from cedars.services.specifications import service as specifications
 
-        rs = rules.in_force(rule_set)
+        rs = specifications.rule_set_of(specification, rule_set)
         user = getattr(context.get("request"), "user", None)
         if rs is not None and user is not None and user.is_authenticated:
             parts.append({"url": reverse("rules:detail", args=[rs.pk]), "label": f"the rules it is checked against, {rs.label}"})

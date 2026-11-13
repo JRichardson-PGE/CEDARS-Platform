@@ -136,7 +136,7 @@ def test_refusals(cpuc_admin, claims_rules, key, filer, pge):  # noqa: F811
 def test_the_page_checks_against_any_published_version(signed_in, pge_admin, claims_rules):
     c = signed_in(pge_admin)
     page = c.get("/rules/check/").content.decode()
-    assert "(in force)" in page and "Other ways to check" in page and "/api/v1/rules/check" in page
+    assert "(current specification)" in page and "Other ways to check" in page and "/api/v1/rules/check" in page
     assert f"/rules/{claims_rules.pk}/rules.json" in page
     upload = SimpleUploadedFile("Measure.csv", table_of(q1(full=True), "Measure"))
     page = c.post("/rules/check/", {"rule_set": claims_rules.pk, "table": "Measure", "filing_year": "2028", "file": upload})

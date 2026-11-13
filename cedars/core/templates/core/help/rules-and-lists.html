@@ -1,7 +1,8 @@
 {% extends "core/help/guide.html" %}
 {% block guide %}
-<p>Every filing is checked against a versioned rule set, and coded fields against versioned value lists. The version in force on a date
-is the newest published one effective by then, and every submission and run records the versions it was checked against. A published
+<p>Every filing is checked against a versioned rule set, and coded fields against versioned value lists. A filing's rule set is the one
+its specification version names, whatever the date it is checked or corrected; the rule set marked in force is the newest published one
+effective today. Every submission and run records the versions it was checked against. A published
 version never changes: a change is a new version with the date it takes effect and the reason.</p>
 <h2 id="filing-specifications">Filing specifications</h2>
 <p><a href="{% url 'specifications:index' %}">Filing specifications</a> (open to everyone) say what each kind of filing holds: its
@@ -14,13 +15,16 @@ upload page links the version under "Before you upload", and its findings name t
   <code>/api/v1/specifications/</code>.</li>
   <li><a href="{% url 'specifications:compare' %}">Compare two versions</a> to see the tables, fields, rules and checks that changed.</li>
   <li>A filing keeps the version it was set up with when a newer one is published; a later filing set takes the newer one.</li>
+  <li>The version decides how the filing is checked and priced, on any date, corrections included: its tables and fields, the rule set
+  it names, and the engine release and cost-test set it names. A version that names no engine release is priced with the release
+  marked default for new runs; one that names no cost-test set uses the filing set's, else the set in force for the program year.</li>
 </ul>
 <h2>For filers</h2>
 <ol>
   <li>Read the rules your filing will be checked against on <a href="{% url 'rules:index' %}">Validation rules</a> (signed in). Each
   rule has its ID, severity (reject or warning), the field it checks, the message you see and how to fix it.</li>
   <li><a href="{% url 'rules:check' %}">Check a file before you file it</a>: it runs a filing's rules on one table of your file, exactly
-  as the upload does, and keeps nothing. Check against the rules in force, or a later version that has not taken effect yet.</li>
+  as the upload does, and keeps nothing. The current specification's rules are selected; you can choose any other published version.</li>
   <li>The upload also runs checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed claims),
   so a file that passes the check can still get findings on upload. Those checks are listed, with their IDs, severity and message, on
   <a href="{% url 'rules:built_in' %}">Built-in checks</a>.</li>

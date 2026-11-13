@@ -499,7 +499,7 @@ def as_document(version) -> dict:
     }
 
 
-# --- what the modules will read once filings read their version
+# --- what the modules read of a filing's version
 
 
 @dataclass(frozen=True)
@@ -577,6 +577,61 @@ def for_new_deadline(module: str, kind: str = ""):
     """The version a deadline put on the calendar now is pinned to: the current version of its module's specification (None for a module
     without one)."""
     return for_module(module)
+
+
+def of_filing(deadline):
+    """The version a filing (a deadline) is checked and priced against, on any date: the one it is pinned to. A deadline pinned to none
+    (put on the calendar where its specification had no published version yet) takes its module's current version; None for a module
+    without a specification."""
+    if deadline is None:
+        return None
+    if deadline.specification_version_id is not None:
+        return deadline.specification_version
+    return for_module(deadline.module)
+
+
+def rule_set_of(version, code: str = ""):
+    """The rule set a filing on `version` is checked against: the one the version names. A version that takes rules (its rule_set_code)
+    but names no rule set, because none of that code was published when it was made (a new environment), takes the one of that code in
+    force today, as every filing did before filings read their version; so does a filing of a module with no version (`code`, the
+    module's rule-set code). None: field and built-in checks only."""
+    if version is not None:
+        if version.rule_set_id is not None:
+            return version.rule_set
+        code = version.rule_set_code
+    if not code:
+        return None
+    from cedars.services.rules import service as rules_service
+
+    return rules_service.in_force(code)
+
+
+def rule_set_for_filing(deadline, code: str = ""):
+    """The rule set a filing is checked against: its version's (`rule_set_of`)."""
+    return rule_set_of(of_filing(deadline), code)
+
+
+def engine_release_of(version) -> str:
+    """The engine release (its number, e.g. 0.1.94) that prices a filing on `version`; "" for the release marked default for new runs
+    (a version that names none, or no version)."""
+    return (version.engine_release or "").strip() if version is not None else ""
+
+
+def naming_release(release: str) -> list:
+    """The published versions that name engine release `release` (its number) and have filings on the calendar: the release prices
+    those filings, so it cannot be retired while any does."""
+    _, Version = _models()
+    return [
+        v
+        for v in Version.objects.filter(status=Version.Status.PUBLISHED, engine_release=release).select_related("specification")
+        if in_use(v)
+    ]
+
+
+def cost_test_set_of(version):
+    """The published cost-test set (a reference data pack version) that prices a filing on `version`; None when it names none, and the
+    filing set's own choice, else the set in force for the program year, applies."""
+    return version.cost_test_set if version is not None and version.cost_test_set_id is not None else None
 
 
 # --- reading a version's parts

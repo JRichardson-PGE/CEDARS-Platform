@@ -3,8 +3,9 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'core:calculations' %}">Calculations</a></li></ol></nav>
 <div class="page-title"><h1>Engine releases</h1>{% page_help "calculations/engines" %}</div>
-<p>The ReCET releases runs can use, with the calculations and ACCs each offers. Filings are priced on the default release, so it needs
-the ACC of every filing still to come.</p>
+<p>The ReCET releases runs can use, with the calculations and ACCs each offers. A filing is priced on the release its specification version
+names; a version that names none is priced on the default release, so it needs the ACC of every filing still to
+come.</p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Engine releases">
 <table class="list">
   <caption class="sr-only">Engine releases</caption>

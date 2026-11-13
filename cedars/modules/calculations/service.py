@@ -248,6 +248,14 @@ def retire_release(actor, r: EngineRelease, reason: str = "") -> EngineRelease:
         raise AccessDenied("Only a CPUC system administrator retires engine releases.")
     if r.default:
         raise AccessDenied("Make another release the default first.")
+    from cedars.services.specifications import service as specifications
+
+    naming = specifications.naming_release(r.release)
+    if naming:
+        raise AccessDenied(
+            f"ReCET {r.release} prices the filings of {', '.join(str(v) for v in naming)}: a release a specification version in use "
+            "names cannot be retired."
+        )
     EngineRelease.objects.filter(pk=r.pk).update(active=False)
     audit.record("engine_release.retired", obj=r, reason=reason, actor=actor)
     r.refresh_from_db()
@@ -1121,14 +1129,31 @@ def price_submission(
     settings: dict | None = None,
     cost_test_set: PackVersion | None = None,
     profiles_8760: bytes | None = None,
+    release: str = "",
 ):
-    """The pricer the submissions service calls (registered in apps.py): a filing version's job on the default release, ReCET's own
-    calculation; with settings allocate_statewide, statewide programs are allocated with the filing's allocation version (or the most
-    recent confirmed one for the program year). `cost_test_set`: the published set the filing's setup requires (blank: the published
-    set in force for the job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
-    release = default_release()
+    """The pricer the submissions service calls (registered in apps.py): a filing version's job on `release`, the engine release the
+    filing's specification version names (blank: the default release), ReCET's own calculation; with settings allocate_statewide,
+    statewide programs are allocated with the filing's allocation version (or the most recent confirmed one for the program year).
+    `cost_test_set`: the published set the filing's specification version or setup requires (blank: the published set in force for the
+    job's first program year). `profiles_8760`: the true-ups' parent profiles, a supplied 8,760 file."""
+    named = bool(release)
+    if named:
+        release = releases().filter(release=release).first()
+        if release is None:
+            raise PricingUnavailable(
+                "The filing's specification version names an engine release that is not an active release here; a CPUC system "
+                "administrator registers it, or makes it active, on Engine releases."
+            )
+        if RECET not in (release.calculations or []):
+            raise PricingUnavailable(
+                f"ReCET {release.release}, the engine release the filing's specification version names, does not offer ReCET's own "
+                "calculation."
+            )
+    else:
+        release = default_release()
     if release is None:
         raise PricingUnavailable("No engine release is the default yet; a CPUC system administrator sets one on Engine releases.")
+    which = "The engine release the filing's specification version names" if named else "The default engine release"
     req = RunRequest(
         name=name,
         release=release,
@@ -1139,11 +1164,13 @@ def price_submission(
         cost_test_set=cost_test_set,
         profiles_8760=profiles_8760,
     )
-    # The CPUC's set-up, which the filer cannot change: the default release must carry the filing's ACC, and its packs be published.
+    # The CPUC's set-up, which the filer cannot change: the release must carry the filing's ACC, and its packs be published.
     if acc_version not in accs_for(release, RECET):
+        fix = (
+            "Register the ACC with that release on Engine releases." if named else "Make a release with it the default on Engine releases."
+        )
         raise PricingUnavailable(
-            f"The default engine release, ReCET {release.release}, has no {acc_version} ACC (it has "
-            f"{', '.join(accs_for(release, RECET)) or 'none'}). Make a release with it the default on Engine releases."
+            f"{which}, ReCET {release.release}, has no {acc_version} ACC (it has {', '.join(accs_for(release, RECET)) or 'none'}). {fix}"
         )
     try:
         packs_for(req, filing=True)

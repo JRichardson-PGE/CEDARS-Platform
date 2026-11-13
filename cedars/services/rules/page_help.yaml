@@ -3,19 +3,20 @@
 rules/index:
   title: Validation rules
   guide:
-    - The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective
-      by then; every submission and run records the version it was checked against.
-    - Check a file before you file it runs the rules in force on your file without filing it. Compare two rule sets shows what changed
+    - The rules each filing is checked against, as versioned rule sets. A filing is checked against the rule set its specification
+      version names, whatever the date; the version marked in force is the newest published one effective today. Every submission and
+      run records the version it was checked against.
+    - Check a file before you file it runs the current specification's rules on your file without filing it. Compare two rule sets shows what changed
       between versions. Built-in checks lists the checks written in the platform's code that run beside the rule sets.
   how:
-    - Check a file before you file it runs the rules in force on your file.
+    - Check a file before you file it runs the current specification's rules on your file.
     - Compare two rule sets shows what changed; Import as a draft adds a new version to publish.
     - Built-in checks lists each filing's checks written in code, with their IDs, severity and message.
   see: rules-and-lists
   tour:
     - target: main p.actions
       title: Check a file, compare rule sets, or read the built-in checks
-      text: Check your file against the rules in force, see what changed between two sets, or read the checks written in code.
+      text: Check your file against the current specification's rules, see what changed between two sets, or read the checks written in code.
     - target: main table.list
       title: Rule sets
       text: Each set and version, its effective date and status. Select one to read its rules.
@@ -54,7 +55,9 @@ rules/detail:
       hash, the same wherever the same rule is used.
     - CPUC system administrators change the rules without a code change. Start a new version of a published set, with the
       date it takes effect and the reason; in the draft, add rules, change a rule's test or wording, or take a rule out; then publish
-      it. A published version never changes, and the version in force stays in force until the new one takes effect.
+      it. A published version never changes, and the version in force stays in force until the new one takes effect. Filings are
+      checked against the rule set their specification version names, so a new version reaches filings once a specification version
+      names it.
   how:
     - Filter by field or words, severity and table, and download the rules shown as CSV.
     - A published version offers Check a file against these rules, and its rules as JSON with how each is checked and the value lists
@@ -121,7 +124,8 @@ rules/check:
   guide:
     - Runs a filing's validation rules on one table of your file, exactly as the upload runs them (the same code), and lists every
       finding by rule, rejects first. Nothing you upload here is kept.
-    - Check against the rules in force, or any other published version, such as rules that take effect later. Claims are checked with
+    - Check against the rules of the current specification version, or any other published version. A filing is checked against
+      the rules of the specification version it follows, on any date. Claims are checked with
       the claim year as the filing year; budget filings year by year, each year as its own filing.
     - The upload also runs the checks that need the whole filing (its other tables, earlier confirmations, eTRM's values for deemed
       claims), so a file that passes here can still get findings on upload.
@@ -135,7 +139,7 @@ rules/check:
   tour:
     - target: main form
       title: The file
-      text: Choose the rules (the version in force is selected), the table and the file, then Check.
+      text: Choose the rules (the current specification's are selected), the table and the file, then Check.
       optional: true
     - target: "#res-h"
       title: Results

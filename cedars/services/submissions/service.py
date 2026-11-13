@@ -945,6 +945,11 @@ def _price(
         raise AccessDenied("Only a validated version is priced for confirmation.")
     if not _pricers:
         raise AccessDenied("The calculation service is not installed here, so filings cannot be priced.")
+    # What prices it is the filing's specification version's, on any date: its engine release (blank: the default one) and its
+    # cost-test set (blank: the one the module passes, the filing set's, else the set in force for the program year).
+    spec = specifications.of_filing(v.submission.deadline)
+    release = specifications.engine_release_of(spec)
+    cost_test_set = specifications.cost_test_set_of(spec) or cost_test_set
     run = _pricers[0](
         actor,
         v,
@@ -954,9 +959,11 @@ def _price(
         allocation_version=allocation_version,
         settings=settings or {},
         cost_test_set=cost_test_set,
+        **({"release": release} if release else {}),
         **({"profiles_8760": profiles_8760} if profiles_8760 else {}),
     )
-    audit.record("submission.pricing_started", obj=v, after={"run": str(run), "acc": acc_version}, actor=actor)
+    after = {"run": str(run), "acc": acc_version, **({"release": release} if release else {})}
+    audit.record("submission.pricing_started", obj=v, after=after, actor=actor)
     return str(run)
 
 
