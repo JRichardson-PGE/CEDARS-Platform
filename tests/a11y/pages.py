@@ -410,6 +410,8 @@ PAGES = [
     ("budgets-regulator", "/budgets/", "cpuc_admin"),
     ("budget-filing-new", "/budgets/filings/new/", "cpuc_admin"),
     ("budget-filing-setup", "/budgets/filings/{tual}/setup/", "cpuc_admin"),
+    ("specification-move-filing-set", "/specifications/filing-sets/{mcal}/move/", "cpuc_admin"),
+    ("specification-move-filing-set-chosen", "/specifications/filing-sets/{tual}/move/?to={later_budget_spec}", "cpuc_admin"),
     ("budget-filing-published", "/budgets/filings/{tual}/", "analyst"),
     ("budget-filing-rejected", "/budgets/filings/{mcal}/", "analyst"),
     ("budget-filing-cpuc", "/budgets/filings/{tual}/?org=PGE", "cpuc_admin"),

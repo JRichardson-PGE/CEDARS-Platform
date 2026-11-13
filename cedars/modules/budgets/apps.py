@@ -36,6 +36,11 @@ class BudgetsConfig(AppConfig):
         register_example_checker(  # a specification version's example files are checked as a filing is
             "budgets", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE
         )
+        from cedars.services.specifications.moving import register_filing_set
+
+        register_filing_set(  # a filing set moved to another specification version: its open versions checked again
+            "budgets", recheck=example_checks.recheck, accs=example_checks.setup_accs
+        )
         from cedars.services.specifications.impact import register_impact_checker
 
         register_impact_checker(  # the impact test checks confirmed filings' records under a draft version

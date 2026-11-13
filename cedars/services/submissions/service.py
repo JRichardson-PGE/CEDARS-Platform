@@ -674,10 +674,21 @@ def deadline_fields(deadline: Deadline) -> dict:
 
 @transaction.atomic
 def add_deadline(
-    actor, *, module: str, kind: str, due_at, period=None, cycle=None, opens_at=None, notes: str = "", name: str = ""
+    actor,
+    *,
+    module: str,
+    kind: str,
+    due_at,
+    period=None,
+    cycle=None,
+    opens_at=None,
+    notes: str = "",
+    name: str = "",
+    specification_version=None,
 ) -> Deadline:
     """Put a deadline on the filing calendar. The modules call it as a CPUC system administrator sets up a claim year, a year of
-    monthly reports or a budget filing, so the calendar fills from those set-ups; on the calendar it is then changed, not added."""
+    monthly reports or a budget filing, so the calendar fills from those set-ups; on the calendar it is then changed, not added.
+    `specification_version`: the version the set-up chose (specifications.moving.choices); blank, the module's current one."""
     _calendar_admin(actor)
     name = (name or "").strip()
     if cycle is not None:
@@ -692,7 +703,7 @@ def add_deadline(
         module=module, kind=kind, name=name, period=period, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes
     )
     if not nothing_to_file(d):  # pinned to its specification's current version, which every later upload and correction uses
-        d.specification_version = specifications.for_new_deadline(module)
+        d.specification_version = specification_version or specifications.for_new_deadline(module)
         if d.specification_version is not None:
             d.save(update_fields=["specification_version"])
     after = {"module": module, "kind": kind, "due_at": due_at.isoformat(), "opens_at": _when(opens_at), "notes": notes}
@@ -704,6 +715,60 @@ def add_deadline(
         after["years"] = cycle.slug
     audit.record("deadline.created", obj=d, after=after, actor=actor)
     return d
+
+
+@transaction.atomic
+def move_specification(actor, deadlines, version, reason: str) -> list[SubmissionVersion]:
+    """Pin a filing set's deadlines to another specification version (specifications.moving.move checks it may), with a reason, each
+    audited (`deadline.specification_moved`, which tells the deadline's subscribers). Confirmed versions keep the version they were
+    checked against; each open version filed on the platform loses a calculation it had (the new version names its own engine release
+    and cost-test set) and is returned, to be checked again."""
+    _calendar_admin(actor)
+    reason = (reason or "").strip()
+    if not reason:
+        raise AccessDenied("Say why the filings move to another specification version: filers see the reason.")
+    ids = [d.pk for d in deadlines]
+    for d in Deadline.objects.select_for_update(of=("self",)).filter(pk__in=ids).select_related("specification_version"):
+        if d.specification_version_id == version.pk or nothing_to_file(d):  # a deadline that takes no filing follows no version
+            continue
+        before = {"specification": str(d.specification_version) if d.specification_version_id else None}
+        d.specification_version = version
+        d.save(update_fields=["specification_version"])
+        after = {"specification": str(version)}
+        audit.record("deadline.specification_moved", obj=d, before=before, after=after, reason=reason, actor=actor)
+    open_versions = list(
+        SubmissionVersion.objects.filter(
+            submission__deadline_id__in=ids,
+            status__in=[SubmissionVersion.Status.DRAFT, SubmissionVersion.Status.VALIDATED],
+            origin=SubmissionVersion.Origin.FILED,
+        )
+        .exclude(files=[])
+        .select_related("submission__deadline", "submission__organisation")
+        .order_by("submission__organisation__code", "submission__deadline__due_at", "number")
+    )
+    for v in open_versions:
+        if v.calculation:
+            _change(None, v, "submission.changed", f"Moved to {version}: price it again", calculation={})
+    return open_versions
+
+
+def open_versions_count(deadlines) -> int:
+    """How many versions filed on the platform for these deadlines are open (a draft or validated, not confirmed)."""
+    return SubmissionVersion.objects.filter(
+        submission__deadline__in=list(deadlines),
+        status__in=[SubmissionVersion.Status.DRAFT, SubmissionVersion.Status.VALIDATED],
+        origin=SubmissionVersion.Origin.FILED,
+    ).count()
+
+
+def filing_set_of(deadline: Deadline) -> tuple[str, list[Deadline]]:
+    """The filing set a deadline belongs to (a module set-up's deadlines, by the module's setup groups): (what it is, its deadlines in
+    due order); a deadline added by hand is a set of its own."""
+    fn = _setup_groups.get(deadline.module)
+    for what, ids, _remove in fn() if fn else []:
+        if deadline.pk in ids:
+            return what, list(Deadline.objects.filter(pk__in=list(ids)).select_related("period", "cycle").order_by("due_at", "pk"))
+    return deadline.plain_name(due=False), [deadline]
 
 
 @transaction.atomic

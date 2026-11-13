@@ -36,6 +36,7 @@ from cedars.services.notifications.service import Concern
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.specifications import moving
 from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
@@ -105,11 +106,13 @@ def set_up_year(
     allocation_version=None,
     notes: str = "",
     filers=None,
+    specification_version=None,
 ) -> YearSetup:
     """A program year's monthly reports: the year's set-up and its deadlines on the filing calendar, one per month, each opening when
     its month ends, and the 13th-month report's (closing_due: the year's final one, due with the annual claim; it opens when the year
     ends). Each month's due date is due[month] (1-12), or, with due_day instead, that day of the following month.
-    `filers` are the program administrators who file the monthly reports (submissions.set_filers; None: every PA)."""
+    `filers` are the program administrators who file the monthly reports (submissions.set_filers; None: every PA).
+    `specification_version`: the version its reports use (specifications.moving.choices; None: the current one)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up monthly reports.")
     if due is None:
@@ -127,13 +130,24 @@ def set_up_year(
     if YearSetup.objects.filter(year=year).exists():
         raise AccessDenied(f"{year}'s monthly reports are already set up.")
     _check_allocation(allocation_version)
+    problems = moving.setup_problems(specification_version, MODULE, [acc_version])
+    if problems:
+        raise AccessDenied(problems[0])
     periods = {(p.kind, p.number): p for p in registry.ensure_periods(year)}
     setup = YearSetup.objects.create(
         year=year, acc_version=acc_version, allocation_version=allocation_version, due_day=due_day, notes=notes
     )
     for m in range(1, 13):
         opens = timezone.make_aware(datetime.combine(date(*_month_after(year, m), 1), time()))
-        submissions.add_deadline(actor, module=MODULE, kind=KIND, period=periods[("month", m)], due_at=due_at(due[m]), opens_at=opens)
+        submissions.add_deadline(
+            actor,
+            module=MODULE,
+            kind=KIND,
+            period=periods[("month", m)],
+            due_at=due_at(due[m]),
+            opens_at=opens,
+            specification_version=specification_version,
+        )
     if closing_due is not None:
         opens = timezone.make_aware(datetime.combine(date(year + 1, 1, 1), time()))
         submissions.add_deadline(
@@ -1377,3 +1391,20 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     _lines, found, _records, _notes = derive(tables, organisation, deadline.period, standing(organisation, prev) if prev else None)
     found += list_problems(tables, deadline, lay=specifications.layout(version))
     return specifications.apply_checks(version, found)
+
+
+# --- moving a filing set to another specification version (specifications.moving)
+
+
+def recheck(v: SubmissionVersion) -> None:
+    """Check an open monthly report version again after its year moved to another specification version (as CEDARS)."""
+    f = report_file(v)
+    if f is None or v.locked:
+        return
+    tables = up.read_upload(storage.store("uploads").get_bytes(f["key"]), "report.zip")
+    _store_and_check(None, v, tables, {k: x for k, x in f.items() if k not in ("name", "key", "sha256", "bytes")})
+
+
+def setup_accs(deadline: Deadline) -> list[str]:
+    setup = setup_for(deadline) if deadline.period_id else None
+    return [setup.acc_version] if setup else []

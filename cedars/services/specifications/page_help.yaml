@@ -311,3 +311,34 @@ specifications/edit_table:
     - target: "#table-form"
       title: Names and guidance
       text: What a file or sheet may be called, and what filers read above the fields.
+
+specifications/move_filing_set:
+  title: Move a filing set to another specification version
+  guide:
+    - Every filing in a filing set (a claim year, a budget filing, a year of monthly reports) follows one filing specification version,
+      for every upload, check and correction. A mistake in a version that is in use is fixed by publishing the next version and moving
+      the set to it.
+    - Choose a later published version in effect to see its impact test on the set's confirmed filings, then confirm the move with the
+      reason. Open versions are checked again against the new version, and a calculation they had is void, so they are priced again.
+      Confirmed versions stay as they are, recorded against the version they were checked with. The filing calendar's subscribers are
+      told, with the reason.
+    - The version's engine release must have the ACC the set is priced on; the page says when it does not.
+  how:
+    - Choose the version and select Show its impact.
+    - Read the impact test, give the reason and confirm the move.
+  see: rules-and-lists
+  tour:
+    - target: "#move-now-h"
+      title: Now
+      text: The version the set's filings follow, and how many open versions would be checked again.
+    - target: "#move-choose-h"
+      title: Choose the version
+      text: The later published versions in effect the set can move to.
+    - target: "#impact-result"
+      title: Impact
+      text: How the set's confirmed filings would fare on the chosen version.
+      optional: true
+    - target: "#move-form"
+      title: Confirm the move
+      text: The reason filers see, and the button that moves the set.
+      optional: true

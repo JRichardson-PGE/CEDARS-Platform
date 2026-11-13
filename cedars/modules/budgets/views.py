@@ -173,6 +173,7 @@ def filing_new(request):
                 cost_test_set=d["cost_test_set"],
                 notes=d["notes"],
                 filers=setup_calendar.chosen_pas(d["filers"]),
+                specification_version=d.get("specification_version"),
             )
         except AccessDenied as e:
             messages.error(request, str(e))

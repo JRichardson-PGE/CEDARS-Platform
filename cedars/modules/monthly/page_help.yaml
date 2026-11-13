@@ -39,6 +39,9 @@ monthly/year_new:
     - A due date can be moved afterwards on the filing calendar, with a reason.
     - The year-to-date inputs are priced on the ACC chosen here for the estimates, with statewide programs allocated by the allocation
       version chosen (or the most recent confirmed one).
+    - Every filing in the set follows the filing specification version chosen here, for every upload, check and correction. The current
+      version is offered; an older one still in effect may be chosen, if its engine release has the ACC the set is priced on. The set can
+      move to a later version from its set-up page.
   how:
     - Choose the program year and the ACC, enter the thirteen due dates, then Set up the year.
   see: monthly-reports
@@ -82,6 +85,10 @@ monthly/setup:
     - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-specification"
+      title: Filing specification
+      text: The filing specification version every filing in the set follows, and a link to move the set when a later version is in effect.
+      optional: true
     - target: "#setup-filings"
       title: Filings in this set
       text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.

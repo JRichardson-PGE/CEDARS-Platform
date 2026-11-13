@@ -48,6 +48,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.specifications import moving
 from cedars.services.specifications import service as specifications
 from cedars.services.specifications.service import FieldLayout
 from cedars.services.submissions import corrections
@@ -199,11 +200,13 @@ def add_year(
     cost_test_set=None,
     sw_due: dict | None = None,
     filers=None,
+    specification_version=None,
 ) -> ClaimYear:
     """A claim year with its five deadlines (`due` = {kind: datetime} for every kind in PERIODS; `opens` optionally the same) and the
     five statewide ones before them (`sw_due` = {kind: datetime} for SW_PERIODS; a kind left out takes `default_sw_due`), priced on an
     ACC and an allocation version (or the most recent). `filers` are the program administrators who file the PAs' own claims
-    (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs."""
+    (submissions.set_filers; None: every PA); the statewide ones are filed by the statewide programs' lead PAs.
+    `specification_version`: the version its filings use (specifications.moving.choices; None: the current one)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
     existing = ClaimYear.objects.filter(year=year).first()
@@ -213,6 +216,9 @@ def add_year(
         raise AccessDenied("Choose the ACC the year's claims are priced on.")
     _check_allocation(allocation_version)
     _check_cost_tests(cost_test_set)
+    problems = moving.setup_problems(specification_version, MODULE, [acc_version])
+    if problems:
+        raise AccessDenied(problems[0])
     missing = [k for k, _ in PERIODS if not due.get(k)]
     if missing:
         raise AccessDenied(f"Give a due date for each confirmation: {', '.join(missing)}.")
@@ -223,8 +229,16 @@ def add_year(
     )
     for kind, n in PERIODS:
         period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
-        submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=due[kind], opens_at=(opens or {}).get(kind))
-    _add_sw_deadlines(actor, year, sw)
+        submissions.add_deadline(
+            actor,
+            module=MODULE,
+            kind=kind,
+            period=period,
+            due_at=due[kind],
+            opens_at=(opens or {}).get(kind),
+            specification_version=specification_version,
+        )
+    _add_sw_deadlines(actor, year, sw, specification_version)
     audit.record("claim_year.set_up", obj=cy, after=_setup_fields(cy), actor=actor)
     if filers is not None:
         submissions.set_filers(actor, periods(year), filers, "Who files, as set up")
@@ -248,10 +262,10 @@ def already_set_up(cy: ClaimYear) -> str:
     return f"{cy.year} claims are already set up. Change their dates and pricing on the year's set-up page."
 
 
-def _add_sw_deadlines(actor, year: int, sw: dict) -> None:
+def _add_sw_deadlines(actor, year: int, sw: dict, version=None) -> None:
     for kind, n in SW_PERIODS:
         period = ReportingPeriod.objects.get(kind="quarter" if n else "year", year=year, number=n)
-        submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=sw[kind])
+        submissions.add_deadline(actor, module=MODULE, kind=kind, period=period, due_at=sw[kind], specification_version=version)
 
 
 def missing_sw_deadlines(cy: ClaimYear) -> bool:
@@ -267,11 +281,13 @@ def add_sw_deadlines(actor, cy: ClaimYear, sw_due: dict | None = None) -> None:
         raise AccessDenied("Only a CPUC system administrator sets up claim years.")
     if not missing_sw_deadlines(cy):
         raise AccessDenied(f"{cy.year} claims already have their statewide deadlines.")
-    due = {d.kind: d.due_at for d in Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year)}
+    pa = list(Deadline.objects.filter(module=MODULE, kind__in=KINDS, period__year=cy.year).select_related("specification_version"))
+    due = {d.kind: d.due_at for d in pa}
+    version = next((d.specification_version for d in pa if d.specification_version_id), None)  # the year is on one version
     missing = [k for k in KINDS if k not in due]
     if missing:
         raise AccessDenied(f"{cy.year} claims have no {', '.join(missing)} deadline to put the statewide one before.")
-    _add_sw_deadlines(actor, cy.year, _sw_due(due, sw_due))
+    _add_sw_deadlines(actor, cy.year, _sw_due(due, sw_due), version)
     audit.record("claim_year.statewide_deadlines_added", obj=cy, after=_setup_fields(cy), actor=actor)
 
 
@@ -2639,3 +2655,16 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     )
     found, _notes, _label = _rule_findings(own, year, rs)
     return specifications.apply_checks(version, problems + found)
+
+
+# --- moving a filing set to another specification version (specifications.moving)
+
+
+def recheck(v: SubmissionVersion) -> None:
+    """Check an open claims version again after its claim year moved to another specification version (as CEDARS)."""
+    check(None, v)
+
+
+def setup_accs(deadline: Deadline) -> list[str]:
+    cy = ClaimYear.objects.filter(year=deadline.period.year).first() if deadline.period_id else None
+    return [cy.acc_version] if cy else []

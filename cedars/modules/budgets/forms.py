@@ -60,6 +60,9 @@ class FilingForm(forms.Form):
         self.fields["allocation_version"].queryset = _allocations()
         self.fields["cost_test_set"].queryset = _cost_test_sets()
         notes = self.fields.pop("notes")
+        version = setup_calendar.specification_field("budgets")
+        if version is not None:
+            self.fields["specification_version"] = version
         self.fields["filers"] = setup_calendar.filers_field()  # who files it (Jake, 2026-11-09: not every PA files every filing)
         self.fields["notes"] = notes
         self.fields["first_year"].initial = timezone.localdate().year + 1

@@ -63,6 +63,9 @@ class YearForm(forms.Form):
             self.fields[due_field(kind)] = forms.DateField(label=f"{kind}: due", widget=forms.DateInput(attrs={"type": "date"}))
         sw_date_fields(self)
         self.fields["filers"] = setup_calendar.filers_field()  # who files (Jake, 2026-11-09: not every PA files every filing)
+        version = setup_calendar.specification_field("claims")
+        if version is not None:
+            self.fields["specification_version"] = version
 
     def due_fields(self):
         return [self[due_field(kind)] for kind, _ in PERIODS]

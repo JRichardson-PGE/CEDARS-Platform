@@ -1,0 +1,42 @@
+{# An impact test's report (specifications.impact.report_for): `report`, and `against` naming the version tested, e.g. "the draft". #}
+  <p id="impact-summary">{{ report.records|floatformat:"0g" }} record{{ report.records|pluralize }} in {{ report.filings|length }} filing{{ report.filings|pluralize }}:
+  <strong>{{ report.newly_rejected|floatformat:"0g" }}</strong> would newly be rejected, <strong>{{ report.newly_warned|floatformat:"0g" }}</strong> would newly be
+  warned, and {{ report.cleared|floatformat:"0g" }} rejected before would pass.</p>
+  <h3 id="impact-filings-h">By program administrator</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="impact-filings-h">
+  <table class="list" id="impact-filings">
+    <caption class="sr-only">Each filing tested: records rejected and warned under its own version and under {{ against }}</caption>
+    <thead><tr><th scope="col">PA</th><th scope="col">Filing tested</th><th scope="col">Checked with</th><th scope="col">Records</th>
+      <th scope="col">Rejected before, now</th><th scope="col">Warned before, now</th><th scope="col">Newly rejected</th><th scope="col">Newly warned</th>
+      <th scope="col">No longer rejected</th></tr></thead>
+    <tbody>{% for f in report.filings %}<tr>
+      <th scope="row">{{ f.pa }}</th><td>{{ f.filing }}, version {{ f.number }}{% if f.note %}<br><span class="small">{{ f.note }}</span>{% endif %}</td>
+      <td>{{ f.checked_with }}</td><td>{{ f.records|floatformat:"0g" }}</td>
+      <td>{{ f.before.rejected|floatformat:"0g" }}, {{ f.after.rejected|floatformat:"0g" }}</td><td>{{ f.before.warned|floatformat:"0g" }}, {{ f.after.warned|floatformat:"0g" }}</td>
+      <td>{% if f.newly_rejected %}<strong>{{ f.newly_rejected|floatformat:"0g" }}</strong>{% else %}0{% endif %}</td>
+      <td>{{ f.newly_warned|floatformat:"0g" }}</td><td>{{ f.cleared|floatformat:"0g" }}</td></tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  <h3 id="impact-rules-h">By rule</h3>
+  {% if report.rules %}
+  <p>The findings under {{ against }} that these filings did not have, with how many records each rule finds and a few of them.</p>
+  <div class="hscroll" tabindex="0" role="region" aria-labelledby="impact-rules-h">
+  <table class="list" id="impact-rules">
+    <caption class="sr-only">New findings under {{ against }}, by rule</caption>
+    <thead><tr><th scope="col">Check or rule</th><th scope="col">Severity</th><th scope="col">Table and field</th><th scope="col">Records</th>
+      <th scope="col">By PA</th><th scope="col">For example</th></tr></thead>
+    <tbody>{% for r in report.rules %}<tr>
+      <th scope="row">{{ r.rule_id }}</th><td>{% if r.severity == "reject" %}Rejects the record{% else %}Warning{% endif %}</td>
+      <td>{{ r.table }}{% if r.field %}.{{ r.field }}{% endif %}</td><td>{{ r.records|floatformat:"0g" }}</td>
+      <td>{% for pa, n in r.by_pa.items %}{{ pa }} {{ n|floatformat:"0g" }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+      <td><ul class="compact">{% for x in r.examples %}<li>{{ x.pa }} line {{ x.row }}{% if x.record_id %} ({{ x.record_id }}){% endif %}: {{ x.message }}</li>{% endfor %}</ul></td>
+    </tr>{% endfor %}</tbody>
+  </table>
+  </div>
+  {% else %}<p>None: {{ against }} finds nothing these filings did not already have.</p>{% endif %}
+  <h3 id="impact-fields-h">Required fields the filings lack</h3>
+  {% if report.fields %}
+  <ul class="compact" id="impact-fields">{% for f in report.fields %}<li>{{ f.field }}:
+    {% if f.absent %}not in {% for pa in f.absent %}{{ pa }}{% if not forloop.last %}, {% endif %}{% endfor %}'s file{{ f.absent|pluralize }}{% if f.blank %}; {% endif %}{% endif %}
+    {% if f.blank %}blank in {% for pa, n in f.blank.items %}{{ n|floatformat:"0g" }} of {{ pa }}'s records{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}.</li>{% endfor %}</ul>
+  {% else %}<p>None: every filing has every required field, filled in.</p>{% endif %}
