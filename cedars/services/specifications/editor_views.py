@@ -134,11 +134,39 @@ def edit_checks(request, code: str, slug: str):
     v, away = _editable(request, code, slug)
     if away:
         return away
-    labels = service.check_group_labels()
-    groups: dict[str, list] = {}
-    for c in v.checks.all():
-        groups.setdefault(c.group, []).append(c)
-    return _page(request, "edit_checks.html", v, "edit_checks", groups=[(g, labels.get(g, g), cs) for g, cs in groups.items()])
+    groups = editor.check_rows(v)
+    form = forms.ReasonForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        choosing = [r.check for _g, _l, rows in groups for r in rows]
+        severities = {c.rule_id: request.POST.get(f"severity-{c.rule_id}", "") for c in choosing if c.severities}
+        try:
+            editor.set_checks(
+                request.user,
+                v,
+                runs=[i for i in request.POST.getlist("run") if i],
+                severities={k: s for k, s in severities.items() if s},
+                reason=form.cleaned_data["reason"],
+            )
+        except (AccessDenied, editor.EditError) as e:
+            form.add_error(None, str(e))
+        else:
+            messages.success(request, "Saved the built-in checks.")
+            return redirect("specifications:edit_checks", v.specification.code, v.slug)
+    posted = set(request.POST.getlist("run")) if request.method == "POST" else None
+    shown = [
+        (g, label, [_CheckShown(r, r.runs if posted is None else (r.check.rule_id in posted or not r.check.optional),
+                                request.POST.get(f"severity-{r.check.rule_id}") or r.severity) for r in rows])
+        for g, label, rows in groups
+    ]  # fmt: skip
+    choosable = any(r.check.optional or r.check.severities for _g, _l, rows in groups for r in rows)
+    return _page(request, "edit_checks.html", v, "edit_checks", groups=shown, form=form, choosable=choosable)
+
+
+class _CheckShown:
+    """A check's row on the Built-in checks page, with what the form shows (what was posted, when a post is shown again)."""
+
+    def __init__(self, row, runs: bool, severity: str):
+        self.check, self.setting, self.runs, self.severity = row.check, row.setting, runs, severity
 
 
 @login_required

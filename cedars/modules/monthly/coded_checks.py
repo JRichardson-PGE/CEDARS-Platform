@@ -2,6 +2,7 @@
 service.py: tests/test_coded_checks.py compares them."""
 
 from cedars.services.rules.coded import CodedCheck as C
+from cedars.services.rules.coded import choosable
 
 ABOUT = (
     "Run on every monthly report upload: the programs, the report's PA, month and year, the numbers, and the year to date against "
@@ -29,3 +30,9 @@ CHECKS = [
       "A program's spend year to date is below the previous month's report, or a program with spend last month is missing.",
       "Check the program's ProgramCost row and measures: the BCA inputs are the year to date, so spend should not fall."),
 ]  # fmt: skip
+
+# The checks a specification version may leave out or make a warning or a reject:
+# the warnings about program costs and year-to-date spend.
+# The others are CEDARS' own processing and always run.
+CHOOSABLE = {"MON-YTD", "MON-NOCOST"}
+CHECKS = [choosable(c) if c.rule_id in CHOOSABLE else c for c in CHECKS]

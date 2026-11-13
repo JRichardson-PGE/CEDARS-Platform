@@ -578,7 +578,7 @@ def _store_and_check(
         found, notes, rule_set, rechecked = rescope
     else:
         found, notes, rule_set = _rule_findings(tables, cycle, rs)
-    problems += found
+    problems = specifications.apply_checks_for_filing(v.submission.deadline, problems + found)  # built-in checks as its version has them
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
     folder = f"{_prefix(v)}{sha[:12]}/"

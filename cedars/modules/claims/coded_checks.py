@@ -2,6 +2,7 @@
 tests/test_coded_checks.py compares them."""
 
 from cedars.services.rules.coded import CodedCheck as C
+from cedars.services.rules.coded import choosable
 
 ABOUT = (
     "Run on every claims upload beside the claims rule set (which covers Measure and ProgramCost): the template's columns and types for "
@@ -70,3 +71,9 @@ CHECKS = [
       "The claims rule set in force could not be applied, so the version cannot be called valid.",
       "Tell the CPUC's CEDARS support; the file may be fine."),
 ]  # fmt: skip
+
+# The checks a specification version may leave out or make a warning or a reject:
+# CEDARS' data rules on the Claim and Site tables.
+# The others are CEDARS' own processing and always run.
+CHOOSABLE = {"CLM-SITE", "CLM-SEM", "CLM-FUELSUB", "CLM-PAYMENT", "CLM-NMEC", "CLM-CCAREN", "CLM-DEEMED"}
+CHECKS = [choosable(c) if c.rule_id in CHOOSABLE else c for c in CHECKS]

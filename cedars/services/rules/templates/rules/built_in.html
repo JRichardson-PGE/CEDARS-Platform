@@ -5,7 +5,9 @@
 <div class="page-title"><h1>Built-in checks</h1>{% page_help "rules/built_in" %}</div>
 <p>Besides the published rule sets, each filing meets checks written in the platform's code. They need what a rule set cannot see: the
 program registry, the filing's cycle or month, the filing's other tables, earlier confirmations and eTRM. They are listed here to read;
-they change only with a release of the platform, which its release notes announce.</p>
+they change only with a release of the platform, which its release notes announce. A filing runs them as its <a href="{% url 'specifications:index' %}">filing
+specification</a> version lists them: a check marked "a version may leave it out" runs only when the version lists it, with the severity
+the version gives it; every other check always runs.</p>
 <form method="get" class="filters" role="search">
   <div class="field"><label for="q">Rule, field or words</label><input type="search" id="q" name="q" value="{{ q }}"></div>
   <div class="field"><label for="severity">Severity</label><select id="severity" name="severity"><option value="">All</option><option value="reject"{% if severity == "reject" %} selected{% endif %}>Rejects the record</option><option value="warning"{% if severity == "warning" %} selected{% endif %}>Warning</option></select></div>
@@ -22,7 +24,7 @@ they change only with a release of the platform, which its release notes announc
     <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Table</th><th scope="col">Field</th><th scope="col">What it finds and how to fix it</th></tr></thead>
     <tbody>
     {% for c in checks %}
-    <tr id="{{ c.rule_id }}"><th scope="row">{{ c.rule_id }}</th><td>{% if c.severity == "reject" %}Rejects the record{% elif c.severity == "warning" %}Warning{% else %}Rejects the record or warns, by case{% endif %}</td><td>{{ c.tables }}</td><td>{{ c.fields }}</td>
+    <tr id="{{ c.rule_id }}"><th scope="row">{{ c.rule_id }}</th><td>{% if c.severity == "reject" %}Rejects the record{% elif c.severity == "warning" %}Warning{% else %}Rejects the record or warns, by case{% endif %}{% if c.optional %}<br><span class="small">A version may leave it out or make it a {% if c.severity == "reject" %}warning{% else %}reject{% endif %}</span>{% endif %}</td><td>{{ c.tables }}</td><td>{{ c.fields }}</td>
       <td>{{ c.finds }}<br><span class="small muted">Fix: {{ c.fix }}</span></td></tr>
     {% endfor %}
     </tbody>

@@ -2,6 +2,7 @@
 service.py: tests/test_coded_checks.py compares them."""
 
 from cedars.services.rules.coded import CodedCheck as C
+from cedars.services.rules.coded import choosable
 
 ABOUT = (
     "Run on every budget filing upload before the budget filing rule set: the programs, the cycle's years and the numbers each budget "
@@ -28,3 +29,9 @@ CHECKS = [
       "The rule set in force could not be applied to a year's rows, so the version cannot be called valid.",
       "Tell the CPUC's CEDARS support; the file may be fine."),
 ]  # fmt: skip
+
+# The checks a specification version may leave out or make a warning or a reject:
+# the warning about measures with no program costs.
+# The others are CEDARS' own processing and always run.
+CHOOSABLE = {"BUD-NOCOST"}
+CHECKS = [choosable(c) if c.rule_id in CHOOSABLE else c for c in CHECKS]

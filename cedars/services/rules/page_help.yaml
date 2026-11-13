@@ -33,6 +33,8 @@ rules/built_in:
       the filing's cycle or month, its other tables, earlier confirmations and eTRM.
     - Each check has its rule ID, as a finding on a validation report shows it, its severity, the tables and fields it looks at, what it
       finds and how to fix it. Read only; they change with a release of the platform, which its release notes announce.
+    - A filing runs them as its filing specification version lists them. Most always run; a check a version may leave out runs only
+      when the version lists it, with the severity the version gives it.
   how:
     - Filter by rule, field or words and by severity, then Apply.
   see: rules-and-lists

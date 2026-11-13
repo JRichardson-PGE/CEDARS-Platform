@@ -59,7 +59,8 @@ def test_the_page_lists_them_to_signed_in_people(client, signed_in, pge_admin):
     assert f"{total} checks." in html
     for label in ("Budget and application filings", "Claims", "Monthly reports", "Claims PII files", "Load-shape uploads"):
         assert f">{label}</h2>" in html
-    assert '<tr id="MON-YTD"><th scope="row">MON-YTD</th><td>Warning</td>' in html
+    assert '<tr id="MON-YTD"><th scope="row">MON-YTD</th><td>Warning<br>' in html
+    assert "A version may leave it out or make it a reject" in html  # optional: a specification version decides
     assert '<tr id="CLM-CHAIN"><th scope="row">CLM-CHAIN</th><td>Rejects the record or warns, by case</td>' in html
     assert reverse("rules:built_in") in client.get(reverse("rules:index")).content.decode()
 
