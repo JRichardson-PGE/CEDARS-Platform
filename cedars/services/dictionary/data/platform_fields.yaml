@@ -315,3 +315,20 @@ claims.ChangeLetter:
 monthly.ChangeLetter:
   fields:
     previous: "The version the corrected version replaces, which the letter compares it with."
+specifications.SpecTable:
+  fields:
+    replace: "How a later upload replaces the table's earlier records: record by record by its key, or all of a claim's rows as a set."
+specifications.SpecField:
+  fields:
+    requirement: "Whether the field must be filled in (required), may be blank (optional), or is filled in by CEDARS (a value uploaded is replaced)."
+    type: "The field's type, from a fixed list (text, number, whole number, flag, date, year and quarter, year and month, phone number, email address); each type has its own check."
+    unit: "The unit a number is in, e.g. kWh."
+specifications.CheckSetting:
+  fields:
+    group: "The module or service whose code runs the check: claims, the PII vault, budgets or monthly reports."
+    tables: "The tables the check looks at, in words."
+    fields: "The fields the check looks at, in words."
+    finds: "What the check finds, in the words its findings use."
+specifications.ExampleSet:
+  fields:
+    slug: "The short form of the example's name in its download addresses."

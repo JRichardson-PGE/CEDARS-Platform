@@ -9,7 +9,8 @@ Two steps, each a management command, so the two environments never reach each o
 What a bundle holds is the list SPECS, nothing else: organizations and their codes (PAs and others, not the CPUC), the program registry
 (programs, versions, cycles, periods, confirmed allocation factors and goal sets), published and withdrawn reference-data packs with
 their tie-outs and eTRM permutations (the files stay where production keeps them, read in place), the data dictionary's versions,
-published value list versions and rule sets, and the publication snapshots in force with the published filing versions they belong to
+published value list versions and rule sets, published filing specification versions, and the publication snapshots in force
+with the published filing versions they belong to
 (those versions without their uploaded files). Never people: no user, membership, grant, token, comment, notification or audit event,
 and every "by" field is left blank. Never the PII vault, which the export cannot reach (it runs in the jobs task, given no vault URL)
 and which no spec names (tests/test_sandbox_refresh.py checks both).
@@ -164,11 +165,36 @@ SPECS = [
         draft=("status", "draft"),
         children=(Child("rules.Rule", "rule_set"),),
     ),
+    Spec("specifications.Specification", ("code",)),
+    Spec(
+        "specifications.SpecificationVersion",
+        ("specification", "name"),
+        select="published_or_withdrawn",
+        fks={
+            "specification": "specifications.Specification",
+            "based_on": "specifications.SpecificationVersion",
+            "rule_set": "rules.RuleSet",
+            "cost_test_set": "refdata.PackVersion",
+        },
+        optional=("based_on", "rule_set", "cost_test_set"),
+        clear=("created_by", "published_by", "withdrawn_by"),
+        draft=("status", "draft"),
+        children=(
+            Child("specifications.SpecTable", "version", children=(Child("specifications.SpecField", "table"),)),
+            Child("specifications.CheckSetting", "version"),
+            Child("specifications.ExampleSet", "version"),
+        ),
+    ),
     Spec(
         "submissions.Deadline",
         ("module", "kind", "period", "cycle"),
         select="snapshot_deadlines",
-        fks={"period": "registry.ReportingPeriod", "cycle": "registry.FilingCycle"},
+        fks={
+            "period": "registry.ReportingPeriod",
+            "cycle": "registry.FilingCycle",
+            "specification_version": "specifications.SpecificationVersion",
+        },
+        optional=("specification_version",),
     ),
     Spec(
         "submissions.Submission",
@@ -181,8 +207,12 @@ SPECS = [
         "submissions.SubmissionVersion",
         ("submission", "number"),
         select="snapshot_versions",
-        fks={"submission": "submissions.Submission", "rule_set": "rules.RuleSet"},
-        optional=("rule_set",),
+        fks={
+            "submission": "submissions.Submission",
+            "rule_set": "rules.RuleSet",
+            "specification_version": "specifications.SpecificationVersion",
+        },
+        optional=("rule_set", "specification_version"),
         clear=("files", "calculation", "created_by", "confirmed_by"),
     ),
     Spec(
@@ -215,6 +245,10 @@ def _not_draft(qs):
     return qs.exclude(status="draft")
 
 
+def _published_or_withdrawn(qs):
+    return qs.filter(status__in=["published", "withdrawn"])
+
+
 def _standing():
     from cedars.services.snapshots import service as snapshots
     from cedars.services.snapshots.models import Dataset
@@ -243,6 +277,7 @@ SELECT = {
     "confirmed": _confirmed,
     "published": _published,
     "not_draft": _not_draft,
+    "published_or_withdrawn": _published_or_withdrawn,
     "snapshots_in_force": _snapshots_in_force,
     "snapshot_versions": _snapshot_versions,
     "snapshot_submissions": _snapshot_submissions,

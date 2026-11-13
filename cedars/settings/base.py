@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "cedars.services.registry",
     "cedars.services.dictionary",
     "cedars.services.rules",
+    "cedars.services.specifications",
     "cedars.services.submissions",
     "cedars.services.refdata",
     "cedars.services.notifications",

@@ -83,3 +83,11 @@ class ClaimsConfig(AppConfig):
         from .corrections import ClaimsEditor
 
         record_corrections.register(ClaimsEditor())  # records corrected in place on an open draft
+
+        from cedars.services.specifications.service import register_layout
+
+        from . import specification
+
+        register_layout(
+            "claims", module="claims", make=specification.layout, check_groups=("claims", "vault")
+        )  # the starting specification

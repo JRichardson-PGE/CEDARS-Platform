@@ -40,6 +40,14 @@ class Deadline(models.Model):
         help_text="The program administrators expected to file for it, which a CPUC system administrator sets on the set-up page "
         "(none listed: every PA)",
     )
+    specification_version = models.ForeignKey(
+        "specifications.SpecificationVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="deadlines",
+        help_text="The filing specification version its filings use, pinned when it is put on the calendar (blank: none)",
+    )
 
     objects = DeadlineQuerySet.as_manager()
 
@@ -161,6 +169,14 @@ class SubmissionVersion(models.Model):
     reason = models.TextField(blank=True, help_text="Why this version exists (every version after the first has one)")
     files = models.JSONField(default=list, blank=True, help_text="[{name, key, sha256, bytes}] in object storage")
     rule_set = models.ForeignKey("rules.RuleSet", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    specification_version = models.ForeignKey(
+        "specifications.SpecificationVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="The filing specification version it was last checked against",
+    )
     findings = models.JSONField(default=dict, blank=True, help_text="The latest validation's summary: records, rejects, warnings")
     pack_versions = models.JSONField(default=dict, blank=True, help_text="Reference data the version was priced with")
     calculation = models.JSONField(default=dict, blank=True, help_text="The run it was priced with: {run, input_hash, finished_at}")

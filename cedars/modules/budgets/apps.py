@@ -79,3 +79,11 @@ class BudgetsConfig(AppConfig):
         from .corrections import BudgetsEditor
 
         record_corrections.register(BudgetsEditor())  # records corrected in place on an open draft
+
+        from cedars.services.specifications.service import register_layout
+
+        from . import specification
+
+        register_layout(
+            "budget_filing", module="budgets", make=specification.layout, check_groups=("budgets",)
+        )  # the starting specification
