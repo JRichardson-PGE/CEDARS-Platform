@@ -24,6 +24,9 @@ class CalculationsConfig(AppConfig):
         from cedars.services.submissions.service import register_pricer, register_restater, register_run_state
 
         register_pricer(service.price_submission)  # filing modules price their versions through the submissions service
+        from cedars.services.specifications.editor import register_engine_releases
+
+        register_engine_releases(service.release_list)  # a specification version names one of the active releases
         register_run_state(service.run_state)  # and show whether that run still runs, or ended without pricing them
         from cedars.services.submissions.service import register_run_walkthrough
 

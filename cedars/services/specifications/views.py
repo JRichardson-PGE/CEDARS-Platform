@@ -7,10 +7,11 @@ import json
 
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from cedars.core import nav
 
-from . import downloads, service
+from . import downloads, editor, forms, service
 from .models import Specification, SpecificationVersion
 
 
@@ -30,9 +31,11 @@ def index(request):
     for s in Specification.objects.all():
         current = service.current(s)
         versions = service.readable_versions(request.user, s)
-        specs.append({"spec": s, "current": current, "versions": [(v, len(service.in_use(v))) for v in versions]})
+        specs.append(
+            {"spec": s, "current": current, "coming": service.coming(s), "versions": [(v, len(service.in_use(v))) for v in versions]}
+        )
     nav_menu = "filings" if "member" in nav.roles_of(request.user) else "published"
-    return render(request, "specifications/index.html", {"specs": specs, "nav_menu": nav_menu})
+    return render(request, "specifications/index.html", {"specs": specs, "nav_menu": nav_menu, "manage": editor.can_manage(request.user)})
 
 
 def current(request, code: str):
@@ -56,6 +59,7 @@ def version(request, code: str, slug: str):
         checks.setdefault(c.group, []).append(c)
     checks = [(g, labels.get(g, g), cs) for g, cs in checks.items()]
     current_version = service.current(v.specification)
+    manage = editor.can_manage(request.user)
     return render(
         request,
         "specifications/version.html",
@@ -69,6 +73,10 @@ def version(request, code: str, slug: str):
             "others": [o for o in service.readable_versions(request.user, v.specification) if o.pk != v.pk],
             "has_vault": any(x["t"].vault for x in tables),
             "rule_count": sum(len(x["rules"]) for t in tables for x in t["fields"]) + sum(len(t["rules"]) for t in tables),
+            "manage": manage,
+            "draft": editor.draft_of(v.specification) if manage else None,
+            "start_form": forms.StartDraftForm(auto_id="start_%s") if manage else None,
+            "coming": v.status == "published" and v.effective_on is not None and v.effective_on > timezone.localdate(),
         },
     )
 

@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}Built-in checks: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_checks" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p id="draft-checks">Checks written in CEDARS' code that a filing on this version meets beside its rules, because they need what a rule
+cannot see: the program registry, earlier confirmed quarters, the filing's other tables, eTRM.</p>
+{% for group, label, list in groups %}
+<h2 id="checks-{{ group }}">{{ label }}</h2>
+<div class="hscroll" tabindex="0" role="region" aria-label="{{ label }}: built-in checks">
+<table class="list">
+  <caption class="sr-only">{{ label }}: built-in checks</caption>
+  <thead><tr><th scope="col">Check</th><th scope="col">Severity</th><th scope="col">What it finds</th></tr></thead>
+  <tbody>{% for c in list %}<tr id="check-{{ c.rule_id }}"><th scope="row">{{ c.rule_id }}</th><td>{% if c.severity == "reject" %}Rejects the record{% elif c.severity == "warning" %}Warning{% else %}Rejects the record or warns, by case{% endif %}</td><td>{{ c.finds }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% empty %}<p>No built-in checks.</p>
+{% endfor %}
+{% endblock %}

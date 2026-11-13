@@ -33,10 +33,18 @@ upload page links the version under "Before you upload", and its findings name t
 </ol>
 <h2>For the CPUC staff who keep them</h2>
 <ul class="links">
-  <li>Rules change without a code change. Start a new version of a published rule set with its effective date and reason, then add,
-  change or take out rules in the draft and publish it. A changed test gives a rule a new ID that names the rule it replaces.</li>
-  <li><a href="{% url 'rules:differences' %}">Compare two rule sets</a> before a new version takes effect, and announce it in a
-  <a href="{% url 'releases:index' %}">release note</a>.</li>
+  <li id="editing-specifications">Specifications change without a code change. On a published version's page, start a new version
+  from it: a draft copy with a copy of its rules. The draft has a page for each part: its settings (name, summary, the engine release
+  and cost-test set that price its filings), its tables and fields (add a field from the data dictionary or a new one, change a field's
+  requirement, type, value list and wording, or remove it), its rules, its built-in checks, what changes from the version it was copied
+  from, and Publish. A locked field, one the engine or CEDARS' own processing reads, stays with its type, and a required one stays
+  required. There is one draft per specification at a time.</li>
+  <li>Publishing checks the draft first, then freezes it, publishes its rules with it and publishes a release note. It takes effect at
+  least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
+  and filings already set up keep theirs.</li>
+  <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
+  Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
+  two rule sets</a> to see what changes.</li>
   <li>A value list's draft starts as a copy of its newest version. Add codes, retire a code by giving its last claim year, or reinstate
   it by clearing that year; many codes at once from a CSV.</li>
   <li>A field in the <a href="{% url 'dictionary:index' %}">data dictionary</a> is retired, never deleted, after usage, audience and

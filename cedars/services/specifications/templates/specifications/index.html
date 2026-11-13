@@ -20,8 +20,8 @@ and corrections use that version, whenever they are made. Several versions can b
     <tbody>
     {% for v, used in s.versions %}
     <tr><th scope="row"><a href="{% url 'specifications:version' s.spec.code v.slug %}">{{ v.name }}</a></th>
-      <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if s.current and v.pk == s.current.pk %} <strong>(current)</strong>{% endif %}</td>
-      <td>{{ v.published_at|date_words|default:"-" }}</td><td>{{ used }}</td></tr>
+      <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if s.current and v.pk == s.current.pk %} <strong>(current)</strong>{% elif v in s.coming %} <strong>(coming)</strong>{% endif %}{% if v.status == "draft" and manage %} <a href="{% url 'specifications:edit' s.spec.code v.slug %}">Edit the draft</a>{% endif %}</td>
+      <td>{{ v.published_at|date_words|default:"-" }}{% if v.effective_on %}<br><span class="small">Takes effect {{ v.effective_on|date_words }}</span>{% endif %}</td><td>{{ used }}</td></tr>
     {% empty %}<tr><td colspan="4">No published version yet.</td></tr>
     {% endfor %}
     </tbody>

@@ -15,3 +15,8 @@ class VaultConfig(AppConfig):
         from . import coded_checks
 
         register_coded_checks("vault", "Claims PII files", coded_checks.ABOUT, coded_checks.CHECKS, order=4)
+        from cedars.services.specifications.editor import register_locked_fields
+
+        from . import locked_fields
+
+        register_locked_fields("claims", locked_fields.LOCKED)  # a claims specification draft keeps the fields the vault reads

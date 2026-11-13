@@ -1,0 +1,37 @@
+{% extends "core/base.html" %}
+{% block title %}Tables and fields: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_fields" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p>Change a field's requirement, type, value list and wording, add fields from the data dictionary or new ones, or remove fields.
+A <strong>locked</strong> field is one the engine or CEDARS' own processing reads: it stays in the version with its type, and a required
+one stays required. {% if not engine %}The engine is not installed here, so the fields it reads are not marked; they are checked where it is.{% endif %}</p>
+<nav aria-labelledby="draft-tables-h" class="contents">
+  <h2 id="draft-tables-h">Tables</h2>
+  <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}</ul>
+</nav>
+{% for x in tables %}
+<section aria-labelledby="table-{{ x.t.name }}" class="spec-table">
+  <h2 id="table-{{ x.t.name }}">{{ x.t.name }}</h2>
+  <p>{% if x.t.keys %}A record is identified by {{ x.t.keys|join:" and " }}.{% endif %}
+    {% if x.t.other_names %}Also accepted as {{ x.t.other_names|join:", " }}.{% endif %} {{ x.t.guidance }}</p>
+  <p class="actions"><a class="button" href="{% url 'specifications:add_field' v.specification.code v.slug x.t.name %}">Add a field to {{ x.t.name }}</a>
+    <a class="button" href="{% url 'specifications:edit_table' v.specification.code v.slug x.t.name %}">Change the {{ x.t.name }} table's names and guidance</a></p>
+  <div class="hscroll" tabindex="0" role="region" aria-label="{{ x.t.name }}: fields">
+  <table class="list spec-fields">
+    <caption class="sr-only">{{ x.t.name }}: fields, in template order</caption>
+    <thead><tr><th scope="col">Field</th><th scope="col">Requirement</th><th scope="col">Type</th><th scope="col">Value list</th><th scope="col">Locked</th><th scope="col"><span class="sr-only">Change</span></th></tr></thead>
+    <tbody>
+    {% for row in x.fields %}{% with f=row.f %}
+    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
+      <td>{{ f.get_requirement_display }}</td><td>{{ f.type_words }}</td><td>{{ f.value_list|default:"-" }}</td>
+      <td>{% if row.lock %}Locked<br><span class="small">{{ row.lock }}</span>{% else %}No{% endif %}</td>
+      <td><a href="{% url 'specifications:edit_field' v.specification.code v.slug x.t.name f.name %}" aria-label="Change {{ x.t.name }}.{{ f.name }}">Change</a></td></tr>
+    {% endwith %}{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

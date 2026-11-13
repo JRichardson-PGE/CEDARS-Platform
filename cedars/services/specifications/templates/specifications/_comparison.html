@@ -1,0 +1,32 @@
+{% if result.empty %}<p>The two versions say the same.</p>{% else %}
+{% if result.tables_added or result.tables_removed %}
+<section aria-labelledby="tables-h"><h3 id="tables-h">Tables</h3><ul>
+  {% for t in result.tables_added %}<li>Added: {{ t.name }} ({{ t.fields.count }} fields)</li>{% endfor %}
+  {% for t in result.tables_removed %}<li>Removed: {{ t.name }}</li>{% endfor %}</ul></section>{% endif %}
+{% if result.fields_added or result.fields_removed or result.fields_changed %}
+<section aria-labelledby="fields-h"><h3 id="fields-h">Fields</h3>
+  <div class="hscroll" tabindex="0" role="region" aria-label="Fields that change">
+  <table class="list"><caption class="sr-only">Fields added, removed and changed</caption>
+    <thead><tr><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Change</th></tr></thead>
+    <tbody>
+    {% for table, f in result.fields_added %}<tr><td>{{ table }}</td><th scope="row">{{ f.name }}</th><td>Added: {{ f.get_requirement_display|lower }}, {{ f.type_words|lower }}</td></tr>{% endfor %}
+    {% for table, f in result.fields_removed %}<tr><td>{{ table }}</td><th scope="row">{{ f.name }}</th><td>Removed</td></tr>{% endfor %}
+    {% for table, name, diffs in result.fields_changed %}<tr><td>{{ table }}</td><th scope="row">{{ name }}</th><td><ul class="compact">{% for what, old, new in diffs %}<li>{{ what }}: {{ old|default:"(blank)"|truncatechars:120 }} to {{ new|default:"(blank)"|truncatechars:120 }}</li>{% endfor %}</ul></td></tr>{% endfor %}
+    </tbody></table></div></section>{% endif %}
+{% if result.rules_added or result.rules_removed or result.rules_changed %}
+<section aria-labelledby="rules-h"><h3 id="rules-h">Rules</h3><ul>
+  {% for r in result.rules_added %}<li>Added ({{ r.table }} {{ r.field }}, {{ r.get_severity_display|lower }}): {{ r.message }}</li>{% endfor %}
+  {% for r in result.rules_removed %}<li>Removed ({{ r.table }} {{ r.field }}): {{ r.message }}</li>{% endfor %}
+  {% for old, new in result.rules_changed %}<li>Changed ({{ new.table }} {{ new.field }}): {{ old.message }} ({{ old.get_severity_display|lower }}) to {{ new.message }} ({{ new.get_severity_display|lower }})</li>{% endfor %}
+</ul></section>{% endif %}
+{% if result.checks_added or result.checks_removed or result.checks_changed %}
+<section aria-labelledby="checks-h"><h3 id="checks-h">Built-in checks</h3><ul>
+  {% for c in result.checks_added %}<li>Added: {{ c.rule_id }}, {{ c.finds }}</li>{% endfor %}
+  {% for c in result.checks_removed %}<li>Removed: {{ c.rule_id }}</li>{% endfor %}
+  {% for old, new in result.checks_changed %}<li>Changed: {{ new.rule_id }}, {{ new.finds }}</li>{% endfor %}
+</ul></section>{% endif %}
+{% if result.settings_changed %}
+<section aria-labelledby="settings-h"><h3 id="settings-h">Settings</h3><ul>
+  {% for what, old, new in result.settings_changed %}<li>{{ what }}: {{ old|default:"(blank)" }} to {{ new|default:"(blank)" }}</li>{% endfor %}
+</ul></section>{% endif %}
+{% endif %}

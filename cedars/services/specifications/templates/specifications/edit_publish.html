@@ -1,0 +1,35 @@
+{% extends "core/base.html" %}
+{% block title %}Publish: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_publish" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<section aria-labelledby="checks-h">
+  <h2 id="checks-h">Checks before publishing</h2>
+  {% if problems %}
+  <p>Settle these first:</p>
+  <ul id="publish-problems">{% for p in problems %}<li><span class="status bad">To settle</span> {{ p.text }}
+    {% if p.part == "settings" %}<a href="{% url 'specifications:edit_settings' v.specification.code v.slug %}">Settings</a>{% elif p.part == "fields" %}<a href="{% url 'specifications:edit' v.specification.code v.slug %}">Tables and fields</a>{% elif p.part == "rules" %}<a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a>{% elif p.part == "changes" %}<a href="{% url 'specifications:edit_changes' v.specification.code v.slug %}">Changes</a>{% endif %}</li>{% endfor %}</ul>
+  {% else %}
+  <p id="publish-problems"><span class="status ok">Passed</span> The tables, fields and settings are consistent, every locked field is
+  kept, and the version changes something from the one it was copied from.</p>
+  {% endif %}
+</section>
+<section aria-labelledby="publish-h" class="card">
+  <h2 id="publish-h">Publish this version</h2>
+  <p>Publishing freezes the version for good, publishes its rules with it and publishes a release note. Filing sets set up from the day
+  it takes effect use it; filings already set up keep their version, for every later upload and correction. The usual notice is
+  {{ notice_days }} days: the earliest day without a reason is {{ earliest|date_words }}.</p>
+  <form method="post" class="stack form-narrow" novalidate id="publish-form">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit" class="primary"{% if problems %} aria-disabled="true"{% endif %}>Publish {{ v.name }}</button></div>
+  </form>
+</section>
+<details id="discard"><summary>Discard this draft</summary>
+  <form method="post" action="{% url 'specifications:discard' v.specification.code v.slug %}" class="row-form">{% csrf_token %}
+    <div class="field"><label for="discard-reason">Why</label><input type="text" id="discard-reason" name="reason" required maxlength="500"></div>
+    <button type="submit">Discard the draft and its rules</button>
+  </form>
+</details>
+{% endblock %}

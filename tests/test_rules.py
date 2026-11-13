@@ -276,10 +276,13 @@ def test_rule_admin_pages(client, signed_in, cpuc_admin, pge_admin, published_cl
     assert 'id="version-h"' not in client.get(f"/rules/{published_claims.pk}/").content.decode()
     assert signed_in(pge_admin).get(f"/rules/{published_claims.pk}/add/").status_code == 403
     c = signed_in(cpuc_admin)
-    assert 'id="version-h"' in c.get(f"/rules/{published_claims.pk}/").content.decode()
-    r = c.post(f"/rules/{published_claims.pk}/new-version", {"effective_from": "2027-01-01", "reason": "D.26-01-001"})
-    new = RuleSet.objects.get(code="claims", status="draft")
-    assert r.url == f"/rules/{new.pk}/"
+    page = c.get(f"/rules/{published_claims.pk}/").content.decode()
+    # the claims rules change with a version of the claims specification, started from its page, not on their own date
+    assert 'id="version-h"' in page and "/specifications/claims/current/" in page
+    c.post(f"/rules/{published_claims.pk}/new-version", {"effective_from": "2027-01-01", "reason": "D.26-01-001"})
+    assert not RuleSet.objects.filter(code="claims", status="draft").exists()
+    # a draft made in the library itself (not a specification's) is still changed and published here
+    new = service.new_version(cpuc_admin, published_claims, date(2027, 1, 1), "D.26-01-001")
     page = c.get(f"/rules/{new.pk}/").content.decode()
     assert 'id="draft-h"' in page and "What this version changes" in page
     assert "Add a rule" in c.get(f"/rules/{new.pk}/add/").content.decode()

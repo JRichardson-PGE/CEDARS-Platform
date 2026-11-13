@@ -55,6 +55,55 @@ def type_words(f) -> str:
     return words
 
 
+_DATE = (re.compile(r"^\d{4}-\d{2}-\d{2}$"), re.compile(r"^\d{1,2}/\d{1,2}/\d{4}$"))
+
+
+def value_problem(f, value) -> str:
+    """Why `value` does not fit field `f`'s type and size ("" = it does): the field type's own check, as a filing's is."""
+    from datetime import datetime
+    from decimal import Decimal, InvalidOperation
+
+    get = f.get if isinstance(f, dict) else lambda k, d=None: getattr(f, k, d)
+    kind, text = get("type"), str(value).strip()
+    if text == "":
+        return ""
+    if kind in ("text", "phone", "email") and get("max_length") and len(text) > get("max_length"):
+        return f"it is longer than {get('max_length')} characters."
+    if kind in ("number", "integer"):
+        try:
+            n = Decimal(text.replace(",", ""))
+        except InvalidOperation:
+            return "it is not a number."
+        if not n.is_finite():
+            return "it is not a number."
+        if kind == "integer" and n != n.to_integral_value():
+            return "it is not a whole number."
+        decimals = get("decimals")
+        if kind == "number" and decimals is not None and max(0, -n.normalize().as_tuple().exponent) > decimals:
+            return f"it has more than {decimals} decimal places."
+        return ""
+    if kind == "flag":
+        return "" if text.lower() in ("0", "1", "true", "false") else "it is not 0 or 1 (or True or False)."
+    if kind == "date":
+        for pattern, fmt in zip(_DATE, ("%Y-%m-%d", "%m/%d/%Y"), strict=True):
+            if pattern.match(text):
+                try:
+                    datetime.strptime(text, fmt)
+                    return ""
+                except ValueError:
+                    return "it is not a date."
+        return "it is not a date (YYYY-MM-DD or MM/DD/YYYY)."
+    if kind == "year_quarter":
+        return "" if re.fullmatch(r"\d{4}Q[1-4]", text, re.I) else "it is not a year and quarter, such as 2027Q1."
+    if kind == "year_month":
+        return "" if re.fullmatch(r"\d{4}(0[1-9]|1[0-2])", text) else "it is not a year and month, as YYYYMM."
+    if kind == "phone":
+        return "" if text.isdigit() else "a phone number is digits only."
+    if kind == "email":
+        return "" if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", text) else "it is not an email address."
+    return ""
+
+
 # --- version documents
 
 
@@ -252,10 +301,30 @@ def get(code: str):
     return Specification.objects.filter(code=code).first()
 
 
-def current(specification):
-    """The specification's current version: the newest published one (None before any is)."""
+def _in_effect(qs, on=None):
+    from django.utils import timezone
+
+    on = on or timezone.localdate()
+    return qs.filter(Q(effective_on__isnull=True) | Q(effective_on__lte=on))
+
+
+def current(specification, on=None):
+    """The specification's current version: the newest published one in effect (`effective_on` passed, or blank), which new filing
+    sets are set up with; None before any is."""
     _, Version = _models()
-    return Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED).order_by("-published_at", "-pk").first()
+    qs = Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED)
+    return _in_effect(qs, on).order_by("-published_at", "-pk").first()
+
+
+def coming(specification, on=None) -> list:
+    """Published versions that take effect after today (`on`), soonest first: announced, not yet used for new filing sets."""
+    from django.utils import timezone
+
+    _, Version = _models()
+    on = on or timezone.localdate()
+    return list(
+        Version.objects.filter(specification=specification, status=Version.Status.PUBLISHED, effective_on__gt=on).order_by("effective_on")
+    )
 
 
 def for_module(module: str):

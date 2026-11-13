@@ -68,3 +68,150 @@ specifications/compare:
       title: What changes
       text: Tables, fields, rules, built-in checks and settings that are added, removed or changed.
       optional: true
+
+specifications/edit_fields:
+  title: A draft's tables and fields
+  guide:
+    - The tables of a draft specification version and their fields, in template order, with each field's requirement, type, value list
+      and whether it is locked. Nothing here is used by a filing until the draft is published.
+    - A locked field is one the engine reads to price a record or CEDARS' own processing reads (a key, a program ID, a year and
+      quarter, a link to the PII vault). It stays in the version with its type, and a required one stays required; its wording, example
+      and other accepted names can change.
+  how:
+    - Add a field to a table from the data dictionary, or a new one with its definition.
+    - Select Change beside a field to change its requirement, type, value list, wording or place, or to remove it.
+    - Change a table's other accepted names and the guidance shown above its fields.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-status"
+      title: The draft
+      text: What it was copied from, and how many things are left to settle before it can be published.
+    - target: main nav.subnav
+      title: Parts of the draft
+      text: A page for each part of the draft, from its settings to Publish.
+    - target: main section.spec-table
+      title: A table and its fields
+      text: Each field's requirement, type, value list and lock. Add a field, or change one from its row.
+
+specifications/edit_settings:
+  title: A draft's settings
+  guide:
+    - The draft's name (fixed once it is published and shown to filers everywhere), its summary, and what prices its filings, the engine
+      release and the cost-test set. Every filing on the version is priced with them, the first time and on every later correction.
+    - Moving to another engine release or cost-test set is a new version even when no field or rule changes.
+  how:
+    - Change the name, the summary, the engine release or the cost-test set, say why, and save.
+  see: rules-and-lists
+  tour:
+    - target: "#settings-form"
+      title: The settings
+      text: Name, summary, engine release and cost-test set, and why they change.
+
+specifications/edit_rules:
+  title: A draft's rules
+  guide:
+    - The rules a filing on the draft version will be checked against. They are a draft copy of the rules of the version it was copied
+      from, kept in the rule library and published with the version on the day it takes effect.
+    - Field requirements, types, lengths and value lists are checked from the fields themselves and need no rule.
+  how:
+    - Add a rule, or open a rule to change its test or wording or to take it out.
+    - What the rules change compares them with the rules of the version the draft was copied from.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-rules"
+      title: The draft's rules
+      text: Where they come from and how they are published.
+    - target: main table.list
+      title: Rules
+      text: Each rule with its severity, table, field, message and suggested fix.
+      optional: true
+
+specifications/edit_checks:
+  title: A draft's built-in checks
+  guide:
+    - The checks written in CEDARS' code that a filing on the draft version meets beside its rules, because they need what a rule
+      cannot see, such as the program registry, earlier quarters or eTRM.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-checks"
+      title: Built-in checks
+      text: What they are; each table lists one filing's checks with their severity.
+
+specifications/edit_changes:
+  title: What a draft changes
+  guide:
+    - What the draft changes from the version it was copied from, worked out by CEDARS (fields added, removed and changed, rules,
+      built-in checks and settings). The sentences at the top are offered as the release note's text when the draft is published.
+  see: rules-and-lists
+  tour:
+    - target: "#result-h"
+      title: What changes
+      text: Every difference from the version the draft was copied from.
+    - target: "#note-h"
+      title: In the release note
+      text: The sentences offered as the release note's text.
+      optional: true
+
+specifications/edit_publish:
+  title: Publish a draft
+  guide:
+    - The checks a draft must pass before it is published, and the form that publishes it. Publishing freezes the version for good,
+      publishes its rules with it and publishes a release note that announces it.
+    - A version takes effect at least the usual notice after the day it is published, unless a reason is given and shown with it.
+      Filing sets set up from that day use it; filings already set up keep their version for every later upload and correction.
+  how:
+    - Settle each check that is not passed; each links the part of the draft it is in.
+    - Choose the day it takes effect, word what changes and what filers need to do, then publish.
+    - Discard the draft, with its rules, if it is not wanted.
+  see: rules-and-lists
+  tour:
+    - target: "#checks-h"
+      title: Checks before publishing
+      text: What is still to settle, or that the draft passes.
+    - target: "#publish-form"
+      title: Publish
+      text: The day it takes effect, the release note's words, and the button.
+    - target: "#discard"
+      title: Discard
+      text: Drop the draft and its rules; nothing a filing uses changes.
+
+specifications/edit_field:
+  title: Add or change a field of a draft
+  guide:
+    - A field of a draft specification version. Its type comes from a fixed list, and each type brings its own check and its own words
+      on the specification pages. A coded field names the value list whose codes are accepted.
+    - A locked field keeps its type, and a required one stays required. A field required only in some cases is optional here, with a
+      rule that says when.
+  how:
+    - Set the requirement, type, size, value list, example and wording, say why, and save.
+    - To add a field, pick one the data dictionary has or give a new name and definition.
+    - Remove a field that is not locked; data filed under earlier versions keeps it.
+  see: rules-and-lists
+  tour:
+    - target: "#field-form"
+      title: The field
+      text: Requirement, type, value list, example, wording and its place in the template.
+    - target: "#field-lock"
+      title: Locked
+      text: Why the field is locked and what may still change.
+      optional: true
+    - target: "#remove-field"
+      title: Remove the field
+      text: Take it out of the draft, with the reason.
+      optional: true
+
+specifications/edit_table:
+  title: A draft table's names and guidance
+  guide:
+    - The other names a file or sheet may give a table of a draft, and the guidance shown above its fields. Its key, how a later upload
+      replaces its records and whether it is kept in the PII vault are CEDARS' processing and stay as they are.
+  how:
+    - Change the other names (separated by commas) or the guidance, say why, and save.
+  see: rules-and-lists
+  tour:
+    - target: "#table-facts"
+      title: The table
+      text: What stays as it is.
+    - target: "#table-form"
+      title: Names and guidance
+      text: What a file or sheet may be called, and what filers read above the fields.

@@ -1,0 +1,13 @@
+{% extends "core/base.html" %}
+{% block title %}Changes: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_changes" %}</div>
+{% include "specifications/_edit_nav.html" %}
+<p>What this draft changes from {% if v.based_on %}<a href="{% url 'specifications:version' v.based_on.specification.code v.based_on.slug %}">{{ v.based_on.name }}</a>{% else %}the version it was copied from{% endif %}, worked out by CEDARS. Why it is made: {{ v.reason|default:"(not given)" }}</p>
+{% if lines %}<section aria-labelledby="note-h" class="card"><h2 id="note-h">In the release note</h2>
+  <p>Publishing offers these sentences as what changes, to edit before the note is published:</p>
+  <ul id="change-lines">{% for line in lines %}<li>{{ line }}</li>{% endfor %}</ul></section>{% endif %}
+<h2 id="result-h">What changes</h2>
+{% if result %}{% include "specifications/_comparison.html" %}{% else %}<p>This draft was not copied from a version.</p>{% endif %}
+{% endblock %}
