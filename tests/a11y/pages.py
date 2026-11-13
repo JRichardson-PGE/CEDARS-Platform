@@ -101,6 +101,13 @@ PAGES = [
     ("dictionary-changes", "/dictionary/changes/", None),
     ("dictionary-version-changes", "/dictionary/changes/{catalog_retired}/", None),
     ("rules", "/rules/", "pge_admin"),
+    # the filing specifications: public, like the pages they replace
+    ("specifications", "/specifications/", None),
+    ("specifications-signed-in", "/specifications/", "pge_admin"),
+    ("specification-claims", "/specifications/claims/starting-version/", None),
+    ("specification-budgets", "/specifications/budget_filing/starting-version/", None),
+    ("specification-compare", "/specifications/compare/?a=budget_filing/starting-version&b=monthly/starting-version", None),
+    ("specification-compare-empty", "/specifications/compare/", None),
     ("dashboard-overview", "/data/overview/?by=sector", None),
     ("dashboard-filtered", "/data/overview/?by=program&sector=Residential&series=forecast&metric=kwh", None),
     ("dashboard-pa-type", "/data/overview/?by=pa_type&pa_type=IOU&pa=SCE", None),

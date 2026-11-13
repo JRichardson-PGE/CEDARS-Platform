@@ -1,0 +1,70 @@
+# Help for each page (cedars/core/page_help.py): filing specifications.
+
+specifications/index:
+  title: Filing specifications
+  guide:
+    - What each kind of filing must contain (quarterly claims, budget and application filings, monthly reports), with its tables, the
+      fields of each table, which are required, each field's type and value list, and the rules and built-in checks every record is
+      checked against.
+    - The CPUC publishes each specification in named versions. A published version never changes. Each filing set (a claim year, a
+      budget filing, a year of monthly reports) is set up with one version, and its uploads and corrections use that version whenever
+      they are made, so several versions can be in use at once.
+  how:
+    - Select a version to read its tables, fields and rules and to download its template.
+    - Compare two versions shows the fields, rules and settings that change between them.
+  see: rules-and-lists
+  tour:
+    - target: main p.actions
+      title: Compare two versions
+      text: See what changes from one version to another, or between two specifications' tables.
+    - target: main section table.list
+      title: Versions
+      text: Each version of the specification, its status, when it was published and how many filings on the calendar use it.
+
+specifications/version:
+  title: A filing specification version
+  guide:
+    - One version of a filing specification, which filings set up with it are checked against. Its tables come in upload order; each
+      field shows whether it is required, its type, its value list and its definition, and the rules about the field open in place.
+    - Built-in checks are the checks written in CEDARS' code that need more than one record can show, such as the program registry or
+      earlier quarters. A finding on a validation report names the rule or check by its ID.
+    - The template, the fields-and-rules workbook, the JSON and each table's JSON Schema are made from this version, so they always
+      match it.
+  how:
+    - Download the upload template (a workbook, or a .zip of pipe-delimited files) and fill in each table.
+    - Open a field's rules to read them as sentences with their suggested fixes.
+    - Compare with another version to see what changed.
+  see: rules-and-lists
+  tour:
+    - target: "#spec-status"
+      title: Status
+      text: Whether the version is published or withdrawn, when, and whether new filings are set up with it.
+    - target: "#downloads-h"
+      title: Templates and downloads
+      text: The upload template, every field and rule as a workbook, and the whole specification as data.
+    - target: "#about-h"
+      title: About this version
+      text: Its rules, what prices its filings, its file format and the filings that use it.
+    - target: main section.spec-table
+      title: A table and its fields
+      text: Each field's requirement, type, value list and definition. Open a field's rules to read them.
+    - target: "#checks-h"
+      title: Built-in checks
+      text: The checks written in CEDARS' code that a filing on this version also meets.
+
+specifications/compare:
+  title: Compare two specification versions
+  guide:
+    - What changes from one version to another, as tables, fields and their attributes, rules, built-in checks and settings added,
+      removed or changed. Two versions of different specifications can be compared too; tables are matched by name.
+  how:
+    - Choose the version to compare from and the one to compare to, then Compare.
+  see: rules-and-lists
+  tour:
+    - target: main form.filters
+      title: Choose two versions
+      text: The version to compare from and the one to compare to.
+    - target: "#result-h"
+      title: What changes
+      text: Tables, fields, rules, built-in checks and settings that are added, removed or changed.
+      optional: true

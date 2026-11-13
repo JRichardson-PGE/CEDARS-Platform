@@ -220,6 +220,13 @@ MENUS = (
             in_menu=False,
         ),
         Item(
+            "Filing specifications",
+            "specifications:index",
+            MEMBER,
+            pages=("specifications:*",),
+            about="What each kind of filing must contain, the rules it is checked against, and its templates, in named versions.",
+        ),
+        Item(
             "Check a file before you file it",
             "rules:check",
             MEMBER,
@@ -327,6 +334,13 @@ MENUS = (
             "documents:studies",
             pages=STUDIES,
             about="Evaluation, measurement and verification studies, and the programs and years each one covers.",
+        ),
+        Item(
+            "Filing specifications",
+            "specifications:index",
+            PUBLIC,
+            pages=("specifications:*",),
+            about="What each kind of filing must contain, the rules it is checked against, and its templates, in named versions.",
         ),
         Item(
             "Data dictionary",

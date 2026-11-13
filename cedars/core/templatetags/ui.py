@@ -142,19 +142,36 @@ def audit_rows(event) -> list[tuple[str, str, str]]:
 
 @register.inclusion_tag("core/_before_upload.html", takes_context=True)
 def before_upload(
-    context, template="", template_label="", fields="", fields_label="", rule_set="", rules_note="", guide="", guide_label=""
+    context,
+    template="",
+    template_label="",
+    specification=None,
+    fields="",
+    fields_label="",
+    rule_set="",
+    rules_note="",
+    guide="",
+    guide_label="",
 ):
     """The "Before you upload" line under a file control (navigation review D3): the template, the field definitions, the rules the
     file will be checked against and the guide section, each part only when the form has one.
 
-    template: the template's URL; fields: "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the
-    code of the rule set in force (rules.in_force: its page when one is published, else "none published yet"), or rules_note: the words
-    to say instead (e.g. the engine checks the file); guide: a Help guide's slug, with an #anchor if any, or a URL."""
+    template: the template's URL; specification: the filing's specification version (its page, which is public); fields:
+    "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the code of the rule set in force
+    (rules.in_force: its page when one is published, else "none published yet"), or rules_note: the words to say instead (e.g. the
+    engine checks the file); guide: a Help guide's slug, with an #anchor if any, or a URL."""
     from django.urls import NoReverseMatch, reverse
 
     parts = []
     if template:
         parts.append({"url": template, "label": template_label or "the template"})
+    if specification:
+        parts.append(
+            {
+                "url": reverse("specifications:version", args=[specification.specification.code, specification.slug]),
+                "label": f"the specification it follows, {specification.specification.name}: {specification.name}",
+            }
+        )
     if fields:
         url = fields
         if "." in fields and "/" not in fields:

@@ -67,6 +67,10 @@ HELP_KEYS = {
         "submissions/workflow_settings",
         "workflow settings correction policy reopen after due date late confirmation close-out",
     ),
+    "specifications:index": (
+        "specifications/index",
+        "filing specifications specification template fields required columns rules example files spec",
+    ),
     "rules:check": ("rules/check", "filings validation rules check upload"),
     "submissions:reopen_requests": ("submissions/reopen_requests", "filings correction corrections reopen approve"),
     "submissions:delegations": ("submissions/delegations", "approver delegate delegates leave away deputy"),

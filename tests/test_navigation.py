@@ -290,6 +290,7 @@ TOP_PAGES = {
     "administration/stewardship", "budgets/index", "calculations/runs", "claims/index", "data/dashboard", "data/front", "data/records",
     "data/views", "dictionary/index", "feedback/form", "feedback/inbox", "monthly/index", "notifications/index", "programs/catalog",
     "refdata/index", "releases/index", "releases/limits", "releases/mandates", "retention/index", "rules/index", "snapshots/holds",
+    "specifications/index",
     "submissions/calendar", "submissions/reopen_requests", "core/about", "core/help/index", "core/queue", "core/search",
     # the error pages (core/errors.py): in no menu, with their own ways on
     "500", "core/error", "core/form_expired",
