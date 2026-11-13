@@ -10,11 +10,7 @@ from pathlib import PurePosixPath
 
 from cedars.core import uploads
 
-TABLES = ("Measure", "ProgramCost")
-REQUIRED = {
-    "Measure": ["CEInputID", "PrgID", "ClaimYearQuarter", "NumUnits"],
-    "ProgramCost": ["PrgID", "PrgYear", "PA"],
-}
+TABLES = ("Measure", "ProgramCost")  # the engine's input tables, as a job holds them
 SKIPPED = ("__MACOSX/", ".DS_Store", "Thumbs.db", "desktop.ini")
 
 
@@ -42,14 +38,15 @@ def _table_name(member: str) -> str | None:
     return next((t for t in TABLES if p.stem.lower() == t.lower()), None)
 
 
-def read_upload(data: bytes, filename: str) -> tuple[dict[str, bytes], bytes]:
-    """({table: file bytes}, the job .zip) from an uploaded .zip or .xlsx."""
+def read_upload(data: bytes, filename: str, required: dict[str, list[str]] | None = None) -> tuple[dict[str, bytes], bytes]:
+    """({table: file bytes}, the job .zip) from an uploaded .zip or .xlsx. `required`: {table: the columns an upload is refused
+    without}, the filing's specification version's (None for a job already kept, which was checked when it was uploaded)."""
     if filename.lower().endswith(".xlsx"):
         tables = _from_workbook(data)
-        _check_tables(tables, workbook=True)
+        _check_tables(tables, required, workbook=True)
         return tables, job_zip(tables)
     tables = read_tables(data, filename)
-    _check_tables(tables)
+    _check_tables(tables, required)
     return tables, data
 
 
@@ -113,7 +110,7 @@ def _cell(value) -> str:
     return str(value)
 
 
-def _check_tables(tables: dict, workbook: bool = False) -> None:
+def _check_tables(tables: dict, required: dict[str, list[str]] | None, workbook: bool = False) -> None:
     where = "sheet" if workbook else "file"
     for t in TABLES:
         if t not in tables:
@@ -121,7 +118,7 @@ def _check_tables(tables: dict, workbook: bool = False) -> None:
     for t in TABLES:
         header, _ = rows(tables[t])
         have = {h.lower() for h in header}
-        missing = [c for c in REQUIRED[t] if c.lower() not in have]
+        missing = [c for c in (required or {}).get(t, ()) if c.lower() not in have]
         if missing:
             raise JobError(f"{t} has no {', '.join(missing)} column{'s' if len(missing) > 1 else ''}.")
 

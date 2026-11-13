@@ -5,13 +5,11 @@ A version is held as rows (models.py) and travels as one JSON document (`as_docu
 the one the public download and API give). Filings name their version: each deadline of a filing set is pinned to one when it is put on
 the calendar (submissions.add_deadline, `for_new_deadline`), and each validated filing version records the one it was checked against.
 
-How the starting versions were made. Each filing module registers its layout as it stands in its code (`register_layout`, from its
-AppConfig.ready()): tables, keys, fields and their types and requirements, and which built-in checks apply. `starting_document` turns
-that into a version document, taking fields from the pinned engine's field catalog where the module does (`catalog`), each field's
-value list from the value-list rules of the engine's shipped rule set, and the built-in checks from the rules service's list. The
-documents are kept in `starting/<code>.json`; migration 0002 loaded them and `manage.py specification_starting --check` (and
-tests/test_specifications.py) fails when the code and the documents disagree, so the two sources cannot drift apart while filings
-still read the code (until filings read their version)."""
+Filings read their version. The filing modules take a filing's tables, keys, fields and the columns an upload is refused without from
+its version (`layout_for_filing`, a `VersionLayout`), its rule set (`rule_set_for_filing`), engine release and cost-test set. The
+starting versions were generated from the modules' code before filings read their version; they are kept in `starting/<code>.json`,
+which migration 0002 loaded, and a database with no version of a specification (one emptied and not loaded again) reads them from
+there."""
 
 from __future__ import annotations
 
@@ -27,18 +25,6 @@ from django.utils.text import slugify
 
 FORMAT = 1
 STARTING = Path(__file__).parent / "starting"
-CATALOGS = Path(__file__).resolve().parents[3] / "data" / "dictionary"
-
-# The file format every specification starts with (all three filing types read uploads the same way today)
-FILE_FORMAT = {
-    "files": ["A .zip of delimited text files, one per table, named after the table", "An Excel workbook with a sheet per table"],
-    "delimiters": ["|", ",", "\t"],
-    "encoding": "UTF-8 (Windows-1252 is read where a file is not UTF-8)",
-    "names": "Table and column names are matched without regard to letter case",
-    "column_order": "Columns may be in any order",
-    "unknown_columns": "A column the table does not have is ignored with a notice",
-    "unknown_files": "A file or sheet that is not one of the tables is refused",
-}
 
 TYPE_WORDS = {
     "text": "Text",
@@ -69,76 +55,7 @@ def type_words(f) -> str:
     return words
 
 
-# --- what the modules register
-
-
-@dataclass(frozen=True)
-class Layout:
-    """A filing module's layout as its code has it, for the specification's starting version: `make()` returns the specification's and
-    the version's attributes and its tables (each with its fields, or `catalog: {module, table}` to take them from the field catalog),
-    and `check_groups` names the built-in check lists (rules.coded) that apply."""
-
-    code: str
-    module: str
-    make: object
-    check_groups: tuple[str, ...]
-
-
-_layouts: dict[str, Layout] = {}
-
-
-def register_layout(code: str, *, module: str, make, check_groups=()) -> None:
-    """Called by a filing module in its AppConfig.ready(): how its code lays out a filing today, for the starting version."""
-    _layouts[code] = Layout(code, module, make, tuple(check_groups))
-
-
-def layouts() -> list[Layout]:
-    return [_layouts[c] for c in sorted(_layouts)]
-
-
-# --- the starting versions
-
-
-def catalog_file() -> Path:
-    """The pinned engine's field catalog shipped with the platform (data/dictionary/recet-<version>.json), the newest if several."""
-
-    def key(p: Path):
-        return tuple(int(x) if x.isdigit() else 0 for x in p.stem.removeprefix("recet-").split("."))
-
-    found = sorted(CATALOGS.glob("recet-*.json"), key=key)
-    if not found:
-        raise SpecificationError("No field catalog is shipped in data/dictionary.")
-    return found[-1]
-
-
-@cache
-def _catalog() -> dict:
-    return json.loads(catalog_file().read_text(encoding="utf-8"))
-
-
-CATALOG_TYPES = {"text": "text", "number": "number", "boolean": "flag", "year_quarter": "year_quarter"}
-
-
-def catalog_fields(module: str, table: str) -> list[dict]:
-    """A module table's fields from the shipped catalog, in column order, as specification fields."""
-    rows = []
-    for f in _catalog()["fields"]:
-        for u in f.get("usage", []):
-            if u["module"] == module and u["table"] == table:
-                rows.append((u["position"], f, u))
-    rows.sort(key=lambda r: r[0])
-    return [
-        field_doc(
-            f["name"],
-            other_names=[a["name"] for a in f.get("aliases", [])],
-            requirement="required" if u.get("required") else "optional",
-            type=CATALOG_TYPES.get(f.get("data_type", "text"), "text"),
-            max_length=f.get("max_length") if f.get("data_type") == "text" else None,
-            unit=f.get("unit", ""),
-            definition=f.get("definition", ""),
-        )
-        for _, f, u in rows
-    ]
+# --- version documents
 
 
 def field_doc(name: str, **kw) -> dict:
@@ -164,128 +81,12 @@ def field_doc(name: str, **kw) -> dict:
     return out
 
 
-def table_doc(name: str, **kw) -> dict:
-    out = {
-        "name": name,
-        "other_names": [],
-        "required": False,
-        "keys": [],
-        "replace": "key",
-        "vault": False,
-        "refuse_without": [],
-        "guidance": "",
-        "fields": [],
-    }
-    unknown = set(kw) - set(out)
-    if unknown:
-        raise SpecificationError(f"{name}: unknown table attributes {sorted(unknown)}")
-    out.update(kw)
-    return out
-
-
-def engine_value_lists(rule_set_code: str) -> dict[tuple[str, str], str]:
-    """{(table, field name in lower case): value list} from the value-list rules of the rule set the pinned engine ships under the code,
-    each list under the platform's name for it (the engine's file name, e.g. ac_climate_zone). {} without the engine."""
-    if not rule_set_code:
-        return {}
-    try:
-        from recet import fieldnames, filing_rules
-    except ImportError:
-        return {}
-    from cedars.services.dictionary import value_lists
-
-    columns = {c.lower(): n for c, n in value_lists.engine_columns().items()}
-    out = {}
-    for r in filing_rules.rule_set(rule_set_code).rules:
-        if r.kind != "spec" or r.spec.get("check") != "value_list":
-            continue
-        name = fieldnames.LEGACY_TO_RECET.get(r.field, r.field)
-        listed = columns.get(name.lower()) or columns.get(r.field.lower()) or str(r.spec.get("list", "")).lower()
-        if listed in value_lists.NOT_EDITED_HERE:
-            continue
-        for n in {name.lower(), r.field.lower()}:
-            out[(r.table, n)] = listed
-    return out
-
-
-def starting_document(code: str) -> dict:
-    """The starting version of a specification as a document, from the layout its module registered."""
-    from cedars.services.rules import coded
-
-    layout = _layouts.get(code)
-    if layout is None:
-        raise SpecificationError(f"No module has registered a layout for the {code} specification.")
-    made = layout.make()
-    lists = engine_value_lists(made["version"].get("rule_set_code", ""))
-    tables = []
-    for t in made["tables"]:
-        t = dict(t)
-        source = t.pop("catalog", None)
-        fields = catalog_fields(source["module"], source["table"]) if source else list(t.get("fields", []))
-        if source:
-            catalog = {f["name"]: f for f in fields}
-            for f in t.get("fields", []):  # the module's own word on a catalog field (its requirement, an example)
-                catalog[f["name"]] = {**catalog.get(f["name"], field_doc(f["name"])), **f}
-            fields = list(catalog.values())
-        for f in fields:
-            names = [f["name"], *f["other_names"]]
-            f["value_list"] = f["value_list"] or next((lists[(t["name"], n.lower())] for n in names if (t["name"], n.lower()) in lists), "")
-        t["fields"] = fields
-        tables.append(table_doc(**t))
-    groups = {g.module: g for g in coded.groups()}
-    checks = [
-        {
-            "group": g,
-            "rule_id": c.rule_id,
-            "severity": c.severity,
-            "tables": c.tables,
-            "fields": c.fields,
-            "finds": c.finds,
-            "fix": c.fix,
-            "settings": {},
-        }
-        for g in layout.check_groups
-        if g in groups
-        for c in groups[g].checks
-    ]
-    version = {
-        "name": "",
-        "slug": "",
-        "summary": "",
-        "source": "",
-        "rule_set_code": "",
-        "engine_release": "",
-        "cost_test_set": None,
-        "file_format": FILE_FORMAT,
-        **made["version"],
-    }
-    version["slug"] = version["slug"] or slugify(version["name"])
-    return {
-        "format": FORMAT,
-        "specification": {"code": code, "module": layout.module, **made["specification"]},
-        "version": version,
-        "tables": tables,
-        "checks": checks,
-        "examples": made.get("examples", []),
-    }
-
-
 def starting_path(code: str) -> Path:
     return STARTING / f"{code}.json"
 
 
-def dumps(document: dict) -> str:
-    return json.dumps(document, indent=1, ensure_ascii=False, sort_keys=False) + "\n"
-
-
 def stored_starting(code: str) -> dict:
     return json.loads(starting_path(code).read_text(encoding="utf-8"))
-
-
-def starting_differences(code: str) -> list[str]:
-    """Where the stored starting document and the one the code makes today differ, in words; [] when they agree."""
-    made, kept = starting_document(code), stored_starting(code)
-    return differences_between(kept, made)
 
 
 def differences_between(old: dict, new: dict) -> list[str]:
@@ -503,6 +304,36 @@ def as_document(version) -> dict:
 
 
 @dataclass(frozen=True)
+class FieldLayout:
+    """A field as the filing modules read it (a `SpecField` row's attributes, or a document's field)."""
+
+    name: str
+    other_names: tuple[str, ...] = ()
+    requirement: str = "optional"
+    type: str = "text"
+    max_length: int | None = None
+    decimals: int | None = None
+    value_list: str = ""
+    default: str = ""
+    example: str = ""
+    unit: str = ""
+    definition: str = ""
+    guidance: str = ""
+
+    @property
+    def required(self) -> bool:
+        return self.requirement == "required"
+
+    @classmethod
+    def of(cls, f) -> FieldLayout:
+        get = f.get if isinstance(f, dict) else lambda k, d=None: getattr(f, k, d)
+        blank = field_doc("")
+        values = {k: get(k, blank[k]) for k in FIELD_ATTRS}
+        values["other_names"] = tuple(values["other_names"] or ())
+        return cls(**values)
+
+
+@dataclass(frozen=True)
 class TableLayout:
     name: str
     other_names: tuple[str, ...]
@@ -511,7 +342,8 @@ class TableLayout:
     required: bool
     vault: bool
     refuse_without: tuple[str, ...]
-    fields: tuple  # SpecField rows, in order
+    fields: tuple[FieldLayout, ...]
+    guidance: str = ""
 
     def columns(self) -> list[str]:
         return [f.name for f in self.fields]
@@ -525,21 +357,32 @@ class TableLayout:
     def system_fields(self) -> list[str]:
         return [f.name for f in self.fields if f.requirement == "system"]
 
+    def field(self, name: str) -> FieldLayout | None:
+        return next((f for f in self.fields if f.name == name), None)
+
     def canonical(self, header: str) -> str | None:
         """The field an uploaded column names (its name or another accepted name, any case), or None."""
-        h = str(header).strip().lower()
-        for f in self.fields:
-            if h == f.name.lower() or h in (n.lower() for n in f.other_names):
-                return f.name
-        return None
+        return self._names().get(str(header).strip().lower())
+
+    def _names(self) -> dict[str, str]:
+        names = self.__dict__.get("_names_cache")
+        if names is None:
+            names = {}
+            for f in self.fields:
+                for n in (*f.other_names, f.name):  # a field's own name wins over another field's other name
+                    names[n.lower()] = f.name
+            object.__setattr__(self, "_names_cache", names)
+        return names
 
 
 @dataclass(frozen=True)
 class VersionLayout:
-    """A version as the filing modules read it: its tables in order with their keys, fields and requirements."""
+    """A version as the filing modules read it: its tables in order with their keys, fields and requirements. `version` is the
+    SpecificationVersion, or None for a layout read from a stored document (a database with no version of the specification)."""
 
     version: object
     tables: tuple[TableLayout, ...]
+    code: str = ""
 
     def table(self, name: str) -> TableLayout | None:
         return next((t for t in self.tables if t.name == name), None)
@@ -547,11 +390,11 @@ class VersionLayout:
     def names(self, *, vault: bool | None = None) -> list[str]:
         return [t.name for t in self.tables if vault is None or t.vault == vault]
 
-    def table_name(self, name: str) -> str | None:
+    def table_name(self, name: str, *, vault: bool | None = None) -> str | None:
         """The table a file or sheet name holds (its name or another accepted name; case, spaces, dashes and underscores aside)."""
         n = _squash(name)
         for t in self.tables:
-            if n == _squash(t.name) or n in (_squash(o) for o in t.other_names):
+            if (vault is None or t.vault == vault) and (n == _squash(t.name) or n in (_squash(o) for o in t.other_names)):
                 return t.name
         return None
 
@@ -560,14 +403,80 @@ def _squash(name: str) -> str:
     return re.sub(r"[\s_\-]", "", str(name)).lower()
 
 
+_layouts_made: dict[tuple, VersionLayout] = {}
+
+
 def layout(version) -> VersionLayout:
+    """The layout of a version from its rows. A frozen version's is kept (it never changes), under its content's fingerprint."""
+    key = (version.pk, version.fingerprint) if version.frozen and version.fingerprint else None
+    if key is not None and key in _layouts_made:
+        return _layouts_made[key]
     tables = tuple(
         TableLayout(
-            t.name, tuple(t.other_names), tuple(t.keys), t.replace, t.required, t.vault, tuple(t.refuse_without), tuple(t.fields.all())
+            t.name,
+            tuple(t.other_names),
+            tuple(t.keys),
+            t.replace,
+            t.required,
+            t.vault,
+            tuple(t.refuse_without),
+            tuple(FieldLayout.of(f) for f in t.fields.all()),
+            t.guidance,
         )
         for t in version.tables.prefetch_related("fields")
     )
-    return VersionLayout(version, tables)
+    made = VersionLayout(version, tables, version.specification.code)
+    if key is not None:
+        _layouts_made[key] = made
+    return made
+
+
+def document_layout(document: dict) -> VersionLayout:
+    """The layout of a version document (the format of `starting/*.json`)."""
+    tables = tuple(
+        TableLayout(
+            t["name"],
+            tuple(t.get("other_names", ())),
+            tuple(t.get("keys", ())),
+            t.get("replace", "key"),
+            t.get("required", False),
+            t.get("vault", False),
+            tuple(t.get("refuse_without", ())),
+            tuple(FieldLayout.of(f) for f in t["fields"]),
+            t.get("guidance", ""),
+        )
+        for t in document["tables"]
+    )
+    return VersionLayout(None, tables, document["specification"]["code"])
+
+
+@cache
+def _starting_layout(module: str) -> VersionLayout | None:
+    for path in sorted(STARTING.glob("*.json")):
+        document = json.loads(path.read_text(encoding="utf-8"))
+        if document["specification"]["module"] == module:
+            return document_layout(document)
+    return None
+
+
+def layout_for_module(module: str) -> VersionLayout:
+    """The layout of the module's current version; where the database has none (a database emptied and not loaded again), the
+    starting version as the platform ships it. Raises SpecificationError for a module with no specification."""
+    version = for_module(module)
+    if version is not None:
+        return layout(version)
+    made = _starting_layout(module)
+    if made is None:
+        raise SpecificationError(f"The {module} module has no filing specification.")
+    return made
+
+
+def layout_for_filing(deadline, module: str = "") -> VersionLayout:
+    """The layout a filing's uploads, checks and corrections follow, on any date: its version's (`of_filing`), else its module's."""
+    version = of_filing(deadline)
+    if version is not None:
+        return layout(version)
+    return layout_for_module(module or deadline.module)
 
 
 # --- filings and their versions
@@ -632,6 +541,23 @@ def cost_test_set_of(version):
     """The published cost-test set (a reference data pack version) that prices a filing on `version`; None when it names none, and the
     filing set's own choice, else the set in force for the program year, applies."""
     return version.cost_test_set if version is not None and version.cost_test_set_id is not None else None
+
+
+def template_url(module: str, filing=None, kind: str = "xlsx") -> str:
+    """The upload template of the version a filing follows (`filing`: a deadline's id; the module's current version without one or for
+    a deadline of another module), from the version's own downloads; "" when the module has no published version."""
+    from django.urls import reverse
+
+    from cedars.services.submissions.models import Deadline
+
+    version = None
+    if filing and str(filing).isdigit():
+        d = Deadline.objects.filter(pk=int(filing), module=module).select_related("specification_version__specification").first()
+        version = of_filing(d) if d is not None else None
+    version = version or for_module(module)
+    if version is None:
+        return ""
+    return reverse("specifications:template", args=[version.specification.code, version.slug, kind])
 
 
 # --- reading a version's parts

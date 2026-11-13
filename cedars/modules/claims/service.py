@@ -49,6 +49,7 @@ from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
 from cedars.services.specifications import service as specifications
+from cedars.services.specifications.service import FieldLayout
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.corrections import Scope
@@ -471,9 +472,9 @@ class Problem:
     value: str = ""
 
 
-def _key(table: str, row: dict) -> tuple:
-    """A row's primary key; CEDARS compares keys ignoring case and surrounding spaces."""
-    return tuple(row.get(c, "").strip().lower() for c in spec.KEYS[table])
+def _key(lay: spec.Layout, table: str, row: dict) -> tuple:
+    """A row's primary key (the version's key of the table); CEDARS compares keys ignoring case and surrounding spaces."""
+    return tuple(row.get(c, "").strip().lower() for c in lay.KEYS[table])
 
 
 def _claim(row: dict) -> str:
@@ -489,15 +490,20 @@ class Compiled:
 
 
 def compile_tables(
-    base: dict[str, upload.Table], own: dict[str, upload.Table], withdrawn_in: str = "", corrected: dict[str, upload.Table] | None = None
+    lay: spec.Layout,
+    base: dict[str, upload.Table],
+    own: dict[str, upload.Table],
+    withdrawn_in: str = "",
+    corrected: dict[str, upload.Table] | None = None,
 ) -> Compiled:
-    """The year to date: the base's rows with this upload's over them by primary key. For the tables whose rows for a claim are a set
-    (spec.BY_CLAIM) an upload's rows for a claim replace all the claim's earlier rows. The upload's withdrawals are marked with the
+    """The year to date, as the filing's specification version `lay` lays the tables out: the base's rows with this upload's over them
+    by primary key. For the tables whose rows for a claim are a set (the version's tables replaced by claim) an upload's rows for a
+    claim replace all the claim's earlier rows. The upload's withdrawals are marked with the
     confirmation that makes them (`withdrawn_in`); a correction that withdraws a claim the version it corrects filed (`corrected`, that
     version's compiled tables) keeps that claim's records as they were filed. Columns are the template's, in its order, that either
     side has."""
     out = Compiled({})
-    for name in spec.TABLES:
+    for name in lay.TABLES:
         b, o = base.get(name), own.get(name)
         if b is None and o is None:
             continue
@@ -506,18 +512,18 @@ def compile_tables(
         if name == "Withdrawal" and own_rows:
             have.add("WithdrawnIn")
             own_rows = [{**r, "WithdrawnIn": withdrawn_in} for r in own_rows]
-        columns = [c for c in spec.columns(name) if c in have]
+        columns = [c for c in lay.columns(name) if c in have]
         base_rows = list(b.rows) if b else []
-        if name in spec.BY_CLAIM:
+        if name in lay.BY_CLAIM:
             claims = {_claim(r) for r in own_rows}
             before = {_claim(r) for r in base_rows}
             kept = [r for r in base_rows if _claim(r) not in claims]
             out.replaced[name] = len(claims & before)
             out.added[name] = len(claims - before)
         else:
-            keys = {_key(name, r) for r in own_rows}
-            before = {_key(name, r) for r in base_rows}
-            kept = [r for r in base_rows if _key(name, r) not in keys]
+            keys = {_key(lay, name, r) for r in own_rows}
+            before = {_key(lay, name, r) for r in base_rows}
+            kept = [r for r in base_rows if _key(lay, name, r) not in keys]
             out.replaced[name] = len(keys & before)
             out.added[name] = len(keys - before)
             if name == "Measure":
@@ -530,7 +536,7 @@ def compile_tables(
             rows = [r for r in corrected.get(name, upload.Table(name, [], [])).rows if _claim(r) in keep]
             if rows:
                 t = out.tables.get(name) or upload.Table(name, [], [])
-                columns = [c for c in spec.columns(name) if c in set(t.columns) | set(corrected[name].columns)]
+                columns = [c for c in lay.columns(name) if c in set(t.columns) | set(corrected[name].columns)]
                 out.tables[name] = upload.Table(name, columns, t.rows + rows)
     return out
 
@@ -571,7 +577,8 @@ def upload_claims(
         raise AccessDenied("That is not a claims deadline.")
     claim_year(deadline)
     _require_in_order(organisation, deadline)
-    tables = {name: upload.without_system_fields(t) for name, t in upload.read(data, filename).items() if t.rows}
+    lay = spec.for_filing(deadline)  # the tables and columns of the filing's specification version
+    tables = {name: upload.without_system_fields(t, lay) for name, t in upload.read(data, filename, lay).items() if t.rows}
     if not tables:
         raise upload.UploadError("The file has no records: each table it holds has only its column names.")
     v = submissions.start(actor, deadline, organisation)
@@ -581,14 +588,14 @@ def upload_claims(
         extra["ignored_columns"] = ignored
     if sources:
         extra["sources"] = sources
-    v = _store_upload(actor, v, tables, extra)
+    v = _store_upload(actor, v, tables, extra, lay)
     return check(actor, v)
 
 
-def _store_upload(actor, v: SubmissionVersion, tables: dict[str, upload.Table], extra: dict) -> SubmissionVersion:
-    """Keep `tables` as the version's records (its claims.zip, in a folder named by its SHA-256) and attach it as the version's file;
-    the version's earlier upload is deleted once this is recorded (superseded uploads are not kept)."""
-    content = upload.to_zip(tables)
+def _store_upload(actor, v: SubmissionVersion, tables: dict[str, upload.Table], extra: dict, lay: spec.Layout) -> SubmissionVersion:
+    """Keep `tables` as the version's records (its claims.zip, in a folder named by its SHA-256, in the version's table order) and
+    attach it as the version's file; the version's earlier upload is deleted once this is recorded (superseded uploads are not kept)."""
+    content = upload.to_zip(tables, lay.TABLES)
     sha = hashlib.sha256(content).hexdigest()
     folder = f"{_prefix(v)}{sha[:12]}/"
     store = storage.store("uploads")
@@ -662,6 +669,7 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
     deadline, org = v.submission.deadline, v.submission.organisation
     year = deadline.period.year
+    lay = spec.for_filing(deadline)  # the tables, keys and fields of the filing's specification version, on any date
     own = own_tables(v)
     if not own:
         raise AccessDenied("Upload the claims first.")
@@ -669,11 +677,13 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     base = compiled_tables(base_v) if base_v else {}
     previous = corrected_version(v)
     corrected = compiled_tables(previous) if previous else {}
-    deemed, etrm_summary = fill_deemed(own, base)
-    comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
+    deemed, etrm_summary = fill_deemed(lay, own, base)
+    comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
     rs = specifications.rule_set_for_filing(deadline, RULE_SET)  # the rules of the filing's specification version, on any date
     rescope = (
-        _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs)
+        _scoped(
+            own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs, lay
+        )
         if scope
         else None
     )
@@ -681,7 +691,16 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         problems, notes, rule_set, rechecked = rescope
     else:
         problems = deemed + derive_checks(
-            own, comp.tables, org, year, last_quarter(deadline), base, corrected, statewide=is_statewide(deadline), rules_run=rs is not None
+            own,
+            comp.tables,
+            org,
+            year,
+            last_quarter(deadline),
+            base,
+            corrected,
+            statewide=is_statewide(deadline),
+            rules_run=rs is not None,
+            lay=lay,
         )
         found, notes, rule_set = _rule_findings(own, year, rs)
         problems += found
@@ -691,10 +710,10 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         own_f = _adopt(actor, v, own_f)
         v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
     folder = own_f["key"].rsplit("/", 1)[0] + "/"
-    compiled = upload.to_zip(comp.tables)
+    compiled = upload.to_zip(comp.tables, lay.TABLES)
     store.put_bytes(folder + "compiled.zip", compiled)
     parents = parent_profiles(comp.tables)
-    job = job_zip(comp.tables, parents)
+    job = job_zip(comp.tables, parents, lay)
     if job:
         store.put_bytes(folder + "job.zip", job)
     if job and parents.file:
@@ -716,8 +735,8 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
             "parent_profiles_sha256": hashlib.sha256(parents.file).hexdigest() if job and parents.file else "",
             "true_ups": parents.true_ups[:500],
             "true_ups_count": len(parents.true_ups),
-            "tables": {t: len(own[t].rows) for t in spec.TABLES if t in own},
-            "compiled": {t: len(comp.tables[t].rows) for t in spec.TABLES if t in comp.tables},
+            "tables": {t: len(own[t].rows) for t in lay.TABLES if t in own},
+            "compiled": {t: len(comp.tables[t].rows) for t in lay.TABLES if t in comp.tables},
             "replaced": {t: n for t, n in comp.replaced.items() if n},
             "added": {t: n for t, n in comp.added.items() if n},
             "changed_claims": comp.changed_claims[:200],
@@ -757,7 +776,7 @@ def _rule_set_label(rs) -> str:
     return f"{rs.label} ({rs.effective_from})" if rs else ""
 
 
-def _related(own: dict[str, upload.Table], scope: Scope) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
+def _related(own: dict[str, upload.Table], scope: Scope, lay: spec.Layout) -> tuple[dict[str, set[int]], dict[str, set[int]]]:
     """The lines to check again after a correction: (for the module's checks, for the claims rule set). The module's checks look at
     the records changed, those with the same key (duplicates), and those whose references the change can make or break: the claim's
     other records and the true-ups naming it (a Claim, Measure, by-claim or Withdrawal record changed), the program's measures (a
@@ -769,7 +788,7 @@ def _related(own: dict[str, upload.Table], scope: Scope) -> tuple[dict[str, set[
         for r in (c.before, c.after):
             if not r:
                 continue
-            keys[c.table].add(_key(c.table, r))
+            keys[c.table].add(_key(lay, c.table, r))
             if c.table in (*CLAIM_TABLES, "Withdrawal") and _claim(r):
                 claims.add(_claim(r))
             if c.table == "ProgramCost" and r.get("PrgID", "").strip():
@@ -781,7 +800,7 @@ def _related(own: dict[str, upload.Table], scope: Scope) -> tuple[dict[str, set[
     for name, t in own.items():
         changed = scope.lines(name)
         for i, r in enumerate(t.rows, start=2):
-            same = i in changed or _key(name, r) in keys.get(name, ())
+            same = i in changed or _key(lay, name, r) in keys.get(name, ())
             take = (
                 same
                 or (name in (*CLAIM_TABLES, "Withdrawal") and _claim(r) in claims)
@@ -815,7 +834,19 @@ def _moved(p, back: dict[str, list[int]]):
 
 
 def _scoped(
-    own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None, statewide=False, rs=None
+    own,
+    compiled,
+    deemed,
+    organisation,
+    year,
+    last_q,
+    base,
+    corrected,
+    scope: Scope,
+    previous: dict | None,
+    statewide=False,
+    rs=None,
+    lay: spec.Layout | None = None,
 ):
     """A correction's check ("that row re-validated"): the module's checks on the records `_related` names, the claims rule
     set `rs` (the filing's version's) on the changed Measure and ProgramCost records, and every other record's findings carried over to
@@ -828,12 +859,14 @@ def _scoped(
     now_columns = {name: list(t.columns) for name, t in own.items()}
     if before_columns is not None and before_columns != now_columns:
         return None
-    module, engine = _related(own, scope)
+    module, engine = _related(own, scope, lay)
     sub, back = _subset(own, module)
     problems = [p for p in deemed if p.row in module.get(p.table, ())]
     problems += [
         _moved(p, back)
-        for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide, rules_run=rs is not None)
+        for p in derive_checks(
+            sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide, rules_run=rs is not None, lay=lay
+        )
     ]
     notes = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
     rule_set = (previous or {}).get("rule_set", "")
@@ -861,7 +894,7 @@ def _scoped(
         if k not in seen:
             seen.add(k)
             out.append(p)
-    out.sort(key=lambda p: (spec.TABLES.index(p.table) if p.table in spec.TABLES else 99, p.row, p.severity != "reject"))
+    out.sort(key=lambda p: (lay.TABLES.index(p.table) if p.table in lay.TABLES else 99, p.row, p.severity != "reject"))
     rechecked = len({(n, i) for lines in (module, engine) for n, ls in lines.items() for i in ls})
     return out, notes, rule_set, rechecked
 
@@ -876,7 +909,8 @@ def correct_records(actor, v: SubmissionVersion, tables: dict, scope: Scope) -> 
         previous = {}  # compiled over a confirmation that has changed since: check the whole version on the one that stands
     f = own_file(v) or {}
     own = {name: upload.Table(name, t.columns, t.rows) for name, t in tables.items() if t.rows}
-    v = _store_upload(actor, v, own, {"uploaded_as": f.get("uploaded_as", "claims.zip"), "corrected": True})
+    lay = spec.for_filing(v.submission.deadline)
+    v = _store_upload(actor, v, own, {"uploaded_as": f.get("uploaded_as", "claims.zip"), "corrected": True}, lay)
     return check(actor, v, scope=scope, before=previous)
 
 
@@ -887,7 +921,7 @@ def _decimals(text: str) -> int:
     return len(text.split(".", 1)[1]) if "." in text else 0
 
 
-def _same(f: spec.Field, filed: str, etrm_value: str) -> bool:
+def _same(f: FieldLayout, filed: str, etrm_value: str) -> bool:
     """Whether a filed value agrees with eTRM's: numbers to the precision eTRM's download shows them at, flags as flags, text without
     regard to case."""
     if f.type in ("number", "integer"):
@@ -895,12 +929,12 @@ def _same(f: spec.Field, filed: str, etrm_value: str) -> bool:
         if a is not None and b is not None:
             tol = Decimal(5) * Decimal(10) ** -(_decimals(etrm_value) + 1)
             return abs(a - b) <= tol + Decimal("1e-9") * max(abs(a), abs(b))
-    if f.type == "bit" and _flag(filed) is not None:
+    if f.type == "flag" and _flag(filed) is not None:
         return _flag(filed) == _flag(etrm_value)
     return filed.strip().casefold() == etrm_value.strip().casefold()
 
 
-def fill_deemed(own: dict[str, upload.Table], base: dict[str, upload.Table]) -> tuple[list[Problem], dict]:
+def fill_deemed(lay: spec.Layout, own: dict[str, upload.Table], base: dict[str, upload.Table]) -> tuple[list[Problem], dict]:
     """Check the upload's deemed claims (ClaimType Deemed with a MeasDetailID) against the published eTRM permutations pack in force,
     by MeasDetailID: a blank Claim or Measure field that eTRM gives is filled in from it (in `own`, so the compiled tables and
     the job carry it, while the stored upload stays as filed), and a filed value that differs from eTRM's rejects the record (Jake,
@@ -934,12 +968,11 @@ def fill_deemed(own: dict[str, upload.Table], base: dict[str, upload.Table]) -> 
     problems: list[Problem] = []
     filled: dict[str, int] = defaultdict(int)
     differ = varied = unchecked = 0
-    fields = spec.fields()
 
     def fill(table: str, i: int, r: dict, rid: str, field_map: dict, values: dict, compare: bool) -> None:
         nonlocal differ, varied
         t = own.get(table)
-        types = {f.name: f for f in fields[table]}
+        types = {f.name: f for f in lay.fields(table)}
         for name, col in field_map.items():
             theirs = values.get(col, "")
             if not theirs or theirs.strip().lower() == etrm.ANY:
@@ -1031,7 +1064,7 @@ def _quarter_dates(text: str) -> tuple[date, date] | None:
     return date(y, 3 * q - 2, 1), end
 
 
-def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = None) -> bytes:
+def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = None, lay: spec.Layout | None = None) -> bytes:
     """The job the engine prices: the compiled Measure (ClaimID is the engine's CEInputID) less the withdrawn claims, and the ProgramCost
     table. b"" when there are no measures to price. `parents`: the true-ups' parent profiles, written to ReCET's
     AC_Elec_Impact_Profile_Parent columns (the columns only when some true-up has one)."""
@@ -1048,7 +1081,7 @@ def job_zip(tables: dict[str, upload.Table], parents: "ParentProfiles | None" = 
             first, second = parents.columns.get(r["CEInputID"].strip().lower(), ("", ""))
             r[PARENT_COLUMNS[0]], r[PARENT_COLUMNS[1]] = first, second
     measure = upload.Table("Measure", columns, rows)
-    cost = tables.get("ProgramCost") or upload.Table("ProgramCost", spec.columns("ProgramCost"), [])
+    cost = tables.get("ProgramCost") or upload.Table("ProgramCost", (lay or spec.current()).columns("ProgramCost"), [])
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr("Measure.csv", upload.to_csv(measure.columns, measure.rows))
@@ -1261,17 +1294,15 @@ def _date(value: str) -> date | None:
     return None
 
 
-def _type_problem(f: spec.Field, value: str) -> str | None:
-    """What is wrong with a non-blank value for its type, or None."""
-    if f.type == "text255" and len(value) > 255:
-        return "is longer than 255 characters"
-    if f.type == "text6" and len(value) > 6:
-        return "is longer than 6 characters"
+def _type_problem(f: FieldLayout, value: str) -> str | None:
+    """What is wrong with a non-blank value for its field's type in the specification version, or None."""
+    if f.type == "text" and f.max_length and len(value) > f.max_length:
+        return f"is longer than {f.max_length} characters"
     if f.type == "number" and _num(value) is None:
         return "should be a number"
     if f.type == "integer" and not re.fullmatch(r"-?\d+(\.0+)?", value):
         return "should be a whole number"
-    if f.type == "bit" and _flag(value) is None:
+    if f.type == "flag" and _flag(value) is None:
         return "should be 0 or 1 (or True or False)"
     if f.type == "date" and _date(value) is None:
         return "should be a date (YYYY-MM-DD or MM/DD/YYYY)"
@@ -1279,13 +1310,17 @@ def _type_problem(f: spec.Field, value: str) -> str | None:
 
 
 FIX = {
-    "text255": "Shorten it to 255 characters or fewer.",
-    "text6": "Shorten it to 6 characters or fewer.",
     "number": "Enter a plain number: no text, units, commas or currency symbols.",
     "integer": "Enter a whole number.",
-    "bit": "Enter 0 or 1 (or True or False).",
+    "flag": "Enter 0 or 1 (or True or False).",
     "date": "Write the date as YYYY-MM-DD (or MM/DD/YYYY).",
 }
+
+
+def _type_fix(f: FieldLayout) -> str:
+    if f.type == "text":
+        return f"Shorten it to {f.max_length} characters or fewer."
+    return FIX[f.type]
 
 
 def derive_checks(
@@ -1298,6 +1333,7 @@ def derive_checks(
     corrected: dict[str, upload.Table] | None = None,
     statewide: bool = False,
     rules_run: bool = False,
+    lay: spec.Layout | None = None,
 ) -> list[Problem]:
     """The module's checks (rule IDs CLM-*), on the upload's own records, with references checked against the compiled year to date:
     the template's columns, required fields and types for the tables the claims rule set does not cover (it covers Measure and
@@ -1307,7 +1343,10 @@ def derive_checks(
     the tables, withdrawals against the year so far (`base`, and `corrected`: the compiled tables of the version a correction replaces),
     and CEDARS' own data rules for the Claim and Site tables that a record can
     be checked against on its own. `rules_run`: the filing's version has a claims rule set, which checks Measure and ProgramCost's
-    fields; without one the module checks their required fields and types itself."""
+    fields; without one the module checks their required fields and types itself. `lay`: the filing's specification version, whose
+    tables, keys, required fields and types these are."""
+    if lay is None:
+        raise ValueError("derive_checks needs the filing's specification version (lay).")
     problems: list[Problem] = []
     code = organisation.code
 
@@ -1315,11 +1354,11 @@ def derive_checks(
         problems.append(Problem(i, rid, table, fld, rule, severity, message, fix, value))
 
     def rid_of(table, row):
-        return " / ".join(row.get(c, "") for c in spec.KEYS[table])
+        return " / ".join(row.get(c, "") for c in lay.KEYS[table])
 
     # columns, required fields, types and keys
     for name, t in own.items():
-        missing = [c for c in spec.required(name) if c not in t.columns]
+        missing = [c for c in lay.required(name) if c not in t.columns]
         for c in missing:
             add(
                 name,
@@ -1337,7 +1376,7 @@ def derive_checks(
         for i, r in enumerate(t.rows, start=2):
             rid = rid_of(name, r)
             if checked:
-                for f in spec.fields()[name]:
+                for f in lay.fields(name):
                     value = r.get(f.name, "")
                     if not value:
                         if f.required:
@@ -1345,10 +1384,10 @@ def derive_checks(
                         continue
                     why = _type_problem(f, value)
                     if why:
-                        add(name, i, rid, f.name, "CLM-TYPE", f"{f.name} {why}", FIX[f.type], value)
-                k = _key(name, r)
-                if name not in spec.BY_CLAIM and k in seen:
-                    add(name, i, rid, ", ".join(spec.KEYS[name]), "CLM-KEY", f"{name} has this key on line {seen[k]} too",
+                        add(name, i, rid, f.name, "CLM-TYPE", f"{f.name} {why}", _type_fix(f), value)
+                k = _key(lay, name, r)
+                if name not in lay.BY_CLAIM and k in seen:
+                    add(name, i, rid, ", ".join(lay.KEYS[name]), "CLM-KEY", f"{name} has this key on line {seen[k]} too",
                         "Keep one record per key; to correct a record, change it in place.")  # fmt: skip
                 seen.setdefault(k, i)
 
@@ -1437,7 +1476,7 @@ def derive_checks(
         site = r.get("SiteID", "")
         if site and site.strip().lower() not in sites:
             add("Claim", i, cid, "SiteID", "CLM-REF", f"Site {site} has no Site record", "Add the Site record for it.", site)
-    for name in spec.BY_CLAIM:
+    for name in lay.BY_CLAIM:
         for i, r in enumerate(own.get(name, upload.Table(name, [], [])).rows, start=2):
             if r.get("ClaimID") and _claim(r) not in claims:
                 add(name, i, r["ClaimID"], "ClaimID", "CLM-REF", f"{name} names claim {r['ClaimID']}, which has no Claim record",
@@ -1637,7 +1676,8 @@ def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[l
 
     rules.require_engine()
     try:
-        t = upload.without_system_fields(upload.table_from_csv(table, content))
+        lay = spec.current()  # the current version's columns: the checker reads a table as a new filing's upload does
+        t = upload.without_system_fields(upload.table_from_csv(table, content, lay), lay)
     except upload.UploadError as e:
         raise CheckError(str(e)) from None
     notes = []
@@ -1949,7 +1989,8 @@ def upload_pii(actor, v: SubmissionVersion, data: bytes, filename: str, assuranc
     keys = pii_keys(v)
     if not any(keys.values()):
         raise AccessDenied("Upload and check the claims first: the PII file may name only their ContactIDs and SiteIDs.")
-    return vault.store(actor, v.submission.organisation, v.pk, data, filename, keys, assurance)
+    lay = spec.for_filing(v.submission.deadline).version_layout
+    return vault.store(actor, v.submission.organisation, v.pk, data, filename, keys, assurance, lay)
 
 
 def pii(v: SubmissionVersion):
@@ -1996,15 +2037,15 @@ def _claim_records(tables: dict[str, upload.Table]) -> dict[str, tuple[str, tupl
     return {k: (cid, tuple(sorted(recs))) for k, (cid, recs) in out.items()}
 
 
-def _table_changes(before: dict[str, upload.Table], after: dict[str, upload.Table]) -> list[dict]:
+def _table_changes(before: dict[str, upload.Table], after: dict[str, upload.Table], lay: spec.Layout) -> list[dict]:
     """Each table's records before and after, and how many the correction added, changed and removed (by primary key; by claim for
     the tables whose rows for a claim are a set)."""
     out = []
-    for name in spec.TABLES:
+    for name in lay.TABLES:
         b, a = before.get(name), after.get(name)
         if b is None and a is None:
             continue
-        group = _claim if name in spec.BY_CLAIM else (lambda r, n=name: _key(n, r))
+        group = _claim if name in lay.BY_CLAIM else (lambda r, n=name: _key(lay, n, r))
         rows_b, rows_a = defaultdict(set), defaultdict(set)
         for rows, into in ((b.rows if b else [], rows_b), (a.rows if a else [], rows_a)):
             for r in rows:
@@ -2065,7 +2106,7 @@ def correction_changes(previous: SubmissionVersion, v: SubmissionVersion) -> dic
     return {
         "previous_label": f"{label(previous.submission.deadline)}, version {previous.number}",
         "claims": claims,
-        "tables": _table_changes(before, after),
+        "tables": _table_changes(before, after, spec.for_filing(v.submission.deadline)),
         "programs": programs,
         "totals": {"before": _figures(tb.total), "after": _figures(ta.total)},
         "priced": {"before": tb.priced, "after": ta.priced},

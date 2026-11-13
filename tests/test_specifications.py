@@ -1,6 +1,5 @@
 """Filing specifications (cedars.services.specifications): the starting versions, the database's freeze, filings pinned to a version, and
-parity: until filings read their version, the template, the required columns and the findings the starting version gives must be the
-ones the modules' constants give today."""
+what the filing modules read of it (their tables, fields, keys and the columns an upload is refused without)."""
 
 import io
 import zipfile
@@ -12,14 +11,12 @@ from django.utils import timezone
 
 from cedars.modules.budgets import jobfile
 from cedars.modules.claims import service as claims
-from cedars.modules.claims import spec as claims_spec
 from cedars.modules.monthly import upload as monthly_upload
 from cedars.services.rules import coded
 from cedars.services.specifications import service as specifications
 from cedars.services.specifications.models import CheckSetting, SpecField, Specification, SpecificationVersion, SpecTable
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, SubmissionVersion
-from cedars.services.vault import spec as vault_spec
 
 from .test_claims import claim, claims_zip, deadline, filer, programs, q1, row, tables, year  # noqa: F401 - fixtures
 
@@ -35,32 +32,6 @@ def current(code: str) -> SpecificationVersion:
 # --- the starting versions
 
 
-def test_every_filing_module_registers_its_layout():
-    assert [(x.code, x.module) for x in specifications.layouts()] == [
-        ("budget_filing", "budgets"),
-        ("claims", "claims"),
-        ("monthly", "monthly"),
-    ]
-
-
-@pytest.mark.parametrize("code", CODES)
-def test_the_stored_starting_document_is_what_the_code_makes_today(code):
-    """The two sources agree: a module's layout and its specification's starting document. Without the engine the value lists (read from
-    the rule set it ships) are left out of the comparison."""
-    made, kept = specifications.starting_document(code), specifications.stored_starting(code)
-    try:
-        import recet  # noqa: F401
-    except ImportError:
-        for doc in (made, kept):
-            for t in doc["tables"]:
-                for f in t["fields"]:
-                    f["value_list"] = ""
-    assert specifications.differences_between(kept, made) == [], (
-        f"The {code} layout in the code no longer matches its starting specification. Until filings read their version, run "
-        "`manage.py specification_starting --write` and publish the new document as a new version in a data migration."
-    )
-
-
 @pytest.mark.parametrize("code", CODES)
 def test_the_migration_published_each_starting_version(code):
     v = current(code)
@@ -74,13 +45,15 @@ def test_the_migration_published_each_starting_version(code):
 def test_the_claims_version_holds_the_claim_tables_and_the_two_vault_tables():
     v = current("claims")
     lay = specifications.layout(v)
-    assert lay.names(vault=False) == list(claims_spec.TABLES)
+    assert lay.names(vault=False) == [
+        "Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal",
+    ]  # fmt: skip
     assert lay.names(vault=True) == ["PII_Contact", "PII_Site"]
     assert v.rule_set_code == "claims"
-    for name in vault_spec.TABLES:
-        assert lay.table(name).columns() == vault_spec.columns(name)
-        assert [f.max_length for f in lay.table(name).fields] == [f.length for f in vault_spec.TABLES[name]]
-        assert lay.table(name).keys == (vault_spec.KEYS[name],)
+    assert lay.table("PII_Contact").keys == ("ContactID",) and lay.table("PII_Site").keys == ("SiteID",)
+    assert lay.table("PII_Contact").field("ContactEmail").type == "email"
+    assert lay.table("PII_Site").field("CensusTract").max_length == 11 and lay.table("PII_Site").field("SiteAddress").max_length == 255
+    assert len(lay.table("Measure").columns()) == 74 and lay.table("ContactClaim").required_fields() == ["ClaimID", "ContactID"]
     assert lay.table("ContactClaim").replace == "claim" and lay.table("Claim").replace == "key"
     assert lay.table_name("fuel_sub_infrastructure_cost") == "InfrastructureCost"
     assert lay.table("Measure").canonical("ceinputid") == "ClaimID"
@@ -96,100 +69,7 @@ def test_each_version_lists_the_built_in_checks_of_its_filings(code):
     assert list(current(code).checks.values_list("rule_id", flat=True)) == expected
 
 
-# --- parity with the constants
-
-
-def test_the_required_columns_are_the_constants():
-    claims_layout = specifications.layout(current("claims"))
-    for t in claims_spec.TABLES:
-        assert claims_layout.table(t).required_fields() == claims_spec.required(t), t
-        assert claims_layout.table(t).upload_columns() == claims_spec.upload_columns(t), t
-        assert claims_layout.table(t).keys == claims_spec.KEYS[t]
-    budgets = specifications.layout(current("budget_filing"))
-    assert budgets.names() == list(jobfile.TABLES)
-    assert {t: list(budgets.table(t).refuse_without) for t in jobfile.TABLES} == jobfile.REQUIRED
-    monthly = specifications.layout(current("monthly"))
-    assert monthly.names() == list(monthly_upload.TABLES)
-    assert {t: list(monthly.table(t).refuse_without) for t in monthly_upload.TABLES} == monthly_upload.REQUIRED
-
-
-TYPE_CODES = {("text", None): "text", ("text", 6): "text6", ("text", 255): "text255", ("number", None): "number"}
-TYPE_CODES |= {("integer", None): "integer", ("flag", None): "bit", ("date", None): "date"}
-
-
-def claims_constants_from(version) -> dict:
-    """The claims module's constants (spec.py) as the version gives them: what the module reads once filings read their version."""
-    lay = specifications.layout(version)
-    names = lay.names(vault=False)
-
-    def field(t, f):
-        return claims_spec.Field(
-            t, f.name, f.other_names[0] if f.other_names else f.name, TYPE_CODES[(f.type, f.max_length)], f.requirement == "required",
-            f.definition,
-        )  # fmt: skip
-
-    fields = {t: [field(t, f) for f in lay.table(t).fields] for t in names}
-    return {
-        "TABLES": tuple(names),
-        "KEYS": {t: lay.table(t).keys for t in names},
-        "BY_CLAIM": tuple(t for t in names if lay.table(t).replace == "claim"),
-        "SYSTEM_FIELDS": {t: tuple(lay.table(t).system_fields()) for t in names if lay.table(t).system_fields()},
-        "TABLE_NAMES": {
-            **{t.lower(): t for t in names},
-            **{o.lower(): t.name for t in lay.tables if not t.vault for o in t.other_names},
-        },
-        "fields": lambda: fields,
-        "_lookup": lambda table: {n.lower(): f.name for f in lay.table(table).fields for n in (f.name, *f.other_names)},
-    }
-
-
-def test_the_claims_template_from_the_version_has_the_constants_columns():
-    from openpyxl import load_workbook
-
-    constants = claims_constants_from(current("claims"))
-    book = load_workbook(io.BytesIO(claims_spec.template_xlsx()), read_only=True)
-    assert book.sheetnames == ["Fields", *constants["TABLES"]]
-    for t in constants["TABLES"]:
-        header = [c for c in next(book[t].iter_rows(values_only=True)) if c]
-        assert header == [f.name for f in constants["fields"]()[t] if f.name not in constants["SYSTEM_FIELDS"].get(t, ())]
-    fields = [r[:5] for r in book["Fields"].iter_rows(min_row=2, values_only=True) if r[0]]
-    assert [(r[0], r[1], r[4] == "yes") for r in fields] == [
-        (t, f.name, f.required) for t in constants["TABLES"] for f in constants["fields"]()[t]
-    ]
-
-
-def findings_of(v) -> list[tuple]:
-    return sorted(
-        tuple(str(f.get(k, "")) for k in ("table", "row", "record_id", "field", "rule_id", "severity", "message", "fix", "value"))
-        for f in claims.findings(v)
-    )
-
-
-def test_claims_findings_from_the_version_are_the_constants(monkeypatch, filer, year, pge, programs):  # noqa: F811
-    """The same uploads give the same findings when the claims module reads its tables, fields, keys and names from the starting version
-    instead of its constants."""
-    bad = tables(
-        claim("SCE-2028-001"),
-        claim("PGE-2028-002", quarter="2028Q2"),
-        claim("PGE-2028-006", MeasImpactType="Cust-SEM"),
-        Measure=[row("Measure", ClaimID="PGE-2028-007", PrgID="PGE_Res")],
-        ProgramCost=[row("ProgramCost", PrgID="PGE_Res"), row("ProgramCost", PrgID="PGE_Res", PrgYear="2027")],
-        Site=[row("Site", SiteID="PGE-S1"), row("Site", SiteID="PGE-S1", SiteZipCode="9411")],
-        ContactClaim=[row("ContactClaim", ClaimID="PGE-2028-001", ContactID="PGE-C1")],
-        Withdrawal=[row("Withdrawal", ClaimID="PGE-2028-555")],
-    )
-    bad["Claim"].append(row("Claim", ClaimID="PGE-2028-008", SiteID="PGE-S1", NMEC_TU_Flag="maybe", ApplicationDate="soon"))
-    bad["Claim"].append({"ClaimID": "PGE-2028-009"})  # its required fields blank
-    files = {"q1": q1(), "bad": claims_zip(bad), "renamed": claims_zip(bad, names={"AC_Climate_Zone": "E3ClimateZone"})}
-    files["missing column"] = claims_zip({"Site": [{"SiteID": "PGE-S9", "SiteCity": "Oakland"}]})
-    before = {}
-    for name, data in files.items():
-        before[name] = findings_of(claims.upload_claims(filer, deadline(), pge, data, f"{name}.zip"))
-    assert before["bad"] and before["missing column"] and not before["q1"]
-    for attr, value in claims_constants_from(current("claims")).items():
-        monkeypatch.setattr(claims_spec, attr, value)
-    for name, data in files.items():
-        assert findings_of(claims.upload_claims(filer, deadline(), pge, data, f"{name}.zip")) == before[name], name
+# --- what the filing modules read of their version
 
 
 def _zip(tables_: dict[str, str]) -> bytes:
@@ -200,20 +80,29 @@ def _zip(tables_: dict[str, str]) -> bytes:
     return out.getvalue()
 
 
-def test_budget_and_monthly_uploads_are_refused_alike_from_the_version(monkeypatch):
+def test_a_database_with_no_version_reads_the_starting_version_as_shipped(monkeypatch):
+    """A database emptied and not loaded again (as some tests leave it) still has every filing module's layout: the stored document's."""
+    stored = {code: specifications.document_layout(specifications.stored_starting(code)) for code in CODES}
+    for code, module in (("budget_filing", "budgets"), ("claims", "claims"), ("monthly", "monthly")):
+        assert specifications.layout_for_module(module).tables == specifications.layout(current(code)).tables == stored[code].tables
+    monkeypatch.setattr(specifications, "for_module", lambda module: None)  # no version of any specification
+    for code, module in (("budget_filing", "budgets"), ("claims", "claims"), ("monthly", "monthly")):
+        assert specifications.layout_for_module(module).tables == stored[code].tables
+        assert specifications.layout_for_module(module).version is None
+
+
+def test_budget_and_monthly_uploads_are_refused_without_their_versions_columns():
     budget = _zip({"Measure": "CEInputID,PrgID,ClaimYearQuarter\nPGE-1,PGE_Res,2028Q1\n", "ProgramCost": "PrgID,PrgYear,PA\n"})
     monthly = _zip({"Commitments": "PA,PrgID\n", "Measure": "CEInputID\n", "ProgramCost": "PrgID\n"})
-    errors = {}
-    for name, read, data in (("budget", jobfile.read_upload, budget), ("monthly", monthly_upload.read_upload, monthly)):
-        with pytest.raises(ValueError) as e:
-            read(data, "x.zip")
-        errors[name] = str(e.value)
-    for code, module in (("budget_filing", jobfile), ("monthly", monthly_upload)):
-        lay = specifications.layout(current(code))
-        monkeypatch.setattr(module, "REQUIRED", {t.name: list(t.refuse_without) for t in lay.tables})
-    for name, read, data in (("budget", jobfile.read_upload, budget), ("monthly", monthly_upload.read_upload, monthly)):
-        with pytest.raises(ValueError, match="^" + errors[name].replace("(", r"\(").replace(")", r"\)") + "$"):
-            read(data, "x.zip")
+    required = {}
+    for code in ("budget_filing", "monthly"):
+        required[code] = {t.name: list(t.refuse_without) for t in specifications.layout(current(code)).tables}
+    with pytest.raises(jobfile.JobError, match="^Measure has no NumUnits column.$"):
+        jobfile.read_upload(budget, "x.zip", required["budget_filing"])
+    with pytest.raises(monthly_upload.UploadError, match="^Commitments has no YearMonth, PriorCommittedFundsBalance"):
+        monthly_upload.read_upload(monthly, "x.zip", required["monthly"])
+    jobfile.read_upload(budget, "x.zip", {"Measure": ["CEInputID"]})  # a version refusing it without fewer columns takes it
+    jobfile.read_upload(budget, "kept.zip")  # a job already kept is read without the check
 
 
 # --- the database's freeze

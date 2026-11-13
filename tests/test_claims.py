@@ -23,6 +23,7 @@ from cedars.services.notifications import service as notifications
 from cedars.services.notifications.models import Notification
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import Program
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, SubmissionVersion
 
@@ -31,7 +32,8 @@ from .test_budgets import release  # noqa: F401 - the engine release fixture
 from .test_uploads import split
 
 pytestmark = pytest.mark.django_db
-DEFAULTS = {"text": "x", "text6": "x", "text255": "x", "number": "0", "integer": "2028", "bit": "0", "date": "2028-02-01"}
+DEFAULTS = {"text": "x", "number": "0", "integer": "2028", "flag": "0", "date": "2028-02-01"}
+LAY = spec.Layout(specifications.document_layout(specifications.stored_starting("claims")))  # the starting version, as shipped
 GIVEN = {
     "Claim": {"ClaimType": "Custom", "TotalFirstYearNetkWh": "800", "TotalFirstYearNetTherm": "0", "TotalGrossIncentive": "50"},
     "Measure": {"ClaimYearQuarter": "2028Q1", "NumUnits": "10", "UnitkWh1stBaseline": "100", "UnitEndUserRebate": "5", "NTGRkWh": "0.8",
@@ -43,7 +45,7 @@ GIVEN = {
 
 def row(table: str, **values) -> dict:
     """A record with every required field filled in (type-appropriate defaults), then the values given."""
-    out = {f.name: DEFAULTS[f.type] for f in spec.fields()[table] if f.required}
+    out = {f.name: DEFAULTS[f.type] for f in LAY.fields(table) if f.required}
     out.update(GIVEN.get(table, {}))
     out.update(values)
     return out
@@ -70,8 +72,8 @@ def claims_zip(t: dict, sep="|", names=None, full=False) -> bytes:
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
         for name, rows in t.items():
-            cols = [c for c in spec.columns(name) if full or any(c in r for r in rows)] + sorted(
-                {c for r in rows for c in r} - set(spec.columns(name))
+            cols = [c for c in LAY.columns(name) if full or any(c in r for r in rows)] + sorted(
+                {c for r in rows for c in r} - set(LAY.columns(name))
             )
             text = (
                 sep.join((names or {}).get(c, c) for c in cols) + "\n" + "".join(sep.join(r.get(c, "") for c in cols) + "\n" for r in rows)
@@ -161,24 +163,27 @@ def confirmed(filer, pge, data, kind="Q1 claim", scale=1.0) -> SubmissionVersion
 # --- the template and the upload
 
 
-def test_the_template_is_cedars_claims_specification_with_the_platforms_own_tables():
-    assert spec.TABLES == (
+def test_the_template_is_cedars_claims_specification_with_the_platforms_own_tables(client):
+    lay = spec.current()
+    assert lay.TABLES == (
         "Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal",
     )  # fmt: skip
-    assert len(spec.columns("Measure")) == 74 and "AC_Climate_Zone" in spec.columns("Measure")  # canonical names
-    assert spec.canonical("Measure", "E3ClimateZone") == "AC_Climate_Zone" and spec.canonical("Measure", "ceinputid") == "ClaimID"
-    assert spec.field("InfrastructureCost", "TotalCost").type == "number" and spec.required("ContactClaim") == ["ClaimID", "ContactID"]
+    assert len(lay.columns("Measure")) == 74 and "AC_Climate_Zone" in lay.columns("Measure")  # canonical names
+    assert lay.canonical("Measure", "E3ClimateZone") == "AC_Climate_Zone" and lay.canonical("Measure", "ceinputid") == "ClaimID"
+    assert lay.field("InfrastructureCost", "TotalCost").type == "number" and lay.required("ContactClaim") == ["ClaimID", "ContactID"]
     from openpyxl import load_workbook
 
-    wb = load_workbook(io.BytesIO(spec.template_xlsx()))
-    assert wb.sheetnames == ["Fields", *spec.TABLES]
-    assert [c.value for c in wb["Site"][1]] == spec.columns("Site")
+    r = client.get(reverse("claims:template"))  # the specification version's own template
+    assert r.status_code == 302 and r.url == specifications.template_url("claims")
+    wb = load_workbook(io.BytesIO(client.get(r.url).content))
+    assert wb.sheetnames == ["Fields", *lay.TABLES]
+    assert [c.value for c in wb["Site"][1]] == lay.columns("Site")
     assert [c.value for c in wb["Withdrawal"][1]] == ["ClaimID", "WithdrawalReason"]  # WithdrawnIn is CEDARS' to fill in
 
 
 def test_an_upload_is_a_zip_or_a_workbook_and_never_carries_pii():
     data = claims_zip(tables(claim("PGE-2028-001", Bogus="1")), names={"AC_Climate_Zone": "E3ClimateZone"})
-    t = upload.read(data, "q1.zip")
+    t = upload.read(data, "q1.zip", LAY)
     assert set(t) == {"Claim", "Measure"} and "AC_Climate_Zone" in t["Measure"].columns and t["Measure"].ignored == ["Bogus"]
     for extra, message in (("PII_Contact.csv", "personal information"), ("notes.docx", "only the claims tables")):
         z = io.BytesIO()
@@ -186,9 +191,9 @@ def test_an_upload_is_a_zip_or_a_workbook_and_never_carries_pii():
             f.writestr("Claim.csv", "ClaimID\nPGE-2028-1\n")
             f.writestr(extra, "x")
         with pytest.raises(upload.UploadError, match=message):
-            upload.read(z.getvalue(), "q1.zip")
+            upload.read(z.getvalue(), "q1.zip", LAY)
     with pytest.raises(upload.UploadError, match="not a valid .zip"):
-        upload.read(b"ClaimID\n", "q1.zip")
+        upload.read(b"ClaimID\n", "q1.zip", LAY)
     from openpyxl import Workbook
 
     wb = Workbook()
@@ -198,14 +203,14 @@ def test_an_upload_is_a_zip_or_a_workbook_and_never_carries_pii():
     ws.append(["PGE-S1", "Fresno", "CA", 93650])
     buf = io.BytesIO()
     wb.save(buf)
-    t = upload.read(buf.getvalue(), "q1.xlsx")
+    t = upload.read(buf.getvalue(), "q1.xlsx", LAY)
     assert list(t) == ["Site"] and t["Site"].rows[0]["SiteZipCode"] == "93650"
     pii = Workbook()
     pii.active.title = "PII_Site"
     buf = io.BytesIO()
     pii.save(buf)
     with pytest.raises(upload.UploadError, match="personal information"):
-        upload.read(buf.getvalue(), "q1.xlsx")
+        upload.read(buf.getvalue(), "q1.xlsx", LAY)
 
 
 def test_only_a_cpuc_system_administrator_sets_up_claim_years(cpuc_admin, pge_admin, year):
@@ -743,7 +748,7 @@ def test_the_pages(client, filer, year, pge, programs, release, cpuc_admin, make
     assert b"CLM-ID" in client.get(reverse("claims:findings_csv", args=[draft.pk])).content
     r = client.get(reverse("claims:file", args=[v.pk, 0]))
     assert r.status_code == 200 and zipfile.ZipFile(io.BytesIO(b"".join(r.streaming_content))).namelist()[0] == "Claim.csv"
-    assert client.get(reverse("claims:template")).status_code == 200
+    assert client.get(reverse("claims:template"), follow=True).status_code == 200
     community = make_user("someone@example.com")
     client.logout()
     sign_in(client, community)

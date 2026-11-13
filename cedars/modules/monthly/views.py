@@ -15,6 +15,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.models import Organisation
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.refdata.models import PackVersion
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
@@ -123,11 +124,12 @@ def index(request):
 
 
 def template(request):
-    """The monthly report template workbook (navigation review D2): public, like the claims template and the data dictionary."""
-    xlsx = service.template_xlsx()
-    response = HttpResponse(xlsx, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="monthly_report_template.xlsx"'
-    return response
+    """The monthly report template workbook (navigation review D2): public, like the claims template and the data dictionary. It is the
+    specification version's own template (?filing=: the version that month's report follows; else the current one)."""
+    url = specifications.template_url(service.MODULE, request.GET.get("filing"))
+    if not url:
+        raise Http404("No monthly report specification is published.")
+    return redirect(url)
 
 
 @login_required

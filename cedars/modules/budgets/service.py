@@ -550,7 +550,7 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     kept with the version's file entry."""
     if not hasattr(deadline, "budget_setup"):
         raise AccessDenied("This filing is not set up for budgets.")
-    tables, job = jobfile.read_upload(data, filename)
+    tables, job = jobfile.read_upload(data, filename, required_columns(deadline))
     v = submissions.start(actor, deadline, organisation)
     name = filename if filename.lower().endswith(".zip") else Path(filename).stem + ".zip"
     entry = {"name": name, "uploaded_as": filename}
@@ -707,6 +707,11 @@ def _replace_lines(v: SubmissionVersion, lines: list[dict]) -> None:
     BudgetLine.objects.filter(version=v).delete()
     BudgetLine.objects.bulk_create(BudgetLine(version=v, **line) for line in lines)
     BudgetResult.objects.filter(version=v).delete()
+
+
+def required_columns(deadline) -> dict[str, list[str]]:
+    """{table: the columns an upload is refused without}, as the filing's specification version has them."""
+    return {t.name: list(t.refuse_without) for t in specifications.layout_for_filing(deadline, MODULE).tables}
 
 
 def job_file(v: SubmissionVersion) -> dict | None:
@@ -1219,22 +1224,3 @@ def setup_link(deadline) -> str:
     from django.urls import reverse
 
     return reverse("budgets:setup", args=[deadline.pk]) if FilingSetup.objects.filter(deadline=deadline).exists() else ""
-
-
-def template_xlsx() -> bytes:
-    """The budget filing template: Measure and ProgramCost as the field catalog has them (the engine's input tables), with a Fields
-    sheet defining each column (navigation review D2). Without a catalog loaded, each table's required columns."""
-    from cedars.services.dictionary import service as dictionary
-
-    from . import jobfile
-
-    tables = [
-        (t, dictionary.catalog_fields("calculations", t) or [dictionary.TemplateField(c, True) for c in jobfile.REQUIRED[t]])
-        for t in jobfile.TABLES
-    ]
-    return dictionary.filing_template_xlsx(
-        "CEDARS budget filing template",
-        tables,
-        notes="Fill in the Measure and ProgramCost sheets and upload the workbook, or save each sheet as Measure.csv and ProgramCost.csv "
-        "in one .zip. The Fields sheet is not read.",
-    )

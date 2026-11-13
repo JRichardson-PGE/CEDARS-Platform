@@ -17,7 +17,6 @@ class MonthlyEditor(corrections.FileTables):
     label = "Monthly reports"
     table_names = up.TABLES
     keys = service.KEYS
-    required = up.REQUIRED
     numbers = {
         "Commitments": [f for f, _ in COMMITMENT_FIELDS],
         "Measure": ["NumUnits", *INCENTIVE_FIELDS],
@@ -37,8 +36,11 @@ class MonthlyEditor(corrections.FileTables):
     def read_tables(self, data, filename):
         return up.read_tables(data, filename)
 
-    def table_of(self, name):
+    def table_of(self, name, v=None):
         return up.table_of(name)
+
+    def required_for(self, v):
+        return service.required_columns(v.submission.deadline) if v is not None else {}
 
     def prepare(self, v):
         service.ensure_checked(v)

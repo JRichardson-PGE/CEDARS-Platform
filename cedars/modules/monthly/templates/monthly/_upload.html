@@ -2,7 +2,7 @@
 {% else %}
 <p>The upload (one file, or several chosen together and joined) replaces this version's upload; an earlier upload is not kept.
 <a href="{% url 'monthly:template' %}">The monthly report template</a> has the three tables and defines every field.</p>
-{% url 'monthly:template' as tmpl %}{% before_upload template=tmpl template_label="the monthly report template" specification=deadline.specification_version fields="calculations.Measure" fields_label="the Measure and ProgramCost field definitions" rules_note="the BCA inputs get the engine's own input check, run when the report is priced" guide="monthly-reports" guide_label="the monthly reports guide" %}
+{% url 'monthly:template' as tmpl %}{% before_upload template=tmpl template_label="the monthly report template" specification=deadline.specification_version filing=deadline fields="calculations.Measure" fields_label="the Measure and ProgramCost field definitions" rules_note="the BCA inputs get the engine's own input check, run when the report is priced" guide="monthly-reports" guide_label="the monthly reports guide" %}
 <form method="post" enctype="multipart/form-data" action="{% url 'monthly:upload' deadline.pk %}" class="stack form-narrow">{% csrf_token %}
   {{ upload_form.file.as_field_group }}
   <div class="actions"><button type="submit"{% if upload_open %} class="primary"{% endif %}>Upload and check</button></div>

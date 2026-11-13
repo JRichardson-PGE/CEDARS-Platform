@@ -166,15 +166,15 @@ def test_compare_without_two_readable_versions_says_so(client):
 
 
 def test_the_claims_template_from_the_version_has_the_modules_sheets_and_columns(client):
-    """The version's template and the claims module's own template (made from its constants) hold the same tables and columns."""
+    """The version's template holds the tables and the columns the claims module reads from it."""
     v = current("claims")
     r = client.get(f"/specifications/claims/{v.slug}/template.xlsx")
     assert r["Content-Disposition"] == 'attachment; filename="claims_starting-version_template.xlsx"'
     ours = load_workbook(io.BytesIO(r.content), read_only=True)
-    theirs = load_workbook(io.BytesIO(claims_spec.template_xlsx()), read_only=True)
-    assert ours.sheetnames == theirs.sheetnames
-    for name in ours.sheetnames[1:]:
-        assert next(ours[name].iter_rows(values_only=True)) == next(theirs[name].iter_rows(values_only=True))
+    lay = claims_spec.of_version(v)
+    assert ours.sheetnames == ["Fields", *lay.TABLES]
+    for name in lay.TABLES:
+        assert list(next(ours[name].iter_rows(values_only=True))) == lay.upload_columns(name)
 
 
 def test_the_pii_template_holds_only_the_vault_tables(client):
@@ -190,7 +190,7 @@ def test_the_budget_template_zip_has_the_required_columns(client):
         assert sorted(z.namelist()) == sorted(f"{t}.csv" for t in jobfile.TABLES)
         for t in jobfile.TABLES:
             header = z.read(f"{t}.csv").decode().strip().split("|")
-            assert set(jobfile.REQUIRED[t]) <= set(header)
+            assert set(specifications.layout_for_module("budgets").table(t).refuse_without) <= set(header)
 
 
 def test_the_fields_and_rules_workbook_lists_every_field_rule_and_check(client, with_rules):

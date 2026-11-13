@@ -3,33 +3,41 @@
 confirmations, and correcting one adds the corrected record to this version, which then stands over it. A claim filed earlier is taken
 out of the year by withdrawing it (the Withdrawal table), never by deleting its record."""
 
-from functools import cache
-
 from django.urls import reverse
 
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions.corrections import FieldDef, Rows, TableDef
 
 from . import service, spec, upload
 
 
-@cache
-def _tables() -> tuple[TableDef, ...]:
+def _tables(lay: spec.Layout) -> tuple[TableDef, ...]:
+    """The record editor's tables: the claim tables of the filing's specification version, without the columns CEDARS fills in."""
+    made = lay.__dict__.get("_editor_tables")
+    if made is not None:
+        return made
     out = []
-    for name in spec.TABLES:
-        system = spec.SYSTEM_FIELDS.get(name, ())
+    for name in lay.TABLES:
+        system = lay.SYSTEM_FIELDS.get(name, ())
         fields = tuple(
-            FieldDef(f.name, spec.TYPE_LABELS[f.type], f.required, f.description) for f in spec.fields()[name] if f.name not in system
+            FieldDef(f.name, specifications.type_words(f), f.required, f.definition) for f in lay.fields(name) if f.name not in system
         )
-        group = ("ClaimID",) if name in spec.BY_CLAIM else ()
+        group = ("ClaimID",) if name in lay.BY_CLAIM else ()
         note = (
             "A claim's records in this table are one set: this version's set for a claim replaces the earlier one whole."
-            if name in spec.BY_CLAIM
+            if name in lay.BY_CLAIM
             else ""
         )
-        out.append(TableDef(name, spec.KEYS[name], fields, group, note))
-    return tuple(out)
+        out.append(TableDef(name, lay.KEYS[name], fields, group, note))
+    lay._editor_tables = tuple(out)
+    return lay._editor_tables
+
+
+def _layout(v) -> spec.Layout:
+    """The claim tables of the version's filing (its specification version); the current version's without one."""
+    return spec.for_filing(v.submission.deadline) if v is not None else spec.current()
 
 
 def _rows(tables: dict[str, upload.Table]) -> dict[str, Rows]:
@@ -45,7 +53,7 @@ class ClaimsEditor(corrections.Editor):
     )
 
     def tables(self, v):
-        return list(_tables())
+        return list(_tables(spec.for_filing(v.submission.deadline)))
 
     def rows(self, v):
         return _rows(service.own_tables(v))
@@ -74,11 +82,12 @@ class ClaimsEditor(corrections.Editor):
             return "Check the version first, on the period's page."
         return ""
 
-    def table_of(self, name):
-        return spec.table_name(name)
+    def table_of(self, name, v=None):
+        return _layout(v).table_name(name)
 
-    def read_upload(self, data, filename):
-        tables = {name: upload.without_system_fields(t) for name, t in upload.read(data, filename).items() if t.rows}
+    def read_upload(self, data, filename, v=None):
+        lay = _layout(v)
+        tables = {name: upload.without_system_fields(t, lay) for name, t in upload.read(data, filename, lay).items() if t.rows}
         return _rows(tables)
 
     def save(self, actor, v, tables, scope):

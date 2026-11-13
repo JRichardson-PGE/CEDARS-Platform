@@ -18,6 +18,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
 from cedars.services.registry import service as registry
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, SubmissionVersion
 
@@ -102,8 +103,9 @@ def test_a_zip_or_a_workbook_holds_the_three_tables():
         up.read_upload(report(extra={"notes.docx": "x"}), "r.zip")
     with pytest.raises(up.UploadError, match="Spend is read from the BCA inputs"):
         up.read_upload(report(extra={"Expenditures.csv": "PA|PrgID"}), "r.zip")
+    required = {t.name: list(t.refuse_without) for t in specifications.layout_for_module("monthly").tables}  # the version's
     with pytest.raises(up.UploadError, match="Commitments has no YTDCommittedFunds"):
-        up.read_upload(report(com_header=COM.replace("|YTDCommittedFunds", "")), "r.zip")
+        up.read_upload(report(com_header=COM.replace("|YTDCommittedFunds", "")), "r.zip", required)
     from openpyxl import Workbook
 
     wb = Workbook()

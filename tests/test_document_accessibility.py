@@ -12,7 +12,6 @@ from pypdf import PdfWriter
 from pypdf.generic import ArrayObject, BooleanObject, DecodedStreamObject, DictionaryObject, NameObject, TextStringObject
 
 from cedars.core import workbooks
-from cedars.modules.claims import spec
 from cedars.modules.data import downloads, records
 from cedars.modules.documents import service as documents
 from cedars.modules.documents.models import DocumentVersion
@@ -21,6 +20,8 @@ from cedars.services.accessibility import service as accessibility
 from cedars.services.accessibility.models import FileCheck
 from cedars.services.accounts.service import AccessDenied
 from cedars.services.audit.models import AuditEvent
+from cedars.services.specifications import downloads as spec_downloads
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import comments as filing_comments
 
 from .conftest import page_only
@@ -144,8 +145,9 @@ def assert_accessible(data: bytes) -> None:
         assert ws.freeze_panes == "A2" and ws.print_title_rows == "$1:$1"
 
 
+@pytest.mark.django_db
 def test_every_generated_workbook_passes_the_check():
-    assert_accessible(spec.template_xlsx())
+    assert_accessible(spec_downloads.template_xlsx(specifications.for_module("claims")))
     assert_accessible(downloads._xlsx(["PA", "TRC ratio", "Records"], [["PGE", 1.2, 10], ["Total", 1.2, 10]], {"dataset": "claims"}))
     assert_accessible(downloads._xlsx(["PA", "Records"], [], {"dataset": "claims"}))  # no rows: the table keeps an empty one
     batches = [pa.record_batch({"CEInputID": ["S1", "S2"], "TotalSystemBenefit": [11, 22]})]

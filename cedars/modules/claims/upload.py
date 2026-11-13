@@ -3,7 +3,8 @@ Measure.csv, ...) or an Excel workbook with a sheet per table. A quarter's uploa
 since the last confirmed quarter, so any of the tables may be left out. Columns are read under their canonical names (CEDARS' names
 and CET's are accepted); a column the template does not have is ignored, not rejected.
 
-The PII tables never come this way: a file named PII_Contact or PII_Site refuses the whole upload."""
+The tables, their names and columns are the filing's specification version's (`spec.Layout`, passed as `lay`). The PII tables never
+come this way: a file named after one of the version's vault tables (PII_Contact, PII_Site) refuses the whole upload."""
 
 import csv
 import io
@@ -35,34 +36,38 @@ class Table:
         return row.get(column, "")
 
 
-def combine(files: list[tuple[str, bytes]]) -> uploads.Combined:
+def combine(files: list[tuple[str, bytes]], lay: spec.Layout) -> uploads.Combined:
     """Several files chosen at once as the one upload read takes (cedars.core.uploads); a PII table in any of them refuses
     the whole upload, as in one file."""
     try:
-        return uploads.combine(files, spec.table_name, refuse=_no_pii)
+        return uploads.combine(files, lay.table_name, refuse=lambda name: _no_pii(name, lay))
     except uploads.CombineError as e:
         raise UploadError(str(e)) from None
 
 
-def read(data: bytes, filename: str) -> dict[str, Table]:
-    """{table name: Table} from an uploaded .zip or .xlsx."""
+def read(data: bytes, filename: str, lay: spec.Layout) -> dict[str, Table]:
+    """{table name: Table} from an uploaded .zip or .xlsx, read as the specification version `lay` lays the tables out."""
     problem = uploads.too_large_unzipped("The file", data)
     if problem:
         raise UploadError(problem)
-    raw = _from_workbook(data) if filename.lower().endswith(".xlsx") else _from_zip(data)
+    raw = _from_workbook(data, lay) if filename.lower().endswith(".xlsx") else _from_zip(data, lay)
     if not raw:
-        raise UploadError(f"The file holds none of the claims tables ({', '.join(spec.TABLES)}).")
-    return {name: _table(name, content) for name, content in raw.items()}
+        raise UploadError(f"The file holds none of the claims tables ({', '.join(lay.TABLES)}).")
+    return {name: _table(name, content, lay) for name, content in raw.items()}
 
 
-def _from_zip(data: bytes) -> dict[str, list[list[str]]]:
+def _open_zip(data: bytes) -> zipfile.ZipFile:
     try:
-        z = zipfile.ZipFile(io.BytesIO(data))
+        return zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         raise UploadError(
             "The file is not a valid .zip or .xlsx. Upload a .zip of the claims tables as CSV files, or an Excel workbook with a sheet "
             "per table."
         ) from None
+
+
+def _from_zip(data: bytes, lay: spec.Layout) -> dict[str, list[list[str]]]:
+    z = _open_zip(data)
     out, extra = {}, []
     for info in z.infolist():
         name = info.filename
@@ -72,8 +77,8 @@ def _from_zip(data: bytes) -> dict[str, list[list[str]]]:
         if len(p.parts) > 2 or p.suffix.lower() not in (".csv", ".txt"):
             extra.append(name)
             continue
-        _no_pii(p.stem)
-        table = spec.table_name(p.stem)
+        _no_pii(p.stem, lay)
+        table = lay.table_name(p.stem)
         if table is None:
             extra.append(name)
         elif table in out:
@@ -81,19 +86,19 @@ def _from_zip(data: bytes) -> dict[str, list[list[str]]]:
         else:
             out[table] = _csv_rows(z.read(info))
     if extra:
-        raise UploadError(f"The .zip may hold only the claims tables ({', '.join(spec.TABLES)}); it also has {', '.join(sorted(extra))}.")
+        raise UploadError(f"The .zip may hold only the claims tables ({', '.join(lay.TABLES)}); it also has {', '.join(sorted(extra))}.")
     return out
 
 
-def _no_pii(name: str) -> None:
-    if spec.is_pii_table(name):
+def _no_pii(name: str, lay: spec.Layout) -> None:
+    if lay.is_pii_table(name):
         raise UploadError(
             f"{name} holds personal information, which never travels with the claim records. Remove it from this file and send it "
             "through the PII upload; the claim records carry only the SiteID and ContactID keys."
         )
 
 
-def _from_workbook(data: bytes) -> dict[str, list[list[str]]]:
+def _from_workbook(data: bytes, lay: spec.Layout) -> dict[str, list[list[str]]]:
     from openpyxl import load_workbook
 
     try:
@@ -102,8 +107,8 @@ def _from_workbook(data: bytes) -> dict[str, list[list[str]]]:
         raise UploadError("The file is not a valid Excel workbook (.xlsx).") from None
     out = {}
     for ws in wb.worksheets:
-        _no_pii(ws.title)
-        table = spec.table_name(ws.title)
+        _no_pii(ws.title, lay)
+        table = lay.table_name(ws.title)
         if table is None:
             continue
         rows = []
@@ -138,11 +143,12 @@ def _csv_rows(content: bytes) -> list[list[str]]:
     return [r for r in csv.reader(io.StringIO(body), delimiter=sep) if r and any(c.strip() for c in r)]
 
 
-def _table(name: str, raw: list[list[str]]) -> Table:
+def _table(name: str, raw: list[list[str]], lay: spec.Layout | None) -> Table:
+    """A table's rows under its fields' canonical names (lay: the version's; None for a file this module wrote, read as it is)."""
     if not raw:
         return Table(name, [], [])
     header = [h.strip() for h in raw[0]]
-    names = [spec.canonical(name, h) for h in header]
+    names = [lay.canonical(name, h) for h in header] if lay is not None else [h or None for h in header]
     seen: set[str] = set()
     for h, n in zip(header, names, strict=True):
         if n is not None and n in seen:
@@ -156,14 +162,14 @@ def _table(name: str, raw: list[list[str]]) -> Table:
     return Table(name, columns, rows, ignored=[h for h, n in zip(header, names, strict=True) if n is None])
 
 
-def table_from_csv(name: str, content: bytes) -> Table:
+def table_from_csv(name: str, content: bytes, lay: spec.Layout) -> Table:
     """One table's CSV read as an upload reads it (the pre-upload checker)."""
-    return _table(name, _csv_rows(content))
+    return _table(name, _csv_rows(content), lay)
 
 
-def without_system_fields(t: Table) -> Table:
-    """An upload's table without the columns CEDARS fills in (spec.SYSTEM_FIELDS): they are ignored, as an unknown column is."""
-    drop = [c for c in spec.SYSTEM_FIELDS.get(t.name, ()) if c in t.columns]
+def without_system_fields(t: Table, lay: spec.Layout) -> Table:
+    """An upload's table without the columns CEDARS fills in (the version's system fields): they are ignored, as an unknown column is."""
+    drop = [c for c in lay.SYSTEM_FIELDS.get(t.name, ()) if c in t.columns]
     if not drop:
         return t
     rows = [{k: val for k, val in r.items() if k not in drop} for r in t.rows]
@@ -182,18 +188,28 @@ def to_csv(columns: list[str], rows: list[dict[str, str]]) -> bytes:
     return out.getvalue().encode("utf-8")
 
 
-def to_zip(tables: dict[str, Table]) -> bytes:
-    """Tables as a .zip of comma-delimited CSVs in the template's order (an empty table is left out)."""
+def to_zip(tables: dict[str, Table], order=()) -> bytes:
+    """Tables as a .zip of comma-delimited CSVs, in `order` (the version's table order) and then as given (an empty table is left
+    out)."""
     out = io.BytesIO()
+    names = [n for n in order if n in tables] + [n for n in tables if n not in order]
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        for name in spec.TABLES:
-            t = tables.get(name)
-            if t is not None and t.rows:
+        for name in names:
+            t = tables[name]
+            if t.rows:
                 z.writestr(f"{name}.csv", to_csv(t.columns, t.rows))
     return out.getvalue()
 
 
 def from_zip(data: bytes) -> dict[str, Table]:
-    """Read back a .zip this module wrote (to_zip)."""
-    raw = _from_zip(data) if data else {}
-    return {name: _table(name, content) for name, content in raw.items()}
+    """Read back a .zip this module wrote (to_zip): each file is a table named after it, its columns as written, whatever version
+    the filing follows."""
+    if not data:
+        return {}
+    z = _open_zip(data)
+    out = {}
+    for info in z.infolist():
+        p = PurePosixPath(info.filename)
+        if not info.is_dir() and p.suffix.lower() == ".csv":
+            out[p.stem] = _table(p.stem, _csv_rows(z.read(info)), None)
+    return out
