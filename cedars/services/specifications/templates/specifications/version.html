@@ -69,7 +69,7 @@
     <thead><tr><th scope="col">Field</th><th scope="col">Requirement</th><th scope="col">Type</th><th scope="col">Value list</th><th scope="col">Definition and rules</th></tr></thead>
     <tbody>
     {% for row in x.fields %}{% with f=row.f %}
-    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
+    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.renamed_from %}<br><span class="small">renamed from {{ f.renamed_from }} in this version</span>{% endif %}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
       <td>{{ f.get_requirement_display }}</td><td>{{ f.type_words }}{% if f.default %}<br><span class="small">Blank means {{ f.default }}</span>{% endif %}</td>
       <td>{% if f.value_list %}<a href="{% url 'dictionary:list' f.value_list %}">{{ f.value_list }}</a>{% else %}-{% endif %}</td>
       <td>{{ f.definition }}{% if f.example %}<br><span class="small">Example: {{ f.example }}</span>{% endif %}{% if f.guidance %}<br>{{ f.guidance }}{% endif %}

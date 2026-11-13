@@ -3,20 +3,22 @@
 <section aria-labelledby="tables-h"><h3 id="tables-h">Tables</h3><ul>
   {% for t in result.tables_added %}<li>Added: {{ t.name }} ({{ t.fields.count }} fields)</li>{% endfor %}
   {% for t in result.tables_removed %}<li>Removed: {{ t.name }}</li>{% endfor %}</ul></section>{% endif %}
-{% if result.fields_added or result.fields_removed or result.fields_changed %}
+{% if result.fields_added or result.fields_removed or result.fields_changed or result.fields_renamed %}
 <section aria-labelledby="fields-h"><h3 id="fields-h">Fields</h3>
   <div class="hscroll" tabindex="0" role="region" aria-label="Fields that change">
   <table class="list"><caption class="sr-only">Fields added, removed and changed</caption>
     <thead><tr><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Change</th></tr></thead>
     <tbody>
     {% for table, f in result.fields_added %}<tr><td>{{ table }}</td><th scope="row">{{ f.name }}</th><td>Added: {{ f.get_requirement_display|lower }}, {{ f.type_words|lower }}</td></tr>{% endfor %}
+    {% for table, old, new, diffs in result.fields_renamed %}<tr><td>{{ table }}</td><th scope="row">{{ new }}</th><td>Renamed from {{ old }}, still accepted on upload{% if diffs %}<ul class="compact">{% for what, a, b in diffs %}<li>{{ what }}: {{ a|default:"(blank)"|truncatechars:120 }} to {{ b|default:"(blank)"|truncatechars:120 }}</li>{% endfor %}</ul>{% endif %}</td></tr>{% endfor %}
     {% for table, f in result.fields_removed %}<tr><td>{{ table }}</td><th scope="row">{{ f.name }}</th><td>Removed</td></tr>{% endfor %}
     {% for table, name, diffs in result.fields_changed %}<tr><td>{{ table }}</td><th scope="row">{{ name }}</th><td><ul class="compact">{% for what, old, new in diffs %}<li>{{ what }}: {{ old|default:"(blank)"|truncatechars:120 }} to {{ new|default:"(blank)"|truncatechars:120 }}</li>{% endfor %}</ul></td></tr>{% endfor %}
     </tbody></table></div></section>{% endif %}
-{% if result.rules_added or result.rules_removed or result.rules_changed %}
+{% if result.rules_added or result.rules_removed or result.rules_changed or result.rules_renamed %}
 <section aria-labelledby="rules-h"><h3 id="rules-h">Rules</h3><ul>
   {% for r in result.rules_added %}<li>Added ({{ r.table }} {{ r.field }}, {{ r.get_severity_display|lower }}): {{ r.message }}</li>{% endfor %}
   {% for r in result.rules_removed %}<li>Removed ({{ r.table }} {{ r.field }}): {{ r.message }}</li>{% endfor %}
+  {% if result.rules_renamed %}<li>{{ result.rules_renamed|length }} rule{{ result.rules_renamed|length|pluralize }} unchanged but for a renamed field's name: {% for old, new in result.rules_renamed %}{{ new.rule_id }} (was {{ old.rule_id }}){% if not forloop.last %}, {% endif %}{% endfor %}</li>{% endif %}
   {% for old, new in result.rules_changed %}<li>Changed ({{ new.table }} {{ new.field }}): {{ old.message }} ({{ old.get_severity_display|lower }}) to {{ new.message }} ({{ new.get_severity_display|lower }})</li>{% endfor %}
 </ul></section>{% endif %}
 {% if result.checks_added or result.checks_removed or result.checks_changed %}

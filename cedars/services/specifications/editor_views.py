@@ -87,7 +87,7 @@ def edit(request, code: str, slug: str):
     tables = []
     for t in v.tables.prefetch_related("fields"):
         tables.append({"t": t, "fields": [{"f": f, "lock": lock.get((t.name, f.name), "")} for f in t.fields.all()]})
-    return _page(request, "edit_fields.html", v, "edit", tables=tables, engine=editor.engine_available())
+    return _page(request, "edit_fields.html", v, "edit", tables=tables, engine=editor.engine_available(), pending=editor.pending_renames(v))
 
 
 @login_required
@@ -337,8 +337,30 @@ def edit_field(request, code: str, slug: str, table: str, field: str):
         form = forms.FieldForm(initial=initial, table=t, field=f, locked=lock)
     return _page(
         request, "edit_field.html", v, "edit", sub=True, t=t, form=form, f=f, lock=lock, adding=False,
-        remove_form=forms.ReasonForm(auto_id="remove_%s"),
+        remove_form=forms.ReasonForm(auto_id="remove_%s"), rename_form=forms.RenameForm(auto_id="rename_%s"),
     )  # fmt: skip
+
+
+@login_required
+@require_POST
+def rename_field(request, code: str, slug: str, table: str, field: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    t = _table(v, table)
+    f = _field(t, field)
+    form = forms.RenameForm(request.POST)
+    back = request.POST.get("back") == "fields"
+    if not form.is_valid():
+        messages.error(request, "Give the new name and say why the field is renamed.")
+        return redirect(f"{_edit_url(v)}#pending-renames") if back else redirect("specifications:edit_field", code, slug, t.name, f.name)
+    try:
+        f = editor.rename_field(request.user, f, form.cleaned_data["new_name"], form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+        return redirect(f"{_edit_url(v)}#pending-renames") if back else redirect("specifications:edit_field", code, slug, t.name, f.name)
+    messages.success(request, f"Renamed {t.name}.{f.renamed_from or field} to {f.name}; the old name is still accepted on upload.")
+    return redirect(f"{_edit_url(v)}#field-{t.name}-{f.name}")
 
 
 @login_required

@@ -19,6 +19,17 @@ information goes only in a table kept in the PII vault.{% endif %}</p>
     <a class="button" href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Cancel</a></div>
 </form>
 {% if not adding %}
+{% if f.renamed_from %}<p id="field-renamed">Renamed in this draft from {{ f.renamed_from }}, which is still accepted on upload.</p>{% endif %}
+{% if lock %}<p class="small" id="rename-field">A locked field keeps its name.</p>{% else %}
+<details id="rename-field"><summary>Rename {{ f.name }}</summary>
+  <p>It stays the same field under a new name: the old name is still accepted on upload, the draft's rules that name it are rewritten,
+  and when the version is published the data dictionary renames it too and keeps the old name as a former name. Data filed under
+  earlier versions keeps the name it was filed with.</p>
+  <form method="post" action="{% url 'specifications:rename_field' v.specification.code v.slug t.name f.name %}" class="stack form-narrow">{% csrf_token %}
+    {{ rename_form.new_name.as_field_group }}{{ rename_form.reason.as_field_group }}
+    <div class="actions"><button type="submit">Rename the field</button></div>
+  </form>
+</details>{% endif %}
 {% if lock %}<p class="small" id="remove-field">A locked field cannot be removed.</p>{% else %}
 <details id="remove-field"><summary>Remove {{ f.name }} from this draft</summary>
   <p>A file that still has the column is accepted and the column ignored with a notice. Data filed under earlier versions keeps it.</p>

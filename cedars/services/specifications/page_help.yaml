@@ -79,7 +79,8 @@ specifications/edit_fields:
       and other accepted names can change.
   how:
     - Add a field to a table from the data dictionary, or a new one with its definition.
-    - Select Change beside a field to change its requirement, type, value list, wording or place, or to remove it.
+    - Select Change beside a field to change its requirement, type, value list, wording or place, to rename it, or to remove it.
+    - A field another specification renamed in the data dictionary is listed at the top: rename it here too, or keep the name.
     - Change a table's other accepted names and the guidance shown above its fields.
   see: rules-and-lists
   tour:
@@ -89,6 +90,10 @@ specifications/edit_fields:
     - target: main nav.subnav
       title: Parts of the draft
       text: A page for each part of the draft, from its settings to Publish.
+    - target: "#pending-renames"
+      title: Renamed in the data dictionary
+      text: Fields another specification renamed; rename each here too, or keep its name.
+      optional: true
     - target: main section.spec-table
       title: A table and its fields
       text: Each field's requirement, type, value list and lock. Add a field, or change one from its row.
@@ -195,6 +200,8 @@ specifications/edit_field:
   how:
     - Set the requirement, type, size, value list, example and wording, say why, and save.
     - To add a field, pick one the data dictionary has or give a new name and definition.
+    - Rename a field that is not locked; it stays the same field, its old name is still accepted on upload, its rules follow it and
+      the data dictionary renames it when the version is published.
     - Remove a field that is not locked; data filed under earlier versions keeps it.
   see: rules-and-lists
   tour:
@@ -204,6 +211,10 @@ specifications/edit_field:
     - target: "#field-lock"
       title: Locked
       text: Why the field is locked and what may still change.
+      optional: true
+    - target: "#rename-field"
+      title: Rename the field
+      text: A new name for the same field; the old name is still accepted.
       optional: true
     - target: "#remove-field"
       title: Remove the field

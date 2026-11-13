@@ -1,3 +1,5 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
 from django.db.models.functions import Lower
@@ -45,6 +47,9 @@ class Field(models.Model):
         CONFIDENTIAL = "confidential", "Confidential (PII)"
 
     version = models.ForeignKey(CatalogVersion, on_delete=models.CASCADE, related_name="fields")
+    identity = models.UUIDField(
+        default=uuid.uuid4, db_index=True, help_text="The same in every catalog version that has the field, whatever it is called"
+    )
     name = models.CharField(max_length=80)
     kind = models.CharField(max_length=6, choices=Kind.choices)
     group = models.CharField(max_length=200, blank=True)
@@ -113,6 +118,27 @@ class Alias(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.system}) = {self.field.name}"
+
+
+class FieldRename(models.Model):
+    """A field renamed by a filing specification version: from then on the dictionary calls it `new_name`, keeps `old_name` as a former
+    name (accepted on upload, found by search) and a later catalog loaded under the old name takes the new one (service.load_catalog).
+    Data filed earlier keeps the name it was filed with."""
+
+    identity = models.UUIDField(db_index=True)
+    old_name = models.CharField(max_length=80)
+    new_name = models.CharField(max_length=80)
+    catalog_version = models.ForeignKey(CatalogVersion, on_delete=models.CASCADE, related_name="renames")
+    specification = models.CharField(max_length=200, blank=True, help_text='The version that renamed it, e.g. "Claims: Claims 2029"')
+    reason = models.TextField(blank=True)
+    renamed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    renamed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["renamed_at", "pk"]
+
+    def __str__(self):
+        return f"{self.old_name} -> {self.new_name}"
 
 
 class Usage(models.Model):

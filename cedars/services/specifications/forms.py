@@ -157,6 +157,15 @@ class AddFieldForm(FieldForm):
         return d
 
 
+class RenameForm(forms.Form):
+    new_name = forms.CharField(
+        label="New name",
+        max_length=80,
+        help_text="Letters, digits and underscores, starting with a letter. The old name is still accepted on upload.",
+    )
+    reason = _reason()
+
+
 class TableForm(forms.Form):
     other_names = forms.CharField(
         label="Other file or sheet names accepted", required=False, max_length=500, help_text="Separated by commas; letter case is ignored."

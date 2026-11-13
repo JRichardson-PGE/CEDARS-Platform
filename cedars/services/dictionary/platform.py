@@ -165,6 +165,7 @@ NOT_DESCRIBED: dict[str, str] = {
     "dictionary.CatalogVersion": "the dictionary itself",
     "dictionary.Field": "the dictionary itself",
     "dictionary.Alias": "the dictionary itself",
+    "dictionary.FieldRename": "the dictionary itself (each rename is in the field's history and the change log)",
     "dictionary.Usage": "the dictionary itself",
     "dictionary.ValueList": "the dictionary itself (its codes are on the value list pages)",
     "dictionary.ValueListVersion": "the dictionary itself (its codes are on the value list pages)",

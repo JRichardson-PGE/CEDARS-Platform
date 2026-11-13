@@ -135,7 +135,7 @@ def test_the_change_log_lists_each_versions_changes(catalog, cpuc_admin, payload
     assert first.previous is None and first.counts["added"] == catalog.fields.count()
     v2, _ = retire(cpuc_admin, days=5)
     ch = changes.changes(v2)
-    assert ch.previous == catalog and ch.counts == {"added": 0, "retired": 1, "reinstated": 0, "changed": 0, "dropped": 0}
+    assert ch.previous == catalog and ch.counts == {"added": 0, "renamed": 0, "retired": 1, "reinstated": 0, "changed": 0, "dropped": 0}
     c = ch.of("retired")[0]
     assert c.name == "MeasDescription" and c.note == REVIEWS["reason"] and c.details[0][0] == "Retired from"
     later = copy.deepcopy(payload)

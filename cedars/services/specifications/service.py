@@ -226,7 +226,13 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         )
         blank = field_doc("")
         Field.objects.bulk_create(
-            Field(table=table, position=j, **{k: f.get(k, blank[k]) for k in FIELD_ATTRS}) for j, f in enumerate(t["fields"])
+            Field(
+                table=table,
+                position=j,
+                **{k: f.get(k, blank[k]) for k in FIELD_ATTRS},
+                **({"renamed_from": f["renamed_from"]} if f.get("renamed_from") else {}),  # migration 0002's model has no renamed_from
+            )
+            for j, f in enumerate(t["fields"])
         )
     Check.objects.bulk_create(
         Check(version=version, position=i, **{k: c.get(k, {} if k == "settings" else "") for k in CHECK_ATTRS})
@@ -346,7 +352,10 @@ def as_document(version) -> dict:
     tables = []
     for t in version.tables.prefetch_related("fields"):
         doc = {k: getattr(t, k) for k in TABLE_ATTRS}
-        doc["fields"] = [{k: getattr(f, k) for k in FIELD_ATTRS} for f in t.fields.all()]
+        doc["fields"] = [
+            {**{k: getattr(f, k) for k in FIELD_ATTRS}, **({"renamed_from": f.renamed_from} if f.renamed_from else {})}
+            for f in t.fields.all()
+        ]
         tables.append(doc)
     s = version.specification
     pack = version.cost_test_set
@@ -725,9 +734,11 @@ class Comparison:
     fields_added: list  # (table, SpecField)
     fields_removed: list
     fields_changed: list  # (table, field name, [(attribute words, old, new), ...])
+    fields_renamed: list  # (table, old name, new name, [(attribute words, old, new), ...])
     rules_added: list
     rules_removed: list
-    rules_changed: list  # (old rule, new rule) with the same ID? an ID is its test: a changed test is a new ID
+    rules_changed: list  # (old rule, new rule): a changed test is a new ID that names the one it replaces
+    rules_renamed: list  # (old rule, new rule) that differ only by a renamed field's name
     checks_added: list
     checks_removed: list
     checks_changed: list
@@ -763,27 +774,52 @@ def _show(attr, value):
     return "" if value is None else str(value)
 
 
+def _without(names: list, name: str) -> list:
+    """A renamed field's other names without the old name the rename added to them."""
+    return [n for n in names if n.lower() != name.lower()]
+
+
+def _only_renamed(old, new, renames: dict[tuple[str, str], str]) -> bool:
+    """Whether rule `new` is rule `old` with only renamed fields' names changed (its test, severity and wording)."""
+    from cedars.services.rules import service as rules_service
+
+    field, definition, message, fix = old.field, old.definition, old.message, old.fix
+    for (table, a), b in renames.items():
+        field, definition = rules_service.renamed_test(old.table, field, definition, table, a, b)
+        message, fix = rules_service.renamed_words(message, a, b), rules_service.renamed_words(fix, a, b)
+    return (old.table, old.severity, old.kind, field, definition, message, fix) == (
+        new.table, new.severity, new.kind, new.field, new.definition, new.message, new.fix)  # fmt: skip
+
+
 def compare(a, b) -> Comparison:
     """What changes from version a to version b (of one specification, or across two: a table is matched by its name)."""
     at = {t.name: t for t in a.tables.prefetch_related("fields")}
     bt = {t.name: t for t in b.tables.prefetch_related("fields")}
-    fields_added, fields_removed, fields_changed = [], [], []
+    fields_added, fields_removed, fields_changed, fields_renamed = [], [], [], []
+    renames: dict[tuple[str, str], str] = {}  # (table, old name): new name
     for name in at.keys() & bt.keys():
         af = {f.name: f for f in at[name].fields.all()}
         bf = {f.name: f for f in bt[name].fields.all()}
-        fields_added += [(name, bf[n]) for n in bf if n not in af]
-        fields_removed += [(name, af[n]) for n in af if n not in bf]
-        for n in [n for n in bf if n in af]:
+        moved = {n: f.renamed_from for n, f in bf.items() if f.renamed_from in af and f.renamed_from not in bf}  # new: old
+        fields_added += [(name, bf[n]) for n in bf if n not in af and n not in moved]
+        fields_removed += [(name, af[n]) for n in af if n not in bf and n not in moved.values()]
+        for n in [n for n in bf if n in af or n in moved]:
+            old = af[moved.get(n, n)]
             diffs = [
-                (words, _show(k, getattr(af[n], k)), _show(k, getattr(bf[n], k)))
+                (words, _show(k, getattr(old, k)), _show(k, getattr(bf[n], k)))
                 for k, words in FIELD_WORDS.items()
-                if getattr(af[n], k) != getattr(bf[n], k)
+                if getattr(old, k) != (_without(getattr(bf[n], k), old.name) if k == "other_names" and n in moved else getattr(bf[n], k))
             ]
-            if diffs:
+            if n in moved:
+                fields_renamed.append((name, old.name, n, diffs))
+                renames[(name, old.name)] = n
+            elif diffs:
                 fields_changed.append((name, n, diffs))
     ar, br = {r.rule_id: r for r in rules(a)}, {r.rule_id: r for r in rules(b)}
     replaced = {r.replaces: r for r in br.values() if r.replaces and r.replaces in ar and r.rule_id not in ar}
     rules_changed = [(ar[old], new) for old, new in replaced.items()]
+    rules_renamed = [(o, n) for o, n in rules_changed if renames and _only_renamed(o, n, renames)]
+    rules_changed = [p for p in rules_changed if p not in rules_renamed]
     rules_changed += [
         (ar[i], br[i])
         for i in ar.keys() & br.keys()
@@ -799,9 +835,11 @@ def compare(a, b) -> Comparison:
         fields_added=fields_added,
         fields_removed=fields_removed,
         fields_changed=fields_changed,
+        fields_renamed=fields_renamed,
         rules_added=[r for i, r in br.items() if i not in ar and r not in replaced.values()],
         rules_removed=[r for i, r in ar.items() if i not in br and i not in replaced],
         rules_changed=sorted(rules_changed, key=lambda p: (p[1].table, p[1].field, p[1].rule_id)),
+        rules_renamed=sorted(rules_renamed, key=lambda p: (p[1].table, p[1].field, p[1].rule_id)),
         checks_added=[c for i, c in bc.items() if i not in ac],
         checks_removed=[c for i, c in ac.items() if i not in bc],
         checks_changed=[(ac[i], bc[i]) for i in ac.keys() & bc.keys() if any(getattr(ac[i], k) != getattr(bc[i], k) for k in keys)],
