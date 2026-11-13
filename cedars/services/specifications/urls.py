@@ -27,4 +27,5 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/edit/tables/<str:table>/fields/<str:field>/", editor_views.edit_field, name="edit_field"),
     path("<slug:code>/<slug:slug>/edit/tables/<str:table>/fields/<str:field>/remove", editor_views.remove_field, name="remove_field"),
     path("<slug:code>/<slug:slug>/edit/tables/<str:table>/fields/<str:field>/rename", editor_views.rename_field, name="rename_field"),
+    path("<slug:code>/<slug:slug>/edit/tables/<str:table>/fields/<str:field>/new-list", editor_views.new_value_list, name="new_value_list"),
 ]

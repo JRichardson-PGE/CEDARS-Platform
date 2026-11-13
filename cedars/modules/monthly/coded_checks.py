@@ -29,6 +29,9 @@ CHECKS = [
     C("MON-YTD", "warning", "ProgramCost", "PrgID",
       "A program's spend year to date is below the previous month's report, or a program with spend last month is missing.",
       "Check the program's ProgramCost row and measures: the BCA inputs are the year to date, so spend should not fall."),
+    C("MON-LIST", "reject", "Commitments, ProgramCost, Measure", "A field whose codes come from a value list made for the specification",
+      "The value is not a code of the value list, or not one accepted for the record's year.",
+      "Use a code from the value list that is accepted for the year (the list's page shows each code's first and last year)."),
 ]  # fmt: skip
 
 # The checks a specification version may leave out or make a warning or a reject:

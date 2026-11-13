@@ -28,6 +28,9 @@ CHECKS = [
     C("BUD-RULES", "reject", "ProgramCost, Measure", "",
       "The rule set in force could not be applied to a year's rows, so the version cannot be called valid.",
       "Tell the CPUC's CEDARS support; the file may be fine."),
+    C("BUD-LIST", "reject", "ProgramCost, Measure", "A field whose codes come from a value list made for the specification",
+      "The value is not a code of the value list, or not one accepted for the record's year.",
+      "Use a code from the value list that is accepted for the year (the list's page shows each code's first and last year)."),
 ]  # fmt: skip
 
 # The checks a specification version may leave out or make a warning or a reject:

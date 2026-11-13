@@ -622,6 +622,22 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     return _store_and_check(actor, v, tables, entry)
 
 
+def list_problems(tables: dict[str, bytes], deadline) -> list[rules.Finding]:
+    """Values not in their field's value list made for the report's specification version (MON-LIST), against the codes accepted in
+    the report's year."""
+    lay = specifications.layout_for_filing(deadline, MODULE)
+    out = []
+    for table in up.TABLES:
+        if table not in tables or not specifications.list_fields(lay, table):
+            continue
+        _, rows = up.rows(tables[table])
+        id_col = "CEInputID" if table == "Measure" else "PrgID"
+        for p in specifications.list_problems(lay, table, rows, year=deadline.period.year, get=up.get):
+            out.append(_finding(p["index"] + 2, up.get(rows[p["index"]], id_col), table, p["field"], "MON-LIST", "reject", p["message"],
+                                p["fix"], p["value"]))  # fmt: skip
+    return out
+
+
 def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entry: dict, *, corrected: bool = False) -> SubmissionVersion:
     """Keep the report's tables (report.zip) and its BCA inputs (job.zip) as the version's files, in a folder named by the report's
     SHA-256, read its lines, run the module's checks and record the result. The checks are all file-wide (a program's one row, its
@@ -632,6 +648,7 @@ def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entr
     deadline, organisation = v.submission.deadline, v.submission.organisation
     prev = previous_month(deadline)
     lines, found, records, notes = derive(tables, organisation, deadline.period, standing(organisation, prev) if prev else None)
+    found += list_problems(tables, deadline)
     found = specifications.apply_checks_for_filing(deadline, found)  # the built-in checks as the filing's version has them
     report, job = up.report_zip(tables), up.job_zip(tables)
     sha = up.sha256(report)

@@ -166,6 +166,22 @@ class RenameForm(forms.Form):
     reason = _reason()
 
 
+class NewListForm(forms.Form):
+    name = forms.CharField(
+        label="Name of the new list",
+        max_length=60,
+        help_text="Lower-case letters, digits and underscores, starting with a letter, such as delivery_channel.",
+    )
+    codes = forms.CharField(
+        label="Codes",
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 6}),
+        help_text="One to a line: the code, then its description, first year and last year, separated by commas (each after the code "
+        "may be left out). Put a description that has a comma in double quotes. Add more, or load them from a CSV, on the list's page.",
+    )
+    reason = _reason()
+
+
 class TableForm(forms.Form):
     other_names = forms.CharField(
         label="Other file or sheet names accepted", required=False, max_length=500, help_text="Separated by commas; letter case is ignored."

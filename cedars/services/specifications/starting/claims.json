@@ -3787,6 +3787,16 @@
    "settings": {}
   },
   {
+   "group": "claims",
+   "rule_id": "CLM-LIST",
+   "severity": "reject",
+   "tables": "Any table",
+   "fields": "A field whose codes come from a value list made for the specification",
+   "finds": "The value is not a code of the value list, or not one accepted for the record's year.",
+   "fix": "Use a code from the value list that is accepted for the year (the list's page shows each code's first and last year).",
+   "settings": {}
+  },
+  {
    "group": "vault",
    "rule_id": "PII-REQ",
    "severity": "reject",

@@ -70,6 +70,9 @@ CHECKS = [
     C("CLM-RULES", "reject", "Measure, ProgramCost", "",
       "The claims rule set in force could not be applied, so the version cannot be called valid.",
       "Tell the CPUC's CEDARS support; the file may be fine."),
+    C("CLM-LIST", "reject", "Any table", "A field whose codes come from a value list made for the specification",
+      "The value is not a code of the value list, or not one accepted for the record's year.",
+      "Use a code from the value list that is accepted for the year (the list's page shows each code's first and last year)."),
 ]  # fmt: skip
 
 # The checks a specification version may leave out or make a warning or a reject:

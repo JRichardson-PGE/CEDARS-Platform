@@ -1391,6 +1391,8 @@ def derive_checks(
                     add(name, i, rid, ", ".join(lay.KEYS[name]), "CLM-KEY", f"{name} has this key on line {seen[k]} too",
                         "Keep one record per key; to correct a record, change it in place.")  # fmt: skip
                 seen.setdefault(k, i)
+        for p in specifications.list_problems(lay.version_layout, name, t.rows, year=year):  # a list made for the specification
+            add(name, p["index"] + 2, rid_of(name, t.rows[p["index"]]), p["field"], "CLM-LIST", p["message"], p["fix"], p["value"])
 
     # IDs and years
     for name in ("Claim", "Measure"):

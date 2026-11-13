@@ -44,6 +44,10 @@ accepted.</p>
 {% include "dictionary/_codes.html" with editable=True %}
 <section class="card" aria-labelledby="publish-h">
   <h2 id="publish-h">Publish this version</h2>
+  {% if vl.made_for and not latest %}
+  <p id="made-for">This list was made for a new field in the filing specification draft {{ vl.made_for }}. Its first version is published
+  with that specification version, taking effect the same day, and is dropped if the draft is discarded. Change its codes here.</p>
+  {% else %}
   <p>{% if latest %}Version {{ latest.number }} takes effect {{ latest.effective_from|date_words }}; this one takes effect after it.{% else %}The first version published here replaces the engine's list from the date it takes effect.{% endif %}</p>
   <form method="post" action="{% url 'dictionary:publish_list' vl.name %}" class="row-form">{% csrf_token %}
     {% for field in publish_form %}{{ field.as_field_group }}{% endfor %}
@@ -55,5 +59,6 @@ accepted.</p>
       <button type="submit">Discard the draft</button>
     </form>
   </details>
+  {% endif %}
 </section>
 {% endblock %}

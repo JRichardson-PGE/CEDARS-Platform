@@ -1,6 +1,7 @@
 """Editing filing specifications: a CPUC system administrator starts a draft from a published version, changes its settings, its
 tables' fields (renaming one keeps it the same field: its old name is still accepted, its rules follow it and the data dictionary
-renames it when the version is published), its rules and which built-in checks run, reads what changes, and publishes it with notice.
+renames it when the version is published; a new field with new codes gets a new value list made in the draft, `new_value_list`, which
+is published with the version), its rules and which built-in checks run, reads what changes, and publishes it with notice.
 
 A draft is a copy of a published version (`start_draft`), one per specification at a time. Its rule set is a draft copy of the
 version's rule set, made in the rule library at the same time and published with it: rules change with a specification version,
@@ -16,6 +17,7 @@ sets are set up with the newest version in effect (`service.current`)."""
 
 from __future__ import annotations
 
+import csv
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -271,6 +273,8 @@ def discard(actor, draft: SpecificationVersion, reason: str = "") -> None:
         reason=reason,
         actor=actor,
     )
+    for vl in lists_made(v):
+        _drop_list(actor, vl, f"Its specification draft was discarded. {reason}".strip())
     v.delete()
     if rs is not None and rs.status == rs.Status.DRAFT and not rs.specification_versions.exists():
         from cedars.services.rules import service as rules_service
@@ -326,6 +330,7 @@ def update_settings(
     if after != before:
         v.save()
         audit.record("specification.settings_changed", obj=v, before=before, after=after, reason=reason, actor=actor)
+        lists_made(v).update(made_for=made_for(v)[:200])  # the lists made in it are named for it
     return v
 
 
@@ -647,6 +652,145 @@ def change_table(actor, table: SpecTable, *, other_names=None, guidance=None, re
     return t
 
 
+# --- new value lists
+
+
+def made_in(v: SpecificationVersion) -> str:
+    """How a value list made in draft `v` names it (dictionary ValueList.made_in)."""
+    return f"specification:{v.pk}"
+
+
+def made_for(v: SpecificationVersion) -> str:
+    return f"{v.specification.name}: {v.name}"
+
+
+def lists_made(v: SpecificationVersion):
+    """The value lists made in draft `v` for its new fields, by name."""
+    from cedars.services.dictionary.models import ValueList
+
+    return ValueList.objects.filter(made_in=made_in(v)).order_by("name")
+
+
+@dataclass(frozen=True)
+class MadeList:
+    """A value list made in a draft, as its pages show it: the list, its draft (None once published), its codes and the fields
+    naming it."""
+
+    value_list: object
+    draft: object
+    codes: int
+    fields: list[str]
+
+
+def made_lists(v: SpecificationVersion) -> list[MadeList]:
+    from cedars.services.dictionary import value_lists
+
+    named: dict[str, list[str]] = {}
+    for t in v.tables.prefetch_related("fields"):
+        for f in t.fields.all():
+            if f.value_list:
+                named.setdefault(f.value_list.lower(), []).append(f"{t.name}.{f.name}")
+    out = []
+    for vl in lists_made(v):
+        d = value_lists.draft_of(vl)
+        shown = d or value_lists.latest_published(vl)
+        out.append(MadeList(vl, d, shown.codes.count() if shown else 0, named.get(vl.name.lower(), [])))
+    return out
+
+
+def read_codes(text: str) -> list[dict]:
+    """Codes typed one to a line: the code, then (separated by commas) its description, first year and last year, each optional. A
+    description with a comma goes in double quotes."""
+    out = []
+    for n, line in enumerate((text or "").splitlines(), start=1):
+        if not line.strip():
+            continue
+        parts = [p.strip() for p in next(csv.reader([line], skipinitialspace=True))]
+        if len(parts) > 4:
+            raise EditError(
+                f"Line {n} has more than four parts: give the code, description, first year and last year, and put a description "
+                "that has a comma in double quotes."
+            )
+        parts += [""] * (4 - len(parts))
+        out.append({"code": parts[0], "description": parts[1], "start_year": parts[2], "end_year": parts[3], "line": n})
+    return out
+
+
+@transaction.atomic
+def new_value_list(actor, field: SpecField, name: str, *, codes: str = "", reason: str = "") -> object:
+    """A new value list for a field of a draft, for new codes no list has: it is made in the data dictionary (dictionary.value_lists
+    .create_list) with the codes given, typed one to a line (`read_codes`; more can be added or loaded from a CSV on the list's draft
+    page), and the field takes its codes from it. The engine has no such list, so the filing modules check the field against it
+    themselves (their *-LIST checks). The list is published with the version, taking effect the same day, and dropped if the draft is
+    discarded. Returns the list."""
+    from cedars.services.dictionary import value_lists
+
+    _require(actor)
+    field = SpecField.objects.select_related("table__version__specification").get(pk=field.pk)
+    v = _draft(field.table.version)
+    lock = locks(v).get((field.table.name, field.name))
+    if lock:
+        raise EditError(f"{field.table.name}.{field.name} is locked, so its codes stay those CEDARS' processing reads: {lock}")
+    if not (reason or "").strip():
+        raise EditError("Say why the field needs a new value list: the reason is kept with the change.")
+    rows = read_codes(codes)
+    seen: dict[str, int] = {}
+    for r in rows:
+        if r["code"].lower() in seen:
+            raise EditError(f"Line {r['line']}: {r['code']} is on line {seen[r['code'].lower()]} too (codes are matched ignoring case).")
+        seen[r["code"].lower()] = r["line"]
+    try:
+        draft = value_lists.create_list(
+            actor, (name or "").strip(), label=field.name, made_for=made_for(v), made_in=made_in(v), reason=reason
+        )
+        for r in rows:
+            try:
+                value_lists.add_code(
+                    actor, draft, r["code"], description=r["description"], start_year=r["start_year"], end_year=r["end_year"],
+                    reason=reason,
+                )  # fmt: skip
+            except value_lists.ValueListError as e:
+                raise EditError(f"Line {r['line']}: {e}") from e
+    except value_lists.ValueListError as e:
+        raise EditError(str(e)) from e
+    before = field.value_list
+    field.value_list = draft.value_list.name
+    field.save(update_fields=["value_list"])
+    audit.record(
+        "specification.value_list_made",
+        obj=v,
+        before={"table": field.table.name, "field": field.name, "value_list": before},
+        after={"table": field.table.name, "field": field.name, "value_list": field.value_list, "codes": len(rows)},
+        reason=reason,
+        actor=actor,
+    )
+    return draft.value_list
+
+
+def _drop_list(actor, vl, reason: str) -> None:
+    from cedars.services.dictionary import value_lists
+
+    value_lists.drop_unpublished(actor, vl, reason, with_specification=True)
+
+
+def _publish_lists(actor, v: SpecificationVersion, effective_on: date) -> list[str]:
+    """Publish the value lists made in the draft with it, taking effect the same day; one no field names any more is dropped."""
+    from cedars.services.dictionary import value_lists
+
+    named = {f.value_list.lower() for t in v.tables.all() for f in t.fields.all() if f.value_list}
+    published = []
+    for vl in lists_made(v):
+        d = value_lists.draft_of(vl)
+        if vl.name.lower() not in named:
+            if d is not None:
+                _drop_list(actor, vl, f"No field of {made_for(v)} names it any more.")
+            continue
+        if d is not None:
+            value_lists.publish(actor, d, effective_on, f"Made for {made_for(v)}: {v.reason or v.summary}".strip(), with_specification=True)
+            published.append(vl.name)
+    return published
+
+
 # --- built-in checks
 
 
@@ -783,6 +927,7 @@ def problems(draft: SpecificationVersion) -> list[Problem]:
     if v.cost_test_set_id is not None and not cost_test_sets().filter(pk=v.cost_test_set_id).exists():
         out.append(Problem("settings", "The cost-test set it names is not published."))
     lists = set(value_list_names())
+    unready = _unready_lists(v)
     for t in v.tables.prefetch_related("fields"):
         names = {f.name for f in t.fields.all()}
         for k in t.keys:
@@ -796,6 +941,9 @@ def problems(draft: SpecificationVersion) -> list[Problem]:
         for f in t.fields.all():
             if f.value_list and f.value_list not in lists:
                 out.append(Problem("fields", f"{t.name}.{f.name} names the value list {f.value_list}, which CEDARS does not have."))
+            elif f.value_list and f.value_list.lower() in unready:
+                why = unready[f.value_list.lower()]
+                out.append(Problem("fields", f"{t.name}.{f.name} names the value list {f.value_list}, which {why}"))
             if f.example:
                 p = service.value_problem(f, f.example)
                 if p:
@@ -820,6 +968,25 @@ def problems(draft: SpecificationVersion) -> list[Problem]:
         and v.rule_set_id != v.based_on.rule_set_id
     ):
         out.append(Problem("rules", "Its rule set is already published on its own; start the draft again."))
+    return out
+
+
+def _unready_lists(v: SpecificationVersion) -> dict[str, str]:
+    """{list name, lower case: what is wrong} of the value lists made for a specification that the draft cannot publish with: one of
+    its own with no codes, or another draft's not yet published."""
+    from cedars.services.dictionary import value_lists
+    from cedars.services.dictionary.models import ValueList
+
+    out = {}
+    for vl in ValueList.objects.exclude(made_for=""):
+        if value_lists.latest_published(vl) is not None:
+            continue
+        if vl.made_in == made_in(v):
+            d = value_lists.draft_of(vl)
+            if d is None or not d.codes.exists():
+                out[vl.name.lower()] = "has no codes yet: add them on the list's draft page."
+        else:
+            out[vl.name.lower()] = f"is made for {vl.made_for} and is not published yet."
     return out
 
 
@@ -894,6 +1061,12 @@ def change_lines(draft: SpecificationVersion) -> list[str]:
             out.append(f"Built-in check {a.rule_id} changed.")
     for name, old, new in c.settings_changed:
         out.append(f"{name}: {old or 'none'} to {new or 'none'}.")
+    for m in made_lists(draft):
+        if m.fields:
+            out.append(
+                f"New value list {m.value_list.name} ({m.codes} code{'s' if m.codes != 1 else ''}) for {', '.join(m.fields)}: a value "
+                "not in it is rejected."
+            )
     return out
 
 
@@ -946,6 +1119,7 @@ def publish(
         "from its page.",
     )
     note = releases.publish(actor, note, short_notice_reason=short)
+    _publish_lists(actor, v, effective_on)
     renames = list(dict.fromkeys((f.renamed_from, f.name) for t in v.tables.all() for f in t.fields.all() if f.renamed_from))
     if renames:  # the data dictionary renames them too, keeping each old name as a former name
         from cedars.services.dictionary import changes as dictionary_changes

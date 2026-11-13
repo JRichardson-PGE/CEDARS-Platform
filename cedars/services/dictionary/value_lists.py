@@ -11,10 +11,16 @@ only when a list is read from it or handed to it (engine/README.md).
 
 A service may also keep a list of its own here (`register_list`): the program registry's lists of a program's status, segment,
 primary sector, implementer and category. Such a list's first version is the service's own rows instead of the engine's, it is never
-handed to the engine, and the service reads the version in force back with `codes_in_force`."""
+handed to the engine, and the service reads the version in force back with `codes_in_force`.
+
+A filing specification draft may make a new list for a new field (`create_list`, `made_for`): its first version starts empty, is
+filled in the draft (typed in or from a CSV) and is published with the specification version. The engine has no such list, so it is
+never handed to the engine: the filing modules check a field against it themselves (specifications.list_problems, with
+`codes_for_check`)."""
 
 import csv
 import io
+import re
 import threading
 from datetime import date
 
@@ -67,11 +73,28 @@ def is_platform(name: str) -> bool:
     return name in _PLATFORM
 
 
+def made_here(name: str) -> bool:
+    """Whether the list was made from a filing specification draft: kept only here, with no engine list under it."""
+    return ValueList.objects.filter(name=name).exclude(made_for="").exists()
+
+
+def made_here_names() -> set[str]:
+    return set(ValueList.objects.exclude(made_for="").values_list("name", flat=True))
+
+
+def kept_here(name: str) -> bool:
+    """A list whose first version is not the engine's: the platform's own, or one made for a specification."""
+    return is_platform(name) or made_here(name)
+
+
 def origin(name: str) -> str:
-    """Where a list's first version comes from, in words: the engine's shipped list, or the service's own."""
+    """Where a list's first version comes from, in words: the engine's shipped list, the service's own, or a specification draft."""
     p = _PLATFORM.get(name)
     if p is not None:
         return p.origin
+    vl = ValueList.objects.filter(name=name).exclude(made_for="").first()
+    if vl is not None:
+        return f"the new list made for {vl.made_for}, before its first version"
     release = engine_release()
     return f"the list shipped with the engine (ReCET {release})" if release else "the list shipped with the engine"
 
@@ -143,6 +166,8 @@ def shipped(name: str) -> list[dict]:
             }
             for r in _PLATFORM[name].rows()
         ]
+    if made_here(name):
+        return []  # made for a specification: it starts empty
     _, paths = _engine()
     path = Path(paths.package_data("value_lists", f"{name}.csv"))
     if not path.exists():
@@ -262,6 +287,8 @@ def start_draft(actor, vl: ValueList) -> ValueListVersion:
             for c in base.codes.all()
         ]
         based_on = f"version {base.number}"
+    elif vl.made_for:
+        rows, based_on = [], f"a new list made for {vl.made_for}"[:120]
     else:
         rows = shipped(vl.name)
         based_on = _PLATFORM[vl.name].origin if vl.name in _PLATFORM else f"the list shipped with ReCET {engine_release()}".strip()
@@ -274,6 +301,54 @@ def start_draft(actor, vl: ValueList) -> ValueListVersion:
         actor=actor,
     )
     return draft
+
+
+LIST_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def name_problem(name: str) -> str:
+    """Why `name` cannot be a new list's name ("" = it can)."""
+    if not LIST_NAME.match(name or "") or len(name) > 60:
+        return "A list's name is lower-case letters, digits and underscores, starting with a letter (at most 60), e.g. delivery_channel."
+    try:
+        engine = set(engine_lists()) | NOT_EDITED_HERE
+    except EngineMissing:
+        engine = set(NOT_EDITED_HERE)
+    if name in engine or name in _PLATFORM or ValueList.objects.filter(name=name).exists():
+        return f"There is already a value list called {name}: use it, or choose another name."
+    return ""
+
+
+@transaction.atomic
+def create_list(actor, name: str, *, label: str, made_for: str, made_in: str = "", reason: str = "") -> ValueListVersion:
+    """A new list made from a filing specification draft, for a new field (`label`, the field it fills): its first version, a draft
+    with no codes yet, published with the specification version it was made for. Returns the draft."""
+    _require_admin(actor)
+    name = (name or "").strip()
+    problem = name_problem(name)
+    if problem:
+        raise ValueListError(problem)
+    if not (made_for or "").strip():
+        raise ValueListError("Say which specification version the list is made for.")
+    vl = ValueList.objects.create(name=name, label=(label or "").strip()[:120], made_for=made_for.strip()[:200], made_in=made_in[:60])
+    audit.record("value_list.created", obj=vl, after={"list": name, "field": vl.label, "made_for": vl.made_for}, reason=reason, actor=actor)
+    return start_draft(actor, vl)
+
+
+@transaction.atomic
+def drop_unpublished(actor, vl: ValueList, reason: str = "", *, with_specification: bool = False) -> bool:
+    """Discard a list's draft and, when it never had a published version (a list made for a specification draft that is discarded),
+    the list itself. True when the list is gone."""
+    _require_admin(actor)
+    vl = ValueList.objects.select_for_update().get(pk=vl.pk)
+    d = draft_of(vl)
+    if d is not None:
+        discard_draft(actor, d, reason, with_specification=with_specification)
+    if vl.versions.exists():
+        return False
+    audit.record("value_list.deleted", obj=vl, before={"list": vl.name, "made_for": vl.made_for}, reason=reason, actor=actor)
+    vl.delete()
+    return True
 
 
 def _check_years(start, end) -> None:
@@ -486,11 +561,22 @@ def changes_in(version: ValueListVersion) -> dict[str, list]:
     return differences(base_rows(version), _rows(version))
 
 
+def _waits_for_specification(draft: ValueListVersion, with_specification: bool) -> None:
+    """A list made for a specification draft gets its first version with that specification version, never on its own."""
+    vl = draft.value_list
+    if vl.made_for and not with_specification and latest_published(vl) is None:
+        raise ValueListError(
+            f"{vl.name} was made for {vl.made_for}: its first version is published with that specification version, or dropped "
+            "with its draft. Change its codes here; publish or discard the specification's draft."
+        )
+
+
 @transaction.atomic
-def publish(actor, draft: ValueListVersion, effective_from: date, reason: str) -> ValueListVersion:
+def publish(actor, draft: ValueListVersion, effective_from: date, reason: str, *, with_specification: bool = False) -> ValueListVersion:
     _require_admin(actor)
     draft = ValueListVersion.objects.select_for_update().select_related("value_list").get(pk=draft.pk)
     _require_draft(draft)
+    _waits_for_specification(draft, with_specification)
     if not (reason or "").strip():
         raise ValueListError("Say why the list changes: the reason is kept with the version.")
     if effective_from is None:
@@ -527,10 +613,11 @@ def publish(actor, draft: ValueListVersion, effective_from: date, reason: str) -
 
 
 @transaction.atomic
-def discard_draft(actor, draft: ValueListVersion, reason: str = "") -> None:
+def discard_draft(actor, draft: ValueListVersion, reason: str = "", *, with_specification: bool = False) -> None:
     _require_admin(actor)
     draft = ValueListVersion.objects.select_for_update().select_related("value_list").get(pk=draft.pk)
     _require_draft(draft)
+    _waits_for_specification(draft, with_specification)
     audit.record(
         "value_list.draft_discarded",
         obj=draft,
@@ -580,7 +667,7 @@ def engine_changes(on: date | None = None) -> dict[str, dict[str, dict]]:
     is "added", one whose end year differs is "retired" or "reinstated". A code the engine ships that the version does not have (a newer
     engine's code, not yet added here) is retired before any year, so the rules and the editor accept exactly the version's codes."""
     out: dict[str, dict[str, dict]] = {}
-    for vl in ValueList.objects.exclude(name__in=list(_PLATFORM)):
+    for vl in ValueList.objects.exclude(name__in=list(_PLATFORM)).filter(made_for=""):  # the engine has no list made for a spec
         v = in_force(vl, on)
         if v is None:
             continue
@@ -609,7 +696,7 @@ def apply_to_engine(on: date | None = None) -> dict[str, int]:
         editor, _ = _engine()
     except EngineMissing:
         return {}
-    forced = {vl.name: in_force(vl, on) for vl in ValueList.objects.exclude(name__in=list(_PLATFORM))}
+    forced = {vl.name: in_force(vl, on) for vl in ValueList.objects.exclude(name__in=list(_PLATFORM)).filter(made_for="")}
     forced = {k: v for k, v in forced.items() if v is not None}
     key = (engine_release(), tuple(sorted((k, v.pk) for k, v in forced.items())))
     with _lock:
@@ -630,6 +717,32 @@ def codes_in_force(name: str, on: date | None = None) -> list[dict] | None:
         {"code": c.code, "description": c.description, "start_year": c.start_year, "end_year": c.end_year, "extra": c.extra}
         for c in v.codes.order_by("pk")
     ]
+
+
+def codes_for_check(name: str, on: date | None = None) -> list[dict] | None:
+    """The codes a list made for a specification is checked with: the version in force on `on` (today), else its newest published
+    version (a filing on the version it was made for, checked before the version takes effect); None when none is published yet, or
+    for a list the engine checks."""
+    vl = ValueList.objects.filter(name__iexact=name).exclude(made_for="").first()
+    if vl is None:
+        return None
+    v = in_force(vl, on) or latest_published(vl)
+    if v is None:
+        return None
+    return [{"code": c.code, "description": c.description, "start_year": c.start_year, "end_year": c.end_year} for c in v.codes.all()]
+
+
+def accepts(codes: list[dict], value: str, year: int | None) -> bool:
+    """Whether `value` is a code of `codes` (ignoring case) accepted in `year` (its start and end years; any year when None). A blank
+    value passes: whether a field may be blank is another check."""
+    v = (value or "").strip().lower()
+    if not v:
+        return True
+    return any(
+        c["code"].strip().lower() == v
+        and (year is None or ((c["start_year"] is None or c["start_year"] <= year) and (c["end_year"] is None or c["end_year"] >= year)))
+        for c in codes
+    )
 
 
 def reset_engine() -> None:

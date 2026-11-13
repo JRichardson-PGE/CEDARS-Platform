@@ -17,6 +17,14 @@ one stays required. {% if not engine %}The engine is not installed here, so the 
     {{ p.table }}.{{ p.field }} is now {{ p.new_name }} ({{ p.by }}). <button type="submit" aria-label="Rename {{ p.table }}.{{ p.field }} to {{ p.new_name }} here too">Rename here too</button></form></li>{% endfor %}</ul>
 </section>
 {% endif %}
+{% if made %}
+<section aria-labelledby="made-lists" class="card">
+  <h2 id="made-lists">New value lists</h2>
+  <p>Made in this draft for new codes. Each is published with the version, taking effect the same day; one no field names is dropped.</p>
+  <ul class="compact">{% for m in made %}<li><a href="{% url 'dictionary:draft' m.value_list.name %}">{{ m.value_list.name }}</a>:
+    {{ m.codes }} code{{ m.codes|pluralize }}{% if m.fields %}, for {{ m.fields|join:", " }}{% else %}, named by no field{% endif %}</li>{% endfor %}</ul>
+</section>
+{% endif %}
 <nav aria-labelledby="draft-tables-h" class="contents">
   <h2 id="draft-tables-h">Tables</h2>
   <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}</ul>

@@ -84,6 +84,8 @@ dictionary/lists:
       never checks them.
     - A code is accepted for claim years from its start year to its end year. A retired code keeps its row with an end year; a code is
       never deleted. A program list's retired code is offered only to a program that already has it.
+    - A list made in a filing specification draft for a new field's codes has no engine list under it. Its first version is published
+      with that specification version, and the filing checks the field against it.
   how:
     - Select a list for its codes and versions.
   see: rules-and-lists
@@ -128,6 +130,8 @@ dictionary/list_draft:
       the audit trail.
     - Once published, the rules and the input editor (for a program list, a program's change form) accept exactly its codes from the date
       it takes effect, and the version never changes.
+    - A list made for a new field in a filing specification draft starts empty and is published with that specification version, not
+      here; discarding the specification's draft drops it.
   how:
     - Add a code, or read a file into the draft.
     - Select Change beside a code to retire, reinstate or describe it.

@@ -19,6 +19,19 @@ information goes only in a table kept in the PII vault.{% endif %}</p>
     <a class="button" href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Cancel</a></div>
 </form>
 {% if not adding %}
+{% if made %}
+<p id="field-list">Its codes come from <a href="{% url 'dictionary:draft' made.value_list.name %}">{{ made.value_list.name }}</a>, a new
+value list made in this draft ({{ made.codes }} code{{ made.codes|pluralize }}). It is published with the version.</p>
+{% endif %}
+{% if not lock %}<details id="new-value-list"><summary>Make a new value list for {{ f.name }}</summary>
+  <p>For new codes that no value list has. The list is made in the data dictionary and published with this version, taking effect the
+  same day; a value not in it (or not accepted for the record's year) is rejected. Add more codes, or load them from a CSV, on the
+  list's page. Discarding the draft drops the list.</p>
+  <form method="post" action="{% url 'specifications:new_value_list' v.specification.code v.slug t.name f.name %}" class="stack form-narrow">{% csrf_token %}
+    {% for field in list_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit">Make the list</button></div>
+  </form>
+</details>{% endif %}
 {% if f.renamed_from %}<p id="field-renamed">Renamed in this draft from {{ f.renamed_from }}, which is still accepted on upload.</p>{% endif %}
 {% if lock %}<p class="small" id="rename-field">A locked field keeps its name.</p>{% else %}
 <details id="rename-field"><summary>Rename {{ f.name }}</summary>
