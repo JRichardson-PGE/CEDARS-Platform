@@ -771,6 +771,29 @@ def check(
     return findings, notes
 
 
+def condition_met(rule: Rule, df, *, filing_year: int | None = None) -> bool:
+    """Whether a conditional rule's condition holds on any record of a raw-text frame (an example file shows the rule only then).
+    A condition on a column the frame lacks never holds; a rule with no condition always applies."""
+    filing_rules, _ = _engine()
+    d = rule.definition or {}
+    conds = d.get("conds") or []
+    if not conds or df is None or not len(df):
+        return bool(not conds and df is not None and len(df))
+    import numpy as np
+
+    t = filing_rules._Table(df)
+    ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
+    anyof = d.get("connector") == "any"
+    applies = np.zeros(t.n, bool) if anyof else np.ones(t.n, bool)
+    for _table, field, op, value in conds:
+        try:
+            held, _known = filing_rules._compare(t, field, str(op).lower(), value, ctx)
+        except KeyError:
+            held = np.zeros(t.n, bool)
+        applies = (applies | held) if anyof else (applies & held)
+    return bool(applies.any())
+
+
 def by_rule(problems, limit: int = 20) -> list[dict]:
     """An upload's findings summed by rule, rejects first, then the rules that touch the most: each rule's records (a column rule's
     columns; a record a rule flags twice counts once, UAT 2 U08), its severity and one message for example. The unit agrees with the

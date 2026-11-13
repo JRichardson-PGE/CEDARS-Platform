@@ -9,10 +9,10 @@
   {% if problems %}
   <p>Settle these first:</p>
   <ul id="publish-problems">{% for p in problems %}<li><span class="status bad">To settle</span> {{ p.text }}
-    {% if p.part == "settings" %}<a href="{% url 'specifications:edit_settings' v.specification.code v.slug %}">Settings</a>{% elif p.part == "fields" %}<a href="{% url 'specifications:edit' v.specification.code v.slug %}">Tables and fields</a>{% elif p.part == "rules" %}<a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a>{% elif p.part == "changes" %}<a href="{% url 'specifications:edit_changes' v.specification.code v.slug %}">Changes</a>{% endif %}</li>{% endfor %}</ul>
+    {% if p.part == "settings" %}<a href="{% url 'specifications:edit_settings' v.specification.code v.slug %}">Settings</a>{% elif p.part == "fields" %}<a href="{% url 'specifications:edit' v.specification.code v.slug %}">Tables and fields</a>{% elif p.part == "rules" %}<a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a>{% elif p.part == "examples" %}<a href="{% url 'specifications:edit_examples' v.specification.code v.slug %}">Examples</a>{% elif p.part == "changes" %}<a href="{% url 'specifications:edit_changes' v.specification.code v.slug %}">Changes</a>{% endif %}</li>{% endfor %}</ul>
   {% else %}
   <p id="publish-problems"><span class="status ok">Passed</span> The tables, fields and settings are consistent, every locked field is
-  kept, and the version changes something from the one it was copied from.</p>
+  kept, every example passes the version's checks, and the version changes something from the one it was copied from.</p>
   {% endif %}
 </section>
 <section aria-labelledby="publish-h" class="card">

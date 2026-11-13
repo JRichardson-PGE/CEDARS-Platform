@@ -482,7 +482,7 @@ def _specifications():
 
 def _specification_draft(cpuc_admin):
     """A draft of the monthly reports specification (Monthly reports 2029) with a new field with a new value list, a changed one and a
-    renamed one, for the editor's pages."""
+    renamed one, and an example that fails, for the editor's pages."""
     from cedars.services.specifications import editor
     from cedars.services.specifications import service as specifications
     from cedars.services.specifications.models import Specification
@@ -495,6 +495,12 @@ def _specification_draft(cpuc_admin):
     editor.rename_field(cpuc_admin, pre, "PreDescription", "The CPUC's name for it")
     note = v.tables.get(name="Commitments").fields.get(name="ReportingNote")
     editor.new_value_list(cpuc_admin, note, "reporting_note_kind", codes="Delay, A delay\nOther, Anything else, 2029", reason="New codes")
+    from cedars.services.specifications import examples
+
+    example = v.examples.get(slug=examples.GENERATED)  # an example that fails, for the Examples page's report
+    rows = example.rows
+    rows["Commitments"][0]["ReportingNote"] = "Unlisted"
+    examples.replace_rows(cpuc_admin, example, rows, "Show a failure")
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):

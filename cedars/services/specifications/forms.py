@@ -182,6 +182,15 @@ class NewListForm(forms.Form):
     reason = _reason()
 
 
+class ExampleFileForm(forms.Form):
+    file = forms.FileField(
+        label="The example's workbook or .zip",
+        help_text="As it downloads: a sheet (or delimited file) per table, the field names in the first row. Its records replace the "
+        "example's.",
+    )
+    reason = _reason()
+
+
 class TableForm(forms.Form):
     other_names = forms.CharField(
         label="Other file or sheet names accepted", required=False, max_length=500, help_text="Separated by commas; letter case is ignored."

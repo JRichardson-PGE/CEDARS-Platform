@@ -157,6 +157,32 @@ specifications/edit_checks:
       title: The checks
       text: Each filing's checks; Runs and Severity can change where a version may choose them.
 
+specifications/edit_examples:
+  title: A draft's example files
+  guide:
+    - The example files filers download with the version. Each is checked by the same checks a filing gets, as the example program
+      administrator's filing for this year, and the version cannot be published while one has a rejected record.
+    - CEDARS writes the first example from the fields (one record per table, each field's example or default, else a value of its type,
+      codes from its value list, IDs that link the tables). A draft's examples follow its fields as they change.
+    - Each example's report says what it fails, with the record and why; which conditional rules no record meets, so the example does
+      not show them; and which built-in checks need real reference data (the program registry, eTRM, the year so far), which an
+      example cannot pass and which do not count against it.
+  how:
+    - Download an example as a workbook or a .zip, change its records, and load it back with the reason.
+    - Write the generated example again from the fields as they are now.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-examples"
+      title: Example files
+      text: What they are, and when they are checked.
+    - target: "#generate-h"
+      title: The generated example
+      text: CEDARS writes one record per table from the fields.
+    - target: main section.spec-example
+      title: An example and its report
+      text: Whether it passes, what it fails, the rules it does not show and the checks that need real reference data.
+      optional: true
+
 specifications/edit_changes:
   title: What a draft changes
   guide:

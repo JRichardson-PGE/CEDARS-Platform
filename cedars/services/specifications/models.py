@@ -239,6 +239,13 @@ class ExampleSet(models.Model):
     slug = models.SlugField(max_length=120)
     about = models.TextField(blank=True, help_text="What the example shows")
     rows = models.JSONField(default=dict, blank=True, help_text="{table: [{field: value, ...}, ...]}")
+    generated = models.BooleanField(default=False, help_text="Written by CEDARS from the version's fields (examples.generate)")
+    report = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Its last check: what it fails, the rules it does not show, the checks needing reference data",
+    )
+    checked = models.CharField(max_length=64, blank=True, help_text="The state of the draft it was last checked in (examples.state)")
 
     class Meta:
         ordering = ["version", "position"]

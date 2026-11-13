@@ -29,6 +29,13 @@ class BudgetsConfig(AppConfig):
         from . import locked_fields
 
         register_locked_fields("budgets", locked_fields.LOCKED)  # a draft keeps the fields this module reads
+        from cedars.services.specifications.examples import register_example_checker
+
+        from . import service as example_checks
+
+        register_example_checker(  # a specification version's example files are checked as a filing is
+            "budgets", example_checks.example_findings, reference=example_checks.EXAMPLE_REFERENCE
+        )
         from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
         from cedars.services.submissions.service import (
