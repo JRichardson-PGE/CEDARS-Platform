@@ -632,6 +632,7 @@ def _store_and_check(actor, v: SubmissionVersion, tables: dict[str, bytes], entr
     deadline, organisation = v.submission.deadline, v.submission.organisation
     prev = previous_month(deadline)
     lines, found, records, notes = derive(tables, organisation, deadline.period, standing(organisation, prev) if prev else None)
+    found = specifications.apply_checks_for_filing(deadline, found)  # the built-in checks as the filing's version has them
     report, job = up.report_zip(tables), up.job_zip(tables)
     sha = up.sha256(report)
     store = storage.store("uploads")

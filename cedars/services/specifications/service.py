@@ -16,7 +16,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from pathlib import Path
 
@@ -834,6 +834,38 @@ def readable_versions(user, specification):
 def in_use(version) -> list:
     """The deadlines (filings) pinned to the version that are on the calendar, by due date."""
     return list(version.deadlines.filter(retired_at__isnull=True).select_related("period", "cycle").order_by("due_at"))
+
+
+def apply_checks(version, findings: list) -> list:
+    """A filing's findings with its version's built-in checks (rules.coded): a finding of a check that a version may leave out (optional)
+    is dropped when the version does not list it, and a check whose severity the version may choose takes the version's. Every other
+    finding is kept as it is: CEDARS' own processing always runs, and so does a check added to CEDARS after the version was published.
+    A filing with no version, or a version that lists no checks, keeps every finding. Findings are dataclasses (rules.Finding, a
+    module's Problem) or dicts with `rule_id` and `severity`."""
+    if version is None or not findings:
+        return findings
+    listed = {c.rule_id: c.severity for c in version.checks.all()}
+    if not listed:
+        return findings
+    from cedars.services.rules import coded
+
+    known = coded.by_id()
+    out = []
+    for f in findings:
+        get = f.get if isinstance(f, dict) else lambda k, f=f: getattr(f, k, "")
+        check = known.get(str(get("rule_id")))
+        if check is not None and check.optional and check.rule_id not in listed:
+            continue
+        severity = listed.get(check.rule_id, "") if check is not None else ""
+        if severity and severity in check.severities and get("severity") != severity:
+            f = {**f, "severity": severity} if isinstance(f, dict) else replace(f, severity=severity)
+        out.append(f)
+    return out
+
+
+def apply_checks_for_filing(deadline, findings: list) -> list:
+    """`apply_checks` with the version a filing (a deadline) is checked against."""
+    return apply_checks(of_filing(deadline), findings)
 
 
 def check_group_labels() -> dict[str, str]:

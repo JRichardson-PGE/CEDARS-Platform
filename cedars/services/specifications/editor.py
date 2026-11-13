@@ -1,5 +1,5 @@
 """Editing filing specifications: a CPUC system administrator starts a draft from a published version, changes its settings, its
-tables' fields and its rules, reads what changes, and publishes it with notice.
+tables' fields, its rules and which built-in checks run, reads what changes, and publishes it with notice.
 
 A draft is a copy of a published version (`start_draft`), one per specification at a time. Its rule set is a draft copy of the
 version's rule set, made in the rule library at the same time and published with it: rules change with a specification version,
@@ -246,6 +246,7 @@ def start_draft(actor, based_on: SpecificationVersion, name: str, reason: str) -
     ExampleSet.objects.bulk_create(
         ExampleSet(version=v, position=e.position, name=e.name, slug=e.slug, about=e.about, rows=e.rows) for e in based_on.examples.all()
     )
+    _sync_checks(v)
     audit.record(
         "specification.draft_started",
         obj=v,
@@ -567,6 +568,119 @@ def change_table(actor, table: SpecTable, *, other_names=None, guidance=None, re
     return t
 
 
+# --- built-in checks
+
+
+@dataclass(frozen=True)
+class CheckRow:
+    """A built-in check on the draft's Built-in checks page: the check as CEDARS' code has it, and its row in the draft (None = the
+    draft leaves it out)."""
+
+    check: object  # rules.coded.CodedCheck
+    setting: CheckSetting | None
+
+    @property
+    def runs(self) -> bool:
+        return self.setting is not None or not self.check.optional
+
+    @property
+    def severity(self) -> str:
+        return self.setting.severity if self.setting is not None else self.check.severity
+
+
+def _groups_of(v: SpecificationVersion) -> list[str]:
+    """The built-in check lists a version's filings run (claims and the vault's, budgets, monthly), from its rows and its base's."""
+    names = set(v.checks.values_list("group", flat=True))
+    if v.based_on_id is not None:
+        names |= set(v.based_on.checks.values_list("group", flat=True))
+    from cedars.services.rules import coded
+
+    return [g.module for g in coded.groups() if g.module in names]
+
+
+def check_rows(v: SpecificationVersion) -> list[tuple[str, str, list[CheckRow]]]:
+    """[(group, label, rows)] of every check CEDARS' code has in the version's lists, with the version's row of each."""
+    from cedars.services.rules import coded
+
+    listed = {c.rule_id: c for c in v.checks.all()}
+    out = []
+    for name in _groups_of(v):
+        g = coded.group(name)
+        out.append((g.module, g.label, [CheckRow(c, listed.get(c.rule_id)) for c in g.checks]))
+    return out
+
+
+def _setting(v: SpecificationVersion, group: str, c, severity: str = "") -> CheckSetting:
+    return CheckSetting(version=v, position=0, group=group, rule_id=c.rule_id, severity=severity or c.severity, tables=c.tables,
+                        fields=c.fields, finds=c.finds, fix=c.fix)  # fmt: skip
+
+
+def _reposition(v: SpecificationVersion) -> None:
+    """The draft's checks in the order CEDARS' code lists them."""
+    from cedars.services.rules import coded
+
+    order = {c.rule_id: i for i, c in enumerate(c for g in coded.groups() for c in g.checks)}
+    rows = sorted(v.checks.all(), key=lambda c: (order.get(c.rule_id, len(order)), c.position))
+    for i, c in enumerate(rows):
+        if c.position != i:
+            c.position = i
+            c.save(update_fields=["position"])
+
+
+def _sync_checks(v: SpecificationVersion) -> None:
+    """A new draft lists the checks CEDARS' code has now: a check added to the code since its base was published is added (it runs
+    anyway unless it is optional), and one the code no longer has is dropped."""
+    from cedars.services.rules import coded
+
+    groups = _groups_of(v)
+    known = {c.rule_id for name in groups for c in coded.group(name).checks}
+    v.checks.filter(group__in=groups).exclude(rule_id__in=known).delete()
+    listed = set(v.checks.values_list("rule_id", flat=True))
+    CheckSetting.objects.bulk_create(
+        _setting(v, name, c) for name in groups for c in coded.group(name).checks if c.rule_id not in listed and not c.optional
+    )
+    _reposition(v)
+
+
+@transaction.atomic
+def set_checks(actor, draft: SpecificationVersion, *, runs, severities: dict[str, str], reason: str = "") -> SpecificationVersion:
+    """Which of the draft's optional built-in checks run (`runs`, rule IDs) and the severity of each that lets the version choose
+    (`severities`, {rule ID: reject or warning}). The other checks are CEDARS' own processing: they always run as written."""
+    _require(actor)
+    v = _draft(SpecificationVersion.objects.select_for_update().get(pk=draft.pk))
+    if not (reason or "").strip():
+        raise EditError("Say why the built-in checks change: the reason is kept with the version.")
+    runs = set(runs)
+    before = {c.rule_id: c.severity for c in v.checks.all()}
+    for group, _label, rows in check_rows(v):
+        for row in rows:
+            c = row.check
+            severity = severities.get(c.rule_id, row.severity)
+            if severity != row.severity and severity not in c.severities:
+                raise EditError(f"{c.rule_id}'s severity is CEDARS' own and cannot change.")
+            wanted = c.rule_id in runs or not c.optional
+            if row.setting is None and wanted:
+                _setting(v, group, c, severity).save()
+            elif row.setting is not None and not wanted:
+                row.setting.delete()
+            elif row.setting is not None and row.setting.severity != severity:
+                row.setting.severity = severity
+                row.setting.save(update_fields=["severity"])
+    _reposition(v)
+    after = {c.rule_id: c.severity for c in v.checks.all()}
+    if after != before:
+        changed = sorted(k for k in before.keys() | after.keys() if before.get(k) != after.get(k))
+        audit.record(
+            "specification.checks_changed",
+            obj=v,
+            before={k: before.get(k, "") for k in changed},
+            after={k: after.get(k, "") for k in changed},
+            reason=reason,
+            actor=actor,
+        )
+    return v
+
+
 # --- the checks before publishing
 
 
@@ -688,8 +802,11 @@ def change_lines(draft: SpecificationVersion) -> list[str]:
         out.append(f"Built-in check {c_.rule_id} added.")
     for c_ in c.checks_removed:
         out.append(f"Built-in check {c_.rule_id} no longer runs.")
-    for a, _b in c.checks_changed:
-        out.append(f"Built-in check {a.rule_id} changed.")
+    for a, b in c.checks_changed:
+        if a.severity != b.severity and b.severity in ("reject", "warning"):
+            out.append(f"Built-in check {a.rule_id} now {'rejects the record' if b.severity == 'reject' else 'only warns'}.")
+        else:
+            out.append(f"Built-in check {a.rule_id} changed.")
     for name, old, new in c.settings_changed:
         out.append(f"{name}: {old or 'none'} to {new or 'none'}.")
     return out

@@ -131,11 +131,21 @@ specifications/edit_checks:
   guide:
     - The checks written in CEDARS' code that a filing on the draft version meets beside its rules, because they need what a rule
       cannot see, such as the program registry, earlier quarters or eTRM.
+    - Most are CEDARS' own processing (columns, keys and IDs, programs, the links between tables) and always run. A few, such as
+      CEDARS' data rules on the Claim and Site tables and the warnings about program costs, can be left out of a version or made a
+      warning or a reject. A filing on the version runs them as the version has them, the first time and on every correction.
+  how:
+    - Untick Runs to leave a check out of the version, or tick it to put it back.
+    - Choose whether a check rejects the record or only warns.
+    - Say why, and save. What changes lists it for the release note.
   see: rules-and-lists
   tour:
     - target: "#draft-checks"
       title: Built-in checks
-      text: What they are; each table lists one filing's checks with their severity.
+      text: What they are, and which can change.
+    - target: "#checks-form"
+      title: The checks
+      text: Each filing's checks; Runs and Severity can change where a version may choose them.
 
 specifications/edit_changes:
   title: What a draft changes

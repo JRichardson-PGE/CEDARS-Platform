@@ -704,6 +704,7 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         )
         found, notes, rule_set = _rule_findings(own, year, rs)
         problems += found
+    problems = specifications.apply_checks_for_filing(deadline, problems)  # the built-in checks as the filing's version has them
     own_f = own_file(v)
     store = storage.store("uploads")
     if not own_f["key"].startswith(_prefix(v)):  # a reopened version's predecessor's upload: copy it, never write beside the original
