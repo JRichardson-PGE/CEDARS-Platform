@@ -96,6 +96,9 @@ budgets/filing_new:
       notes, and its program years until a PA starts filing).
     - It is priced on the ACC chosen here, with statewide programs allocated by the allocation version chosen (or the most recent
       confirmed one for each program year).
+    - Every filing in the set follows the filing specification version chosen here, for every upload, check and correction. The current
+      version is offered; an older one still in effect may be chosen, if its engine release has the ACC the set is priced on. The set can
+      move to a later version from its set-up page.
   how:
     - Choose the type and name it (an advice letter needs a name, e.g. 2028-2031 True-up advice letter (TUAL); an application may
       go without), enter the first and last program years, the due date, the ACC and the allocation version, then Set up the filing.
@@ -137,6 +140,10 @@ budgets/setup:
     - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-specification"
+      title: Filing specification
+      text: The filing specification version every filing in the set follows, and a link to move the set when a later version is in effect.
+      optional: true
     - target: "#setup-filings"
       title: Filings in this set
       text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.

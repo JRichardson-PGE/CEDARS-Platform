@@ -6,6 +6,7 @@ app_name = "specifications"
 urlpatterns = [
     path("", views.index, name="index"),
     path("compare/", views.compare, name="compare"),
+    path("filing-sets/<int:deadline>/move/", editor_views.move_filing_set, name="move_filing_set"),
     path("<slug:code>/current/", views.current, name="current"),
     path("<slug:code>/<slug:slug>/", views.version, name="version"),
     path("<slug:code>/<slug:slug>/template.<str:kind>", views.template, name="template"),

@@ -42,6 +42,9 @@ claims/year_new:
       priced on the ACC and allocation version chosen on its pricing page.
     - It also has five statewide confirmations, which the statewide programs' lead PAs file first. Each must be due before the PAs'
       confirmation of the same period; left blank, it's due two weeks before a quarter's and a month before the annual claim.
+    - Every filing in the set follows the filing specification version chosen here, for every upload, check and correction. The current
+      version is offered; an older one still in effect may be chosen, if its engine release has the ACC the set is priced on. The set can
+      move to a later version from its set-up page.
   how:
     - Choose the year and check the five due dates, then Set up the claim year. The dates start from the last claim year's, moved on to
       the year shown; change any that differ, and all of them for another year. Its ACC and allocation version are chosen on its
@@ -86,6 +89,10 @@ claims/setup:
     - target: "#setup-pricing"
       title: Pricing settings
       text: Choose the ACC and allocation version and Save.
+    - target: "#setup-specification"
+      title: Filing specification
+      text: The filing specification version every filing in the set follows, and a link to move the set when a later version is in effect.
+      optional: true
     - target: "#setup-filings"
       title: Filings in this set
       text: Each filing in the set, on the calendar or canceled. Cancel one no organization has started, or restore one.

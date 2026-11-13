@@ -74,6 +74,34 @@ def filers_field(initial=None) -> forms.MultipleChoiceField:
     )
 
 
+class _VersionChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return obj.name + (" (current)" if obj.pk == self.current else "")
+
+
+def specification_field(module: str) -> forms.ModelChoiceField | None:
+    """The filing specification version a filing set is set up with: the published versions of the module's specification in effect,
+    the current one chosen unless the administrator chooses another (specifications.moving.choices). None for a module without one;
+    a module's form for setting up a filing adds it as `specification_version`."""
+    from cedars.services.specifications import moving
+    from cedars.services.specifications.models import SpecificationVersion
+
+    versions = moving.choices(module)
+    if not versions:
+        return None
+    field = _VersionChoice(
+        label="Filing specification version",
+        queryset=SpecificationVersion.objects.filter(pk__in=[v.pk for v in versions]).order_by("-published_at", "-pk"),
+        initial=versions[0].pk,
+        empty_label=None,
+        required=False,  # not sent (a script, an older form): the current version
+        help_text="The tables, fields, rules and checks every filing in the set follows, for every upload and later correction, and "
+        "the engine release and cost-test set it names. The current version is chosen; a filing set can move to a later one.",
+    )
+    field.current = versions[0].pk
+    return field
+
+
 def chosen_pas(codes) -> list | None:
     """The organizations a filers_field's value names; None when it names none (a site with no PAs yet: every PA files)."""
     by_code = {o.code: o for o in service.filing_pas()}
@@ -193,7 +221,14 @@ def calendar_forms(request, deadlines, *, removable: bool, remove, removed_url: 
         else:
             messages.success(request, f"{what} removed from the filing calendar.")
             return {}, redirect(removed_url)
+    from django.urls import reverse
+
+    from cedars.services.specifications import moving
+
     ctx = {
+        "spec_pinned": moving.current_of(deadlines),
+        "spec_later": moving.later(deadlines),
+        "spec_move_url": reverse("specifications:move_filing_set", args=[deadlines[0].pk]) if deadlines else "",
         "due_form": due_form,
         "filers_form": filers_form,
         "remove_form": remove_form,

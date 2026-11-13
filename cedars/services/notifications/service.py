@@ -79,6 +79,7 @@ EVENTS = [
     EventType("deadline.retired", "A deadline is taken off the filing calendar", "public", "Filing calendar"),
     EventType("deadline.restored", "A retired deadline is put back on the filing calendar", "public", "Filing calendar"),
     EventType("deadline.filers_changed", "The program administrators who file a deadline change", "public", "Filing calendar"),
+    EventType("deadline.specification_moved", "A filing set moves to another filing specification version", "public", "Filing calendar"),
     EventType("pack.published", "Reference data is published (ACC, impact profiles, DEER, value lists ...)", "public", "Reference data"),
     EventType("pack.withdrawn", "Reference data is withdrawn", "public", "Reference data"),
     EventType(

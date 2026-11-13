@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, examples, forms, impact, service
+from . import editor, examples, forms, impact, moving, service
 from .models import SpecificationVersion
 
 TABS = [
@@ -531,3 +531,65 @@ def remove_field(request, code: str, slug: str, table: str, field: str):
         return redirect("specifications:edit_field", code, slug, t.name, f.name)
     messages.success(request, f"Removed {t.name}.{f.name} from this draft.")
     return redirect(f"{_edit_url(v)}#table-{t.name}")
+
+
+# --- moving a filing set to a later version
+
+
+@login_required
+def move_filing_set(request, deadline: int):
+    """A filing set's specification version and the later ones it can move to: choose one to see its impact test on the set's
+    confirmed filings, then confirm the move with a reason."""
+    from cedars.services.accounts import service as access
+    from cedars.services.submissions import service as submissions
+    from cedars.services.submissions.models import Deadline
+
+    if not access.is_system_admin(request.user):
+        raise PermissionDenied("Only a CPUC system administrator moves a filing set to another specification version.")
+    d = Deadline.objects.select_related("specification_version__specification", "period", "cycle").filter(pk=deadline).first()
+    if d is None:
+        raise Http404("No such filing.")
+    what, deadlines = submissions.filing_set_of(d)
+    options = moving.later(deadlines)
+    choose = forms.MoveChoiceForm(request.GET or None, versions=options)
+    chosen = choose.cleaned_data["to"] if request.GET and choose.is_valid() else None
+    confirm = forms.MoveForm(initial={"to": chosen.pk} if chosen else None)
+    if request.method == "POST":
+        confirm = forms.MoveForm(request.POST)
+        chosen = next((v for v in options if str(v.pk) == request.POST.get("to", "")), None)  # kept on the page when refused
+        if confirm.is_valid():
+            if chosen is None:
+                messages.error(request, "Choose a later version to move to.")
+            else:
+                try:
+                    done = moving.move(request.user, deadlines, chosen, confirm.cleaned_data["reason"])
+                except AccessDenied as err:
+                    messages.error(request, str(err))
+                else:
+                    n = done["rechecked"]
+                    messages.success(
+                        request,
+                        f"Moved {what} to {chosen.name}: {done['moved']} filing{'s' if done['moved'] != 1 else ''}, and "
+                        f"{n} open version{'s' if n != 1 else ''} checked again." + "".join(f" {x}" for x in done["notes"]),
+                    )
+                    return redirect(submissions.setup_link(d) or reverse("submissions:filing_sets"))
+    preview = moving.preview(chosen, deadlines) if chosen else None
+    problems = moving.setup_problems(chosen, d.module, moving.accs_of(deadlines)) if chosen else []
+    return render(
+        request,
+        "specifications/move_filing_set.html",
+        {
+            "d": d,
+            "what": what,
+            "deadlines": deadlines,
+            "pinned": moving.current_of(deadlines),
+            "options": options,
+            "choose": choose,
+            "chosen": chosen,
+            "confirm": confirm,
+            "report": preview,
+            "problems": problems,
+            "setup_url": submissions.setup_link(d),
+            "open_count": submissions.open_versions_count(deadlines),
+        },
+    )

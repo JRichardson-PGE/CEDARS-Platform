@@ -863,7 +863,13 @@ def _budgets(cpuc_admin, pge, pge_admin, analyst, make_user):
     _dashboard_data(v, pge)
     bad = job(costs=["PGE_Res_HVAC|2027|2027Q1|PGE|1|0|0|0|0|0|0|0|0|0|0"], measures=["M1|NOPE|2028Q1|1|0|0|0|0"])
     draft = budgets.upload(analyst, mcal, pge, bad, "mcal.zip")
+    from cedars.services.specifications import service as specifications
+
+    doc = specifications.stored_starting("budget_filing")  # a later version, for the page that moves the TUAL's set to it
+    doc["version"]["name"] = "Budget filings, August update"
+    later = specifications.load(doc)
     return {
+        "later_budget_spec": later,
         "tual": tual,
         "mcal": mcal,
         "application": application,

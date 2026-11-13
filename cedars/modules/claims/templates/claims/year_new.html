@@ -11,6 +11,7 @@ spring). Statewide programs' lead PAs file first, each due before the PAs' own.<
   {{ form.acc_version.as_field_group }}
   {{ form.allocation_version.as_field_group }}
   {{ form.cost_test_set.as_field_group }}
+  {% if form.specification_version %}{{ form.specification_version.as_field_group }}{% endif %}
   <fieldset class="stack" aria-describedby="due-from">
     <legend>Due dates</legend>
     <p class="small" id="due-from">{% if suggested_from %}Filled in from the {{ suggested_from }} claim year's due dates, moved to

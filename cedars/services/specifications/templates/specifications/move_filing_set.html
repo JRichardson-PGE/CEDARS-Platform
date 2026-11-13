@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+{% block title %}Move to another specification version: {{ what }}{% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'submissions:calendar' %}">Filing calendar</a></li><li><a href="{% url 'submissions:filing_sets' %}">Filing sets</a></li>{% if setup_url %}<li><a href="{{ setup_url }}">{{ what }}</a></li>{% endif %}</ol></nav>
+<div class="page-title"><h1>Move {{ what }} to another specification version</h1>{% page_help "specifications/move_filing_set" %}</div>
+<p id="move-about">Every filing in the set follows one filing specification version, for every upload, check and correction. A mistake in a
+version that is in use is fixed by publishing the next version and moving the set to it. Open versions are checked again against the new
+version (a calculation they had is void, so they are priced again); confirmed versions stay as they are, recorded against the version they
+were checked with. The filing calendar's subscribers are told, with the reason.</p>
+<section aria-labelledby="move-now-h" class="card">
+  <h2 id="move-now-h">Now</h2>
+  <p>{% if pinned %}The set's {{ deadlines|length }} filing{{ deadlines|pluralize }} {% if deadlines|length == 1 %}follows{% else %}follow{% endif %}
+  {% for v in pinned %}<a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }}</a>{% if not forloop.last %} and {% endif %}{% endfor %}.
+  {% else %}The set's filings follow no specification version.{% endif %}
+  {{ open_count }} open version{{ open_count|pluralize }} would be checked again.</p>
+</section>
+<section aria-labelledby="move-choose-h">
+  <h2 id="move-choose-h">Choose the version</h2>
+  {% if options %}
+  <form method="get" class="row-form" id="move-choose">
+    {{ choose.to.as_field_group }}
+    <button type="submit">Show its impact</button>
+  </form>
+  {% else %}
+  <p>No later published version is in effect yet. Publish the next version of the specification first; the set can move to it from the
+  day it takes effect.</p>
+  {% endif %}
+</section>
+{% if chosen %}
+<section aria-labelledby="impact-result">
+  <h2 id="impact-result">Impact of moving to {{ chosen.name }}</h2>
+  {% if problems %}<ul class="compact" id="move-problems">{% for p in problems %}<li><span class="status bad">Cannot move</span> {{ p }}</li>{% endfor %}</ul>{% endif %}
+  {% if not report.filings %}
+  <p>No organization has confirmed a filing in the set yet, so there is nothing to test against.</p>
+  {% else %}
+  <p>The latest confirmed filing of each organization in the set, checked under the version it was checked with and under
+  {{ chosen.name }}. Nothing changes until the move is confirmed.</p>
+  {% include "specifications/_impact_report.html" with against=chosen.name %}
+  {% endif %}
+</section>
+<section aria-labelledby="move-confirm-h" class="card">
+  <h2 id="move-confirm-h">Confirm the move</h2>
+  <form method="post" class="stack form-narrow" novalidate id="move-form">{% csrf_token %}
+    {% if confirm.non_field_errors %}<div class="alert" role="alert">{{ confirm.non_field_errors }}</div>{% endif %}
+    {{ confirm.to }}{{ confirm.reason.as_field_group }}
+    <div class="actions"><button type="submit" class="primary"{% if problems %} aria-disabled="true"{% endif %}>Move {{ what }} to {{ chosen.name }}</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

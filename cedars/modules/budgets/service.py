@@ -32,6 +32,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program
 from cedars.services.rules import service as rules
+from cedars.services.specifications import moving
 from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
@@ -84,12 +85,13 @@ def add_filing(
     notes="",
     cost_test_set=None,
     filers=None,
+    specification_version=None,
 ) -> Deadline:
     """A budget filing for program years first_year to last_year (any number of years; four when last_year is not given), due on a
     date, priced on an ACC (and an allocation version, or the most recent). It goes on the filing calendar as it is set up
     (submissions.add_deadline), where a CPUC system administrator changes it afterwards; `name` is what the calendar and its pages
     call it (blank: its years and what is due). `filers` are the program administrators who file it (submissions.set_filers; None:
-    every PA)."""
+    every PA). `specification_version`: the version it uses (specifications.moving.choices; None: the current one)."""
     if actor is not None and not access.is_system_admin(actor):
         raise AccessDenied("Only a CPUC system administrator sets up budget filings.")
     last_year = first_year + 3 if last_year is None else last_year
@@ -99,11 +101,22 @@ def add_filing(
         raise AccessDenied(f"A filing covers at most {MAX_YEARS} program years.")
     _check_allocation(allocation_version)
     _check_cost_tests(cost_test_set)
+    problems = moving.setup_problems(specification_version, MODULE, [acc_version])
+    if problems:
+        raise AccessDenied(problems[0])
     cycle = registry.ensure_cycle(first_year, last_year=last_year)
     if submissions.same_filing(MODULE, cycle, (name or "").strip() or kind) is not None:
         raise AccessDenied(f"The {cycle} cycle already has a filing called {(name or '').strip() or kind}.")
     deadline = submissions.add_deadline(
-        actor, module=MODULE, kind=kind, cycle=cycle, due_at=due_at, opens_at=opens_at, notes=notes, name=name
+        actor,
+        module=MODULE,
+        kind=kind,
+        cycle=cycle,
+        due_at=due_at,
+        opens_at=opens_at,
+        notes=notes,
+        name=name,
+        specification_version=specification_version,
     )
     setup = FilingSetup.objects.create(
         deadline=deadline, acc_version=acc_version, allocation_version=allocation_version, cost_test_set=cost_test_set
@@ -1318,3 +1331,20 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     problems += list_problems(tables, v.submission.deadline, lay=specifications.layout(version))
     found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET))
     return specifications.apply_checks(version, problems + found)
+
+
+# --- moving a filing set to another specification version (specifications.moving)
+
+
+def recheck(v: SubmissionVersion) -> None:
+    """Check an open budget filing version again after its filing moved to another specification version (as CEDARS)."""
+    f = job_file(v)
+    if f is None or v.locked:
+        return
+    tables, job = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
+    _store_and_check(None, v, tables, job, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")})
+
+
+def setup_accs(deadline: Deadline) -> list[str]:
+    setup = FilingSetup.objects.filter(deadline=deadline).first()
+    return [setup.acc_version] if setup else []

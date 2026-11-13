@@ -149,6 +149,7 @@ def year_new(request):
                 allocation_version=d["allocation_version"],
                 notes=d["notes"],
                 filers=setup_calendar.chosen_pas(d["filers"]),
+                specification_version=d.get("specification_version"),
             )
         except AccessDenied as e:
             messages.error(request, str(e))

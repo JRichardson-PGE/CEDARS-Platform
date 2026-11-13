@@ -50,6 +50,13 @@ upload page links the version under "Before you upload", and its findings name t
   <li>Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
   least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
   and filings already set up keep theirs.</li>
+  <li id="choosing-moving-versions">A filing set (a claim year, a budget filing, a year of monthly reports) is set up on a version you
+  choose: the current one is offered, and an older one still in effect may be chosen. The set-up refuses a version whose engine release
+  does not have the ACC the set is priced on. Every filing in the set follows that version for every upload, check and correction.</li>
+  <li>To fix a mistake in a version that filings already use, publish the next version, then, from the set-up page's Filing
+  specification section, move the set to it. The move page shows the impact test on the set's own confirmed filings first; the move
+  needs a reason, which the filing calendar's subscribers are told. Open versions are checked again against the new version and priced
+  again; confirmed versions stay as they are, recorded against the version they were checked with.</li>
   <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
   Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
   two rule sets</a> to see what changes.</li>

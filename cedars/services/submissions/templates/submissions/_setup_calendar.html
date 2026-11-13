@@ -1,4 +1,11 @@
 {# The calendar part of a set-up page (submissions/setup.py): its filings (cancel or restore one), due dates, who files, and Remove this set-up while nobody has filed for it. #}
+<section class="card" aria-labelledby="set-spec-h" id="setup-specification">
+  <h2 id="set-spec-h">Filing specification</h2>
+  <p>{% if spec_pinned %}Its filings follow {% for v in spec_pinned %}<a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }}</a>{% if not forloop.last %} and {% endif %}{% endfor %},
+  for every upload, check and correction.{% else %}Its filings follow no filing specification version.{% endif %}
+  {% if spec_later %}A later version is in effect: <a href="{{ spec_move_url }}">move {{ setup_what }} to it</a>, after seeing how its confirmed
+  filings would fare.{% elif spec_pinned %}It can move to a later version once one is published and in effect.{% endif %}</p>
+</section>
 <section class="card" aria-labelledby="set-filings-h" id="setup-filings">
   <h2 id="set-filings-h">Filings in this set</h2>
   <p>Each filing {{ setup_what }} put on the <a href="{% url 'submissions:calendar' %}">filing calendar</a>. Cancel one the CPUC no

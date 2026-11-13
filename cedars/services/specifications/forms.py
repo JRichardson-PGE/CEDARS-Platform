@@ -228,3 +228,33 @@ class PublishForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 2}),
         help_text="Blank: download the new template.",
     )
+
+
+class _VersionChoice(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        published = obj.published_at.date().isoformat() if obj.published_at else ""
+        return f"{obj.name} (published {published})" if published else obj.name
+
+
+class MoveChoiceForm(forms.Form):
+    """Which later version to move a filing set to: chosen first, so its impact test is shown before the move is confirmed."""
+
+    to = _VersionChoice(label="Move to", queryset=None, empty_label=None)
+
+    def __init__(self, *args, versions=(), **kw):
+        super().__init__(*args, auto_id="move_%s", **kw)
+        from .models import SpecificationVersion
+
+        self.fields["to"].queryset = SpecificationVersion.objects.filter(pk__in=[v.pk for v in versions]).order_by("-published_at", "-pk")
+
+
+class MoveForm(forms.Form):
+    """Confirm a move, with the reason filers see."""
+
+    to = forms.IntegerField(widget=forms.HiddenInput)
+    reason = forms.CharField(
+        label="Why the filings move",
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Kept in each filing's history and sent with the notice to the filing calendar's subscribers.",
+    )
