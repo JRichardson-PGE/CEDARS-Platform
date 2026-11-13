@@ -1,7 +1,12 @@
-"""The field catalog and what is generated from it. Every function reads the current (newest) catalog version unless given one."""
+"""The field catalog and what is generated from it. Every function reads the current (newest) catalog version unless given one.
+
+A field keeps one `identity` in every catalog version, whatever it is called: a field a filing specification renames
+(changes.rename_fields) keeps its identity and its old name as a former name, and a later catalog that still calls it by the old name
+gives it the new one (`load_catalog`)."""
 
 import csv
 import io
+import uuid
 from dataclasses import dataclass, field
 
 from django.db import transaction
@@ -11,7 +16,9 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
-from .models import Alias, CatalogVersion, Field, Usage
+from .models import Alias, CatalogVersion, Field, FieldRename, Usage
+
+FORMER = "Former name"  # the system of an alias that is a name the field had before a specification renamed it
 
 ATTRIBUTES = [
     "unit",
@@ -51,7 +58,9 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
         added = [f for f in records.catalog() if f["name"].lower() not in taken]
         payload = {**payload, "fields": [*payload["fields"], *added]}
         label = asked or f"{label} + platform {cedars.__version__}"
+    payload = {**payload, "fields": renamed(payload["fields"])}
     previous = current()
+    identities = {f.name.lower(): f.identity for f in previous.fields.all()} if previous else {}
     retired = (
         {f.name.lower(): f for f in previous.fields.filter(state=Field.State.RETIRED).prefetch_related("aliases", "usages")}
         if previous
@@ -61,6 +70,7 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
     for f in payload["fields"]:
         obj = Field.objects.create(
             version=version,
+            identity=identities.get(f["name"].lower()) or uuid.uuid4(),
             name=f["name"],
             kind=f["kind"],
             group=f.get("group", ""),
@@ -98,6 +108,27 @@ def load_catalog(actor, payload: dict, *, label: str | None = None, notes: str =
         actor=actor,
     )
     return version
+
+
+def renamed(fields: list[dict]) -> list[dict]:
+    """Catalog fields (as exported) with the specifications' renames applied: a field still under a name a specification has renamed
+    takes the new name, with the old one among its other names as a former name (in rename order, so a field renamed twice takes its
+    newest name). A catalog that already has the new name is left as it is."""
+    renames = list(FieldRename.objects.all())
+    if not renames:
+        return fields
+    names = {f["name"].lower() for f in fields}
+    out = []
+    for f in fields:
+        for r in renames:
+            if f["name"].lower() == r.old_name.lower() and r.new_name.lower() not in names:
+                aliases = list(f.get("aliases", []))
+                if not any(a["name"].lower() == f["name"].lower() for a in aliases):
+                    aliases.append({"name": f["name"], "system": FORMER})
+                names.add(r.new_name.lower())
+                f = {**f, "name": r.new_name, "aliases": aliases}
+        out.append(f)
+    return out
 
 
 def copy_field(old: Field, version: CatalogVersion, **changes) -> Field:

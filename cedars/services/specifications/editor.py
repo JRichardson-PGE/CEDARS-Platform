@@ -1,5 +1,6 @@
 """Editing filing specifications: a CPUC system administrator starts a draft from a published version, changes its settings, its
-tables' fields, its rules and which built-in checks run, reads what changes, and publishes it with notice.
+tables' fields (renaming one keeps it the same field: its old name is still accepted, its rules follow it and the data dictionary
+renames it when the version is published), its rules and which built-in checks run, reads what changes, and publishes it with notice.
 
 A draft is a copy of a published version (`start_draft`), one per specification at a time. Its rule set is a draft copy of the
 version's rule set, made in the rule library at the same time and published with it: rules change with a specification version,
@@ -537,6 +538,84 @@ def remove_field(actor, field: SpecField, reason: str = "") -> None:
 
 
 @transaction.atomic
+def rename_field(actor, field: SpecField, new_name: str, reason: str = "") -> SpecField:
+    """Rename a draft's field: one field under a new name, not one removed and another added. The old name becomes one of its other
+    accepted names (a file in the old layout still uploads), the draft's rules that name it are rewritten to the new name, and when the
+    version is published the data dictionary renames the field too, keeping the old name as a former name. A locked field's name is
+    fixed (the engine or CEDARS' code reads it by that name)."""
+    from cedars.services.dictionary import service as dictionary
+
+    _require(actor)
+    f = SpecField.objects.select_for_update().select_related("table__version__specification").get(pk=field.pk)
+    v = _draft(f.table.version)
+    lock = locks(v).get((f.table.name, f.name))
+    if lock:
+        raise EditError(f"{f.name} is locked, so its name is fixed: {lock}")
+    if not (reason or "").strip():
+        raise EditError("Say why the field is renamed: the reason is kept with the version.")
+    old, new = f.name, (new_name or "").strip()
+    if not NAME.match(new) or len(new) > 80:
+        raise EditError("A field's name has letters, digits and underscores, starting with a letter.")
+    if new == old:
+        raise EditError(f"The field is already called {old}.")
+    taken = _names_in(f.table, exclude=f)
+    if new.lower() in taken:
+        raise EditError(f"{taken[new.lower()]} in the {f.table.name} table is already called or accepted as {new}.")
+    mine, other = dictionary.resolve(old), dictionary.resolve(new)
+    if other is not None and (mine is None or other.identity != mine.identity) and new.lower() != (f.renamed_from or "").lower():
+        raise EditError(f"The data dictionary already has a field called {other.name}: add that field instead of renaming this one.")
+    before = {"table": f.table.name, "name": old, "other_names": list(f.other_names)}
+    if new.lower() == (f.renamed_from or "").lower():  # back to the name it had: the in-between name was never filed
+        f.renamed_from = ""
+        f.other_names = [n for n in f.other_names if n.lower() not in (old.lower(), new.lower())]
+    else:
+        f.renamed_from = f.renamed_from or old
+        f.other_names = [n for n in f.other_names if n.lower() != new.lower()]
+        if old.lower() not in (n.lower() for n in f.other_names):
+            f.other_names.append(old)
+    f.name = new
+    f.save()
+    rewritten = 0
+    if v.rule_set_id is not None and v.rule_set.status == v.rule_set.Status.DRAFT:
+        from cedars.services.rules import service as rules_service
+
+        rewritten = rules_service.rename_field(
+            actor, v.rule_set, f.table.name, old, new, f"{f.table.name}.{old} is renamed {new}: {reason}"
+        )
+    audit.record("specification.field_renamed", obj=v, before=before,
+                 after={"table": f.table.name, "name": new, "other_names": list(f.other_names), "rules_rewritten": rewritten},
+                 reason=reason, actor=actor)  # fmt: skip
+    return f
+
+
+@dataclass(frozen=True)
+class PendingRename:
+    """A field the data dictionary has renamed (in another specification's version) that a draft still has under its old name."""
+
+    table: str
+    field: str
+    new_name: str
+    by: str  # the specification version that renamed it
+
+
+def pending_renames(draft: SpecificationVersion) -> list[PendingRename]:
+    """The draft's fields under a name the data dictionary has since renamed, for staff to rename here too (or keep)."""
+    from cedars.services.dictionary.models import FieldRename
+
+    renames = {r.old_name.lower(): r for r in FieldRename.objects.all()}  # a later rename of the same name wins
+    if not renames:
+        return []
+    out = []
+    for t in draft.tables.prefetch_related("fields"):
+        names = {f.name.lower() for f in t.fields.all()}
+        for f in t.fields.all():
+            r = renames.get(f.name.lower())
+            if r is not None and r.new_name.lower() not in names:
+                out.append(PendingRename(t.name, f.name, r.new_name, r.specification))
+    return out
+
+
+@transaction.atomic
 def change_table(actor, table: SpecTable, *, other_names=None, guidance=None, reason: str = "") -> SpecTable:
     """A draft table's other accepted file or sheet names and its guidance for filers. Its key, how a later upload replaces its records
     and whether it is kept in the vault are CEDARS' processing, not editable."""
@@ -782,9 +861,11 @@ def change_lines(draft: SpecificationVersion) -> list[str]:
         out.append(f"The {t.name} table is removed.")
     for table, f in c.fields_added:
         out.append(f"New field {table}.{f.name} ({f.get_requirement_display().lower()}).")
+    for table, old, new, _diffs in c.fields_renamed:
+        out.append(f"{table}.{old} is renamed {new}: a file with the old name still uploads, and data filed earlier keeps it.")
     for table, f in c.fields_removed:
         out.append(f"{table}.{f.name} is removed: a file that still has the column is accepted and the column ignored.")
-    for table, name, diffs in c.fields_changed:
+    for table, name, diffs in [*c.fields_changed, *((t, new, d) for t, _old, new, d in c.fields_renamed if d)]:
         words = "; ".join(
             f"{w.lower()} {old or 'blank'} to {new or 'blank'}" for w, old, new in diffs if w not in ("Definition", "Guidance")
         )
@@ -796,6 +877,10 @@ def change_lines(draft: SpecificationVersion) -> list[str]:
         out.append(f"{len(c.rules_added)} new rule{'s' if len(c.rules_added) != 1 else ''}.")
     if c.rules_removed:
         out.append(f"{len(c.rules_removed)} rule{'s' if len(c.rules_removed) != 1 else ''} removed.")
+    if c.rules_renamed:
+        n, which = len(c.rules_renamed), "fields" if len(c.fields_renamed) != 1 else "field"
+        rules_words = "1 rule now names" if n == 1 else f"{n} rules now name"
+        out.append(f"{rules_words} the renamed {which}; what {'it checks' if n == 1 else 'they check'} is unchanged.")
     if c.rules_changed:
         out.append(f"{len(c.rules_changed)} rule{'s' if len(c.rules_changed) != 1 else ''} changed.")
     for c_ in c.checks_added:
@@ -861,6 +946,11 @@ def publish(
         "from its page.",
     )
     note = releases.publish(actor, note, short_notice_reason=short)
+    renames = list(dict.fromkeys((f.renamed_from, f.name) for t in v.tables.all() for f in t.fields.all() if f.renamed_from))
+    if renames:  # the data dictionary renames them too, keeping each old name as a former name
+        from cedars.services.dictionary import changes as dictionary_changes
+
+        dictionary_changes.rename_fields(actor, renames, specification=f"{v.specification.name}: {v.name}", reason=v.reason)
     v.status = SpecificationVersion.Status.PUBLISHED
     v.published_at, v.published_by = timezone.now(), actor
     v.effective_on = effective_on

@@ -36,7 +36,7 @@ upload page links the version under "Before you upload", and its findings name t
   <li id="editing-specifications">Specifications change without a code change. On a published version's page, start a new version
   from it: a draft copy with a copy of its rules. The draft has a page for each part: its settings (name, summary, the engine release
   and cost-test set that price its filings), its tables and fields (add a field from the data dictionary or a new one, change a field's
-  requirement, type, value list and wording, or remove it), its rules, its built-in checks, what changes from the version it was copied
+  requirement, type, value list and wording, rename it, or remove it), its rules, its built-in checks, what changes from the version it was copied
   from, and Publish. A locked field, one the engine or CEDARS' own processing reads, stays with its type, and a required one stays
   required. There is one draft per specification at a time.</li>
   <li>Publishing checks the draft first, then freezes it, publishes its rules with it and publishes a release note. It takes effect at
@@ -45,6 +45,10 @@ upload page links the version under "Before you upload", and its findings name t
   <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
   Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
   two rule sets</a> to see what changes.</li>
+  <li>Renaming a field keeps it the same field: its old name is still accepted on upload, the draft's rules that name it are rewritten
+  to the new name, and when the version is published the <a href="{% url 'dictionary:index' %}">data dictionary</a> renames it too and
+  keeps the old name as a former name, which its search still finds. Data filed earlier keeps the name it was filed with. Another
+  specification that uses the field lists the rename in its next draft, to accept or keep its own name.</li>
   <li>Built-in checks also follow the version. Most are CEDARS' own processing and always run; a few (CEDARS' data rules on the Claim
   and Site tables, the warnings about program costs and year-to-date spend) can be left out of a version or made a warning or a reject,
   on the draft's Built-in checks page. A filing runs them as its version has them.</li>

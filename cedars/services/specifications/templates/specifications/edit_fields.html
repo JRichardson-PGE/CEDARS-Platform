@@ -4,9 +4,19 @@
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
 <div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_fields" %}</div>
 {% include "specifications/_edit_nav.html" %}
-<p>Change a field's requirement, type, value list and wording, add fields from the data dictionary or new ones, or remove fields.
+<p>Change a field's requirement, type, value list and wording, rename it, add fields from the data dictionary or new ones, or remove fields.
 A <strong>locked</strong> field is one the engine or CEDARS' own processing reads: it stays in the version with its type, and a required
 one stays required. {% if not engine %}The engine is not installed here, so the fields it reads are not marked; they are checked where it is.{% endif %}</p>
+{% if pending %}
+<section aria-labelledby="pending-renames" class="card">
+  <h2 id="pending-renames">Renamed in the data dictionary</h2>
+  <p>Another specification's version renamed {% if pending|length == 1 %}this field{% else %}these fields{% endif %}. Rename {% if pending|length == 1 %}it{% else %}each{% endif %} here too so the
+  field has one name everywhere, or keep the name this specification uses.</p>
+  <ul class="compact">{% for p in pending %}<li><form method="post" action="{% url 'specifications:rename_field' v.specification.code v.slug p.table p.field %}" class="inline-form">{% csrf_token %}
+    <input type="hidden" name="new_name" value="{{ p.new_name }}"><input type="hidden" name="reason" value="Renamed in the data dictionary by {{ p.by }}"><input type="hidden" name="back" value="fields">
+    {{ p.table }}.{{ p.field }} is now {{ p.new_name }} ({{ p.by }}). <button type="submit" aria-label="Rename {{ p.table }}.{{ p.field }} to {{ p.new_name }} here too">Rename here too</button></form></li>{% endfor %}</ul>
+</section>
+{% endif %}
 <nav aria-labelledby="draft-tables-h" class="contents">
   <h2 id="draft-tables-h">Tables</h2>
   <ul>{% for x in tables %}<li><a href="#table-{{ x.t.name }}">{{ x.t.name }}</a> ({{ x.fields|length }} field{{ x.fields|length|pluralize }}{% if x.t.vault %}, kept in the PII vault{% endif %})</li>{% endfor %}</ul>
@@ -24,7 +34,7 @@ one stays required. {% if not engine %}The engine is not installed here, so the 
     <thead><tr><th scope="col">Field</th><th scope="col">Requirement</th><th scope="col">Type</th><th scope="col">Value list</th><th scope="col">Locked</th><th scope="col"><span class="sr-only">Change</span></th></tr></thead>
     <tbody>
     {% for row in x.fields %}{% with f=row.f %}
-    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
+    <tr id="field-{{ x.t.name }}-{{ f.name }}"><th scope="row">{{ f.name }}{% if f.renamed_from %}<br><span class="small">renamed from {{ f.renamed_from }}</span>{% endif %}{% if f.other_names %}<br><span class="small muted">also {{ f.other_names|join:", " }}</span>{% endif %}</th>
       <td>{{ f.get_requirement_display }}</td><td>{{ f.type_words }}</td><td>{{ f.value_list|default:"-" }}</td>
       <td>{% if row.lock %}Locked<br><span class="small">{{ row.lock }}</span>{% else %}No{% endif %}</td>
       <td><a href="{% url 'specifications:edit_field' v.specification.code v.slug x.t.name f.name %}" aria-label="Change {{ x.t.name }}.{{ f.name }}">Change</a></td></tr>

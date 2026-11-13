@@ -2,6 +2,7 @@
 checker apply exactly the same rules. The engine is imported only when rules are run or imported from it (engine/README.md)."""
 
 import io
+import re
 from dataclasses import dataclass
 from datetime import date
 
@@ -454,6 +455,66 @@ def edit_rule(
     rule.save()
     audit.record("rule.edited", obj=rule, before=before, after=after, reason=reason, actor=actor)
     return rule
+
+
+def _same_name(value, old: str) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    v = value.strip()
+    if v.lower() == old.lower():
+        return True
+    try:
+        return canonical_field(v).lower() == old.lower()  # a rule may name the field by its CET name
+    except EngineMissing:
+        return False
+
+
+def renamed_test(rule_table: str, field: str, definition: dict, table: str, old: str, new: str) -> tuple[str, dict]:
+    """A rule's field and definition with a field of `table` renamed from `old` to `new`: the rule's own field (each part of a key) and,
+    in its definition, the field it tests (`field`), a field it is compared with (`value`), the columns of a key (`columns`) and the
+    fields of its conditions on that table (`conds`: [table, field, operator, value]). A rule of another table changes only in its
+    conditions on `table`. Nothing else is touched: a value list or an operator can share a field's name."""
+    own = rule_table == table
+
+    def name(value):
+        return new if _same_name(value, old) else value
+
+    d = dict(definition or {})
+    if own:
+        field = " + ".join(name(p.strip()) for p in field.split("+")) if field else field
+        for k in ("field", "value"):
+            if k in d:
+                d[k] = name(d[k])
+        if isinstance(d.get("columns"), list):
+            d["columns"] = [name(c) for c in d["columns"]]
+    if isinstance(d.get("conds"), list):
+        d["conds"] = [
+            [c[0], name(c[1]), c[2], name(c[3]), *c[4:]] if isinstance(c, list | tuple) and len(c) >= 4 and c[0] == table else c
+            for c in d["conds"]
+        ]
+    return field, d
+
+
+def renamed_words(text: str, old: str, new: str) -> str:
+    return re.sub(rf"(?<![A-Za-z0-9_]){re.escape(old)}(?![A-Za-z0-9_])", new, text or "")
+
+
+@transaction.atomic
+def rename_field(actor, rs: RuleSet, table: str, old: str, new: str, reason: str = "") -> int:
+    """Rewrite a draft rule set's rules for a field renamed from `old` to `new` in `table` (`renamed_test`), their wording with them.
+    A rewritten rule gets the ID of its new test and records the one it replaces, as any changed rule does; a comparison of versions
+    shows it as the same rule under the field's new name. The number of rules rewritten."""
+    _require_admin(actor)
+    _require_draft(rs)
+    n = 0
+    for r in list(rs.rules.all()):
+        field, definition = renamed_test(r.table, r.field, r.definition, table, old, new)
+        if (field, definition) == (r.field, r.definition):
+            continue
+        edit_rule(actor, r, field=field, definition=definition, message=renamed_words(r.message, old, new),
+                  fix=renamed_words(r.fix, old, new), reason=reason or f"{table}.{old} is renamed {new}")  # fmt: skip
+        n += 1
+    return n
 
 
 @transaction.atomic

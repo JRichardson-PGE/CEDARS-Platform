@@ -3,7 +3,7 @@
 {% block content %}
 <nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'dictionary:index' %}">Data dictionary</a></li><li><a href="{% url 'dictionary:changes' %}">Specification change log</a></li></ol></nav>
 <div class="page-title"><h1>Changes in {{ v.label }}</h1>{% page_help "dictionary/version_changes" %}</div>
-<p>Loaded {{ v.loaded_at|date_words }}{% if v == current %}; the current version{% endif %}. {% if first %}The first version: it brought in all {{ total }} fields.{% else %}Against {{ ch.previous.label }}: {{ ch.counts.added }} added, {{ ch.counts.retired }} retired, {{ ch.counts.reinstated }} reinstated, {{ ch.counts.changed }} changed, {{ ch.counts.dropped }} dropped.{% endif %}</p>
+<p>Loaded {{ v.loaded_at|date_words }}{% if v == current %}; the current version{% endif %}. {% if first %}The first version: it brought in all {{ total }} fields.{% else %}Against {{ ch.previous.label }}: {{ ch.counts.added }} added, {% if ch.counts.renamed %}{{ ch.counts.renamed }} renamed, {% endif %}{{ ch.counts.retired }} retired, {{ ch.counts.reinstated }} reinstated, {{ ch.counts.changed }} changed, {{ ch.counts.dropped }} dropped.{% endif %}</p>
 {% if v.notes %}<p>{{ v.notes|linebreaksbr }}</p>{% endif %}
 {% if mandates %}<p>Carries {% for m in mandates %}<a href="{% url 'mandates:detail' m.pk %}">{{ m.reference }}</a>{% if not forloop.last %}, {% endif %}{% endfor %} from the register of CPUC-mandated changes.</p>{% endif %}
 {% if first %}

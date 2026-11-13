@@ -5,7 +5,11 @@ current one with the field marked retired from a date and the three reviews and 
 with the field back in use. A field a published entry of the register of CPUC-mandated changes still requires cannot be retired until
 that entry is superseded or withdrawn (releases.mandates.requiring_field).
 
-`changes(version)` compares a catalog version with the one before it, field by field: added, dropped, retired, reinstated, and every
+A filing specification version that renames a field renames it here when it is published (`rename_fields`): a new catalog version
+with the field under its new name, its old name kept as a former name, and the rename recorded (`FieldRename`).
+
+`changes(version)` compares a catalog version with the one before it, field by field (by identity, so a rename is one field): added,
+dropped, renamed, retired, reinstated, and every
 attribute, other name and usage that changed. The public Changes page (/dictionary/changes/) lists them for every version, with the
 published versions of the value lists and the rule sets beside them, as the specification change log the register is published with."""
 
@@ -23,7 +27,7 @@ from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
 from . import service
-from .models import CatalogVersion, Field
+from .models import Alias, CatalogVersion, Field, FieldRename
 
 # the attributes compared between versions, with the label the change log gives them
 COMPARED = {
@@ -55,7 +59,7 @@ class RetirementError(ValueError):
 
 def _require_admin(actor) -> None:
     if not access.is_system_admin(actor):
-        raise AccessDenied("Only a CPUC system administrator retires or reinstates a field.")
+        raise AccessDenied("Only a CPUC system administrator retires, reinstates or renames a field.")
 
 
 def can_retire(user) -> bool:
@@ -172,7 +176,7 @@ def reinstate(actor, name: str, *, reason: str) -> tuple[CatalogVersion, Field]:
 @dataclass
 class FieldChange:
     name: str
-    what: str  # added, dropped, retired, reinstated, changed
+    what: str  # added, dropped, renamed, retired, reinstated, changed
     details: list[tuple[str, str, str]] = field(default_factory=list)  # (attribute, before, after)
     note: str = ""  # the retirement's reason, for a retired field
 
@@ -188,7 +192,7 @@ class VersionChanges:
 
     @property
     def counts(self) -> dict[str, int]:
-        out = {k: 0 for k in ("added", "retired", "reinstated", "changed", "dropped")}
+        out = {k: 0 for k in ("added", "renamed", "retired", "reinstated", "changed", "dropped")}
         for c in self.fields:
             out[c.what] += 1
         return out
@@ -213,7 +217,7 @@ def _text(value) -> str:
 
 
 def _fields(version: CatalogVersion) -> dict[str, Field]:
-    return {f.name.lower(): f for f in version.fields.prefetch_related("aliases", "usages")}
+    return {str(f.identity): f for f in version.fields.prefetch_related("aliases", "usages")}
 
 
 def _names(f: Field) -> set[str]:
@@ -238,7 +242,7 @@ def changes(version: CatalogVersion) -> VersionChanges:
     new = _fields(version)
     old = _fields(previous) if previous else {}
     out = VersionChanges(version, previous)
-    for key in sorted(set(new) | set(old)):
+    for key in set(new) | set(old):
         n, o = new.get(key), old.get(key)
         if o is None:
             out.fields.append(FieldChange(n.name, "added", note="retired" if n.state == Field.State.RETIRED else ""))
@@ -255,21 +259,64 @@ def changes(version: CatalogVersion) -> VersionChanges:
                 if what == "retired":
                     details.insert(0, ("Retired from", "", _text(n.retired_from)))
                 out.fields.append(FieldChange(n.name, what, details, note))
+            elif n.name != o.name:
+                r = version.renames.filter(identity=n.identity).first()
+                out.fields.append(FieldChange(n.name, "renamed", details, f"{r.specification}: {r.reason}".strip(": ") if r else ""))
             elif details:
                 out.fields.append(FieldChange(n.name, "changed", details))
-    order = {"retired": 0, "reinstated": 1, "added": 2, "dropped": 3, "changed": 4}
+    order = {"retired": 0, "reinstated": 1, "renamed": 2, "added": 3, "dropped": 4, "changed": 5}
     out.fields.sort(key=lambda c: (order[c.what], c.name.lower()))
     return out
 
 
 def history(name: str) -> list[tuple[CatalogVersion, FieldChange]]:
-    """Every catalog version that added, changed, retired or reinstated the field, newest first."""
+    """Every catalog version that added, renamed, changed, retired or reinstated the field (under any of its names), newest first."""
+    ids = set(Field.objects.filter(name__iexact=name).values_list("identity", flat=True))
     out = []
-    for v in CatalogVersion.objects.filter(fields__name__iexact=name).distinct():
+    for v in CatalogVersion.objects.filter(fields__identity__in=ids).distinct():
+        names = {f.name.lower() for f in v.fields.filter(identity__in=ids)}
         for c in changes(v).fields:
-            if c.name.lower() == name.lower():
+            if c.name.lower() in names:
                 out.append((v, c))
     return out
+
+
+@transaction.atomic
+def rename_fields(actor, renames: list[tuple[str, str]], *, specification: str, reason: str = "") -> CatalogVersion | None:
+    """Rename fields of the current catalog as a filing specification version does when it is published: a new catalog version with
+    each field under its new name and its old name kept as a former name (accepted on upload, found by search), the rename recorded so
+    a later catalog loaded under the old name takes the new one. A field the catalog lacks, or a new name it already has, is left as
+    it is. None when nothing is renamed."""
+    _require_admin(actor)
+    base = service.current()
+    if base is None:
+        return None
+    have = {f.name.lower(): f for f in base.fields.all()}
+    todo = {have[o.lower()].pk: n for o, n in renames if o.lower() in have and n.lower() not in have}
+    if not todo:
+        return None
+    words = ", ".join(f"{f.name} to {todo[f.pk]}" for f in have.values() if f.pk in todo)
+    version = CatalogVersion.objects.create(
+        label=_next_label(base), notes=f"Renamed by {specification}: {words}", loaded_by=actor, based_on=base
+    )
+    for f in base.fields.prefetch_related("aliases", "usages"):
+        if f.pk not in todo:
+            service.copy_field(f, version)
+            continue
+        new = service.copy_field(f, version, name=todo[f.pk])
+        if not any(a.name.lower() == f.name.lower() for a in f.aliases.all()):
+            Alias.objects.create(field=new, name=f.name, system=service.FORMER)
+        FieldRename.objects.create(identity=f.identity, old_name=f.name, new_name=new.name, catalog_version=version,
+                                   specification=specification, reason=(reason or "").strip(), renamed_by=actor)  # fmt: skip
+        audit.record(
+            "dictionary.field_renamed",
+            obj=new,
+            before={"name": f.name, "version": base.label},
+            after={"name": new.name, "version": version.label, "specification": specification},
+            reason=reason,
+            actor=actor,
+        )
+    return version
 
 
 def log_csv() -> str:

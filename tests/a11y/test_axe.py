@@ -481,7 +481,8 @@ def _specifications():
 
 
 def _specification_draft(cpuc_admin):
-    """A draft of the monthly reports specification (Monthly reports 2029) with a new field and a changed one, for the editor's pages."""
+    """A draft of the monthly reports specification (Monthly reports 2029) with a new field, a changed one and a
+    renamed one, for the editor's pages."""
     from cedars.services.specifications import editor
     from cedars.services.specifications import service as specifications
     from cedars.services.specifications.models import Specification
@@ -490,6 +491,8 @@ def _specification_draft(cpuc_admin):
     editor.add_field(cpuc_admin, v, "Commitments", "ReportingNote", type="text", max_length=500, definition="A note on the month")
     comments = v.tables.get(name="Commitments").fields.get(name="Comments")
     editor.change_field(cpuc_admin, comments, guidance="Say what changed this month.", reason="Clearer")
+    pre = v.tables.get(name="Measure").fields.get(name="PreDesc")
+    editor.rename_field(cpuc_admin, pre, "PreDescription", "The CPUC's name for it")
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):

@@ -184,6 +184,9 @@ class SpecField(models.Model):
     unit = models.CharField(max_length=80, blank=True)
     definition = models.TextField(blank=True, help_text="What the field holds, as the version was made")
     guidance = models.TextField(blank=True, help_text="A note for filers beyond the definition")
+    renamed_from = models.CharField(
+        max_length=80, blank=True, help_text="The name it had in the version this one was copied from, when this version renamed it"
+    )
 
     class Meta:
         ordering = ["table", "position"]

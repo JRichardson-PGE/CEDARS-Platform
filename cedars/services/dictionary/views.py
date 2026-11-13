@@ -13,7 +13,7 @@ from cedars.services.accounts.service import AccessDenied
 
 from . import changes as changelog
 from . import forms, service, value_lists
-from .models import CatalogVersion, Code, Field, Usage, ValueList, ValueListVersion
+from .models import CatalogVersion, Code, Field, FieldRename, Usage, ValueList, ValueListVersion
 
 TABLES = {("calculations", "Measure"), ("calculations", "ProgramCost")}
 
@@ -106,7 +106,11 @@ def _record_table(f: Field) -> dict | None:
 def detail(request, name):
     v = _version_or_404()
     f = Field.objects.filter(version=v, name=name).prefetch_related("aliases", "usages").first()
-    if f is None:
+    if f is None:  # a name a specification renamed: the field's page under its name now
+        former = FieldRename.objects.filter(old_name__iexact=name).last()
+        now = former and Field.objects.filter(version=v, identity=former.identity).first()
+        if now:
+            return redirect("dictionary:field", now.name)
         raise Http404
     from cedars.services.releases import mandates
 
