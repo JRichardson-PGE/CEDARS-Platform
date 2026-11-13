@@ -103,6 +103,8 @@ def detail(request, pk):
             "sysadmin": access.is_system_admin(request.user),
             "version_form": forms.NewVersionForm(auto_id="version_%s"),
             "drafts": RuleSet.objects.filter(code=rs.code, status=RuleSet.Status.DRAFT).exclude(pk=rs.pk),
+            "spec_draft": rs.specification_versions.filter(status="draft").select_related("specification").first(),
+            "spec_takes": _specification_taking(rs.code),
         },
     )
 
@@ -237,6 +239,14 @@ def rule(request, pk, rule_id):
 # --- administrators change the rules as new versions
 
 
+def _specification_taking(code: str):
+    """The filing specification whose versions take the rules of `code` (they change with its versions), or None."""
+    from cedars.services.specifications.models import SpecificationVersion
+
+    v = SpecificationVersion.objects.filter(rule_set_code=code).select_related("specification").first()
+    return v.specification if v else None
+
+
 def _admin(request):
     if not access.is_system_admin(request.user):
         raise PermissionDenied("Only a CPUC system administrator changes the rules.")
@@ -247,6 +257,10 @@ def _admin(request):
 def new_version(request, pk):
     _admin(request)
     rs = get_object_or_404(RuleSet, pk=pk)
+    spec = _specification_taking(rs.code)
+    if spec is not None:
+        messages.error(request, f"These rules change with a new version of the {spec.name} specification: start one from its page.")
+        return redirect("rules:detail", pk=rs.pk)
     form = forms.NewVersionForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Give the date the new version takes effect and why the rules change.")

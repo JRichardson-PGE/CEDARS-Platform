@@ -71,6 +71,21 @@ class SpecificationVersion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     published_at = models.DateTimeField(null=True, blank=True)
+    reason = models.TextField(blank=True, help_text="Why the version is made, given when its draft is started")
+    effective_on = models.DateField(
+        null=True,
+        blank=True,
+        help_text="The first day filing sets are set up with it, set when it is published (blank: from its publication)",
+    )
+    short_notice_reason = models.TextField(blank=True, help_text="Why it takes effect with less than the usual notice")
+    release_note = models.ForeignKey(
+        "releases.ReleaseNote",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+        help_text="The release note that announced it",
+    )
     withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     withdrawn_at = models.DateTimeField(null=True, blank=True)
     withdrawn_reason = models.TextField(blank=True)

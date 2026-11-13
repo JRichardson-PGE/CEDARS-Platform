@@ -1,0 +1,30 @@
+{% extends "core/base.html" %}
+{% block title %}Rules: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_rules" %}</div>
+{% include "specifications/_edit_nav.html" %}
+{% if v.rule_set %}
+<p id="draft-rules">The draft's rules are a copy of {% if v.based_on.rule_set %}the {{ v.based_on.rule_set.label }} rules of {{ v.based_on.name }}{% else %}the earlier rules{% endif %}, kept in the rule
+library as <a href="{% url 'rules:detail' v.rule_set.pk %}">a draft</a>. Add a rule, or change or remove one from its page; the rules
+are published with this version and take effect the same day. Field requirements, types, lengths and value lists are checked from the
+fields themselves.</p>
+<p class="actions"><a class="button" href="{% url 'rules:add_rule' v.rule_set.pk %}">Add a rule</a> <a class="button" href="{% url 'rules:differences' %}?a={{ v.based_on.rule_set.pk }}&amp;b={{ v.rule_set.pk }}">What the rules change</a></p>
+<div class="hscroll" tabindex="0" role="region" aria-label="Rules of the draft">
+<table class="list">
+  <caption class="sr-only">Rules of the draft, by table and field</caption>
+  <thead><tr><th scope="col">Rule</th><th scope="col">Severity</th><th scope="col">Table</th><th scope="col">Field</th><th scope="col">Rule and suggested fix</th></tr></thead>
+  <tbody>{% for r in rules %}<tr><th scope="row"><a href="{% url 'rules:rule' v.rule_set.pk r.rule_id %}">{{ r.rule_id }}</a>{% if r.replaces %}<br><span class="small muted">replaces {{ r.replaces }}</span>{% endif %}</th>
+    <td>{{ r.get_severity_display }}</td><td>{{ r.table }}</td><td>{{ r.field }}</td><td>{{ r.message }}<br><span class="small muted">Fix: {{ r.fix }}</span></td></tr>
+  {% empty %}<tr><td colspan="5">The draft has no rules yet.</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% elif v.rule_set_code %}
+<p id="draft-rules">This version takes the {{ v.rule_set_code }} rules, but none are published in the rule library here yet, so its filings
+are checked against the ones in force. Import them on the <a href="{% url 'rules:index' %}">Validation rules</a> page and publish
+them, then start the draft again.</p>
+{% else %}
+<p id="draft-rules">{{ v.specification.name }} has no rule set: its filings meet the field checks (requirement, type, length and value
+list) and the built-in checks.</p>
+{% endif %}
+{% endblock %}

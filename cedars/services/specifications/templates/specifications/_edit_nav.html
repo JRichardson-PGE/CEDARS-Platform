@@ -1,0 +1,5 @@
+<p id="draft-status"><span class="status warn">Draft</span> A copy of {% if v.based_on %}<a href="{% url 'specifications:version' v.based_on.specification.code v.based_on.slug %}">{{ v.based_on.name }}</a>{% else %}an earlier version{% endif %}, started {{ v.created_at|date_words }}{% if v.created_by %} by {{ v.created_by.get_full_name|default:v.created_by.email }}{% endif %}.
+  Nothing here is used until it is published. {% if problem_count %}<a href="{% url 'specifications:edit_publish' v.specification.code v.slug %}">{{ problem_count }} thing{{ problem_count|pluralize }} to settle before publishing</a>.{% else %}It is ready to publish.{% endif %}</p>
+<nav class="subnav" aria-label="Parts of the draft">
+  {% for name, label in tabs %}<a href="{% url 'specifications:'|add:name v.specification.code v.slug %}"{% if name == tab %} aria-current="{% if here_is_tab %}page{% else %}true{% endif %}"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>

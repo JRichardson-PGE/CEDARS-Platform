@@ -7,7 +7,16 @@
 {% if rs.status == "published" %}<p class="actions" id="check-with"><a class="button" href="{% url 'rules:check' %}">Check a file against these rules</a> <a class="button" href="{% url 'rules:json' rs.pk %}" download>Download these rules to check files in your own systems (JSON)</a></p>{% endif %}
 {% if rs.based_on %}<p>Copied from <a href="{% url 'rules:detail' rs.based_on.pk %}">the version effective {{ rs.based_on.effective_from|date_words }}</a>{% if rs.reason %}: {{ rs.reason }}{% endif %}.
   <a href="{% url 'rules:differences' %}?a={{ rs.based_on.pk }}&amp;b={{ rs.pk }}">What this version changes</a>.</p>{% endif %}
-{% if sysadmin and rs.status == "draft" %}
+{% if spec_draft %}
+<section class="card" aria-labelledby="draft-h">
+  <h2 id="draft-h">The rules of a draft specification version</h2>
+  <p>These are the rules of the draft <a href="{% url 'specifications:edit_rules' spec_draft.specification.code spec_draft.slug %}">{{ spec_draft }}</a>.
+  {% if sysadmin %}Add rules, change a rule's test or wording from its page, or take a rule out; the rules are published with the
+  specification version, from its page.{% endif %} Nothing here is used until that version is published.</p>
+  {% if sysadmin %}<div class="actions"><a class="button" href="{% url 'rules:add_rule' rs.pk %}">Add a rule</a>
+    <a class="button" href="{% url 'specifications:edit_rules' spec_draft.specification.code spec_draft.slug %}">Back to the draft</a></div>{% endif %}
+</section>
+{% elif sysadmin and rs.status == "draft" %}
 <section class="card" aria-labelledby="draft-h">
   <h2 id="draft-h">Change this draft</h2>
   <p>Add rules, change a rule's test or wording from its page, or take a rule out. A rule whose test changes gets a new ID and records
@@ -22,6 +31,13 @@
       <button type="submit">Discard the draft</button>
     </form>
   </details>
+</section>
+{% elif sysadmin and spec_takes %}
+<section class="card" aria-labelledby="version-h">
+  <h2 id="version-h">Change these rules</h2>
+  <p>Filings are checked against the rules of their filing specification version, so these rules change with a new version of the
+  <a href="{% url 'specifications:current' spec_takes.code %}">{{ spec_takes.name }}</a> specification: start one from its current
+  version's page, then change its rules there.</p>
 </section>
 {% elif sysadmin %}
 <section class="card" aria-labelledby="version-h">

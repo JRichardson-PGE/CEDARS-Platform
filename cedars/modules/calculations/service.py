@@ -97,6 +97,16 @@ def default_release() -> EngineRelease | None:
     return releases().filter(default=True).first() or releases().first()
 
 
+def release_list() -> list[dict]:
+    """Every registered release that offers ReCET's own calculation (filings are priced only with it), for a filing specification
+    version to name: its number, whether it is active and the default, and its ACCs."""
+    return [
+        {"release": r.release, "active": r.active, "default": r.default, "accs": accs_for(r, RECET)}
+        for r in EngineRelease.objects.order_by("-default", "-added_at")
+        if RECET in (r.calculations or [])
+    ]
+
+
 def calculation_label(calc: str) -> str:
     return "ReCET" if calc in ("", RECET) else f"CET {calc.removeprefix('cet-')} replica"
 

@@ -17,6 +17,11 @@ class MonthlyConfig(AppConfig):
         from . import coded_checks
 
         register_coded_checks("monthly", "Monthly reports", coded_checks.ABOUT, coded_checks.CHECKS, order=3)
+        from cedars.services.specifications.editor import register_locked_fields
+
+        from . import locked_fields
+
+        register_locked_fields("monthly", locked_fields.LOCKED)  # a draft keeps the fields this module reads
         from cedars.services.submissions.service import (
             register_acc_needs,
             register_deadline_page,

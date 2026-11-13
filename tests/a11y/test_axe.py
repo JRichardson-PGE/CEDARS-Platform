@@ -151,6 +151,7 @@ def _role_filers():
 
 def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     _specifications()
+    _specification_draft(cpuc_admin)
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
@@ -477,6 +478,18 @@ def _specifications():
     from django.apps import apps
 
     importlib.import_module("cedars.services.specifications.migrations.0002_starting_versions").load_starting(apps, None)
+
+
+def _specification_draft(cpuc_admin):
+    """A draft of the monthly reports specification (Monthly reports 2029) with a new field and a changed one, for the editor's pages."""
+    from cedars.services.specifications import editor
+    from cedars.services.specifications import service as specifications
+    from cedars.services.specifications.models import Specification
+
+    v = editor.start_draft(cpuc_admin, specifications.current(Specification.objects.get(code="monthly")), "Monthly reports 2029", "2029")
+    editor.add_field(cpuc_admin, v, "Commitments", "ReportingNote", type="text", max_length=500, definition="A note on the month")
+    comments = v.tables.get(name="Commitments").fields.get(name="Comments")
+    editor.change_field(cpuc_admin, comments, guidance="Say what changed this month.", reason="Clearer")
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):

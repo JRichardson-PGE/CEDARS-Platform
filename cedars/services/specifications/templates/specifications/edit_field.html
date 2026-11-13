@@ -1,0 +1,31 @@
+{% extends "core/base.html" %}
+{% block title %}{% if adding %}Add a field to {{ t.name }}{% else %}Change {{ t.name }}.{{ f.name }}{% endif %}: {{ v.name }} (draft){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li><li><a href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Tables and fields</a></li></ol></nav>
+<div class="page-title"><h1>{% if adding %}Add a field to {{ t.name }}{% else %}Change {{ t.name }}.{{ f.name }}{% endif %}</h1>{% page_help "specifications/edit_field" %}</div>
+{% include "specifications/_edit_nav.html" %}
+{% if adding %}
+<p>Pick a field the data dictionary has, so it keeps one meaning wherever it is used (its definition, type and length come with it
+unless you give them here), or give a new field's name and definition. The draft's template has the column at once. A new field is not
+used in pricing: that takes an engine release.{% if t.vault %} This table is kept in the PII vault.{% else %} A field that holds personal
+information goes only in a table kept in the PII vault.{% endif %}</p>
+{% elif lock %}
+<p id="field-lock"><span class="status info">Locked</span> {{ lock }} It stays in the version with its type{% if f.requirement == "required" %}, and stays required{% endif %}. Its wording, example and the other names accepted for it can change.</p>
+{% endif %}
+<form method="post" class="stack form-narrow" novalidate id="field-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="alert" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  {% for field in form %}{{ field.as_field_group }}{% endfor %}
+  <div class="actions"><button type="submit" class="primary">{% if adding %}Add the field{% else %}Save the change{% endif %}</button>
+    <a class="button" href="{% url 'specifications:edit' v.specification.code v.slug %}#table-{{ t.name }}">Cancel</a></div>
+</form>
+{% if not adding %}
+{% if lock %}<p class="small" id="remove-field">A locked field cannot be removed.</p>{% else %}
+<details id="remove-field"><summary>Remove {{ f.name }} from this draft</summary>
+  <p>A file that still has the column is accepted and the column ignored with a notice. Data filed under earlier versions keeps it.</p>
+  <form method="post" action="{% url 'specifications:remove_field' v.specification.code v.slug t.name f.name %}" class="row-form">{% csrf_token %}
+    {{ remove_form.reason.as_field_group }}
+    <button type="submit">Remove the field</button>
+  </form>
+</details>{% endif %}
+{% endif %}
+{% endblock %}

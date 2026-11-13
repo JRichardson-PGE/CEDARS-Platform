@@ -480,11 +480,15 @@ def discard_draft(actor, rs: RuleSet, reason: str = "") -> None:
 
 
 @transaction.atomic
-def publish(actor, rs: RuleSet) -> RuleSet:
+def publish(actor, rs: RuleSet, *, with_specification: bool = False) -> RuleSet:
+    """Publish a draft rule set. The rules of a draft filing specification version are published with that version
+    (specifications.editor.publish passes `with_specification`), never on their own."""
     _require_admin(actor)
     rs = RuleSet.objects.select_for_update().get(pk=rs.pk)
     if rs.status != RuleSet.Status.DRAFT:
         raise AccessDenied("That rule set is already published.")
+    if not with_specification and rs.specification_versions.filter(status="draft").exists():
+        raise AccessDenied("These rules belong to a draft filing specification version: they are published with it, from its page.")
     rs.status, rs.published_by, rs.published_at = RuleSet.Status.PUBLISHED, actor, timezone.now()
     rs.save()
     audit.record("rule_set.published", obj=rs, after={"rules": rs.rules.count()}, actor=actor)

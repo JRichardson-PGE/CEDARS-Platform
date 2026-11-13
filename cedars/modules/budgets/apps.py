@@ -24,6 +24,11 @@ class BudgetsConfig(AppConfig):
         from . import coded_checks
 
         register_coded_checks("budgets", "Budget and application filings", coded_checks.ABOUT, coded_checks.CHECKS, order=1)
+        from cedars.services.specifications.editor import register_locked_fields
+
+        from . import locked_fields
+
+        register_locked_fields("budgets", locked_fields.LOCKED)  # a draft keeps the fields this module reads
         from cedars.services.notifications.service import register_concerns, register_filing
         from cedars.services.registry.service import register_operating_budget
         from cedars.services.submissions.service import (

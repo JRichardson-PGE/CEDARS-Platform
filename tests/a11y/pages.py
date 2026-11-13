@@ -108,6 +108,18 @@ PAGES = [
     ("specification-budgets", "/specifications/budget_filing/starting-version/", None),
     ("specification-compare", "/specifications/compare/?a=budget_filing/starting-version&b=monthly/starting-version", None),
     ("specification-compare-empty", "/specifications/compare/", None),
+    # the editor: a published version's page with Start a new version, and the scene's draft Monthly reports 2029, page by page
+    ("specification-admin", "/specifications/claims/starting-version/", "cpuc_admin"),
+    ("specification-draft-version", "/specifications/monthly/monthly-reports-2029/", "cpuc_admin"),
+    ("specification-draft", "/specifications/monthly/monthly-reports-2029/edit/", "cpuc_admin"),
+    *[
+        (f"specification-draft-{part}", f"/specifications/monthly/monthly-reports-2029/edit/{part}/", "cpuc_admin")
+        for part in ("settings", "rules", "checks", "changes", "publish")
+    ],
+    *[
+        (f"specification-draft-{name}", f"/specifications/monthly/monthly-reports-2029/edit/tables/Commitments/{part}", "cpuc_admin")
+        for name, part in (("table", ""), ("add-field", "add/"), ("field", "fields/ReportingNote/"), ("locked-field", "fields/PrgID/"))
+    ],
     ("dashboard-overview", "/data/overview/?by=sector", None),
     ("dashboard-filtered", "/data/overview/?by=program&sector=Residential&series=forecast&metric=kwh", None),
     ("dashboard-pa-type", "/data/overview/?by=pa_type&pa_type=IOU&pa=SCE", None),
