@@ -48,6 +48,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.corrections import Scope
@@ -670,8 +671,9 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     corrected = compiled_tables(previous) if previous else {}
     deemed, etrm_summary = fill_deemed(own, base)
     comp = compile_tables(base, own, f"{label(deadline)}, version {v.number}", corrected)
+    rs = specifications.rule_set_for_filing(deadline, RULE_SET)  # the rules of the filing's specification version, on any date
     rescope = (
-        _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline))
+        _scoped(own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs)
         if scope
         else None
     )
@@ -679,9 +681,9 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         problems, notes, rule_set, rechecked = rescope
     else:
         problems = deemed + derive_checks(
-            own, comp.tables, org, year, last_quarter(deadline), base, corrected, statewide=is_statewide(deadline)
+            own, comp.tables, org, year, last_quarter(deadline), base, corrected, statewide=is_statewide(deadline), rules_run=rs is not None
         )
-        found, notes, rule_set = _rule_findings(own, year)
+        found, notes, rule_set = _rule_findings(own, year, rs)
         problems += found
     own_f = own_file(v)
     store = storage.store("uploads")
@@ -738,7 +740,7 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         ]
     else:
         summary["checked_at"] = timezone.now().isoformat()
-    return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
+    return submissions.record_validation(actor, v, rs, summary)
 
 
 # --- correcting records in place
@@ -751,8 +753,7 @@ def _old_findings(previous: dict | None) -> list[dict] | None:
     return json.loads(storage.store("uploads").get_bytes(key))
 
 
-def _rule_set_label() -> str:
-    rs = rules.in_force(RULE_SET)
+def _rule_set_label(rs) -> str:
     return f"{rs.label} ({rs.effective_from})" if rs else ""
 
 
@@ -813,12 +814,15 @@ def _moved(p, back: dict[str, list[int]]):
     return Problem(row, p.record_id, p.table, p.field, p.rule_id, p.severity, p.message, p.fix, p.value)
 
 
-def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None, statewide=False):
+def _scoped(
+    own, compiled, deemed, organisation, year, last_q, base, corrected, scope: Scope, previous: dict | None, statewide=False, rs=None
+):
     """A correction's check ("that row re-validated"): the module's checks on the records `_related` names, the claims rule
-    set on the changed Measure and ProgramCost records, and every other record's findings carried over to its new line. None when the
-    whole version must be checked instead: no earlier findings, another rule set in force since, or a table's columns changed."""
+    set `rs` (the filing's version's) on the changed Measure and ProgramCost records, and every other record's findings carried over to
+    its new line. None when the whole version must be checked instead: no earlier findings, the version was last checked against
+    another rule set, or a table's columns changed."""
     old = _old_findings(previous)
-    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label():
+    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label(rs):
         return None
     before_columns = (previous or {}).get("columns")
     now_columns = {name: list(t.columns) for name, t in own.items()}
@@ -827,12 +831,15 @@ def _scoped(own, compiled, deemed, organisation, year, last_q, base, corrected, 
     module, engine = _related(own, scope)
     sub, back = _subset(own, module)
     problems = [p for p in deemed if p.row in module.get(p.table, ())]
-    problems += [_moved(p, back) for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide)]
+    problems += [
+        _moved(p, back)
+        for p in derive_checks(sub, compiled, organisation, year, last_q, base, corrected, statewide=statewide, rules_run=rs is not None)
+    ]
     notes = [n for n in (previous or {}).get("notes", []) if not n.startswith("Checked again after a correction")]
     rule_set = (previous or {}).get("rule_set", "")
     sub_e, back_e = _subset(own, engine)
     if sub_e:
-        found, notes, rule_set = _rule_findings(sub_e, year)
+        found, notes, rule_set = _rule_findings(sub_e, year, rs)
         for f in found:
             row = f.row if f.row < 2 or f.table not in back_e else back_e[f.table][f.row - 2]
             problems.append(Problem(row, f.record_id, f.table, f.field, f.rule_id, f.severity, f.message, f.fix, f.value))
@@ -1290,6 +1297,7 @@ def derive_checks(
     base: dict[str, upload.Table] | None = None,
     corrected: dict[str, upload.Table] | None = None,
     statewide: bool = False,
+    rules_run: bool = False,
 ) -> list[Problem]:
     """The module's checks (rule IDs CLM-*), on the upload's own records, with references checked against the compiled year to date:
     the template's columns, required fields and types for the tables the claims rule set does not cover (it covers Measure and
@@ -1298,10 +1306,10 @@ def derive_checks(
     links between
     the tables, withdrawals against the year so far (`base`, and `corrected`: the compiled tables of the version a correction replaces),
     and CEDARS' own data rules for the Claim and Site tables that a record can
-    be checked against on its own."""
+    be checked against on its own. `rules_run`: the filing's version has a claims rule set, which checks Measure and ProgramCost's
+    fields; without one the module checks their required fields and types itself."""
     problems: list[Problem] = []
     code = organisation.code
-    rule_set_on = rules.in_force(RULE_SET) is not None
 
     def add(table, i, rid, fld, rule, message, fix, value="", severity="reject"):
         problems.append(Problem(i, rid, table, fld, rule, severity, message, fix, value))
@@ -1324,7 +1332,7 @@ def derive_checks(
             )
         if missing:
             continue
-        checked = name not in RULE_TABLES or not rule_set_on
+        checked = name not in RULE_TABLES or not rules_run
         seen: dict[tuple, int] = {}
         for i, r in enumerate(t.rows, start=2):
             rid = rid_of(name, r)
@@ -1573,11 +1581,10 @@ def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
             "Enter 1: every claim a CCA or REN files has it.", r.get("CCAREN_Flag", ""))  # fmt: skip
 
 
-def _rule_findings(own: dict[str, upload.Table], year: int | None, rs=None) -> tuple[list, list[str], str]:
-    """The claims rule set in force (CEDARS' own Measure and ProgramCost rules, run by the engine) on the upload's own records, with the
-    claim year as the filing year. A table without the specification's columns is rejected on those columns before its rules run.
-    `rs`: another published version (the pre-upload checker, `precheck`); default the version in force."""
-    rs = rs or rules.in_force(RULE_SET)
+def _rule_findings(own: dict[str, upload.Table], year: int | None, rs) -> tuple[list, list[str], str]:
+    """Claims rule set `rs` (CEDARS' own Measure and ProgramCost rules, run by the engine: the filing's specification version's, or
+    the version the pre-upload checker was given, `precheck`) on the upload's own records, with the claim year as the filing year. A
+    table without the specification's columns is rejected on those columns before its rules run."""
     if rs is None:
         return [], ["No claims rule set is published yet, so only the module's own checks ran."], ""
     out, notes = [], set()

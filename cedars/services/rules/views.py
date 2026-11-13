@@ -128,7 +128,11 @@ def publish(request, pk):
     except AccessDenied as e:
         messages.error(request, str(e))
     else:
-        messages.success(request, f"Published {rs}. It is in force from {rs.effective_from:%Y-%m-%d} until a newer version.")
+        messages.success(
+            request,
+            f"Published {rs}. It is in force from {rs.effective_from:%Y-%m-%d} until a newer version. Filings are checked against the "
+            "rule set their specification version names, so it reaches filings once a specification version names it.",
+        )
     return redirect("rules:detail", pk=rs.pk)
 
 
@@ -143,12 +147,15 @@ def differences(request):
 
 
 def _check_choices():
-    """Each module's published rule-set versions, the one in force first and selected by default."""
+    """Each module's published rule-set versions, the current specification version's first and selected by default, each with the
+    specification versions whose filings are checked against it."""
     out = []
     for c in precheck.checkers():
-        current = service.in_force(c.code)
+        current = precheck.current(c)
         versions = [rs for rs in precheck.versions() if rs.code == c.code]
         versions.sort(key=lambda rs: (current is None or rs.pk != current.pk, -rs.effective_from.toordinal()))
+        for rs in versions:
+            rs.used_by = ", ".join(v.name for v in precheck.specification_versions(rs))
         if versions:
             out.append({"checker": c, "versions": versions, "in_force": current})
     return out
@@ -156,8 +163,9 @@ def _check_choices():
 
 @login_required
 def check(request):
-    """The pre-upload checker: the rule-set step of a module's validation, run on a file before it is filed, against the
-    version in force or any other published one (rules.precheck: the same code the upload runs). Nothing uploaded is kept."""
+    """The pre-upload checker: the rule-set step of a module's validation, run on a file before it is filed, against the current
+    specification version's rules or any other published version (rules.precheck: the same code the upload runs). Nothing uploaded is
+    kept."""
     choices = _check_choices()
     ctx = {"choices": choices, "max_mb": precheck.max_mb()}
     if request.method == "POST":

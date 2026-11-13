@@ -54,8 +54,28 @@ def checker_for(module: str | None = None, code: str | None = None) -> Checker |
 
 
 def versions() -> list[RuleSet]:
-    """Every published rule-set version a file can be checked against (the one in force, earlier ones and ones that take effect later)."""
+    """Every published rule-set version a file can be checked against (the current specification version's, earlier ones and ones that
+    take effect later)."""
     return list(RuleSet.objects.filter(status=RuleSet.Status.PUBLISHED, code__in=[c.code for c in _checkers.values()]))
+
+
+def current(c: Checker) -> RuleSet | None:
+    """The rule set a new filing of the module is checked against: the one its specification's current version names (a filing is
+    checked against its own version's rules, on any date: specifications.rule_set_for_filing)."""
+    from cedars.services.specifications import service as specifications
+
+    return specifications.rule_set_of(specifications.for_module(c.module), c.code)
+
+
+def specification_versions(rs: RuleSet) -> list:
+    """The published specification versions whose filings are checked against rule set `rs`, oldest first."""
+    from cedars.services.specifications.models import SpecificationVersion
+
+    return list(
+        SpecificationVersion.objects.filter(rule_set=rs, status=SpecificationVersion.Status.PUBLISHED)
+        .select_related("specification")
+        .order_by("published_at", "pk")
+    )
 
 
 @dataclass
@@ -78,10 +98,8 @@ class Result:
 
 
 def resolve(module: str | None, rule_set: RuleSet | None) -> tuple[Checker, RuleSet]:
-    """The module and the version to check against: the version named (it must be published, and the module's rules), else the module's
-    version in force today."""
-    from . import service
-
+    """The module and the version to check against: the version named (it must be published, and the module's rules), else the rules of
+    the module's current specification version (`current`)."""
     if rule_set is not None:
         c = checker_for(code=rule_set.code)
         if c is None:
@@ -95,9 +113,9 @@ def resolve(module: str | None, rule_set: RuleSet | None) -> tuple[Checker, Rule
     if c is None:
         known = ", ".join(sorted(_checkers))
         raise CheckError(f"Choose the module to check for: {known}." if not module else f"No module {module!r}; choose one of {known}.")
-    rs = service.in_force(c.code)
+    rs = current(c)
     if rs is None:
-        raise CheckError(f"No {c.label} rule set is in force yet.")
+        raise CheckError(f"The current {c.label} specification has no rule set yet.")
     return c, rs
 
 

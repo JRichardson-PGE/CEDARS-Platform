@@ -3,8 +3,9 @@
 {% block content %}
 {% section_nav "reference" %}
 <div class="page-title"><h1>Validation rules</h1>{% page_help "rules/index" %}</div>
-<p>The rules each filing is checked against, as versioned rule sets. The version in force on a date is the newest published one effective by then;
-every submission and run records the version it was checked against. Each filing also meets the platform's built-in checks, listed on
+<p>The rules each filing is checked against, as versioned rule sets. A filing is checked against the rule set its
+<a href="{% url 'specifications:index' %}">specification version</a> names, whatever the date; the version marked in force is the newest
+published one effective today. Every submission and run records the version it was checked against. Each filing also meets the platform's built-in checks, listed on
 their own page.</p>
 <p class="actions"><a class="button primary" href="{% url 'rules:check' %}">Check a file before you file it</a> <a class="button" href="{% url 'rules:differences' %}">Compare two rule sets</a> <a class="button" href="{% url 'rules:built_in' %}">Built-in checks</a></p>
 <div class="hscroll" tabindex="0" role="region" aria-label="Rule sets">

@@ -1,11 +1,11 @@
 """/api/v1/rules: the pre-upload checker as an API and the rule library as data.
 
 POST check runs a module's rule-set step on one table, exactly as the upload and the /rules/check/ page run it (rules.precheck: the
-module's own code), against the version in force or any other published version, and returns the findings. Nothing sent is kept. It
-needs a signed-in call: a session, or an API token whose scopes include the module checked (claims or budgets); it needs no permission
-in an organization, as the page does not. The rule sets (GET sets, sets/<id>) need a signed-in call too (a session or any API token), as
-the rule library pages do: a set's JSON is its rules with how each kind of rule is checked and the value lists it reads, for systems that
-check files without sending them."""
+module's own code), against the rules of the module's current specification version or any other published version, and returns the
+findings. Nothing sent is kept. It needs a signed-in call: a session, or an API token whose scopes include the module checked (claims or
+budgets); it needs no permission in an organization, as the page does not. The rule sets (GET sets, sets/<id>) need a signed-in call
+too (a session or any API token), as the rule library pages do: a set's JSON is its rules with how each kind of rule is checked and the
+value lists it reads, for systems that check files without sending them."""
 
 from django.http import HttpResponse
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
@@ -23,6 +23,12 @@ from .models import RuleSet
 
 def _base(request) -> str:
     return request.build_absolute_uri("/").rstrip("/")
+
+
+def _current(code: str) -> RuleSet | None:
+    """The rule set of the code a new filing is checked against: its module's current specification version's (precheck.current)."""
+    c = precheck.checker_for(code=code)
+    return precheck.current(c) if c else service.in_force(code)
 
 
 def set_json(request, rs: RuleSet, in_force: RuleSet | None) -> dict:
@@ -48,7 +54,10 @@ RuleSetSummary = inline_serializer(
         "label": serializers.CharField(),
         "module": serializers.CharField(allow_null=True, help_text="The module whose uploads it checks: claims or budgets"),
         "effective_from": serializers.DateField(),
-        "in_force": serializers.BooleanField(help_text="The version an upload today is checked against"),
+        "in_force": serializers.BooleanField(
+            help_text="The rules of the module's current specification version: what a new filing is checked against (a filing is checked "
+            "against its own specification version's rules on any date)"
+        ),
         "rules": serializers.IntegerField(),
         "url": serializers.URLField(help_text="The set as JSON with how each rule is checked"),
         "page": serializers.URLField(),
@@ -59,14 +68,14 @@ RuleSetSummary = inline_serializer(
 @extend_schema(
     operation_id="rules_sets_list",
     summary="Published rule sets",
-    description="Every published version of every module's rules, newest first within each; `in_force` marks the one an upload today "
-    "is checked against. Needs a session or an API token.",
+    description="Every published version of every module's rules, newest first within each; `in_force` marks the rules of the module's "
+    "current specification version, the ones a new filing is checked against. Needs a session or an API token.",
     responses=inline_serializer("RuleSets", {"results": RuleSetSummary}),
 )
 @api_view(["GET"])
 def sets(request):
     published = RuleSet.objects.filter(status=RuleSet.Status.PUBLISHED)
-    in_force = {code: service.in_force(code) for code in set(published.values_list("code", flat=True))}
+    in_force = {code: _current(code) for code in set(published.values_list("code", flat=True))}
     return Response({"results": [set_json(request, rs, in_force.get(rs.code)) for rs in published]})
 
 
@@ -96,7 +105,8 @@ class CheckRequest(serializers.Serializer):
     )
     table = serializers.ChoiceField(choices=list(precheck.TABLES), default="Measure")
     rule_set = serializers.IntegerField(
-        required=False, help_text="A published rule set's id (GET /api/v1/rules/sets); default the module's version in force"
+        required=False,
+        help_text="A published rule set's id (GET /api/v1/rules/sets); default the rules of the module's current specification version",
     )
     filing_year = serializers.IntegerField(
         required=False,
@@ -150,10 +160,10 @@ Refusal = inline_serializer("CheckRefusal", {"detail": serializers.CharField()})
 @extend_schema(
     summary="Check a file before filing it",
     description="Runs the rule-set step of a module's validation on one table, the same code the upload and the /rules/check/ page "
-    "run, against the module's rules in force or the published version named, and returns every finding, rejects first. Nothing is "
-    "kept. The upload also runs the module's checks that need the whole filing (its other tables, earlier confirmations, eTRM's "
-    "values for deemed claims), so a file that passes here can still get findings on upload. A token needs the module's scope. "
-    "400: the request or the file cannot be checked as sent.",
+    "run, against the rules of the module's current specification version or the published version named, and returns every finding, "
+    "rejects first. Nothing is kept. The upload also runs the module's checks that need the whole filing (its other tables, earlier "
+    "confirmations, eTRM's values for deemed claims), so a file that passes here can still get findings on upload. A token needs the "
+    "module's scope. 400: the request or the file cannot be checked as sent.",
     request={"multipart/form-data": CheckRequest},
     responses={
         200: OpenApiResponse(CheckResult, description="The findings (format=csv: text/csv)"),
@@ -197,7 +207,7 @@ def check(request):
         {
             "module": checker.module,
             "table": result.table,
-            "rule_set": set_json(request, rs, service.in_force(rs.code)),
+            "rule_set": set_json(request, rs, _current(rs.code)),
             "filing_year": result.filing_year,
             "file": upload.name,
             "records": result.records,

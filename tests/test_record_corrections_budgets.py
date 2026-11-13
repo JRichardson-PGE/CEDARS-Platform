@@ -86,11 +86,13 @@ def fake_rules(monkeypatch):
                     out.append(service.Problem(i, jobfile.get(r, "CEInputID"), t, "NumUnits", "V-TEST", "reject", "bad", "fix"))
         return out, ["The test rules ran."]
 
-    def full(tables, cycle):
+    def full(tables, cycle, _rs=None):
         out, notes = on({t: jobfile.rows(tables[t])[1] for t in jobfile.TABLES}, cycle.covers, rs)
         return out, notes, "Test rules (2026-01-01)"
 
-    monkeypatch.setattr(service, "_rule_set", lambda: rs)
+    record = service.submissions.record_validation  # the version records no rule set: the test rules are not stored ones
+    monkeypatch.setattr(service, "_rule_set", lambda v: rs)
+    monkeypatch.setattr(service.submissions, "record_validation", lambda actor, v, _rs, summary: record(actor, v, None, summary))
     monkeypatch.setattr(service, "_rule_findings", full)
     monkeypatch.setattr(service, "_rule_findings_on", on)
     monkeypatch.setattr(rules, "read_table", lambda content: jobfile.rows(content)[1])

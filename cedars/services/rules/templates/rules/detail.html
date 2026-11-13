@@ -27,6 +27,8 @@
 <section class="card" aria-labelledby="version-h">
   <h2 id="version-h">Start a new version</h2>
   <p>A draft copy of these rules, to change and publish with a later effective date. These rules stay in force until it takes effect.
+  Filings are checked against the rule set their specification version names, so the new version reaches filings once a specification
+  version names it.
   {% if drafts %}Drafts of these rules already started: {% for d in drafts %}<a href="{% url 'rules:detail' d.pk %}">{{ d }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
   <form method="post" action="{% url 'rules:new_version' rs.pk %}" class="row-form">{% csrf_token %}
     {% for field in version_form %}{{ field.as_field_group }}{% endfor %}

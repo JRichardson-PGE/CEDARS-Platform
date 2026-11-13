@@ -30,6 +30,7 @@ from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program
 from cedars.services.rules import service as rules
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.corrections import Scope
@@ -442,10 +443,9 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
     return list(lines.values()), problems, len(costs) + len(measures)
 
 
-def _rule_findings(tables: dict[str, bytes], cycle) -> tuple[list, list[str], str]:
-    """The budget filing rule set in force (CEDARS' own rules, run by the engine), year by year: CEDARS' rules take a single filing
-    year, and a cycle filing spans four. Findings keep the file's own line numbers."""
-    rs = rules.in_force(RULE_SET)
+def _rule_findings(tables: dict[str, bytes], cycle, rs) -> tuple[list, list[str], str]:
+    """Budget filing rule set `rs` (CEDARS' own rules, run by the engine: the filing's specification version's), year by year: CEDARS'
+    rules take a single filing year, and a cycle filing spans four. Findings keep the file's own line numbers."""
     if rs is None:
         return [], ["No budget filing rule set is published yet, so only the module's own checks ran."], ""
     try:
@@ -571,12 +571,13 @@ def _store_and_check(
     if v.locked:
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
     cycle = v.submission.deadline.cycle
+    rs = _rule_set(v)
     lines, problems, records = derive(tables, v.submission.organisation, cycle)
-    rescope = _scoped(tables, cycle, scope, before) if scope is not None else None
+    rescope = _scoped(tables, cycle, scope, before, rs) if scope is not None else None
     if rescope is not None:
         found, notes, rule_set, rechecked = rescope
     else:
-        found, notes, rule_set = _rule_findings(tables, cycle)
+        found, notes, rule_set = _rule_findings(tables, cycle, rs)
     problems += found
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
@@ -602,7 +603,7 @@ def _store_and_check(
         ]
     else:
         summary["checked_at"] = timezone.now().isoformat()
-    return submissions.record_validation(actor, v, rules.in_force(RULE_SET), summary)
+    return submissions.record_validation(actor, v, rs, summary)
 
 
 # --- correcting records in place
@@ -611,8 +612,9 @@ KEYS = {"Measure": ("CEInputID",), "ProgramCost": ("PrgID", "PrgYear")}
 MODULE_RULES = {"BUD-PRG", "BUD-ORG", "BUD-YEAR", "BUD-NUM", "BUD-DUP", "BUD-NOCOST"}  # derive's; the rule-set step's are the rest
 
 
-def _rule_set():
-    return rules.in_force(RULE_SET)
+def _rule_set(v: SubmissionVersion):
+    """The rule set the version's filing is checked against: its specification version's, on any date."""
+    return specifications.rule_set_for_filing(v.submission.deadline, RULE_SET)
 
 
 def _columns(tables: dict[str, bytes]) -> dict[str, list[str]]:
@@ -623,15 +625,14 @@ def _key(table: str, row: dict) -> tuple[str, ...]:
     return tuple(jobfile.get(row, c).strip().lower() for c in KEYS[table])
 
 
-def _scoped(tables: dict[str, bytes], cycle, scope: Scope, previous: dict | None):
+def _scoped(tables: dict[str, bytes], cycle, scope: Scope, previous: dict | None, rs):
     """A correction's rule-set step: the budget filing rules on the changed records and those sharing a key with them (a primary key
     rule sees both), and every other record's rule findings carried over to its new line. (findings, notes, rule set, records checked
-    again), or None when the whole version must be checked instead: no earlier findings, another rule set in force since, or a table's
-    columns changed."""
+    again), or None when the whole version must be checked instead: no earlier findings, the version was last checked against another
+    rule set than `rs` (the filing's version's), or a table's columns changed."""
     key = (previous or {}).get("findings_key")
     if not key or not storage.store("uploads").exists(key):
         return None
-    rs = _rule_set()
     label_now = f"{rs.label} ({rs.effective_from})" if rs else ""
     if (previous or {}).get("rule_set", "") != label_now:
         return None
