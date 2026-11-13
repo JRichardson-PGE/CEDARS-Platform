@@ -18,6 +18,7 @@ from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import FilingCycle
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
@@ -143,11 +144,12 @@ def index(request):
 
 
 def template(request):
-    """The budget filing template workbook (navigation review D2): public, like the claims template and the data dictionary."""
-    xlsx = service.template_xlsx()
-    response = HttpResponse(xlsx, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="budget_filing_template.xlsx"'
-    return response
+    """The budget filing template workbook (navigation review D2): public, like the claims template and the data dictionary. It is the
+    specification version's own template (?filing=: the version that filing follows; else the current one)."""
+    url = specifications.template_url(service.MODULE, request.GET.get("filing"))
+    if not url:
+        raise Http404("No budget filing specification is published.")
+    return redirect(url)
 
 
 @login_required

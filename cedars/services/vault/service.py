@@ -22,8 +22,8 @@ from cedars.services import audit
 from cedars.services.accounts import permissions as perms
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
+from cedars.services.specifications import service as specifications
 
-from . import spec
 from .models import PIIContact, PIISite, PIIUpload
 from .router import VAULT
 
@@ -65,49 +65,66 @@ class Finding:
     message: str
 
 
-def read(data: bytes, filename: str) -> dict[str, list[dict[str, str]]]:
-    """{table: rows} with the specification's columns (others are dropped unread)."""
+def layout(lay: specifications.VersionLayout | None = None) -> specifications.VersionLayout:
+    """The layout whose vault tables (PII_Contact, PII_Site) a PII file follows: the claims filing's specification version's (`lay`), or
+    the current Quarterly claims version's."""
+    return lay if lay is not None else specifications.layout_for_module("claims")
+
+
+def _vault_tables(lay: specifications.VersionLayout) -> dict[str, specifications.TableLayout]:
+    return {t.name: t for t in lay.tables if t.vault}
+
+
+def _names(lay: specifications.VersionLayout) -> str:
+    names = list(_vault_tables(lay))
+    return " and ".join(names) if len(names) < 3 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def read(data: bytes, filename: str, lay: specifications.VersionLayout | None = None) -> dict[str, list[dict[str, str]]]:
+    """{table: rows} with the specification version's columns (others are dropped unread)."""
     problem = core_uploads.too_large_unzipped("The file", data)
     if problem:
         raise PIIError(problem)
-    raw = _from_workbook(data) if filename.lower().endswith(".xlsx") else _from_zip(data)
+    lay = layout(lay)
+    raw = _from_workbook(data, lay) if filename.lower().endswith(".xlsx") else _from_zip(data, lay)
     if not raw:
-        raise PIIError("The file holds neither PII_Contact nor PII_Site.")
+        raise PIIError(f"The file holds none of {_names(lay)}.")
     out = {}
     for name, rows in raw.items():
         if not rows:
             continue
-        header = [h.strip().lower() for h in rows[0]]
-        wanted = {c.lower(): c for c in spec.columns(name)}
+        header = [h.strip() for h in rows[0]]
+        table = _vault_tables(lay)[name]
+        names = [table.canonical(h) for h in header]
         out[name] = [
-            {wanted[h]: (r[i].strip() if i < len(r) else "") for i, h in enumerate(header) if h in wanted}
+            {n: (r[i].strip() if i < len(r) else "") for i, n in enumerate(names) if n is not None}
             for r in rows[1:]
             if any(c.strip() for c in r)
         ]
     return out
 
 
-def _from_zip(data: bytes) -> dict[str, list[list[str]]]:
+def _from_zip(data: bytes, lay: specifications.VersionLayout) -> dict[str, list[list[str]]]:
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
-        raise PIIError("The file is not a valid .zip or .xlsx of PII_Contact and PII_Site.") from None
+        raise PIIError(f"The file is not a valid .zip or .xlsx of {_names(lay)}.") from None
     out = {}
     for info in z.infolist():
         name = info.filename
         if info.is_dir() or any(s in name for s in SKIPPED) or PurePosixPath(name).name.startswith("._"):
             continue
         p = PurePosixPath(name)
-        table = spec.table_name(p.stem) if p.suffix.lower() in (".csv", ".txt") and len(p.parts) <= 2 else None
+        table = lay.table_name(p.stem, vault=True) if p.suffix.lower() in (".csv", ".txt") and len(p.parts) <= 2 else None
         if table is None:
-            raise PIIError("The .zip may hold only PII_Contact and PII_Site (as CSV files); the claim records go in the claims upload.")
+            raise PIIError(f"The .zip may hold only {_names(lay)} (as CSV files); the claim records go in the claims upload.")
         if table in out:
             raise PIIError(f"The .zip holds two {table} files; keep one.")
         out[table] = _csv_rows(z.read(info))
     return out
 
 
-def _from_workbook(data: bytes) -> dict[str, list[list[str]]]:
+def _from_workbook(data: bytes, lay: specifications.VersionLayout) -> dict[str, list[list[str]]]:
     from openpyxl import load_workbook
 
     try:
@@ -116,7 +133,7 @@ def _from_workbook(data: bytes) -> dict[str, list[list[str]]]:
         raise PIIError("The file is not a valid Excel workbook (.xlsx).") from None
     out = {}
     for ws in wb.worksheets:
-        table = spec.table_name(ws.title)
+        table = lay.table_name(ws.title, vault=True)
         if table is None:
             continue
         out[table] = [["" if c is None else _cell(c) for c in row] for row in ws.iter_rows(values_only=True) if row is not None]
@@ -143,13 +160,17 @@ def _csv_rows(content: bytes) -> list[list[str]]:
 # --- the checks
 
 
-def check(tables: dict[str, list[dict]], code: str, known: dict[str, set[str]]) -> list[Finding]:
+def check(
+    tables: dict[str, list[dict]], code: str, known: dict[str, set[str]], lay: specifications.VersionLayout | None = None
+) -> list[Finding]:
     """CEDARS' PII data rules and the links to the claim: every key starts with the PA code, is filled in, once; lengths, digits-only
     phone numbers, an @ in an email, an electric or a gas service account for each site; and each ContactID / SiteID is one the claim's
-    ContactClaim / Site records name (`known`: {table: compared keys}). Findings carry the key and field, never a value."""
+    ContactClaim / Site records name (`known`: {table: compared keys}). Each table's key, fields, types and lengths are the claims
+    filing's specification version's (`lay`). Findings carry the key and field, never a value."""
+    vault_tables = _vault_tables(layout(lay))
     out: list[Finding] = []
     for name, rows in tables.items():
-        key = spec.KEYS[name]
+        key = vault_tables[name].keys[0]
         seen: dict[str, int] = {}
         for i, r in enumerate(rows, start=2):
             k = r.get(key, "")
@@ -168,12 +189,12 @@ def check(tables: dict[str, list[dict]], code: str, known: dict[str, set[str]]) 
             if k.strip().lower() not in known.get(name, set()):
                 where = "ContactClaim" if name == "PII_Contact" else "Site"
                 add(key, "PII-REF", f"No {where} record of this claim names this {key}")
-            for f in spec.TABLES[name]:
+            for f in vault_tables[name].fields:
                 v = r.get(f.name, "")
                 if not v:
                     continue
-                if len(v) > f.length:
-                    add(f.name, "PII-LEN", f"{f.name} is longer than {f.length} characters")
+                if f.max_length and len(v) > f.max_length:
+                    add(f.name, "PII-LEN", f"{f.name} is longer than {f.max_length} characters")
                 if f.type == "phone" and not DIGITS.match(v):
                     add(f.name, "PII-NUM", f"{f.name} has characters other than digits")
                 if f.type == "email" and "@" not in v:
@@ -191,14 +212,25 @@ def _require() -> None:
         raise AccessDenied("This environment has no PII vault, so it takes no personal information.")
 
 
-def store(actor, organisation, version_id: int, data: bytes, filename: str, known: dict[str, set[str]], assurance: str | None):
+def store(
+    actor,
+    organisation,
+    version_id: int,
+    data: bytes,
+    filename: str,
+    known: dict[str, set[str]],
+    assurance: str | None,
+    lay: specifications.VersionLayout | None = None,
+):
     """Check a PII file and keep it as the version's PII when nothing fails; a rejected file keeps only its findings. The version's
-    earlier accepted upload is superseded and its records deleted (an open version's PII is replaced, as its claims upload is)."""
+    earlier accepted upload is superseded and its records deleted (an open version's PII is replaced, as its claims upload is). `lay`:
+    the claims filing's specification version's layout."""
     _require()
     if not can_upload(actor, organisation, assurance):
         raise AccessDenied(f"You need claims.pii in {organisation.code} to upload PII.")
-    tables = read(data, filename)
-    findings = check(tables, organisation.code, known)
+    lay = layout(lay)
+    tables = read(data, filename, lay)
+    findings = check(tables, organisation.code, known, lay)
     counts = {name: len(rows) for name, rows in tables.items()}
     sha = hashlib.sha256(data).hexdigest()
     with transaction.atomic(using=VAULT):
@@ -254,8 +286,11 @@ def accepted(version_ids: list[int]) -> PIIUpload | None:
     return None
 
 
-def export(actor, organisation, up: PIIUpload, assurance: str | None, reason: str = "") -> bytes:
-    """An accepted upload's records as a .zip of PII_Contact.csv and PII_Site.csv, for a reader with the PII grant; audited."""
+def export(
+    actor, organisation, up: PIIUpload, assurance: str | None, reason: str = "", lay: specifications.VersionLayout | None = None
+) -> bytes:
+    """An accepted upload's records as a .zip of PII_Contact.csv and PII_Site.csv, for a reader with the PII grant, with the columns of
+    the claims filing's specification version (`lay`); audited."""
     _require()
     if not can_read(actor, organisation, assurance):
         raise AccessDenied("Reading PII needs the PII grant, approved by a data steward.")
@@ -265,7 +300,7 @@ def export(actor, organisation, up: PIIUpload, assurance: str | None, reason: st
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         tables = (("PII_Contact", up.contacts.order_by("contact_id"), "contact_id"), ("PII_Site", up.sites.order_by("site_id"), "site_id"))
         for name, rows, key in tables:
-            cols = spec.columns(name)
+            cols = _vault_tables(layout(lay))[name].columns()
             buf = io.StringIO()
             w = csv.writer(buf, lineterminator="\n")
             w.writerow(cols)

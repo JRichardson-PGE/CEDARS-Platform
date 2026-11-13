@@ -152,19 +152,23 @@ def before_upload(
     rules_note="",
     guide="",
     guide_label="",
+    filing=None,
 ):
     """The "Before you upload" line under a file control (navigation review D3): the template, the field definitions, the rules the
     file will be checked against and the guide section, each part only when the form has one.
 
-    template: the template's URL; specification: the filing's specification version (its page, which is public); fields:
-    "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the code of the filing's rule set: the
-    one `specification` names, the one the file is checked against on any date (specifications.rule_set_of; its page when there is
-    one, else "none published yet"), or rules_note: the words to say instead (e.g. the engine checks the file); guide: a Help guide's
-    slug, with an #anchor if any, or a URL."""
+    template: the template's URL; filing: the deadline (or its id) the form files to, added to a module's template URL so it gives the
+    template of that filing's specification version; specification: the filing's specification version (its page, which is public);
+    fields: "module.Table" (the data dictionary's fields of that upload table) or a URL; rule_set: the code of the filing's rule set:
+    the one `specification` names, the one the file is checked against on any date (specifications.rule_set_of; its page when there
+    is one, else "none published yet"), or rules_note: the words to say instead (e.g. the engine checks the file); guide: a Help
+    guide's slug, with an #anchor if any, or a URL."""
     from django.urls import NoReverseMatch, reverse
 
     parts = []
     if template:
+        if filing:
+            template += ("&" if "?" in template else "?") + f"filing={getattr(filing, 'pk', filing)}"
         parts.append({"url": template, "label": template_label or "the template"})
     if specification:
         parts.append(

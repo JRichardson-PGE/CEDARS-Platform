@@ -17,7 +17,6 @@ class BudgetsEditor(corrections.FileTables):
     label = "Budgets"
     table_names = jobfile.TABLES
     keys = service.KEYS
-    required = jobfile.REQUIRED
     numbers = {
         "Measure": ["NumUnits", *service.INCENTIVE_FIELDS],
         "ProgramCost": [f for f, _ in PROGRAM_COST_FIELDS] + ["OnBillFinancing"],
@@ -37,8 +36,11 @@ class BudgetsEditor(corrections.FileTables):
     def read_tables(self, data, filename):
         return jobfile.read_tables(data, filename)
 
-    def table_of(self, name):
+    def table_of(self, name, v=None):
         return jobfile.table_of(name)
+
+    def required_for(self, v):
+        return service.required_columns(v.submission.deadline) if v is not None else {}
 
     def prepare(self, v):
         service.ensure_checked(v)

@@ -1,133 +1,83 @@
-"""The claims template: CEDARS' 2026 Claims specification (cedars.cpuc.ca.gov/claims/specification/, six tables) plus the fuel-substitution
-infrastructure cost table, which joins it as an ordinary non-PII claims table, and a Withdrawal table, which names the claims
-an upload withdraws and why (a withdrawn claim keeps its records with a withdrawn status, rather than being zeroed out), and
-a ClaimSite table, which lists the sites of a claim that covers more than one (population NMEC).
-`spec/claims_2026.csv` is that specification as data: each field under its canonical name (ReCET's renamed dictionary:
-AC_Climate_Zone for E3ClimateZone and so on), the name CEDARS gives it (accepted on upload), its type, whether it is required and
-CEDARS' description.
+"""The claims tables as a filing's specification version lays them out: each table's fields and their requirements and types, the names
+an upload may give a table or a column, each table's key, the tables whose rows for a claim are one set, the columns CEDARS fills in, and
+the PII tables, which are the version's vault tables and never travel with the claim records.
 
-The PII tables (PII_Contact, PII_Site) are not part of it: they never travel with the claim records."""
+A filing reads its own version, on any date (`for_filing`: specifications.layout_for_filing); the module's code holds no layout of its
+own. The Quarterly claims specification's starting version is CEDARS' 2026 Claims specification (cedars.cpuc.ca.gov/claims/specification/,
+six tables) with the fuel-substitution infrastructure cost, claim site and withdrawal tables, each field under its canonical name
+(ReCET's renamed dictionary) with CEDARS' name accepted on upload."""
 
-import csv
-from dataclasses import dataclass
-from functools import cache
-from pathlib import Path
+from __future__ import annotations
 
-SPEC = Path(__file__).parent / "spec" / "claims_2026.csv"
-SPEC_LABEL = "CEDARS Claims specification 2026, with the fuel-substitution infrastructure cost and withdrawal tables"
+from cedars.services.specifications import service as specifications
+from cedars.services.specifications.service import FieldLayout, VersionLayout
 
-# In upload order; each table's primary key. ContactClaim, InfrastructureCost and ClaimSite rows replace all earlier rows of their claim.
-TABLES = ("Claim", "Measure", "ProgramCost", "Site", "ContactClaim", "Participant", "InfrastructureCost", "ClaimSite", "Withdrawal")
-KEYS = {
-    "Claim": ("ClaimID",),
-    "Measure": ("ClaimID",),
-    "ProgramCost": ("PrgID", "PrgYear"),
-    "Site": ("SiteID",),
-    "ContactClaim": ("ClaimID", "ContactID"),
-    "Participant": ("PrgID", "PrgYear", "ParticipantType", "SiteID"),
-    "InfrastructureCost": ("ClaimID",),
-    "ClaimSite": ("ClaimID", "SiteID"),
-    "Withdrawal": ("ClaimID",),
-}
-# Tables whose rows for a claim are a set: a later upload's rows for a ClaimID replace every earlier row for it.
-BY_CLAIM = ("ContactClaim", "InfrastructureCost", "ClaimSite")
-# Other names an upload may give a table (case, spaces, dashes and underscores aside)
-OTHER_TABLE_NAMES = {
-    "InfrastructureCost": ("FuelSubstitutionInfrastructureCost", "FuelSubInfrastructureCost", "InfraCost"),
-    "ClaimSite": ("ClaimSites",),
-    "Withdrawal": ("Withdrawals", "WithdrawnClaims"),
-}
-TABLE_NAMES = {
-    **{t.lower(): t for t in TABLES},
-    **{other.lower(): t for t, names in OTHER_TABLE_NAMES.items() for other in names},
-}
-PII_TABLES = ("pii_contact", "pii_site", "piicontact", "piisite")
-# Columns CEDARS fills in, not the PA: an uploaded value is replaced.
-SYSTEM_FIELDS = {"Withdrawal": ("WithdrawnIn",)}
-# Other names a column is given: CET's own job files call a claim CEInputID.
-ALIASES = {"Measure": {"CEInputID": "ClaimID"}}
+MODULE = "claims"
 
 
-@dataclass(frozen=True)
-class Field:
-    table: str
-    name: str
-    cedars_name: str
-    type: str  # text, text6, text255, number, integer, bit, date
-    required: bool
-    description: str
+class Layout:
+    """The claim tables of a specification version (its tables that are not vault tables), with what the module asks of them."""
+
+    def __init__(self, version: VersionLayout):
+        self.version_layout = version
+        self.version = version.version
+        claim = [t for t in version.tables if not t.vault]
+        self._tables = {t.name: t for t in claim}
+        self.vault = tuple(t for t in version.tables if t.vault)
+        self.TABLES = tuple(t.name for t in claim)  # in upload order
+        self.KEYS = {t.name: t.keys for t in claim}
+        self.BY_CLAIM = tuple(t.name for t in claim if t.replace == "claim")  # a later upload's rows for a claim replace all earlier ones
+        self.SYSTEM_FIELDS = {t.name: tuple(t.system_fields()) for t in claim if t.system_fields()}  # an uploaded value is replaced
+
+    def table(self, name: str):
+        return self._tables[name]
+
+    def fields(self, table: str) -> tuple[FieldLayout, ...]:
+        return self._tables[table].fields
+
+    def columns(self, table: str) -> list[str]:
+        return self._tables[table].columns()
+
+    def upload_columns(self, table: str) -> list[str]:
+        """The columns a PA fills in: the template's, less the ones CEDARS fills in."""
+        return self._tables[table].upload_columns()
+
+    def required(self, table: str) -> list[str]:
+        return self._tables[table].required_fields()
+
+    def field(self, table: str, name: str) -> FieldLayout | None:
+        return self._tables[table].field(name)
+
+    def canonical(self, table: str, header: str) -> str | None:
+        """The canonical name of an uploaded column, or None when the table has no such field (ignored, not rejected)."""
+        return self._tables[table].canonical(header)
+
+    def table_name(self, name: str) -> str | None:
+        return self.version_layout.table_name(name, vault=False)
+
+    def is_pii_table(self, name: str) -> bool:
+        """A file or sheet of one of the vault's tables (PII_Contact, PII_Site): never part of a claims upload."""
+        return self.version_layout.table_name(name, vault=True) is not None
 
 
-@cache
-def fields() -> dict[str, list[Field]]:
-    out: dict[str, list[Field]] = {t: [] for t in TABLES}
-    with SPEC.open(encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            out[r["table"]].append(Field(r["table"], r["field"], r["cedars_name"], r["type"], r["required"] == "yes", r["description"]))
-    return out
+def _layout(version: VersionLayout) -> Layout:
+    made = version.__dict__.get("_claims_layout")
+    if made is None:
+        made = Layout(version)
+        object.__setattr__(version, "_claims_layout", made)  # a frozen version's layout is kept, and this with it
+    return made
 
 
-def columns(table: str) -> list[str]:
-    return [f.name for f in fields()[table]]
+def for_filing(deadline) -> Layout:
+    """The claim tables a claims filing follows: its specification version's, on any date."""
+    return _layout(specifications.layout_for_filing(deadline, MODULE))
 
 
-def upload_columns(table: str) -> list[str]:
-    """The columns a PA fills in: the template's, less the ones CEDARS fills in."""
-    return [c for c in columns(table) if c not in SYSTEM_FIELDS.get(table, ())]
+def current() -> Layout:
+    """The claim tables of the current Quarterly claims version (a new filing's, and the pre-upload checker's)."""
+    return _layout(specifications.layout_for_module(MODULE))
 
 
-def required(table: str) -> list[str]:
-    return [f.name for f in fields()[table] if f.required]
-
-
-def field(table: str, name: str) -> Field | None:
-    return next((f for f in fields()[table] if f.name == name), None)
-
-
-@cache
-def _lookup(table: str) -> dict[str, str]:
-    out = {}
-    for f in fields()[table]:
-        out[f.name.lower()] = f.name
-        out[f.cedars_name.lower()] = f.name
-    out.update({k.lower(): v for k, v in ALIASES.get(table, {}).items()})
-    return out
-
-
-def canonical(table: str, header: str) -> str | None:
-    """The canonical name of an uploaded column, or None when the table has no such field (ignored, not rejected)."""
-    return _lookup(table).get(str(header).strip().lower())
-
-
-def table_name(name: str) -> str | None:
-    return TABLE_NAMES.get(name.strip().lower().replace("_", "").replace(" ", "").replace("-", ""))
-
-
-def is_pii_table(name: str) -> bool:
-    return name.strip().lower().replace(" ", "") in PII_TABLES
-
-
-TYPE_LABELS = {
-    "text": "Text",
-    "text6": "Text (up to 6 characters)",
-    "text255": "Text (up to 255 characters)",
-    "number": "Number",
-    "integer": "Whole number",
-    "bit": "0 or 1",
-    "date": "Date (YYYY-MM-DD)",
-}
-
-
-def template_xlsx() -> bytes:
-    """The claims template: a Fields sheet with every field's type, whether it is required, the name CEDARS gives it and its
-    description, then a sheet per table with its columns in order (an upload as it stands: the Fields sheet is ignored)."""
-    from cedars.core import workbooks
-
-    book = workbooks.Book("CEDARS claims upload template", subject="The claims tables' columns and the definition of each field")
-    about = book.sheet("Fields", ["Table", "Field", "CEDARS name", "Type", "Required", "Description"], widths={5: 60})
-    for name in TABLES:
-        for f in fields()[name]:
-            cedars = f.cedars_name if f.cedars_name != f.name else ""
-            about.append([name, f.name, cedars, TYPE_LABELS[f.type], "yes" if f.required else "", f.description])
-        book.sheet(name, upload_columns(name))
-    return book.save()
+def of_version(version) -> Layout:
+    """The claim tables of a given specification version."""
+    return _layout(specifications.layout(version))

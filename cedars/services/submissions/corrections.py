@@ -131,12 +131,12 @@ class Editor:
         """Why the module will not take a correction on the version now ("" = it will)."""
         return ""
 
-    def read_upload(self, data: bytes, filename: str) -> dict[str, Rows]:
-        """A partial correction's tables, read as the module reads an upload (canonical column names)."""
+    def read_upload(self, data: bytes, filename: str, v: SubmissionVersion | None = None) -> dict[str, Rows]:
+        """A partial correction's tables, read as the module reads an upload of the version's filing (canonical column names)."""
         raise NotImplementedError
 
-    def table_of(self, name: str) -> str | None:
-        """The table a file or sheet name holds."""
+    def table_of(self, name: str, v: SubmissionVersion | None = None) -> str | None:
+        """The table a file or sheet name holds, in the version's filing."""
         raise NotImplementedError
 
     def save(self, actor, v: SubmissionVersion, tables: dict[str, Rows], scope: Scope) -> SubmissionVersion:
@@ -204,8 +204,9 @@ def canonical(columns: list[str], names) -> dict[str, str]:
 class FileTables(Editor):
     """An editor for a module whose records are CSV tables kept whole with each version (Budgets, Monthly reports): the version's own
     records are its file's, with no earlier records to carry in, and the fields are the file's own columns (CET's job tables carry
-    whatever columns the PA's file has). The module supplies its tables, keys, required and number columns, how it reads its files, and
-    `store`, which keeps the corrected tables and checks them."""
+    whatever columns the PA's file has). The module supplies its tables, keys, required (`required_for`: the columns the filing's
+    specification version refuses an upload without) and number columns, how it reads its files, and `store`, which keeps the corrected
+    tables and checks them."""
 
     table_names: tuple[str, ...] = ()
     keys: dict[str, tuple[str, ...]] = {}
@@ -228,9 +229,13 @@ class FileTables(Editor):
     def store(self, actor, v: SubmissionVersion, tables: dict[str, bytes], scope: Scope) -> SubmissionVersion:
         raise NotImplementedError
 
-    def _table(self, name: str, content: bytes) -> Rows:
+    def required_for(self, v: SubmissionVersion | None) -> dict[str, list[str]]:
+        """{table: the columns a file of it must have} for a version's filing (its specification version's); `required` without one."""
+        return self.required
+
+    def _table(self, name: str, content: bytes, v: SubmissionVersion | None = None) -> Rows:
         header, rows = self.parse(content)
-        known = [*self.keys.get(name, ()), *self.required.get(name, ()), *self.numbers.get(name, ())]
+        known = [*self.keys.get(name, ()), *self.required_for(v).get(name, ()), *self.numbers.get(name, ())]
         ren = canonical(header, known)
         return Rows(name, [ren.get(c, c) for c in header], [{ren.get(k, k): x for k, x in r.items()} for r in rows])
 
@@ -238,7 +243,7 @@ class FileTables(Editor):
         sha, tables = self.files(v)
         cached = _parsed.get((self.module, sha)) if sha else None
         if cached is None:
-            cached = {t: self._table(t, c) for t, c in tables.items()}
+            cached = {t: self._table(t, c, v) for t, c in tables.items()}
             if sha:
                 _parsed[(self.module, sha)] = cached
                 while len(_parsed) > 4:
@@ -247,13 +252,14 @@ class FileTables(Editor):
 
     def tables(self, v):
         own = self.rows(v)
+        required = self.required_for(v)
         return [
             TableDef(
                 t,
                 self.keys[t],
                 file_fields(
                     own[t].columns if t in own else [],
-                    required=self.required.get(t, ()),
+                    required=required.get(t, ()),
                     numbers=self.numbers.get(t, ()),
                     descriptions=self.descriptions.get(t),
                 ),
@@ -261,8 +267,8 @@ class FileTables(Editor):
             for t in self.table_names
         ]
 
-    def read_upload(self, data, filename):
-        return {t: self._table(t, c) for t, c in self.read_tables(data, filename).items()}
+    def read_upload(self, data, filename, v=None):
+        return {t: self._table(t, c, v) for t, c in self.read_tables(data, filename).items()}
 
     def save(self, actor, v, tables, scope):
         own = self.rows(v)
@@ -938,13 +944,13 @@ def _read(e: Editor, v: SubmissionVersion, data: bytes, filename: str) -> list[R
     def table_of(name: str) -> str | None:
         if norm(name).replace(" ", "") in DELETE_NAMES:
             return DELETE_TABLE
-        return e.table_of(name)
+        return e.table_of(name, v)
 
     rest, rest_name, delete_rows = _split_deletes(data, filename, table_of)
     tables = {}
     if rest is not None:
         try:
-            tables = e.read_upload(rest, rest_name)
+            tables = e.read_upload(rest, rest_name, v)
         except ValueError as err:  # the module's UploadError
             raise CorrectionRefused(str(err)) from None
     deletes = _delete_requests(defs, delete_rows, table_of)

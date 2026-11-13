@@ -12,15 +12,8 @@ from pathlib import PurePosixPath
 
 from cedars.core import uploads
 
-from .models import COMMITMENT_FIELDS
-
-BCA_TABLES = ("Measure", "ProgramCost")
+BCA_TABLES = ("Measure", "ProgramCost")  # the engine's input tables, as a job holds them
 TABLES = ("Commitments",) + BCA_TABLES
-REQUIRED = {
-    "Commitments": ["PA", "PrgID", "YearMonth"] + [f for f, _ in COMMITMENT_FIELDS],
-    "Measure": ["CEInputID", "PrgID", "ClaimYearQuarter", "NumUnits"],
-    "ProgramCost": ["PrgID", "PrgYear", "PA"],
-}
 # Columns of CEDARS' monthly Program table that Commitments does not read, and why (a file in the old layout is told, not rejected).
 RETIRED = {
     "MonthFundShifts": "fund shifts are made in Budgets",
@@ -59,14 +52,16 @@ def _table_name(member: str) -> str | None:
     return next((t for t in TABLES if p.stem.lower() == t.lower()), None)
 
 
-def read_upload(data: bytes, filename: str) -> dict[str, bytes]:
-    """{table: file bytes} from an uploaded .zip or .xlsx, every table present with its required columns."""
+def read_upload(data: bytes, filename: str, required: dict[str, list[str]] | None = None) -> dict[str, bytes]:
+    """{table: file bytes} from an uploaded .zip or .xlsx, every table present with its required columns (`required`: {table: the
+    columns an upload is refused without}, the filing's specification version's; None for a report already kept, which was checked
+    when it was uploaded)."""
     if filename.lower().endswith(".xlsx"):
         tables = _from_workbook(data)
-        _check_tables(tables, workbook=True)
+        _check_tables(tables, required, workbook=True)
         return tables
     tables = read_tables(data, filename)
-    _check_tables(tables)
+    _check_tables(tables, required)
     return tables
 
 
@@ -135,7 +130,7 @@ def _cell(value) -> str:
     return str(value)
 
 
-def _check_tables(tables: dict, workbook: bool = False) -> None:
+def _check_tables(tables: dict, required: dict[str, list[str]] | None, workbook: bool = False) -> None:
     where = "sheet" if workbook else "file"
     missing = [t for t in TABLES if t not in tables]
     if missing:
@@ -146,7 +141,7 @@ def _check_tables(tables: dict, workbook: bool = False) -> None:
     for t in TABLES:
         header, _ = rows(tables[t])
         have = {h.lower() for h in header}
-        lacking = [c for c in REQUIRED[t] if c.lower() not in have]
+        lacking = [c for c in (required or {}).get(t, ()) if c.lower() not in have]
         if lacking:
             raise UploadError(f"{t} has no {', '.join(lacking)} column{'s' if len(lacking) > 1 else ''}.")
 

@@ -496,8 +496,9 @@ class UploadClaims(serializers.Serializer):
         child=serializers.FileField(),
         min_length=1,
         max_length=uploads.MAX_FILES,
-        help_text=f"A .zip of the claims tables as CSV files named after them ({', '.join(t + '.csv' for t in spec.TABLES)}; comma- or "
-        "pipe-delimited), or a workbook (.xlsx) with a sheet per table: the records new or changed since the last confirmed quarter. "
+        help_text="A .zip of the claims tables of the filing's specification version as CSV files named after them (Claim.csv, "
+        "Measure.csv, ...; comma- or pipe-delimited), or a workbook (.xlsx) with a sheet per table: the records new or changed since "
+        "the last confirmed quarter. "
         "No PII tables. Repeat the field to send several files (.zip, .xlsx, or one table's .csv each; a table in parts named after "
         "it, Measure_1.csv, Measure_2.csv, with the same columns): they are joined into one upload.",
     )
@@ -521,7 +522,7 @@ def upload(request, pk):
     form.is_valid(raise_exception=True)
     files = [(f.name, f.read()) for f in form.validated_data["file"]]
     try:
-        c = combine_upload(files)
+        c = combine_upload(files, spec.for_filing(d))
         v = service.upload_claims(request.user, d, org, c.data, c.filename, sources=c.sources)
     except (AccessDenied, UploadError) as e:
         return _refused(e)

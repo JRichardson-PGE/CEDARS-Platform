@@ -80,6 +80,13 @@ def test_the_unzipped_size_is_read_before_anything_is_unpacked(bomb, settings):
     assert uploads.too_large_unzipped("jobs.zip", bomb) == ""
 
 
+def _claims_layout():
+    from cedars.modules.claims import spec
+    from cedars.services.specifications import service as specifications
+
+    return spec.Layout(specifications.document_layout(specifications.stored_starting("claims")))
+
+
 def test_every_filing_reader_refuses_a_zip_that_unpacks_too_large(bomb):
     from cedars.modules.budgets import jobfile
     from cedars.modules.claims import upload as claims_upload
@@ -88,7 +95,7 @@ def test_every_filing_reader_refuses_a_zip_that_unpacks_too_large(bomb):
     from cedars.services.vault import service as vault
 
     with pytest.raises(claims_upload.UploadError, match="unpacks to"):
-        claims_upload.read(bomb, "claims.zip")
+        claims_upload.read(bomb, "claims.zip", _claims_layout())
     with pytest.raises(monthly_upload.UploadError, match="unpacks to"):
         monthly_upload.read_tables(bomb, "monthly.zip")
     with pytest.raises(jobfile.JobError, match="unpacks to"):
@@ -105,7 +112,7 @@ def test_a_workbook_that_unpacks_too_large_is_refused_too(bomb):
     from cedars.modules.claims import upload as claims_upload
 
     with pytest.raises(claims_upload.UploadError, match="unpacks to"):
-        claims_upload.read(bomb, "claims.xlsx")
+        claims_upload.read(bomb, "claims.xlsx", _claims_layout())
 
 
 def test_the_unzipped_limit_is_on_the_limits_page(client, settings, db):

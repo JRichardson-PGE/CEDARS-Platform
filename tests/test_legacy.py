@@ -16,6 +16,7 @@ from cedars.services.dictionary import service as dictionary
 from cedars.services.legacy import service
 from cedars.services.legacy.models import LegacyImport, LegacySource
 from cedars.services.registry import service as registry
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import SubmissionVersion
 
@@ -44,7 +45,8 @@ def test_every_published_column_is_mapped_and_none_is_dropped():
 
 def test_canonical_names_are_the_catalogs_and_the_claims_specs():
     catalog = {f["name"] for f in json.loads(CATALOG.read_text(encoding="utf-8"))["fields"]}
-    spec = {(f.table, f.name) for fields in claims_spec.fields().values() for f in fields}
+    lay = claims_spec.Layout(specifications.document_layout(specifications.stored_starting("claims")))
+    spec = {(t, f.name) for t in lay.TABLES for f in lay.fields(t)}
     for m in legacy.labels().values():
         if m.table in ("Measure", "Output", "Program"):
             assert m.canonical in catalog, m

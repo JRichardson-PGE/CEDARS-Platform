@@ -34,6 +34,7 @@ from cedars.services.notifications.service import Concern
 from cedars.services.registry import service as registry
 from cedars.services.registry.models import AllocationVersion, Program, ReportingPeriod
 from cedars.services.rules import service as rules
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions.models import Deadline, Submission, SubmissionVersion
@@ -597,6 +598,11 @@ def report_file(v: SubmissionVersion) -> dict | None:
     return next((f for f in v.files or [] if f.get("key", "").endswith("report.zip")), None)
 
 
+def required_columns(deadline) -> dict[str, list[str]]:
+    """{table: the columns an upload is refused without}, as the filing's specification version has them."""
+    return {t.name: list(t.refuse_without) for t in specifications.layout_for_filing(deadline, MODULE).tables}
+
+
 def job_file(v: SubmissionVersion) -> dict | None:
     return next((f for f in v.files or [] if f.get("key", "").endswith("job.zip")), None)
 
@@ -608,7 +614,7 @@ def upload(actor, deadline: Deadline, organisation, data: bytes, filename: str, 
     rejected. `sources`: the files a combined upload was made of (upload.combine), kept with the report's file entry."""
     if deadline.module != MODULE or setup_for(deadline) is None:
         raise AccessDenied("This is not a monthly report that has been set up.")
-    tables = up.read_upload(data, filename)
+    tables = up.read_upload(data, filename, required_columns(deadline))
     v = submissions.start(actor, deadline, organisation)
     entry = {"uploaded_as": filename}
     if sources:
@@ -1286,23 +1292,3 @@ COMMITMENT_KEYS = [
     ("PrgID", "The program, as in the program registry."),
     ("YearMonth", "The report's month, as YYYYMM (202801 for January 2028)."),
 ]
-
-
-def template_xlsx() -> bytes:
-    """The monthly report template: Commitments (its keys, the committed fields and an optional Comments) and the year-to-date BCA
-    inputs Measure and ProgramCost as the field catalog has them, with a Fields sheet defining each column (navigation review D2)."""
-    from cedars.services.dictionary import service as dictionary
-
-    TF = dictionary.TemplateField
-    commitments = [TF(f, True, "text", "", d) for f, d in COMMITMENT_KEYS]
-    commitments += [TF(f, True, "number", "", d) for f, d in COMMITMENT_FIELDS]
-    commitments.append(TF("Comments", False, "text", "", "Optional: anything the CPUC should know about the row."))
-    tables = [("Commitments", commitments)] + [
-        (t, dictionary.catalog_fields("calculations", t) or [TF(c, True) for c in up.REQUIRED[t]]) for t in up.BCA_TABLES
-    ]
-    return dictionary.filing_template_xlsx(
-        "CEDARS monthly report template",
-        tables,
-        notes="Commitments has one row per program with commitments; Measure and ProgramCost are the year's BCA inputs so far. Fill in "
-        "the three sheets and upload the workbook, or save each as a CSV of the same name in one .zip. The Fields sheet is not read.",
-    )

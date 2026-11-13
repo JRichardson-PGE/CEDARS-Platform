@@ -18,6 +18,7 @@ from cedars.services.accounts.service import AccessDenied
 from cedars.services.legacy import service as legacy
 from cedars.services.refdata.models import PackVersion
 from cedars.services.registry.models import Program
+from cedars.services.specifications import service as specifications
 from cedars.services.submissions import corrections, filing_parts
 from cedars.services.submissions import service as submissions
 from cedars.services.submissions import setup as setup_calendar
@@ -138,10 +139,12 @@ def index(request):
 
 
 def template(request):
-    """The claims template workbook: public, like the data dictionary."""
-    response = HttpResponse(spec.template_xlsx(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = 'attachment; filename="claims_template.xlsx"'
-    return response
+    """The claims template workbook: public, like the data dictionary. It is the specification version's own template (?filing=: the
+    version that claims filing follows; else the current one)."""
+    url = specifications.template_url(service.MODULE, request.GET.get("filing"))
+    if not url:
+        raise Http404("No claims specification is published.")
+    return redirect(url)
 
 
 @login_required
@@ -366,7 +369,7 @@ def period(request, pk):
         "last_quarter": service.last_quarter(deadline),
         "later_locked": service.later_locked(org, deadline) if org else None,
         "earlier_open": service.label(earlier_open) if earlier_open else "",
-        "tables": spec.TABLES,
+        "tables": spec.for_filing(deadline).TABLES,
         "legacy": legacy.imported(v) if v is not None and v.imported else None,
         "statewide": service.is_statewide(deadline),
         "counterpart": service.counterpart(deadline),
@@ -380,7 +383,7 @@ def period(request, pk):
         ctx["file"] = service.own_file(v)
         ctx["counts"] = [
             (t, ctx["s"].get("tables", {}).get(t, 0), ctx["s"].get("replaced", {}).get(t, 0), ctx["s"].get("compiled", {}).get(t, 0))
-            for t in spec.TABLES
+            for t in spec.for_filing(deadline).TABLES
             if t in ctx["s"].get("compiled", {})
         ]
         if ctx["priced"]:
@@ -498,7 +501,7 @@ def upload(request, pk):
     files = [(f.name, f.read()) for f in form.cleaned_data["file"]]
 
     def do(d, o):
-        c = combine_upload(files)
+        c = combine_upload(files, spec.for_filing(d))
         _checked_message(request, service.upload_claims(request.user, d, o, c.data, c.filename, sources=c.sources))
 
     return _action(request, pk, do, "")
@@ -598,7 +601,9 @@ def pii_download(request, pk):
     if up is None or up.status != up.Status.ACCEPTED:
         raise Http404
     try:
-        data = vault.export(request.user, org, up, getattr(request, "assurance", None), request.POST.get("reason", "").strip())
+        reason = request.POST.get("reason", "").strip()
+        lay = spec.for_filing(deadline).version_layout
+        data = vault.export(request.user, org, up, getattr(request, "assurance", None), reason, lay)
     except AccessDenied as e:
         messages.error(request, str(e))
         return redirect(f"{reverse('claims:period', args=[pk])}?org={org.code}")
