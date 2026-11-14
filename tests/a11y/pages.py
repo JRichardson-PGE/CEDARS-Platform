@@ -110,6 +110,7 @@ PAGES = [
     ("specification-compare-empty", "/specifications/compare/", None),
     # the editor: a published version's page with Start a new version, and the scene's draft Monthly reports 2029, page by page
     ("specification-admin", "/specifications/claims/starting-version/", "cpuc_admin"),
+    ("specification-import", "/specifications/import/", "cpuc_admin"),
     ("specification-draft-version", "/specifications/monthly/monthly-reports-2029/", "cpuc_admin"),
     ("specification-draft", "/specifications/monthly/monthly-reports-2029/edit/", "cpuc_admin"),
     *[

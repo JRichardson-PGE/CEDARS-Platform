@@ -61,6 +61,11 @@ upload page links the version under "Before you upload", and its findings name t
   specification section, move the set to it. The move page shows the impact test on the set's own confirmed filings first; the move
   needs a reason, which the filing calendar's subscribers are told. Open versions are checked again against the new version and priced
   again; confirmed versions stay as they are, recorded against the version they were checked with.</li>
+  <li id="moving-versions">A version built and tested in the sandbox moves to production without a developer: export it from its
+  page there as one package, then import it on Filing specifications, Import a version. The import shows what it would make and what
+  this environment lacks first, and always makes a draft, so it is checked here like any draft, the impact test on real filings
+  included, before it is published. A value list the package names that is missing here is made with the draft; an existing list or a
+  data dictionary definition is never changed. The version's page says whether it is still exactly the version that was exported.</li>
   <li>Rules change with a version of their specification: add, change or take out rules in the draft's rule set, from the draft's
   Rules page. A changed test gives a rule a new ID that names the rule it replaces. <a href="{% url 'rules:differences' %}">Compare
   two rule sets</a> to see what changes.</li>

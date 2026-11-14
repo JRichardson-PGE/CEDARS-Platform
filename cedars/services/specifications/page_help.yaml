@@ -30,6 +30,8 @@ specifications/version:
       earlier quarters. A finding on a validation report names the rule or check by its ID.
     - The template, the fields-and-rules workbook, the JSON and each table's JSON Schema are made from this version, so they always
       match it.
+    - A version imported from another CEDARS environment says where it came from and whether it is still exactly the version exported
+      there, or what was changed here after it was imported.
   how:
     - Download the upload template (a workbook, or a .zip of pipe-delimited files) and fill in each table.
     - Open a field's rules to read them as sentences with their suggested fixes.
@@ -39,6 +41,14 @@ specifications/version:
     - target: "#spec-status"
       title: Status
       text: Whether the version is published or withdrawn, when, and whether new filings are set up with it.
+    - target: "#export-h"
+      title: Move it to another environment
+      text: For CPUC system administrators, export the version as one package to import into another CEDARS environment.
+      optional: true
+    - target: "#provenance-h"
+      title: Where it came from
+      text: For a version imported from another environment, whether it is still exactly the version exported there.
+      optional: true
     - target: "#downloads-h"
       title: Templates and downloads
       text: The upload template, every field and rule as a workbook, and the whole specification as data.
@@ -51,6 +61,39 @@ specifications/version:
     - target: "#checks-h"
       title: Built-in checks
       text: The checks written in CEDARS' code that a filing on this version also meets.
+
+specifications/import_version:
+  title: Import a specification version
+  guide:
+    - For CPUC system administrators. A version built and tested in another CEDARS environment, such as the sandbox, comes here as the
+      package exported from its page there. The import always makes a draft, so nothing a filing is checked against changes until it is
+      published here, after the same checks as any draft, including the impact test on this environment's own filings.
+    - Loading the package shows what it would make, how it differs from the version published here, and what this environment lacks.
+      An engine release or cost-test set not registered here stops the import until it is. A value list the package names that is
+      missing here is made in the draft from the package's codes; one with other codes here is reported and kept as it is, and so is a
+      field definition that differs from the data dictionary.
+    - The draft's page and, once published, the version's page say where it came from and whether it is still exactly what was
+      exported.
+  how:
+    - Export the version from its page in the other environment.
+    - Load the package here and select Show what it would make.
+    - Settle anything that stops it, give the reason and import it as a draft.
+  see: rules-and-lists
+  tour:
+    - target: "#import-about"
+      title: Importing a version
+      text: What an import makes, and what it never changes.
+    - target: "#import-load-h"
+      title: Load the package
+      text: Choose the package exported from the other environment. Nothing is made yet.
+    - target: "#import-preview-h"
+      title: What it would make
+      text: The draft it makes, anything that stops it, and what this environment has differently.
+      optional: true
+    - target: "#import-confirm"
+      title: Import it
+      text: The reason kept with the draft, and the button that makes it.
+      optional: true
 
 specifications/compare:
   title: Compare two specification versions

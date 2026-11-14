@@ -7,7 +7,8 @@
 and the rules and built-in checks every record is checked against. The CPUC publishes each specification in named versions that never
 change once published, and each filing set (a claim year, a budget filing, a year of monthly reports) is set up with one: its uploads
 and corrections use that version, whenever they are made. Several versions can be in use at once.</p>
-<p class="actions"><a class="button" href="{% url 'specifications:compare' %}">Compare two versions</a></p>
+<p class="actions"><a class="button" href="{% url 'specifications:compare' %}">Compare two versions</a>{% if manage %}
+  <a class="button" href="{% url 'specifications:import_version' %}" id="import-link">Import a version from another environment</a>{% endif %}</p>
 {% for s in specs %}
 <section aria-labelledby="spec-{{ s.spec.code }}">
   <h2 id="spec-{{ s.spec.code }}">{{ s.spec.name }}</h2>

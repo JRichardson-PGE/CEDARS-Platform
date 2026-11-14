@@ -152,6 +152,7 @@ def _role_filers():
 def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     _specifications()
     _specification_draft(cpuc_admin)
+    claims_package = _claims_package(cpuc_admin)
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
@@ -466,6 +467,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
         "goal_set": goal_set,
         **small_items,
         **impact_profiles,
+        "claims_package": claims_package,
         "sw": sw_id,
     }
 
@@ -526,6 +528,19 @@ def _specification_draft(cpuc_admin):
             "cleared": 0,
         },
     )  # fmt: skip
+
+
+def _claims_package(cpuc_admin) -> bytes:
+    """A package of a claims version from "another environment" (a draft exported, then discarded), for the import page's preview."""
+    from cedars.services.specifications import editor, transfer
+    from cedars.services.specifications import service as specifications
+    from cedars.services.specifications.models import Specification
+
+    v = editor.start_draft(cpuc_admin, specifications.current(Specification.objects.get(code="claims")), "Claims 2029", "2029")
+    editor.add_field(cpuc_admin, v, "Claim", "ClaimNote", type="text", max_length=500, definition="A note on the claim")
+    content = transfer.export(cpuc_admin, v)
+    editor.discard(cpuc_admin, v, "Moved to the other environment")
+    return content
 
 
 def _role_templates_and_feedback(cpuc_admin, pge, pge_admin, analyst, make_user):
@@ -1571,6 +1586,20 @@ def test_the_workbook_preview_axe_clean(browser, axe_source, site, scene, scheme
     found = _violations(page, axe_source, header_menus=False)
     context.close()
     assert not found, f"workbook preview ({scheme}): " + json.dumps(found, indent=1)
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_import_preview_axe_clean(browser, axe_source, site, scene, scheme):
+    """The import page once a package is loaded: what it would make, what differs here, and the confirm form."""
+    context, page = _open(browser, site, scene, "/specifications/import/", "cpuc_admin", color_scheme=scheme, bypass_csp=True)
+    page.set_input_files("#import-form input[type=file]", files=[{"name": "claims_package.zip", "mimeType": "application/zip",
+                                                                  "buffer": scene["claims_package"]}])  # fmt: skip
+    page.locator("#import-form button[type=submit]").click()
+    page.wait_for_selector("#import-preview")
+    assert page.locator("#import-confirm").count() == 1, page.locator("#import-preview").inner_text()
+    found = _violations(page, axe_source, header_menus=False)
+    context.close()
+    assert not found, f"import preview ({scheme}): " + json.dumps(found, indent=1)
 
 
 # The header's menus on one page for each kind of user (signed out and every role in PAGES): the first page PAGES lists for it.

@@ -23,6 +23,22 @@
     <button type="submit">Start a new version from this one</button>
   </form>
   {% endif %}
+  <h3 id="export-h">Move it to another environment</h3>
+  <p>Export the version as one file, a package with its fields, rules, examples, the value lists made for it and its cost-test set, to
+  import into another CEDARS environment, where it becomes a draft that is checked there before it is published.</p>
+  <form method="post" action="{% url 'specifications:export_version' v.specification.code v.slug %}" id="export-form">{% csrf_token %}
+    <button type="submit">Export {{ v.name }} as a package (.zip)</button>
+  </form>
+</section>
+{% endif %}
+{% if provenance %}
+<section aria-labelledby="provenance-h" class="card" id="provenance">
+  <h2 id="provenance-h">Where it came from</h2>
+  <p>{% if provenance.identical %}<span class="status ok">Identical</span> Imported from the {{ provenance.environment }} environment, and
+  exactly the version exported there{% else %}<span class="status warn">Changed</span> Imported from the {{ provenance.environment }}
+  environment, then changed here{% endif %}{% if manage %}: the package exported {{ provenance.exported_at|datetime_words }} by {{ provenance.exported_by }},
+  SHA-256 <code>{{ provenance.sha256 }}</code>{% endif %}.</p>
+  {% if provenance.changes %}<ul class="compact" id="provenance-changes">{% for c in provenance.changes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
 </section>
 {% endif %}
 

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from cedars.core import nav
 
-from . import downloads, editor, forms, service
+from . import downloads, editor, forms, service, transfer
 from .models import Specification, SpecificationVersion
 
 
@@ -77,6 +77,7 @@ def version(request, code: str, slug: str):
             "draft": editor.draft_of(v.specification) if manage else None,
             "start_form": forms.StartDraftForm(auto_id="start_%s") if manage else None,
             "coming": v.status == "published" and v.effective_on is not None and v.effective_on > timezone.localdate(),
+            "provenance": transfer.provenance(v),
         },
     )
 

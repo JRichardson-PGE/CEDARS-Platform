@@ -89,6 +89,11 @@ class SpecificationVersion(models.Model):
     withdrawn_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     withdrawn_at = models.DateTimeField(null=True, blank=True)
     withdrawn_reason = models.TextField(blank=True)
+    imported = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="An imported version's package: where, when and by whom it was exported, its SHA-256, fingerprint and document",
+    )
 
     class Meta:
         ordering = ["specification", "-published_at", "-pk"]
