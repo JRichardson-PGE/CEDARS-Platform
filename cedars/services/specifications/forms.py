@@ -282,3 +282,36 @@ class PackageForm(forms.Form):
 class ImportForm(forms.Form):
     sha256 = forms.CharField(widget=forms.HiddenInput, max_length=64)
     reason = _reason()
+
+
+class ProposeForm(forms.Form):
+    last_day = forms.DateField(
+        label="Last day for comments",
+        widget=forms.DateInput(attrs={"type": "date"}),
+        help_text="Filers comment through the end of this day. It can be moved later, or the comments ended early.",
+    )
+    note = forms.CharField(
+        label="What filers should look at",
+        required=False,
+        max_length=2000,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Shown at the top of the proposed version and in the notice to subscribers, for example the changes you want views on.",
+    )
+
+
+class CommentPeriodForm(forms.Form):
+    last_day = forms.DateField(label="New last day for comments", widget=forms.DateInput(attrs={"type": "date"}))
+    reason = _reason()
+
+
+class CommentForm(forms.Form):
+    about = forms.ChoiceField(label="About", required=False, help_text="The whole version, one of its tables or one field.")
+    text = forms.CharField(label="Your comment", widget=forms.Textarea(attrs={"rows": 5}))
+
+    def __init__(self, *args, topics=(), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["about"].choices = [(group, list(options)) if group != "The version" else options[0] for group, options in topics]
+
+
+class ReplyForm(forms.Form):
+    text = forms.CharField(label="The CPUC's answer", widget=forms.Textarea(attrs={"rows": 3}))

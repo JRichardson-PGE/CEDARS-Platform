@@ -1,18 +1,23 @@
 """The filing specification pages: the list of specifications and their versions, a version's page (its tables and fields, the rules
 about each field in sentences, its built-in checks), the comparison of two versions, and the downloads made from a version. Published
 and withdrawn versions are public, as CEDARS' specification pages are; proposed versions are for anyone signed in, drafts for CPUC
-system administrators."""
+system administrators. Anyone signed in comments on a proposed version while its comment period is open, and CPUC staff answer."""
 
 import json
 
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from cedars.core import nav
+from cedars.services.accounts.service import AccessDenied
 
-from . import downloads, editor, forms, service, transfer
-from .models import Specification, SpecificationVersion
+from . import comments, downloads, editor, forms, service, transfer
+from .models import SpecComment, Specification, SpecificationVersion
 
 
 def _version(request, code: str, slug: str) -> SpecificationVersion:
@@ -35,7 +40,12 @@ def index(request):
             {"spec": s, "current": current, "coming": service.coming(s), "versions": [(v, len(service.in_use(v))) for v in versions]}
         )
     nav_menu = "filings" if "member" in nav.roles_of(request.user) else "published"
-    return render(request, "specifications/index.html", {"specs": specs, "nav_menu": nav_menu, "manage": editor.can_manage(request.user)})
+    open_for_comment = [v for s in specs for v, _ in s["versions"] if v.open_for_comment]
+    return render(
+        request,
+        "specifications/index.html",
+        {"specs": specs, "nav_menu": nav_menu, "manage": editor.can_manage(request.user), "open_for_comment": open_for_comment},
+    )
 
 
 def current(request, code: str):
@@ -78,8 +88,77 @@ def version(request, code: str, slug: str):
             "start_form": forms.StartDraftForm(auto_id="start_%s") if manage else None,
             "coming": v.status == "published" and v.effective_on is not None and v.effective_on > timezone.localdate(),
             "provenance": transfer.provenance(v),
+            **_comments_context(request, v),
         },
     )
+
+
+def _comments_context(request, v) -> dict:
+    """The comments part of a version's page: the thread (signed in only), the form while comments are open, staff answers."""
+    signed_in = request.user.is_authenticated
+    has = v.proposals > 0
+    org = comments.side(request.user, getattr(request, "organisation", None))
+    return {
+        "comments_shown": has,
+        "thread": comments.thread(v) if has and signed_in else [],
+        "comment_counts": comments.counts(v) if has else {},
+        "comment_form": forms.CommentForm(topics=comments.topics(v), auto_id="comment_%s")
+        if v.open_for_comment and org is not None
+        else None,
+        "comment_side": org,
+        "comment_staff": comments.is_cpuc_staff(request.user),
+        "max_chars": comments.max_chars(),
+        "can_answer": comments.can_answer(request.user, v),
+        "reply_form": forms.ReplyForm(),
+        "period_form": forms.CommentPeriodForm(auto_id="period_%s") if v.status == "proposed" and editor.can_manage(request.user) else None,
+    }
+
+
+def _back(request, v, anchor: str = "comments-h"):
+    if request.POST.get("next") == "edit" and editor.can_manage(request.user):
+        return redirect(reverse("specifications:edit_comments", args=[v.specification.code, v.slug]) + f"#{anchor}")
+    return redirect(reverse("specifications:version", args=[v.specification.code, v.slug]) + f"#{anchor}")
+
+
+@login_required
+@require_POST
+def post_comment(request, code: str, slug: str):
+    v = _version(request, code, slug)
+    form = forms.CommentForm(request.POST, topics=comments.topics(v))
+    if not form.is_valid():
+        messages.error(request, "Write the comment and say what it is about.")
+        return _back(request, v, "comment-form-h")
+    try:
+        c = comments.post(
+            request.user,
+            v,
+            form.cleaned_data["text"],
+            about=form.cleaned_data["about"],
+            organisation=getattr(request, "organisation", None),
+        )
+    except (AccessDenied, comments.CommentRefused) as e:
+        messages.error(request, str(e))
+        return _back(request, v, "comment-form-h")
+    messages.success(request, f"Your comment on {c.about} is posted for {c.organisation.code}. CPUC staff will answer it here.")
+    return _back(request, v, f"comment-{c.pk}")
+
+
+@login_required
+@require_POST
+def reply_comment(request, code: str, slug: str, comment: int):
+    v = _version(request, code, slug)
+    parent = get_object_or_404(SpecComment, pk=comment, version=v)
+    form = forms.ReplyForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Write the answer.")
+        return _back(request, v, f"comment-{parent.pk}")
+    try:
+        c = comments.reply(request.user, parent, form.cleaned_data["text"])
+    except (AccessDenied, comments.CommentRefused) as e:
+        messages.error(request, str(e))
+        return _back(request, v, f"comment-{parent.pk}")
+    messages.success(request, f"Answered {parent.author_name}'s comment; they are told.")
+    return _back(request, v, f"comment-{c.pk}")
 
 
 def _pick(request, key: str):

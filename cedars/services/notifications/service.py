@@ -92,6 +92,18 @@ EVENTS = [
     EventType("rule_set.published", "A validation rule set is published", "public", "Rules and dictionary"),
     EventType("dictionary.published", "A new version of the data dictionary is published", "public", "Rules and dictionary"),
     EventType("value_list.published", "A new version of a value list is published", "public", "Rules and dictionary"),
+    EventType(
+        "specification.proposed",
+        "A filing specification version is proposed for comment, before it is published",
+        "public",
+        "Filing specifications",
+    ),
+    EventType(
+        "specification.commented",
+        "A comment or the CPUC's answer is posted on a proposed filing specification version",
+        "public",
+        "Filing specifications",
+    ),
 ]
 BY_KEY = {e.key: e for e in EVENTS}
 CODES = {e.code for e in EVENTS}

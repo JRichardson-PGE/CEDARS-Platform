@@ -153,6 +153,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     _specifications()
     _specification_draft(cpuc_admin)
     claims_package = _claims_package(cpuc_admin)
+    _specification_proposed(cpuc_admin, pge, pge_admin)
     impact_profiles = _impact_profiles(cpuc_admin, pge, pge_admin, make_user)
     service.create_organisation(cpuc_admin, code="SCE", name="Southern California Edison", kind="pa", pa_type="IOU")
     service.create_organisation(cpuc_admin, code="NEWPA", name="A PA with no type yet", kind="pa")  # PA type not set
@@ -528,6 +529,30 @@ def _specification_draft(cpuc_admin):
             "cleared": 0,
         },
     )  # fmt: skip
+
+
+def _specification_proposed(cpuc_admin, pge, pge_admin):
+    """A claims version proposed for comment (Claims 2031), with a filer's comment the CPUC answered and one not answered yet, for the
+    proposed version's page, its Comments and Publish pages."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from cedars.services.specifications import comments, editor
+    from cedars.services.specifications import service as specifications
+    from cedars.services.specifications.models import Specification, SpecificationVersion
+
+    v = editor.start_draft(cpuc_admin, specifications.current(Specification.objects.get(code="claims")), "Claims 2031", "2031")
+    claim_id = v.tables.get(name="Claim").fields.get(name="ClaimID")
+    editor.change_field(cpuc_admin, claim_id, guidance="Start it with the PA code and the year.", reason="Clearer")
+    SpecificationVersion.objects.filter(pk=v.pk).update(  # proposed as editor.propose does, its examples aside
+        status="proposed", proposals=1, proposed_at=timezone.now(), proposed_by=cpuc_admin,
+        proposal_note="Look at the new guidance on ClaimID.", comments_close_at=timezone.now() + timedelta(days=10),
+    )  # fmt: skip
+    v.refresh_from_db()
+    asked = comments.post(pge_admin, v, "Does the year mean the claim year?", about="Claim.ClaimID", organisation=pge)
+    comments.reply(cpuc_admin, asked, "Yes, the claim year.")
+    comments.post(pge_admin, v, "Please give a worked example.", organisation=pge)
 
 
 def _claims_package(cpuc_admin) -> bytes:

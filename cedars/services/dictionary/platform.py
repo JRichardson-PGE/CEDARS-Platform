@@ -129,6 +129,7 @@ TABLES: dict[str, str] = {
     "specifications.CheckSetting": PUBLIC,
     "specifications.ExampleSet": PUBLIC,
     "specifications.ImpactTest": RESTRICTED,  # a draft's test, read by CPUC staff: counts per PA of confirmed filings
+    "specifications.SpecComment": RESTRICTED,  # comments on a proposed version: read by anyone signed in, and they name their authors
     # releases, the register of mandated changes, retention
     "releases.ReleaseNote": PUBLIC,
     "releases.Change": PUBLIC,

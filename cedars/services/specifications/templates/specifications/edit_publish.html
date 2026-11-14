@@ -1,7 +1,7 @@
 {% extends "core/base.html" %}
-{% block title %}Publish: {{ v.specification.name }}, {{ v.name }} (draft){% endblock %}
+{% block title %}Publish: {{ v.specification.name }}, {{ v.name }} ({{ v.get_status_display|lower }}){% endblock %}
 {% block content %}
-<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} (draft)</a></li></ol></nav>
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} ({{ v.get_status_display|lower }})</a></li></ol></nav>
 <div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_publish" %}</div>
 {% include "specifications/_edit_nav.html" %}
 <section aria-labelledby="checks-h">
@@ -23,6 +23,24 @@
   {{ r.newly_rejected }} would newly be rejected and {{ r.newly_warned }} newly warned{% else %}No confirmed filing to test against{% endif %}{% endwith %}:
   <a href="{{ impact_url }}">the impact test</a>.{% endif %}</p>
 </section>
+{% if propose_form %}
+<section aria-labelledby="propose-h" class="card">
+  <h2 id="propose-h">Propose it for comment first (optional)</h2>
+  <p>Proposing freezes the draft and shows it to anyone signed in, with its template and examples. Filers can check a file against it
+  with the pre-upload checker and comment on it, about the whole version, a table or a field, until the last day you give; you answer on
+  its page. Then return it to draft to act on the comments, or publish it as it is once comments close. Subscribers to proposed versions
+  are told. It must pass the checks above first.{% if v.proposals %} It was proposed {{ v.proposals }} time{{ v.proposals|pluralize }} before; its earlier comments stay with it.{% endif %}</p>
+  <form method="post" action="{% url 'specifications:propose' v.specification.code v.slug %}" class="stack form-narrow" novalidate id="propose-form">{% csrf_token %}
+    {% for field in propose_form %}{{ field.as_field_group }}{% endfor %}
+    <div class="actions"><button type="submit"{% if problems %} aria-disabled="true"{% endif %}>Propose {{ v.name }} for comment</button></div>
+  </form>
+</section>
+{% elif v.status == "proposed" and v.open_for_comment %}
+<p id="publish-comments"><span class="status warn">Comments open</span> Comments are open through {{ v.comments_last_day|date_words }}: it can be
+published once they close. To publish sooner, <a href="{% url 'specifications:version' v.specification.code v.slug %}#proposal-h">end the comment period</a> first.</p>
+{% elif v.status == "proposed" %}
+<p id="publish-comments"><span class="status info">Comments closed</span> {{ comment_counts.comments }} comment{{ comment_counts.comments|pluralize }}{% if comment_counts.unanswered %}, {{ comment_counts.unanswered }} not answered{% endif %}: <a href="{% url 'specifications:edit_comments' v.specification.code v.slug %}">read them</a> before publishing it as proposed.</p>
+{% endif %}
 <section aria-labelledby="publish-h" class="card">
   <h2 id="publish-h">Publish this version</h2>
   <p>Publishing freezes the version for good, publishes its rules with it and publishes a release note. Filing sets set up from the day
@@ -34,10 +52,10 @@
     <div class="actions"><button type="submit" class="primary"{% if problems %} aria-disabled="true"{% endif %}>Publish {{ v.name }}</button></div>
   </form>
 </section>
-<details id="discard"><summary>Discard this draft</summary>
+{% if v.status == "draft" %}<details id="discard"><summary>Discard this draft</summary>
   <form method="post" action="{% url 'specifications:discard' v.specification.code v.slug %}" class="row-form">{% csrf_token %}
     <div class="field"><label for="discard-reason">Why</label><input type="text" id="discard-reason" name="reason" required maxlength="500"></div>
     <button type="submit">Discard the draft and its rules</button>
   </form>
-</details>
+</details>{% endif %}
 {% endblock %}

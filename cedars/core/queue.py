@@ -5,7 +5,8 @@ work is done (a request decided, a version confirmed, a shift acknowledged, a dr
 
 Registered today: correction requests to decide, confirmations, comments waiting for a reply (submissions); program change requests to
 decide (registry); access requests to decide (accounts); fund shifts to acknowledge (Budgets); document drafts to publish, responses to
-recommendations and unanswered questions (Documents); held publications (snapshots)."""
+recommendations and unanswered questions (Documents); held publications (snapshots); filers' comments on proposed filing
+specification versions not yet answered (specifications)."""
 
 from __future__ import annotations
 

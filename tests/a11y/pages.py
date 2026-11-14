@@ -113,9 +113,14 @@ PAGES = [
     ("specification-import", "/specifications/import/", "cpuc_admin"),
     ("specification-draft-version", "/specifications/monthly/monthly-reports-2029/", "cpuc_admin"),
     ("specification-draft", "/specifications/monthly/monthly-reports-2029/edit/", "cpuc_admin"),
+    # a version proposed for comment (Claims 2031): a filer reads it and comments, the CPUC answers and manages the comment period
+    ("specification-proposed", "/specifications/claims/claims-2031/", "pge_admin"),
+    ("specification-proposed-admin", "/specifications/claims/claims-2031/", "cpuc_admin"),
+    ("specification-proposed-comments", "/specifications/claims/claims-2031/edit/comments/", "cpuc_admin"),
+    ("specification-proposed-publish", "/specifications/claims/claims-2031/edit/publish/", "cpuc_admin"),
     *[
         (f"specification-draft-{part}", f"/specifications/monthly/monthly-reports-2029/edit/{part}/", "cpuc_admin")
-        for part in ("settings", "rules", "checks", "examples", "impact", "workbook", "changes", "publish")
+        for part in ("settings", "rules", "checks", "examples", "impact", "workbook", "changes", "comments", "publish")
     ],
     *[
         (f"specification-draft-{name}", f"/specifications/monthly/monthly-reports-2029/edit/tables/Commitments/{part}", "cpuc_admin")

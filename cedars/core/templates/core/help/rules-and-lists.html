@@ -36,6 +36,12 @@ upload page links the version under "Before you upload", and its findings name t
   <a href="{% url 'rules:built_in' %}">Built-in checks</a>.</li>
   <li>The codes a field may hold are on <a href="{% url 'dictionary:lists' %}">Value lists</a>. A code is accepted for claim years from
   its start year to its end year; a retired code keeps its row with an end year and is never deleted.</li>
+  <li id="commenting-on-specifications">Before publishing a version, the CPUC may propose it for comment. Proposed versions are listed
+  under "Open for comment" on <a href="{% url 'specifications:index' %}">Filing specifications</a> (signed in), with the last day for
+  comments, and subscribers to proposed versions are told. Read it, download its template and examples, check a file against it, and
+  comment at the bottom of its page: on the whole version, one table or one field, for the organization you are acting for. Everyone
+  signed in reads the comments; the CPUC answers under each one and you are told. A proposed version does not change while it is open;
+  the CPUC may change it afterwards and propose it again, and its comments stay with it once it is published.</li>
 </ol>
 <h2>For the CPUC staff who keep them</h2>
 <ul class="links">
@@ -68,6 +74,11 @@ upload page links the version under "Before you upload", and its findings name t
   program administrator's most recent filing of the kind, checked once under the version it was checked against and once under the
   draft. It says, by program administrator and by rule, how many records would newly be rejected or warned and which required fields
   the filings lack. Nothing is changed, and the test runs again as the version is published if the draft has changed since.</li>
+  <li id="proposing-specifications">Proposing a draft for comment is optional, from its Publish page, once it passes the checks there:
+  give the last day for comments and what filers should look at. It is frozen and shown to everyone signed in, who can check files
+  against it and comment. Comments waiting for an answer are in <a href="{% url 'core:queue' %}">My queue</a>, and the proposer is sent each
+  one; answer on the version's page or the draft's Comments page. On the version's page, move the last day, end comments early, return
+  it to draft to act on the comments (it can be proposed again, a new round), or publish it as proposed once comments have closed.</li>
   <li>Publishing checks the draft first, its examples included (none may have a rejected record), then freezes it, publishes its rules with it and publishes a release note. It takes effect at
   least the usual notice after the day it is published unless a reason is given and shown; filing sets set up from that day use it,
   and filings already set up keep theirs.</li>

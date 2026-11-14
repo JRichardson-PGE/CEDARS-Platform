@@ -94,6 +94,15 @@ class SpecificationVersion(models.Model):
         blank=True,
         help_text="An imported version's package: where, when and by whom it was exported, its SHA-256, fingerprint and document",
     )
+    proposals = models.PositiveSmallIntegerField(
+        default=0, help_text="How many times the version was proposed for comment (each time is a round of comments)"
+    )
+    proposed_at = models.DateTimeField(null=True, blank=True, help_text="When it was last proposed for comment")
+    proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    proposal_note = models.TextField(blank=True, help_text="What the CPUC asks filers to look at, shown while it is proposed")
+    comments_close_at = models.DateTimeField(
+        null=True, blank=True, help_text="When comments on the proposed version close (the start of the day after the last day)"
+    )
 
     class Meta:
         ordering = ["specification", "-published_at", "-pk"]
@@ -120,6 +129,24 @@ class SpecificationVersion(models.Model):
     def public(self) -> bool:
         """Readable without signing in: published and withdrawn versions."""
         return self.status in (self.Status.PUBLISHED, self.Status.WITHDRAWN)
+
+    @property
+    def open_for_comment(self) -> bool:
+        """Proposed, and its comment period has not ended."""
+        from django.utils import timezone
+
+        return self.status == self.Status.PROPOSED and self.comments_close_at is not None and timezone.now() < self.comments_close_at
+
+    @property
+    def comments_last_day(self):
+        """The last day comments are taken (the day before comments_close_at, local time), or None."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        if self.comments_close_at is None:
+            return None
+        return timezone.localtime(self.comments_close_at - timedelta(microseconds=1)).date()
 
 
 class SpecTable(models.Model):
@@ -278,3 +305,40 @@ class ImpactTest(models.Model):
 
     def __str__(self):
         return f"Impact test of {self.version} at {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class SpecComment(models.Model):
+    """A comment on a proposed version, by a filer (for their organization) or by CPUC staff, about the whole version, a table or a
+    field. A CPUC answer to a filer's comment is a comment of its own that replies to it. Never changed (the database refuses, migration
+    0008): a correction is another comment. Read by anyone signed in, like the proposed version; kept with the version once it is
+    published, as the record of its consultation. Removed only with a draft that is discarded."""
+
+    version = models.ForeignKey(SpecificationVersion, on_delete=models.CASCADE, related_name="comments")
+    round = models.PositiveSmallIntegerField(help_text="Which proposal of the version it was written on (1 for the first)")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    author_name = models.CharField(max_length=200, help_text="As the author was named when they wrote it")
+    organisation = models.ForeignKey(
+        "accounts.Organisation", on_delete=models.PROTECT, related_name="+", help_text="The organization it was written for"
+    )
+    reply_to = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="replies", help_text="The comment a CPUC answer replies to"
+    )
+    table = models.CharField(max_length=60, blank=True, help_text="The table it is about (blank: the whole version)")
+    field = models.CharField(max_length=80, blank=True, help_text="The field of that table it is about (blank: the table)")
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"comment on {self.version} by {self.author_name}"
+
+    @property
+    def about(self) -> str:
+        """What it is about, in words: "Measure.NumUnits", "the Measure table" or "the whole version"."""
+        if self.table and self.field:
+            return f"{self.table}.{self.field}"
+        if self.table:
+            return f"the {self.table} table"
+        return "the whole version"

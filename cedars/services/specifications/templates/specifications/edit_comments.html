@@ -1,0 +1,17 @@
+{% extends "core/base.html" %}
+{% block title %}Comments: {{ v.specification.name }}, {{ v.name }} ({{ v.get_status_display|lower }}){% endblock %}
+{% block content %}
+<nav aria-label="Breadcrumb"><ol class="crumbs"><li><a href="{% url 'specifications:index' %}">Filing specifications</a></li><li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }} ({{ v.get_status_display|lower }})</a></li></ol></nav>
+<div class="page-title"><h1>{{ v.specification.name }}: {{ v.name }}</h1>{% page_help "specifications/edit_comments" %}</div>
+{% include "specifications/_edit_nav.html" %}
+{% if v.proposals %}
+<p>Filers commented on this version while it was proposed{% if v.proposals > 1 %} ({{ v.proposals }} proposals){% endif %}. Answer each comment
+here or on the version's page: the answer is shown under it to everyone signed in, and the filer is told. Change the draft to act on
+them, then propose it again or publish it.</p>
+{% with editing=True comments_shown=True comment_form=None %}{% include "specifications/_comments.html" %}{% endwith %}
+{% else %}
+<p id="no-proposal">This draft has not been proposed for comment. Proposing is optional: on the <a href="{% url 'specifications:edit_publish' v.specification.code v.slug %}">Publish</a>
+page, propose it with a last day for comments, and anyone signed in can read it, check a file against it and comment before it is
+published.</p>
+{% endif %}
+{% endblock %}
