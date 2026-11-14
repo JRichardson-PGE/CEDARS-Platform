@@ -183,6 +183,40 @@ specifications/edit_examples:
       text: Whether it passes, what it fails, the rules it does not show and the checks that need real reference data.
       optional: true
 
+specifications/edit_workbook:
+  title: Editing a draft in a workbook
+  guide:
+    - For changing many fields and rules at once. Download the draft as a workbook, change its Settings, Tables, Fields and Rules
+      sheets in Excel, and load it back. Its About sheet says what each sheet takes.
+    - In the Fields sheet each row is a field, in the template's order. Put a new name in Rename to to rename a field (its old name is
+      still accepted and its rules follow it), add a row to add a field and delete a row to remove one. In the Rules sheet a row with
+      no Rule ID is a new rule, a deleted row removes a rule, and a changed test gives the rule a new ID.
+    - Loading shows every difference first and whether any would be refused, with its sheet and row. Nothing changes until you
+      confirm with a reason; then every change is made, each checked as on its own page and kept in the draft's history, or none is.
+  how:
+    - Download the draft, change the workbook in Excel and save it.
+    - Load it and select Show the differences.
+    - Read the differences, give the reason and make the changes.
+  see: rules-and-lists
+  tour:
+    - target: "#draft-workbook"
+      title: The workbook
+      text: What it is for, and how the changes are made.
+    - target: "#workbook-download-h"
+      title: Download the draft
+      text: The draft as a workbook, and what each sheet takes.
+    - target: "#workbook-load-h"
+      title: Load it back
+      text: Choose the changed workbook to see its differences. Nothing changes yet.
+    - target: "#workbook-preview-h"
+      title: The differences
+      text: Every change the workbook makes, and any that would be refused.
+      optional: true
+    - target: "#workbook-confirm"
+      title: Make the changes
+      text: The reason kept with each change, and the button that makes them.
+      optional: true
+
 specifications/edit_impact:
   title: A draft's impact test
   guide:

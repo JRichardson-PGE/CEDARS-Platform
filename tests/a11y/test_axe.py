@@ -1544,6 +1544,35 @@ def test_axe_clean(browser, axe_source, site, scene, name, path, who, scheme):
     assert not found, f"{name} ({scheme}): " + json.dumps(found, indent=1)
 
 
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_workbook_preview_axe_clean(browser, axe_source, site, scene, scheme):
+    """The draft's Workbook page once a changed workbook is loaded: its differences, one the editor refuses, and the confirm form."""
+    import io
+
+    from openpyxl import load_workbook
+
+    base = "/specifications/monthly/monthly-reports-2029/edit/workbook/"
+    context, page = _open(browser, site, scene, base, "cpuc_admin", color_scheme=scheme, bypass_csp=True)
+    wb = load_workbook(io.BytesIO(page.request.get(site.url + base + "draft.xlsx").body()))
+    settings, fields = wb["Settings"], wb["Fields"]
+    for r in range(2, settings.max_row + 1):
+        if settings.cell(r, 1).value == "Summary":
+            settings.cell(r, 2).value = "Changed in the workbook"
+    for r in range(fields.max_row, 1, -1):
+        if fields.cell(r, 1).value == "Measure" and fields.cell(r, 2).value == "PrgID":  # locked: its removal is refused
+            fields.delete_rows(r)
+    out = io.BytesIO()
+    wb.save(out)
+    page.set_input_files("#workbook-form input[type=file]", files=[{"name": "draft.xlsx", "mimeType": "application/octet-stream",
+                                                                    "buffer": out.getvalue()}])  # fmt: skip
+    page.locator("#workbook-form button[type=submit]").click()
+    page.wait_for_selector("#workbook-changes")
+    assert page.locator("#workbook-problems").count() == 1 and page.locator("#workbook-confirm").count() == 1
+    found = _violations(page, axe_source, header_menus=False)
+    context.close()
+    assert not found, f"workbook preview ({scheme}): " + json.dumps(found, indent=1)
+
+
 # The header's menus on one page for each kind of user (signed out and every role in PAGES): the first page PAGES lists for it.
 HEADER_PAGES = []
 for _page in PAGES:

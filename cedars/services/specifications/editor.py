@@ -531,6 +531,29 @@ def change_field(actor, field: SpecField, *, position=None, reason: str = "", **
 
 
 @transaction.atomic
+def order_fields(actor, table: SpecTable, names: list[str], reason: str = "") -> SpecTable:
+    """Put a draft table's fields in the order of `names` (its fields' names; any left out keep their order after them), the order of
+    the template's columns. One audit event for the whole order."""
+    _require(actor)
+    t = SpecTable.objects.select_for_update().select_related("version__specification").get(pk=table.pk)
+    v = _draft(t.version)
+    fields = list(t.fields.order_by("position"))
+    by_name = {f.name.lower(): f for f in fields}
+    order = []
+    for n in names:
+        f = by_name.get((n or "").lower())
+        if f is not None and f not in order:
+            order.append(f)
+    order += [f for f in fields if f not in order]
+    before, after = [f.name for f in fields], [f.name for f in order]
+    if after != before:
+        _renumber(t, [f.pk for f in order])
+        audit.record("specification.fields_reordered", obj=v, before={"table": t.name, "order": before},
+                     after={"table": t.name, "order": after}, reason=reason, actor=actor)  # fmt: skip
+    return t
+
+
+@transaction.atomic
 def remove_field(actor, field: SpecField, reason: str = "") -> None:
     """Take a field out of a draft. A file that still has the column is accepted and the column ignored with a notice; data filed under
     earlier versions keeps it."""
