@@ -186,6 +186,7 @@ NOT_DESCRIBED: dict[str, str] = {
     "calculations.OutputTemplateDefault": "a person's own settings",
     "calculations.ResultView": "a person's own settings (saved Results columns)",
     "calculations.Worker": "machinery (calculation workers)",
+    "rules.CheckJob": "machinery (a filing's rules queued for its engine release's worker; the filing records the findings)",
     "data.DownloadJob": "machinery (background downloads)",
     "data.SavedView": "a person's saved page settings",
     "data.RecordColumnDefault": "a person's own settings",

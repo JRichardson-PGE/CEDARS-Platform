@@ -17,3 +17,7 @@ WHITENOISE_AUTOREFRESH = True
 # The vault beside the core database on the same server unless VAULT_DATABASE_URL names one (the test runner creates test_<name>).
 if "vault" not in DATABASES:
     DATABASES["vault"] = {**DATABASES["default"], "NAME": f"{DATABASES['default']['NAME']}_vault"}
+# Rules run in this process unless a test hands them to a worker; check jobs go through the test's own connection (in its transaction).
+DATABASES.pop("jobs", None)
+RULES_RUN_IN_WORKER = False
+RULES_JOBS_DATABASE = "default"

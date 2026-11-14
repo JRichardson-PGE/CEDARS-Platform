@@ -123,6 +123,20 @@ LIMITS = [
         bounds=(1, 150),
     ),
     Limit(
+        "check_wait_seconds",
+        "Time to wait for a check while you wait",
+        UPLOADS,
+        _editable("check_wait_seconds", "RULES_CHECK_WAIT_SECONDS"),
+        "seconds",
+        "The rules run by the worker of the engine release a filing's specification version names, when the page waits for them: the "
+        "pre-upload checker, a correction of a few records, the check of example files and the impact test. A filing's upload never "
+        "waits: its page shows the check while it runs.",
+        "The page says the rules were not checked yet and why. Check again in a minute; a correction is then checked as a whole.",
+        "RULES_CHECK_WAIT_SECONDS",
+        editable=True,
+        bounds=(10, 600),
+    ),
+    Limit(
         "correction_rows",
         "Records in one partial correction",
         UPLOADS,

@@ -854,6 +854,17 @@ def pricing_status(request, pk):
     return response
 
 
+def checking_status(request, pk):
+    """Where a filing version's check by its engine release's worker stands, as JSON, for its filing page to update itself while the
+    rules run: {"ended", "text"}. For anyone who may read the filing."""
+    v = get_object_or_404(SubmissionVersion.objects.select_related("submission__deadline", "submission__organisation"), pk=pk)
+    if not service.can_read_filing(request.user, v.submission):
+        raise Http404
+    response = JsonResponse(filing_parts.checking_state(v))
+    response["Cache-Control"] = "no-store"
+    return response
+
+
 # --- correcting a filing's records in place
 
 
@@ -907,7 +918,9 @@ def _outcome(request, v: SubmissionVersion, scope) -> None:
     what = f"Saved {n:,} record{'s' if n != 1 else ''}"
     again = (s.get("checked_again") or {}).get("records")
     checked = f"checked {again:,} record{'s' if again != 1 else ''} again" if again is not None else "checked every record again"
-    if v.status == SubmissionVersion.Status.VALIDATED:
+    if filing_parts.checking_words(v):
+        messages.info(request, f"{what}. " + filing_parts.checking_words(v))
+    elif v.status == SubmissionVersion.Status.VALIDATED:
         rest = "none is rejected, so the version is validated. Price it again before confirming."
         rest += f" {s['warnings']:,} have warnings." if s.get("warnings") else ""
         messages.success(request, f"{what} and {checked}: {rest}")

@@ -65,3 +65,51 @@ class Rule(models.Model):
 
     def __str__(self):
         return f"{self.rule_id} {self.message[:60]}"
+
+
+class CheckJob(models.Model):
+    """One run of a rule set's rules on one table, by the worker of the engine release a filing's specification version names
+    (`recet worker check`, jobs.py). Its spec, the table and the tables its conditions read are kept in the results store under
+    `storage_prefix`; the worker writes findings.json and receipt.json beside them. `key` is the SHA-256 of everything the findings depend
+    on (the release, the rules, the tables, the context), so a check whose inputs have not changed takes the findings of the last one.
+    Written through its own database connection (RULES_JOBS_DATABASE), so a worker sees it at once even while the request that
+    submitted it is still in its transaction."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Waiting for a worker"
+        RUNNING = "running", "Being checked"
+        SUCCEEDED = "succeeded", "Checked"
+        FAILED = "failed", "Failed"
+        REFUSED = "refused", "Refused by the worker"
+
+    ENDED = (Status.SUCCEEDED, Status.FAILED, Status.REFUSED)
+
+    id = models.UUIDField(primary_key=True)
+    key = models.CharField(max_length=64, db_index=True, help_text="SHA-256 of the release, rules, tables and context")
+    engine_release = models.CharField(max_length=40)
+    rule_set = models.ForeignKey(RuleSet, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    table = models.CharField(max_length=60)
+    rows = models.PositiveIntegerField(default=0)
+    purpose = models.CharField(max_length=20, blank=True, help_text="filing, correction, pre-upload check, example, impact test")
+    caller = models.JSONField(default=dict, blank=True, help_text="Who asked: {module, version} for a filing")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    backend = models.CharField(max_length=10, blank=True)
+    backend_job_id = models.CharField(max_length=200, blank=True)
+    worker = models.CharField(max_length=200, blank=True)
+    storage_prefix = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    receipt = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["status", "engine_release", "created_at"], name="rules_checkjob_queue")]
+
+    def __str__(self):
+        return f"check {self.id} ({self.table}, ReCET {self.engine_release}, {self.status})"
+
+    @property
+    def ended(self) -> bool:
+        return self.status in self.ENDED

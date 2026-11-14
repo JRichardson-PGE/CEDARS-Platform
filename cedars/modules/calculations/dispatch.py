@@ -11,7 +11,12 @@ batch  AWS Batch (production): submitting a run submits a Batch job, on the smal
        the job.
 
 Either way the worker reads its inputs from and writes its outputs to object storage (cedars.core.storage), and the run record is
-changed only through service.py."""
+changed only through service.py.
+
+Check jobs (cedars.services.rules.jobs: a filing's rules run by the worker of the release its specification version names) go the same
+two ways: the local worker takes queued check jobs of its release before runs (`recet worker check <spec URI>`; they are short), and on
+AWS Batch each is a job on the small-runs queue with the release's job definition, its command overridden to `recet worker check`,
+whose receipt `calculations_sync` reads. The rules service's job records change only through its own functions."""
 
 from __future__ import annotations
 
@@ -33,6 +38,8 @@ from django.db.models import Q
 from django.utils import timezone
 
 from cedars.core import health, storage
+from cedars.services.rules import jobs as checks
+from cedars.services.rules.models import CheckJob
 
 from . import service
 from .models import EngineRelease, Run, Worker
@@ -184,15 +191,29 @@ def _error_from(tail: str, code: int) -> str:
     return tail.strip()[-2000:] or f"the worker ended with exit code {code}"
 
 
-def work(once: bool = False, poll: float = 2.0, idle: float = 5.0, lanes=(Run.Lane.SMALL, Run.Lane.LARGE)) -> int:
-    """The worker loop: take a run, price it, repeat. Returns the number of runs priced (once=True: at most one)."""
+def work(
+    once: bool = False,
+    poll: float = 2.0,
+    idle: float = 2.0,
+    lanes=(Run.Lane.SMALL, Run.Lane.LARGE),
+    *,
+    take_checks: bool = True,
+    price: bool = True,
+) -> int:
+    """The worker loop: take a check job of its release if one waits (they are short, and a filer may be waiting for one), else a run to
+    price, repeat. Returns the number of runs priced (once=True: at most one run or check job). `price=False`: a worker kept free for
+    checks; `take_checks=False`: one that only prices."""
     name = f"{socket.gethostname()}:{os.getpid()}"
     release = worker_release()
     log.info("worker %s runs ReCET %s", name, release or "(unknown release)")
     done = 0
     while True:
         heartbeat(name, release, lanes, priced=done)
-        run = claim_next(name, lanes, release)
+        if take_checks and check_one(name, release, poll=poll):
+            if once:
+                return done
+            continue
+        run = claim_next(name, lanes, release) if price else None
         if run is None:
             if once:
                 return done
@@ -207,6 +228,54 @@ def work(once: bool = False, poll: float = 2.0, idle: float = 5.0, lanes=(Run.La
         done += 1
         if once:
             return done
+
+
+# --- check jobs on the local worker
+
+
+def check_one(name: str, release: str, poll: float = 2.0) -> bool:
+    """Take the next queued check job of this worker's release and run it; False when none waits."""
+    job = checks.claim_next(name, release)
+    if job is None:
+        return False
+    log.info("checking %s (%s, %s rows)", job.pk, job.table, job.rows)
+    try:
+        run_check_local(job)
+    except Exception as e:  # noqa: BLE001 - a crash here must not leave the job "running" for ever
+        log.exception("check job %s", job.pk)
+        checks.finish(job, exit_code=None, error=f"The platform's worker failed: {e}")
+    return True
+
+
+def run_check_local(job: CheckJob) -> CheckJob:
+    """Run one claimed check job to its end with the worker command (`recet worker check`)."""
+    with tempfile.TemporaryDirectory(prefix="cedars_check_") as work:
+        out = subprocess.run(  # noqa: S603 - the command is the platform's own setting, the spec URI its own storage
+            [*command(), "check", checks.spec_uri(job), "--work", str(Path(work) / "job")],
+            capture_output=True,
+            timeout=getattr(settings, "RULES_CHECK_TIMEOUT_SECONDS", 3600),
+            check=False,
+        )
+    tail = ((out.stdout or b"") + (out.stderr or b""))[-4000:].decode("utf-8", "replace")
+    receipt = checks.output(job, "receipt.json")
+    error = "" if out.returncode == 0 else ((receipt or {}).get("error") or _error_from(tail, out.returncode))
+    return checks.finish(job, exit_code=out.returncode, receipt=receipt, error=error)
+
+
+def submit_check(job: CheckJob) -> None:
+    """The rules service's dispatcher: hand a queued check job to this platform's backend."""
+    if default_backend_name() == "batch":
+        BatchBackend().submit_check(job)
+    else:
+        checks.submitted(job, "local")
+
+
+def resolve_release(release: str) -> str:
+    """The release that checks and prices a version naming `release`: itself, or the default release for a version naming none."""
+    if release:
+        return release
+    r = service.default_release()
+    return r.release if r is not None else ""
 
 
 # --- AWS Batch
@@ -242,6 +311,46 @@ class BatchBackend:
         )
         Run.objects.filter(pk=run.pk).update(backend_job_id=response["jobId"])
 
+    def submit_check(self, job: CheckJob) -> None:
+        """A check job: the release's job definition on the small-runs queue, its command `recet worker check <spec URI>`."""
+        release = EngineRelease.objects.filter(release=job.engine_release).first()
+        definition = (release.batch_job_definition if release else "") or getattr(settings, "CALCULATIONS_BATCH_JOB_DEFINITION", "")
+        if not definition:
+            checks.submitted(job, "batch")
+            checks.finish(job, exit_code=None, error=f"ReCET {job.engine_release} has no AWS Batch job definition set.")
+            return
+        response = self.client.submit_job(
+            jobName=f"check-{job.pk}"[:128],
+            jobQueue=settings.CALCULATIONS_BATCH_QUEUES[Run.Lane.SMALL],
+            jobDefinition=definition,
+            containerOverrides={"command": ["recet", "worker", "check", checks.spec_uri(job)]},
+            tags={"platform_check_id": str(job.pk)},
+            propagateTags=True,
+        )
+        checks.submitted(job, "batch", response["jobId"])
+
+    def sync_checks(self, found) -> int:
+        """Bring check jobs up to date with Batch and storage; returns how many ended."""
+        found = [j for j in found if j.backend_job_id]
+        described = {}
+        for i in range(0, len(found), 100):
+            for job in self.client.describe_jobs(jobs=[j.backend_job_id for j in found[i : i + 100]])["jobs"]:
+                described[job["jobId"]] = job
+        ended = 0
+        for job in found:
+            info = described.get(job.backend_job_id, {})
+            status = info.get("status")
+            if job.status == CheckJob.Status.QUEUED and status in ("STARTING", "RUNNING", "SUCCEEDED", "FAILED"):
+                job = checks.mark_started(job, "aws-batch")
+            receipt = checks.output(job, "receipt.json")
+            if status in ("SUCCEEDED", "FAILED") or (receipt and receipt.get("finished")):
+                code = (info.get("container") or {}).get("exitCode")
+                if code is None and receipt:
+                    code = 0 if receipt.get("status") == "succeeded" else 1
+                checks.finish(job, exit_code=code, receipt=receipt, error="" if code == 0 else (info.get("statusReason") or ""))
+                ended += 1
+        return ended
+
     def cancel(self, run: Run) -> None:
         if run.backend_job_id:
             self.client.terminate_job(jobId=run.backend_job_id, reason=f"stopped in CEDARS by {run.cancelled_by or 'the platform'}")
@@ -274,3 +383,8 @@ class BatchBackend:
 def sync_batch() -> int:
     runs = list(Run.objects.filter(backend="batch", status__in=[Run.Status.QUEUED, Run.Status.RUNNING]))
     return BatchBackend().sync(runs) if runs else 0
+
+
+def sync_batch_checks() -> int:
+    found = list(checks.jobs().filter(backend="batch", status__in=[CheckJob.Status.QUEUED, CheckJob.Status.RUNNING]))
+    return BatchBackend().sync_checks(found) if found else 0

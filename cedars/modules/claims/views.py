@@ -484,7 +484,9 @@ def _action(request, pk, fn, done: str):
 
 def _checked_message(request, v: SubmissionVersion) -> None:
     s = v.findings or {}
-    if v.status == SubmissionVersion.Status.VALIDATED:
+    if filing_parts.checking_words(v):
+        messages.info(request, filing_parts.checking_words(v))
+    elif v.status == SubmissionVersion.Status.VALIDATED:
         msg = f"Checked {s.get('records', 0):,} records: none rejected"
         msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
         messages.info(request, msg + " Price the year to date next.")

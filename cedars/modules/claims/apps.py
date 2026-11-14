@@ -19,6 +19,9 @@ class ClaimsConfig(AppConfig):
             "claims", checks.RULE_SET, "Quarterly claims", checks.precheck,
             year_help="The claim year; left blank, the one year the records are for.",
         )  # fmt: skip
+        from cedars.services.rules.jobs import register_finisher
+
+        register_finisher("claims", checks.finish_check)  # a filing's rules, run by its release's worker, come back to its version
         from cedars.services.rules.coded import register_coded_checks
 
         from . import coded_checks

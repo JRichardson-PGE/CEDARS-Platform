@@ -34,6 +34,13 @@ class CalculationsConfig(AppConfig):
         # and re-price a published filing as an analysis run that never touches it (restated results)
         register_restater(service.restate_version, service.restate_options, service.describe_run)
 
+        from cedars.services.rules.jobs import register_dispatcher
+
+        from . import dispatch
+
+        # a filing's rules run as check jobs on the worker of the release its specification version names, queued like runs
+        register_dispatcher(resolve=dispatch.resolve_release, submit=dispatch.submit_check, serves=dispatch.serves)
+
         from . import health
 
         health.register()  # stalled and failed runs on the administrators' health page

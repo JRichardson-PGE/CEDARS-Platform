@@ -356,7 +356,9 @@ def upload(request, pk):
         c = jobfile.combine(files)
         v = service.upload(request.user, deadline, org, c.data, c.filename, sources=c.sources)
         s = v.findings or {}
-        if v.status == SubmissionVersion.Status.VALIDATED:
+        if filing_parts.checking_words(v):
+            messages.info(request, filing_parts.checking_words(v))
+        elif v.status == SubmissionVersion.Status.VALIDATED:
             msg = f"Checked {s.get('records', 0):,} records: none rejected"
             msg += f", {s['warnings']:,} with warnings." if s.get("warnings") else "."
             messages.info(request, msg + " Price it next.")

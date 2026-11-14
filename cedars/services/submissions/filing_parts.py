@@ -24,6 +24,18 @@ from .models import SubmissionVersion
 # what a filer is told after an upload with rejected records, on every filing page
 REJECTED_NEXT = "The findings below say why: upload a corrected file, or correct the records one by one."
 
+
+def checking_words(v: SubmissionVersion) -> str:
+    """What a page says after an upload or a check whose rules are still being run by the release's worker ("" when they are not)."""
+    now = (v.findings or {}).get("checking") if v is not None else None
+    if not now:
+        return ""
+    return (
+        f"The file's own checks are done; its rules are being checked by ReCET {now.get('release', '')}'s worker. The page updates "
+        "itself when they finish, and the version can be priced once nothing is rejected."
+    )
+
+
 STEPS = ("Upload", "Check", "Price", "Confirm", "Published")
 
 
@@ -44,8 +56,8 @@ def status_words(v: SubmissionVersion | None, priced: bool) -> str:
 
 @dataclass
 class Stage:
-    """Where a filing stands: `key` names the state the page's outcome card shows (upload, fix, stale, price, nothing, pricing,
-    failed, confirm, confirmed, published, legacy), `step` the step line's current step (0-4), `words` the step in a sentence."""
+    """Where a filing stands: `key` names the state the page's outcome card shows (upload, checking, fix, stale, price, nothing,
+    pricing, failed, confirm, confirmed, published, legacy), `step` the step line's current step (0-4), `words` the step in a sentence."""
 
     key: str
     step: int
@@ -94,6 +106,9 @@ def stage(
         return Stage("confirmed", 4, f"version {v.number} is confirmed; it is published once its publication check passes.")
     if stale:
         return Stage("stale", 1, "an earlier confirmation has changed since this version was compiled on it, so it is checked again.")
+    if v.status == Status.DRAFT and (v.findings or {}).get("checking"):
+        release = v.findings["checking"].get("release", "")
+        return Stage("checking", 1, f"being checked by ReCET {release}'s worker. This page updates itself when the check finishes.")
     if v.status == Status.DRAFT:
         rejected = (v.findings or {}).get("rejected", 0)
         if not v.findings:
@@ -283,6 +298,11 @@ def pricing_state(v: SubmissionVersion, run_id: str) -> dict:
     return {"ended": False, "priced": False, "status": state.get("status", ""), "text": f"Being priced: the run is {label}."}
 
 
+def checking_state(v: SubmissionVersion) -> dict:
+    """What a filing page shows while its version's rules are checked by a worker, and polls (submissions:checking_status)."""
+    return submissions.checking_state(v)
+
+
 # --- what every filing page's view passes its templates
 
 
@@ -325,6 +345,7 @@ def context(
         "unchecked_notes": unchecked,
         "records_url": reverse("submissions:records", args=[v.pk]) if v is not None and can_correct else "",
         "upload_open": st.key in ("upload", "fix"),
+        "checking": checking_state(v) if st.key == "checking" else None,
     }
 
 
