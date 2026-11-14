@@ -301,9 +301,11 @@ def add_rule(request, pk):
         return redirect("rules:detail", pk=rs.pk)
     if request.method != "POST":
         return _rule_page(
-            request, rs, forms.RuleForm(initial={"kind": "rule", "severity": "reject", "modules": service.MODULES_FOR.get(rs.code, [])})
+            request,
+            rs,
+            forms.RuleForm(initial={"kind": "rule", "severity": "reject", "modules": service.MODULES_FOR.get(rs.code, [])}, rule_set=rs),
         )
-    form = forms.RuleForm(request.POST)
+    form = forms.RuleForm(request.POST, rule_set=rs)
     if form.is_valid():
         d = form.cleaned_data
         try:

@@ -160,13 +160,20 @@ rules/rule_form:
       part for the other kind is ignored.
     - Fields are picked from the data dictionary as you type. Any name the dictionary lists works too, such as CET's, and a key of
       several fields joins them with +. The name is kept as you give it.
+    - A rule may test any table of the filing its specification version lays out. A condition may read the record itself, the linked
+      record of another table of the filing (sharing its key, such as a claim's measure by ClaimID), the program's record in the
+      registry, or who files (the PA and its kind). Conditions put in the same group count as one condition, holding when all or any
+      of them hold.
+    - Besides comparisons, a test may look for text a field contains, whether a flag is true, compare dates (with a date, another date
+      field or UploadDate, the day of the upload), ask that a date be within a number of years of the upload, or that a code be in
+      effect on the date in another field.
     - The checker runs the rule once on a blank record before it is saved, so a rule it cannot run is never saved. A rule's ID is worked
       out from its test, so a changed test gives the rule a new ID that records the one it replaces. Leave the message and fix blank to
       have them written from the test.
   how:
     - Choose the kind of rule, then the table and the field it tests.
-    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to (More
-      conditions holds the second to the fifth).
+    - For a test on a record, choose the test and its value, and any conditions that pick out the records it applies to. For each,
+      choose what it reads, its field, its test, its value and, to join several into one, a group (More conditions holds the second to the fifth).
     - For a constraint on one field, choose what the field must be and what that constraint needs.
     - Choose whether a failing record is rejected or warned, give the reason, then Add the rule or Save the change.
   see: rules-and-lists

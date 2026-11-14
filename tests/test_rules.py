@@ -334,7 +334,7 @@ def test_add_a_rule_asks_the_kind_first_and_picks_fields(signed_in, cpuc_admin, 
 
     from cedars.services.dictionary import service as dictionary
 
-    catalog = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json"
+    catalog = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.95.json"
     dictionary.load_catalog(None, json.loads(catalog.read_text(encoding="utf-8")))
     draft = service.new_version(cpuc_admin, published_claims, date(2027, 1, 1), "D.26-01-001")
     c = signed_in(cpuc_admin)

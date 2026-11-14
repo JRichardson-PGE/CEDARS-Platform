@@ -39,6 +39,13 @@ upload page links the version under "Before you upload", and its findings name t
   requirement, type, value list and wording, rename it, or remove it), its rules, its built-in checks, its examples, its impact test, what changes from the version it was copied
   from, and Publish. A locked field, one the engine or CEDARS' own processing reads, stays with its type, and a required one stays
   required. There is one draft per specification at a time.</li>
+  <li id="writing-rules">A draft's rules may test any table of its filing, not only Measure and ProgramCost. A rule's conditions pick
+  out the records it applies to, and each condition may read the record itself, the record of another table linked to it by the
+  tables' keys (a claim's measure, by ClaimID), the program's record in the registry (its category, segment, sector, PA and more) or
+  who files (the PA and whether it is an IOU, REN or CCA). Conditions may be put in a group that counts as one, holding when all or any
+  of its conditions hold. Besides comparisons, a rule can ask that a field contain some text, that a flag be true, that a date be
+  before or after a date, another date field or the day of the upload, that a date be within a number of years of the upload, or that a
+  code be in effect on the date in another field. A rule that reads a table the file does not have is not run, and the findings say so.</li>
   <li id="workbook-editing">To change many fields and rules at once, use the draft's Workbook page: download the draft as a workbook,
   change its Settings, Tables, Fields and Rules sheets in Excel and load it back. In Fields, Rename to renames a field, a new row adds one
   and a deleted row removes one; in Rules, a row with no Rule ID is a new rule. Every difference is shown first, with any the editor would

@@ -34,12 +34,15 @@ class RuleField(pickers.FieldField):
     taken too (CET's or E3's), and a key of several fields joined by +. A name the dictionary knows is kept as given, so saving a
     rule's wording never changes its test (and so its ID); text that names no field gets the near matches."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, also=(), **kwargs):
+        self.also = set(also)
         super().__init__(kinds=["input", "record"], max_length=200, **kwargs)
 
     def clean(self, value):
         value = (forms.CharField.clean(self, value) or "").strip()
         if not value:
+            return value
+        if self.also and value in self.also:  # a field of the program record or of who files, which a condition may read
             return value
         out = []
         for part in (p.strip() for p in value.split("+")):
@@ -85,6 +88,18 @@ class RuleForm(forms.Form):
     connector = forms.ChoiceField(
         label="Apply the test when", choices=[("all", "every condition holds"), ("any", "any condition holds")], required=False
     )
+    effect_list = forms.ChoiceField(
+        label="Value list the code is on",
+        required=False,
+        help_text='For "is a code in effect on the date in field": the list whose codes\' first and last years are read. Blank: the list '
+        "named after the field.",
+    )
+    group1_connector = forms.ChoiceField(
+        label="Group 1 holds when", choices=[("all", "every condition in it holds"), ("any", "any condition in it holds")], required=False
+    )
+    group2_connector = forms.ChoiceField(
+        label="Group 2 holds when", choices=[("all", "every condition in it holds"), ("any", "any condition in it holds")], required=False
+    )
 
     # a constraint on one field
     check = forms.ChoiceField(label="The field must be", choices=[("", "Choose")] + service.CHECKS, required=False)
@@ -109,17 +124,35 @@ class RuleForm(forms.Form):
     modules = forms.MultipleChoiceField(label="Modules that apply it", choices=MODULES, widget=forms.CheckboxSelectMultiple, required=False)
     reason = forms.CharField(label="Why you are making this change", help_text="Kept in the audit trail.")
 
-    def __init__(self, *args, rule: Rule | None = None, **kwargs):
+    def __init__(self, *args, rule: Rule | None = None, rule_set=None, **kwargs):
         self.original = rule
+        self.rule_set = rule_set if rule_set is not None else (rule.rule_set if rule is not None else None)
         if rule is not None and "initial" not in kwargs:
             kwargs["initial"] = initial_for(rule)
         super().__init__(*args, **kwargs)
+        tables = service.tables_for(self.rule_set)
+        self.fields["table"].choices = [(t, t) for t in tables]
+        where = (
+            [("", "The record itself")]
+            + [(t, f"Its {t} record") for t in tables]
+            + [
+                (service.PROGRAM, "Its program (the registry's record)"),
+                (service.FILER, "Who files"),
+            ]
+        )
+        also = set(service.PROGRAM_FIELDS) | set(service.FILER_FIELDS)
         for i in range(1, CONDITIONS + 1):
-            self.fields[f"cond{i}_field"] = RuleField(label=f"Condition {i}: field", required=False, help_text="")
+            self.fields[f"cond{i}_table"] = forms.ChoiceField(label=f"Condition {i}: what it reads", choices=where, required=False)
+            self.fields[f"cond{i}_field"] = RuleField(label=f"Condition {i}: field", required=False, help_text="", also=also)
             self.fields[f"cond{i}_rule"] = forms.ChoiceField(
                 label=f"Condition {i}: test", choices=[("", "Choose")] + service.OPERATORS, required=False
             )
             self.fields[f"cond{i}_value"] = forms.CharField(label=f"Condition {i}: value", required=False, max_length=500)
+            self.fields[f"cond{i}_group"] = forms.ChoiceField(
+                label=f"Condition {i}: group",
+                choices=[("", "Not in a group")] + [(g, f"Group {g}") for g in service.GROUPS],
+                required=False,
+            )
         init = self.initial
         # a copied CEDARS rule may spell a test or a check the form does not offer: keep it, so saving the wording keeps the rule
         for name in ["rule"] + [f"cond{i}_rule" for i in range(1, CONDITIONS + 1)]:
@@ -131,12 +164,22 @@ class RuleForm(forms.Form):
                 (init["check"], service.ALSO_CHECKED.get(init["check"], init["check"]))
             ]
         self.fields["value_list"].choices = _value_list_choices(init.get("value_list", ""))
+        self.fields["effect_list"].choices = [("", "The list named after the field")] + _value_list_choices(init.get("effect_list", ""))[1:]
 
     def conditions(self) -> list[int]:
         return list(range(1, CONDITIONS + 1))
 
     def condition_fields(self):
-        return [(i, self[f"cond{i}_field"], self[f"cond{i}_rule"], self[f"cond{i}_value"]) for i in self.conditions()]
+        return [
+            (i, self[f"cond{i}_table"], self[f"cond{i}_field"], self[f"cond{i}_rule"], self[f"cond{i}_value"], self[f"cond{i}_group"])
+            for i in self.conditions()
+        ]
+
+    def program_fields(self):
+        return service.PROGRAM_FIELDS.items()
+
+    def filer_fields(self):
+        return service.FILER_FIELDS.items()
 
     def first_condition(self):
         return self.condition_fields()[0]
@@ -148,13 +191,15 @@ class RuleForm(forms.Form):
     def more_conditions_used(self) -> int:
         """How many of the folded conditions are filled in (or have an error), so the fold opens on them."""
         used = 0
-        for _, f, t, v in self.more_conditions():
-            if any(b.errors or (b.value() or "").strip() for b in (f, t, v)):
+        for _, tb, f, t, v, g in self.more_conditions():
+            if any(b.errors or (b.value() or "").strip() for b in (tb, f, t, v, g)):
                 used += 1
         return used
 
     def rule_part(self) -> list[str]:
-        return ["rule", "value", "connector"] + [f"cond{i}_{x}" for i in self.conditions() for x in ("field", "rule", "value")]
+        return ["rule", "value", "connector", "effect_list", "group1_connector", "group2_connector"] + [
+            f"cond{i}_{x}" for i in self.conditions() for x in ("table", "field", "rule", "value", "group")
+        ]
 
     SPEC_PART = ["check", "n", "value_list", "lo", "lo_open", "hi", "hi_open"]
 
@@ -171,11 +216,29 @@ class RuleForm(forms.Form):
             if kind == "rule":
                 if not d.get("rule"):
                     raise service.RuleError("Choose the test.")
-                conds = [(d.get(f"cond{i}_field", ""), d.get(f"cond{i}_rule", ""), d.get(f"cond{i}_value", "")) for i in self.conditions()]
-                for f, r, _ in conds:
+                conds = [
+                    (
+                        d.get(f"cond{i}_table", "") or d["table"],
+                        d.get(f"cond{i}_field", ""),
+                        d.get(f"cond{i}_rule", ""),
+                        d.get(f"cond{i}_value", ""),
+                        d.get(f"cond{i}_group", ""),
+                    )
+                    for i in self.conditions()
+                ]
+                for _tb, f, r, _v, _g in conds:
                     if f.strip() and not r:
                         raise service.RuleError(f"Choose the test for the condition on {f.strip()}.")
-                definition = service.rule_definition(field, d["rule"], d.get("value", ""), conds, d.get("connector") or "all", d["table"])
+                definition = service.rule_definition(
+                    field,
+                    d["rule"],
+                    d.get("value", ""),
+                    conds,
+                    d.get("connector") or "all",
+                    d["table"],
+                    groups={"1": d.get("group1_connector") or "all", "2": d.get("group2_connector") or "all"},
+                    value_list=d.get("effect_list", ""),
+                )
             else:
                 check = d.get("check")
                 if not check:
@@ -193,7 +256,7 @@ class RuleForm(forms.Form):
                         lo_open=d.get("lo_open"),
                         hi_open=d.get("hi_open"),
                     )
-            service.validate(kind, d["severity"], d["table"], field, definition)
+            service.validate(kind, d["severity"], d["table"], field, definition, self.rule_set)
         except service.RuleError as e:
             raise forms.ValidationError(str(e)) from e
         d["definition"] = definition
@@ -214,9 +277,24 @@ def initial_for(rule: Rule) -> dict:
         "modules": rule.modules,
     }
     if rule.kind == "rule":
-        out |= {"rule": d.get("rule", ""), "value": d.get("value", ""), "connector": d.get("connector", "all")}
-        for i, c in enumerate(d.get("conds", [])[:CONDITIONS], start=1):
-            out |= {f"cond{i}_field": c[1], f"cond{i}_rule": c[2], f"cond{i}_value": c[3]}
+        out |= {
+            "rule": d.get("rule", ""),
+            "value": d.get("value", ""),
+            "connector": d.get("connector", "all"),
+            "effect_list": d.get("list", ""),
+        }
+        flat, n = [], 0
+        for c in d.get("conds", []):
+            if isinstance(c, dict):
+                n += 1
+                out[f"group{n}_connector"] = c.get("connector", "all")
+                flat += [(x, str(n)) for x in c.get("conds") or []]
+            else:
+                flat.append((c, ""))
+        for i, (c, g) in enumerate(flat[:CONDITIONS], start=1):
+            own = not str(c[0]).strip() or str(c[0]).strip() == rule.table
+            out |= {f"cond{i}_table": "" if own else c[0], f"cond{i}_field": c[1], f"cond{i}_rule": c[2], f"cond{i}_value": c[3],
+                    f"cond{i}_group": g}  # fmt: skip
     else:
         out |= {
             "check": d.get("check", ""),

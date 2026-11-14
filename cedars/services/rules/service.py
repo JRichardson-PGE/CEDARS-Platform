@@ -54,6 +54,38 @@ def suggested_fix(kind: str, field: str, definition: dict, message: str) -> str:
     return f"Change {field} so that this holds: {message[:1].lower() + message[1:]}."
 
 
+# --- the tables a rule set's rules may read
+
+_layout_providers: list = []
+
+
+def register_layout_provider(provider) -> None:
+    """Called by the specifications service: `provider(rule_set)` returns {"tables": [...], "keys": {table: [key columns]}} for the
+    tables of the specification version that names the rule set (its non-vault tables), or None."""
+    if provider not in _layout_providers:
+        _layout_providers.append(provider)
+
+
+def layout_of(rs: "RuleSet | None") -> dict:
+    """The tables a rule set's rules may test and their key columns: those of the specification version that names it, else the two
+    tables CEDARS' rule files cover."""
+    if rs is not None:
+        for provider in _layout_providers:
+            found = provider(rs)
+            if found:
+                return {"tables": list(found.get("tables") or TABLES), "keys": dict(found.get("keys") or {})}
+    return {"tables": list(TABLES), "keys": {}}
+
+
+def tables_for(rs: "RuleSet | None") -> list[str]:
+    return layout_of(rs)["tables"]
+
+
+def condition_tables(rs: "RuleSet | None") -> list[str]:
+    """What a condition may read: a table of the filing, the program's record or who files."""
+    return [*tables_for(rs), PROGRAM, FILER]
+
+
 # --- rule sets
 
 
@@ -107,7 +139,25 @@ class RuleError(ValueError):
     """A rule the engine could not run, or a change the rule library does not allow; the message says why."""
 
 
-TABLES = ["Measure", "ProgramCost"]
+TABLES = ["Measure", "ProgramCost"]  # a rule set no specification version names (CEDARS' rule files cover these two)
+# what a condition may read besides the tables of the filing: the program's record in the registry, and who files
+PROGRAM = "Program"
+FILER = "Filer"
+PROGRAM_FIELDS = {
+    "PrgID": "The program's ID",
+    "PA": "The code of the PA that administers it",
+    "Statewide": "1 for a statewide program, else 0",
+    "Name": "The program's name",
+    "Status": "Its status (new, active, closed ...)",
+    "Segment": "Its segment",
+    "PrimarySector": "Its primary sector",
+    "Category": "Its category",
+    "Implementer": "Who implements it",
+    "StartYear": "Its first year",
+    "EndYear": "Its last year",
+}
+FILER_FIELDS = {"PA": "The code of the PA that files", "PAType": "The kind of PA that files: IOU, REN or CCA"}
+GROUPS = ("1", "2")  # the groups a condition may join (one level: a group holds plain conditions)
 # what a validation or warning rule may test (recet.filing_rules._compare), as offered on the rule form
 OPERATORS = [
     ("equals", "equals"),
@@ -123,10 +173,22 @@ OPERATORS = [
     ("starts with string", "starts with"),
     ("ends with string", "ends with"),
     ("matches_year_quarter", "has the year of"),
+    ("contains", "contains"),
+    ("does not contain", "does not contain"),
+    ("is true", "is true (1, true or yes)"),
+    ("is not true", "is not true (blank, 0 or false)"),
+    ("is before", "is a date before"),
+    ("is on or before", "is a date on or before"),
+    ("is after", "is a date after"),
+    ("is on or after", "is a date on or after"),
+    ("within years of upload", "is a date within this many years of the upload"),
+    ("in effect on", "is a code in effect on the date in field"),
 ]
+DATE_HELP = "A date as YYYY-MM-DD, a date field's name, or UploadDate for the day of the upload."
 # the engine's other spellings, which CEDARS' own rule files use; accepted on a rule copied from them, not offered on the form
 ALSO_ACCEPTED = {"greater than": "is greater than", "greater than or equal to": "is greater than or equal to", "less than": "is less than"}
-NO_VALUE = {"is not null", "is null"}
+NO_VALUE = {"is not null", "is null", "is true", "is not true"}
+TEST_ONLY = {"within years of upload", "in effect on"}  # a rule's own test, never a condition
 LIST_VALUE = {"in", "not in"}
 # the field constraints a rule may be (recet.filing_rules._apply_spec), with the parameters each takes
 CHECKS = [
@@ -154,22 +216,44 @@ def _value_text(rule: str, value) -> str:
     return v
 
 
-def rule_definition(field: str, rule: str, value="", conditions=(), connector: str = "all", table: str = "") -> dict:
+def rule_definition(
+    field: str, rule: str, value="", conditions=(), connector: str = "all", table: str = "", groups: dict | None = None, value_list=""
+) -> dict:
     """A validation or warning rule's definition as the engine reads it (the rule files' Field, Rule, Value and up to five Where
-    conditions): `conditions` is a list of (field, rule, value); the test applies to a record only where they hold (all, or any)."""
+    conditions). `conditions` is a list of (field, rule, value), or (table, field, rule, value, group): the table a condition reads
+    (blank: the record's own; another table of the filing, Program or Filer) and the group it joins ("" or one of GROUPS). The test
+    applies to a record only where the conditions hold (all, or any); a group's conditions are joined by its own connector
+    (`groups`: {group: "all" | "any"}) and the group counts as one condition, placed where its first condition is."""
     rule = (rule or "").strip().lower()
-    conds = []
-    for f, r, v in conditions:
-        if (f or "").strip():
-            r = (r or "").strip().lower()
-            conds.append([table, f.strip(), r, _value_text(r, v)])  # CEDARS' files name the table on each condition
-    return {
+    conds: list = []
+    placed: dict[str, dict] = {}
+    for c in conditions:
+        if len(c) == 3:
+            tb, f, r, v, g = table, *c, ""
+        else:
+            tb, f, r, v, g = (list(c) + ["", "", "", "", ""])[:5]
+        if not (f or "").strip():
+            continue
+        r = (r or "").strip().lower()
+        cond = [(tb or "").strip() or table, f.strip(), r, _value_text(r, v)]  # CEDARS' files name the table on each condition
+        g = str(g or "").strip()
+        if not g:
+            conds.append(cond)
+            continue
+        if g not in placed:
+            placed[g] = {"connector": "any" if (groups or {}).get(g) == "any" else "all", "conds": []}
+            conds.append(placed[g])
+        placed[g]["conds"].append(cond)
+    out = {
         "field": (field or "").strip(),
         "rule": rule,
         "value": _value_text(rule, value),
         "connector": "any" if connector == "any" else "all",
         "conds": conds,
     }
+    if rule == "in effect on" and (value_list or "").strip():
+        out["list"] = value_list.strip()
+    return out
 
 
 def check_definition(check: str, **params) -> dict:
@@ -238,17 +322,8 @@ def _id_and_text(kind: str, severity: str, table: str, field: str, d: dict) -> t
     if kind == "spec":
         params = sorted(f"{k}={v}" for k, v in d.items() if k != "check")
         return filing_rules._rule_id("S", table, field, d["check"], *params), _spec_text(field, d)
-    conds = [tuple(c) for c in d["conds"]]
-    rid = filing_rules._rule_id(
-        "V" if severity == "reject" else "W",
-        table,
-        field,
-        d["rule"],
-        d["value"],
-        d["connector"] if len(conds) > 1 else "",
-        *(x for c in sorted(conds) for x in c),
-    )
-    return rid, filing_rules._describe(d)
+    rid = filing_rules.rule_id(severity, table, field, d["rule"], d["value"], d["connector"], d["conds"])
+    return rid, filing_rules.describe(d, table)
 
 
 def known_field(name: str) -> bool:
@@ -257,17 +332,46 @@ def known_field(name: str) -> bool:
     return dictionary.current() is None or dictionary.resolve(name) is not None
 
 
-def validate(kind: str, severity: str, table: str, field: str, d: dict) -> None:
+def _own(cond_table: str, table: str) -> bool:
+    return not (cond_table or "").strip() or cond_table.strip().lower() == table.lower()
+
+
+def validate(kind: str, severity: str, table: str, field: str, d: dict, rs: "RuleSet | None" = None) -> None:
     """Refuse a rule the engine cannot run: an unknown table, field, operator, value list or value. The rule is run once on a blank
-    record, so a rule saved here is one the checker runs."""
+    record (with blank records of the tables its conditions read), so a rule saved here is one the checker runs. `rs`: the rule set it
+    is for, whose specification version decides the tables."""
     filing_rules, fieldnames = _engine()
     if severity not in Rule.Severity.values:
         raise RuleError("Choose whether the rule rejects the record or gives a warning.")
-    if table not in TABLES:
-        raise RuleError(f"Choose the table: {', '.join(TABLES)}.")
+    lay = layout_of(rs)
+    tables = lay["tables"]
+    if table not in tables:
+        raise RuleError(f"Choose the table: {', '.join(tables)}.")
     if not field:
         raise RuleError("Give the field the rule tests.")
-    named = [field] if kind == "spec" else [field] + [c[1] for c in d["conds"]]
+    conds = [] if kind == "spec" else filing_rules.conditions(d)
+    if kind == "rule":
+        for c in d.get("conds") or []:
+            if isinstance(c, dict):
+                if not c.get("conds"):
+                    raise RuleError("A group of conditions is empty.")
+                if any(isinstance(x, dict) for x in c["conds"]):
+                    raise RuleError("Groups of conditions hold plain conditions only.")
+        where = {t.lower(): t for t in condition_tables(rs)}
+        for c in conds:
+            if not _own(c[0], table) and c[0].strip().lower() not in where:
+                raise RuleError(f"A condition reads {c[0]}, which is not a table of the filing, {PROGRAM} or {FILER}.")
+            if c[0].strip().lower() == PROGRAM.lower() and c[1] not in PROGRAM_FIELDS:
+                raise RuleError(f"{c[1]} is not a field of the program record ({', '.join(PROGRAM_FIELDS)}).")
+            if c[0].strip().lower() == FILER.lower() and c[1] not in FILER_FIELDS:
+                raise RuleError(f"{c[1]} is not something known about who files ({', '.join(FILER_FIELDS)}).")
+            if not _own(c[0], table) and c[0].strip().lower() not in (PROGRAM.lower(), FILER.lower()):
+                keys = {k.lower(): v for k, v in lay["keys"].items()}
+                if not keys.get(c[0].strip().lower()) and not keys.get(table.lower()):
+                    raise RuleError(f"No key links {table} to {c[0]}, so a condition cannot read it.")
+            if c[2] in TEST_ONLY:
+                raise RuleError(f'"{dict(OPERATORS)[c[2]]}" is a test, not a condition.')
+    named = [field] + [c[1] for c in conds if c[0].strip().lower() not in (PROGRAM.lower(), FILER.lower())]
     fields = [part.strip() for f in named for part in f.split("+") if part.strip()]  # a key or combination names several
     unknown = [f for f in fields if not known_field(f)]
     if unknown:
@@ -285,26 +389,56 @@ def validate(kind: str, severity: str, table: str, field: str, d: dict) -> None:
         ops = dict(OPERATORS) | {k: dict(OPERATORS)[v] for k, v in ALSO_ACCEPTED.items()}
         if d["rule"] == "combo_value_list":  # CEDARS' profile-combination rule, checked against the library
             ops["combo_value_list"] = "is a combination in the impact-profile library"
-        for r in [d["rule"]] + [c[2] for c in d["conds"]]:
+        for r in [d["rule"]] + [c[2] for c in conds]:
             if r not in ops:
                 raise RuleError(f"{r or '(blank)'} is not a test the checker runs.")
-        for r, v in [(d["rule"], d["value"])] + [(c[2], c[3]) for c in d["conds"]]:
+        for r, v in [(d["rule"], d["value"])] + [(c[2], c[3]) for c in conds]:
             if r not in NO_VALUE and not v:
                 raise RuleError(f'Give the value for "{ops[r]}".')
-    columns = {fieldnames.recet_name(f) for f in fields}
-    if kind == "rule":
-        for v in [d["value"]] + [c[3] for c in d["conds"]]:
-            head = str(v).split()[0] if str(v).split() else ""
-            if head and head.isidentifier() and known_field(head) and head.lower() not in ("filingyear",):
-                columns.add(fieldnames.recet_name(head))
+        if d["rule"] == "within years of upload":
+            try:
+                if float(d["value"]) < 0 or float(d["value"]) != int(float(d["value"])):
+                    raise ValueError
+            except ValueError:
+                raise RuleError("Give the number of years as a whole number.") from None
+        if d["rule"] == "in effect on" and not known_field(str(d["value"]).strip()):
+            raise RuleError("Give the date field the code must be in effect on.")
     import pandas as pd
 
-    blank = pd.DataFrame({c: [""] for c in columns})
+    def columns_of(tb: str) -> set[str]:
+        own = _own(tb, table)
+        out = {fieldnames.recet_name(f) for f in ([field] if own else [])}
+        out |= {fieldnames.recet_name(c[1]) for c in conds if (own and _own(c[0], table)) or (not own and c[0].strip() == tb)}
+        if kind == "rule" and own:
+            for v in [d["value"]] + [c[3] for c in conds if _own(c[0], table)]:
+                head = str(v).split()[0] if str(v).split() else ""
+                if head and head.isidentifier() and known_field(head) and head.lower() not in ("filingyear", "uploaddate"):
+                    out.add(fieldnames.recet_name(head))
+        return out
+
+    others = {c[0].strip() for c in conds if not _own(c[0], table) and c[0].strip().lower() not in (PROGRAM.lower(), FILER.lower())}
+    keys = lay["keys"]
+    program = {"PrgID"} if any(c[0].strip().lower() == PROGRAM.lower() for c in conds) else set()
+    frames = {table: pd.DataFrame({c: [""] for c in columns_of(table) | set(keys.get(table, [])) | program})}
+    for tb in others:
+        name = next((t for t in tables if t.lower() == tb.lower()), tb)
+        frames[name] = pd.DataFrame({c: [""] for c in columns_of(tb) | set(keys.get(name, []))})
+    ctx = filing_rules.Context(
+        filing_year=2028,
+        upload_date=date(2028, 1, 1),
+        filer={k: "" for k in FILER_FIELDS},
+        programs=pd.DataFrame({k: [] for k in PROGRAM_FIELDS}),
+        tables=frames,
+        keys=keys,
+    )
     probe = filing_rules.RuleSet("check", "0000-00-00", None, [filing_rules.Rule("X", severity, table, field, "", kind, "", d)])
     try:
-        filing_rules.check_frame(probe, table, blank, filing_rules.Context(filing_year=2028))
+        _results, notes = filing_rules.check_frame(probe, table, frames[table], ctx)
     except Exception as e:  # noqa: BLE001 - whatever the engine says is the reason the rule cannot be saved
         raise RuleError(f"The checker cannot run this rule: {e}") from e
+    blocked = [n for n in notes if "no key links" in n or ("the filing has no " in n and n.rstrip(" ()").endswith("table"))]
+    if blocked:
+        raise RuleError(f"The checker cannot run this rule: {blocked[0].split(': ', 1)[-1].removesuffix(' ()')}.")
 
 
 def _require_draft(rs: RuleSet) -> None:
@@ -373,7 +507,7 @@ def add_rule(
     field = (field or "").strip()
     if kind == "rule":
         definition = {**definition, "field": field}
-    validate(kind, severity, table, field, definition)
+    validate(kind, severity, table, field, definition, rs)
     rid, text = _id_and_text(kind, severity, table, field, definition)
     if rs.rules.filter(rule_id=rid).exists():
         raise RuleError(f"This set already has that rule ({rid}).")
@@ -428,7 +562,7 @@ def edit_rule(
     if test["kind"] == "rule":
         test["definition"] = {**test["definition"], "field": test["field"]}
     if any(test[k] != getattr(rule, k) for k in TEST):
-        validate(test["kind"], test["severity"], test["table"], test["field"], test["definition"])
+        validate(test["kind"], test["severity"], test["table"], test["field"], test["definition"], rule.rule_set)
         rid, text = _id_and_text(test["kind"], test["severity"], test["table"], test["field"], test["definition"])
         if rid != rule.rule_id and Rule.objects.filter(rule_set_id=rule.rule_set_id, rule_id=rid).exists():
             raise RuleError(f"This set already has that rule ({rid}).")
@@ -487,11 +621,16 @@ def renamed_test(rule_table: str, field: str, definition: dict, table: str, old:
                 d[k] = name(d[k])
         if isinstance(d.get("columns"), list):
             d["columns"] = [name(c) for c in d["columns"]]
+
+    def cond(c):
+        if isinstance(c, dict):
+            return {**c, "conds": [cond(x) for x in c.get("conds") or []]}
+        if isinstance(c, list | tuple) and len(c) >= 4 and (c[0] == table or (own and not str(c[0]).strip())):
+            return [c[0], name(c[1]), c[2], name(c[3]), *c[4:]]
+        return c
+
     if isinstance(d.get("conds"), list):
-        d["conds"] = [
-            [c[0], name(c[1]), c[2], name(c[3]), *c[4:]] if isinstance(c, list | tuple) and len(c) >= 4 and c[0] == table else c
-            for c in d["conds"]
-        ]
+        d["conds"] = [cond(c) for c in d["conds"]]
     return field, d
 
 
@@ -588,6 +727,83 @@ class Finding:
     value: str = ""
 
 
+@dataclass
+class CheckContext:
+    """What the wider rule language reads beyond the table checked: the filing's other tables (raw text, by name), their key columns,
+    who files ({PA, PAType}), the program records ({PrgID: {field: value}}, PROGRAM_FIELDS) and the day of the upload. Each is
+    optional: a rule that reads one not given is noted as not checked, never failed."""
+
+    tables: dict | None = None
+    keys: dict | None = None
+    filer: dict | None = None
+    programs: list | None = None
+    upload_date: date | None = None
+
+    def engine(self, filing_rules, filing_year, library):
+        import pandas as pd
+
+        programs = None
+        if self.programs is not None:
+            programs = pd.DataFrame(self.programs, columns=list(PROGRAM_FIELDS)).astype("string").fillna("")
+        return filing_rules.Context(
+            filing_year=filing_year,
+            library=library,
+            upload_date=self.upload_date,
+            filer=self.filer,
+            programs=programs,
+            tables=self.tables,
+            keys=self.keys,
+        )
+
+
+def filer_record(organisation) -> dict:
+    """Who files, as a condition on Filer reads it."""
+    if organisation is None:
+        return {}
+    return {"PA": organisation.code, "PAType": getattr(organisation, "pa_type", "") or ""}
+
+
+def program_records(prg_ids, on: date | None = None) -> list[dict]:
+    """The registry's records of the programs named (PROGRAM_FIELDS, each program's version on `on`, today by default), as a condition
+    on Program reads them. A program not in the registry has no record (its fields read as blank)."""
+    from cedars.services.registry import service as registry
+    from cedars.services.registry.models import Program
+
+    day = on or timezone.localdate()
+    out = []
+    ids = {str(p).strip() for p in prg_ids if str(p or "").strip()}
+    for p in Program.objects.filter(prg_id__in=ids).select_related("administrator"):
+        v = registry.version_on(p, day) or registry.current_version(p)
+        out.append(
+            {
+                "PrgID": p.prg_id,
+                "PA": getattr(p.administrator, "code", "") if p.administrator_id else "",
+                "Statewide": "1" if p.statewide else "0",
+                "Name": v.name if v else "",
+                "Status": v.status if v else "",
+                "Segment": v.segment if v else "",
+                "PrimarySector": v.primary_sector if v else "",
+                "Category": v.category if v else "",
+                "Implementer": v.implementer if v else "",
+                "StartYear": str(v.start_year or "") if v else "",
+                "EndYear": str(v.end_year or "") if v else "",
+            }
+        )
+    return out
+
+
+def reads(rs: RuleSet, what: str = "") -> bool:
+    """Whether a rule set has a rule with a condition on `what` (PROGRAM, FILER or a table's name) that is not the rule's own table,
+    so a caller fetches it only then; with no `what`, on anything beyond the rule's own record."""
+    filing_rules, _ = _engine()
+    for r in rs.rules.filter(kind="rule"):
+        for c in filing_rules.conditions(r.definition or {}):
+            tb = str(c[0]).strip().lower()
+            if tb and tb != r.table.lower() and (not what or tb == what.lower()):
+                return True
+    return False
+
+
 def _engine_rule_set(rs: RuleSet, skip=()):
     filing_rules, _ = _engine()
     rules = [
@@ -674,6 +890,11 @@ def spec_columns(rs: RuleSet, table: str) -> list[str]:
 
 
 def _names_in(value) -> set[str]:
+    """(UploadDate and FilingYear name no column.)"""
+    return {n for n in _names_in_value(value) if n.lower() != "uploaddate"}
+
+
+def _names_in_value(value) -> set[str]:
     """The column a rule's value names, if it names one: a bare word ("UnitkWh1stBaseline") or arithmetic on one ("EUL_Yrs /2.75");
     not a number, a quoted text, a list or FilingYear. A bare word that is not a column is harmless: it is only compared with the
     columns a file lacks."""
@@ -693,16 +914,19 @@ def _names_in(value) -> set[str]:
 
 
 def columns_needed(rule: Rule) -> set[str]:
-    """Every column a rule reads: its field (both of a two-column key), a uniqueness rule's columns, its conditions' fields and the
-    columns its values name."""
+    """Every column of its own table a rule reads: its field (both of a two-column key), a uniqueness rule's columns, its conditions'
+    fields on its own table (in groups too) and the columns their values name. A condition on another table, the program or the filer
+    reads no column of this one."""
     d = rule.definition or {}
     names = {p.strip() for p in (rule.field or "").split("+") if p.strip()}
     if rule.kind == "spec":
         names |= {str(c) for c in d.get("columns") or []}
         return names
     names |= {p.strip() for p in str(d.get("field", "")).split("+") if p.strip()}
-    for cond in d.get("conds") or []:
-        if len(cond) >= 4:
+    conds = [c for c in d.get("conds") or [] if not isinstance(c, dict)]
+    conds += [x for c in d.get("conds") or [] if isinstance(c, dict) for x in c.get("conds") or []]
+    for cond in conds:
+        if len(cond) >= 4 and _own(str(cond[0]), rule.table):
             names.add(str(cond[1]).strip())
             names |= _names_in(cond[3])
     names |= _names_in(d.get("value"))
@@ -736,20 +960,32 @@ def missing_columns_note(table: str, missing: int, skipped: int, spec: str) -> s
 
 
 def check(
-    rs: RuleSet, table: str, df, *, filing_year: int | None = None, id_column: str = "CEInputID", skip=()
+    rs: RuleSet,
+    table: str,
+    df,
+    *,
+    filing_year: int | None = None,
+    id_column: str | list[str] = "CEInputID",
+    skip=(),
+    context: CheckContext | None = None,
 ) -> tuple[list[Finding], list[str]]:
     """Run a rule set's rules for `table` on a raw-text frame: every failing (record, rule) as a Finding, rejects first, and notes on rules
     that could not be checked. Findings name fields and wording with the data dictionary's names. `skip`: rule IDs not to run (those
-    that read a column the file lacks, `needing`)."""
+    that read a column the file lacks, `needing`). `context`: the filing's other tables, who files, the programs and the upload date,
+    which the wider rule language reads. `id_column`: the column (or key columns) that names a record in the findings."""
     from cedars.services.dictionary import value_lists
 
     filing_rules, _ = _engine()
     value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
-    ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
+    ctx = (context or CheckContext()).engine(filing_rules, filing_year, library_available())
     results, notes = filing_rules.check_frame(_engine_rule_set(rs, skip), table, df, ctx)
     notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]
     fixes = dict(rs.rules.values_list("rule_id", "fix"))
-    ids = df[id_column].astype(str).to_numpy() if id_column in df.columns else [""] * len(df)
+    id_cols = [id_column] if isinstance(id_column, str) else list(id_column)
+    if all(c in df.columns for c in id_cols) and id_cols:
+        ids = df[id_cols].astype(str).agg(" / ".join, axis=1).to_numpy()
+    else:
+        ids = [""] * len(df)
     findings = []
     for res in sorted(results, key=lambda r: r.rule.severity != "reject"):
         actual = res.actual
@@ -771,27 +1007,20 @@ def check(
     return findings, notes
 
 
-def condition_met(rule: Rule, df, *, filing_year: int | None = None) -> bool:
+def condition_met(rule: Rule, df, *, filing_year: int | None = None, context: CheckContext | None = None) -> bool:
     """Whether a conditional rule's condition holds on any record of a raw-text frame (an example file shows the rule only then).
-    A condition on a column the frame lacks never holds; a rule with no condition always applies."""
+    A condition on a column the frame lacks, or on something the context does not give, never holds; a rule with no condition always
+    applies."""
     filing_rules, _ = _engine()
     d = rule.definition or {}
     conds = d.get("conds") or []
     if not conds or df is None or not len(df):
         return bool(not conds and df is not None and len(df))
-    import numpy as np
-
-    t = filing_rules._Table(df)
-    ctx = filing_rules.Context(filing_year=filing_year, library=library_available())
-    anyof = d.get("connector") == "any"
-    applies = np.zeros(t.n, bool) if anyof else np.ones(t.n, bool)
-    for _table, field, op, value in conds:
-        try:
-            held, _known = filing_rules._compare(t, field, str(op).lower(), value, ctx)
-        except KeyError:
-            held = np.zeros(t.n, bool)
-        applies = (applies | held) if anyof else (applies & held)
-    return bool(applies.any())
+    ctx = (context or CheckContext()).engine(filing_rules, filing_year, library_available())
+    try:
+        return bool(filing_rules.applies(d, rule.table, df, ctx).any())
+    except (KeyError, filing_rules.NotCheckable):
+        return False
 
 
 def by_rule(problems, limit: int = 20) -> list[dict]:

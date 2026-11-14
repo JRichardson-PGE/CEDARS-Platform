@@ -78,7 +78,7 @@ def fake_rules(monkeypatch):
     """A rule set in force whose one rule rejects a measure with NumUnits "bad": the budget filing rules without the engine."""
     rs = SimpleNamespace(label="Test rules", effective_from="2026-01-01")
 
-    def on(frames, covers, _rs):
+    def on(frames, covers, _rs, context=None):
         out = []
         for t, rows in frames.items():
             for i, r in enumerate(rows, start=2):
@@ -86,7 +86,7 @@ def fake_rules(monkeypatch):
                     out.append(service.Problem(i, jobfile.get(r, "CEInputID"), t, "NumUnits", "V-TEST", "reject", "bad", "fix"))
         return out, ["The test rules ran."]
 
-    def full(tables, cycle, _rs=None):
+    def full(tables, cycle, _rs=None, organisation=None, upload_date=None):
         out, notes = on({t: jobfile.rows(tables[t])[1] for t in jobfile.TABLES}, cycle.covers, rs)
         return out, notes, "Test rules (2026-01-01)"
 
@@ -96,6 +96,7 @@ def fake_rules(monkeypatch):
     monkeypatch.setattr(service, "_rule_findings", full)
     monkeypatch.setattr(service, "_rule_findings_on", on)
     monkeypatch.setattr(rules, "read_table", lambda content: jobfile.rows(content)[1])
+    monkeypatch.setattr(rules, "reads", lambda rs, what="": False)  # the test rules read nothing beyond their own record
     return full
 
 

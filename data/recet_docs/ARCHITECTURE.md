@@ -152,7 +152,7 @@ Every module in the package. Paths are relative to `recet/`.
 | `chunked.py` | job | a large job run in parts, in two passes |
 | `progress.py` | job | stage and time-left reports for the progress bar |
 | `preflight.py` | job | the input check before any pricing |
-| `filing_rules.py` | job | CEDARS' claims and budget-filing rules as a versioned rule library |
+| `filing_rules.py` | job | CEDARS' claims and budget-filing rules as a versioned rule library, and the rule runner for rules kept as data (conditions across tables, on the program or the filer, groups, date tests) |
 | `runtime.py` | job | points the pipeline at a run's ACC and supplied files; clears caches between runs |
 | `overrides.py` | job | loading and checking supplied files (profiles, ACC files, run parameters, factors) |
 | `versions.py` | job | the ACC versions, their files, labels, and which ACC applies to which filing |
@@ -188,6 +188,7 @@ Every module in the package. Paths are relative to `recet/`.
 | `regress.py` | job | the regression gate: real-job fixtures on slices of the reference data, checked against their expected outputs; two runs compared |
 | `jobspec.py` | job | the job spec: the versioned JSON a caller hands the worker (inputs by URI, settings, engine release, pinned reference files, allocation version) and its checks |
 | `worker.py` | job | `recet worker run`: one job from a job spec, its outputs and `receipt.json` sent to the spec's outputs URI |
+| `checkjob.py` | job | `recet worker check`: a filing's rules (as data) run on its tables in this release; `findings.json` and `receipt.json` to the spec's outputs URI |
 | `storage.py` | data | where a worker's files come from and go to: local paths, file:// and s3:// (boto3 only when S3 is used) |
 | `openbca/run.py` | job | OpenBCA's own engine on its workbooks: finds a pinned checkout, stages a copy in the run folder, runs `openbca/engine.py`, writes OpenBCA's output tables; comparison C1 |
 | `openbca/engine.py` | job | runs inside OpenBCA's interpreter (never imported by ReCET): the SQLmesh plan, the output export, the table-by-table comparison |

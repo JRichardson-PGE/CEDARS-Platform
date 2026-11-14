@@ -10,7 +10,7 @@ from cedars.services.dictionary import platform, service
 from cedars.services.dictionary.models import CatalogVersion, Field
 from tests.test_us_spelling import BRITISH
 
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.95.json"
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_columns_carry_type_audience_and_values():
 
 
 def test_loaded_with_the_engine_catalog(catalog):
-    assert catalog.label.startswith("ReCET 0.1.94 + platform ")
+    assert catalog.label.startswith("ReCET 0.1.95 + platform ")
     records = catalog.fields.filter(kind=Field.Kind.RECORD)
     assert records.count() == len(platform.catalog()) and catalog.fields.exclude(kind=Field.Kind.RECORD).count() > 300
     # the engine's fields and the crosswalk are unchanged: platform names have no other names and resolve no upload header

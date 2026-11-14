@@ -21,7 +21,7 @@ from .test_budgets import release  # noqa: F401 - the engine release fixture
 from .test_claims import claims_zip, confirmed, deadline, filer, linked, programs, row, tables, year  # noqa: F401
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.95.json"
 
 
 def parts(user, q) -> dict[str, search.Part]:

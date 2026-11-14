@@ -718,7 +718,9 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
             rules_run=rs is not None,
             lay=lay,
         )
-        found, notes, rule_set = _rule_findings(own, year, rs)
+        found, notes, rule_set = _rule_findings(
+            own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+        )
         problems += found
     problems = specifications.apply_checks_for_filing(deadline, problems)  # the built-in checks as the filing's version has them
     own_f = own_file(v)
@@ -870,7 +872,7 @@ def _scoped(
     its new line. None when the whole version must be checked instead: no earlier findings, the version was last checked against
     another rule set, or a table's columns changed."""
     old = _old_findings(previous)
-    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label(rs):
+    if old is None or (previous or {}).get("rule_set", "") != _rule_set_label(rs) or _wide(rs):
         return None
     before_columns = (previous or {}).get("columns")
     now_columns = {name: list(t.columns) for name, t in own.items()}
@@ -889,7 +891,7 @@ def _scoped(
     rule_set = (previous or {}).get("rule_set", "")
     sub_e, back_e = _subset(own, engine)
     if sub_e:
-        found, notes, rule_set = _rule_findings(sub_e, year, rs)
+        found, notes, rule_set = _rule_findings(sub_e, year, rs, lay=lay, organisation=organisation, linked=compiled)
         for f in found:
             row = f.row if f.row < 2 or f.table not in back_e else back_e[f.table][f.row - 2]
             problems.append(Problem(row, f.record_id, f.table, f.field, f.rule_id, f.severity, f.message, f.fix, f.value))
@@ -1639,23 +1641,64 @@ def _claim_rules(add, i: int, r: dict, measure: dict, organisation) -> None:
             "Enter 1: every claim a CCA or REN files has it.", r.get("CCAREN_Flag", ""))  # fmt: skip
 
 
-def _rule_findings(own: dict[str, upload.Table], year: int | None, rs) -> tuple[list, list[str], str]:
-    """Claims rule set `rs` (CEDARS' own Measure and ProgramCost rules, run by the engine: the filing's specification version's, or
-    the version the pre-upload checker was given, `precheck`) on the upload's own records, with the claim year as the filing year. A
-    table without the specification's columns is rejected on those columns before its rules run."""
+def _rule_tables(rs) -> list[str]:
+    """The tables a claims rule set has rules for (CEDARS' own cover Measure and ProgramCost; a version's may cover any table)."""
+    return sorted(set(rs.rules.values_list("table", flat=True))) if rs is not None else []
+
+
+def _wide(rs) -> bool:
+    """Whether a rule set has rules beyond CEDARS' own reach: on a table other than Measure and ProgramCost, or with a condition on
+    another table, the program or who files. A correction is then checked whole (`_scoped`), since a change to one record can
+    change another record's findings."""
+    if rs is None:
+        return False
+    return bool(set(_rule_tables(rs)) - set(RULE_TABLES)) or rules.reads(rs)
+
+
+def _rule_frame(table: str, t: upload.Table):
+    """A table as the engine reads it: raw text under the canonical names; a Measure record's ClaimID is its CEInputID too, as CET's
+    rules name it."""
+    rows = [{**r, "CEInputID": r.get("ClaimID", "")} for r in t.rows] if table == "Measure" else t.rows
+    cols = list(t.columns) + (["CEInputID"] if table == "Measure" and "CEInputID" not in t.columns else [])
+    return rules.read_table(upload.to_csv(cols, rows))
+
+
+def _rule_findings(
+    own: dict[str, upload.Table],
+    year: int | None,
+    rs,
+    *,
+    lay: "spec.Layout | None" = None,
+    organisation=None,
+    upload_date=None,
+    linked: dict[str, upload.Table] | None = None,
+) -> tuple[list, list[str], str]:
+    """Claims rule set `rs` (the filing's specification version's, or the version the pre-upload checker was given, `precheck`) on the
+    upload's own records of every table the set has rules for, run by the engine with the claim year as the filing year. A condition on
+    another table reads the linked record of `linked` (the compiled year to date; else the upload itself) by the tables' keys
+    (`lay`), on Program the registry's record and on Filer the filing organization. A table without the specification's columns is
+    rejected on those columns before its rules run."""
     if rs is None:
         return [], ["No claims rule set is published yet, so only the module's own checks ran."], ""
     out, notes = [], set()
-    for table, id_col in (("Measure", "CEInputID"), ("ProgramCost", "PrgID")):
-        t = own.get(table)
-        if t is None or not t.rows:
-            continue
-        rows = [_as_ceinput(r) for r in t.rows] if table == "Measure" else t.rows
-        cols = ["CEInputID" if c == "ClaimID" else c for c in t.columns]
-        try:
-            df = rules.read_table(upload.to_csv(cols, rows))
-        except (rules.EngineMissing, ImportError) as e:  # the engine (and pandas with it) is not installed here
-            raise AccessDenied(f"{e} The claims cannot be validated on this server.") from None
+    try:
+        frames = {table: _rule_frame(table, t) for table, t in own.items() if t.rows and table in _rule_tables(rs)}
+    except (rules.EngineMissing, ImportError) as e:  # the engine (and pandas with it) is not installed here
+        raise AccessDenied(f"{e} The claims cannot be validated on this server.") from None
+    ctx = rules.CheckContext(upload_date=upload_date or timezone.localdate())
+    if organisation is not None:
+        ctx.filer = rules.filer_record(organisation)
+    if rules.reads(rs, rules.PROGRAM):
+        ctx.programs = rules.program_records({r.get("PrgID", "") for t in own.values() for r in t.rows})
+    source = linked or own
+    ctx.tables = {}
+    for name in source:
+        if name in frames and source is own:
+            ctx.tables[name] = frames[name]
+        elif rules.reads(rs, name) or name in frames:
+            ctx.tables[name] = _rule_frame(name, source[name])
+    ctx.keys = {name: list(lay.KEYS[name]) for name in lay.TABLES} if lay is not None else rules.layout_of(rs)["keys"]
+    for table, df in frames.items():
         have = {c.lower() for c in df.columns}
         names = rules.spec_columns(rs, table)
         missing = [c for c in names if c.lower() not in have and _recet_name(c).lower() not in have]
@@ -1676,8 +1719,16 @@ def _rule_findings(own: dict[str, upload.Table], year: int | None, rs) -> tuple[
             ]  # fmt: skip
             skip = rules.needing(rs, table, missing)
             notes.add(rules.missing_columns_note(table, len(missing), len(skip), "claims specification"))
+        if table not in RULE_TABLES:  # the module reports a missing required column; a rule reading an absent one is not run
+            absent = {c for r in rs.rules.filter(table=table) for c in rules.columns_needed(r)}
+            absent = [c for c in absent if c.lower() not in have and _recet_name(c).lower() not in have]
+            if absent:
+                skipped = rules.needing(rs, table, absent)
+                skip |= skipped
+                notes.add(rules.missing_columns_note(table, len(absent), len(skipped), "claims specification"))
+        id_col = {"Measure": "CEInputID", "ProgramCost": "PrgID"}.get(table) or (list(lay.KEYS[table]) if lay is not None else "")
         try:
-            found, n = rules.check(rs, table, df, filing_year=year, id_column=id_col, skip=skip)
+            found, n = rules.check(rs, table, df, filing_year=year, id_column=id_col, skip=skip, context=ctx)
         except (KeyError, ValueError) as e:  # the engine could not apply a rule: the version cannot be called valid
             out.append(Problem(1, "", table, "", "CLM-RULES", "reject", f"The {table} records could not be checked: {e}",
                                "Tell the CPUC's CEDARS support; the file may be fine."))  # fmt: skip
@@ -1704,7 +1755,7 @@ def precheck(rs, table: str, content: bytes, filing_year: int | None) -> tuple[l
         filing_year = year_of(r.get(YEAR_COLUMN[table], "") for r in t.rows)
         if filing_year is not None:
             notes.append(f"Checked as {filing_year} claims, the year of every record; give the claim year to check for another.")
-    found, rule_notes, _ = _rule_findings({table: t}, filing_year, rs)
+    found, rule_notes, _ = _rule_findings({table: t}, filing_year, rs, lay=lay)
     return found, notes + rule_notes, len(t.rows)
 
 
@@ -2608,7 +2659,7 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     own = {t: upload.Table(t, lay.columns(t), [dict(r) for r in rs]) for t, rs in rows.items() if t in lay.TABLES and rs}
     rs = specifications.rule_set_of(version, RULE_SET)
     problems = derive_checks(own, own, org, year, 4, rules_run=rs is not None, lay=lay)
-    found, _notes, _label = _rule_findings(own, year, rs)
+    found, _notes, _label = _rule_findings(own, year, rs, lay=lay, organisation=org)
     return specifications.apply_checks(version, problems + found)
 
 
@@ -2653,7 +2704,9 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
         rules_run=rs is not None,
         lay=lay,
     )
-    found, _notes, _label = _rule_findings(own, year, rs)
+    found, _notes, _label = _rule_findings(
+        own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+    )
     return specifications.apply_checks(version, problems + found)
 
 

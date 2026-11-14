@@ -25,6 +25,7 @@ import io
 import json
 import zipfile
 from dataclasses import dataclass
+from datetime import date
 
 from django.db import transaction
 from django.utils import timezone
@@ -335,16 +336,23 @@ def _not_shown(version, rows, year: int) -> list[dict]:
 
     out = []
     frames = {}
+    for table, recs in rows.items():
+        if table == "Measure":
+            recs = [{**x, "CEInputID": x.get("CEInputID") or x.get("ClaimID", "")} for x in recs]
+        frames[table] = rules.read_table(_csv(recs)) if recs else None
+    lay = rules.layout_of(version.rule_set)
+    context = rules.CheckContext(
+        tables={t: df for t, df in frames.items() if df is not None},
+        keys=lay["keys"],
+        filer={"PA": EXAMPLE_PA, "PAType": "IOU"},
+        programs=[],  # the program registry is reference data an example lacks
+        upload_date=date(year, 12, 31),
+    )
     for r in version.rule_set.rules.filter(kind="rule").order_by("table", "field", "rule_id"):
         if not (r.definition or {}).get("conds"):
             continue
-        if r.table not in frames:
-            recs = rows.get(r.table, [])
-            if r.table == "Measure":
-                recs = [{**x, "CEInputID": x.get("CEInputID") or x.get("ClaimID", "")} for x in recs]
-            frames[r.table] = rules.read_table(_csv(recs)) if recs else None
-        df = frames[r.table]
-        held = rules.condition_met(r, df, filing_year=year) if df is not None else False
+        df = frames.get(r.table)
+        held = rules.condition_met(r, df, filing_year=year, context=context) if df is not None else False
         if not held:
             out.append({"rule_id": r.rule_id, "table": r.table, "field": r.field, "severity": r.severity, "message": r.message})
     return out

@@ -577,6 +577,17 @@ def of_filing(deadline):
     return for_module(deadline.module)
 
 
+def rule_set_layout(rule_set) -> dict | None:
+    """The tables a rule set's rules may test and read, with their key columns: those of the specification version that names it (the
+    newest, when several do), its vault tables left out (the rules service's layout provider). None when no version names it."""
+    version = rule_set.specification_versions.order_by("-pk").first()
+    if version is None:
+        return None
+    lay = layout(version)
+    tables = [t for t in lay.tables if not t.vault]
+    return {"tables": [t.name for t in tables], "keys": {t.name: list(t.keys) for t in tables}}
+
+
 def rule_set_of(version, code: str = ""):
     """The rule set a filing on `version` is checked against: the one the version names. A version that takes rules (its rule_set_code)
     but names no rule set, because none of that code was published when it was made (a new environment), takes the one of that code in
