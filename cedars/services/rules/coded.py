@@ -8,12 +8,29 @@ module's code raises that its list does not name, or a listed one the code no lo
 
 A filing runs the checks its specification version lists (`specifications.apply_checks`). Most checks are CEDARS' own processing (the
 columns, keys and IDs, the programs, the links between tables) and always run; a check marked `optional` runs only when the version
-lists it, and one with `severities` takes the severity the version gives it, so the CPUC can drop or soften it in a new version."""
+lists it, and one with `severities` takes the severity the version gives it, so the CPUC can drop or soften it in a new version.
+
+An optional check may also say how it is written as rules (`as_rules`, each an `AsRule`): a draft's editor can then replace the check
+with those rules in the draft's rule set (specifications.editor.write_as_rules), so the CPUC changes it as data from then on. The
+rules give the same findings (the record and the field) as the check; the module's tests prove it before a check gets them."""
 
 from dataclasses import dataclass, replace
 
 SEVERITIES = ("reject", "warning", "reject or warning")
 CHOOSABLE = ("reject", "warning")  # the severities a version may give a check that lets it choose
+
+
+@dataclass(frozen=True)
+class AsRule:
+    """One rule of a check written as rules, as the rule form makes it (rules.rule_definition): the table and field it tests, the test
+    and its value, and its conditions, each (table, field, test, value); a blank table is the record's own."""
+
+    table: str
+    field: str
+    rule: str
+    value: str = ""
+    conds: tuple[tuple[str, str, str, str], ...] = ()
+    connector: str = "all"
 
 
 @dataclass(frozen=True)
@@ -30,6 +47,7 @@ class CodedCheck:
     fix: str
     optional: bool = False
     severities: tuple[str, ...] = ()
+    as_rules: tuple[AsRule, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -55,6 +73,9 @@ def register_coded_checks(module: str, label: str, about: str, checks, *, order:
     bad = [c.rule_id for c in checks if c.severity not in SEVERITIES]
     if bad:
         raise ValueError(f"{module}: unknown severity on {bad}")
+    bad = [c.rule_id for c in checks if c.as_rules and not c.optional]
+    if bad:
+        raise ValueError(f"{module}: only an optional check can be written as rules, not {bad}")
     bad = [c.rule_id for c in checks if c.severities and (set(c.severities) - set(CHOOSABLE) or c.severity not in c.severities)]
     if bad:
         raise ValueError(f"{module}: a choosable severity must be reject or warning, its own included, on {bad}")
@@ -69,6 +90,11 @@ def groups() -> list[CodedGroup]:
 def choosable(check: CodedCheck) -> CodedCheck:
     """The check, which a specification version may leave out or make a warning or a reject."""
     return replace(check, optional=True, severities=CHOOSABLE)
+
+
+def written_as(check: CodedCheck, *rules: AsRule) -> CodedCheck:
+    """The check, with the rules that give its findings."""
+    return replace(check, as_rules=tuple(rules))
 
 
 def by_id() -> dict[str, CodedCheck]:

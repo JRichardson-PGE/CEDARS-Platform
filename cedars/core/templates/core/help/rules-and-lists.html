@@ -52,6 +52,10 @@ upload page links the version under "Before you upload", and its findings name t
   of its conditions hold. Besides comparisons, a rule can ask that a field contain some text, that a flag be true, that a date be
   before or after a date, another date field or the day of the upload, that a date be within a number of years of the upload, or that a
   code be in effect on the date in another field. A rule that reads a table the file does not have is not run, and the findings say so.</li>
+  <li id="checks-as-rules">Some of CEDARS' data rules on the Claim table are built-in checks a version can leave out (NMEC true-ups,
+  SEM claims, deemed claims, fuel substitution, partial payments, CCA and REN claims). On a draft's Built-in checks page, each of them
+  can be written as rules of the draft's rule set instead: the rules give the same findings, record for record and field for field, and
+  from then on the CPUC changes them on the Rules page like any other rule. Filings on earlier versions keep the check.</li>
   <li id="workbook-editing">To change many fields and rules at once, use the draft's Workbook page: download the draft as a workbook,
   change its Settings, Tables, Fields and Rules sheets in Excel and load it back. In Fields, Rename to renames a field, a new row adds one
   and a deleted row removes one; in Rules, a row with no Rule ID is a new rule. Every difference is shown first, with any the editor would
