@@ -7,6 +7,8 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("compare/", views.compare, name="compare"),
     path("filing-sets/<int:deadline>/move/", editor_views.move_filing_set, name="move_filing_set"),
+    path("import/", editor_views.import_version, name="import_version"),
+    path("import/confirm", editor_views.confirm_import, name="confirm_import"),
     path("<slug:code>/current/", views.current, name="current"),
     path("<slug:code>/<slug:slug>/", views.version, name="version"),
     path("<slug:code>/<slug:slug>/template.<str:kind>", views.template, name="template"),
@@ -16,6 +18,7 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/examples/<slug:example>.<str:kind>", views.example, name="example"),
     # the editor (CPUC system administrators): a draft copied from a published version, a page per part of it
     path("<slug:code>/<slug:slug>/new-draft", editor_views.start, name="start_draft"),
+    path("<slug:code>/<slug:slug>/export", editor_views.export_version, name="export_version"),
     path("<slug:code>/<slug:slug>/edit/", editor_views.edit, name="edit"),
     path("<slug:code>/<slug:slug>/edit/settings/", editor_views.edit_settings, name="edit_settings"),
     path("<slug:code>/<slug:slug>/edit/rules/", editor_views.edit_rules, name="edit_rules"),

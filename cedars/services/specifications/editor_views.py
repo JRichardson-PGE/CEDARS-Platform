@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, examples, forms, impact, moving, service, workbook
+from . import editor, examples, forms, impact, moving, service, transfer, workbook
 from .models import SpecificationVersion
 
 TABS = [
@@ -688,3 +688,87 @@ def move_filing_set(request, deadline: int):
             "open_count": submissions.open_versions_count(deadlines),
         },
     )
+
+
+# --- export and import between environments
+
+PACKAGE_SESSION = "specification_package"  # the package loaded for an import's preview, until it is confirmed: {sha256, name, data}
+
+
+@login_required
+@require_POST
+def export_version(request, code: str, slug: str):
+    """The version as a package to import into another environment (audited)."""
+    from django.http import HttpResponse
+
+    _admin(request)
+    v = _get(code, slug)
+    content = transfer.export(request.user, v)
+    response = HttpResponse(content, content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{transfer.file_name(v)}"'
+    return response
+
+
+def _held_package(request) -> tuple[bytes, str] | None:
+    import base64
+
+    held = request.session.get(PACKAGE_SESSION) or {}
+    if not held.get("data"):
+        return None
+    return base64.b64decode(held["data"]), held.get("name", "")
+
+
+@login_required
+def import_version(request):
+    """Load a package exported from another environment and see what it would make before importing it as a draft."""
+    import base64
+
+    _admin(request)
+    form, preview, held_name = forms.PackageForm(), None, ""
+    if request.method == "POST":
+        form = forms.PackageForm(request.POST, request.FILES)
+        if form.is_valid():
+            f = form.cleaned_data["file"]
+            content = f.read()
+            try:
+                preview = transfer.preview(request.user, content)
+            except (AccessDenied, editor.EditError) as e:
+                form.add_error("file", str(e))
+                request.session.pop(PACKAGE_SESSION, None)
+            else:
+                held_name = f.name
+                request.session[PACKAGE_SESSION] = {
+                    "sha256": preview.package.sha256, "name": f.name, "data": base64.b64encode(content).decode("ascii"),
+                }  # fmt: skip
+    elif request.GET.get("held") and _held_package(request):
+        content, held_name = _held_package(request)
+        preview = transfer.preview(request.user, content)
+    import_form = forms.ImportForm(initial={"sha256": preview.package.sha256}, auto_id="import_%s") if preview else None
+    return render(
+        request,
+        "specifications/import_version.html",
+        {"form": form, "preview": preview, "held_name": held_name, "import_form": import_form, "environment": transfer.environment()},
+    )
+
+
+@login_required
+@require_POST
+def confirm_import(request):
+    _admin(request)
+    held = _held_package(request)
+    back = f"{reverse('specifications:import_version')}?held=1#import-preview-h"
+    if held is None or transfer.sha256(held[0]) != request.POST.get("sha256"):
+        messages.error(request, "Load the package again: the one shown is no longer held.")
+        return redirect("specifications:import_version")
+    form = forms.ImportForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why the version is imported: the reason is kept with the draft.")
+        return redirect(back)
+    try:
+        v = transfer.import_package(request.user, held[0], form.cleaned_data["reason"], held[1])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, f"Nothing was imported: {e}")
+        return redirect(back)
+    request.session.pop(PACKAGE_SESSION, None)
+    messages.success(request, f"Imported {v.name} as a draft of {v.specification.name}. It is checked again here before it is published.")
+    return redirect("specifications:edit", v.specification.code, v.slug)

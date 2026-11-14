@@ -270,3 +270,15 @@ class WorkbookForm(forms.Form):
 class WorkbookLoadForm(forms.Form):
     sha256 = forms.CharField(widget=forms.HiddenInput, max_length=64)
     reason = _reason()
+
+
+class PackageForm(forms.Form):
+    file = forms.FileField(
+        label="The specification package (.zip)",
+        help_text="As another CEDARS environment exports it from a version's page. Nothing changes until you confirm.",
+    )
+
+
+class ImportForm(forms.Form):
+    sha256 = forms.CharField(widget=forms.HiddenInput, max_length=64)
+    reason = _reason()
