@@ -263,6 +263,14 @@ def draft_of(vl: ValueList) -> ValueListVersion | None:
 def _require_draft(version: ValueListVersion) -> None:
     if version.status != Status.DRAFT:
         raise ValueListError("A published version never changes: start a new version of the list and change that.")
+    made_in = version.value_list.made_in
+    if made_in.startswith("specification:") and latest_published(version.value_list) is None:
+        from cedars.services.specifications.models import SpecificationVersion
+
+        if SpecificationVersion.objects.filter(pk=made_in.split(":", 1)[1] or 0, status="proposed").exists():
+            raise ValueListError(
+                "This list is made for a filing specification version proposed for comment: return it to draft to change its codes."
+            )
 
 
 def _rows(version: ValueListVersion) -> dict[str, dict]:

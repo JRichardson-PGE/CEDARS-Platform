@@ -158,20 +158,22 @@ def _check_choices():
         versions.sort(key=lambda rs: (current is None or rs.pk != current.pk, -rs.effective_from.toordinal()))
         for rs in versions:
             rs.used_by = ", ".join(v.name for v in precheck.specification_versions(rs))
-        if versions:
-            out.append({"checker": c, "versions": versions, "in_force": current})
+        proposed = precheck.proposed(c)
+        if versions or proposed:
+            out.append({"checker": c, "versions": versions, "in_force": current, "proposed": proposed})
     return out
 
 
 @login_required
 def check(request):
     """The pre-upload checker: the rule-set step of a module's validation, run on a file before it is filed, against the current
-    specification version's rules or any other published version (rules.precheck: the same code the upload runs). Nothing uploaded is
-    kept."""
+    specification version's rules, any other published version, or a version proposed for comment (rules.precheck: the same code the
+    upload runs). Nothing uploaded is kept."""
     choices = _check_choices()
-    ctx = {"choices": choices, "max_mb": precheck.max_mb()}
+    picked = request.GET.get("rule_set", "")
+    ctx = {"choices": choices, "max_mb": precheck.max_mb(), "picked": int(picked) if picked.isdigit() else None}
     if request.method == "POST":
-        rs = RuleSet.objects.filter(pk=request.POST.get("rule_set") or 0, status=RuleSet.Status.PUBLISHED).first()
+        rs = precheck.checkable(request.POST.get("rule_set"))
         upload = request.FILES.get("file")
         table = request.POST.get("table", "Measure")
         year = request.POST.get("filing_year", "").strip()

@@ -7,6 +7,11 @@
 and the rules and built-in checks every record is checked against. The CPUC publishes each specification in named versions that never
 change once published, and each filing set (a claim year, a budget filing, a year of monthly reports) is set up with one: its uploads
 and corrections use that version, whenever they are made. Several versions can be in use at once.</p>
+{% if open_for_comment %}<div class="card" id="open-for-comment"><h2 id="open-for-comment-h">Open for comment</h2>
+  <p>The CPUC proposes these versions before publishing them. Read each one, check a file against it with the pre-upload checker, and
+  comment on it before its comment period closes.</p>
+  <ul>{% for v in open_for_comment %}<li><a href="{% url 'specifications:version' v.specification.code v.slug %}">{{ v.specification.name }}: {{ v.name }}</a>, through {{ v.comments_last_day|date_words }}</li>{% endfor %}</ul></div>
+{% endif %}
 <p class="actions"><a class="button" href="{% url 'specifications:compare' %}">Compare two versions</a>{% if manage %}
   <a class="button" href="{% url 'specifications:import_version' %}" id="import-link">Import a version from another environment</a>{% endif %}</p>
 {% for s in specs %}
@@ -21,7 +26,7 @@ and corrections use that version, whenever they are made. Several versions can b
     <tbody>
     {% for v, used in s.versions %}
     <tr><th scope="row"><a href="{% url 'specifications:version' s.spec.code v.slug %}">{{ v.name }}</a></th>
-      <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if s.current and v.pk == s.current.pk %} <strong>(current)</strong>{% elif v in s.coming %} <strong>(coming)</strong>{% endif %}{% if v.status == "draft" and manage %} <a href="{% url 'specifications:edit' s.spec.code v.slug %}">Edit the draft</a>{% endif %}</td>
+      <td><span class="status {{ v.status|status_tone }}">{{ v.get_status_display }}</span>{% if s.current and v.pk == s.current.pk %} <strong>(current)</strong>{% elif v in s.coming %} <strong>(coming)</strong>{% endif %}{% if v.status == "proposed" %}<br><span class="small">{% if v.open_for_comment %}Open for comment through {{ v.comments_last_day|date_words }}{% else %}Comments closed{% endif %}</span>{% endif %}{% if v.status == "draft" and manage %} <a href="{% url 'specifications:edit' s.spec.code v.slug %}">Edit the draft</a>{% endif %}</td>
       <td>{{ v.published_at|date_words|default:"-" }}{% if v.effective_on %}<br><span class="small">Takes effect {{ v.effective_on|date_words }}</span>{% endif %}</td><td>{{ used }}</td></tr>
     {% empty %}<tr><td colspan="4">No published version yet.</td></tr>
     {% endfor %}

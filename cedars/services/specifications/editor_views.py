@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, examples, forms, impact, moving, service, transfer, workbook
+from . import comments, editor, examples, forms, impact, moving, service, transfer, workbook
 from .models import SpecificationVersion
 
 TABS = [
@@ -25,8 +25,11 @@ TABS = [
     ("edit_impact", "Impact test"),
     ("edit_workbook", "Workbook"),
     ("edit_changes", "Changes"),
+    ("edit_comments", "Comments"),
     ("edit_publish", "Publish"),
 ]
+# a proposed version is frozen while filers comment: only the pages that read it (and publish it once comments close)
+PROPOSED_TABS = [t for t in TABS if t[0] in ("edit_impact", "edit_changes", "edit_comments", "edit_publish")]
 
 
 def _admin(request) -> None:
@@ -45,10 +48,15 @@ def _get(code: str, slug: str) -> SpecificationVersion:
     return v
 
 
-def _editable(request, code: str, slug: str):
-    """The draft, or a redirect to the version's page when it is not one."""
+def _editable(request, code: str, slug: str, *, proposed: bool = False):
+    """The draft (or, with `proposed`, a version proposed for comment), or a redirect to the version's page when it is not one."""
     _admin(request)
     v = _get(code, slug)
+    if proposed and v.status == SpecificationVersion.Status.PROPOSED:
+        return v, None
+    if v.status == SpecificationVersion.Status.PROPOSED:
+        messages.info(request, f"{v.name} is proposed for comment and does not change: return it to draft to change it.")
+        return v, redirect("specifications:version", code, v.slug)
     if v.status != SpecificationVersion.Status.DRAFT:
         messages.info(request, "A published version never changes: start a new version from it.")
         return v, redirect("specifications:version", code, v.slug)
@@ -58,11 +66,13 @@ def _editable(request, code: str, slug: str):
 def _page(request, template: str, v, tab: str, *, sub: bool = False, **context):
     """A page of the draft: `tab` is the part it belongs to (`sub`: a field's or table's own page under it)."""
     found = editor.problems(v)
+    tabs = PROPOSED_TABS if v.status == SpecificationVersion.Status.PROPOSED else TABS
     return render(
         request,
         f"specifications/{template}",
-        {"v": v, "tab": tab, "tabs": TABS, "here_is_tab": not sub, "problem_count": len(found), "problems": found, **context},
-    )
+        {"v": v, "tab": tab, "tabs": tabs, "here_is_tab": not sub, "problem_count": len(found), "problems": found,
+         "comment_counts": comments.counts(v), **context},
+    )  # fmt: skip
 
 
 @login_required
@@ -279,7 +289,7 @@ def example_file(request, code: str, slug: str, example: str):
 
 @login_required
 def edit_impact(request, code: str, slug: str):
-    v, away = _editable(request, code, slug)
+    v, away = _editable(request, code, slug, proposed=True)
     if away:
         return away
     test = impact.latest(v)
@@ -292,7 +302,7 @@ def edit_impact(request, code: str, slug: str):
 @login_required
 @require_POST
 def run_impact(request, code: str, slug: str):
-    v, away = _editable(request, code, slug)
+    v, away = _editable(request, code, slug, proposed=True)
     if away:
         return away
     try:
@@ -410,7 +420,7 @@ def load_workbook(request, code: str, slug: str):
 
 @login_required
 def edit_changes(request, code: str, slug: str):
-    v, away = _editable(request, code, slug)
+    v, away = _editable(request, code, slug, proposed=True)
     if away:
         return away
     result = service.compare(v.based_on, v) if v.based_on_id else None
@@ -419,10 +429,11 @@ def edit_changes(request, code: str, slug: str):
 
 @login_required
 def edit_publish(request, code: str, slug: str):
-    v, away = _editable(request, code, slug)
+    v, away = _editable(request, code, slug, proposed=True)
     if away:
         return away
-    if request.method != "POST" and examples.stale(v):  # the checks below include the examples, as the draft now stands
+    draft = v.status == SpecificationVersion.Status.DRAFT
+    if draft and request.method != "POST" and examples.stale(v):  # the checks below include the examples, as the draft now stands
         examples.check_all(v)
     initial = {"effective_on": editor.earliest_day(), "changes": " ".join(editor.change_lines(v))}
     if request.method == "POST":
@@ -454,6 +465,97 @@ def edit_publish(request, code: str, slug: str):
     return _page(
         request, "edit_publish.html", v, "edit_publish", form=form, earliest=editor.earliest_day(), notice_days=releases.notice_days(),
         impact_test=impact.latest(v), impact_stale=impact.stale(v),
+        propose_form=forms.ProposeForm(initial={"last_day": editor.earliest_day()}, auto_id="propose_%s") if draft else None,
+    )  # fmt: skip
+
+
+@login_required
+@require_POST
+def propose(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ProposeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the last day comments are taken.")
+        return redirect("specifications:edit_publish", code, slug)
+    try:
+        v = editor.propose(request.user, v, last_day=form.cleaned_data["last_day"], note=form.cleaned_data["note"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+        return redirect("specifications:edit_publish", code, slug)
+    d = v.comments_last_day
+    messages.success(
+        request,
+        f"Proposed {v.name} for comment through {d:%B} {d.day}, {d.year}. Anyone signed in can read it, check a file against it and "
+        "comment; it does not change until you return it to draft.",
+    )
+    return redirect("specifications:version", code, v.slug)
+
+
+@login_required
+@require_POST
+def comment_period(request, code: str, slug: str):
+    _admin(request)
+    v = _get(code, slug)
+    form = forms.CommentPeriodForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Give the new last day for comments and say why it changes.")
+        return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+    try:
+        v = editor.change_comment_period(request.user, v, last_day=form.cleaned_data["last_day"], reason=form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+    else:
+        d = v.comments_last_day
+        messages.success(request, f"Comments on {v.name} are now open through {d:%B} {d.day}, {d.year}.")
+    return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+
+
+@login_required
+@require_POST
+def end_comments(request, code: str, slug: str):
+    _admin(request)
+    v = _get(code, slug)
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why comments end early.")
+        return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+    try:
+        editor.end_comments(request.user, v, form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+    else:
+        messages.success(request, f"Comments on {v.name} are closed. Publish it as proposed, or return it to draft to change it.")
+    return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+
+
+@login_required
+@require_POST
+def return_to_draft(request, code: str, slug: str):
+    _admin(request)
+    v = _get(code, slug)
+    form = forms.ReasonForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Say why it goes back to draft.")
+        return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+    try:
+        v = editor.return_to_draft(request.user, v, form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, str(e))
+        return redirect(reverse("specifications:version", args=[code, slug]) + "#proposal-h")
+    messages.success(request, f"{v.name} is a draft again: change it, then propose it again or publish it. Its comments stay with it.")
+    return redirect("specifications:edit_comments", code, v.slug)
+
+
+@login_required
+def edit_comments(request, code: str, slug: str):
+    v, away = _editable(request, code, slug, proposed=True)
+    if away:
+        return away
+    return _page(
+        request, "edit_comments.html", v, "edit_comments", thread=comments.thread(v), reply_form=forms.ReplyForm(),
+        can_answer=comments.can_answer(request.user, v),
     )  # fmt: skip
 
 

@@ -68,6 +68,36 @@ def current(c: Checker) -> RuleSet | None:
     return specifications.rule_set_of(specifications.for_module(c.module), c.code)
 
 
+def proposed_version(rs: RuleSet | None):
+    """The filing specification version proposed for comment whose (draft) rule set is `rs`, or None: a file may be checked against it
+    before it is published."""
+    if rs is None or rs.status == RuleSet.Status.PUBLISHED:
+        return None
+    from cedars.services.specifications.models import SpecificationVersion
+
+    qs = SpecificationVersion.objects.filter(rule_set=rs, status=SpecificationVersion.Status.PROPOSED)
+    return qs.select_related("specification").first()
+
+
+def proposed(c: Checker) -> list:
+    """The specification versions of the checker's module proposed for comment that take its rules, each with its rule set."""
+    from cedars.services.specifications.models import SpecificationVersion
+
+    return list(
+        SpecificationVersion.objects.filter(
+            status=SpecificationVersion.Status.PROPOSED, specification__module=c.module, rule_set__isnull=False, rule_set__code=c.code
+        ).select_related("specification", "rule_set")
+    )
+
+
+def checkable(pk) -> RuleSet | None:
+    """The rule set a file may be checked against by its pk: a published one, or the rules of a version proposed for comment."""
+    rs = RuleSet.objects.filter(pk=pk or 0).first()
+    if rs is None or (rs.status != RuleSet.Status.PUBLISHED and proposed_version(rs) is None):
+        return None
+    return rs
+
+
 def specification_versions(rs: RuleSet) -> list:
     """The published specification versions whose filings are checked against rule set `rs`, oldest first."""
     from cedars.services.specifications.models import SpecificationVersion
@@ -107,8 +137,11 @@ def resolve(module: str | None, rule_set: RuleSet | None) -> tuple[Checker, Rule
             raise CheckError(f"No module files under the {rule_set.code} rules.")
         if module and module != c.module:
             raise CheckError(f"{rule_set} are the {c.label} rules, not the {module} rules.")
-        if rule_set.status != RuleSet.Status.PUBLISHED:
-            raise CheckError(f"{rule_set} is a draft; files are checked against published rules only.")
+        if rule_set.status != RuleSet.Status.PUBLISHED and proposed_version(rule_set) is None:
+            raise CheckError(
+                f"{rule_set} is a draft; files are checked against published rules, or those of a specification version proposed "
+                "for comment."
+            )
         return c, rule_set
     c = checker_for(module=module)
     if c is None:
@@ -132,10 +165,10 @@ def check(module: str | None, table: str, content: bytes, *, rule_set: RuleSet |
 
 def release_for(c: Checker, rs: RuleSet) -> str:
     """The engine release whose worker runs the checker's rules: the one named by the newest published specification version with
-    rule set `rs`, else the module's current version's ("" = the default release)."""
+    rule set `rs` (or the proposed version whose rules it is), else the module's current version's ("" = the default release)."""
     from cedars.services.specifications import service as specifications
 
-    versions = specification_versions(rs)
+    versions = specification_versions(rs) or [v for v in [proposed_version(rs)] if v is not None]
     version = versions[-1] if versions else specifications.for_module(c.module)
     return specifications.engine_release_of(version)
 

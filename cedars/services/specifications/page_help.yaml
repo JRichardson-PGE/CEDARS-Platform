@@ -11,9 +11,14 @@ specifications/index:
       they are made, so several versions can be in use at once.
   how:
     - Select a version to read its tables, fields and rules and to download its template.
+    - Signed in, read a version proposed for comment from the list at the top and comment on it before its last day.
     - Compare two versions shows the fields, rules and settings that change between them.
   see: rules-and-lists
   tour:
+    - target: "#open-for-comment"
+      title: Open for comment
+      text: Versions the CPUC proposes before publishing them, and the last day to comment on each.
+      optional: true
     - target: main p.actions
       title: Compare two versions
       text: See what changes from one version to another, or between two specifications' tables.
@@ -32,15 +37,27 @@ specifications/version:
       match it.
     - A version imported from another CEDARS environment says where it came from and whether it is still exactly the version exported
       there, or what was changed here after it was imported.
+    - Before publishing a version, the CPUC may propose it for comment. A proposed version is shown to anyone signed in. Read it,
+      download its template and examples, check a file against it with the pre-upload checker, and comment on the whole version, a
+      table or a field until its last day for comments. The CPUC answers under each comment. It does not change while it is proposed.
   how:
     - Download the upload template (a workbook, or a .zip of pipe-delimited files) and fill in each table.
+    - On a proposed version, choose what your comment is about, write it and post it for your organization.
     - Open a field's rules to read them as sentences with their suggested fixes.
     - Compare with another version to see what changed.
   see: rules-and-lists
   tour:
     - target: "#spec-status"
       title: Status
-      text: Whether the version is published or withdrawn, when, and whether new filings are set up with it.
+      text: Whether the version is proposed, published or withdrawn, when, and whether new filings are set up with it.
+    - target: "#proposal-h"
+      title: While it is proposed
+      text: For CPUC system administrators, return it to draft, move the last day for comments, end comments or publish it.
+      optional: true
+    - target: "#comments-h"
+      title: Comments
+      text: For a version proposed for comment, the comments of filers and the CPUC's answers, and the form to comment while comments are open.
+      optional: true
     - target: "#export-h"
       title: Move it to another environment
       text: For CPUC system administrators, export the version as one package to import into another CEDARS environment.
@@ -323,8 +340,12 @@ specifications/edit_publish:
       Filing sets set up from that day use it; filings already set up keep their version for every later upload and correction.
     - The impact test's result is shown beside the checks. It does not stop publishing; it runs again as the version is published if
       the draft has changed since, so the version keeps the test it was published on.
+    - Proposing it for comment first is optional. A proposed version is frozen and shown to anyone signed in, who can check a file
+      against it and comment until the last day you give. Return it to draft to act on the comments, or publish it as it is once
+      comments have closed.
   how:
     - Settle each check that is not passed; each links the part of the draft it is in.
+    - To consult filers first, give the last day for comments and what they should look at, then propose it.
     - Choose the day it takes effect, word what changes and what filers need to do, then publish.
     - Discard the draft, with its rules, if it is not wanted.
   see: rules-and-lists
@@ -335,12 +356,42 @@ specifications/edit_publish:
     - target: "#publish-impact"
       title: Impact test
       text: How confirmed filings would fare under the draft, and whether the test is current.
+    - target: "#propose-form"
+      title: Propose it for comment
+      text: Optional. Freeze the draft and let filers read it, check files against it and comment before it is published.
+      optional: true
+    - target: "#publish-comments"
+      title: Comments
+      text: For a proposed version, whether comments are still open and how many are not answered.
+      optional: true
     - target: "#publish-form"
       title: Publish
       text: The day it takes effect, the release note's words, and the button.
     - target: "#discard"
       title: Discard
       text: Drop the draft and its rules; nothing a filing uses changes.
+      optional: true
+
+specifications/edit_comments:
+  title: Comments on a proposed version
+  guide:
+    - The comments filers made while the version was proposed, each about the whole version, a table or a field, with the CPUC's
+      answers. Anyone signed in reads them; they stay with the version once it is published, as the record of its consultation.
+    - Answer each comment here or on the version's page. The answer is shown under it, and the filer is told. A comment is never
+      edited; a correction is another comment.
+    - Change the draft to act on the comments, then propose it again (a new round of comments) or publish it.
+  how:
+    - Open "Answer" under a comment, write the CPUC's answer and post it.
+  see: rules-and-lists
+  tour:
+    - target: "#comments-h"
+      title: Comments
+      text: Each comment, what it is about, and the CPUC's answer or that it is not answered yet.
+      optional: true
+    - target: "#no-proposal"
+      title: Not proposed
+      text: A draft that was never proposed has no comments; proposing it is on the Publish page.
+      optional: true
 
 specifications/edit_field:
   title: Add or change a field of a draft

@@ -16,6 +16,9 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/specification.json", views.document, name="document"),
     path("<slug:code>/<slug:slug>/schema/<str:table>.json", views.schema, name="schema"),
     path("<slug:code>/<slug:slug>/examples/<slug:example>.<str:kind>", views.example, name="example"),
+    # comments on a proposed version: anyone signed in while its comment period is open; CPUC staff answer
+    path("<slug:code>/<slug:slug>/comments/", views.post_comment, name="post_comment"),
+    path("<slug:code>/<slug:slug>/comments/<int:comment>/answer", views.reply_comment, name="reply_comment"),
     # the editor (CPUC system administrators): a draft copied from a published version, a page per part of it
     path("<slug:code>/<slug:slug>/new-draft", editor_views.start, name="start_draft"),
     path("<slug:code>/<slug:slug>/export", editor_views.export_version, name="export_version"),
@@ -33,6 +36,11 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/edit/workbook/draft.xlsx", editor_views.workbook_file, name="workbook_file"),
     path("<slug:code>/<slug:slug>/edit/workbook/load", editor_views.load_workbook, name="load_workbook"),
     path("<slug:code>/<slug:slug>/edit/changes/", editor_views.edit_changes, name="edit_changes"),
+    path("<slug:code>/<slug:slug>/edit/comments/", editor_views.edit_comments, name="edit_comments"),
+    path("<slug:code>/<slug:slug>/edit/propose", editor_views.propose, name="propose"),
+    path("<slug:code>/<slug:slug>/comment-period", editor_views.comment_period, name="comment_period"),
+    path("<slug:code>/<slug:slug>/end-comments", editor_views.end_comments, name="end_comments"),
+    path("<slug:code>/<slug:slug>/return-to-draft", editor_views.return_to_draft, name="return_to_draft"),
     path("<slug:code>/<slug:slug>/edit/publish/", editor_views.edit_publish, name="edit_publish"),
     path("<slug:code>/<slug:slug>/edit/discard", editor_views.discard, name="discard"),
     path("<slug:code>/<slug:slug>/edit/tables/<str:table>/", editor_views.edit_table, name="edit_table"),

@@ -177,7 +177,7 @@ SPECS = [
             "cost_test_set": "refdata.PackVersion",
         },
         optional=("based_on", "rule_set", "cost_test_set"),
-        clear=("created_by", "published_by", "withdrawn_by", "release_note"),
+        clear=("created_by", "published_by", "withdrawn_by", "release_note", "proposed_by"),
         draft=("status", "draft"),
         children=(
             Child("specifications.SpecTable", "version", children=(Child("specifications.SpecField", "table"),)),

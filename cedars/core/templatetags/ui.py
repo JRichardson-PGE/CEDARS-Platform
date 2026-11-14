@@ -30,7 +30,7 @@ _TONES = {
     },
     "warn": {"draft", "pending", "waiting", "open", "overdue", "expiring", "late"},
     "bad": {"rejected", "declined", "failed", "refused", "error", "revoked", "withdrawn", "purged"},
-    "info": {"validated", "queued", "running", "submitted", "imported", "new", "under review"},
+    "info": {"validated", "queued", "running", "submitted", "imported", "new", "under review", "proposed"},
 }
 
 

@@ -8,12 +8,37 @@
   {% if v.effective_on %}Takes effect {{ v.effective_on|date_words }}{% if v.short_notice_reason %}, with short notice: {{ v.short_notice_reason }}{% endif %}.{% endif %}
   {% if is_current %}<strong>The current version:</strong> new filings are set up with it.{% elif coming %}<strong>Coming:</strong> filing sets set up from that day use it.{% elif v.status == "published" %}A newer version is published; filings set up with this one keep it.{% endif %}
   {% if v.release_note %}<a href="{% url 'releases:detail' v.release_note.pk %}">The release note that announced it</a>.{% endif %}
-  {% if v.status == "withdrawn" %}Withdrawn {{ v.withdrawn_at|date_words }}: {{ v.withdrawn_reason }}{% endif %}</p>
+  {% if v.status == "withdrawn" %}Withdrawn {{ v.withdrawn_at|date_words }}: {{ v.withdrawn_reason }}{% endif %}
+  {% if v.status == "proposed" %}Proposed for comment {{ v.proposed_at|date_words }}{% if v.proposals > 1 %} (proposal {{ v.proposals }}){% endif %}: not in use, and it may still change before it is published.
+    {% if v.open_for_comment %}<strong>Comments are open through {{ v.comments_last_day|date_words }}.</strong>{% else %}Comments closed {{ v.comments_close_at|datetime_words }}.{% endif %}
+    <a href="#comments-h">Read the comments{% if user.is_authenticated and v.open_for_comment %} and comment{% endif %}</a>{% if v.rule_set %}, or <a href="{% url 'rules:check' %}?rule_set={{ v.rule_set.pk }}" id="check-proposed">check a file against its rules</a>{% endif %}.{% endif %}
+  {% if v.status == "published" and v.proposals %}It was proposed for comment before it was published: <a href="#comments-h">the comments</a>.{% endif %}</p>
+{% if v.status == "proposed" and v.proposal_note %}<div class="card" id="proposal-note"><h2 id="proposal-note-h">What the CPUC asks filers to look at</h2><p class="prewrap">{{ v.proposal_note }}</p></div>{% endif %}
 {% if v.summary %}<p>{{ v.summary }}</p>{% endif %}
 {% if manage %}
 <section aria-labelledby="change-h" class="card" id="change-version">
   <h2 id="change-h">Change this specification</h2>
   {% if v.status == "draft" %}<p>This is the draft of the next version. <a class="button" href="{% url 'specifications:edit' v.specification.code v.slug %}">Edit the draft</a></p>
+  {% elif v.status == "proposed" %}
+  <h3 id="proposal-h">While it is proposed</h3>
+  <p>It is frozen while filers comment. Answer the comments below. Then return it to draft to change it (it can be proposed again), or
+  publish it as it is once comments have closed{% if comment_counts.unanswered %}; {{ comment_counts.unanswered }} comment{{ comment_counts.unanswered|pluralize }} {{ comment_counts.unanswered|pluralize:"is,are" }} not answered yet{% endif %}.</p>
+  <p class="actions"><a class="button" href="{% url 'specifications:edit_publish' v.specification.code v.slug %}">Publish it as proposed</a>
+    <a class="button" href="{% url 'specifications:edit_changes' v.specification.code v.slug %}">What it changes</a></p>
+  <form method="post" action="{% url 'specifications:return_to_draft' v.specification.code v.slug %}" class="row-form" id="return-form">{% csrf_token %}
+    <div class="field"><label for="return-reason">Why it goes back to draft</label><input type="text" id="return-reason" name="reason" required maxlength="500"></div>
+    <button type="submit">Return it to draft</button>
+  </form>
+  {% if v.open_for_comment %}
+  <form method="post" action="{% url 'specifications:comment_period' v.specification.code v.slug %}" class="row-form" id="period-form">{% csrf_token %}
+    {{ period_form.last_day.as_field_group }}{{ period_form.reason.as_field_group }}
+    <button type="submit">Move the last day for comments</button>
+  </form>
+  <form method="post" action="{% url 'specifications:end_comments' v.specification.code v.slug %}" class="row-form" id="end-comments-form">{% csrf_token %}
+    <div class="field"><label for="end-reason">Why comments end now</label><input type="text" id="end-reason" name="reason" required maxlength="500"></div>
+    <button type="submit">End the comment period now</button>
+  </form>
+  {% endif %}
   {% elif draft %}<p>{{ v.specification.name }} already has a draft, <a href="{% url 'specifications:edit' draft.specification.code draft.slug %}">{{ draft.name }}</a>: there is one at a time.</p>
   {% elif v.status == "published" %}
   <p>A new version starts as a copy of this one, with a copy of its rules. Change it, then publish it with notice; filings set up with
@@ -41,6 +66,8 @@
   {% if provenance.changes %}<ul class="compact" id="provenance-changes">{% for c in provenance.changes %}<li>{{ c }}</li>{% endfor %}</ul>{% endif %}
 </section>
 {% endif %}
+
+{% if v.status == "proposed" or comments_shown %}{% include "specifications/_comments.html" %}{% endif %}
 
 <section aria-labelledby="downloads-h" class="card">
   <h2 id="downloads-h">Templates and downloads</h2>

@@ -13,7 +13,12 @@ engine reads to price a record (Measure and ProgramCost; the installed engine's 
 
 Publishing (`publish`) runs the checks a version must pass (`problems`), fixes the day it takes effect (at least the release notes'
 notice after today, unless a reason is given), publishes its rule set and a release note with the version, and freezes it. New filing
-sets are set up with the newest version in effect (`service.current`)."""
+sets are set up with the newest version in effect (`service.current`).
+
+Before publishing, a draft may be proposed for comment (`propose`, optional): it is frozen and shown to anyone signed in, who may check
+a file against it and comment on it (comments.py) until its comment period closes (`change_comment_period`, `end_comments`). Staff
+return it to draft to act on the comments (`return_to_draft`) and may propose it again, or publish it as proposed once comments have
+closed."""
 
 from __future__ import annotations
 
@@ -66,6 +71,8 @@ def _require(actor, publishing: bool = False) -> None:
 
 def _draft(version: SpecificationVersion) -> SpecificationVersion:
     v = SpecificationVersion.objects.select_for_update().select_related("specification").get(pk=version.pk)
+    if v.status == SpecificationVersion.Status.PROPOSED:
+        raise EditError(f"{v.name} is proposed for comment and does not change: return it to draft to change it.")
     if v.status != SpecificationVersion.Status.DRAFT:
         raise EditError("A published version never changes: start a new version from it.")
     return v
@@ -208,7 +215,8 @@ def start_draft(actor, based_on: SpecificationVersion, name: str, reason: str) -
         raise EditError("A draft is copied from a published version.")
     existing = draft_of(spec)
     if existing is not None:
-        raise EditError(f"{spec.name} already has a draft, {existing.name}: finish or discard it first.")
+        what = "a proposed version" if existing.status == SpecificationVersion.Status.PROPOSED else "a draft"
+        raise EditError(f"{spec.name} already has {what}, {existing.name}: finish or discard it first.")
     if not (reason or "").strip():
         raise EditError("Say why the new version is made: the reason is kept with it.")
     name, slug = _check_name(spec, name)
@@ -1183,6 +1191,16 @@ def publish(
     from cedars.services.rules.models import RuleSet
 
     _require(actor, publishing=True)
+    v = SpecificationVersion.objects.select_for_update().get(pk=draft.pk)
+    if (
+        v.status == SpecificationVersion.Status.PROPOSED
+    ):  # published as it was proposed: comments must have closed, then it is published as a draft would be
+        if v.open_for_comment:
+            raise EditError(
+                f"Comments on {v.name} are open through {_day(v.comments_last_day)}: wait for them to close, or end the comment period "
+                "first."
+            )
+        SpecificationVersion.objects.filter(pk=v.pk).update(status=SpecificationVersion.Status.DRAFT)
     v = _draft(draft)
     from . import examples
 
@@ -1252,8 +1270,131 @@ def publish(
             "rule_set": rs.pk if rs else None,
             "release_note": note.pk,
             "changes": changes,
+            "proposed": v.proposals,
         },
         reason=v.short_notice_reason,
         actor=actor,
     )
+    return v
+
+
+# --- proposing a draft for comment
+
+
+def _day(d: date | None) -> str:
+    return f"{d:%B} {d.day}, {d.year}" if d else ""
+
+
+def _close_at(last_day: date):
+    """The moment comments close: the start of the day after `last_day`, local time."""
+    from datetime import datetime, time
+
+    return timezone.make_aware(datetime.combine(last_day + timedelta(days=1), time.min))
+
+
+def _last_day_problem(last_day: date | None) -> str:
+    from cedars.services.releases import service as releases
+
+    if last_day is None:
+        return "Give the last day comments are taken."
+    if last_day < releases.today():
+        return "The last day for comments is today or later."
+    return ""
+
+
+def _proposed(version: SpecificationVersion) -> SpecificationVersion:
+    v = SpecificationVersion.objects.select_for_update().select_related("specification").get(pk=version.pk)
+    if v.status != SpecificationVersion.Status.PROPOSED:
+        raise EditError(f"{v.name} is not proposed for comment.")
+    return v
+
+
+@transaction.atomic
+def propose(actor, draft: SpecificationVersion, *, last_day: date, note: str = "") -> SpecificationVersion:
+    """Propose a draft for comment: it is frozen (its fields, rules, checks and examples), shown to anyone signed in, who may run the
+    pre-upload checker against it and comment on it through `last_day`. It must pass the checks before publishing first, so what filers
+    read is what would be published. Staff return it to draft to act on the comments (`return_to_draft`), or publish it once comments
+    have closed. Each proposal is a round of comments. Optional: a draft may be published without being proposed."""
+    _require(actor)
+    v = _draft(draft)
+    from . import examples
+
+    if examples.stale(v):
+        examples.check_all(v)
+    found = problems(v)
+    if found:
+        raise EditError(f"It cannot be proposed yet: {found[0].text}" + (f" (and {len(found) - 1} more)" if len(found) > 1 else ""))
+    problem = _last_day_problem(last_day)
+    if problem:
+        raise EditError(problem)
+    v.status = SpecificationVersion.Status.PROPOSED
+    v.proposals += 1
+    v.proposed_at, v.proposed_by = timezone.now(), actor
+    v.proposal_note = (note or "").strip()
+    v.comments_close_at = _close_at(last_day)
+    v.save()
+    audit.record(
+        "specification.proposed",
+        obj=v,
+        after={"specification": v.specification.code, "name": v.name, "round": v.proposals, "last_day": _day(last_day),
+               "note": v.proposal_note},
+        reason=v.proposal_note,
+        actor=actor,
+    )  # fmt: skip
+    return v
+
+
+@transaction.atomic
+def change_comment_period(actor, version: SpecificationVersion, *, last_day: date, reason: str) -> SpecificationVersion:
+    """Move the last day comments are taken on a proposed version (to today or later)."""
+    _require(actor)
+    v = _proposed(version)
+    if not (reason or "").strip():
+        raise EditError("Say why the comment period changes: filers are told.")
+    problem = _last_day_problem(last_day)
+    if problem:
+        raise EditError(problem)
+    before = _day(v.comments_last_day)
+    v.comments_close_at = _close_at(last_day)
+    v.save(update_fields=["comments_close_at"])
+    audit.record(
+        "specification.comment_period_changed", obj=v, before={"last_day": before}, after={"last_day": _day(last_day)},
+        reason=reason, actor=actor,
+    )  # fmt: skip
+    return v
+
+
+@transaction.atomic
+def end_comments(actor, version: SpecificationVersion, reason: str) -> SpecificationVersion:
+    """End the comment period on a proposed version now, so it can be published or returned to draft without more comments."""
+    _require(actor)
+    v = _proposed(version)
+    if not (reason or "").strip():
+        raise EditError("Say why comments end early: the reason is kept with the version.")
+    if not v.open_for_comment:
+        raise EditError(f"Comments on {v.name} are already closed.")
+    before = _day(v.comments_last_day)
+    v.comments_close_at = timezone.now()
+    v.save(update_fields=["comments_close_at"])
+    audit.record(
+        "specification.comment_period_changed", obj=v, before={"last_day": before}, after={"ended": v.comments_close_at.isoformat()},
+        reason=reason, actor=actor,
+    )  # fmt: skip
+    return v
+
+
+@transaction.atomic
+def return_to_draft(actor, version: SpecificationVersion, reason: str) -> SpecificationVersion:
+    """Return a proposed version to draft, to act on the comments: it can be changed again and proposed again (a new round of
+    comments) or published. Its comments stay with it, and staff can still answer them."""
+    _require(actor)
+    v = _proposed(version)
+    if not (reason or "").strip():
+        raise EditError("Say why it goes back to draft, for example the comments it acts on.")
+    v.status = SpecificationVersion.Status.DRAFT
+    v.save(update_fields=["status"])
+    audit.record(
+        "specification.returned_to_draft", obj=v, after={"specification": v.specification.code, "name": v.name, "round": v.proposals},
+        reason=reason, actor=actor,
+    )  # fmt: skip
     return v

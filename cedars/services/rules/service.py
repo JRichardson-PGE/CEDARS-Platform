@@ -446,6 +446,8 @@ def validate(kind: str, severity: str, table: str, field: str, d: dict, rs: "Rul
 def _require_draft(rs: RuleSet) -> None:
     if RuleSet.objects.get(pk=rs.pk).status != RuleSet.Status.DRAFT:
         raise AccessDenied("A published rule set never changes; start a new version of it.")
+    if rs.specification_versions.filter(status="proposed").exists():
+        raise AccessDenied("These rules belong to a filing specification version proposed for comment: return it to draft to change them.")
 
 
 @transaction.atomic
@@ -689,7 +691,7 @@ def publish(actor, rs: RuleSet, *, with_specification: bool = False) -> RuleSet:
     rs = RuleSet.objects.select_for_update().get(pk=rs.pk)
     if rs.status != RuleSet.Status.DRAFT:
         raise AccessDenied("That rule set is already published.")
-    if not with_specification and rs.specification_versions.filter(status="draft").exists():
+    if not with_specification and rs.specification_versions.filter(status__in=["draft", "proposed"]).exists():
         raise AccessDenied("These rules belong to a draft filing specification version: they are published with it, from its page.")
     rs.status, rs.published_by, rs.published_at = RuleSet.Status.PUBLISHED, actor, timezone.now()
     rs.save()

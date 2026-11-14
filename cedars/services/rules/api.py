@@ -160,7 +160,8 @@ Refusal = inline_serializer("CheckRefusal", {"detail": serializers.CharField()})
 @extend_schema(
     summary="Check a file before filing it",
     description="Runs the rule-set step of a module's validation on one table, the same code the upload and the /rules/check/ page "
-    "run, against the rules of the module's current specification version or the published version named, and returns every finding, "
+    "run, against the rules of the module's current specification version, the published version named or the rules of a "
+    "specification version proposed for comment (its rule set's ID), and returns every finding, "
     "rejects first. Nothing is kept. The upload also runs the module's checks that need the whole filing (its other tables, earlier "
     "confirmations, eTRM's values for deemed claims), so a file that passes here can still get findings on upload. A token needs the "
     "module's scope. 400: the request or the file cannot be checked as sent.",
