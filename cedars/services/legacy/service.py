@@ -290,6 +290,7 @@ class Imported:
     sources: list[dict]  # {name, url}
     checks: list[CheckRow]
     quarters: list[str]
+    layouts: list = field(default_factory=list)  # the historic specification versions of its downloads' layouts
 
     @property
     def differences(self) -> int:
@@ -330,6 +331,9 @@ def imported(version) -> Imported | None:
     if imp is None:
         return None
     rec = imp.reconciliation or {}
+    from cedars.services.specifications import historic
+
+    layouts = {layout for s in imp.sources.all() for layout in (s.members or {}).values()}
     return Imported(
         period=imp.period,
         records=imp.records,
@@ -338,7 +342,22 @@ def imported(version) -> Imported | None:
         sources=[{"name": s.name, "url": s.url} for s in imp.sources.all()],
         checks=[_check_row(c) for c in rec.get("checks", [])],
         quarters=rec.get("quarters", []),
+        layouts=historic.for_layouts(layouts),
     )
+
+
+def imports_in_layouts(layouts) -> list[LegacyImport]:
+    """The legacy imports loaded from downloads in any of the given layouts (a historic specification version's page lists them), by
+    module, period and organization."""
+    wanted = set(layouts)
+    out = []
+    qs = LegacyImport.objects.prefetch_related("sources").select_related(
+        "version__submission__organisation", "version__submission__deadline"
+    )
+    for imp in qs:
+        if any(wanted & set((s.members or {}).values()) for s in imp.sources.all()):
+            out.append(imp)
+    return out
 
 
 def imported_deadlines(deadlines) -> set[int]:

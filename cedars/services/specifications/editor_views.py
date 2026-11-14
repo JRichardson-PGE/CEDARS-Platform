@@ -830,6 +830,8 @@ def export_version(request, code: str, slug: str):
 
     _admin(request)
     v = _get(code, slug)
+    if v.historic:
+        raise Http404("A legacy CEDARS layout is not exported.")
     content = transfer.export(request.user, v)
     response = HttpResponse(content, content_type="application/zip")
     response["Content-Disposition"] = f'attachment; filename="{transfer.file_name(v)}"'

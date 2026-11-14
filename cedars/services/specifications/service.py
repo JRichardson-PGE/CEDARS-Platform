@@ -210,6 +210,7 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         cost_test_set=cost_test_set,
         file_format=v.get("file_format") or {},
         created_by=actor,
+        **({"legacy_layouts": v["legacy_layouts"]} if v.get("legacy_layouts") else {}),  # migration 0009 on
     )
     for i, t in enumerate(document["tables"]):
         table = Table.objects.create(
@@ -249,6 +250,7 @@ def load(document: dict, *, models=None, actor=None, status: str = "published", 
         if status in ("published", "withdrawn"):
             version.published_at = timezone.now()
             version.published_by = actor
+        if status in ("published", "withdrawn", "historic"):
             version.fingerprint = fingerprint(document)
         version.save()
     return version
@@ -714,6 +716,8 @@ def settings_rows(version) -> list[list[str]]:
         ],
         ["Fingerprint (SHA-256)", version.fingerprint],
     ]
+    if version.historic:  # a legacy CEDARS download layout: nothing prices or checks it
+        rows[4:7] = [["Source", version.source], ["Legacy layouts", ", ".join(version.legacy_layouts or [])]]
     fmt = version.file_format or {}
     labels = {
         "files": "Files",
@@ -862,7 +866,8 @@ def compare(a, b) -> Comparison:
 
 
 def can_read(user, version) -> bool:
-    """Published and withdrawn versions: anyone. Proposed: anyone signed in. Drafts: CPUC system administrators."""
+    """Published and withdrawn versions and legacy CEDARS layouts: anyone. Proposed: anyone signed in. Drafts: CPUC system
+    administrators."""
     if version.public:
         return True
     if not getattr(user, "is_authenticated", False):
@@ -875,8 +880,9 @@ def can_read(user, version) -> bool:
 
 
 def readable_versions(user, specification):
+    """The versions of a specification the user may read, newest first; the legacy CEDARS layouts are listed apart (historic.py)."""
     _, Version = _models()
-    qs = Version.objects.filter(specification=specification)
+    qs = Version.objects.filter(specification=specification).exclude(status=Version.Status.HISTORIC)
     return [v for v in qs if can_read(user, v)]
 
 

@@ -160,6 +160,8 @@ def package(v: SpecificationVersion, actor=None) -> bytes:
 def export(actor, v: SpecificationVersion) -> bytes:
     """Export a version (a draft, proposed, published or withdrawn one) as its package, audited with the file's name and SHA-256."""
     editor._require(actor)
+    if v.historic:
+        raise editor.EditError(f"{v.name} is a legacy CEDARS layout, kept read-only here: it is not exported.")
     content = package(v, actor)
     audit.record("specification.exported", obj=v, after={"file": file_name(v), "sha256": sha256(content), "environment": environment()},
                  actor=actor)  # fmt: skip

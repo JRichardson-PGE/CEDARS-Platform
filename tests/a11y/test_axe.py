@@ -481,6 +481,9 @@ def _specifications():
     from django.apps import apps
 
     importlib.import_module("cedars.services.specifications.migrations.0002_starting_versions").load_starting(apps, None)
+    from cedars.services.specifications import historic
+
+    historic.load()  # legacy CEDARS' download layouts (migration 0009)
 
 
 def _specification_draft(cpuc_admin):
