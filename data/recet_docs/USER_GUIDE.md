@@ -293,7 +293,7 @@ recet check acc-electric FILE               also: acc-gas, profiles-8760, profil
 recet data status | set-dir PATH | build DEST | verify DIR [--full] | pack DIR OUT | unpack PARTS DEST | clear-cache
 recet data draft DIR ACC [--final] | tie-out DIR --acc YEAR | consolidate-profiles SRC OUT | build-system-zones   (data packs: ARCHITECTURE section 7)
 recet cost-tests list | show SET | check SET | streams   the cost-test definition sets (COST_TESTS.md)
-recet worker run job.json | validate job.json | schema   one job from a job spec, with its receipt (README, "Batch worker")
+recet worker run job.json | check check.json | validate job.json | schema   one job (or a filing's rules) from a spec, with its receipt (README, "Batch worker")
 recet cet-version list | run --release R --acc YEAR ...  price a job as a prior CET release does (CALCULATIONS C20)
 recet regress build | check | compare                    the regression gate (ARCHITECTURE section 10)
 recet openbca run | compare | compare-recet              OpenBCA's own engine, from the command line only (see recet openbca -h)

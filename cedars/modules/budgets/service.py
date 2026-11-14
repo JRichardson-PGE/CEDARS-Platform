@@ -458,22 +458,34 @@ def derive(tables: dict[str, bytes], organisation, cycle) -> tuple[list[dict], l
     return list(lines.values()), problems, len(costs) + len(measures)
 
 
-def _rule_findings(tables: dict[str, bytes], cycle, rs) -> tuple[list, list[str], str]:
+def _rule_findings(tables: dict[str, bytes], cycle, rs, organisation=None, upload_date=None) -> tuple[list, list[str], str]:
     """Budget filing rule set `rs` (CEDARS' own rules, run by the engine: the filing's specification version's), year by year: CEDARS'
-    rules take a single filing year, and a cycle filing spans four. Findings keep the file's own line numbers."""
+    rules take a single filing year, and a cycle filing spans four. Findings keep the file's own line numbers. A condition on the other
+    table reads its linked record by the tables' keys, on Program the registry's record and on Filer `organisation`."""
     if rs is None:
         return [], ["No budget filing rule set is published yet, so only the module's own checks ran."], ""
     try:
         frames = {t: rules.read_table(tables[t]) for t in jobfile.TABLES}
     except rules.EngineMissing as e:
         raise AccessDenied(f"{e} The filing cannot be validated on this server.") from None
-    out, notes = _rule_findings_on(frames, cycle.covers, rs)
+    out, notes = _rule_findings_on(frames, cycle.covers, rs, _context(frames, rs, organisation, upload_date))
     return out, notes, f"{rs.label} ({rs.effective_from})"
 
 
-def _rule_findings_on(frames: dict, covers, rs) -> tuple[list, list[str]]:
+def _context(frames: dict, rs, organisation=None, upload_date=None):
+    """What the wider rule language reads: the filing's tables (`frames`, whole), their keys, who files, the programs, the day."""
+    ctx = rules.CheckContext(tables=frames, keys=rules.layout_of(rs)["keys"], upload_date=upload_date or timezone.localdate())
+    if organisation is not None:
+        ctx.filer = rules.filer_record(organisation)
+    if rs is not None and rules.reads(rs, rules.PROGRAM):
+        ctx.programs = rules.program_records({p for df in frames.values() if "PrgID" in df.columns for p in df["PrgID"]})
+    return ctx
+
+
+def _rule_findings_on(frames: dict, covers, rs, context=None) -> tuple[list, list[str]]:
     """Rule set version `rs` on each table read (`frames`), the rows of each year `covers(year)` accepts checked with that year as the
-    filing year. The upload's step (`_rule_findings`) and the pre-upload checker's (`precheck`)."""
+    filing year. The upload's step (`_rule_findings`) and the pre-upload checker's (`precheck`). `context`: what conditions on the
+    other table, the program or who files read (rules.CheckContext)."""
     out, notes = [], set()
     for table, year_col, id_col in (("ProgramCost", "PrgYear", "PrgID"), ("Measure", "ClaimYearQuarter", "CEInputID")):
         if table not in frames:
@@ -499,7 +511,9 @@ def _rule_findings_on(frames: dict, covers, rs) -> tuple[list, list[str]]:
                 continue  # the module's own check reports it
             part = df[years == y]
             try:
-                found, n = rules.check(rs, table, part.reset_index(drop=True), filing_year=int(y), id_column=id_col, skip=skip)
+                found, n = rules.check(
+                    rs, table, part.reset_index(drop=True), filing_year=int(y), id_column=id_col, skip=skip, context=context
+                )
             except (KeyError, ValueError) as e:  # the engine could not apply a rule: the version cannot be called valid
                 out.append(
                     Problem(1, "", table, "", "BUD-RULES", "reject", f"The {y} {table} rows could not be checked: {e}",
@@ -613,7 +627,7 @@ def _store_and_check(
     if rescope is not None:
         found, notes, rule_set, rechecked = rescope
     else:
-        found, notes, rule_set = _rule_findings(tables, cycle, rs)
+        found, notes, rule_set = _rule_findings(tables, cycle, rs, v.submission.organisation, timezone.localtime(v.created_at).date())
     problems = specifications.apply_checks_for_filing(v.submission.deadline, problems + found)  # built-in checks as its version has them
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
@@ -674,6 +688,8 @@ def _scoped(tables: dict[str, bytes], cycle, scope: Scope, previous: dict | None
     if (previous or {}).get("rule_set", "") != label_now:
         return None
     if (previous or {}).get("columns") != _columns(tables):
+        return None
+    if rs is not None and rules.reads(rs):  # a condition reads another record: a change can change another record's findings
         return None
     old = json.loads(storage.store("uploads").get_bytes(key))
     keys: dict[str, set[tuple]] = defaultdict(set)
@@ -1289,7 +1305,7 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     cycle = _ExampleCycle(year, year + 3)
     _lines, problems, _records = derive(tables, org, cycle)
     problems += list_problems(tables, None, lay=specifications.layout(version))
-    found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET))
+    found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET), org)
     return specifications.apply_checks(version, problems + found)
 
 
@@ -1329,7 +1345,9 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     cycle = v.submission.deadline.cycle
     _lines, problems, _records = derive(tables, v.submission.organisation, cycle)
     problems += list_problems(tables, v.submission.deadline, lay=specifications.layout(version))
-    found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET))
+    found, _notes, _label = _rule_findings(
+        tables, cycle, specifications.rule_set_of(version, RULE_SET), v.submission.organisation, timezone.localtime(v.created_at).date()
+    )
     return specifications.apply_checks(version, problems + found)
 
 

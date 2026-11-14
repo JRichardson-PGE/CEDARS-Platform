@@ -1,7 +1,7 @@
 {
   "engine": {
-    "version": "0.1.94",
-    "commit": "93563f5bebed0d783def69c26b8be40c0c9d7d3c"
+    "version": "0.1.95",
+    "commit": "1cbcc7b55b722b38d1ed44ab5d031e1b7a523470"
   },
   "documents": {
     "INPUT_FORMATS.md": "81ec801ec40984e156c85508e159860cdf55f796fbbc08589d5bb27b00806b25",
@@ -9,8 +9,8 @@
     "OUTPUT_FIELDS.md": "9827a0c4370637eff827bcde3c28b1e26f2baf4801f93a4f33573ea8b2fdf712",
     "CALCULATIONS.md": "c512e04a54b1735e9c8c3f4e7f1ff8b34382703ed834283a5bda8b97de5bc4ab",
     "COST_TESTS.md": "1c158f750a83af73144a783911ed4a6c9a32a60fa44840830352eabc04886816",
-    "USER_GUIDE.md": "2b4103eddbcb205946e2aa39b21c3aa875bcb8f3f7c8edb551eee500da6b122a",
-    "ARCHITECTURE.md": "3b67f784b5c705e55c4ecfeb56891acc525e77866c277624d5e507fd644e8b92"
+    "USER_GUIDE.md": "cc342fa520852797154ba6c385e5a775bffa5c29533f73690e7fd444f311680f",
+    "ARCHITECTURE.md": "e9b70be918b83f4cfff605c9735334f8e53de60a58cf01b6dd084499732d6d9b"
   },
   "diagrams": {
     "ARCHITECTURE-1.svg": {

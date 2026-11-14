@@ -17,7 +17,7 @@ from cedars.services.releases import mandates
 from cedars.services.rules.models import RuleSet
 
 pytestmark = pytest.mark.django_db
-CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.94.json"
+CATALOG = Path(__file__).parent.parent / "data" / "dictionary" / "recet-0.1.95.json"
 CHOICES = [Choice("PGE21001", "Home Energy Reports"), Choice("PGE21002", "Commercial HVAC"), Choice("SCE13001", "Home Energy Reports")]
 
 

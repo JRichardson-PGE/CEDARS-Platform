@@ -175,7 +175,7 @@ def _scene(cpuc_admin, cpuc, pge, pge_admin, make_user):
     factors = (Path(__file__).parent.parent / "data" / "statewide_factors_20260918.csv").read_bytes()
     dictionary.load_catalog(
         None,
-        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.94.json").read_text()),
+        json.loads((Path(__file__).parent.parent.parent / "data" / "dictionary" / "recet-0.1.95.json").read_text()),
         platform=True,
     )
     allocation = registry.import_allocation_csv(cpuc_admin, factors, label="2028 TUAL draft", purpose="filing")
