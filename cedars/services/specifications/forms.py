@@ -258,3 +258,15 @@ class MoveForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 2}),
         help_text="Kept in each filing's history and sent with the notice to the filing calendar's subscribers.",
     )
+
+
+class WorkbookForm(forms.Form):
+    file = forms.FileField(
+        label="The draft's workbook",
+        help_text="As it downloads from this page, with its sheets and columns as they are. Nothing changes until you confirm.",
+    )
+
+
+class WorkbookLoadForm(forms.Form):
+    sha256 = forms.CharField(widget=forms.HiddenInput, max_length=64)
+    reason = _reason()

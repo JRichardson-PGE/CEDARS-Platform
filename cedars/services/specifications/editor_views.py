@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from cedars.services.accounts.service import AccessDenied
 
-from . import editor, examples, forms, impact, moving, service
+from . import editor, examples, forms, impact, moving, service, workbook
 from .models import SpecificationVersion
 
 TABS = [
@@ -23,6 +23,7 @@ TABS = [
     ("edit_checks", "Built-in checks"),
     ("edit_examples", "Examples"),
     ("edit_impact", "Impact test"),
+    ("edit_workbook", "Workbook"),
     ("edit_changes", "Changes"),
     ("edit_publish", "Publish"),
 ]
@@ -286,6 +287,100 @@ def run_impact(request, code: str, slug: str):
             f"rejected, {warned:,} newly warned.",
         )
     return redirect(reverse("specifications:edit_impact", args=[code, slug]) + "#impact-result")
+
+
+WORKBOOK_SESSION = "specification_workbook"  # the workbook loaded for a preview, until it is confirmed: {draft id, sha256, name, data}
+
+
+def _held(request, v) -> tuple[bytes, str] | None:
+    """The workbook held for the draft's preview, and its name (None when there is none)."""
+    import base64
+
+    held = request.session.get(WORKBOOK_SESSION) or {}
+    if held.get("draft") != v.pk:
+        return None
+    return base64.b64decode(held["data"]), held.get("name", "")
+
+
+@login_required
+def workbook_file(request, code: str, slug: str):
+    """The draft as a workbook to edit."""
+    from django.http import HttpResponse
+
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    response = HttpResponse(workbook.draft_xlsx(v), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response["Content-Disposition"] = f'attachment; filename="{workbook.file_name(v)}"'
+    return response
+
+
+@login_required
+def edit_workbook(request, code: str, slug: str):
+    """Download the draft as a workbook, load it back and see every difference before confirming it."""
+    import base64
+
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.WorkbookForm()
+    changes, problems, held_name, sha = None, [], "", ""
+    if request.method == "POST":
+        form = forms.WorkbookForm(request.POST, request.FILES)
+        if form.is_valid():
+            f = form.cleaned_data["file"]
+            content = f.read()
+            try:
+                changes, problems = workbook.preview(request.user, v, content)
+            except (AccessDenied, editor.EditError) as e:
+                form.add_error("file", str(e))
+                request.session.pop(WORKBOOK_SESSION, None)
+            else:
+                sha, held_name = workbook.sha256(content), f.name
+                request.session[WORKBOOK_SESSION] = {
+                    "draft": v.pk, "sha256": sha, "name": f.name, "data": base64.b64encode(content).decode("ascii"),
+                    "plan": workbook.plan_of(changes),
+                }  # fmt: skip
+    elif request.GET.get("held") and _held(request, v):  # back to the preview, e.g. after a refused confirmation
+        content, held_name = _held(request, v)
+        changes, problems = workbook.preview(request.user, v, content)
+        sha = workbook.sha256(content)
+        request.session[WORKBOOK_SESSION] = {**request.session[WORKBOOK_SESSION], "plan": workbook.plan_of(changes)}
+    load_form = forms.WorkbookLoadForm(initial={"sha256": sha}, auto_id="load_%s") if changes else None
+    return _page(
+        request, "edit_workbook.html", v, "edit_workbook", form=form, changes=changes, problems=problems, held_name=held_name,
+        load_form=load_form,
+    )  # fmt: skip
+
+
+@login_required
+@require_POST
+def load_workbook(request, code: str, slug: str):
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.WorkbookLoadForm(request.POST)
+    held = _held(request, v)
+    back = f"{reverse('specifications:edit_workbook', args=[code, slug])}?held=1#workbook-preview-h"
+    if held is None or workbook.sha256(held[0]) != request.POST.get("sha256") or not form.is_valid():
+        if held is None or workbook.sha256(held[0]) != request.POST.get("sha256"):
+            messages.error(request, "Load the workbook again: the one shown is no longer held.")
+            return redirect("specifications:edit_workbook", code, slug)
+        messages.error(request, "Say why the draft changes: the reason is kept with each change.")
+        return redirect(back)
+    try:
+        if workbook.plan_of(workbook.read(v, held[0])) != (request.session.get(WORKBOOK_SESSION) or {}).get("plan"):
+            messages.error(request, "The draft has changed since the differences were shown: read them again before confirming.")
+            return redirect(back)
+        changes = workbook.load(request.user, v, held[0], form.cleaned_data["reason"])
+    except (AccessDenied, editor.EditError) as e:
+        messages.error(request, f"Nothing was changed: {e}")
+        return redirect(back)
+    request.session.pop(WORKBOOK_SESSION, None)
+    v.refresh_from_db()
+    n = len(changes)
+    messages.success(request, f"Loaded the workbook: {n} change{'s' if n != 1 else ''} made to the draft, each kept with the reason.")
+    return redirect("specifications:edit_workbook", code, v.slug)
 
 
 @login_required

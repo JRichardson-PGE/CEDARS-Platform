@@ -114,7 +114,7 @@ PAGES = [
     ("specification-draft", "/specifications/monthly/monthly-reports-2029/edit/", "cpuc_admin"),
     *[
         (f"specification-draft-{part}", f"/specifications/monthly/monthly-reports-2029/edit/{part}/", "cpuc_admin")
-        for part in ("settings", "rules", "checks", "examples", "impact", "changes", "publish")
+        for part in ("settings", "rules", "checks", "examples", "impact", "workbook", "changes", "publish")
     ],
     *[
         (f"specification-draft-{name}", f"/specifications/monthly/monthly-reports-2029/edit/tables/Commitments/{part}", "cpuc_admin")
