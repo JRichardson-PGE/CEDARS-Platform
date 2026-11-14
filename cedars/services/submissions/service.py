@@ -965,6 +965,46 @@ def record_validation(actor, v: SubmissionVersion, rule_set, summary: dict) -> S
 
 
 @transaction.atomic
+def record_checking(actor, v: SubmissionVersion, rule_set, summary: dict) -> SubmissionVersion:
+    """The module's own checks ran, and the rules are being run by the worker of the engine release the filing's specification version
+    names: summary = the findings so far, with {"checking": {jobs, release, since}}. The version is a draft until the module records the
+    whole check (record_validation) once the jobs end; it cannot be priced meanwhile."""
+    v = SubmissionVersion.objects.select_for_update().get(pk=v.pk)
+    _require(actor, v.submission, "submit")
+    _refuse_imported(v.submission)
+    if v.locked:
+        raise AccessDenied("A confirmed version cannot be re-validated.")
+    return _change(
+        actor,
+        v,
+        "submission.checking",
+        rule_set=rule_set,
+        specification_version=v.submission.deadline.specification_version,
+        findings=summary,
+        status=SubmissionVersion.Status.DRAFT,
+        validated_at=None,
+    )
+
+
+def checking(v: SubmissionVersion | None) -> dict | None:
+    """A version whose rules are being checked: {jobs, release, since}; None otherwise."""
+    if v is None or v.locked:
+        return None
+    return (v.findings or {}).get("checking") or None
+
+
+def checking_state(v: SubmissionVersion) -> dict:
+    """Where a version's check stands, for its filing page ({ended, text}): ended once the version records the whole check, or when
+    every job ended without the version taking its findings (the page then offers Check again)."""
+    from cedars.services.rules import jobs
+
+    now = checking(v)
+    if now is None:
+        return {"ended": True, "text": "Checked: the findings are ready."}
+    return jobs.state(now.get("jobs") or [])
+
+
+@transaction.atomic
 def record_change(actor, v: SubmissionVersion, what: str, still_valid: bool = True) -> SubmissionVersion:
     """A cell corrected in place. The module re-validates that row and says whether the version is still valid; either way the
     calculation no longer matches the rows and is void."""

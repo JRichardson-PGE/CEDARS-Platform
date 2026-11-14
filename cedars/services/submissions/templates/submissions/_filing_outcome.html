@@ -12,6 +12,8 @@ results_heading, results_link, results_about, what: "these claims", "this filing
   {% elif stage.key == "stale" %}
   <div role="note"><p><strong>An earlier confirmation has changed since this version was compiled on it.</strong> Check it again to compile it over the confirmation that stands now; it then needs pricing again.</p></div>
   {% if can_submit %}<form method="post" action="{{ out.check_url }}" class="actions">{% csrf_token %}<button type="submit" class="primary">Check again</button></form>{% endif %}
+  {% elif stage.key == "checking" %}
+  {% include "submissions/_filing_checking.html" %}
   {% elif stage.key == "fix" %}
   <p><strong>{{ v.findings.rejected|default:0|floatformat:"0g" }} record{{ v.findings.rejected|default:0|pluralize }} rejected</strong>, {{ v.findings.warnings|default:0|floatformat:"0g" }} with warnings only. The findings below say which rule rejected each record and how to fix it.</p>
   {% if can_submit %}<p>Fix them: <a href="#upload-h">upload a corrected file</a>{% if can_correct %}, or correct them one by one without uploading the whole file again{% endif %}.</p>

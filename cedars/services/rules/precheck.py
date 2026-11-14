@@ -13,6 +13,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 
+from .jobs import engine_run
 from .models import RuleSet
 
 TABLES = ("Measure", "ProgramCost")
@@ -124,8 +125,19 @@ def check(module: str | None, table: str, content: bytes, *, rule_set: RuleSet |
     c, rs = resolve(module, rule_set)
     if table not in c.tables:
         raise CheckError(f"{c.label} checks the {' or '.join(c.tables)} table, not {table!r}.")
-    found, notes, records = c.run(rs, table, content, filing_year)
+    with engine_run(release_for(c, rs), purpose="pre-upload check"):  # run by the release that checks filings on these rules
+        found, notes, records = c.run(rs, table, content, filing_year)
     return Result(c, rs, table, filing_year, records, found, notes)
+
+
+def release_for(c: Checker, rs: RuleSet) -> str:
+    """The engine release whose worker runs the checker's rules: the one named by the newest published specification version with
+    rule set `rs`, else the module's current version's ("" = the default release)."""
+    from cedars.services.specifications import service as specifications
+
+    versions = specification_versions(rs)
+    version = versions[-1] if versions else specifications.for_module(c.module)
+    return specifications.engine_release_of(version)
 
 
 YEAR_COLUMN = {"Measure": "ClaimYearQuarter", "ProgramCost": "PrgYear"}

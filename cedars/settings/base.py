@@ -126,7 +126,10 @@ DATABASES = {"default": dj_database_url.parse(env("DATABASE_URL", "postgres://ce
 # The PII vault: its own database, set only where PII is held (never the sandbox). Without it PII uploads are refused.
 if env("VAULT_DATABASE_URL", ""):
     DATABASES["vault"] = dj_database_url.parse(env("VAULT_DATABASE_URL"), conn_max_age=60)
-DATABASE_ROUTERS = ["cedars.services.vault.router.VaultRouter"]
+# A second connection to the core database for check jobs (cedars/services/rules/jobs.py): a job written through it is seen by the
+# worker at once, while the request that submitted it may still be inside its transaction, waiting for the findings.
+DATABASES["jobs"] = {**DATABASES["default"]}
+DATABASE_ROUTERS = ["cedars.services.rules.router.JobsRouter", "cedars.services.vault.router.VaultRouter"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTHENTICATION_BACKENDS = [
@@ -264,6 +267,13 @@ CALCULATIONS_RESULTS_CACHE = env(
     "CALCULATIONS_RESULTS_CACHE", str(BASE_DIR / "var" / "cache" / "results")
 )  # local copies of runs' results files
 CALCULATIONS_WORKERS = {"small": int(env("CALCULATIONS_WORKERS_SMALL", "1")), "large": int(env("CALCULATIONS_WORKERS_LARGE", "1"))}
+
+# Rules (cedars/services/rules): a filing's rules run as check jobs in the worker of the engine release its specification version
+# names (`recet worker check`, jobs.py). Off, they run in this website's copy of the engine (tests, and a server without workers).
+RULES_RUN_IN_WORKER = env_bool("RULES_RUN_IN_WORKER", True)
+RULES_JOBS_DATABASE = "jobs"
+# How long a page waits for a check job (the pre-upload checker, a correction, examples, the impact test); a Change limits setting.
+RULES_CHECK_WAIT_SECONDS = int(env("RULES_CHECK_WAIT_SECONDS", "120"))
 
 # Data, dashboards and downloads (cedars/modules/data): queries over the publication snapshots.
 DATA_CACHE = env("DATA_CACHE", str(BASE_DIR / "var" / "cache" / "snapshots"))  # local copies of snapshots kept in S3

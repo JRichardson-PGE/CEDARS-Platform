@@ -609,13 +609,18 @@ def list_problems(tables: dict[str, bytes], deadline, lay=None) -> list[Problem]
 
 
 def _store_and_check(
-    actor, v: SubmissionVersion, tables: dict[str, bytes], job: bytes, entry: dict, *, scope: Scope | None = None, before=None
+    actor, v: SubmissionVersion, tables: dict[str, bytes], job: bytes, entry: dict, *, scope: Scope | None = None, before=None, checked=()
 ) -> SubmissionVersion:
     """Keep `job` as the version's file (in a folder named by its SHA-256), read its budget lines, run the module's checks and the rule
     set, and record the result. After a correction in place `scope` says which records changed and `before` is the version's
     summary before it: the module's checks, which are file-wide (a program's year, its rows, its PrgIDs) and quick, still run on every
     record, and the rule set runs only on the changed records and those with the same key (`_scoped`); every other record keeps its
-    rule-set findings, moved to its new line."""
+    rule-set findings, moved to its new line.
+
+    The rule set runs in the worker of the engine release the filing's specification version names (rules.engine_run). The check does
+    not wait for it: the version is recorded as being checked with the module's findings so far, and when the jobs end `finish_check`
+    checks it again with them (`checked`). A correction's few records are waited for, up to the check_wait_seconds limit; past it the
+    whole version is checked that way instead."""
     v = SubmissionVersion.objects.select_related("submission__deadline__cycle", "submission__organisation").get(pk=v.pk)
     if v.locked:
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
@@ -623,11 +628,19 @@ def _store_and_check(
     rs = _rule_set(v)
     lines, problems, records = derive(tables, v.submission.organisation, cycle)
     problems += list_problems(tables, v.submission.deadline)
-    rescope = _scoped(tables, cycle, scope, before, rs) if scope is not None else None
-    if rescope is not None:
-        found, notes, rule_set, rechecked = rescope
-    else:
-        found, notes, rule_set = _rule_findings(tables, cycle, rs, v.submission.organisation, timezone.localtime(v.created_at).date())
+    release = specifications.engine_release_of(specifications.of_filing(v.submission.deadline))  # whose worker runs the rules
+    rescope = None
+    if scope is not None:
+        with rules.engine_run(release, purpose="correction") as quick:
+            rescope = _scoped(tables, cycle, scope, before, rs)
+        if quick.failed:  # the worker could not answer in time: the whole version is checked instead, without waiting
+            rescope = None
+    caller = {"module": MODULE, "version": v.pk}
+    with rules.engine_run(release, wait=False, purpose="filing", caller=caller, finished=checked) as run:
+        if rescope is not None:
+            found, notes, rule_set, rechecked = rescope
+        else:
+            found, notes, rule_set = _rule_findings(tables, cycle, rs, v.submission.organisation, timezone.localtime(v.created_at).date())
     problems = specifications.apply_checks_for_filing(v.submission.deadline, problems + found)  # built-in checks as its version has them
     store = storage.store("uploads")
     sha = hashlib.sha256(job).hexdigest()
@@ -653,7 +666,26 @@ def _store_and_check(
         ]
     else:
         summary["checked_at"] = timezone.now().isoformat()
+    if run.pending:  # the rules are still being run by the release's worker: recorded as being checked, finished by finish_check
+        summary["checking"] = run.checking()
+        return submissions.record_checking(actor, v, rs, summary)
     return submissions.record_validation(actor, v, rs, summary)
+
+
+def finish_check(job) -> None:
+    """A check job a budget filing version's check submitted has ended (rules.jobs finisher): once every job of the version's check has
+    ended, check the version's file again with them, so it takes their findings. A job of a check since replaced is ignored."""
+    pk = (job.caller or {}).get("version")
+    with transaction.atomic():
+        v = SubmissionVersion.objects.select_for_update().filter(pk=pk).first()
+        now = submissions.checking(v)
+        if now is None or str(job.pk) not in (now.get("jobs") or []):
+            return
+        done = rules.jobs.all_ended(now["jobs"])
+        f = job_file(v) if done is not None else None
+        if f is not None:
+            tables, data = jobfile.read_upload(storage.store("uploads").get_bytes(f["key"]), "job.zip")
+            _store_and_check(None, v, tables, data, {k: x for k, x in f.items() if k not in ("key", "sha256", "bytes")}, checked=done)
 
 
 # --- correcting records in place
@@ -1305,7 +1337,8 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     cycle = _ExampleCycle(year, year + 3)
     _lines, problems, _records = derive(tables, org, cycle)
     problems += list_problems(tables, None, lay=specifications.layout(version))
-    found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET), org)
+    with rules.engine_run(specifications.engine_release_of(version), purpose="example"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(tables, cycle, specifications.rule_set_of(version, RULE_SET), org)
     return specifications.apply_checks(version, problems + found)
 
 
@@ -1345,9 +1378,10 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
     cycle = v.submission.deadline.cycle
     _lines, problems, _records = derive(tables, v.submission.organisation, cycle)
     problems += list_problems(tables, v.submission.deadline, lay=specifications.layout(version))
-    found, _notes, _label = _rule_findings(
-        tables, cycle, specifications.rule_set_of(version, RULE_SET), v.submission.organisation, timezone.localtime(v.created_at).date()
-    )
+    with rules.engine_run(specifications.engine_release_of(version), purpose="impact test"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(
+            tables, cycle, specifications.rule_set_of(version, RULE_SET), v.submission.organisation, timezone.localtime(v.created_at).date()
+        )
     return specifications.apply_checks(version, problems + found)
 
 

@@ -671,15 +671,40 @@ def _require_in_order(organisation, deadline: Deadline) -> None:
         raise AccessDenied(f"Confirm the {label(d)} first: each confirmation is compiled on the one before it.")
 
 
+def _full_check(own, comp, deemed, org, deadline, year, base, corrected, rs, lay, v) -> tuple[list, list[str], str]:
+    """Every record's checks: the module's own and the rule set's (`_rule_findings`) on the upload's own records."""
+    problems = deemed + derive_checks(
+        own,
+        comp.tables,
+        org,
+        year,
+        last_quarter(deadline),
+        base,
+        corrected,
+        statewide=is_statewide(deadline),
+        rules_run=rs is not None,
+        lay=lay,
+    )
+    found, notes, rule_set = _rule_findings(
+        own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+    )
+    return problems + found, notes, rule_set
+
+
 @transaction.atomic
-def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict | None = None) -> SubmissionVersion:
+def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict | None = None, *, checked=()) -> SubmissionVersion:
     """Compile the version's records over the year to date (the standing version of the confirmation before it), run the module's
     checks and the claims rule set on its own records, write the compiled tables and the job to price, and record the result: validated
     when nothing is rejected. Run again ("Check again") when an earlier confirmation has changed since.
 
     After a correction in place `scope` says which records changed and `before` is the version's summary before it: only
     the changed records and those whose checks they can affect are checked again (`_scoped`); every other record keeps its findings.
-    The compiled tables, the job, the program lines and the claim index are always rebuilt whole."""
+    The compiled tables, the job, the program lines and the claim index are always rebuilt whole.
+
+    The rules run in the worker of the engine release the filing's specification version names (rules.engine_run). A check does not
+    wait for them: the version is recorded as being checked with the module's findings so far, and when the jobs end `finish_check`
+    checks it again with them (`checked`), taking their findings. A correction's few records are waited for, up to the
+    check_wait_seconds limit; past it the whole version is checked that way instead."""
     v = SubmissionVersion.objects.select_related("submission__deadline__period", "submission__organisation").get(pk=v.pk)
     if v.locked:  # before anything is written: a published version's files never change
         raise AccessDenied("A confirmed version cannot be checked again; un-confirm it or ask to reopen.")
@@ -696,32 +721,20 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
     deemed, etrm_summary = fill_deemed(lay, own, base)
     comp = compile_tables(lay, base, own, f"{label(deadline)}, version {v.number}", corrected)
     rs = specifications.rule_set_for_filing(deadline, RULE_SET)  # the rules of the filing's specification version, on any date
-    rescope = (
-        _scoped(
-            own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs, lay
-        )
-        if scope
-        else None
-    )
-    if rescope is not None:
-        problems, notes, rule_set, rechecked = rescope
-    else:
-        problems = deemed + derive_checks(
-            own,
-            comp.tables,
-            org,
-            year,
-            last_quarter(deadline),
-            base,
-            corrected,
-            statewide=is_statewide(deadline),
-            rules_run=rs is not None,
-            lay=lay,
-        )
-        found, notes, rule_set = _rule_findings(
-            own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
-        )
-        problems += found
+    release = specifications.engine_release_of(specifications.of_filing(deadline))  # whose worker runs them
+    rescope = None
+    if scope:
+        with rules.engine_run(release, purpose="correction") as quick:
+            rescope = _scoped(
+                own, comp.tables, deemed, org, year, last_quarter(deadline), base, corrected, scope, before, is_statewide(deadline), rs, lay
+            )
+        if quick.failed:  # the worker could not answer in time: the whole version is checked instead, without waiting
+            rescope = None
+    with rules.engine_run(release, wait=False, purpose="filing", caller={"module": MODULE, "version": v.pk}, finished=checked) as run:
+        if rescope is not None:
+            problems, notes, rule_set, rechecked = rescope
+        else:
+            problems, notes, rule_set = _full_check(own, comp, deemed, org, deadline, year, base, corrected, rs, lay, v)
     problems = specifications.apply_checks_for_filing(deadline, problems)  # the built-in checks as the filing's version has them
     own_f = own_file(v)
     store = storage.store("uploads")
@@ -778,7 +791,25 @@ def check(actor, v: SubmissionVersion, scope: Scope | None = None, before: dict 
         ]
     else:
         summary["checked_at"] = timezone.now().isoformat()
+    if run.pending:  # the rules are still being run by the release's worker: recorded as being checked, finished by finish_check
+        summary["checking"] = run.checking()
+        return submissions.record_checking(actor, v, rs, summary)
     return submissions.record_validation(actor, v, rs, summary)
+
+
+def finish_check(job) -> None:
+    """A check job a claims version's check submitted has ended (rules.jobs finisher): once every job of the version's check has
+    ended, check the version again with them, so it takes their findings. A job of a check the version has since replaced (a new upload,
+    a correction, Check again) is ignored."""
+    pk = (job.caller or {}).get("version")
+    with transaction.atomic():
+        v = SubmissionVersion.objects.select_for_update().filter(pk=pk).first()
+        now = submissions.checking(v)
+        if now is None or str(job.pk) not in (now.get("jobs") or []):
+            return
+        done = rules.jobs.all_ended(now["jobs"])
+        if done is not None:
+            check(None, v, checked=done)
 
 
 # --- correcting records in place
@@ -2659,7 +2690,8 @@ def example_findings(version, rows: dict[str, list[dict]], year: int, pa: str) -
     own = {t: upload.Table(t, lay.columns(t), [dict(r) for r in rs]) for t, rs in rows.items() if t in lay.TABLES and rs}
     rs = specifications.rule_set_of(version, RULE_SET)
     problems = derive_checks(own, own, org, year, 4, rules_run=rs is not None, lay=lay)
-    found, _notes, _label = _rule_findings(own, year, rs, lay=lay, organisation=org)
+    with rules.engine_run(specifications.engine_release_of(version), purpose="example"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(own, year, rs, lay=lay, organisation=org)
     return specifications.apply_checks(version, problems + found)
 
 
@@ -2704,9 +2736,10 @@ def impact_findings(version, v: SubmissionVersion, rows: dict[str, tuple[list[st
         rules_run=rs is not None,
         lay=lay,
     )
-    found, _notes, _label = _rule_findings(
-        own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
-    )
+    with rules.engine_run(specifications.engine_release_of(version), purpose="impact test"):  # the version's release runs its rules
+        found, _notes, _label = _rule_findings(
+            own, year, rs, lay=lay, organisation=org, upload_date=timezone.localtime(v.created_at).date(), linked=comp.tables
+        )
     return specifications.apply_checks(version, problems + found)
 
 

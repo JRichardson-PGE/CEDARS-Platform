@@ -13,6 +13,8 @@ from cedars.services import audit
 from cedars.services.accounts import service as access
 from cedars.services.accounts.service import AccessDenied
 
+from . import jobs
+from .jobs import CheckNotRun, engine_run  # noqa: F401 - the modules' way in
 from .models import Rule, RuleSet
 
 MODULES_FOR = {"claims": ["claims", "calculations"], "budget_filing": ["budgets", "calculations"]}
@@ -972,39 +974,68 @@ def check(
     """Run a rule set's rules for `table` on a raw-text frame: every failing (record, rule) as a Finding, rejects first, and notes on rules
     that could not be checked. Findings name fields and wording with the data dictionary's names. `skip`: rule IDs not to run (those
     that read a column the file lacks, `needing`). `context`: the filing's other tables, who files, the programs and the upload date,
-    which the wider rule language reads. `id_column`: the column (or key columns) that names a record in the findings."""
-    from cedars.services.dictionary import value_lists
+    which the wider rule language reads. `id_column`: the column (or key columns) that names a record in the findings.
 
-    filing_rules, _ = _engine()
-    value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
-    ctx = (context or CheckContext()).engine(filing_rules, filing_year, library_available())
-    results, notes = filing_rules.check_frame(_engine_rule_set(rs, skip), table, df, ctx)
+    Inside an engine run (jobs.engine_run) the rules are run by the worker of the run's engine release as a check job: a run that waits
+    gets the job's findings (or CheckNotRun, a ValueError, when it could not have them); a run that does not wait gets no findings
+    while the job is pending (its `pending` lists it). Otherwise, or when the release's worker cannot run checks, they run here."""
+    run = jobs.current()
+    if run is not None and run.in_worker:
+        out = jobs.check_part(run, rs, table, df, filing_year=filing_year, skip=skip, context=context)
+        if out is None:
+            return [], []
+        failing = [(r["rule_id"], r["rows"], r.get("actual") or []) for r in out.get("results", [])]
+        notes = list(out.get("notes", []))
+    else:
+        from cedars.services.dictionary import value_lists
+
+        filing_rules, _ = _engine()
+        value_lists.apply_to_engine()  # the value lists in force here, as administrators keep them
+        ctx = (context or CheckContext()).engine(filing_rules, filing_year, library_available())
+        results, notes = filing_rules.check_frame(_engine_rule_set(rs, skip), table, df, ctx)
+        failing = []
+        for res in results:
+            rows = [int(i) for i in res.fail.nonzero()[0]]
+            actual = res.actual
+            failing.append(
+                (res.rule.id, rows, ["" if actual is None else str(actual.iloc[i]) if hasattr(actual, "iloc") else "" for i in rows])
+            )
+        if run is not None and run.note:
+            notes = [*notes, run.note]
     notes = [n.replace(_NO_LIBRARY, _NO_LIBRARY_HERE) for n in notes]
-    fixes = dict(rs.rules.values_list("rule_id", "fix"))
+    return _findings(rs, table, df, failing, id_column), notes
+
+
+def _findings(rs: RuleSet, table: str, df, failing, id_column) -> list[Finding]:
+    """The failing (rule ID, 0-based rows, the field's value in each) as Findings, rejects first."""
+    rules = {r.rule_id: r for r in rs.rules.filter(table=table)}
     id_cols = [id_column] if isinstance(id_column, str) else list(id_column)
     if all(c in df.columns for c in id_cols) and id_cols:
         ids = df[id_cols].astype(str).agg(" / ".join, axis=1).to_numpy()
     else:
         ids = [""] * len(df)
     findings = []
-    for res in sorted(results, key=lambda r: r.rule.severity != "reject"):
-        actual = res.actual
-        for i in res.fail.nonzero()[0]:
-            value = "" if actual is None else str(actual.iloc[i]) if hasattr(actual, "iloc") else ""
+    for rule_id, rows, values in sorted(failing, key=lambda f: getattr(rules.get(f[0]), "severity", "reject") != "reject"):
+        r = rules.get(rule_id)
+        if r is None:
+            continue
+        for n, i in enumerate(rows):
+            value = str(values[n]) if n < len(values) and values[n] is not None else ""
+            value = "" if value == "<NA>" else value
             findings.append(
                 Finding(
                     int(i) + 2,
                     ids[i],
                     table,
-                    canonical_field(res.rule.field),
-                    res.rule.id,
-                    res.rule.severity,
-                    canonical_text(res.rule.text) + (f", but is {value}" if value and value != "<NA>" else ""),
-                    fixes.get(res.rule.id, ""),
-                    "" if value == "<NA>" else value,
+                    canonical_field(r.field),
+                    r.rule_id,
+                    r.severity,
+                    canonical_text(r.message) + (f", but is {value}" if value else ""),
+                    r.fix,
+                    value,
                 )
             )
-    return findings, notes
+    return findings
 
 
 def condition_met(rule: Rule, df, *, filing_year: int | None = None, context: CheckContext | None = None) -> bool:

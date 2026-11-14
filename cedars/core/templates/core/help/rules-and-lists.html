@@ -18,6 +18,12 @@ upload page links the version under "Before you upload", and its findings name t
   <li>The version decides how the filing is checked and priced, on any date, corrections included: its tables and fields, the rule set
   it names, and the engine release and cost-test set it names. A version that names no engine release is priced with the release
   marked default for new runs; one that names no cost-test set uses the filing set's, else the set in force for the program year.</li>
+  <li id="checked-by-the-release">The engine release that prices a filing also runs its rules, so a filing's findings never change
+  because the website's own copy of the engine was upgraded. The file's own checks (its tables, columns and records) are done as it
+  arrives; the rules then run in that release's worker, and the filing page says "Being checked" until they finish, which usually takes
+  under a minute, and updates itself. The filing cannot be priced meanwhile. The pre-upload checker, a correction of a few records,
+  example files and the impact test wait for the worker; if it has not answered within the time on the
+  <a href="{% url 'limits:index' %}">Limits</a> page, the findings say the rules were not checked yet, never that they passed.</li>
 </ul>
 <h2>For filers</h2>
 <ol>

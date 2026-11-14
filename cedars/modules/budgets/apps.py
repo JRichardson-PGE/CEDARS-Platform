@@ -19,6 +19,9 @@ class BudgetsConfig(AppConfig):
             "budgets", checks.RULE_SET, "Budget and application filings", checks.precheck,
             year_help="Each record is checked as a filing for its own year; give a year to check only that year's records.",
         )  # fmt: skip
+        from cedars.services.rules.jobs import register_finisher
+
+        register_finisher("budgets", checks.finish_check)  # a filing's rules, run by its release's worker, come back to its version
         from cedars.services.rules.coded import register_coded_checks
 
         from . import coded_checks

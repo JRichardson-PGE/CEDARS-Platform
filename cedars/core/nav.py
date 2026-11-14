@@ -163,6 +163,7 @@ SHARED = (
     "submissions:correction*",
     "submissions:record*",
     "submissions:pricing_status",
+    "submissions:checking_status",
 )
 
 MENUS = (
