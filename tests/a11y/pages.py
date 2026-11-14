@@ -106,6 +106,7 @@ PAGES = [
     ("specifications-signed-in", "/specifications/", "pge_admin"),
     ("specification-claims", "/specifications/claims/starting-version/", None),
     ("specification-budgets", "/specifications/budget_filing/starting-version/", None),
+    ("specification-legacy-layout", "/specifications/claims/legacy-cedars-claims-2023-2026/", None),
     ("specification-compare", "/specifications/compare/?a=budget_filing/starting-version&b=monthly/starting-version", None),
     ("specification-compare-empty", "/specifications/compare/", None),
     # the editor: a published version's page with Start a new version, and the scene's draft Monthly reports 2029, page by page

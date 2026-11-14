@@ -5,6 +5,7 @@ reopened, corrected, withdrawn or priced again. Its results are CEDARS' own CET 
 download carries no version history{% if legacy.quarters %} and no quarterly confirmations (its records' claim quarters: {{ legacy.quarters|join:", " }}){% endif %}.</p>
 {% if legacy.outside_totals %}<p><strong>Outside every total:</strong> these {{ legacy.outside_totals|floatformat:"0g" }} statewide claims are published by CEDARS
 unallocated. The same claims are in the program administrators' own versions, allocated to their funding PAs, and those are what the totals count.</p>{% endif %}
+{% if legacy.layouts %}<p id="legacy-layout">The download's layout, column by column with the field each column is loaded as:{% for lv in legacy.layouts %} <a href="{% url 'specifications:version' lv.specification.code lv.slug %}">{{ lv.name }}</a>{% if not forloop.last %},{% endif %}{% endfor %}.</p>{% endif %}
 <p>Source:{% for s in legacy.sources %} <a href="{{ s.url }}">{{ s.name }}</a> (CEDARS){% if not forloop.last %},{% endif %}{% endfor %}.</p>
 <div class="hscroll" tabindex="0" role="region" aria-labelledby="legacy-caption">
 <table class="list">

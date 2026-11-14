@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 from cedars.core import nav
 from cedars.services.accounts.service import AccessDenied
 
-from . import comments, downloads, editor, forms, service, transfer
+from . import comments, downloads, editor, forms, historic, service, transfer
 from .models import SpecComment, Specification, SpecificationVersion
 
 
@@ -37,7 +37,13 @@ def index(request):
         current = service.current(s)
         versions = service.readable_versions(request.user, s)
         specs.append(
-            {"spec": s, "current": current, "coming": service.coming(s), "versions": [(v, len(service.in_use(v))) for v in versions]}
+            {
+                "spec": s,
+                "current": current,
+                "coming": service.coming(s),
+                "versions": [(v, len(service.in_use(v))) for v in versions],
+                "historic": [(v, historic.years_of(v)) for v in historic.versions(s)],
+            }
         )
     nav_menu = "filings" if "member" in nav.roles_of(request.user) else "published"
     open_for_comment = [v for s in specs for v, _ in s["versions"] if v.open_for_comment]
@@ -89,8 +95,18 @@ def version(request, code: str, slug: str):
             "coming": v.status == "published" and v.effective_on is not None and v.effective_on > timezone.localdate(),
             "provenance": transfer.provenance(v),
             **_comments_context(request, v),
+            **_historic_context(v),
         },
     )
+
+
+def _historic_context(v) -> dict:
+    """A legacy CEDARS layout's page: its years and the legacy years imported from downloads in its layout."""
+    if not v.historic:
+        return {}
+    from cedars.services.legacy import service as legacy
+
+    return {"years": historic.years_of(v), "imports": legacy.imports_in_layouts(v.legacy_layouts)}
 
 
 def _comments_context(request, v) -> dict:
@@ -202,6 +218,8 @@ def template(request, code: str, slug: str, kind: str):
     if kind not in ("xlsx", "zip", "pii-xlsx", "pii-zip"):
         raise Http404("No such template.")
     v = _version(request, code, slug)
+    if v.historic:  # a legacy CEDARS download layout is no upload layout
+        raise Http404("A legacy CEDARS layout has no upload template, examples or schema.")
     vault = kind.startswith("pii")
     if vault and not v.tables.filter(vault=True).exists():
         raise Http404("This version has no PII tables.")
@@ -224,6 +242,8 @@ def document(request, code: str, slug: str):
 
 def schema(request, code: str, slug: str, table: str):
     v = _version(request, code, slug)
+    if v.historic:  # a legacy CEDARS download layout is no upload layout
+        raise Http404("A legacy CEDARS layout has no upload template, examples or schema.")
     t = v.tables.filter(name=table).first()
     if t is None:
         raise Http404("No such table.")
@@ -235,6 +255,8 @@ def example(request, code: str, slug: str, example: str, kind: str):
     if kind not in ("xlsx", "zip"):
         raise Http404("No such file.")
     v = _version(request, code, slug)
+    if v.historic:  # a legacy CEDARS download layout is no upload layout
+        raise Http404("A legacy CEDARS layout has no upload template, examples or schema.")
     e = v.examples.filter(slug=example).first()
     if e is None:
         raise Http404("No such example.")

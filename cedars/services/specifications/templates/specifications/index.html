@@ -33,6 +33,10 @@ and corrections use that version, whenever they are made. Several versions can b
     </tbody>
   </table>
   </div>
+  {% if s.historic %}<h3 id="historic-{{ s.spec.code }}">Legacy CEDARS layouts</h3>
+  <p class="small">The layouts of legacy CEDARS' record-level downloads that the imported years came in. Read only: those years were filed
+  and checked in legacy CEDARS.</p>
+  <ul class="compact">{% for v, years in s.historic %}<li><a href="{% url 'specifications:version' s.spec.code v.slug %}">{{ v.name }}</a>{% if years %} ({{ years }}){% endif %}</li>{% endfor %}</ul>{% endif %}
 </section>
 {% endfor %}
 {% endblock %}

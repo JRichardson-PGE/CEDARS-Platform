@@ -31,6 +31,7 @@ class SpecificationVersion(models.Model):
         PROPOSED = "proposed", "Proposed"
         PUBLISHED = "published", "Published"
         WITHDRAWN = "withdrawn", "Withdrawn"
+        HISTORIC = "historic", "Legacy CEDARS layout"
 
     specification = models.ForeignKey(Specification, on_delete=models.PROTECT, related_name="versions")
     name = models.CharField(max_length=120, help_text="The name the CPUC gives the version, unique in its specification")
@@ -100,6 +101,11 @@ class SpecificationVersion(models.Model):
     proposed_at = models.DateTimeField(null=True, blank=True, help_text="When it was last proposed for comment")
     proposed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     proposal_note = models.TextField(blank=True, help_text="What the CPUC asks filers to look at, shown while it is proposed")
+    legacy_layouts = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="A historic version's legacy CEDARS download layouts (dictionary.legacy.LAYOUTS), one per table",
+    )
     comments_close_at = models.DateTimeField(
         null=True, blank=True, help_text="When comments on the proposed version close (the start of the day after the last day)"
     )
@@ -113,7 +119,8 @@ class SpecificationVersion(models.Model):
                 fields=["specification"], condition=Q(status__in=["draft", "proposed"]), name="specifications_one_draft"
             ),
             models.CheckConstraint(
-                condition=Q(status__in=["draft", "proposed"]) | Q(published_at__isnull=False), name="specifications_published_has_date"
+                condition=Q(status__in=["draft", "proposed", "historic"]) | Q(published_at__isnull=False),
+                name="specifications_published_has_date",
             ),
             models.CheckConstraint(condition=~Q(name=""), name="specifications_version_has_name"),
         ]
@@ -127,8 +134,13 @@ class SpecificationVersion(models.Model):
 
     @property
     def public(self) -> bool:
-        """Readable without signing in: published and withdrawn versions."""
-        return self.status in (self.Status.PUBLISHED, self.Status.WITHDRAWN)
+        """Readable without signing in: published and withdrawn versions, and the legacy CEDARS layouts."""
+        return self.status in (self.Status.PUBLISHED, self.Status.WITHDRAWN, self.Status.HISTORIC)
+
+    @property
+    def historic(self) -> bool:
+        """A legacy CEDARS download layout, recorded read-only for the years imported from it: never assigned, never checked."""
+        return self.status == self.Status.HISTORIC
 
     @property
     def open_for_comment(self) -> bool:

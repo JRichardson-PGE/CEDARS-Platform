@@ -13,6 +13,7 @@ specifications/index:
     - Select a version to read its tables, fields and rules and to download its template.
     - Signed in, read a version proposed for comment from the list at the top and comment on it before its last day.
     - Compare two versions shows the fields, rules and settings that change between them.
+    - Under each specification, Legacy CEDARS layouts lists the layouts of the legacy downloads the imported years came in.
   see: rules-and-lists
   tour:
     - target: "#open-for-comment"
@@ -25,6 +26,10 @@ specifications/index:
     - target: main section table.list
       title: Versions
       text: Each version of the specification, its status, when it was published and how many filings on the calendar use it.
+    - target: main section h3
+      title: Legacy CEDARS layouts
+      text: The layouts of legacy CEDARS' record-level downloads that the imported years came in, read only.
+      optional: true
 
 specifications/version:
   title: A filing specification version
@@ -40,6 +45,9 @@ specifications/version:
     - Before publishing a version, the CPUC may propose it for comment. A proposed version is shown to anyone signed in. Read it,
       download its template and examples, check a file against it with the pre-upload checker, and comment on the whole version, a
       table or a field until its last day for comments. The CPUC answers under each comment. It does not change while it is proposed.
+    - A legacy CEDARS layout records the columns of a record-level download legacy CEDARS published, each under CEDARS' own label
+      with the field it is loaded into here, and lists the years imported from downloads in it. Those years were filed and checked in
+      legacy CEDARS, so no filing is set up with a layout or checked against it, and it never changes.
   how:
     - Download the upload template (a workbook, or a .zip of pipe-delimited files) and fill in each table.
     - On a proposed version, choose what your comment is about, write it and post it for your organization.
@@ -69,6 +77,10 @@ specifications/version:
     - target: "#downloads-h"
       title: Templates and downloads
       text: The upload template, every field and rule as a workbook, and the whole specification as data.
+    - target: "#imports-h"
+      title: Years imported in this layout
+      text: For a legacy CEDARS layout, the years loaded from downloads in it, each by program administrator.
+      optional: true
     - target: "#about-h"
       title: About this version
       text: Its rules, what prices its filings, its file format and the filings that use it.
@@ -78,6 +90,7 @@ specifications/version:
     - target: "#checks-h"
       title: Built-in checks
       text: The checks written in CEDARS' code that a filing on this version also meets.
+      optional: true
 
 specifications/import_version:
   title: Import a specification version
