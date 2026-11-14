@@ -167,7 +167,32 @@ def edit_checks(request, code: str, slug: str):
         for g, label, rows in groups
     ]  # fmt: skip
     choosable = any(r.check.optional or r.check.severities for _g, _l, rows in groups for r in rows)
-    return _page(request, "edit_checks.html", v, "edit_checks", groups=shown, form=form, choosable=choosable)
+    return _page(
+        request, "edit_checks.html", v, "edit_checks", groups=shown, form=form, choosable=choosable,
+        writable=editor.writable_as_rules(v), as_rules_form=forms.ReasonForm(auto_id="as-rules-%s"),
+    )  # fmt: skip
+
+
+@login_required
+@require_POST
+def write_check_as_rules(request, code: str, slug: str):
+    """Replace one of the draft's built-in checks with the rules that give its findings (editor.write_as_rules)."""
+    v, away = _editable(request, code, slug)
+    if away:
+        return away
+    form = forms.ReasonForm(request.POST)
+    rule_id = request.POST.get("check", "")
+    if not form.is_valid():
+        messages.error(request, "Say why the check is written as rules: the reason is kept with the version.")
+    else:
+        try:
+            written = editor.write_as_rules(request.user, v, rule_id, form.cleaned_data["reason"])
+        except (AccessDenied, editor.EditError) as e:
+            messages.error(request, str(e))
+        else:
+            n = len(written)
+            messages.success(request, f"{rule_id} is written as {n} rule{'s' if n != 1 else ''} of this draft, on its Rules page.")
+    return redirect("specifications:edit_checks", v.specification.code, v.slug)
 
 
 class _CheckShown:

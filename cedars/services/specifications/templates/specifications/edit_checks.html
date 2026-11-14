@@ -27,4 +27,16 @@ warning or a reject: a filing on the version runs them as it has them.{% endif %
 {% if choosable %}<div class="stack form-narrow">{{ form.reason.as_field_group }}
   <div class="actions"><button type="submit" class="primary">Save the built-in checks</button></div></div>{% endif %}
 </form>
+{% if writable %}
+<h2 id="as-rules-h">Write a check as rules</h2>
+<p>These checks can be replaced by rules in this draft's rule set that give the same findings. The check then leaves the version and
+its rules are on the <a href="{% url 'specifications:edit_rules' v.specification.code v.slug %}">Rules</a> page, where they can be changed like any
+other rule, with the severity the check has here. Filings on earlier versions keep the check.</p>
+<form method="post" action="{% url 'specifications:write_check_as_rules' v.specification.code v.slug %}" class="stack form-narrow" id="as-rules-form">{% csrf_token %}
+  <div class="field"><label for="as-rules-check">Check</label>
+    <select name="check" id="as-rules-check">{% for c in writable %}<option value="{{ c.rule_id }}">{{ c.rule_id }}: {{ c.finds }} ({{ c.as_rules|length }} rule{{ c.as_rules|length|pluralize }})</option>{% endfor %}</select></div>
+  {{ as_rules_form.reason.as_field_group }}
+  <div class="actions"><button type="submit">Write it as rules</button></div>
+</form>
+{% endif %}
 {% endblock %}

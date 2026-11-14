@@ -934,6 +934,59 @@ def set_checks(actor, draft: SpecificationVersion, *, runs, severities: dict[str
     return v
 
 
+def writable_as_rules(v: SpecificationVersion) -> list:
+    """The built-in checks the draft runs that can be written as rules of its rule set instead (rules.coded `as_rules`)."""
+    from cedars.services.rules import coded
+
+    listed = set(v.checks.values_list("rule_id", flat=True))
+    known = coded.by_id()
+    return [known[r] for r in sorted(listed) if r in known and known[r].as_rules] if v.rule_set_id else []
+
+
+@transaction.atomic
+def write_as_rules(actor, draft: SpecificationVersion, rule_id: str, reason: str = "") -> list:
+    """Replace a built-in check the draft runs with the rules that give its findings (`as_rules`), added to the draft's rule set with
+    the severity the draft gives the check and its fix; the check then leaves the draft's list, so a filing on the version is checked
+    by the rules, which the CPUC can change as data from then on. Filings on earlier versions keep the check. Returns the rules."""
+    from cedars.services.rules import coded
+    from cedars.services.rules import service as rules
+
+    _require(actor)
+    v = _draft(SpecificationVersion.objects.select_for_update().get(pk=draft.pk))
+    if not (reason or "").strip():
+        raise EditError("Say why the check is written as rules: the reason is kept with the version.")
+    check = coded.by_id().get(rule_id)
+    setting = v.checks.filter(rule_id=rule_id).first()
+    if check is None or not check.as_rules:
+        raise EditError(f"{rule_id} cannot be written as rules.")
+    if setting is None:
+        raise EditError(f"This draft does not run {rule_id}; tick it on Built-in checks first if its rules are wanted.")
+    if v.rule_set_id is None:
+        raise EditError("This draft has no rule set to write the rules in.")
+    written = []
+    for ar in check.as_rules:
+        d = rules.rule_definition(ar.field, ar.rule, ar.value, [(*c, "") for c in ar.conds], ar.connector, ar.table)
+        rid, _text = rules._id_and_text("rule", setting.severity, ar.table, ar.field, {**d, "field": ar.field})
+        found = v.rule_set.rules.filter(rule_id=rid).first()
+        if found is None:
+            found = rules.add_rule(
+                actor, v.rule_set, kind="rule", severity=setting.severity, table=ar.table, field=ar.field, definition=d, fix=check.fix,
+                reason=f"{reason} (built-in check {rule_id} written as rules)",
+            )  # fmt: skip
+        written.append(found)
+    severity = setting.severity
+    setting.delete()
+    audit.record(
+        "specification.check_written_as_rules",
+        obj=v,
+        before={rule_id: severity},
+        after={rule_id: "", "rules": [r.rule_id for r in written]},
+        reason=reason,
+        actor=actor,
+    )
+    return written
+
+
 # --- the checks before publishing
 
 

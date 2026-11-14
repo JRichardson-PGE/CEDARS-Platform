@@ -23,6 +23,7 @@ urlpatterns = [
     path("<slug:code>/<slug:slug>/edit/settings/", editor_views.edit_settings, name="edit_settings"),
     path("<slug:code>/<slug:slug>/edit/rules/", editor_views.edit_rules, name="edit_rules"),
     path("<slug:code>/<slug:slug>/edit/checks/", editor_views.edit_checks, name="edit_checks"),
+    path("<slug:code>/<slug:slug>/edit/checks/as-rules/", editor_views.write_check_as_rules, name="write_check_as_rules"),
     path("<slug:code>/<slug:slug>/edit/examples/", editor_views.edit_examples, name="edit_examples"),
     path("<slug:code>/<slug:slug>/edit/examples/generate", editor_views.generate_examples, name="generate_examples"),
     path("<slug:code>/<slug:slug>/edit/examples/<slug:example>/file", editor_views.example_file, name="example_file"),

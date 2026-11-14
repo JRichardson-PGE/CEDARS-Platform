@@ -318,7 +318,7 @@ Every point where a service calls back into a module is a registration function.
 | `register_dispatcher` | rules (`jobs.py`) | calculations | How check jobs reach a worker: the release that checks a version naming none (the default), submitting a queued job (local queue or AWS Batch), whether a worker runs a release now |
 | `register_finisher` | rules (`jobs.py`) | budgets, claims | A check job a filing's check submitted has ended: once all of that check's jobs have, the module checks the version again with them and takes their findings |
 | `register_layout_provider` | rules | specifications (a service) | The tables a rule set's rules may test and read, and their key columns: those of the specification version that names it (`specifications.rule_set_layout`), else CEDARS' Measure and ProgramCost |
-| `register_coded_checks` | rules (`coded.py`) | budgets, claims, monthly, impact_profiles, vault | The checks each upload runs in code beside the rule sets, listed read only on Built-in checks (`/rules/built-in/`); a check marked optional runs only when the filing's specification version lists it, with the severity the version gives it |
+| `register_coded_checks` | rules (`coded.py`) | budgets, claims, monthly, impact_profiles, vault | The checks each upload runs in code beside the rule sets, listed read only on Built-in checks (`/rules/built-in/`); a check marked optional runs only when the filing's specification version lists it, with the severity the version gives it; an optional check may carry the rules that give its findings (`as_rules`, `coded.AsRule`), which a draft writes into its rule set in its place (`editor.write_as_rules`) |
 | `register_impact_checker` | specifications (`impact.py`) | budgets, claims, monthly | How the impact test reads a confirmed filing's own records and checks them under a given specification version (the module's checks against the same year so far or month before, the version's rule set, value lists and built-in checks; nothing stored) |
 | `register_filing_set` | specifications (`moving.py`) | budgets, claims, monthly | How a module's open versions are checked again after their filing set moves to another specification version (as CEDARS, from the files they were uploaded with), and which ACCs a filing set is priced on, checked against the engine release the version names |
 | `register_example_checker` | specifications (`examples.py`) | budgets, claims, monthly | How a module's checks run on a specification version's example records (its own checks and the version's rule set, as a filing by the example PA, nothing stored), which of its built-in checks need reference data an example lacks (the program registry, eTRM, the year so far), and example values its checks accept |
@@ -1804,6 +1804,12 @@ summarize. A pull request that builds part of a service or module updates its ro
   as a check run here. Check jobs are written through a second connection (`jobs`), so a page that waits inside a transaction (a
   correction, the impact test, examples) is not waiting for a job its own transaction hides from the worker.
 
+- Built-in checks move into data one check at a time, by the CPUC, not by a release: a check that can be written as rules carries
+  them in code (`coded.AsRule`; claims: CLM-NMEC, CLM-SEM, CLM-DEEMED, CLM-FUELSUB, CLM-PAYMENT and CLM-CCAREN, whose rules read the
+  claim's Measure record and who files), tests prove they give the check's findings record for record and field for field
+  (`tests/test_coded_as_rules.py`), and a draft's Built-in checks page replaces the check with them
+  (`specifications:write_check_as_rules`, audited `specification.check_written_as_rules`). Filings on earlier versions keep the check.
+  CLM-SITE stays in code until a rule test can match a ZIP code's pattern.
 - A limit people meet is a setting, never a number written into a page: `releases/limits.py` reads it for the Limits page, the
   upload fields' help text reads it when the form is shown (`uploads.limit_text`), and the checks read it when they run. A change to
   one is announced as a release note's limit change before the setting changes; the health check says when the two disagree.

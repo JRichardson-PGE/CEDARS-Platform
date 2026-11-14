@@ -191,6 +191,8 @@ specifications/edit_checks:
     - Untick Runs to leave a check out of the version, or tick it to put it back.
     - Choose whether a check rejects the record or only warns.
     - Say why, and save. What changes lists it for the release note.
+    - Under Write a check as rules, choose a check, say why and write it. Its rules join the draft's Rules page with the check's
+      severity and give the same findings; the check leaves the version, and filings on earlier versions keep it.
   see: rules-and-lists
   tour:
     - target: "#draft-checks"
@@ -199,6 +201,10 @@ specifications/edit_checks:
     - target: "#checks-form"
       title: The checks
       text: Each filing's checks; Runs and Severity can change where a version may choose them.
+    - target: "#as-rules-form"
+      title: Write a check as rules
+      text: Replace a check with rules of the draft's rule set that give the same findings, so it is changed as data from then on.
+      optional: true
 
 specifications/edit_examples:
   title: A draft's example files

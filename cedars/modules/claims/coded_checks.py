@@ -1,8 +1,9 @@
 """The claims module's own checks (rule IDs CLM-*), listed on the Rules pages (rules.coded). Keep this list in step with service.py:
 tests/test_coded_checks.py compares them."""
 
+from cedars.services.rules.coded import AsRule as R
 from cedars.services.rules.coded import CodedCheck as C
-from cedars.services.rules.coded import choosable
+from cedars.services.rules.coded import choosable, written_as
 
 ABOUT = (
     "Run on every claims upload beside the claims rule set (which covers Measure and ProgramCost): the template's columns and types for "
@@ -80,3 +81,38 @@ CHECKS = [
 # The others are CEDARS' own processing and always run.
 CHOOSABLE = {"CLM-SITE", "CLM-SEM", "CLM-FUELSUB", "CLM-PAYMENT", "CLM-NMEC", "CLM-CCAREN", "CLM-DEEMED"}
 CHECKS = [choosable(c) if c.rule_id in CHOOSABLE else c for c in CHECKS]
+
+# The checks a draft can write as rules of its rule set (specifications.editor.write_as_rules): each set of rules gives the check's
+# findings, record for record and field for field (tests/test_coded_as_rules.py). A claim's measure is its Measure record, linked by
+# ClaimID. CLM-SITE stays in code: its ZIP code test needs a pattern no rule test has yet.
+SEM = "Cust-SEM, Cust-SEM-FuelSub"
+AS_RULES = {
+    "CLM-NMEC": (
+        R("Claim", "ParentClaimID", "is not null", conds=(("", "NMEC_TU_Flag", "is true", ""),)),
+        R("Claim", "NMEC_TU_Flag", "is not null", conds=(("Measure", "MeasImpactType", "contains", "NMEC"),)),
+    ),
+    "CLM-SEM": (
+        R("Claim", "ParticipantID", "is not null", conds=(("Measure", "MeasImpactType", "in", SEM),)),
+        R("Claim", "SEM_Phase", "is not null", conds=(("Measure", "MeasImpactType", "in", SEM),)),
+        R("Claim", "SEM_Phase", "is null",
+          conds=(("Measure", "MeasImpactType", "not in", SEM), ("Measure", "MeasImpactType", "is not null", ""))),
+    ),
+    "CLM-DEEMED": tuple(
+        R("Claim", f, "is not null", conds=(("", "ClaimType", "equals", "'Deemed'"),))
+        for f in ("MeasDetailID", "ProjectID", "MeasImpactCalcType")
+    ),
+    "CLM-FUELSUB": (
+        R("Claim", "TotalCustomerInfrastructureCosts", "is not null",
+          conds=(("Measure", "MeasImpactType", "ends with string", "FuelSub"),)),
+    ),
+    "CLM-PAYMENT": (
+        # between 0 and 1 where it is a number (a blank or a text is not this check's)
+        R("Claim", "PartialPaymentPercent", "is greater than or equal to", "0",
+          conds=(("", "PartialPaymentPercent", "is less than or equal to", "1"),)),
+        R("Claim", "PartialPaymentPercent", "is less than or equal to", "1",
+          conds=(("", "PartialPaymentPercent", "is greater than or equal to", "0"),)),
+        R("Claim", "PartialPaymentPercent", "is not null", conds=(("", "PartialPaymentFinal_Flag", "is true", ""),)),
+    ),
+    "CLM-CCAREN": (R("Claim", "CCAREN_Flag", "is true", conds=(("Filer", "PAType", "in", "CCA, REN"),)),),
+}  # fmt: skip
+CHECKS = [written_as(c, *AS_RULES[c.rule_id]) if c.rule_id in AS_RULES else c for c in CHECKS]
